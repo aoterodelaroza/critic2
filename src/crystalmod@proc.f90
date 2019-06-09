@@ -1778,6 +1778,7 @@ contains
   !> RDF of only the pairs of species given in the ipairs0
   !> array. npairs0 is the number of selected pairs.
   module subroutine rdf(c,rini,rend,sigma,npts,t,ih,npairs0,ipairs0)
+    use global, only: atomeps
     use param, only: icrd_cart
     use environmod, only: environ
     class(crystal), intent(in) :: c
@@ -1891,7 +1892,8 @@ contains
        end do
     end do
     if (.not.c%ismolecule) then
-       do i = 2, npts
+       do i = 1, npts
+          if (abs(t(i)) < atomeps) cycle
           ih(i) = ih(i) / t(i)**2
        end do
        ih = ih / c%ncel
