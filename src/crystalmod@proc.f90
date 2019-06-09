@@ -1777,10 +1777,11 @@ contains
   !> charges. Optionally, if npairs0/ipairs0 are given, return the 
   !> RDF of only the pairs of species given in the ipairs0
   !> array. npairs0 is the number of selected pairs.
-  module subroutine rdf(c,rend,sigma,npts,t,ih,npairs0,ipairs0)
+  module subroutine rdf(c,rini,rend,sigma,npts,t,ih,npairs0,ipairs0)
     use param, only: icrd_cart
     use environmod, only: environ
     class(crystal), intent(in) :: c
+    real*8, intent(in) :: rini
     real*8, intent(in) :: rend
     real*8, intent(in) :: sigma
     integer, intent(in) :: npts
@@ -1790,7 +1791,7 @@ contains
     integer, intent(in), optional :: ipairs0(:,:)
 
     integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
-    real*8 :: hfac, int, sigma2
+    real*8 :: int, sigma2
     logical :: localenv, found
     type(environ) :: le
     integer, allocatable :: eid(:), ipairs(:,:)
@@ -1817,7 +1818,7 @@ contains
     if (allocated(ih)) deallocate(ih)
     allocate(t(npts),ih(npts))
     do i = 1, npts
-       t(i) = real(i-1,8) / real(npts-1,8) * rend
+       t(i) = rini + real(i-1,8) / real(npts-1,8) * (rend-rini)
     end do
     ih = 0d0
 
@@ -1832,7 +1833,6 @@ contains
 
     ! calculate the radial distribution function for the crystal
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
-    hfac = (npts-1) / rend
     do i = 1, c%nneq
        if (npairs > 0) then
           found = .false.
@@ -1852,6 +1852,7 @@ contains
        end if
 
        do j = 1, nat
+          if (dist(j) < rini) cycle
           if (localenv) then
              kz = le%at(eid(j))%is
              jz = le%spc(kz)%z

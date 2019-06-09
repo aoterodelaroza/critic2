@@ -940,7 +940,7 @@ contains
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    real*8 :: rend
+    real*8 :: rini, rend
     character(len=:), allocatable :: root, word
     logical :: ok
     integer :: npts
@@ -950,6 +950,7 @@ contains
     real*8 :: sigma
 
     ! default values
+    rini = 0d0
     rend = 25d0
     root = trim(fileroot) // "_rdf"
     npts = 10001
@@ -969,6 +970,12 @@ contains
           ok = eval_next(rend,line,lp)
           if (.not.ok) then
              call ferror('struct_rdf','Incorrect REND',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"rini")) then
+          ok = eval_next(rini,line,lp)
+          if (.not.ok) then
+             call ferror('struct_rdf','Incorrect RINI',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,"sigma")) then
@@ -1004,7 +1011,7 @@ contains
        end if
     end do
 
-    call s%c%rdf(rend,sigma,npts,t,ih,npairs,ipairs)
+    call s%c%rdf(rini,rend,sigma,npts,t,ih,npairs,ipairs)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")
@@ -1023,7 +1030,7 @@ contains
     write (lu,*)
     write (lu,'("set xlabel ""r (bohr)""")')
     write (lu,'("set ylabel ""RDF(r)""")')
-    write (lu,'("set xrange [0:",A,"]")') string(rend,"f")
+    write (lu,'("set xrange [",A,":",A,"]")') string(rini,"f"), string(rend,"f")
     write (lu,'("set style data lines")')
     write (lu,'("set grid")')
     write (lu,'("unset key")')
@@ -1217,7 +1224,7 @@ contains
              nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
-             call c(i)%rdf(xend,sigma,npts,t,ih)
+             call c(i)%rdf(0d0,xend,sigma,npts,t,ih)
              iha(:,i) = ih
           end if
        end do
