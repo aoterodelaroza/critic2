@@ -1791,7 +1791,8 @@ contains
     integer, intent(in), optional :: ipairs0(:,:)
 
     integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
-    real*8 :: int, sigma2
+    integer :: idx
+    real*8 :: int, sigma2, fac
     logical :: localenv, found
     type(environ) :: le
     integer, allocatable :: eid(:), ipairs(:,:)
@@ -1852,14 +1853,21 @@ contains
        end if
 
        do j = 1, nat
+          ! skip if at a distance lower than rini
           if (dist(j) < rini) cycle
+
+          ! get info for this atom from the environment
           if (localenv) then
              kz = le%at(eid(j))%is
              jz = le%spc(kz)%z
+             idx = le%at(eid(j))%idx
           else
              kz = c%env%at(eid(j))%is
              jz = c%env%spc(kz)%z
+             idx = c%env%at(eid(j))%idx
           end if
+
+          ! only the chosen atomic pairs generate a peak
           if (npairs > 0) then
              found = .false.
              do k = 1, npairs
@@ -1870,7 +1878,15 @@ contains
              end do
              if (.not.found) cycle
           end if
-          int = sqrt(real(iz * jz,8)) * c%at(i)%mult
+
+          ! factor of 1/2 if this pair will be repeated twice
+          if (i == idx) then
+             fac = 0.5d0
+          else
+             fac = 1d0
+          end if
+
+          int = fac * sqrt(real(iz * jz,8)) * c%at(i)%mult
           ih = ih + int * exp(-(t - dist(j))**2 / 2d0 / sigma2)
        end do
     end do
