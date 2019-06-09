@@ -933,7 +933,7 @@ contains
   !> structure.
   module subroutine struct_rdf(s,line)
     use systemmod, only: system
-    use global, only: fileroot, eval_next
+    use global, only: fileroot, eval_next, dunit0, iunit
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
        ioj_center, getword, string, fclose, isinteger
     use types, only: realloc
@@ -972,18 +972,21 @@ contains
              call ferror('struct_rdf','Incorrect REND',faterr,line,syntax=.true.)
              return
           end if
+          rend = rend / dunit0(iunit)
        elseif (equal(word,"rini")) then
           ok = eval_next(rini,line,lp)
           if (.not.ok) then
              call ferror('struct_rdf','Incorrect RINI',faterr,line,syntax=.true.)
              return
           end if
+          rini = rini / dunit0(iunit)
        elseif (equal(word,"sigma")) then
           ok = eval_next(sigma,line,lp)
           if (.not.ok) then
              call ferror('struct_rdf','Incorrect SIGMA',faterr,line,syntax=.true.)
              return
           end if
+          sigma = sigma / dunit0(iunit)
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
           if (.not.ok) then
