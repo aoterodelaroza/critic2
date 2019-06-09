@@ -1776,8 +1776,11 @@ contains
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges. Optionally, if npairs0/ipairs0 are given, return the 
   !> RDF of only the pairs of species given in the ipairs0
-  !> array. npairs0 is the number of selected pairs.
-  module subroutine rdf(c,rini,rend,sigma,npts,t,ih,npairs0,ipairs0)
+  !> array. npairs0 is the number of selected pairs. If dp, ip, and isp
+  !> are provided, on output they will contain the list of peaks that contribute
+  !> to the RDF. Specifically, the distances (dp, in bohr), intensities
+  !> (ip), and the atomic species (isp(2,*)).
+  module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0)
     use global, only: atomeps
     use param, only: icrd_cart
     use environmod, only: environ
@@ -1785,6 +1788,7 @@ contains
     real*8, intent(in) :: rini
     real*8, intent(in) :: rend
     real*8, intent(in) :: sigma
+    logical, intent(in) :: ishard
     integer, intent(in) :: npts
     real*8, allocatable, intent(inout) :: t(:)
     real*8, allocatable, intent(inout) :: ih(:)
@@ -1792,13 +1796,16 @@ contains
     integer, intent(in), optional :: ipairs0(:,:)
 
     integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
-    integer :: idx
-    real*8 :: int, sigma2, fac
+    integer :: idx, mmult, mza
+    real*8 :: int, sigma2, fac, tshift, imax
     logical :: localenv, found
     type(environ) :: le
     integer, allocatable :: eid(:), ipairs(:,:)
     real*8, allocatable :: dist(:)
 
+    real*8, parameter :: ieps = 1d-10
+
+    ! set up the chosen pairs
     npairs = 0
     if (present(npairs0) .and. present(ipairs0)) then
        npairs = npairs0
@@ -1813,7 +1820,21 @@ contains
           end do
        end if
     end if
+
+    ! sigma2 and tshift for soft RDFs
     sigma2 = sigma * sigma
+    if (.not.ishard) then
+       mmult = 0
+       mza = 0
+       do i = 1, c%nneq
+          mmult = max(c%at(i)%mult,mmult)
+          mza = max(c%spc(c%at(i)%is)%z,mza)
+       end do
+       imax = real(mmult,8) * real(mza,8)
+       tshift = sigma * sqrt(abs(-2d0 * log(ieps/imax)))
+    else
+       tshift = 0d0
+    end if
 
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
@@ -1826,7 +1847,7 @@ contains
 
     ! prepare the environment
     localenv = .true.
-    if (c%ismolecule .or. c%env%dmax0 > rend) then
+    if (c%ismolecule .or. c%env%dmax0 > rend+tshift) then
        localenv = .false.
     end if
     if (localenv) then
@@ -1848,14 +1869,14 @@ contains
        end if
        iz = c%spc(c%at(i)%is)%z
        if (localenv) then
-          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend,nozero=.true.)
+          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
        else
-          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend,nozero=.true.)
+          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
        end if
 
        do j = 1, nat
-          ! skip if at a distance lower than rini
-          if (dist(j) < rini) cycle
+          ! skip if at a distance lower than rini or higher than rend
+          if (dist(j) < rini-tshift .or. dist(j) > rend+tshift) cycle
 
           ! get info for this atom from the environment
           if (localenv) then

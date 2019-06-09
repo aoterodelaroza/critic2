@@ -942,7 +942,7 @@ contains
 
     real*8 :: rini, rend
     character(len=:), allocatable :: root, word
-    logical :: ok
+    logical :: ok, ishard
     integer :: npts
     real*8, allocatable :: t(:), ih(:)
     integer, allocatable :: ipairs(:,:)
@@ -957,6 +957,7 @@ contains
     sigma = 0.05d0
     npairs = 0
     allocate(ipairs(2,10))
+    ishard = .false.
 
     ! header
     write (uout,'("* RDF: radial distribution function")')
@@ -987,6 +988,10 @@ contains
              return
           end if
           sigma = sigma / dunit0(iunit)
+       elseif (equal(word,"hard")) then
+          ishard = .true.
+       elseif (equal(word,"soft")) then
+          ishard = .false.
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
           if (.not.ok) then
@@ -1014,7 +1019,7 @@ contains
        end if
     end do
 
-    call s%c%rdf(rini,rend,sigma,npts,t,ih,npairs,ipairs)
+    call s%c%rdf(rini,rend,sigma,ishard,npts,t,ih,npairs,ipairs)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")
@@ -1227,7 +1232,7 @@ contains
              nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
-             call c(i)%rdf(0d0,xend,sigma,npts,t,ih)
+             call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
              iha(:,i) = ih
           end if
        end do

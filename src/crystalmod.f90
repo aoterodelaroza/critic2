@@ -421,11 +421,12 @@ module crystalmod
        real*8, allocatable, intent(inout) :: ip(:)
        integer, allocatable, intent(inout) :: hvecp(:,:)
      end subroutine powder
-     module subroutine rdf(c,rini,rend,sigma,npts,t,ih,npairs0,ipairs0)
+     module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rini
        real*8, intent(in) :: rend
        real*8, intent(in) :: sigma
+       logical, intent(in) :: ishard
        integer, intent(in) :: npts
        real*8, allocatable, intent(inout) :: t(:)
        real*8, allocatable, intent(inout) :: ih(:)
