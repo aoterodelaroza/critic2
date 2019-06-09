@@ -407,10 +407,11 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
-     module subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
+     module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
         sigma,t,ih,th2p,ip,hvecp)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: th2ini0, th2end0
+       logical, intent(in) :: ishard
        integer, intent(in) :: npts
        real*8, intent(in) :: lambda0
        real*8, intent(in) :: fpol

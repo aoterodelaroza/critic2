@@ -1568,12 +1568,13 @@ contains
   !> in degrees. lambda0 is the wavelength of the radiation (in
   !> angstrom). sigma is the parameter for the Gaussian broadening.
   !> fpol is the polarization correction factor (0 = unpolarized, 0.95
-  !> = syncrhotron).
+  !> = syncrhotron). If ishard=.false., represent the tails of the peaks
+  !> outside the plot range.
   !> On output, t is the 2*theta grid, ih is the intensity on the
   !> 2*theta grid, th2p is the 2*theta for the located maxima, ip is
   !> the list of maxima itensities, and hvecp is the reciprocal
   !> lattice vector corresponding to the peaks.
-  module subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
+  module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
      sigma,t,ih,th2p,ip,hvecp)
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
@@ -1581,6 +1582,7 @@ contains
     use types, only: realloc
     class(crystal), intent(in) :: c
     real*8, intent(in) :: th2ini0, th2end0
+    logical, intent(in) :: ishard
     integer, intent(in) :: npts
     real*8, intent(in) :: lambda0
     real*8, intent(in) :: fpol
@@ -1595,7 +1597,7 @@ contains
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
-    real*8 :: ipmax, ihmax
+    real*8 :: ipmax, ihmax, tshift
     integer :: hmax
     integer, allocatable :: multp(:)
     integer, allocatable :: io(:)
@@ -1605,6 +1607,16 @@ contains
     integer, parameter :: mp = 20
     real*8, parameter :: ieps = 1d-5
     real*8, parameter :: theps = 1d-5
+    real*8, parameter :: iepscont = 1d-10
+    real*8, parameter :: intmax = 1d15
+
+    ! calculate tshift
+    if (.not.ishard) then
+       tshift = sigma * sqrt(abs(-2d0 * log(iepscont/intmax)))
+    else
+       tshift = 0d0
+    end if
+    tshift = tshift * pi / 180d0
 
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
@@ -1625,7 +1637,7 @@ contains
 
     ! cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
-    smax = sin(th2end/2d0)
+    smax = sin((th2end+tshift)/2d0)
     hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
     ! broadening -> gaussian
     sigma2 = sigma * sigma
@@ -1648,7 +1660,7 @@ contains
                 if (abs(sth) > smax) cycle
                 th = asin(sth)
                 th2 = 2d0 * th
-                if (th2 < th2ini .or. th2 > th2end) cycle
+                if (th2 < th2ini-tshift .or. th2 > th2end+tshift) cycle
 
                 ! more stuff we need
                 sthlam = dh / bohrtoa / 2d0
@@ -1706,26 +1718,28 @@ contains
                    ih = ih + int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
 
                    ! identify the new peak
-                   if (all(abs(th2p(1:np)-th2) > theps)) then
-                      np = np + 1
-                      if (np > size(th2p)) then
-                         call realloc(th2p,2*np)
-                         call realloc(ip,2*np)
-                         call realloc(multp,2*np)
-                         call realloc(hvecp,3,2*np)
-                      end if
-                      th2p(np) = th2
-                      ip(np) = int
-                      multp(np) = 1
-                      hvecp(:,np) = (/h,k,l/)
-                   else
-                      do idx = 1, np
-                         if (abs(th2p(idx)-th2) <= theps) exit
-                      end do
-                      multp(idx) = multp(idx) + 1
-                      ! usually the hvec with the most positive indices is the last one
-                      hvecp(:,idx) = (/h,k,l/)
-                   endif
+                   if (th2 > th2ini .and. th2 < th2end) then
+                      if (all(abs(th2p(1:np)-th2) > theps)) then
+                         np = np + 1
+                         if (np > size(th2p)) then
+                            call realloc(th2p,2*np)
+                            call realloc(ip,2*np)
+                            call realloc(multp,2*np)
+                            call realloc(hvecp,3,2*np)
+                         end if
+                         th2p(np) = th2
+                         ip(np) = int
+                         multp(np) = 1
+                         hvecp(:,np) = (/h,k,l/)
+                      else
+                         do idx = 1, np
+                            if (abs(th2p(idx)-th2) <= theps) exit
+                         end do
+                         multp(idx) = multp(idx) + 1
+                         ! usually the hvec with the most positive indices is the last one
+                         hvecp(:,idx) = (/h,k,l/)
+                      endif
+                   end if
                 end if
              end do
           end do
@@ -1770,8 +1784,10 @@ contains
   !> Calculate the radial distribution function.  On input, npts is
   !> the number of bins points from the initial (0) to the final
   !> (rend) distance and sigma is the Gaussian broadening of the
-  !> peaks. On output, t is the distance grid, and ih is the value of
-  !> the RDF. This routine is based on:
+  !> peaks. If ishard=.false., represent the tails of the peaks
+  !> outside the plot range.
+  !> On output, t is the distance grid, and ih is the value of the
+  !> RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the 
   !> charges. Optionally, if npairs0/ipairs0 are given, return the 

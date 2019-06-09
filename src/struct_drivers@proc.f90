@@ -809,7 +809,7 @@ contains
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:)
     integer, allocatable :: hvecp(:,:)
     character(len=:), allocatable :: root, word
-    logical :: ok
+    logical :: ok, ishard
 
     if (s%c%ismolecule) then
        call ferror("struct_powder","POWDER can not be used with molecules",faterr,syntax=.true.)
@@ -824,6 +824,7 @@ contains
     npts = 10001
     sigma = 0.05d0
     root = trim(fileroot) // "_xrd"
+    ishard = .false.
 
     ! header
     write (uout,'("* POWDER: powder diffraction pattern")')
@@ -839,6 +840,10 @@ contains
              call ferror('struct_powder','Incorrect TH2INI',faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,"hard")) then
+          ishard = .true.
+       elseif (equal(word,"soft")) then
+          ishard = .false.
        elseif (equal(word,"th2end")) then
           ok = eval_next(th2end,line,lp)
           if (.not.ok) then
@@ -879,7 +884,7 @@ contains
        end if
     end do
 
-    call s%c%powder(th2ini,th2end,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
+    call s%c%powder(th2ini,th2end,ishard,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
     np = size(th2p)
 
     ! write the data file 
@@ -1224,7 +1229,7 @@ contains
        do i = 1, ns
           ! calculate the powder diffraction pattern
           if (dopowder) then
-             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
+             call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
 
              ! normalize the integral of abs(ih)
              tini = ih(1)**2
