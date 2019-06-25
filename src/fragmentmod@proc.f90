@@ -195,7 +195,7 @@ contains
     write (lu,*)
     do i = 1, fr%nat
        if (fr%spc(fr%at(i)%is)%z >= 0) then
-          write (lu,*) nameguess(fr%spc(fr%at(i)%is)%z,.true.), fr%at(i)%r * bohrtoa
+          write (lu,'(A,3(F20.10,X))') trim(nameguess(fr%spc(fr%at(i)%is)%z,.true.)), fr%at(i)%r * bohrtoa
        end if
     end do
     call fclose(lu)
