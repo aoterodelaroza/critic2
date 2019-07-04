@@ -485,6 +485,12 @@ contains
            call fxx(1)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx1)
            call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx2)
            call fxx(3)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx3)
+           ! Set trilinear interpolation to prevent wonky negative values in the derivatives
+           ! of the field in the low-density regions (which may have been noisy to begin with). 
+           call fgrho%grid%setmode("trilinear")
+           call fxx(1)%grid%setmode("trilinear")
+           call fxx(2)%grid%setmode("trilinear")
+           call fxx(3)%grid%setmode("trilinear")
         endif
 
         ! calculate density, rdg, rhoat
