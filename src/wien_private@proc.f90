@@ -675,7 +675,7 @@ contains
 
        READ(lut,113) ANAME,f%JRI(JATOM),f%RNOT(JATOM),f%RMT(JATOM),Znuc
        if (f%jri(jatom) > nrad) then
-          call ferror('external_crystal','Max. radial points (nrad) exceeded',faterr,file)
+          call ferror('wien_read_struct','Max. radial points (nrad) exceeded',faterr,file)
        end if
        f%dx(jatom) = log(f%rmt(jatom)/f%rnot(jatom)) / (f%jri(jatom)-1)
        READ(lut,1051) ((f%ROTLOC(I1,J1,JATOM),I1=1,3),J1=1,3)
@@ -759,14 +759,14 @@ contains
        mlmmax = max(mlmmax,LL)
        f%lmmax(jatom)=LL
        if (f%lmmax(jatom) > ncom) then
-          call ferror('external_crystal','Max. LM pairs (ncom) exceeded',faterr)
+          call ferror('readslm','Max. LM pairs (ncom) exceeded',faterr)
        end if
        do l=1,ll
           READ(lu,2010) l1, l2
           f%lm(1,l,jatom) = l1
           f%lm(2,l,jatom) = l2
           if (f%lm(1,l,jatom) > lmax2) then
-             call ferror('external_crystal','Max. L in LM list (lmax2) exceeded',faterr)
+             call ferror('readslm','Max. L in LM list (lmax2) exceeded',faterr)
           end if
           READ(lu,2021) (f%slm(I,l,jatom),I=1,JRJ)
           READ(lu,2031)
@@ -871,7 +871,7 @@ contains
           f%tauk(ind) = taup(j)
           if (f%cmpl) f%tauki(IND)=taupi(J)
           IF(IND.GT.f%NWAV*NSYM) then
-             call ferror('external_crystal',' ind > nwav*nsym',faterr)
+             call ferror('readk',' ind > nwav*nsym',faterr)
           end IF
           DO JJ=1,3
              f%KREC(JJ,IND)=ISTG(JJ,J)
@@ -1068,7 +1068,7 @@ contains
       IF(JC.GT.NSC) GOTO 11
       f%NPOS=f%NPOS+1
       if (f%npos > nnpos) then
-         call ferror('external_crystal','Max. cell origins (nnpos) exceeded',faterr)
+         call ferror('GENER','Max. cell origins (nnpos) exceeded',faterr)
       end if
       DO 2 I=1,3
    2  f%ATP(I,f%NPOS)=f%BR2(1,I)*JA+f%BR2(2,I)*JB+f%BR2(3,I)*JC
