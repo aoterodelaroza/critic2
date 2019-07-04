@@ -51,7 +51,7 @@ program critic
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
      start_clock, print_clock
-  use param, only: param_init, icrd_crys ! xxxx
+  use param, only: param_init
   implicit none
 
   ! command-line arguments
@@ -65,9 +65,6 @@ program critic
   integer :: i, nn, ismoli
   logical :: ok
   real*8 :: rdum
-  ! xxxx
-  integer :: idnuc, lvec(3), ierr
-  real*8 :: sphrad, xpoint(3)
 
   ! initialize parameters
   call start_clock()
@@ -546,11 +543,6 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
-        do i = 1, 100
-           call random_number(xpoint)
-           idnuc = sy%c%env%identify_atom(xpoint,icrd_crys,lvec,sphrad,1d40)
-           write (*,*) idnuc, sphrad
-        end do
 
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
