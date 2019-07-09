@@ -484,7 +484,9 @@ program critic
            cycle
         end if
         if (equal(word,"sum")) then
-           write (uout,'("SUM(",A,") = ",A/)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
+           write (uout,'("SUM(",A,") = ",A)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
+           write (uout,'("INTEGRAL(",A,") = ",A/)') string(id), &
+              string(sum(sy%f(id)%grid%f * sy%f(id)%c%omega / real(product(sy%f(id)%grid%n),8)),'e',decimal=12)
         elseif(equal(word,"min")) then
            write (uout,'("MIN(",A,") = ",A/)') string(id), string(minval(sy%f(id)%grid%f),'e',decimal=12)
         elseif(equal(word,"max")) then
@@ -544,7 +546,6 @@ program critic
         ! temp, for testing
      elseif (equal(word,'temp')) then
 
-        ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle

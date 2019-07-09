@@ -137,21 +137,36 @@ contains
   module subroutine set_default_integprop(s)
     class(system), intent(inout) :: s
 
-    s%npropi = 3
     if (allocated(s%propi)) deallocate(s%propi)
-    allocate(s%propi(s%npropi))
-    s%propi(1)%used = .true.
-    s%propi(1)%itype = itype_v
-    s%propi(1)%fid = 0
-    s%propi(1)%prop_name = "Volume"
-    s%propi(2)%used = .true.
-    s%propi(2)%itype = itype_fval
-    s%propi(2)%fid = s%iref
-    s%propi(2)%prop_name = "Pop"
-    s%propi(3)%used = .true.
-    s%propi(3)%itype = itype_lapval
-    s%propi(3)%fid = s%iref
-    s%propi(3)%prop_name = "Lap"
+    if (.not.s%c%ismolecule) then
+       ! Volume, population, and Laplacian in crystals
+       s%npropi = 3
+       allocate(s%propi(s%npropi))
+       s%propi(1)%used = .true.
+       s%propi(1)%itype = itype_v
+       s%propi(1)%fid = 0
+       s%propi(1)%prop_name = "Volume"
+       s%propi(2)%used = .true.
+       s%propi(2)%itype = itype_fval
+       s%propi(2)%fid = s%iref
+       s%propi(2)%prop_name = "Pop"
+       s%propi(3)%used = .true.
+       s%propi(3)%itype = itype_lapval
+       s%propi(3)%fid = s%iref
+       s%propi(3)%prop_name = "Lap"
+    else
+       ! Population, and Laplacian in molecules
+       s%npropi = 2
+       allocate(s%propi(s%npropi))
+       s%propi(1)%used = .true.
+       s%propi(1)%itype = itype_fval
+       s%propi(1)%fid = s%iref
+       s%propi(1)%prop_name = "Pop"
+       s%propi(2)%used = .true.
+       s%propi(2)%itype = itype_lapval
+       s%propi(2)%fid = s%iref
+       s%propi(2)%prop_name = "Lap"
+    end if
 
   end subroutine set_default_integprop
 

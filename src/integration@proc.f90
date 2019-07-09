@@ -317,7 +317,6 @@ contains
           lprop = lprop + rpoints(k)**2 * rweights(k) * atprop
        end do
        lprop = lprop * isign
-       lprop(1) = isign * (r2**3 - r1**3) / 3d0 ! hardwire volume
        abserr = 0d0
        neval = INT_radquad_nr
 

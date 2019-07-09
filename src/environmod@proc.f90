@@ -499,21 +499,29 @@ contains
     
     real*8 :: eps, dist0
     integer :: ierr, lvec0(3)
+    logical :: zeroallowed
 
+    identify_atom = 0
     eps = atomeps
-    if (present(distmax)) eps = distmax
+    zeroallowed = .true.
+    if (present(distmax)) then
+       eps = distmax
+       zeroallowed = (distmax < e%dmax0)
+    end if
     
     call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
-    if (ierr == 0 .or. ierr == 1) then
-       if (present(lvec)) lvec = lvec0
-       if (present(dist)) dist = dist0
-       return
-    end if
+    if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) goto 999
 
     call e%nearest_atom_long(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
-    if (ierr == 2) then
-       call ferror("identify_atom","distmax too large for environment boxsize",faterr)
+    if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) goto 999
+
+    if (e%ismolecule) then
+       call e%nearest_atom_dumb(x0,icrd,identify_atom,lvec0,dist0)
+    else
+       call ferror("identify_atom","failed to locate nearest atom in a crystal!",faterr)
     end if
+
+999 continue ! success
     if (present(lvec)) lvec = lvec0
     if (present(dist)) dist = dist0
 
@@ -521,17 +529,18 @@ contains
 
   !> Given the point xp (in icrd coordinates), translate to the main
   !> cell if the environment is from a crystal. Then, calculate the
-  !> nearest atom up to a distance distmax. The nearest atom has ID
-  !> nid from the complete list (atcel) and is at a distance dist, or
-  !> nid=0 and dist=distmax if the search did not produce any atoms.
-  !> The default distmax is the environment's dmax0.  On output, the
-  !> optional argument lvec contains the lattice vector to the nearest
-  !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
+  !> nearest atom up to a distance distmax (or up to infty, if no
+  !> distmax is given). The nearest atom has ID nid from the complete
+  !> list (atcel) and is at a distance dist, or nid=0 and dist=distmax
+  !> if the search did not produce any atoms up to distmax. On output,
+  !> the optional argument lvec contains the lattice vector to the
+  !> nearest atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
   !> consider only atoms with index cidx0 from the complete list. If
   !> idx0, consider only atoms with index id0 from the non-equivalent
   !> list. If is0, consider only atoms of species is0. If nozero,
   !> disregard zero-distance atoms. This routine is thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
+    use tools_io, only: ferror, faterr
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -546,21 +555,35 @@ contains
 
     real*8 :: eps
     integer :: ierr, lvec0(3)
+    logical :: zeroallowed
 
     eps = e%dmax0
-    if (present(distmax)) eps = distmax
+    zeroallowed = .false.
+    nid = 0
+    dist = eps
+    if (present(distmax)) then
+       if (distmax < eps) then
+          eps = distmax
+          zeroallowed = .true.
+       endif
+    endif
 
     call e%nearest_atom_short(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,is0,nozero)
-    if (ierr == 0 .or. ierr == 1) then
+    if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) then
        if (present(lvec)) lvec = lvec0
        return
     end if
 
     call e%nearest_atom_long(xp,icrd,eps,nid,lvec0,dist,ierr,cidx0,idx0,is0,nozero)
-    if (present(lvec)) lvec = lvec0
-    if (ierr == 2) then
-       nid = 0
-       dist = eps
+    if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) then
+       if (present(lvec)) lvec = lvec0
+       return
+    end if
+
+    if (e%ismolecule) then
+       call e%nearest_atom_dumb(xp,icrd,nid,lvec0,dist,cidx0,idx0,is0,nozero)
+    else
+       call ferror("nearest_atom","failed to locate nearest atom in a crystal!",faterr)
     end if
 
   end subroutine nearest_atom
@@ -568,19 +591,20 @@ contains
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then, calculate
   !> the environment atom closest to x0 up to a distance of
-  !> distmax. If an atom was found within distmax, return the
-  !> complete list ID (cidx), the lattice vector translation to the
-  !> closest point (lvec), the distance (dist), and ierr = 0. If no
-  !> atom was found, return eid = 0 and: a) ierr = 1 if it is
-  !> guaranteed that there are no atoms up to distmax or b) ierr = 2
-  !> if distmax exceeds half the environment's boxsize and therefore
-  !> we can be sure there are no atoms only up to distmax=boxisze/2.
-  !> If cidx0, consider only atoms with ID cidx0 from the complete
-  !> list. If idx0, consider only atoms with ID idx0 from the
-  !> non-equivalent atom list. If nozero, discard atoms very close to
-  !> x0 (1d-10 default). This routine is limited to a distmax equal to
-  !> half the environment's boxsize, but it is significantly faster
-  !> than nearest_atom_long. Thread-safe.
+  !> distmax. If an atom was found within distmax, return the complete
+  !> list ID (cidx), the lattice vector translation to the closest
+  !> point (lvec), the distance (dist), and ierr = 0. If no atom was
+  !> found, return eid = 0 and: a) ierr = 1 if it is guaranteed that
+  !> there are no atoms up to distmax or b) ierr = 2 if distmax
+  !> exceeds half the environment's boxsize and therefore we can be
+  !> sure there are no atoms only up to distmax=boxisze/2.  If cidx0,
+  !> consider only atoms with ID cidx0 from the complete list. If
+  !> idx0, consider only atoms with ID idx0 from the non-equivalent
+  !> atom list. If is0, consider only atoms of species is0. If
+  !> nozero, discard atoms very close to x0 (1d-10 default). This
+  !> routine is limited to a distmax equal to half the environment's
+  !> boxsize, but it is significantly faster than
+  !> nearest_atom_long. Thread-safe.
   module subroutine nearest_atom_short(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
@@ -681,19 +705,20 @@ contains
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then, calculate
   !> the environment atom closest to x0 up to a distance of
-  !> distmax. If an atom was found within distmax, return the
-  !> complete list ID (cidx), the lattice vector translation to the
-  !> closest point (lvec), the distance (dist), and ierr = 0. If no
-  !> atom was found, return eid = 0 and: a) ierr = 1 if it is
-  !> guaranteed that there are no atoms up to distmax or b) ierr = 2
-  !> if distmax exceeds half the environment's boxsize and therefore
-  !> we can be sure there are no atoms only up to distmax=boxisze/2.
-  !> If cidx0, consider only atoms with ID cidx0 from the complete
-  !> list. If idx0, consider only atoms with ID idx0 from the
-  !> non-equivalent atom list. If nozero, discard atoms very close to
-  !> x0 (1d-10 default). This routine is limited to a distmax equal to
-  !> the dmax0 of the environment. It is slower than the short-range
-  !> version, nearest_atom_short. Thread-safe.
+  !> distmax. If an atom was found within distmax, return the complete
+  !> list ID (cidx), the lattice vector translation to the closest
+  !> point (lvec), the distance (dist), and ierr = 0. If no atom was
+  !> found, return eid = 0 and: a) ierr = 1 if it is guaranteed that
+  !> there are no atoms up to distmax or b) ierr = 2 if distmax
+  !> exceeds half the environment's boxsize and therefore we can be
+  !> sure there are no atoms only up to distmax=boxisze/2.  If cidx0,
+  !> consider only atoms with ID cidx0 from the complete list. If
+  !> idx0, consider only atoms with ID idx0 from the non-equivalent
+  !> atom list. If is0, consider only atoms of species is0. If nozero,
+  !> discard atoms very close to x0 (1d-10 default). This routine is
+  !> limited to a distmax equal to the dmax0 of the environment. It is
+  !> slower than the short-range version,
+  !> nearest_atom_short. Thread-safe.
   module subroutine nearest_atom_long(e,x0,icrd,distmax,cidx,lvec,dist,ierr,cidx0,idx0,is0,nozero)
     use param, only: icrd_cart
     class(environ), intent(in) :: e
@@ -780,6 +805,72 @@ contains
     end if
 
   end subroutine nearest_atom_long
+
+  !> Calculate the environment atom closest to x0 in a
+  !> molecule. Return the complete list ID (cidx), the lattice vector
+  !> translation to the closest point (lvec), and the distance
+  !> (dist). If cidx0, consider only atoms with ID cidx0 from the
+  !> complete list. If idx0, consider only atoms with ID idx0 from the
+  !> non-equivalent atom list. If is0, consider only atoms of species
+  !> is0. If nozero, discard atoms very close to x0 (1d-10
+  !> default). This routine always gives the closest atom, but it
+  !> calculates the distance to all atoms in the system, hence it
+  !> scales as O(N). Thread-safe.
+  module subroutine nearest_atom_dumb(e,x0,icrd,cidx,lvec,dist,cidx0,idx0,is0,nozero)
+    use param, only: icrd_cart, icrd_crys, VBIG
+    class(environ), intent(in) :: e
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: icrd
+    integer, intent(out) :: cidx
+    integer, intent(out) :: lvec(3)
+    real*8, intent(out) :: dist
+    integer, intent(in), optional :: cidx0
+    integer, intent(in), optional :: idx0
+    integer, intent(in), optional :: is0
+    logical, intent(in), optional :: nozero
+
+    real*8, parameter :: epsmall2 = 1d-20
+    integer :: i
+    real*8 :: xp(3), x(3), xx(3), d2
+
+    if (.not.e%ismolecule) then
+    end if
+
+    ! initialize
+    lvec = 0
+    cidx = 0
+
+    ! Transfer to the main cell if this is a crystal; convert to Cartesian
+    xp = x0
+    call e%y2z_center(xp,icrd,icrd_cart,lvec)
+    
+    ! run over all atoms in the unit cell (in a molecule this is equal
+    ! to the number of atoms in the environment)
+    dist = VBIG
+    do i = 1, e%ncell
+       if (present(cidx0)) then
+          if (e%at(i)%cidx /= cidx0) cycle
+       end if
+       if (present(idx0)) then
+          if (e%at(i)%idx /= idx0) cycle
+       end if
+       if (present(is0)) then
+          if (e%at(i)%is /= is0) cycle
+       end if
+       
+       x = e%at(i)%r - xp
+       d2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+       if (present(nozero)) then
+          if (nozero .and. d2 < epsmall2) cycle
+       end if
+       if (d2 < dist) then
+          dist = d2
+          cidx = e%at(i)%cidx
+       end if
+    end do
+    dist = sqrt(dist)
+
+  end subroutine nearest_atom_dumb
 
   !> Given the point xp (in icrd coordinates), center the point in the
   !> main cell if the environment is from a crystal. Then, calculate

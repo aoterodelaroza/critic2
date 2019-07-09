@@ -140,6 +140,7 @@ module environmod
      procedure :: nearest_atom !< Returns the ID of the atom nearest to a given point
      procedure :: nearest_atom_short !< Returns the ID of the atom nearest to a given point (short range)
      procedure :: nearest_atom_long !< Returns the ID of the atom nearest to a given point (long range)
+     procedure :: nearest_atom_dumb !< Returns the ID of the atom nearest to a given point (calc distance to all atoms, slow, only molecules)
      procedure :: list_near_atoms !< Returns a list of atoms nearest to a given point
      procedure :: promolecular !< Calculates the promolecular or core density at a point
      procedure :: find_asterisms_covalent !< Calculate the covalent bond connectivity
@@ -285,6 +286,19 @@ module environmod
        integer, intent(in), optional :: is0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom_long
+     module subroutine nearest_atom_dumb(e,x0,icrd,cidx,lvec,dist,cidx0,idx0,is0,nozero)
+       use param, only: icrd_cart, VBIG
+       class(environ), intent(in) :: e
+       real*8, intent(in) :: x0(3)
+       integer, intent(in) :: icrd
+       integer, intent(out) :: cidx
+       integer, intent(out) :: lvec(3)
+       real*8, intent(out) :: dist
+       integer, intent(in), optional :: cidx0
+       integer, intent(in), optional :: idx0
+       integer, intent(in), optional :: is0
+       logical, intent(in), optional :: nozero
+     endsubroutine nearest_atom_dumb
      module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e

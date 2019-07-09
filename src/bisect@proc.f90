@@ -20,7 +20,7 @@ submodule (bisect) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+  ! subroutine lim_surf(cpid, xin, xfin, delta, xmed, tstep, nwarn)
   ! subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
   ! subroutine bisect_msurface(srf,cpid,prec,verbose)
   ! subroutine bundle_msurface(srf,prec,verbose)
@@ -1027,7 +1027,7 @@ contains
   !> on the IAS. All xnuc, xin, xfin and xmed are given in
   !> crystallographic coordinates. The cpid is an index from the non
   !> -equivalent CP list
-  subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+  subroutine lim_surf(cpid, xin, xfin, delta, xmed, tstep, nwarn)
     use systemmod, only: sy
     use fieldmod, only: type_grid
     integer, intent(in) :: cpid
