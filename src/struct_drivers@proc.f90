@@ -232,7 +232,6 @@ contains
     ! handle the doguess option
     if (.not.seed%ismolecule) then
        if (doguess == 0) then
-          seed%havesym = 0
           seed%findsym = 0
        elseif (doguess == 1 .and. seed%havesym == 0) then
           seed%findsym = 1
