@@ -1,7 +1,0 @@
-&inputpp 
- prefix='crystal_open',
- seedname = 'feo_up',
- spin_component="up",
- write_mmn = .true.,
- write_amn = .true.,
-/

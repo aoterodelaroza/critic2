@@ -1,5 +1,0 @@
-&inputpp 
- outdir = '.',
- prefix='crystal_open',
- seedname = 'graph',
-/

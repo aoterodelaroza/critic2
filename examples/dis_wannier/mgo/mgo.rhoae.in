@@ -1,9 +1,0 @@
-&inputpp
- prefix='crystal',
- plot_num=21,
-/
-&plot
- iflag = 3,
- output_format=6,
- fileout='rhoae.cube',
-/

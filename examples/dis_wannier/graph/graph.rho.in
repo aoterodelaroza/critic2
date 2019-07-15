@@ -1,9 +1,0 @@
-&inputpp
- prefix='crystal',
- plot_num=0,
-/
-&plot
- iflag = 3,
- output_format=6,
- fileout='rho.cube',
-/

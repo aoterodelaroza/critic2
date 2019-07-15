@@ -1,7 +1,0 @@
-&inputpp 
- prefix='crystal',
- seedname = 'mgo',
- write_mmn = .true.,
- write_amn = .true.,
- outdir='.',
-/
