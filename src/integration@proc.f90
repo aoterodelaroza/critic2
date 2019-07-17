@@ -16,18 +16,27 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 submodule (integration) proc
+  use param, only: mmlen
   implicit none
 
   !xx! private procedures
-  ! subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
-  ! subroutine intgrid_deloc_wfn(natt,xgatt,idg,imtype,luw,sij)
-  ! subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
+  ! subroutine int_output_header(bas,res)
+  ! subroutine int_output_fields(bas,res)
+  ! subroutine int_reorder_gridout(ff,bas)
+  ! subroutine intgrid_fields(bas,res)
+  ! subroutine intgrid_deloc_wannier(bas,res)
+  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
+  ! subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
+  ! function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr)
+  ! subroutine read_sijchk_body(sijfname,sij)
+  ! subroutine read_fachk_body(fafname,fa)
+  ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! function quadpack_f(x,unit,xnuc) result(res)
-  ! subroutine int_output_multipoles(nattr,icp,mpole)
-  ! subroutine int_output_deloc_wfn(nattr,icp,sij)
-  ! subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
+  ! subroutine int_output_multipoles(bas,res)
+  ! subroutine int_output_deloc_wannier(bas,res)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
-  ! subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
+  ! subroutine int_gridbasins(bas)
+  ! subroutine int_cubew(bas)
   ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
   ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
 
@@ -41,37 +50,25 @@ contains
   module subroutine intgrid_driver(line)
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_weights, ytdata, ytdata_clean
-    use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
-       itype_lap, itype_lapval, itype_mpoles, itype_deloc
-    use fieldmod, only: type_grid, type_wfn
+    use systemmod, only: sy
+    use fieldmod, only: type_grid
     use grid3mod, only: grid3
-    use global, only: eval_next, dunit0, iunit, iunitname0, fileroot
+    use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
-       string, fclose
-
+       string, fclose, isinteger
+    use types, only: basindat, int_result
     character*(*), intent(in) :: line
 
     real*8, parameter :: ratom_def0 = 1d0
 
-    character(len=:), allocatable :: word, file, expr
-    character*3 :: basinfmt
-    integer :: i, k, n(3), nn, ntot
-    integer :: lp, lp2, imtype, i1, i2, i3
-    logical :: ok, nonnm, noatoms, atexist, dowcube, dobasins
-    logical, allocatable :: pmask(:), plmask(:)
-    real*8 :: ratom, ratom_def, padd
-    real*8 :: x(3), x2(3)
-    integer, allocatable :: idg(:,:,:), icp(:), idprop(:)
-    real*8, allocatable :: psum(:,:), xgatt(:,:), lprop(:)
-    real*8, allocatable :: w(:,:,:)
-    integer :: fid, nattr, luw
-    character*60, allocatable :: reason(:)
-    real*8, allocatable :: sij(:,:,:,:,:), mpole(:,:,:)
-    complex*16, allocatable :: sijc(:,:,:,:,:)
-    logical :: dodelocwfn, dodelocwan, dompole, fillgrd
-    real*8, allocatable :: fbasin(:,:,:), fint(:,:,:,:)
+    character(len=:), allocatable :: word
+    integer :: n(3), ntot
+    integer :: lp, lp2
+    logical :: ok, nonnm, noatoms
+    real*8 :: ratom_def
     type(grid3) :: faux
-    type(ytdata) :: dat
+    type(int_result), allocatable :: res(:)
+    type(basindat) :: bas
     
     ! only grids
     if (.not.sy%isinit) then
@@ -99,9 +96,9 @@ contains
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,"yt")) then
-       imtype = imtype_yt
+       bas%imtype = imtype_yt
     elseif (equal(word,"bader")) then
-       imtype = imtype_bader
+       bas%imtype = imtype_bader
     else
        call ferror("intgrid_driver","wrong method",faterr,line,syntax=.true.)
        return
@@ -111,10 +108,10 @@ contains
     ratom_def = ratom_def0
     nonnm = .true.
     noatoms = .false.
-    dowcube = .false.
-    dobasins = .false.
-    basinfmt = "obj"
-    expr = ""
+    bas%wcube = .false.
+    bas%ndrawbasin = -1
+    bas%basinfmt = "obj"
+    bas%expr = ""
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm")) then
@@ -130,23 +127,25 @@ contains
           end if
           ratom_def = ratom_def / dunit0(iunit)
        elseif (equal(word,"wcube")) then
-          dowcube = .true.
+          bas%wcube = .true.
        elseif (equal(word,"basins")) then
-          dobasins = .true.
           lp2 = lp
           word = lgetword(line,lp)
           if (equal(word,"obj")) then
-             basinfmt = "obj"
+             bas%basinfmt = "obj"
           elseif (equal(word,"ply")) then
-             basinfmt = "ply"
+             bas%basinfmt = "ply"
           elseif (equal(word,"off")) then
-             basinfmt = "off"
+             bas%basinfmt = "off"
           else
              lp = lp2
-             basinfmt = "obj"
+             bas%basinfmt = "obj"
           end if
+          ok = isinteger(bas%ndrawbasin,line,lp)
+          if (.not.ok) &
+             bas%ndrawbasin = 0
        elseif (equal(word,"discard")) then
-          ok = isexpression_or_word(expr,line,lp)
+          ok = isexpression_or_word(bas%expr,line,lp)
           if (.not. ok) then
              call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
@@ -160,257 +159,112 @@ contains
     end do
 
     ! field number of grid points
-    n = sy%f(sy%iref)%grid%n
+    bas%n = sy%f(sy%iref)%grid%n
     ntot = n(1)*n(2)*n(3)
 
     ! distance for atom assignment
     if (noatoms) then
-       atexist = .false.
-       ratom = ratom_def
+       bas%atexist = .false.
+       bas%ratom = ratom_def
     elseif (nonnm) then
-       atexist = .true.
-       ratom = 1d40
+       bas%atexist = .true.
+       bas%ratom = 1d40
     else
-       atexist = .true.
-       ratom = ratom_def
+       bas%atexist = .true.
+       bas%ratom = ratom_def
     end if
 
     ! prepare the array for the basin field
-    allocate(fbasin(n(1),n(2),n(3)))
+    allocate(bas%f(bas%n(1),bas%n(2),bas%n(3)))
     if (sy%f(sy%iref)%usecore) then
        call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n,sy%f(sy%iref)%zpsp)
-       fbasin = sy%f(sy%iref)%grid%f + faux%f
+       bas%f = sy%f(sy%iref)%grid%f + faux%f
        call faux%end()
     else
-       fbasin = sy%f(sy%iref)%grid%f
+       bas%f = sy%f(sy%iref)%grid%f
     end if
 
-    ! call the integration method 
-    luw = 0
-    if (imtype == imtype_bader) then
+    ! call the integration method
+    bas%luw = 0
+    if (bas%imtype == imtype_bader) then
        write (uout,'("* Henkelman et al. integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).")')
        write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).")')
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
-          string(max(ratom,0d0),'e',decimal=4)
-       if (len_trim(expr) > 0) &
-          write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
-       call bader_integrate(sy,fbasin,expr,atexist,ratom,nattr,xgatt,idg)
-       write (uout,'("+ Attractors in BADER: ",A)') string(nattr)
-    elseif (imtype == imtype_yt) then
+          string(max(bas%ratom,0d0),'e',decimal=4)
+       if (len_trim(bas%expr) > 0) &
+          write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
+       call bader_integrate(sy,bas)
+       write (uout,'("+ Attractors in BADER: ",A)') string(bas%nattr)
+    elseif (bas%imtype == imtype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
        write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
-          string(max(ratom,0d0),'e',decimal=4)
-       if (len_trim(expr) > 0) &
-          write (uout,'("+ Discard attractor expression: ",A)') trim(expr)
-       call yt_integrate(sy,fbasin,expr,atexist,ratom,nattr,xgatt,idg,luw)
-       write (uout,'("+ Attractors in YT: ",A)') string(nattr)
+          string(max(bas%ratom,0d0),'e',decimal=4)
+       if (len_trim(bas%expr) > 0) &
+          write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
+       call yt_integrate(sy,bas)
+       write (uout,'("+ Attractors in YT: ",A)') string(bas%nattr)
     endif
-    deallocate(fbasin)
 
-    ! reorder the attractors
-    call int_reorder_gridout(sy%f(sy%iref),nattr,xgatt,idg,atexist,ratom,luw,icp)
-    write (uout,'("+ Attractors after reordering: ",A)') string(nattr)
+    ! Reorder the attractors
+    call int_reorder_gridout(sy%f(sy%iref),bas) 
+    write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
     write (uout,*)
 
-    ! set the properties mask
-    allocate(pmask(sy%npropi),reason(sy%npropi))
-    write (uout,'("+ Calculating properties"/)') 
-    dodelocwfn = .false.
-    dodelocwan = .false.
-    dompole = .false.
-    pmask = .false.
-    do k = 1, sy%npropi
-       if (.not.sy%propi(k)%used) then
-          reason(k) = "not used (?)"
-          cycle
-       end if
-       if (sy%propi(k)%itype == itype_v) then
-          pmask(k) = .true.
-          cycle
-       end if
-       fid = sy%propi(k)%fid
-       if (.not.sy%goodfield(fid)) then
-          reason(k) = "unknown or invalid field"
-          cycle
-       elseif (sy%propi(k)%itype == itype_deloc) then
-          if (sy%f(fid)%type == type_wfn .and. sy%c%ismolecule) then
-             dodelocwfn = .true.
-             reason(k) = "DIs integrated separately (see table below)"
-          elseif (sy%f(fid)%type == type_grid .and. sy%f(fid)%grid%iswan) then
-             dodelocwan = .true.
-             reason(k) = "DIs integrated separately (see table below)"
-          else
-             reason(k) = "Integrable field not a molecular wavefunction/wannier set."
-          end if
-          cycle
-       elseif (sy%propi(k)%itype == itype_mpoles) then
-          dompole = .true.
-          reason(k) = "multipoles integrated separately (see table below)"
-          cycle
-       end if
-       pmask(k) = .true.
-    end do
+    ! Write weight cubes
+    call int_cubew(bas)
 
-    ! allocate and fill the integrable properties
-    allocate(idprop(sy%npropi),fint(n(1),n(2),n(3),count(pmask)))
-    nn = 0
-    do k = 1, sy%npropi
-       fillgrd = .false.
-       if (sy%propi(k)%itype == itype_v) cycle
-       if (.not.pmask(k).and..not.sy%propi(k)%itype == itype_mpoles) cycle
-       fid = sy%propi(k)%fid
-       nn = nn + 1
-       idprop(k) = nn
+    ! Bains plotting
+    call int_gridbasins(bas)
 
-       ! Use the grid values if available. Use FFT when possible.
-       ok = sy%f(fid)%type == type_grid 
-       if (ok) ok = all(sy%f(fid)%grid%n == n)
-       if (ok) then
-          if (sy%propi(k)%itype == itype_fval .or.&
-              sy%propi(k)%itype == itype_f.and..not.sy%f(fid)%usecore.or.&
-              sy%propi(k)%itype == itype_mpoles.and..not.sy%f(fid)%usecore) then
-             fint(:,:,:,nn) = sy%f(fid)%grid%f
-          elseif (sy%propi(k)%itype == itype_lapval .or.&
-                  sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
-             call faux%laplacian(sy%f(fid)%grid,sy%c%crys2car)
-             fint(:,:,:,nn) = faux%f
-          elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
-             call faux%gradrho(sy%f(fid)%grid,sy%c%crys2car)
-             fint(:,:,:,nn) = faux%f
-          else
-             fillgrd = .true.
-          end if
-          call faux%end()
-       else
-          fillgrd = .true.
-       endif
+    ! deallocate the basin field
+    deallocate(bas%f)
 
-       ! Calculate the grid values using the general routine (grd).
-       if (fillgrd) then
-          allocate(plmask(sy%npropi),lprop(sy%npropi))
-          plmask = .false.
-          plmask(k) = .true.
-          !$omp parallel do private (x,x2,lprop) schedule(dynamic)
-          do i1 = 1, n(1)
-             x(1) = real(i1-1,8) / n(1)
-             do i2 = 1, n(2)
-                x(2) = real(i2-1,8) / n(2)
-                do i3 = 1, n(3)
-                   x(3) = real(i3-1,8) / n(3)
-                   x2 = sy%c%x2c(x)
-                   call sy%grdall(x2,lprop,plmask)
-                   !$omp critical (write)
-                   fint(i1,i2,i3,nn) = lprop(k)
-                   !$omp end critical (write)
-                end do
-             end do
-          end do
-          !$omp end parallel do
-          deallocate(plmask,lprop)
-       end if
-    end do
+    ! Prepare for the calculation of properties
+    allocate(res(sy%npropi))
+    write (uout,'("+ Integrating atomic properties"/)') 
 
-    ! compute weights and integrate the scalar field properties
-    allocate(psum(sy%npropi,nattr))
-    psum = 0d0
-    if (imtype == imtype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-       w = 0d0
-       call yt_weights(luw=luw,dout=dat)
-    end if
-    !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
-    do i = 1, nattr
-       if (imtype == imtype_yt) then
-          call yt_weights(din=dat,idb=i,w=w)
-       end if
-       do k = 1, sy%npropi
-          if (.not.sy%propi(k)%used) cycle
-          if (sy%propi(k)%itype == itype_v) then
-             if (imtype == imtype_bader) then
-                padd = count(idg == i) * sy%c%omega / ntot
-             else
-                padd = sum(w) * sy%c%omega / ntot
-             endif
-          elseif (pmask(k)) then
-             if (imtype == imtype_bader) then
-                padd = sum(fint(:,:,:,idprop(k)),idg==i) * sy%c%omega / ntot
-             else
-                padd = sum(w * fint(:,:,:,idprop(k))) * sy%c%omega / ntot
-             endif
-          endif
-          !$omp critical (accum)
-          psum(k,i) = psum(k,i) + padd
-          !$omp end critical (accum)
-       end do
-    end do
-    !$omp end parallel do
+    ! Integrate scalar fields and multipoles
+    call intgrid_fields(bas,res)
 
-    ! write weight cubes
-    if (dowcube) then
-       if (.not.allocated(w)) allocate(w(n(1),n(2),n(3)))
-       do i = 1, nattr
-          if (imtype == imtype_yt) then
-             call yt_weights(din=dat,idb=i,w=w)
-          else
-             w = 0d0
-             where (idg == i)
-                w = 1d0
-             end where
-          endif
-          file = trim(fileroot) // "_wcube_" // string(i,2,pad0=.true.) // ".cube"
-          call sy%c%writegrid_cube(w,file,.false.)
-       end do
-       write (uout,'("* Weights written to ",A,"_wcube_*.cube")') trim(fileroot)
-    end if
+    ! localization and delocalization indices - wannier
+    call intgrid_deloc_wannier(bas,res)
 
-    ! clean up
-    if (allocated(w)) deallocate(w)
-    if (imtype == imtype_yt) then
-       call ytdata_clean(dat)
-    end if
+    ! header for integration output
+    write (uout,*)
+    call int_output_header(bas,res)
 
-    ! calculate atomic basin multipoles
-    if (dompole) &
-       call intgrid_multipoles(fint,idprop,nattr,xgatt,idg,imtype,luw,mpole)
+    ! output integrated scalar field properties
+    call int_output_fields(bas,res)
 
-    ! localization and delocalization indices - molecular wfn case
-    if (dodelocwfn) then
-       call intgrid_deloc_wfn(nattr,xgatt,idg,imtype,luw,sij)
-    elseif (dodelocwan) then
-       call intgrid_deloc_wannier(nattr,xgatt,idg,imtype,luw,sijc)
-    end if
+    ! output multipoles
+    call int_output_multipoles(bas,res)
 
-    ! output the results for the attractor and the scalar properties
-    call int_output(pmask,reason,nattr,icp,xgatt,psum,.false.,sij,mpole)
-
-    ! multipole output
-    if (dompole) &
-       call int_output_multipoles(nattr,icp,mpole)
-
-    ! localization and delocalization indices output
-    if (dodelocwfn) then
-       call int_output_deloc_wfn(nattr,icp,sij)
-    else
-       call int_output_deloc_wannier(nattr,icp,xgatt,sijc)
-    end if
-
-    ! bains plotting
-    if (dobasins) &
-       call int_gridbasins(basinfmt,nattr,icp,xgatt,idg,imtype,luw)
+    ! localization and delocalization indices, wannier
+    call int_output_deloc_wannier(bas,res)
 
     ! clean up YT weight file
-    if (imtype == imtype_yt) then
-       call fclose(luw)
+    if (bas%imtype == imtype_yt) then
+       call fclose(bas%luw)
     endif
-    deallocate(psum,idg,icp,xgatt)
-    deallocate(pmask,reason)
 
+    !deallocate sy%f(sy%iref)
+    !call int_reorder_gridout(sy%f(sy%iref),bas) 
+    call clear_yt(sy%f(sy%iref)) 
   end subroutine intgrid_driver
+
+  module subroutine clear_yt(f)
+   ! clear some data after every integration run to make
+   ! sure that the results between integration runs would not affact each other
+   use systemmod, only: sy
+   class(field), intent(inout) :: f
+
+   f%ncpcel = sy%c%ncel
+  end subroutine clear_yt
 
   !> Do a radial numerical quadrature on the given ray, between the
   !> selected radii and return the properties. The r^2 factor is
@@ -474,7 +328,6 @@ contains
           lprop = lprop + rpoints(k)**2 * rweights(k) * atprop
        end do
        lprop = lprop * isign
-       lprop(1) = isign * (r2**3 - r1**3) / 3d0 ! hardwire volume
        abserr = 0d0
        neval = INT_radquad_nr
 
@@ -675,36 +528,33 @@ contains
 
   end subroutine lebedev_mquad
 
-  !> Output routine for all integration methods. All input
-  !> arguments. pmask: properties mask (skips inactive
-  !> properties). reason: explanation why a property has been
-  !> deactivated. nattr: number of attractors. icp: identifier
-  !> relating the attractors to known critical points. xattr:
-  !> attractor positions (crysatllographic coords.). aprop(i,j):
-  !> integrated scalar property j for attractor i. The j index runs
-  !> over active properties only (pmask = .true.). Usesym: deactivate
-  !> writing the attractor multiplicities in non-symmetric cases.  di:
-  !> delocalization indices (optional). mpole: multipoles (optional).
-  module subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
+  !xx! private procedures
+
+  !> Write the header for the integration results section to the output. Includes
+  !> a list of properties integrated in the basins. bas = integration driver
+  !> data, res(1:npropi) = results. If nomol0, prevent the output of molecular
+  !> properties. If usesym0, use multiplicities.
+  module subroutine int_output_header(bas,res,nomol0,usesym0)
     use systemmod, only: sy, itype_v, itype_expr, itype_mpoles, itype_names
     use global, only: iunitname0, iunit, dunit0
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
-    logical, intent(in) :: pmask(sy%npropi)
-    character*(*), intent(in) :: reason(sy%npropi)
-    integer, intent(in) :: nattr
-    integer, intent(in) :: icp(nattr)
-    real*8, intent(in) :: xattr(3,nattr)
-    real*8, intent(in) :: aprop(sy%npropi,nattr)
-    logical, intent(in) :: usesym
-    real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
-    real*8, intent(in), allocatable, optional :: mpole(:,:,:)
+    use types, only: basindat, int_result
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
+    logical, intent(in), optional :: nomol0
+    logical, intent(in), optional :: usesym0
 
-    integer :: i, j, k, ip, ipmax, iplast
-    integer :: fid, nacprop(5)
-    real*8 :: x(3), sump(sy%npropi), xmult, xcm(3)
-    character(len=:), allocatable :: saux, itaux, label, cini
+    integer :: i, j, k, fid
+    character(len=:), allocatable :: saux, label, cini, itaux
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
-    integer :: idxmol(2,nattr)
+    real*8 :: x(3), xcm(3)
+    integer, allocatable :: idxmol(:,:)
+    logical :: nomol, usesym
+
+    nomol = .false.
+    if (present(nomol0)) nomol = nomol0
+    usesym = .false.
+    if (present(usesym0)) usesym = usesym0
 
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
@@ -715,25 +565,25 @@ contains
     write (uout,'("# id    Label      fid  Field       Additional")')
     do i = 1, sy%npropi
        fid = sy%propi(i)%fid
-       if (.not.pmask(i)) then
+       if (.not.res(i)%done) then
           label = "--inactive--"
           cini = "x "
-          saux = "Reason: " // string(reason(i))
+          saux = "Reason: " // string(res(i)%reason)
        else
           label = sy%propi(i)%prop_name
           cini = "  "
        end if
        if (sy%propi(i)%itype == itype_v) then
-          if (pmask(i)) saux = ""
+          if (res(i)%done) saux = ""
           itaux = "--"
        elseif (sy%propi(i)%itype == itype_expr) then
-          if (pmask(i)) saux = "expr = " // string(sy%propi(i)%expr)
+          if (res(i)%done) saux = "expr = " // string(sy%propi(i)%expr)
           itaux = "--"
        elseif (sy%propi(i)%itype == itype_mpoles) then
-          if (pmask(i)) saux = "Lmax = " // string(sy%propi(i)%lmax)
+          if (res(i)%done) saux = "Lmax = " // string(sy%propi(i)%lmax)
           itaux = string(fid)
        else
-          if (pmask(i)) saux = ""
+          if (res(i)%done) saux = ""
           itaux = string(fid)
        end if
 
@@ -753,6 +603,10 @@ contains
     write (uout,'("# Z = atomic number")')
     write (uout,'("# Position = atomic position")')
     write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
+    write (uout,'("# Volume = volume of the reference field basins.")')
+    write (uout,'("# Pop (population) = the reference field integrated in its own basins.")')
+    write (uout,'("# Lap = Laplacian of the reference field integrated in the reference field basins.")')
+    write (uout,'("# $xxx = field xxx integrated in the basins of the reference field.")')
     write (uout,*)
 
     ! List of attractors and positions
@@ -762,73 +616,27 @@ contains
     else
        write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
     endif
-    do i = 1, nattr
-       call assign_strings(i,icp(i),usesym,scp,sncp,sname,smult,sz)
+    do i = 1, bas%nattr
+       call assign_strings(i,bas%icp(i),usesym,scp,sncp,sname,smult,sz)
        if (.not.sy%c%ismolecule) then
-          x = xattr(:,i)
+          x = bas%xattr(:,i)
        else
-          x = (sy%c%x2c(xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
+          x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
        endif
-       write (uout,'(2X,99(A,X))') & 
-          string(i,4,ioj_left), scp, sncp, sname, sz, &
+       write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
           smult, (string(x(j),'f',12,7,4),j=1,3)
     end do
     write (uout,*)
 
-    ! Integrated scalar atomic properties
-    write (uout,'("* Integrated atomic properties")')
-    iplast = 0
-    do ip = 0, (count(pmask)-1)/5
-       ! show only the properties that are active
-       nacprop = 0
-       ipmax = 0
-       do i = iplast+1, sy%npropi
-          if (pmask(i)) then
-             ipmax = ipmax + 1
-             nacprop(ipmax) = i
-          end if
-          if (ipmax == 5) exit
-       end do
-       if (ipmax == 0) exit
-       iplast = nacprop(ipmax)
-
-       ! Table header for this set of properties
-       write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
-       write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
-          (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
-
-       ! Table rows
-       sump = 0d0
-       do i = 1, nattr
-          call assign_strings(i,icp(i),usesym,scp,sncp,sname,smult,sz)
-          ! add to the sum
-          if (icp(i) > 0 .and. usesym) then
-             xmult = sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(icp(i))%idx)%mult
-          else
-             xmult = 1
-          endif
-          do j = 1, ipmax
-             sump(nacprop(j)) = sump(nacprop(j)) + aprop(nacprop(j),i) * xmult
-          end do
-          ! table entry
-          write (uout,'(2X,99(A,X))') &
-             string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
-             (string(aprop(nacprop(j),i),'e',15,8,4),j=1,ipmax)
-       end do
-       write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
-       write (uout,'(2X,"Sum                           ",99(A,X))') &
-          (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
-       write (uout,*)
-    end do
-    
-    ! Molecular properties
-    if (.not.sy%c%ismolecule .and. all(sy%c%moldiscrete(1:sy%c%nmol))) then
+    ! List of molecules and positions
+    if (.not.nomol .and. .not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+       allocate(idxmol(2,bas%nattr))
        ! Assign attractors to molecules
        idxmol = 0
-       do i = 1, nattr
+       do i = 1, bas%nattr
           jlo: do j = 1, sy%c%nmol
              do k = 1, sy%c%mol(j)%nat
-                if (icp(i) == sy%c%mol(j)%at(k)%cidx) then
+                if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
                    idxmol(1,i) = j
                    idxmol(2,i) = k
                    exit jlo
@@ -844,13 +652,13 @@ contains
           xcm = sy%c%mol(i)%cmass()
           xcm = sy%c%c2x(xcm)
           ! name the molecule
-          write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), string(sy%c%mol(i)%nat),&
-             (string(xcm(j),'f',10,6,3),j=1,3)
+          write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), &
+             string(sy%c%mol(i)%nat), (string(xcm(j),'f',10,6,3),j=1,3)
 
           ! Atomic composition
-          do j = 1, nattr
+          do j = 1, bas%nattr
              if (idxmol(1,j) /= i) cycle
-             call assign_strings(j,icp(j),usesym,scp,sncp,sname,smult,sz)
+             call assign_strings(j,bas%icp(j),usesym,scp,sncp,sname,smult,sz)
              x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
              write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') & 
                 string(j,4,ioj_left), scp, (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
@@ -858,166 +666,253 @@ contains
           end do
        end do
        write (uout,*)
+       deallocate(idxmol)
+    end if
+
+  end subroutine int_output_header
+
+  !> Write to output the result of integrating scalar fields in the
+  !> atomic basins. bas = integration driver data, res(1:npropi) =
+  !> results. If nomol0, prevent the output of molecular
+  !> properties. If usesym0, use multiplicities.
+  module subroutine int_output_fields(bas,res,nomol0,usesym0)
+    use systemmod, only: sy
+    use tools_io, only: uout, string, ioj_left, ioj_center
+    use types, only: basindat, int_result, out_field
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
+    logical, intent(in), optional :: nomol0
+    logical, intent(in), optional :: usesym0
+
+    integer, parameter :: ncols = 5
+
+    integer :: i, j, k
+    integer :: ip, iplast, ipmax
+    integer :: nacprop(ncols)
+    real*8 :: sump(sy%npropi), xmult
+    character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    integer, allocatable :: idxmol(:,:)
+    logical :: nomol, usesym
+
+    nomol = .false.
+    if (present(nomol0)) nomol = nomol0
+    usesym = .false.
+    if (present(usesym0)) usesym = usesym0
+
+    ! Integrated scalar fields, atomic properties
+    write (uout,'("* Integrated atomic properties")')
+    write (uout,'("# (See key above for interpretation of column headings.)")')
+    iplast = 0
+    do ip = 0, (count(res(1:sy%npropi)%outmode == out_field)-1)/ncols
+       ! show only the properties that have been done
+       nacprop = 0
+       ipmax = 0
+       do i = iplast+1, sy%npropi
+          if (res(i)%done .and. res(i)%outmode == out_field) then
+             ipmax = ipmax + 1
+             nacprop(ipmax) = i
+          end if
+          if (ipmax == ncols) exit
+       end do
+       if (ipmax == 0) exit
+       iplast = nacprop(ipmax)
+
+       ! Table header for this set of properties
+       write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
+       write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
+          (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+
+       ! Table rows
+       sump = 0d0
+       do i = 1, bas%nattr
+          call assign_strings(i,bas%icp(i),usesym,scp,sncp,sname,smult,sz)
+          if (bas%icp(i) > 0 .and. usesym) then
+             xmult = sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(bas%icp(i))%idx)%mult
+          else
+             xmult = 1
+          endif
+          ! add to the sum
+          do j = 1, ipmax
+             sump(nacprop(j)) = sump(nacprop(j)) + res(nacprop(j))%psum(i) * xmult
+          end do
+          ! table entry
+          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
+             (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
+       end do
+       write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
+       write (uout,'(2X,"Sum                           ",99(A,X))') &
+          (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+       write (uout,*)
+    end do
+
+    if (.not.nomol .and. .not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+       allocate(idxmol(2,bas%nattr))
+       ! Assign attractors to molecules
+       idxmol = 0
+       do i = 1, bas%nattr
+          jlo: do j = 1, sy%c%nmol
+             do k = 1, sy%c%mol(j)%nat
+                if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
+                   idxmol(1,i) = j
+                   idxmol(2,i) = k
+                   exit jlo
+                end if
+             end do
+          end do jlo
+       end do
        
        ! List of integrated properties in the molecules
        write (uout,'("* Integrated molecular properties")')
+       write (uout,'("# (See key above for interpretation of column headings.)")')
        iplast = 0
-       do ip = 0, (count(pmask)-1)/5
-          ! show only the properties that are active
+       do ip = 0, (count(res(1:sy%npropi)%outmode == out_field)-1)/ncols
+          ! show only the properties that have been done
           nacprop = 0
           ipmax = 0
           do i = iplast+1, sy%npropi
-             if (pmask(i)) then
+             if (res(i)%done .and. res(i)%outmode == out_field) then
                 ipmax = ipmax + 1
                 nacprop(ipmax) = i
              end if
-             if (ipmax == 5) exit
+             if (ipmax == ncols) exit
           end do
           if (ipmax == 0) exit
           iplast = nacprop(ipmax)
 
           ! Table header for this set of properties
           write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
-          write (uout,'("# Mol ",5(A,X))') &
-             (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+          write (uout,'("# Mol ",5(A,X))') (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
 
           ! Table rows
           do k = 1, sy%c%nmol+1
              if (k == sy%c%nmol+1 .and. all(idxmol > 0)) cycle
              sump = 0d0
-             do i = 1, nattr
+             do i = 1, bas%nattr
                 if (idxmol(1,i) /= mod(k,sy%c%nmol+1)) cycle
                 ! add to the sum
-                if (icp(i) > 0 .and. usesym) then
-                   xmult = sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(icp(i))%idx)%mult
+                if (bas%icp(i) > 0 .and. usesym) then
+                   xmult = sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(bas%icp(i))%idx)%mult
                 else
                    xmult = 1
                 endif
                 do j = 1, ipmax
-                   sump(nacprop(j)) = sump(nacprop(j)) + aprop(nacprop(j),i) * xmult
+                   sump(nacprop(j)) = sump(nacprop(j)) + res(nacprop(j))%psum(i) * xmult
                 end do
              end do
              ! table entry
              if (k < sy%c%nmol+1) then
-                write (uout,'(2X,99(A,X))') &
-                   string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+                write (uout,'(2X,99(A,X))') string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
              else
                 write (uout,'(2X,99(A,X))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
              end if
           end do
           write (uout,*) 
        end do
+       deallocate(idxmol)
     end if
 
-  end subroutine int_output
+  end subroutine int_output_fields
 
   !> The attractors coming out of YT and BADER are not in order
   !> compatible with the crystal structure. Reorder them, including
-  !> the weights of the YT. On output, give the identity 
-  !> of the attractors (icp) in the complete CP list.
-  module subroutine int_reorder_gridout(ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
+  !> the weights of the YT. On output, gives the identity of the
+  !> attractors (icp) in the complete CP list. bas contains the
+  !> integration information.
+  subroutine int_reorder_gridout(ff,bas)
     use fieldmod, only: field, type_grid
     use tools_io, only: ferror, faterr, fopen_scratch, fclose
-    use types, only: realloc
+    use types, only: realloc, basindat
+    use param, only: icrd_crys
     type(field), intent(inout) :: ff
-    integer, intent(inout) :: nattr
-    real*8, intent(inout), allocatable :: xgatt(:,:)
-    integer, intent(inout), allocatable :: idg(:,:,:)
-    logical, intent(in) :: atexist
-    real*8, intent(in) :: ratom
-    integer, intent(inout) :: luw
-    integer, intent(inout), allocatable :: icp(:)
+    type(basindat), intent(inout) :: bas
 
     integer :: i, j
-    integer, allocatable :: idgaux(:,:,:)
-    real*8, allocatable :: xattr(:,:)
-    integer, allocatable :: assigned(:)
-    integer :: nn, nid, nattr0, luw2, n(3), lvec(3), nbasin, nvec
+    integer, allocatable :: idgaux(:,:,:), assigned(:)
+    integer :: nn, nid, nattr0, luw2, n(3), nbasin, nvec
     real*8 :: dist
     integer, allocatable :: nlo(:), ibasin(:), ibasin2(:), iio(:), inear(:,:)
-    real*8, allocatable :: fnear(:,:)
+    real*8, allocatable :: fnear(:,:), xattr(:,:)
 
     if (ff%type /= type_grid) &
        call ferror("int_reorder_gridout","BADER/YT can only be used with grids",faterr)
     n = ff%grid%n
 
     ! reorder the maxima and assign maxima to atoms according to ratom
-    if (allocated(icp)) deallocate(icp)
-    allocate(icp(nattr),xattr(3,nattr),assigned(nattr))
-    icp = 0
+    if (allocated(bas%icp)) deallocate(bas%icp)
+    allocate(bas%icp(bas%nattr),xattr(3,bas%nattr),assigned(bas%nattr))
+    bas%icp = 0
     assigned = 0
-    nattr0 = nattr
+    nattr0 = bas%nattr
     ! assign attractors to atoms
-    if (atexist) then
+    if (bas%atexist) then
        do i = 1, nattr0
-          nid = 0
-          call ff%c%nearest_atom(xgatt(:,i),nid,dist,lvec)
-          if (dist < ratom) then
+          nid = ff%c%identify_atom(bas%xattr(:,i),icrd_crys,distmax=bas%ratom)
+          if (nid > 0) then
              assigned(i) = nid
           else
              ! maybe the closest point is a known nnm
-             call ff%nearest_cp(xgatt(:,i),nid,dist,ff%typnuc)
-             if (dist < ratom) then
+             call ff%nearest_cp(bas%xattr(:,i),nid,dist,type=ff%typnuc)
+             if (dist < bas%ratom) then
                 assigned(i) = nid
              end if
           end if
        end do
     end if
     ! create the new known attractors in the correct order
-    nattr = 0
+    bas%nattr = 0
     do i = 1, ff%ncpcel
        if (any(assigned == i)) then
-          nattr = nattr + 1
-          icp(nattr) = i
-          xattr(:,nattr) = ff%cpcel(i)%x
+          bas%nattr = bas%nattr + 1
+          bas%icp(bas%nattr) = i
+          xattr(:,bas%nattr) = ff%cpcel(i)%x
        endif
     end do
     ! the rest are their own nnm, add them to the CP list, accumulate
     ! using a radius equal to ratom.
     do i = 1, nattr0
        if (assigned(i) > 0) cycle
-       nattr = nattr + 1
-       assigned(i) = nattr
-       icp(nattr) = 0
+       bas%nattr = bas%nattr + 1
+       assigned(i) = bas%nattr
+       bas%icp(bas%nattr) = 0
 
        nn = 1
-       xattr(:,nattr) = xgatt(:,i)
+       xattr(:,bas%nattr) = bas%xattr(:,i)
        do j = i+1, nattr0
           if (assigned(j) > 0) cycle
-          if (ff%c%are_lclose(xgatt(:,i),xgatt(:,j),ratom)) then
+          if (ff%c%are_lclose(bas%xattr(:,i),bas%xattr(:,j),bas%ratom)) then
              nn = nn + 1
-             assigned(j) = nattr
+             assigned(j) = bas%nattr
           end if
        end do
-       call ff%addcp(ff%c%x2c(xattr(:,nattr)),1d-2,1d-1,2d-1,ff%typnuc)
+       call ff%addcp(ff%c%x2c(xattr(:,bas%nattr)),1d-2,1d-1,2d-1,ff%typnuc)
     end do
-    deallocate(xgatt)
+    deallocate(bas%xattr)
 
     ! update the idg
-    allocate(idgaux(size(idg,1),size(idg,2),size(idg,3)))
-    idgaux = idg
+    allocate(idgaux(size(bas%idg,1),size(bas%idg,2),size(bas%idg,3)))
+    idgaux = bas%idg
     do i = 1, nattr0
        if (assigned(i) /= i) then
-          where (idg == i)
+          where (bas%idg == i)
              idgaux = assigned(i)
           end where
        end if
     end do
-    call move_alloc(idgaux,idg)
+    call move_alloc(idgaux,bas%idg)
 
     ! update the weights the YT file
-    if (luw /= 0) then
+    if (bas%luw /= 0) then
        ! read all the info from the scratch file
-       rewind(luw)
-       read (luw) nbasin, nn, nvec
+       rewind(bas%luw)
+       read (bas%luw) nbasin, nn, nvec
        if (nattr0 /= nbasin) &
           call ferror('int_reorder_gridout','inconsistent number of attractors in yt checkpoint',faterr)
        allocate(ibasin(nn),ibasin2(nn),nlo(nn),inear(nvec,nn),fnear(nvec,nn),iio(nn))
-       read (luw) nlo
-       read (luw) ibasin
-       read (luw) iio
-       read (luw) inear
-       read (luw) fnear
+       read (bas%luw) nlo
+       read (bas%luw) ibasin
+       read (bas%luw) iio
+       read (bas%luw) inear
+       read (bas%luw) fnear
 
        ! build a new ibasin array
        ibasin2 = ibasin
@@ -1037,644 +932,951 @@ contains
        write (luw2) fnear
        call flush(luw2)
        rewind(luw2)
-       call fclose(luw)
-       luw = luw2
+       call fclose(bas%luw)
+       bas%luw = luw2
+       deallocate(nlo,ibasin,ibasin2,iio,inear,fnear)
     end if
     deallocate(assigned)
     
-    if (allocated(xgatt)) deallocate(xgatt)
-    call realloc(xattr,3,nattr)
-    call move_alloc(xattr,xgatt)
+    if (allocated(bas%xattr)) deallocate(bas%xattr)
+    call realloc(xattr,3,bas%nattr)
+    call move_alloc(xattr,bas%xattr)
 
   end subroutine int_reorder_gridout
 
-  !xx! private procedures
-
-  !> Calculate the multipole moments using integration on a grid. The
-  !> input is: the array containing the integrable field information
-  !> on the basin field grid (fint), the index array relating
-  !> 1->nprops to the fint array, the calculated number of attractors
-  !> (natt), their positions in crystallographic coordinates (xgatt),
-  !> the attractor assignment for each of the grid nodes (idg), the
-  !> integration type (imtype: bader or yt), the weight file for YT,
-  !> and the output multipolar moments.
-  subroutine intgrid_multipoles(fint,idprop,natt,xgatt,idg,imtype,luw,mpole)
-    use yt, only: yt_weights, ytdata, ytdata_clean
-    use systemmod, only: sy, itype_mpoles
-    use tools_math, only: tosphere, genrlm_real
-
-    real*8, intent(in) :: fint(:,:,:,:)
-    integer, intent(in) :: idprop(:)
-    integer, intent(in) :: natt
-    real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: imtype
-    integer, intent(in) :: luw
-    real*8, allocatable, intent(inout) :: mpole(:,:,:)
-
-    integer :: i, j, k, l, m, n(3), ntot, np
-    integer :: ix
-    integer :: fid, lmax
-    real*8, allocatable :: w(:,:,:)
-    real*8 :: dv(3), r, tp(2), p(3)
-    real*8, allocatable :: rrlm(:)
-    type(ytdata) :: dat
-
-    ! allocate space for the calculated multipoles
-    lmax = -1
-    np = 0
-    do l = 1, sy%npropi
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_mpoles) cycle
-       lmax = max(sy%propi(l)%lmax,lmax)
-       np = np + 1
-    end do
-    if (np == 0) return
-
-    if (allocated(mpole)) deallocate(mpole)
-    allocate(mpole((lmax+1)*(lmax+1),natt,np))
-    mpole = 0d0
-
-    ! size of the grid and YT weights
-    n = sy%f(sy%iref)%grid%n
-    ntot = n(1)*n(2)*n(3)
-    if (imtype == imtype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-       call yt_weights(luw=luw,dout=dat)
-    endif
-
-    ! run over all properties for which multipole calculation is active
-    np = 0
-    do l = 1, sy%npropi
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_mpoles) cycle
-       fid = sy%propi(l)%fid
-       np = np + 1
-
-       ! allocate space
-       lmax = sy%propi(l)%lmax
-       allocate(rrlm((lmax+1)*(lmax+1)))
-
-       ! calcualate the multipoles
-       mpole(:,:,np) = 0d0
-       if (imtype == imtype_bader) then
-          rrlm = 0d0
-          !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm) schedule(dynamic)
-          do i = 1, n(1)
-             p(1) = real(i-1,8)
-             do j = 1, n(2)
-                p(2) = real(j-1,8)
-                do k = 1, n(3)
-                   p(3) = real(k-1,8)
-                   ix = idg(i,j,k)
-                   dv = p/real(n,8) - xgatt(:,ix)
-                   call sy%c%shortest(dv,r)
-                   call tosphere(dv,r,tp)
-                   call genrlm_real(lmax,r,tp,rrlm)
-
-                   !$omp critical (accum)
-                   mpole(:,ix,np) = mpole(:,ix,np) + rrlm * fint(i,j,k,idprop(l))
-                   !$omp end critical (accum)
-                end do
-             end do
-          end do
-          !$omp end parallel do
-       else
-          w = 0d0
-          rrlm = 0d0
-          !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm) schedule(dynamic)
-          do m = 1, natt
-             call yt_weights(din=dat,idb=m,w=w)
-             do i = 1, n(1)
-                do j = 1, n(2)
-                   do k = 1, n(3)
-                      if (abs(w(i,j,k)) < 1d-15) cycle
-                      p = real((/i-1,j-1,k-1/),8)
-                      dv = p/real(n,8) - xgatt(:,m)
-                      call sy%c%shortest(dv,r)
-                      call tosphere(dv,r,tp)
-                      call genrlm_real(lmax,r,tp,rrlm)
-
-                      !$omp critical (accum)
-                      mpole(:,m,np) = mpole(:,m,np) + rrlm * fint(i,j,k,idprop(l)) * w(i,j,k)
-                      !$omp end critical (accum)
-                   end do
-                end do
-             end do
-          end do
-          !$omp end parallel do
-       endif
-       mpole = mpole * sy%c%omega / ntot
-       deallocate(rrlm)
-    end do
-    if (imtype == imtype_yt) then
-       deallocate(w)
-       call ytdata_clean(dat)
-    endif
-
-  end subroutine intgrid_multipoles
-
-  !> Calculate localization and delocalization indices using the
-  !> basin assignment found by YT or BADER and a wfn scalar field.
-  subroutine intgrid_deloc_wfn(natt,xgatt,idg,imtype,luw,sij)
-    use yt, only: yt_weights
-    use systemmod, only: sy, itype_deloc
-    use fieldmod, only: type_wfn
-    use tools_io, only: fopen_scratch, fclose
-
-    integer, intent(in) :: natt
-    real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: imtype
-    integer, intent(in) :: luw
-    real*8, intent(inout), allocatable :: sij(:,:,:,:,:)
-
-    integer :: i, j, k, l, m, i1, i2, ndeloc
-    integer :: fid, n(3), ntot, lumo, ix
-    real*8, allocatable :: w(:,:,:)
-    real*8, allocatable :: xmo(:)
-    real*8 :: x(3), rho, auxg(3), auxh(3,3), gkin, vir
-    real*8 :: stress(3,3)
-
-    ndeloc = 0
-    do l = 1, sy%npropi
-       ! only wfn fields for now
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_wfn) cycle
-       ndeloc = ndeloc + 1
-    end do
-    if (ndeloc == 0) return
-
-    ! allocate output sij
-    if (allocated(sij)) deallocate(sij)
-    allocate(sij(sy%f(fid)%wfn%nmoocc,sy%f(fid)%wfn%nmoocc,natt,1,ndeloc))
-
-    ! size of the grid
-    n = sy%f(sy%iref)%grid%n
-    ntot = n(1)*n(2)*n(3)
-
-    if (imtype == imtype_yt) then
-       allocate(w(n(1),n(2),n(3)))
-    endif
-
-    ! run over all properties for which multipole calculation is active
-    ndeloc = 0
-    do l = 1, sy%npropi
-       ! only wfn fields for now
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_wfn) cycle
-       ndeloc = ndeloc + 1
-
-       ! calculate the overlap matrix
-       allocate(xmo(sy%f(fid)%wfn%nmoocc))
-       sij(:,:,:,:,ndeloc) = 0d0
-       xmo = 0d0
-       if (imtype == imtype_bader) then
-          !$omp parallel do private (i,j,k,x,rho,auxg,auxh,ix,i1,i2,gkin,vir) firstprivate(xmo) schedule(dynamic)
-          do i = 1, n(1)
-             do j = 1, n(2)
-                do k = 1, n(3)
-                   x = sy%c%x2c(real((/i-1,j-1,k-1/),8) / n)
-                   call sy%f(fid)%wfn%rho2(x,0,rho,auxg,auxh,gkin,vir,stress,xmo)
-                   ix = idg(i,j,k)
-                   do i1 = 1, sy%f(fid)%wfn%nmoocc
-                      do i2 = i1, sy%f(fid)%wfn%nmoocc
-                         !$omp critical (sijwrite)
-                         sij(i1,i2,ix,1,ndeloc) = sij(i1,i2,ix,1,ndeloc) + xmo(i1) * xmo(i2)
-                         !$omp end critical (sijwrite)
-                      end do
-                   end do
-                end do
-             end do
-          end do
-          !$omp end parallel do
-       else
-          ! write the MO vectors to a file
-          lumo = fopen_scratch()
-          do i = 1, n(1)
-             do j = 1, n(2)
-                do k = 1, n(3)
-                   x = sy%c%x2c(real((/i-1,j-1,k-1/),8) / n)
-                   call sy%f(fid)%wfn%rho2(x,0,rho,auxg,auxh,gkin,vir,stress,xmo)
-                   ix = idg(i,j,k)
-                   write (lumo) xmo
-                end do
-             end do
-          end do
-
-          ! calculate the atomic overlap matrix and kill the file
-          do m = 1, natt
-             call yt_weights(luw=luw,idb=m,w=w)
-             rewind(lumo)
-             do i = 1, n(1)
-                do j = 1, n(2)
-                   do k = 1, n(3)
-                      read(lumo) xmo
-                      do i1 = 1, sy%f(fid)%wfn%nmoocc
-                         do i2 = i1, sy%f(fid)%wfn%nmoocc
-                            sij(i1,i2,m,1,ndeloc) = sij(i1,i2,m,1,ndeloc) + xmo(i1) * xmo(i2) * w(i,j,k)
-                         end do
-                      end do
-                   end do
-                end do
-             end do
-          end do
-          call fclose(lumo)
-       end if
-       deallocate(xmo)
-
-       ! symmetrize and scale
-       sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) * sy%c%omega / ntot
-       do ix = 1, natt
-          do i1 = 1, sy%f(fid)%wfn%nmoocc
-             do i2 = i1, sy%f(fid)%wfn%nmoocc
-                sij(i2,i1,ix,1,ndeloc) = sij(i1,i2,ix,1,ndeloc)
-             end do
-          end do
-       end do
-    end do
-    if (allocated(w)) deallocate(w)
-
-  end subroutine intgrid_deloc_wfn
-
-  !> Calculate localization and delocalization indices using the
-  !> basin assignment found by YT or BADER and a grid-related dat file.
-  subroutine intgrid_deloc_wannier(natt,xgatt,idg,imtype,luw,sij)
-    use yt, only: yt_weights, ytdata, ytdata_clean
-    use systemmod, only: sy, itype_deloc
+  !> Integrate scalar fields in atomic basins. bas = integration driver
+  !> data, res(1:npropi) = results.
+  subroutine intgrid_fields(bas,res)
+    use yt, only: ytdata, ytdata_clean, yt_weights
+    use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
+       itype_lap, itype_lapval, itype_mpoles, itype_expr
+    use grid3mod, only: grid3
     use fieldmod, only: type_grid
-    use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed
-    use types, only: realloc
-    use tools_io, only: uout, string, fopen_read, fclose, fopen_write,&
-       ferror, warning
-    use tools_math, only: matinv
-
-    integer, intent(in) :: natt
-    real*8, intent(in) :: xgatt(3,natt)
-    integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: imtype
-    integer, intent(in) :: luw
-    complex*16, allocatable, intent(inout) :: sij(:,:,:,:,:)
-
-    integer :: is, nspin, ndeloc, natt1, lu
-    integer :: ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: i, j, l, ibnd1, ibnd2
-    integer :: nwan(3), m1, m2, m3
-    integer :: fid, n(3), p(3)
-    integer :: nbnd, nlat, nmo, imo, jmo, imo1, jmo1
-    real*8, allocatable :: w(:,:,:)
-    complex*16, allocatable :: psic(:,:,:), psic2(:,:,:)
-    complex*16 :: padd
-    real*8 :: x(3), xs(3), d2, d0
-    logical :: found
-    integer, allocatable :: idg1(:,:,:), iatt(:), ilvec(:,:)
-    logical, allocatable :: wmask(:,:,:)
+    use tools_math, only: tosphere, genrlm_real
+    use tools_io, only: uout, string
+    use types, only: basindat, int_result, out_mpoles, out_field
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(inout) :: res(:)
+    
+    integer :: i1, i2, i3
+    integer :: i, k, m, fid, ntot, lmax, ix
+    real*8, allocatable :: fint(:,:,:), w(:,:,:), rrlm(:)
+    type(grid3) :: faux
+    logical :: ok, fillgrd
+    logical :: plmask(sy%npropi), first
+    real*8 :: lprop(sy%npropi), x(3), x2(3), padd, p(3), dv(3), r
+    real*8 :: tp(2)
     type(ytdata) :: dat
-    complex*16, allocatable :: f1(:,:,:), f2(:,:,:)
-    logical, allocatable :: lovrlp(:,:,:,:,:,:)
-    type(crystalseed) :: ncseed
-    type(crystal) :: nc
-    character(len=:), allocatable :: sijfname
 
-    ! size of the grid and header
-    n = sy%f(sy%iref)%grid%n
-    write (uout,'("+ Calculating atomic overlap matrices")')
+    first = .true.
+    ntot = bas%n(1)*bas%n(2)*bas%n(3)
+    do k = 1, sy%npropi
+       if (res(k)%done) cycle
+       if (.not.sy%propi(k)%used) cycle
+       if (sy%propi(k)%itype == itype_v) then
+          ! integrate the basin volume
+          if (allocated(res(k)%psum)) deallocate(res(k)%psum)
+          allocate(res(k)%psum(bas%nattr))
+          res(k)%psum = 0d0
+          write (uout,'("+ Integrated property (number ",A,"): ",A)') string(k), string(sy%propi(k)%prop_name)
 
-    ! run over properties with wannier delocalization indices; allocate sij
-    ndeloc = 0
-    nspin = 1
-    nmo = 0
-    do l = 1, sy%npropi
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
-       if (.not.all(sy%f(fid)%grid%n == n)) then
-          write (uout,'("Warning: inconsistent grids")')
-          write (uout,'(" integrable field: ",3(A,X))') (string(sy%f(fid)%grid%n(j)),j=1,3)
-          write (uout,'(" reference field: ",3(A,X))') (string(n(j)),j=1,3)
-          call ferror('intgrid_deloc_wannier','Inconsistent grids',warning)
-          cycle
-       end if
-       ndeloc = ndeloc + 1
-       nspin = max(nspin,sy%f(fid)%grid%wan%nspin)
-       nbnd = sy%f(fid)%grid%wan%nbnd
-       nlat = sy%f(fid)%grid%wan%nks
-       nmo = max(nmo,nlat * nbnd)
-    end do
-    if (ndeloc == 0) return
+          if (first) call run_first_pass()
 
-    ! yt data
-    if (imtype == imtype_yt) then
-       call yt_weights(luw=luw,dout=dat)
-    end if
+          ! compute weights and integrate the scalar field properties
+          !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
+          do i = 1, bas%nattr
+             if (bas%imtype == imtype_yt) then
+                call yt_weights(din=dat,idb=i,w=w)
+             end if
+             if (bas%imtype == imtype_bader) then
+                padd = count(bas%idg == i) * sy%c%omega / real(ntot,8)
+             else
+                padd = sum(w) * sy%c%omega / real(ntot,8)
+             endif
+             !$omp critical (accum)
+             res(k)%psum(i) = res(k)%psum(i) + padd
+             !$omp end critical (accum)
+          end do
+          !$omp end parallel do
+          res(k)%outmode = out_field
+       elseif (sy%propi(k)%itype == itype_f.or.sy%propi(k)%itype == itype_fval.or.&
+          sy%propi(k)%itype == itype_gmod.or.sy%propi(k)%itype == itype_lap .or.&
+          sy%propi(k)%itype == itype_lapval.or.sy%propi(k)%itype == itype_expr.or.&
+          sy%propi(k)%itype == itype_mpoles) then
+          ! integrate scalar fields other than volume
+          fid = sy%propi(k)%fid
+          if (.not.sy%goodfield(fid)) then
+             res(k)%reason = "unknown or invalid field"
+             cycle
+          end if
+          write (uout,'("+ Integrated property (number ",A,"): ",A)') string(k), string(sy%propi(k)%prop_name)
 
-    ! Recalculate the number of attractors without cell translation symmetry.
-    allocate(iatt(natt))
-    natt1 = natt
-    do i = 1, natt
-       iatt(i) = i
-    enddo
-    allocate(ilvec(3,natt))
-    ilvec = 0
-    write (uout,'(99(A,X))') "  Attractors before remapping =", string(natt)
-    if (imtype == imtype_bader) then
-       allocate(idg1(n(1),n(2),n(3)))
-       do m3 = 1, n(3)
-          do m2 = 1, n(2)
-             do m1 = 1, n(1)
-                idg1(m1,m2,m3) = idg(m1,m2,m3)
-                p = (/m1,m2,m3/)
-                x = real(p-1,8) / n - xgatt(:,idg(m1,m2,m3))
-                xs = x
-                call sy%c%shortest(xs,d2)
-                p = nint(x - sy%c%c2x(xs))
-                if (any(p /= 0)) then
-                   found = .false.
-                   do i = natt+1, natt1
-                      if (iatt(i) == idg(m1,m2,m3) .and. all(p == ilvec(:,i))) then
-                         found = .true.
-                         idg1(m1,m2,m3) = i
-                         exit
-                      end if
+          if (first) call run_first_pass()
+
+          if (.not.allocated(fint)) &
+             allocate(fint(bas%n(1),bas%n(2),bas%n(3)))
+          
+          ! copy the grid if it is available
+          fillgrd = .false.
+          ok = (sy%f(fid)%type == type_grid)
+          if (ok) ok = all(sy%f(fid)%grid%n == bas%n)
+          if (ok) then
+             if (sy%propi(k)%itype == itype_fval .or.&
+                sy%propi(k)%itype == itype_f.and..not.sy%f(fid)%usecore.or.&
+                sy%propi(k)%itype == itype_mpoles.and..not.sy%f(fid)%usecore) then
+                fint = sy%f(fid)%grid%f
+             elseif (sy%propi(k)%itype == itype_lapval .or.&
+                sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
+                call faux%laplacian(sy%f(fid)%grid,sy%c%m_x2c)
+                fint = faux%f
+             elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
+                call faux%gradrho(sy%f(fid)%grid,sy%c%m_x2c)
+                fint = faux%f
+             else
+                fillgrd = .true.
+             end if
+             call faux%end()
+          else
+             fillgrd = .true.
+          endif
+
+          ! otherwise generate the field on the grid
+          if (fillgrd) then
+             plmask = .false.
+             plmask(k) = .true.
+             !$omp parallel do private(x,x2,lprop) schedule(dynamic)
+             do i1 = 1, bas%n(1)
+                x(1) = real(i1-1,8) / bas%n(1)
+                do i2 = 1, bas%n(2)
+                   x(2) = real(i2-1,8) / bas%n(2)
+                   do i3 = 1, bas%n(3)
+                      x(3) = real(i3-1,8) / bas%n(3)
+                      x2 = sy%c%x2c(x)
+                      call sy%grdall(x2,lprop,plmask)
+                      !$omp critical (write)
+                      fint(i1,i2,i3) = lprop(k)
+                      !$omp end critical (write)
                    end do
-                   if (.not.found) then
-                      natt1 = natt1 + 1
-                      if (natt1 > size(ilvec,2)) then
-                         call realloc(ilvec,3,2*natt1)
-                         call realloc(iatt,2*natt1)
-                      end if
-                      ilvec(:,natt1) = p
-                      idg1(m1,m2,m3) = natt1
-                      iatt(natt1) = idg(m1,m2,m3)
-                   end if
+                end do
+             end do
+             !$omp end parallel do
+          end if
+          
+          if (.not.sy%propi(k)%itype == itype_mpoles) then
+             ! all types of integration except for multipoles
+             if (allocated(res(k)%psum)) deallocate(res(k)%psum)
+             allocate(res(k)%psum(bas%nattr))
+             res(k)%psum = 0d0
+
+             ! compute weights and integrate the scalar field properties
+             !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
+             do i = 1, bas%nattr
+                if (bas%imtype == imtype_yt) then
+                   call yt_weights(din=dat,idb=i,w=w)
                 end if
+                if (bas%imtype == imtype_bader) then
+                   padd = sum(fint,bas%idg==i) * sy%c%omega / real(ntot,8)
+                else
+                   padd = sum(w * fint) * sy%c%omega / real(ntot,8)
+                endif
+                !$omp critical (accum)
+                res(k)%psum(i) = res(k)%psum(i) + padd
+                !$omp end critical (accum)
              end do
-          end do
-       end do
-    else
-       allocate(w(n(1),n(2),n(3)))
-       do i = 1, natt
-          call yt_weights(din=dat,idb=i,w=w)
-          do m3 = 1, n(3)
-             do m2 = 1, n(2)
-                do m1 = 1, n(1)
-                   if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                   p = (/m1,m2,m3/)
-                   x = real(p-1,8) / n - xgatt(:,i)
-                   xs = x
-                   call sy%c%shortest(xs,d2)
-                   p = nint(x - sy%c%c2x(xs))
-                   if (any(p /= 0)) then
-                      found = .false.
-                      do j = natt+1, natt1
-                         if (iatt(j) == i .and. all(p == ilvec(:,j))) then
-                            found = .true.
-                            exit
-                         end if
+             !$omp end parallel do
+             res(k)%outmode = out_field
+          else
+             ! multipoles
+             ! allocate temporary space
+             lmax = sy%propi(k)%lmax
+             allocate(rrlm((lmax+1)*(lmax+1)))
+             rrlm = 0d0
+
+             ! allocate result space
+             if (allocated(res(k)%mpole)) deallocate(res(k)%mpole)
+             allocate(res(k)%mpole((lmax+1)*(lmax+1),bas%nattr))
+             res(k)%mpole = 0d0
+
+             if (bas%imtype == imtype_bader) then
+                ! calcualate the multipoles, with bader
+                !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm) schedule(dynamic)
+                do i1 = 1, bas%n(1)
+                   p(1) = real(i1-1,8)
+                   do i2 = 1, bas%n(2)
+                      p(2) = real(i2-1,8)
+                      do i3 = 1, bas%n(3)
+                         p(3) = real(i3-1,8)
+                         ix = bas%idg(i1,i2,i3)
+                         dv = p/real(bas%n,8) - bas%xattr(:,ix)
+                         call sy%c%shortest(dv,r)
+                         call tosphere(dv,r,tp)
+                         call genrlm_real(lmax,r,tp,rrlm)
+
+                         !$omp critical (accum)
+                         res(k)%mpole(:,ix) = res(k)%mpole(:,ix) + rrlm * fint(i1,i2,i3)
+                         !$omp end critical (accum)
                       end do
-                      if (.not.found) then
-                         natt1 = natt1 + 1
-                         if (natt1 > size(ilvec,2)) then
-                            call realloc(ilvec,3,2*natt1)
-                            call realloc(iatt,2*natt1)
-                         end if
-                         ilvec(:,natt1) = p
-                         iatt(natt1) = i
-                      end if
-                   end if
+                   end do
                 end do
-             end do
-          end do
-       end do
-       deallocate(w)
-    end if
-    call realloc(ilvec,3,natt1)
-    call realloc(iatt,natt1)
-    write (uout,'(99(A,X))') "  Attractors after remapping =", string(natt1)
+                !$omp end parallel do
+             else
+                w = 0d0
+                !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm) schedule(dynamic)
+                do m = 1, bas%nattr
+                   call yt_weights(din=dat,idb=m,w=w)
+                   do i1 = 1, bas%n(1)
+                      do i2 = 1, bas%n(2)
+                         do i3 = 1, bas%n(3)
+                            if (abs(w(i1,i2,i3)) < 1d-15) cycle
+                            p = real((/i1-1,i2-1,i3-1/),8)
+                            dv = p/real(bas%n,8) - bas%xattr(:,m)
+                            call sy%c%shortest(dv,r)
+                            call tosphere(dv,r,tp)
+                            call genrlm_real(lmax,r,tp,rrlm)
 
-    ! header
-    if (allocated(sij)) deallocate(sij)
-    allocate(sij(nmo,nmo,natt,nspin,ndeloc))
-    sij = 0d0
-
-    ! run over all properties
-    ndeloc = 0
-    do l = 1, sy%npropi
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
-       if (.not.all(sy%f(fid)%grid%n == n)) cycle
-       ndeloc = ndeloc + 1
-
-       sijfname = trim(sy%f(fid)%file) // "-sij"
-       if (.not.sy%f(fid)%grid%wan%haschk) then
-          ! assign values to some integers
-          nbnd = sy%f(fid)%grid%wan%nbnd
-          nwan = sy%f(fid)%grid%wan%nwan
-          nlat = sy%f(fid)%grid%wan%nks
-          nmo = nlat * nbnd
-          nspin = sy%f(fid)%grid%wan%nspin
-
-          ! write out some info
-          write (uout,'("# Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
-          write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
-          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
-          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nmo)
-          write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-
-          write (uout,'(99(A,X))') "  Calculating overlaps..."
-          sij(:,:,:,:,ndeloc) = 0d0
-
-          ! build the supercell
-          ncseed%isused = .true.
-          do i = 1, 3
-             ncseed%crys2car(:,i) = sy%c%crys2car(:,i) * nwan(i)
-          end do
-          ncseed%useabr = 2
-          ncseed%nat = 0
-          ncseed%havesym = 0
-          ncseed%findsym = 0
-          ncseed%ismolecule = sy%c%ismolecule
-          call nc%struct_new(ncseed,.true.)
-
-          allocate(psic(n(1),n(2),n(3)))
-          allocate(f1(sy%f(fid)%grid%n(1)*nwan(1),sy%f(fid)%grid%n(2)*nwan(2),sy%f(fid)%grid%n(3)*nwan(3)))
-          allocate(f2(sy%f(fid)%grid%n(1)*nwan(1),sy%f(fid)%grid%n(2)*nwan(2),sy%f(fid)%grid%n(3)*nwan(3)))
-          allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
-          if (imtype == imtype_yt) &
-             allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
-          do is = 1, nspin
-             do ibnd1 = 1, nbnd
-                ! first wannier function
-                call sy%f(fid)%grid%get_qe_wnr(ibnd1,is,f1)
-
-                do ibnd2 = ibnd1, nbnd
-                   ! second wannier function
-                   if (ibnd1 == ibnd2) then
-                      f2 = f1
-                   else
-                      call sy%f(fid)%grid%get_qe_wnr(ibnd2,is,f2)
-                   endif
-
-                   ! lovrlp
-                   lovrlp = .true.
-                   if (sy%f(fid)%grid%wan%cutoff > 0d0) then
-                      d0 = (sy%f(fid)%grid%wan%spread(ibnd1,is)+sy%f(fid)%grid%wan%spread(ibnd2,is)) * sy%f(fid)%grid%wan%cutoff
-                      do imo = 1, nmo
-                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                         if (iba /= ibnd1) cycle
-                         do jmo = 1, nmo
-                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                            if (ibb /= ibnd2) cycle
-                            x = (sy%f(fid)%grid%wan%center(:,ibnd1,is) + (/ia,ja,ka/) - (/ib,jb,kb/) - sy%f(fid)%grid%wan%center(:,ibnd2,is)) / real(nwan,8)
-                            call nc%shortest(x,d2)
-                            if (sqrt(d2) > d0) &
-                               lovrlp(ia,ja,ka,ib,jb,kb) = .false.
+                            !$omp critical (accum)
+                            res(k)%mpole(:,m) = res(k)%mpole(:,m) + rrlm * fint(i1,i2,i3) * w(i1,i2,i3)
+                            !$omp end critical (accum)
                          end do
                       end do
-                   end if
-
-                   write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
-                      string(ibnd1), string(ibnd2), string(nbnd), string(is), string(nspin),&
-                      string(count(lovrlp)), string(nlat*nlat)
-
-                   if (imtype == imtype_bader) then
-                      ! bader integration
-                      psic = 0d0
-                      !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic) schedule(dynamic)
-                      do imo = 1, nmo
-                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                         if (iba /= ibnd1) cycle
-                         do jmo = 1, nmo
-                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                            if (ibb /= ibnd2) cycle
-                            if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
-                            psic = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * &
-                               f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
-                            do i = 1, natt1
-                               padd = sum(psic,idg1==i)
-                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                               !$omp critical (add)
-                               sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                               if (ibnd1 /= ibnd2) then
-                                  sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(jmo1,imo1,iatt(i),is,ndeloc) + conjg(padd)
-                               end if
-                               !$omp end critical (add)
-                            end do
-                         end do
-                      end do
-                      !$omp end parallel do
-                   else
-                      ! yt integration
-                      psic = 0d0
-                      psic2 = 0d0
-                      w = 0d0
-                      wmask = .false.
-                      !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
-                      do i = 1, natt1
-                         call yt_weights(din=dat,idb=iatt(i),w=w)
-                         wmask = .false.
-                         do m3 = 1, n(3)
-                            do m2 = 1, n(2)
-                               do m1 = 1, n(1)
-                                  if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                                  p = (/m1,m2,m3/)
-                                  x = real(p-1,8) / n - xgatt(:,iatt(i))
-                                  xs = x
-                                  call sy%c%shortest(xs,d2)
-                                  p = nint(x - sy%c%c2x(xs))
-                                  wmask(m1,m2,m3) = all(p == ilvec(:,i))
-                               end do
-                            end do
-                         end do
-
-                         psic2 = 0d0
-                         do imo = 1, nmo
-                            call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-                            if (iba /= ibnd1) cycle
-                            where (wmask)
-                               psic2 = conjg(f1(ia*n(1)+1:(ia+1)*n(1),ja*n(2)+1:(ja+1)*n(2),ka*n(3)+1:(ka+1)*n(3))) * w
-                            end where
-
-                            do jmo = 1, nmo
-                               call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
-                               if (ibb /= ibnd2) cycle
-                               if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
-
-                               where (wmask)
-                                  psic =  psic2 * &
-                                     f2(ib*n(1)+1:(ib+1)*n(1),jb*n(2)+1:(jb+1)*n(2),kb*n(3)+1:(kb+1)*n(3))
-                               end where
-                               padd = sum(psic,wmask)
-                               call packidx(ia+ilvec(1,i),ja+ilvec(2,i),ka+ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
-                               call packidx(ib+ilvec(1,i),jb+ilvec(2,i),kb+ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
-                               !$omp critical (add)
-                               sij(imo1,jmo1,iatt(i),is,ndeloc) = sij(imo1,jmo1,iatt(i),is,ndeloc) + padd
-                               if (ibnd1 /= ibnd2) then
-                                  sij(jmo1,imo1,iatt(i),is,ndeloc) = sij(jmo1,imo1,iatt(i),is,ndeloc) + conjg(padd)
-                               end if
-                               !$omp end critical (add)
-                            end do
-                         end do
-                      end do
-                      !$omp end parallel do
-                   end if
-
+                   end do
                 end do
-             end do
-          end do
-
-          ! clean up
-          deallocate(f1,f2,lovrlp)
-          if (imtype == imtype_yt) &
-             deallocate(w,wmask,psic2)
-          deallocate(psic)
-
-          ! scale (the omega comes from wannier)
-          sij(:,:,:,:,ndeloc) = sij(:,:,:,:,ndeloc) / (n(1)*n(2)*n(3))
-
-          ! write the checkpoint
-          if (sy%f(fid)%grid%wan%sijchk) then
-             write (uout,'("+ Writing Sij checkpoint file: ",A)') trim(sijfname)
-             lu = fopen_write(sijfname,"unformatted")
-             write (lu) sy%f(fid)%grid%n
-             write (lu) sy%f(fid)%grid%f
-             write (lu) nspin, natt, nmo
-             write (lu) sij(:,:,:,:,ndeloc)
-             call fclose(lu)
+                !$omp end parallel do
+                res(k)%outmode = out_mpoles
+             endif
+             res(k)%mpole = res(k)%mpole * sy%c%omega / real(ntot,8)
+             deallocate(rrlm)
           end if
        else
-          ! read the checkpoint file
-          write (uout,'("+ Reading Sij checkpoint file: ",A)') trim(sijfname)
-          lu = fopen_read(sijfname,"unformatted")
-          read (lu) n
-          if (allocated(w)) deallocate(w)
-          allocate(w(n(1),n(2),n(3)))
-          read (lu) w
-          deallocate(w)
-
-          read (lu) is, ia, imo
-          read (lu) sij(:,:,:,:,ndeloc)
-          call fclose(lu)
+          ! none of the above
+          cycle
        end if
-       
-       ! final message
-       write (uout,'("+ Done."/)')
+       res(k)%done = .true.
+       res(k)%reason = ""
     end do
 
     ! clean up
-    if (allocated(idg1)) deallocate(idg1)
-    deallocate(iatt,ilvec)
+    if (allocated(fint)) deallocate(fint)
+    if (allocated(w)) deallocate(w)
+    if (bas%imtype == imtype_yt) then
+       call ytdata_clean(dat)
+    end if
+    
+  contains
+    subroutine run_first_pass()
+      ! YT, get the data
+      if (bas%imtype == imtype_yt) then
+         allocate(w(bas%n(1),bas%n(2),bas%n(3)))
+         w = 0d0
+         call yt_weights(luw=bas%luw,dout=dat)
+      end if
+
+      ! do not run this again
+      first = .false.
+    end subroutine run_first_pass
+
+  end subroutine intgrid_fields
+
+  !> Calculate localization and delocalization indices using maximally
+  !> localized Wannier functions. bas = integration driver data,
+  !> res(1:npropi) = results.
+  subroutine intgrid_deloc_wannier(bas,res)
+    use yt, only: yt_weights, ytdata, ytdata_clean
+    use systemmod, only: sy, itype_deloc, itype_deloc_sijchk, itype_deloc_fachk
+    use fieldmod, only: type_grid, type_wfn
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use global, only: fileroot
+    use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
+    use tools_math, only: matinv
+    use types, only: basindat, realloc, int_result, out_delocwan
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(inout) :: res(:)
+
+    integer :: i, j, k, l, natt1
+    logical :: found, calcsij, first
+    integer :: luevc(2), luevc_ibnd(2)
+    integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
+    integer :: m1, m2, m3, idx(3)
+    integer :: fid, p(3)
+    integer :: nwan(3), nbnd, nbndw(2), nlat, nmo, nspin, nattn
+    real*8 :: x(3), xs(3), d2, fatemp
+    integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
+    type(ytdata) :: dat
+    character(len=:), allocatable :: sijfname, fafname
+    real*8, allocatable :: w(:,:,:)
+    integer :: ib, jb, kb, ibb
+    ! real*8 :: ix1, ix2
+    ! complex*16 :: aa 
+
+    first = .true.
+    do l = 1, sy%npropi
+       if (res(l)%done) cycle
+       if (.not.sy%propi(l)%used) cycle
+       if (sy%propi(l)%itype /= itype_deloc.and.sy%propi(l)%itype /= itype_deloc_sijchk.and.sy%propi(l)%itype /= itype_deloc_fachk) cycle
+       write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
+          
+       ! check consistency of the field, if applicable
+       ! assign checkpoints
+       if (sy%propi(l)%itype == itype_deloc) then
+          fid = sy%propi(l)%fid
+          if (.not.sy%goodfield(fid)) then
+             res(l)%reason = "unknown or invalid field"
+             cycle
+          end if
+          sijfname = trim(sy%f(fid)%file) // "-sij"
+          fafname = trim(sy%f(fid)%file) // "-fa"
+       else
+          sijfname = trim(fileroot) // ".chk-sij"
+          fafname = trim(fileroot) // ".chk-fa"
+       end if
+
+       ! maybe we can read the Fa information and jump to the end
+       if (sy%propi(l)%itype == itype_deloc_fachk) then
+          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+             if (natt1 == bas%nattr) then
+                write (uout,'("# Reading Fa checkpoint file: ",A)') string(sy%propi(l)%fachkfile)
+                if (allocated(res(l)%fa)) deallocate(res(l)%fa)
+                allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+                call read_fachk_body(sy%propi(l)%fachkfile,res(l)%fa)
+                goto 999
+             else
+                res(l)%reason = "inconsistent number of attractors in Fa checkpoint"
+                cycle
+             end if
+          else
+             res(l)%reason = "Fa checkpoint file not found"
+             cycle
+          end if
+       else if (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%fachk) then
+          if (read_chk_header(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+             fid = sy%propi(l)%fid
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
+                nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
+                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
+                write (uout,'("# Reading Fa checkpoint file: ",A)') string(fafname)
+                if (allocated(res(l)%fa)) deallocate(res(l)%fa)
+                allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+                call read_fachk_body(fafname,res(l)%fa)
+                goto 999
+             end if
+          end if
+       end if
+
+       ! maybe we can read the Sij information and bypass the Sij calculation
+       calcsij = .true.
+       if (sy%propi(l)%itype == itype_deloc_sijchk) then
+          ! read the sij from a checkpoint file (without the corresponding field)
+          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+             if (natt1 == bas%nattr) then
+                write (uout,'("# Reading Sij checkpoint file: ",A)') string(sy%propi(l)%sijchkfile)
+                if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+                allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
+                call read_sijchk_body(sy%propi(l)%sijchkfile,res(l)%sijc)
+                res(l)%nwan = nwan
+                res(l)%nspin = nspin
+                calcsij = .false.
+             else
+                res(l)%reason = "inconsistent number of attractors in Sij checkpoint"
+                cycle
+             end if
+          else
+             res(l)%reason = "Sij checkpoint file not found"
+             cycle
+          end if
+       elseif (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%sijchk) then
+          if (read_chk_header(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+             fid = sy%propi(l)%fid
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
+                nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
+                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
+                write (uout,'("# Reading Sij checkpoint file: ",A)') string(sijfname)
+                if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+                allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
+                call read_sijchk_body(sijfname,res(l)%sijc)
+                calcsij = .false.
+             end if
+          end if
+       end if ! sy%propi(l)%itype == itype_deloc, etc.
+
+       ! assign values to some integers and check consistency of the input field
+       if (sy%propi(l)%itype == itype_deloc) then
+          ! check consistency of the input field
+          if (sy%f(fid)%type /= type_grid) then
+             if (sy%f(fid)%type /= type_wfn) &
+                res(l)%reason = "cannot calculate delocalization indices with non-grid fields"
+             cycle
+          end if
+          if (.not.sy%f(fid)%grid%isqe) then
+             res(l)%reason = "QE data not available for this field"
+             cycle
+          end if
+          if (.not.sy%f(fid)%grid%iswan .and. sy%propi(l)%useu) then
+             res(l)%reason = "Wannier data not available for this field"
+             cycle
+          end if
+          if (.not.all(sy%f(fid)%grid%n == bas%n)) then
+             res(l)%reason = "Wannier and reference grids have different number of points"
+             cycle
+          end if
+          ! assign integers
+          nbnd = sy%f(fid)%grid%qe%nbnd
+          nwan = sy%f(fid)%grid%qe%nk
+          nlat = sy%f(fid)%grid%qe%nks
+          nspin = sy%f(fid)%grid%qe%nspin
+          nmo = nlat * nbnd
+          if (sy%f(fid)%grid%iswan) then
+             nbndw = sy%f(fid)%grid%qe%nbndw
+          else
+             if (nspin == 1) then
+                nbndw = nbnd
+             else
+                nbndw(1) = nint(sum(sy%f(fid)%grid%qe%occ(:,1) / sy%f(fid)%grid%qe%wk(1)))
+                nbndw(2) = nint(sum(sy%f(fid)%grid%qe%occ(:,1+nlat) / sy%f(fid)%grid%qe%wk(1)))
+                ! trick to get it working without the Wannier info
+                do i = 2, sy%f(fid)%grid%qe%nks
+                   m1 = nint(sum(sy%f(fid)%grid%qe%occ(:,i) / sy%f(fid)%grid%qe%wk(i)))
+                   m2 = nint(sum(sy%f(fid)%grid%qe%occ(:,i+nlat) / sy%f(fid)%grid%qe%wk(i)))
+                   if (m1 /= nbndw(1) .or. m2 /= nbndw(2)) &
+                      call ferror("intgrid_deloc_wannier","Incorrect band occupation in nspin=2 case",faterr)
+                end do
+                sy%f(fid)%grid%qe%nbndw = nbndw
+             end if
+          end if
+       end if
+
+       !!! calculate Sij !!!
+       if (calcsij) then
+          ! write header and allocate YT weights
+          write (uout,'("# Calculating atomic overlap matrices")')
+
+          ! get the data for YT
+          if (first .and. bas%imtype == imtype_yt) then
+             allocate(w(bas%n(1),bas%n(2),bas%n(3)))
+             w = 0d0
+             call yt_weights(luw=bas%luw,dout=dat)
+             first = .false.
+          end if
+
+          ! Recalculate the number of attractors without cell translation symmetry.
+          ! Calculate basin spreads.
+          allocate(iatt(bas%nattr))
+          nattn = bas%nattr
+          do i = 1, bas%nattr
+             iatt(i) = i
+          enddo
+          allocate(ilvec(3,bas%nattr))
+          ilvec = 0
+          write (uout,'(99(A,X))') "  Attractors before remapping =", string(bas%nattr)
+          if (bas%imtype == imtype_bader) then
+             allocate(idg1(bas%n(1),bas%n(2),bas%n(3)))
+             do m3 = 1, bas%n(3)
+                do m2 = 1, bas%n(2)
+                   do m1 = 1, bas%n(1)
+                      idg1(m1,m2,m3) = bas%idg(m1,m2,m3)
+                      p = (/m1,m2,m3/)
+                      x = real(p-1,8) / bas%n - bas%xattr(:,bas%idg(m1,m2,m3))
+                      xs = x
+                      call sy%c%shortest(xs,d2)
+                      p = nint(x - sy%c%c2x(xs))
+                      if (any(p /= 0)) then
+                         found = .false.
+                         do i = bas%nattr+1, nattn
+                            if (iatt(i) == bas%idg(m1,m2,m3) .and. all(p == ilvec(:,i))) then
+                               found = .true.
+                               idg1(m1,m2,m3) = i
+                               exit
+                            end if
+                         end do
+                         if (.not.found) then
+                            nattn = nattn + 1
+                            if (nattn > size(ilvec,2)) then
+                               call realloc(ilvec,3,2*nattn)
+                               call realloc(iatt,2*nattn)
+                            end if
+                            ilvec(:,nattn) = p
+                            idg1(m1,m2,m3) = nattn
+                            iatt(nattn) = bas%idg(m1,m2,m3)
+                         end if
+                      end if
+                   end do
+                end do
+             end do
+          else
+             do i = 1, bas%nattr
+                call yt_weights(din=dat,idb=i,w=w)
+                do m3 = 1, bas%n(3)
+                   do m2 = 1, bas%n(2)
+                      do m1 = 1, bas%n(1)
+                         if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                         p = (/m1,m2,m3/)
+                         x = real(p-1,8) / bas%n - bas%xattr(:,i)
+                         xs = x
+                         call sy%c%shortest(xs,d2)
+                         p = nint(x - sy%c%c2x(xs))
+                         if (any(p /= 0)) then
+                            found = .false.
+                            do j = bas%nattr+1, nattn
+                               if (iatt(j) == i .and. all(p == ilvec(:,j))) then
+                                  found = .true.
+                                  exit
+                               end if
+                            end do
+                            if (.not.found) then
+                               nattn = nattn + 1
+                               if (nattn > size(ilvec,2)) then
+                                  call realloc(ilvec,3,2*nattn)
+                                  call realloc(iatt,2*nattn)
+                               end if
+                               ilvec(:,nattn) = p
+                               iatt(nattn) = i
+                            end if
+                         end if
+                      end do
+                   end do
+                end do
+             end do
+          end if
+          call realloc(ilvec,3,nattn)
+          call realloc(iatt,nattn)
+          write (uout,'(99(A,X))') "  Attractors after remapping =", string(nattn)
+
+          ! allocate the sij
+          if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+          allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
+          res(l)%sijc = 0d0
+
+          ! write out some info
+          write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
+          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
+          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlat)
+          write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
+          if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
+             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%propi(l)%wancut,'f',5,2)
+          else
+             write (uout,'(99(A,X))') "  Discarding no overlaps."
+          end if
+
+          ! prepare the transformed files
+          luevc = -1
+          luevc_ibnd = 0
+          write (uout,'(99(A,X))') "  Writing temporary evc files..."
+          call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd,sy%propi(l)%useu)
+
+          ! calculate overlaps
+          write (uout,'(99(A,X))') "# Calculating overlaps..."
+          call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,ilvec,&
+             idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
+          deallocate(iatt,ilvec)
+          if (allocated(idg1)) deallocate(idg1)
+
+          ! close the rotated evc scratch files
+          if (luevc(1) >= 0) call fclose(luevc(1))
+          if (luevc(2) >= 0) call fclose(luevc(2))
+
+          ! write the checkpoint
+          if (sy%propi(l)%sijchk) then
+             write (uout,'("# Writing Sij checkpoint file: ",A)') trim(sijfname)
+             call write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%sijc)
+          end if
+       end if ! calcsij
+
+       ! write (*,*) "checking S sum rules"
+       ! do ix1 = 1, nbndw(1)
+       !    do ix2 = 1, nbndw(2)
+       !       do is = 1, nspin
+       !          aa = 0d0
+       !          do imo = 1, nmo
+       !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+       !             if (iba /= ix1) cycle
+       !             do jmo = 1, nmo
+       !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+       !                if (ibb /= ix2) cycle
+       !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
+       !             end do
+       !          end do
+       !          write (*,*) is, ix1, ix2, aa
+       !       end do
+       !    end do
+       ! end do
+       ! stop 1
+
+       !!! calculate Fa !!!
+       write (uout,'("# Calculating Fa")')
+
+       ! calculate the index mapping in order to build the fa matrix
+       ! kmo = imap(imo,jlat) gives the Wannier function index kmo
+       ! resulting from taking the Wannier function imo and
+       ! translating by lattice vector jlat
+       allocate(imap(nmo,nlat))
+       do imo = 1, nmo
+          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+          k = 0
+          do ic = 0, nwan(1)-1
+             do jc = 0, nwan(2)-1
+                do kc = 0, nwan(3)-1
+                   k = k + 1
+                   idx = (/ia-ic, ja-jc, ka-kc/)
+                   idx = modulo(idx,nwan)
+                   call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
+                end do
+             end do
+          end do
+       end do
+
+       if (allocated(res(l)%fa)) deallocate(res(l)%fa)
+       allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+       res(l)%fa = 0d0
+       !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb) schedule(dynamic)
+       do i = 1, bas%nattr
+          do j = 1, bas%nattr
+             do is = 1, nspin
+                do k = 1, nlat
+                   fatemp = 0d0
+                   do imo = 1, nmo
+                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                      ! if (iba > nbndw(is)) cycle
+                      do jmo = 1, nmo
+                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                         ! if (ibb > nbndw(is)) cycle
+                         fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imap(imo,k),imap(jmo,k),j,is),8)
+                      end do
+                   end do
+                   !$omp critical (addfa)
+                   res(l)%fa(i,j,k,is) = fatemp
+                   !$omp end critical (addfa)
+                end do
+             end do
+          end do
+       end do
+       !$omp end parallel do
+       deallocate(imap)
+
+       ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
+       ! write (*,*) "Atomic charges..."
+       ! do i = 1, bas%nattr
+       !    write (*,*) i, sum(res(l)%fa(i,:,:,:)), sum(res(l)%fa(:,i,:,:))
+       ! end do
+       ! write (*,*) "Spin charges..."
+       ! do is = 1, nspin
+       !    do i = 1, bas%nattr
+       !       write (*,*) i, sum(res(l)%fa(i,:,:,is)), sum(res(l)%fa(:,i,:,is))
+       !    end do
+       ! end do
+       ! stop 1
+       
+       ! write the checkpoint file
+       if (sy%propi(l)%fachk) then
+          write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
+          call write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%fa)
+       end if
+
+       ! finished successfully
+999    continue
+       if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+       res(l)%done = .true.
+       res(l)%reason = ""
+       res(l)%outmode = out_delocwan
+       res(l)%nwan = nwan
+       res(l)%nspin = nspin
+   end do ! l = 1, sy%npropi
+
+    ! clean up
+    if (bas%imtype == imtype_yt) then
+       if (allocated(w)) deallocate(w)
+       call ytdata_clean(dat)
+    end if
 
   end subroutine intgrid_deloc_wannier
+
+  !> Write the Sij checkpoint file (Wannier DI integration).
+  subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
+    use tools_io, only: fopen_write, fclose
+    character(len=*), intent(in) :: sijfname
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    complex*16, intent(in) :: sij(:,:,:,:)
+
+    integer :: lu
+
+    lu = fopen_write(sijfname,"unformatted")
+    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    write (lu) sij
+    call fclose(lu)
+    
+  end subroutine write_sijchk
+
+  !> Write the Fa checkpoint file (Wannier DI integration).
+  subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
+    use tools_io, only: fopen_write, fclose
+    character(len=*), intent(in) :: fafname
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    real*8, intent(in) :: fa(:,:,:,:)
+
+    integer :: lu
+
+    lu = fopen_write(fafname,"unformatted")
+    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    write (lu) fa
+    call fclose(lu)
+    
+  end subroutine write_fachk
+
+  !> Read the header for the Sij/Fa checkpoint file (Wannier DI
+  !> integration). If found and read, return .true.
+  function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr) result(haschk)
+    use tools_io, only: fopen_read, fclose
+    character(len=*), intent(in) :: fname
+    integer, intent(out) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    logical :: haschk
+
+    integer :: lu
+
+    inquire(file=fname,exist=haschk)
+    if (.not.haschk) return
+    lu = fopen_read(fname,"unformatted")
+    read (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    call fclose(lu)
+
+  end function read_chk_header
+
+  !> Read the body of the Sij checkpoint file (Wannier DI integration).
+  subroutine read_sijchk_body(sijfname,sij)
+    use tools_io, only: fopen_read, fclose
+    character(len=*), intent(in) :: sijfname
+    complex*16, intent(inout) :: sij(:,:,:,:)
+
+    integer :: lu
+
+    lu = fopen_read(sijfname,"unformatted")
+    read (lu)
+    read (lu) sij
+    call fclose(lu)
+
+  end subroutine read_sijchk_body
+
+  !> Read the body of the Fa checkpoint file (Wannier DI integration).
+  subroutine read_fachk_body(fafname,fa)
+    use tools_io, only: fopen_read, fclose
+    character(len=*), intent(in) :: fafname
+    real*8, intent(inout) :: fa(:,:,:,:)
+
+    integer :: lu
+
+    lu = fopen_read(fafname,"unformatted")
+    read (lu)
+    read (lu) fa
+    call fclose(lu)
+
+  end subroutine read_fachk_body
+
+  !> Calculate the atomic overlap matrices (sij) from the complex
+  !> Wannier functions in field fid. Use integration method imtype
+  !> (bader/yt), with natt1 remapped attractors, iatt = attractor
+  !> mapping, ilvec = attractor lattice vector, idg1 = grid assignment
+  !> to attractors in Bader, xattr = attractor position, dat = YT data
+  !> type. luevc are the two scratch files for the rotated evc and
+  !> luevc_ibnd are the band pointers in those files.
+  subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
+    use systemmod, only: sy
+    use yt, only: yt_weights, ytdata, ytdata_clean
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: ferror, faterr, uout, string
+    integer, intent(in) :: fid
+    real*8, intent(in) :: wancut
+    logical, intent(in) :: useu
+    integer, intent(in) :: imtype
+    integer, intent(in) :: natt1
+    integer, intent(in) :: iatt(natt1)
+    integer, intent(in) :: ilvec(3,natt1)
+    integer, intent(in) :: idg1(:,:,:)
+    real*8, intent(in) :: xattr(:,:)
+    integer, intent(in) :: luevc(2)
+    type(ytdata), intent(in) :: dat
+    integer, intent(inout) :: luevc_ibnd(2)
+    complex*16, intent(out) :: sij(:,:,:,:)
+
+    integer :: i, is, ibnd1, ibnd2
+    integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
+    integer :: n(3), nbnd, nbndw(2), nwan(3), nlat, nmo, nspin
+    integer :: ncalc, m1, m2, m3, p(3)
+    real*8 :: d0, d2, x(3), xs(3)
+    type(crystalseed) :: ncseed
+    type(crystal) :: nc
+    logical, allocatable :: lovrlp(:,:,:,:,:,:)
+    complex*16, allocatable :: psic(:,:,:), psic2(:,:,:)
+    complex*16 :: padd
+    complex*16, allocatable :: f1(:,:,:,:), f2(:,:,:,:)
+    real*8, allocatable :: w(:,:,:)
+    logical, allocatable :: wmask(:,:,:)
+
+    sij = 0d0
+    n = sy%f(sy%iref)%grid%n
+    nwan = sy%f(fid)%grid%qe%nk
+    nlat = sy%f(fid)%grid%qe%nks
+    nspin = sy%f(fid)%grid%qe%nspin
+    nbnd = sy%f(fid)%grid%qe%nbnd
+    nbndw = sy%f(fid)%grid%qe%nbndw
+    nmo = nlat * nbnd
+
+    ! build the supercell
+    ncseed%isused = .true.
+    do i = 1, 3
+       ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nwan(i)
+    end do
+    ncseed%useabr = 2
+    ncseed%nat = 0
+    ncseed%havesym = 0
+    ncseed%findsym = 0
+    ncseed%ismolecule = sy%c%ismolecule
+    call nc%struct_new(ncseed,.true.)
+
+    if (any(n /= sy%f(fid)%grid%n)) &
+       call ferror("calc_sij_wannier","inconsistent grid sizes",faterr)
+    allocate(psic(n(1),n(2),n(3)))
+    allocate(f1(n(1),n(2),n(3),nlat))
+    allocate(f2(n(1),n(2),n(3),nlat))
+    allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
+    
+    ! the big loop
+    if (imtype == imtype_yt) &
+       allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
+    do is = 1, nspin
+       do ibnd1 = 1, nbndw(is)
+          ! first wannier function
+          call sy%f(fid)%grid%get_qe_wnr(ibnd1,is,luevc,luevc_ibnd,f1)
+
+          do ibnd2 = ibnd1, nbndw(is)
+             ! second wannier function
+             if (ibnd1 == ibnd2) then
+                f2 = f1
+             else
+                call sy%f(fid)%grid%get_qe_wnr(ibnd2,is,luevc,luevc_ibnd,f2)
+             endif
+
+             ! lovrlp
+             lovrlp = .true.
+             if (wancut > 0d0 .and. useu) then
+                d0 = (sy%f(fid)%grid%qe%spread(ibnd1,is)+sy%f(fid)%grid%qe%spread(ibnd2,is)) * wancut
+                do imo = 1, nmo
+                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                   if (iba /= ibnd1) cycle
+                   do jmo = 1, nmo
+                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                      if (ibb /= ibnd2) cycle
+                      x = (sy%f(fid)%grid%qe%center(:,ibnd1,is) + (/ia,ja,ka/) - (sy%f(fid)%grid%qe%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
+                      call nc%shortest(x,d2)
+                      if (d2 > d0) &
+                         lovrlp(ia,ja,ka,ib,jb,kb) = .false.
+                   end do
+                end do
+             end if
+
+             ncalc = 0
+             if (imtype == imtype_bader) then
+                ! bader integration
+                psic = 0d0
+                !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic) schedule(dynamic)
+                do imo = 1, nmo
+                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                   if (iba /= ibnd1) cycle
+                   ilata = 1 + ka + nwan(3) * (ja + nwan(2) * ia)
+                   do jmo = 1, nmo
+                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                      if (ibb /= ibnd2) cycle
+                      if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
+                      ilatb = 1 + kb + nwan(3) * (jb + nwan(2) * ib)
+
+                      psic = conjg(f1(:,:,:,ilata)) * f2(:,:,:,ilatb)
+                      do i = 1, natt1
+                         padd = sum(psic,idg1==i)
+                         call packidx(ia-ilvec(1,i),ja-ilvec(2,i),ka-ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                         call packidx(ib-ilvec(1,i),jb-ilvec(2,i),kb-ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                         !$omp critical (add)
+                         ncalc = ncalc + 1
+                         sij(imo1,jmo1,iatt(i),is) = sij(imo1,jmo1,iatt(i),is) + padd
+                         if (ibnd1 /= ibnd2) then
+                            sij(jmo1,imo1,iatt(i),is) = sij(jmo1,imo1,iatt(i),is) + conjg(padd)
+                         end if
+                         !$omp end critical (add)
+                      end do ! natt1
+                   end do ! jmo
+                end do ! imo
+                !$omp end parallel do
+             else
+                ! yt integration
+                psic = 0d0
+                psic2 = 0d0
+                w = 0d0
+                wmask = .false.
+                !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
+                do i = 1, natt1
+                   call yt_weights(din=dat,idb=iatt(i),w=w)
+                   wmask = .false.
+                   do m3 = 1, n(3)
+                      do m2 = 1, n(2)
+                         do m1 = 1, n(1)
+                            if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                            p = (/m1,m2,m3/)
+                            x = real(p-1,8) / n - xattr(:,iatt(i))
+                            xs = x
+                            call sy%c%shortest(xs,d2)
+                            p = nint(x - sy%c%c2x(xs))
+                            wmask(m1,m2,m3) = all(p == ilvec(:,i))
+                         end do
+                      end do
+                   end do
+
+                   psic2 = 0d0
+                   do imo = 1, nmo
+                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                      if (iba /= ibnd1) cycle
+                      ilata = 1 + ka + nwan(3) * (ja + nwan(2) * ia)
+                      where (wmask)
+                         psic2 = conjg(f1(:,:,:,ilata)) * w
+                      end where
+
+                      do jmo = 1, nmo
+                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                         if (ibb /= ibnd2) cycle
+                         if (.not.lovrlp(ia,ja,ka,ib,jb,kb)) cycle
+                         ilatb = 1 + kb + nwan(3) * (jb + nwan(2) * ib)
+                         where (wmask)
+                            psic =  psic2 * f2(:,:,:,ilatb)
+                         end where
+
+                         padd = sum(psic,wmask)
+                         call packidx(ia-ilvec(1,i),ja-ilvec(2,i),ka-ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
+                         call packidx(ib-ilvec(1,i),jb-ilvec(2,i),kb-ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
+                         !$omp critical (add)
+                         ncalc = ncalc + 1
+                         sij(imo1,jmo1,iatt(i),is) = sij(imo1,jmo1,iatt(i),is) + padd
+                         if (ibnd1 /= ibnd2) then
+                            sij(jmo1,imo1,iatt(i),is) = sij(jmo1,imo1,iatt(i),is) + conjg(padd)
+                         end if
+                         !$omp end critical (add)
+                      end do ! jmo
+                   end do ! imo
+                end do ! i = 1, natt1
+                !$omp end parallel do
+             end if ! imtype == bader/yt
+
+             write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
+                string(ibnd1), string(ibnd2), string(nbndw(is)), string(is), string(nspin),&
+                string(ncalc), string(natt1*nlat*nlat)
+          end do ! ibnd2
+       end do ! ibnd1 
+    end do ! is
+
+    ! clean up
+    deallocate(f1,f2,psic,lovrlp)
+    if (imtype == imtype_yt) &
+       deallocate(w,wmask,psic2)
+
+    ! scale (the omega comes from wannier)
+    sij = sij / (n(1)*n(2)*n(3))
+
+  end subroutine calc_sij_wannier
 
   !> Dummy function for quadpack integration
   function quadpack_f(x,unit,xnuc) result(res)
@@ -1693,28 +1895,24 @@ contains
 
   end function quadpack_f
 
-  !> Output calculate multipole moments. Inputs: number of attractors
-  !> (nattr), CP identifiers for the attractors (icp), and the
-  !> multipoles themselves (mpole).
-  subroutine int_output_multipoles(nattr,icp,mpole)
-    use systemmod, only: sy, itype_mpoles
+  !> Write calculated multipole moments to the output. bas =
+  !> integration driver data, res(1:npropi) = results.
+  subroutine int_output_multipoles(bas,res)
+    use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_center
-    integer, intent(in) :: nattr
-    integer, intent(in) :: icp(nattr)
-    real*8, intent(in), allocatable, optional :: mpole(:,:,:)
+    use types, only: basindat, int_result, out_mpoles
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
     
-    integer :: i, j, k, nn, n, l, lmax, fid
+    integer :: i, j, k, l, nn, fid, lmax
+    ! integer :: i, j, k, nn, n, l, lmax, fid
     integer, allocatable :: l_(:), m_(:)
     character(len=:), allocatable :: lbl
     character*3 :: ls, ms
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
-
-    if (.not.present(mpole)) return
-    if (.not.allocated(mpole)) return
-    n = 0
+    
     do l = 1, sy%npropi
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_mpoles) cycle
+       if (.not.res(l)%done .or. res(l)%outmode /= out_mpoles) cycle
        fid = sy%propi(l)%fid
        write (uout,'("* Basin multipole moments (using real solid harmonics)")')
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
@@ -1724,10 +1922,9 @@ contains
        write (uout,'("  The coordinates are referred to the attractor of the A basin. All quantities")')
        write (uout,'("  in atomic units.")')
        write (uout,*)
-       lmax = sy%propi(l)%lmax
-       n = n + 1
 
        ! figure out the indices for the labels
+       lmax = sy%propi(l)%lmax
        allocate(l_((lmax+1)*(lmax+1)),m_((lmax+1)*(lmax+1)))
        nn = 0
        do i = 0, lmax
@@ -1737,7 +1934,7 @@ contains
              m_(nn) = j
           end do
        end do
-
+       
        ! pretty output
        nn = (lmax+1)**2/5
        if (mod((lmax+1)**2,5) /= 0) nn = nn + 1
@@ -1776,11 +1973,11 @@ contains
           write (uout,'(A)') lbl
 
           ! body
-          do j = 1, nattr
-             call assign_strings(j,icp(j),.false.,scp,sncp,sname,smult,sz)
+          do j = 1, bas%nattr
+             call assign_strings(j,bas%icp(j),.false.,scp,sncp,sname,smult,sz)
              write (uout,'(2X,99(A,X))') &
                 string(j,4,ioj_left), scp, sncp, sname, sz, &
-                (string(mpole((i-1)*5+1+k,j,n),'e',15,8,4),k=0,min(4,size(mpole,1)-(i-1)*5-1))
+                (string(res(l)%mpole((i-1)*5+1+k,j),'e',15,8,4),k=0,min(4,size(res(l)%mpole,1)-(i-1)*5-1))
           enddo
           if (i < nn) then
              write (uout,*)
@@ -1794,151 +1991,46 @@ contains
 
   end subroutine int_output_multipoles
 
-  !> Output delocalization indices in a molecular/wfn calculation.
-  !> Inputs: number of attractors (nattr), CP identifiers for the
-  !> attractors (icp), and the atomic overlap matrix (sij).
-  subroutine int_output_deloc_wfn(nattr,icp,sij)
-    use systemmod, only: sy, itype_deloc
-    use fieldmod, only: type_wfn
-    use wfn_private, only: wfn_rhf
-    use tools_io, only: uout, string, ioj_left
-    integer, intent(in) :: nattr
-    integer, intent(in) :: icp(nattr)
-    real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
-
-    integer :: i, j, l, fid
-    integer :: ndeloc
-    character(len=:), allocatable :: sncp, scp, sname, sz, smult
-    character(len=:), allocatable :: sout1, sout2
-    real*8, allocatable :: di(:,:)
-    real*8 :: fspin
-
-    if (.not.present(sij)) return
-    if (.not.allocated(sij)) return
-    if (.not.sy%c%ismolecule) return
-
-    ! space for the DIs
-    allocate(di(nattr,nattr))
-
-    ndeloc = 0
-    do l = 1, sy%npropi
-       if (.not.sy%c%ismolecule) cycle
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_wfn) cycle
-       ndeloc = ndeloc + 1
-
-       ! calculate localization and delocalization indices using
-       ! the atomic overlap matrix
-       di = 0d0
-       if (sy%f(fid)%wfn%wfntyp == wfn_rhf) then
-          fspin = 4d0
-       else
-          fspin = 1d0
-       end if
-       do i = 1, nattr
-          do j = i, nattr
-             di(i,j) = fspin * sum(sij(:,:,i,1,ndeloc)*sij(:,:,j,1,ndeloc))
-             di(j,i) = di(i,j)
-          end do
-       end do
-
-       ! Header
-       write (uout,'("* Localization and delocalization indices")')
-       write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
-
-       ! output the lambdas
-       write (uout,'("+ Localization indices (lambda(A))")')
-       write (uout,'("# Id   cp   ncp   Name  Z      lambda(A)  ")')
-       do j = 1, nattr
-          call assign_strings(j,icp(j),.false.,scp,sncp,sname,smult,sz)
-          write (uout,'(2X,99(A,X))') &
-             string(j,4,ioj_left), scp, sncp, sname, sz, &
-             string(0.5d0*di(j,j),'e',15,8,4)
-       enddo
-       write (uout,*)
-
-       write (uout,'("+ Delocalization indices (delta(A,B))")')
-       write (uout,'("#     ----- atom A -----          ----- atom B -----                       ")')
-       write (uout,'("#   Id   cp   ncp   Name  Z     Id   cp   ncp   Name  Z        delta(A,B)  ")')
-       do i = 1, nattr
-          call assign_strings(i,icp(i),.false.,scp,sncp,sname,smult,sz)
-          sout1 = "| " // string(i,4,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // " |"
-          do j = i+1, nattr
-             call assign_strings(j,icp(j),.false.,scp,sncp,sname,smult,sz)
-             sout2 = string(j,4,ioj_left) // " " // scp // " " // sncp // " " // sname // " " // sz // " " // " |"
-             write (uout,'(2X,99(A,X))') string(sout1), string(sout2), &
-                string(di(i,j),'e',15,8,4)
-          end do
-       end do
-       write (uout,*)
-    end do
-          
-    ! clean up
-    deallocate(di)
-
-  end subroutine int_output_deloc_wfn
-
-  !> Output delocalization indices in a wannier set calculation.
-  !> Inputs: number of attractors (nattr), CP identifiers for the
-  !> attractors (icp), and the atomic overlap matrix (sij).
-  subroutine int_output_deloc_wannier(natt,icp,xgatt,sij)
-    use systemmod, only: sy, itype_deloc
-    use fieldmod, only: type_grid
+  !> Output the delocalization indices, Wannier.  bas = integration
+  !> driver data, res(1:npropi) = results.
+  subroutine int_output_deloc_wannier(bas,res)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use global, only: iunit, iunitname0, dunit0
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
        fopen_write, fclose
-    integer, intent(in) :: natt
-    integer, intent(in) :: icp(natt)
-    real*8, intent(in) :: xgatt(3,natt)
-    complex*16, intent(in), allocatable, optional :: sij(:,:,:,:,:)
+    use types, only: basindat, int_result, out_delocwan
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
 
-    integer :: lu
-    integer :: l, m, fid, ndeloc, nspin, nbnd, nlat, nmo, nwan(3), n(3)
-    real*8 :: fspin, xnn, xli, r1(3), d2, asum, fatemp, raux
-    integer, allocatable :: imap(:,:), io(:), ilvec(:,:), idat(:)
-    real*8, allocatable :: fa(:,:,:,:)
-    real*8, allocatable :: diout(:), dist(:), dimol(:,:,:,:,:), limol(:), namol(:)
-    real*8 :: xcm(3,sy%c%nmol)
-    integer :: imo, jmo, ia, ja, ka, iba
-    integer :: ic, jc, kc, i, j, k, idx(3), is, lvec1(3), lvec2(3), lvec3(3)
+    integer :: i, j, k, l, m
+    integer :: fid, natt, nwan(3), nspin, nlat
+    real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux
+    real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
+    real*8, allocatable :: dist(:), diout(:), xcm(:,:)
+    integer, allocatable :: io(:), ilvec(:,:), idat(:), idxmol(:,:)
+    integer :: ia, ja
+    integer :: ic, jc, kc, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
     type(crystalseed) :: ncseed
-    integer :: idxmol(2,natt)
-    logical :: haschk
-    character(len=:), allocatable :: fafname
 
-    if (.not.present(sij)) return
-    if (.not.allocated(sij)) return
-
-    write (uout,'("* Localization and delocalization indices")')
-
-    n = sy%f(sy%iref)%grid%n
-
-    ndeloc = 0
     do l = 1, sy%npropi
-       ! skip the incorrect properties
-       if (.not.sy%propi(l)%used) cycle
-       if (.not.sy%propi(l)%itype == itype_deloc) cycle
-       fid = sy%propi(l)%fid
-       if (sy%f(fid)%type /= type_grid .or..not.sy%f(fid)%grid%iswan) cycle
-       if (.not.all(sy%f(fid)%grid%n == n)) cycle
-       ndeloc = ndeloc + 1
+       if (.not.res(l)%done) cycle
+       if (res(l)%outmode /= out_delocwan) cycle
+
+       write (uout,'("* Localization and delocalization indices")')
 
        ! header
+       fid = sy%propi(l)%fid
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
 
        ! some integers for the run
-       nwan = sy%f(fid)%grid%wan%nwan
-       nspin = sy%f(fid)%grid%wan%nspin
-       nbnd = sy%f(fid)%grid%wan%nbnd
+       nwan = res(l)%nwan
+       nspin = res(l)%nspin
        nlat = nwan(1)*nwan(2)*nwan(3)
-       nmo = nlat * nbnd
+       natt = bas%nattr
 
        ! spin factor
        if (nspin == 1) then
@@ -1947,81 +2039,14 @@ contains
           fspin = 1d0
        end if
        
-       ! calculate the index mapping in order to build the fa matrix
-       ! kmo = imap(imo,jlat) gives the Wannier function index kmo
-       ! resulting from taking the Wannier function imo and
-       ! translating by lattice vector jlat
-       allocate(imap(nmo,nlat))
-       do imo = 1, nmo
-          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
-          k = 0
-          do ic = 0, nwan(1)-1
-             do jc = 0, nwan(2)-1
-                do kc = 0, nwan(3)-1
-                   k = k + 1
-                   idx = (/ic+ia, jc+ja, kc+ka/)
-                   idx = modulo(idx,sy%f(fid)%grid%wan%nwan)
-                   call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
-                end do
-             end do
-          end do
-       end do
-
-       ! calculate the values of the fa matrix or read them from the checkpoint file
-       haschk = .false.
-       fafname = trim(sy%f(fid)%file) // "-fa"
-       if (sy%f(fid)%grid%wan%fachk) &
-          inquire(file=fafname,exist=haschk)
-
-       allocate(fa(natt,natt,nlat,nspin))
-       if (haschk) then
-          write (uout,'("+ Reading Fa checkpoint file: ",A)') trim(fafname)
-          lu = fopen_read(fafname,"unformatted")
-          read(lu) fa
-          call fclose(lu)
-       else
-          write (uout,'("+ Calculating Fa")')
-          fa = 0d0
-          !$omp parallel do private(fatemp) schedule(dynamic)
-          do i = 1, natt
-             do j = 1, natt
-                do is = 1, nspin
-                   do k = 1, nlat
-                      fatemp = 0d0
-                      do imo = 1, nmo
-                         do jmo = 1, nmo
-                            fatemp = fatemp + real(sij(jmo,imo,i,is,ndeloc) * sij(imap(imo,k),imap(jmo,k),j,is,ndeloc),8)
-                         end do
-                      end do
-                      !$omp critical (addfa)
-                      fa(i,j,k,is) = fatemp
-                      !$omp end critical (addfa)
-                   end do
-                end do
-             end do
-          end do
-          !$omp end parallel do
-
-          ! write the checkpoint file
-          if (sy%f(fid)%grid%wan%fachk) then
-             write (uout,'("+ Writing Fa checkpoint file: ",A)') trim(fafname)
-             lu = fopen_write(fafname,"unformatted")
-             write(lu) fa
-             call fclose(lu)
-          end if
-       end if
-       deallocate(imap)
-       write (uout,*)
-       
        ! localization indices
        write (uout,'("+ Localization indices")')
        write (uout,'("# Id   cp   ncp   Name  Z       LI(A)           N(A)")')
        do i = 1, natt
-          call assign_strings(i,icp(i),.false.,scp,sncp,sname,smult,sz)
-          xli = sum(abs(fa(i,i,1,:))) * fspin
-          xnn = sum(abs(fa(i,:,:,:))) * fspin
-          write (uout,'(2X,99(A,X))') & 
-             string(i,4,ioj_left), scp, sncp, sname, sz, &
+          call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+          xli = sum(abs(res(l)%fa(i,i,1,:))) * fspin
+          xnn = sum(abs(res(l)%fa(i,:,:,:))) * fspin
+          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
        end do
        write (uout,*)
@@ -2029,7 +2054,7 @@ contains
        ! build the supercell
        ncseed%isused = .true.
        do i = 1, 3
-          ncseed%crys2car(:,i) = sy%c%crys2car(:,i) * nwan(i)
+          ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nwan(i)
        end do
        ncseed%useabr = 2
        ncseed%nat = 0
@@ -2045,9 +2070,9 @@ contains
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlat),io(natt*nlat),diout(natt*nlat),ilvec(3,natt*nlat),idat(natt*nlat))
        do i = 1, natt
-          call assign_strings(i,icp(i),.false.,scp,sncp,sname,smult,sz)
+          call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') & 
-             string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(xgatt(j,i),'f',12,7)),j=1,3)
+             string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
           write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI")')
 
           ! precompute the localization/delocalization indices for this atom and
@@ -2062,13 +2087,13 @@ contains
                    do j = 1, natt
                       m = m + 1
                       io(m) = m
-                      r1 = (xgatt(:,j) + (/ic,jc,kc/) - xgatt(:,i)) / real(nwan,8)
+                      r1 = (bas%xattr(:,j) + (/ic,jc,kc/) - bas%xattr(:,i)) / real(nwan,8)
                       call cr1%shortest(r1,d2)
-                      dist(m) = sqrt(d2) * dunit0(iunit)
-                      diout(m) = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
+                      dist(m) = d2 * dunit0(iunit)
+                      diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
-                      ilvec(:,m) = nint(xgatt(:,i) + cr1%c2x(r1) * nwan - xgatt(:,j))
+                      ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nwan - bas%xattr(:,j))
                    end do
                 end do
              end do
@@ -2083,8 +2108,8 @@ contains
                 write (uout,'(2X,"Localization index",71("."),A)') string(diout(j),'f',12,8,4)
                 asum = asum + diout(j)
              else
-                call assign_strings(j,icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
-                r1 = xgatt(:,idat(j)) + ilvec(:,j)
+                call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
+                r1 = bas%xattr(:,idat(j)) + ilvec(:,j)
                 write (uout,'(2X,99(A,X))') string(j,4,ioj_left), scp, sncp, sname, sz,&
                    (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
                    string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
@@ -2096,13 +2121,14 @@ contains
        end do
 
        ! Integrated molecular LI/DI
-       if (.not.sy%c%ismolecule .and. all(sy%c%moldiscrete(1:sy%c%nmol))) then
+       if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+          allocate(idxmol(2,natt))
           ! Assign attractors to molecules
           idxmol = 0
           do i = 1, natt
              jlo: do j = 1, sy%c%nmol
                 do k = 1, sy%c%mol(j)%nat
-                   if (icp(i) == sy%c%mol(j)%at(k)%cidx) then
+                   if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
                       idxmol(1,i) = j
                       idxmol(2,i) = k
                       exit jlo
@@ -2119,8 +2145,8 @@ contains
           do i = 1, natt
              ia = idxmol(1,i)
              if (ia == 0) cycle
-             limol(ia) = limol(ia) + sum(abs(fa(i,i,1,:))) * fspin
-             namol(ia) = namol(ia) + sum(abs(fa(i,:,:,:))) * fspin
+             limol(ia) = limol(ia) + sum(abs(res(l)%fa(i,i,1,:))) * fspin
+             namol(ia) = namol(ia) + sum(abs(res(l)%fa(i,:,:,:))) * fspin
              lvec1 = sy%c%mol(ia)%at(idxmol(2,i))%lvec
              k = 0
              m = 0
@@ -2137,7 +2163,7 @@ contains
                          lvec2 = sy%c%mol(ja)%at(idxmol(2,j))%lvec
                          lvec3 = lvec1 - lvec2 + (/ic,jc,kc/)
                          lvec3 = modulo(lvec3,nwan)
-                         raux = 2d0 * sum(abs(real(fa(i,j,k,:)))) * fspin
+                         raux = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin
                          if (ia == ja .and. all(lvec3 == 0)) then
                             limol(ia) = limol(ia) + 0.5d0 * raux
                          else
@@ -2161,6 +2187,7 @@ contains
           write (uout,*)
           
           ! centers of mass
+          allocate(xcm(3,sy%c%nmol))
           do i = 1, sy%c%nmol
              xcm(:,i) = sy%c%mol(i)%cmass()
              xcm(:,i) = sy%c%c2x(xcm(:,i))
@@ -2182,7 +2209,7 @@ contains
                          io(m) = m
                          r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nwan,8)
                          call cr1%shortest(r1,d2)
-                         dist(m) = sqrt(d2) * dunit0(iunit)
+                         dist(m) = d2 * dunit0(iunit)
                          diout(m) = dimol(i,j,ic,jc,kc)
                          idat(m) = j
                          ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nwan - xcm(:,j))
@@ -2210,12 +2237,12 @@ contains
              write (uout,'(2X,"Total (atomic population)",44("."),A)') string(asum,'f',12,8,4)
              write (uout,*)
           end do
-          deallocate(dimol,limol,namol)
+          deallocate(dimol,limol,namol,idxmol,xcm)
        end if
        
        ! clean up
        call cr1%end()
-       deallocate(fa,dist,io,diout,ilvec,idat)
+       deallocate(dist,io,diout,ilvec,idat)
     end do
 
   end subroutine int_output_deloc_wannier
@@ -2262,68 +2289,75 @@ contains
   end subroutine assign_strings
 
   !> Plot the atomic basins found by YT or BADER to graphical files.
-  !> Use format fmt (obj, ply, off). nattr: number of attractors.
-  !> icp: identification of the attractors as CPs. xgatt: crsyt.
-  !> coords. of the attractors. idg: basin assignment of each
-  !> point in the grid. imtype: type of grid integration carried out.
-  !> luw: logical unit for YT weights.
-  subroutine int_gridbasins(fmt,nattr,icp,xgatt,idg,imtype,luw)
+  !> bas = integration driver data.
+  subroutine int_gridbasins(bas)
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
     use crystalmod, only: crystal
     use global, only: fileroot
     use graphics, only: grhandle
-    use tools_math, only: crys2car_from_cellpar, matinv
-    use tools_io, only: string, uout
-    character*3, intent(in) :: fmt
-    integer, intent(in) :: nattr
-    integer, intent(in), allocatable :: icp(:)
-    real*8, intent(in) :: xgatt(3,nattr)
-    integer, intent(in) :: idg(:,:,:)
-    integer, intent(in) :: imtype
-    integer, intent(in) :: luw
+    use tools_math, only: m_x2c_from_cellpar, matinv, cross
+    use tools_io, only: string, uout, ferror, noerr, string
+    use types, only: realloc, basindat
+    type(basindat), intent(in) :: bas
 
     character(len=:), allocatable :: str
-    integer :: i1, i2, i3, n(3), i, j, k, p(3), q(3)
-    real*8 :: x(3), xd(3), d2
+    integer :: i, j, i1, i2, i3, iaux, n(3), q(3), p(3)
+    real*8 :: d2, x(3), x1(3), x2(3), xd(3)
     type(crystal) :: caux
-    real*8, allocatable :: xface(:,:), w(:,:,:)
+    real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
     type(grhandle) :: gr
+    integer :: nvert, nf
+    real*8, allocatable :: xvert(:,:), xrho(:)
+    integer, allocatable :: iface(:,:)
 
-    integer, parameter :: rgb1(3) = (/128,128,128/)
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+       end subroutine runqhull_basintriangulate_step2
+    end interface
+
+    if (bas%ndrawbasin < 0) return
 
     ! prepare wigner-seitz tetrahedra
     do i = 1, 3
-       n(i) = size(idg,i)
+       n(i) = size(bas%idg,i)
     end do
     caux%isinit = .true.
     caux%aa = sy%c%aa / real(n,8)
     caux%bb = sy%c%bb
-    caux%crys2car = crys2car_from_cellpar(caux%aa,caux%bb)
-    caux%car2crys = matinv(caux%crys2car)
-    call caux%wigner((/0d0,0d0,0d0/),nvec=caux%nws,vec=caux%ivws,&
-       nvert_ws=caux%nvert_ws,nside_ws=caux%nside_ws,iside_ws=caux%iside_ws,&
-       vws=caux%vws)
-    allocate(xface(3,size(caux%iside_ws,1)))
+    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
+    caux%m_c2x = matinv(caux%m_x2c)
+    call caux%wigner()
 
     ! output
-    write (uout,'("* Basins written to ",A,"_basins-*.",A/)') trim(fileroot), fmt
+    write (uout,'("+ Basins written to ",A,"_basins-*.",A/)') trim(fileroot), bas%basinfmt
 
     ! write the unit cell
-    str = trim(fileroot) // "_basins-cell." // fmt
-    call sy%c%write_3dmodel(str,fmt,(/1,1,1/),.true.,.false.,.true.,&
+    str = trim(fileroot) // "_basins-cell." // bas%basinfmt
+    call sy%c%write_3dmodel(str,bas%basinfmt,(/1,1,1/),.true.,.false.,.true.,&
        .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
 
     ! prepare the idg array
     allocate(idg0(n(1),n(2),n(3)))
-    if (imtype == imtype_bader) then
-       idg0 = idg
-    elseif (imtype == imtype_yt) then
+    if (bas%imtype == imtype_bader) then
+       idg0 = bas%idg
+    elseif (bas%imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
-       call yt_weights(luw=luw,dout=dat)
-       do i = 1, nattr
+       call yt_weights(luw=bas%luw,dout=dat)
+       do i = 1, bas%nattr
           call yt_weights(din=dat,idb=i,w=w)
           where(w >= 0.5d0)
              idg0 = i
@@ -2334,46 +2368,125 @@ contains
     endif
 
     ! write the basins
-    do i = 1, nattr
-       ! name this file
-       str = trim(fileroot) // "_basins-" // string(i) // "." // fmt
-       call gr%open(fmt,str)
+    allocate(xvert(3,10),xrho(10))
+    do i = 1, bas%nattr
+       if (bas%ndrawbasin > 0 .and. bas%ndrawbasin /= i) cycle
 
+       nvert = 0
+       !$omp parallel do private(p,q,x,xd,d2) schedule(dynamic)
        do i1 = 1, n(1)
           do i2 = 1, n(2)
              do i3 = 1, n(3)
-                if (idg0(i1,i2,i3) == i) then
-                   p = (/i1,i2,i3/)
-                   x = real(p-1,8) / n
+                if (idg0(i1,i2,i3) /= i) cycle
 
-                   ! move to the ws of the attractor
-                   xd = x - xgatt(:,i)
-                   call sy%c%shortest(xd,d2)
+                ! is this point on the border of the basin?
+                p = (/i1,i2,i3/)
+                do j = 1, caux%ws_nf
+                   q = modulo(p + caux%ws_ineighx(:,j) - 1,n) + 1
+                   if (idg0(q(1),q(2),q(3)) /= i) then
+                      ! move the point to the WS of the attractor and convert to Cartesian
+                      x = real(p-1,8) / n
+                      xd = x - bas%xattr(:,i)
+                      call sy%c%shortest(xd,d2)
+                      x = sy%c%x2c(bas%xattr(:,i)) + xd
 
-                   ! convert to Cartesian
-                   x = sy%c%x2c(xgatt(:,i)) + xd
-
-                   ! plot, if on the border of the cell
-                   do j = 1, caux%nws
-                      q = modulo(p + caux%ivws(:,j) - 1,n) + 1
-                      if (idg0(q(1),q(2),q(3)) /= i) then
-                         do k = 1, caux%nside_ws(j)
-                            xface(:,k) = x + caux%x2c(caux%vws(:,caux%iside_ws(k,j)))
-                         end do
-                         call gr%polygon(xface,rgb1)
+                      ! add to the list of basin points
+                      !$omp critical (addvertex)
+                      nvert = nvert + 1
+                      if (nvert > size(xvert,2)) then
+                         call realloc(xvert,3,2*nvert)
+                         call realloc(xrho,2*nvert)
                       end if
-                   end do
-                end if
+                      xvert(:,nvert) = x
+                      xrho(nvert) = bas%f(q(1),q(2),q(3))
+                      !$omp end critical (addvertex)
+                   end if
+                end do
              end do
           end do
        end do
+       !$omp end parallel do
+       deallocate(idg0)
 
-       call gr%close()
+       if (nvert > 0) then
+          ! run qhull
+          x = sy%c%x2c(bas%xattr(:,i))
+          call runqhull_basintriangulate_step1(nvert,x,xvert,nf)
+          allocate(iface(3,nf))
+          call runqhull_basintriangulate_step2(nf,iface)
+
+          ! orient the faces
+          !$omp parallel do private(x1,x2,iaux) schedule(dynamic)
+          do j = 1, nf
+             x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
+             x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))
+             x1 = cross(x1,x2)
+
+             x2 = (xvert(:,iface(1,j)) + xvert(:,iface(2,j)) + xvert(:,iface(3,j))) / 3d0 - x
+             if (dot_product(x1,x2) < 0d0) then
+                iaux = iface(1,j)
+                iface(1,j) = iface(2,j)
+                iface(2,j) = iaux
+             end if
+          end do
+          !$omp end parallel do
+
+          ! write the triangulation to a file
+          str = trim(fileroot) // "_basins-" // string(i) // "." // bas%basinfmt
+          call gr%open(bas%basinfmt,str)
+          call gr%triangulation(nvert,xvert,nf,iface,xrho)
+          call gr%close()
+          deallocate(iface)
+       else
+          call ferror("int_gridbasins","Basin " // string(i) // " has zero volume.",noerr)
+       end if
     end do
-
-    deallocate(xface)
+    deallocate(xvert,xrho)
 
   end subroutine int_gridbasins
+
+  !> Write cube files with the integration weights.  bas = integration
+  !> driver data.
+  subroutine int_cubew(bas)
+    use systemmod, only: sy
+    use yt, only: ytdata, yt_weights, ytdata_clean
+    use global, only: fileroot
+    use tools_io, only: uout, string
+    use types, only: basindat
+    type(basindat), intent(in) :: bas
+
+    type(ytdata) :: dat
+    real*8, allocatable :: w(:,:,:)
+    character(len=:), allocatable :: file
+    integer :: i
+
+    if (.not.bas%wcube) return
+    allocate(w(bas%n(1),bas%n(2),bas%n(3)))
+    if (bas%imtype == imtype_yt) then
+       w = 0d0
+       call yt_weights(luw=bas%luw,dout=dat)
+    end if
+
+    do i = 1, bas%nattr
+       if (bas%imtype == imtype_yt) then
+          call yt_weights(din=dat,idb=i,w=w)
+       else
+          w = 0d0
+          where (bas%idg == i)
+             w = 1d0
+          end where
+       endif
+       file = trim(fileroot) // "_wcube_" // string(i,2,pad0=.true.) // ".cube"
+       call sy%c%writegrid_cube(w,file,.false.,.false.)
+    end do
+    write (uout,'("+ Weights written to ",A,"_wcube_*.cube"/)') trim(fileroot)
+    deallocate(w)
+
+    if (bas%imtype == imtype_yt) then
+       call ytdata_clean(dat)
+    end if
+
+  end subroutine int_cubew
 
   !> Unpacking routine for use in Wannier delocalization index calculations.
   subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
@@ -2384,18 +2497,14 @@ contains
 
     ! unpack
     iaux = modulo(idx-1,nmo)
-    bo = modulo(iaux,nbnd) + 1
-    iaux = (idx-1 - (bo-1)) / nbnd
-    ko = modulo(iaux,nwan(3)) + 1
-    iaux = (iaux - (ko-1)) / nwan(3)
-    jo = modulo(iaux,nwan(2)) + 1
-    iaux = (iaux - (jo-1)) / nwan(2)
-    io = modulo(iaux,nwan(1)) + 1
-
-    ! translate
-    io = io - 1
-    jo = jo - 1
-    ko = ko - 1
+    bo = modulo(iaux,nbnd)
+    iaux = (idx-1 - bo) / nbnd
+    ko = modulo(iaux,nwan(3))
+    iaux = (iaux - ko) / nwan(3)
+    jo = modulo(iaux,nwan(2))
+    iaux = (iaux - jo) / nwan(2)
+    io = modulo(iaux,nwan(1))
+    bo = bo + 1
 
   end subroutine unpackidx
 
@@ -2407,12 +2516,12 @@ contains
     integer :: zio, zjo, zko
 
     ! transformed indices
-    zio = modulo(io,nwan(1)) + 1
-    zjo = modulo(jo,nwan(2)) + 1
-    zko = modulo(ko,nwan(3)) + 1
+    zio = modulo(io,nwan(1))
+    zjo = modulo(jo,nwan(2))
+    zko = modulo(ko,nwan(3))
 
     ! translate and pack
-    idx = (bo-1) + nbnd * ((zko-1) + nwan(3) * ((zjo-1) + nwan(2) * (zio-1))) + 1
+    idx = bo + nbnd * (zko + nwan(3) * (zjo + nwan(2) * zio))
 
   end subroutine packidx
 
