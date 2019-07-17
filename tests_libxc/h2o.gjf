@@ -1,0 +1,75 @@
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p hf aug-cc-pvdz output=wfx
+ 
+title
+ 
+0 1
+O	0.000000 0.000000 0.118882
+H	0.000000 0.756653 -0.475529
+H	0.000000 -0.756653 -0.475529
+
+h2o.wfx
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p svwn5 iop(3/76=-2,5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+
+No xc functional
+ 
+0 1
+
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p svwn iop(5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+ 
+LDA
+ 
+0 1
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p pbepbe iop(5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+ 
+PBE
+ 
+0 1
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p blyp iop(5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+ 
+PBE
+ 
+0 1
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p bp86 iop(5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+ 
+PBE
+ 
+0 1
+
+--Link1--
+%chk=h2o.chk
+%nprocs=4
+%mem=2GB
+#p tpsstpss iop(5/13=1,99/5=2) aug-cc-pvdz scf=(maxcycle=1) int=(grid=ultrafine) guess=read geom=check
+ 
+PBE
+ 
+0 1
+

@@ -33,14 +33,17 @@ module fragmentmod
      type(anyatom), allocatable :: at(:) !< Atoms in the fragment
      integer :: nspc !< Number of species in the fragment
      type(species), allocatable :: spc(:) !< Species in the fragment
+     logical :: discrete = .true. !< is this fragment discrete?
+     integer :: nlvec = 0 !< number of connecting lattice vectors for non-discrete fragments
+     integer, allocatable :: lvec(:,:) !< connecting lattice vectors
    contains
-     procedure :: init => fragment_init
-     procedure :: append
-     procedure :: merge_array
-     procedure :: cmass
-     procedure :: writexyz
-     procedure :: writecml
-     procedure :: writegjf
+     procedure :: init => fragment_init ! initialize a fragment
+     procedure :: append ! append a fragment to this fragment
+     procedure :: merge_array ! merge several fragments
+     procedure :: cmass ! calculate center of mass
+     procedure :: writexyz ! write an xyz file
+     procedure :: writecml ! write a cml file
+     procedure :: writegjf ! write a gjf file
   end type fragment
   
   interface

@@ -27,10 +27,17 @@ module systemmod
 
   public :: systemmod_init
   public :: systemmod_end
-  private :: field_fcheck
-  private :: field_feval
-  private :: field_cube
 
+  ! The system class. A system contains:
+  ! - One crystal structure (%c)
+  ! - One or more fields (%nf fields in %f(:))
+  ! - A reference field with id %iref
+  ! - Several integrable properties (%npropi and %propi(:))
+  ! - Several point properties (%npropp and %propp(:))
+  ! - A set of field aliases (%fh)
+  ! Some of the methods in this object require pass a C pointer down
+  ! the hierarchy over to the arithmetic module. If one of those methods needs
+  ! to be used, the system itself must be declared as TARGET.
   type system
      logical :: isinit = .false. !< Is the system initialized?
      type(crystal), pointer :: c => null() !< Crystal structure (always allocated)
@@ -43,9 +50,6 @@ module systemmod
      integer :: npropp = 0 !< Number of properties at points
      type(pointpropable), allocatable :: propp(:) !< Properties at points
      type(hash) :: fh !< Hash of function aliases
-     procedure(field_fcheck), nopass, pointer :: fcheck => null() !< Pointer to functions for arithmetics
-     procedure(field_feval), nopass, pointer :: feval => null() !< Pointer to functions for arithmetics
-     procedure(field_cube), nopass, pointer :: cube => null() !< Pointer to functions for arithmetics
    contains
      procedure :: end => system_end !< Terminate a system object
      procedure :: init => system_init !< Allocate space for crystal structure
@@ -64,7 +68,7 @@ module systemmod
      procedure :: unload_field !< Unload a field
      procedure :: new_integrable_string !< Define a field as integrable from a command
      procedure :: new_pointprop_string !< Define a field as point prop from a command
-     procedure :: eval => system_eval !< Evaluate an arithmetic expression using the system's fields
+     procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
@@ -86,9 +90,12 @@ module systemmod
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
   integer, parameter, public :: itype_deloc = 9
-  character*10, parameter, public :: itype_names(9) = (/&
+  integer, parameter, public :: itype_deloc_sijchk = 10
+  integer, parameter, public :: itype_deloc_fachk = 11
+  character*10, parameter, public :: itype_names(11) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
-     "Laplcn (v)","Expression","Multipoles","Deloc indx"/)
+     "Laplcn (v)","Expression","Multipoles","Deloc indx","Deloc indx",&
+     "Deloc indx"/)
   
   interface
      module subroutine systemmod_init(isy)
@@ -143,10 +150,15 @@ module systemmod
        integer, intent(out) :: id
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine load_field_string
-     module function goodfield(s,id,key) result(ok)
+     module function goodfield(s,id,key,type,n,idout) result(ok)
+       use fieldmod, only: type_grid
+       use tools_io, only: ferror, faterr
        class(system), intent(in) :: s
        integer, intent(in), optional :: id
        character*(*), intent(in), optional :: key
+       integer, intent(in), optional :: type
+       integer, intent(in), optional :: n(3)
+       integer, intent(out), optional :: idout
        logical :: ok
      end function goodfield
      module function fieldname_to_idx(s,id) result(fid)
@@ -167,34 +179,6 @@ module systemmod
        integer, intent(in) :: id0
        integer, intent(in) :: id1
      end subroutine field_copy
-     module function field_fcheck(sptr,id,iout)
-       use iso_c_binding, only: c_ptr
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(out), optional :: iout
-       logical :: field_fcheck
-     end function field_fcheck
-     recursive module function field_feval(sptr,id,nder,fder,x0,periodic)
-       use iso_c_binding, only: c_ptr
-       use types, only: scalar_value
-       type(scalar_value) :: field_feval
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: nder
-       character*(*), intent(in) :: fder
-       real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: periodic
-     end function field_feval
-     module function field_cube(sptr,n,id,fder,dry,ifail) result(q)
-       use iso_c_binding, only: c_ptr
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: n(3)
-       character*(*), intent(in) :: fder
-       logical, intent(in) :: dry
-       logical, intent(out) :: ifail
-       real*8 :: q(n(1),n(2),n(3))
-     end function field_cube
      module subroutine unload_field(s,id)
        class(system), intent(inout) :: s
        integer, intent(in) :: id
@@ -205,18 +189,18 @@ module systemmod
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_integrable_string
      module subroutine new_pointprop_string(s,line0,errmsg)
-       class(system), intent(inout) :: s
+       class(system), intent(inout), target :: s
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
-     module function system_eval(s,expr,hardfail,iok,x0) 
+     module function system_eval_expression(s,expr,hardfail,iok,x0) 
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
        logical, intent(in) :: hardfail
        logical, intent(out) :: iok
        real*8, intent(in), optional :: x0(3)
-       real*8 :: system_eval
-     end function system_eval
+       real*8 :: system_eval_expression
+     end function system_eval_expression
      module subroutine propty(s,id,x0,res,verbose,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s

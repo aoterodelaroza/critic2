@@ -44,15 +44,10 @@ module bader
   public :: bader_integrate
   
   interface
-     module subroutine bader_integrate(s,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
+     module subroutine bader_integrate(s,bas)
+       use types, only: basindat
        type(system), intent(inout) :: s
-       real*8, intent(in) :: ff(:,:,:)
-       character*(*), intent(in) :: discexpr
-       logical, intent(in) :: atexist
-       real*8, intent(in) :: ratom
-       integer, intent(out) :: nbasin0
-       real*8, allocatable, intent(inout) :: xcoord(:,:)
-       integer, allocatable, intent(inout) :: volnum0(:,:,:)
+       type(basindat), intent(inout) :: bas
      end subroutine bader_integrate
   end interface
 

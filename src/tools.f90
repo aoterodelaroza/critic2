@@ -25,44 +25,48 @@ module tools
   private
 
   !xx! sorting and uniqing
-  public :: qcksort
-  public :: iqcksort
   public :: uniqc
+  public :: qcksort
   public :: mergesort
-  public :: imergesort
-  !xx! system
-  public :: unlink
   
+  interface qcksort
+     module procedure qcksort_r8
+     module procedure qcksort_i4
+  end interface qcksort
+  interface mergesort
+     module procedure mergesort_r8
+     module procedure mergesort_i4
+  end interface mergesort
+
   interface
-     module subroutine qcksort (arr, iord, first, last)
-       real*8, dimension(:), intent(in) :: arr
-       integer, dimension(:), intent(inout) :: iord
-       integer, intent(in) :: first
-       integer, intent(in) :: last 
-     end subroutine qcksort
-     module subroutine iqcksort (iarr, iord, first, last)
-       integer, dimension(:), intent(in) :: iarr
-       integer, dimension(:), intent(inout) :: iord
-       integer, intent(in) :: first
-       integer, intent(in) :: last 
-     end subroutine iqcksort
      module subroutine uniqc(v, nini, nfin, eps)
        integer, intent(in) :: nini
        integer, intent(inout) :: nfin
        real*8, intent(inout), dimension(3,*) :: v
        real*8, intent(in) :: eps
      end subroutine uniqc
-     module subroutine mergesort(xvalt, irngt)
-       real*8, dimension (:), intent (in) :: xvalt
-       integer, dimension (:), intent (out) :: irngt
-     end subroutine mergesort
-     module subroutine imergesort(xvalt, irngt)
-       integer, dimension (:), intent (in) :: xvalt
-       integer, dimension (:), intent (out) :: irngt
-     end subroutine imergesort
-     module subroutine unlink(file)
-       character(len=*), intent(in) :: file
-     end subroutine unlink
+     module subroutine qcksort_r8(arr, iord, first, last)
+       real*8, dimension(:), intent(in) :: arr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: first
+       integer, intent(in) :: last 
+     end subroutine qcksort_r8
+     module subroutine qcksort_i4(iarr, iord, first, last)
+       integer, dimension(:), intent(in) :: iarr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: first
+       integer, intent(in) :: last 
+     end subroutine qcksort_i4
+     module subroutine mergesort_r8(arr,iord,ini,n)
+       real*8, dimension(:), intent(in) :: arr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: ini, n
+     end subroutine mergesort_r8
+     module subroutine mergesort_i4(arr, iord, ini, n)
+       integer, dimension(:), intent(in) :: arr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: ini, n
+     end subroutine mergesort_i4
   end interface
 
 end module tools

@@ -39,12 +39,6 @@ contains
     f%testrmt = .true.
     f%readvirtual = .false.
     f%fid = ""
-    f%nou = .false.
-    f%sijchk = .true.
-    f%fachk = .true.
-    f%wancut = -1d0
-    f%unkgen = ""
-    f%evc = ""
 
   end subroutine fieldseed_end
 
@@ -58,9 +52,11 @@ contains
     use tools_io, only: getword, lower, ferror, equal, isinteger, zatguess,&
        isexpression
     use param, only: dirsep,&
-       ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube, ifformat_abinit,&
+       ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
+       ifformat_bincube, ifformat_abinit,&
        ifformat_vasp, ifformat_vaspchg, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
-       ifformat_siestagrid, ifformat_dftb, ifformat_chk, ifformat_wfn, ifformat_wfx, ifformat_fchk,&
+       ifformat_siestagrid, ifformat_dftb, ifformat_pwc,&
+       ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
        ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
        ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
@@ -93,6 +89,9 @@ contains
     elseif (equal(lfile,"cube")) then
        f%iff = ifformat_cube
        call read_next_as_file()
+    elseif (equal(lfile,"bincube")) then
+       f%iff = ifformat_bincube
+       call read_next_as_file()
     elseif (equal(lfile,"abinit")) then
        f%iff = ifformat_abinit
        call read_next_as_file()
@@ -117,8 +116,8 @@ contains
     elseif (equal(lfile,"dftb")) then
        f%iff = ifformat_dftb
        call read_next_as_file()
-    elseif (equal(lfile,"chk")) then
-       f%iff = ifformat_chk
+    elseif (equal(lfile,"pwc")) then
+       f%iff = ifformat_pwc
        call read_next_as_file()
     elseif (equal(lfile,"wfn")) then
        f%iff = ifformat_wfn
@@ -131,6 +130,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"molden")) then
        f%iff = ifformat_molden
+       call read_next_as_file()
+    elseif (equal(lfile,"pwc")) then
+       f%iff = ifformat_pwc
        call read_next_as_file()
     elseif (equal(lfile,"as")) then
        f%iff = ifformat_as
@@ -157,6 +159,8 @@ contains
     if (f%iff == ifformat_unknown) then
        if (equal(extdot,'cube')) then
           f%iff = ifformat_cube
+       elseif (equal(extdot,'bincube')) then
+          f%iff = ifformat_bincube
        else if (equal(extdot,'DEN').or.equal(extund,'DEN').or.equal(extdot,'ELF').or.equal(extund,'ELF').or.&
           equal(extdot,'POT').or.equal(extund,'POT').or.equal(extdot,'VHA').or.equal(extund,'VHA').or.&
           equal(extdot,'VHXC').or.equal(extund,'VHXC').or.equal(extdot,'VXC').or.equal(extund,'VXC').or.&
@@ -194,10 +198,11 @@ contains
           f%iff = ifformat_elk
        else if (equal(extdot,'ion')) then
           f%iff = ifformat_pi
-       else if (equal(extdot,'chk')) then
-          f%iff = ifformat_chk
+       else if (equal(extdot,'pwc')) then
+          f%iff = ifformat_pwc
        end if
     end if
+
     if (f%iff == ifformat_unknown) then
        call f%end()
        f%errmsg = "unknown file format"
@@ -210,7 +215,8 @@ contains
     if (f%iff == ifformat_promolecular .or. f%iff == ifformat_as .or. f%iff == ifformat_copy) then
        ! no files needed
        nfile = 0
-    elseif (f%iff == ifformat_cube .or. f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
+    elseif (f%iff == ifformat_cube .or. f%iff == ifformat_bincube .or.&
+       f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
@@ -220,13 +226,13 @@ contains
     elseif (f%iff == ifformat_wien) then
        ! two files are needed
        nfile = 2
+    elseif (f%iff == ifformat_pwc) then
+       ! one, two, or three files
+       nfile = 3
+       nofoundexit = .false.
     elseif (f%iff == ifformat_dftb) then
        ! three files are needed
        nfile = 3
-    elseif (f%iff == ifformat_chk) then
-       ! one or two files are needed
-       nfile = 2
-       nofoundexit = .false.
     elseif (f%iff == ifformat_elk) then
        ! one, two, or three files are needed
        nfile = 3
@@ -548,40 +554,9 @@ contains
              f%errmsg = "missing file name in fragment"
              return
           end if
-       elseif (equal(lword,'nou')) then
-          ! wannier option: nou
-          f%nou = .true.
-       elseif (equal(lword,'nosijchk')) then
-          ! wannier option: sijchk
-          f%sijchk = .false.
-       elseif (equal(lword,'nofachk')) then
-          ! wannier option: fachk
-          f%fachk = .false.
-       elseif (equal(lword,'wancut')) then
-          ! wannier option: wancut
-          ok = eval_next(f%wancut,line,lp)
-          if (.not.ok) then
-             call f%end()
-             f%errmsg = "wrong value for wancut"
-             return
-          end if
-       elseif (equal(lword,'unkgen')) then
-          f%unkgen = getword(line,lp)
-          if (len_trim(f%unkgen) < 1) then
-             call f%end()
-             f%errmsg = "missing unkgen file name"
-             return
-          end if
-
-          f%evc = getword(line,lp)
-          if (len_trim(f%evc) < 1) then
-             call f%end()
-             f%errmsg = "missing evc file name"
-             return
-          end if
        else
           call f%end()
-          f%errmsg = "unknown load keyword: " // word
+          f%errmsg = "unknown load keyword or file name: " // word
           return
        end if
     end do

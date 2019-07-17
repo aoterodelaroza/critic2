@@ -21,9 +21,10 @@ module tools_math
 
   private
 
+  !xx! proc submodule !xx!
   public :: crosscorr_triangle
-  public :: crys2car_from_cellpar
-  public :: car2crys_from_cellpar
+  public :: m_x2c_from_cellpar
+  public :: m_c2x_from_cellpar
   public :: factorial
   public :: genrlm_real
   public :: genylm
@@ -32,6 +33,9 @@ module tools_math
   public :: radial_derivs
   public :: ep
   public :: gcd
+  public :: lcm
+  public :: rational_approx
+  public :: lattice_direction
   public :: eig
   public :: eigns
   public :: rsindex
@@ -47,6 +51,9 @@ module tools_math
   public :: nchoosek
   public :: rmsd_walker
   public :: gauleg
+  public :: bhole
+  public :: xlnorm
+  !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
 
@@ -57,6 +64,20 @@ module tools_math
   integer, parameter, public :: niso_atan = 3
   integer, parameter, public :: niso_bader = 4
   
+  ! overloaded functions
+  interface gcd
+     module procedure gcd2
+     module procedure gcdn
+     module procedure gcd2_i8
+     module procedure gcdn_i8
+  end interface gcd
+  interface lcm
+     module procedure lcm2
+     module procedure lcmn
+     module procedure lcm2_i8
+     module procedure lcmn_i8
+  end interface lcm
+
   interface
      !xx! proc submodule
      module function crosscorr_triangle(h,f,g,l) result(dfg)
@@ -65,14 +86,14 @@ module tools_math
        real*8, intent(in) :: f(:), g(:)
        real*8 :: dfg
      end function crosscorr_triangle
-     module function crys2car_from_cellpar(aal,bbl) result(mat)
+     module function m_x2c_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
-     end function crys2car_from_cellpar
-     module function car2crys_from_cellpar(aal,bbl) result(mat)
+     end function m_x2c_from_cellpar
+     module function m_c2x_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
-     end function car2crys_from_cellpar
+     end function m_c2x_from_cellpar
      module function factorial(n) result(f)
        real*8 :: f
        integer, intent(in) :: n
@@ -111,11 +132,52 @@ module tools_math
        real*8, intent(in) ::  x
        real*8 :: ep
      end function ep
-     module function gcd(n,num)
-       integer, dimension(:) :: n
-       integer :: num
-       integer :: gcd 
-     end function gcd
+     module function gcdn(n,num)
+       integer, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer :: gcdn
+     end function gcdn
+     module function gcd2(m,n)
+       integer, intent(in) :: m, n
+       integer :: gcd2
+     end function gcd2
+     module function lcmn(n,num)
+       integer, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer :: lcmn
+     end function lcmn
+     module function lcm2(m,n)
+       integer, intent(in) :: m, n
+       integer :: lcm2
+     end function lcm2
+     module function gcdn_i8(n,num)
+       integer*8, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer*8 :: gcdn_i8
+     end function gcdn_i8
+     module function gcd2_i8(m,n)
+       integer*8, intent(in) :: m, n
+       integer*8 :: gcd2_i8
+     end function gcd2_i8
+     module function lcmn_i8(n,num)
+       integer*8, intent(in) :: n(num)
+       integer, intent(in) :: num
+       integer*8 :: lcmn_i8
+     end function lcmn_i8
+     module function lcm2_i8(m,n)
+       integer*8, intent(in) :: m, n
+       integer*8 :: lcm2_i8
+     end function lcm2_i8
+     module subroutine rational_approx(x0,q,r,eps)
+       real*8, intent(in) :: x0
+       integer*8, intent(out):: q, r
+       real*8, intent(in) :: eps
+     end subroutine rational_approx
+     module function lattice_direction(x0,allowr) result (yy)
+       real*8, intent(in) :: x0(3)
+       logical, intent(in) :: allowr
+       integer :: yy(3)
+     end function lattice_direction
      module subroutine eig(mat,eval)
        real*8, intent(inout) :: mat(:,:)
        real*8, intent(out), optional :: eval(:)
@@ -166,11 +228,11 @@ module tools_math
        real*8, intent(inout) :: x0(3), x1(3), x2(3)
        real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
      end subroutine plane_scale_extend
-     module subroutine assign_ziso(niso_type,niso,ziso,lin0,lin1,fmax,fmin)
+     module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
        integer, intent(in) :: niso_type
        integer, intent(inout) :: niso
        real*8, allocatable, intent(inout) :: ziso(:)
-       real*8, intent(in) :: lin0, lin1, fmax, fmin
+       real*8, intent(in) :: fmin, fmax
      end subroutine assign_ziso
      module subroutine comb(n, p, l, c)
        integer :: n, p, l, c(p)
@@ -190,6 +252,18 @@ module tools_math
        real*8, dimension(n), intent(out) :: w
        integer, intent(in) :: n
      end subroutine gauleg
+     module subroutine bhole(rho,quad,hnorm,b,alf,prefac)
+       real*8, intent(in) :: rho
+       real*8, intent(in) :: quad
+       real*8, intent(in) :: hnorm
+       real*8, intent(out) :: b
+       real*8, intent(out) :: alf
+       real*8, intent(out) :: prefac
+     end subroutine bhole
+     module subroutine xlnorm(rho,quad,uxpos,xlnrm)
+       real*8, intent(in) :: rho, quad, uxpos
+       real*8, intent(out) :: xlnrm
+     end subroutine xlnorm
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

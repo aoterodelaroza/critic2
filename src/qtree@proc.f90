@@ -32,6 +32,7 @@ contains
   !> Main driver for the QTREE integration.
   module subroutine qtree_integration(lvl, plvl)
     use systemmod, only: sy
+    use integration, only: int_output_header, int_output_fields
     use qtree_tetrawork, only: paint_inside_spheres, tetrah_subdivide, integ_corner_sum
     use qtree_utils, only: open_difftess, close_difftess, small_writetess, getkeast
     use qtree_basic, only: qtreeidx, qtreei, qtreer, nterm, ngrd_term, ngrd_int, nlocate,&
@@ -42,13 +43,13 @@ contains
        qtree_cleanup
     use CUI, only: cubpack_info
     use keast, only: keast_rule, keast_order_num
-    use integration, only: int_output
-    use global, only: quiet, plot_mode, color_allocate, docontacts, ws_use, setsph_lvl,&
+    use global, only: quiet, plot_mode, color_allocate, docontacts, setsph_lvl,&
        autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
        integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
        ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
+    use types, only: basindat, int_result, out_field
 
     integer, intent(in) :: lvl
     integer, intent(in) :: plvl
@@ -66,7 +67,6 @@ contains
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
-    logical :: maskprop(sy%npropi)
     real*8 :: xface_orig(3,3), xface_end(3,3), vtotal, memsum
     real*8 :: rface_orig(3,3), rface_end(3,3), face_diff(3)
     integer :: nalloc, ralloc
@@ -76,9 +76,8 @@ contains
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
     ! for the output
-    integer, allocatable :: icp(:)
-    real*8, allocatable :: xattr(:,:), outprop(:,:)
-    character*30 :: reason(sy%npropi)
+    type(basindat) :: bas
+    type(int_result), allocatable :: res(:)
 
     real*8, parameter :: eps = 1d-6
 
@@ -111,12 +110,6 @@ contains
        write (uout,*)
        docontacts = .false.
     end if
-    if (docontacts .and. .not.ws_use) then
-       call ferror('qtree','DOCONTACTS is not compatible with conventional unit cell partitioning (NOWS)',warning)
-       write (uout,'("* The contacts are NOT going to be used.")') 
-       write (uout,*)
-       docontacts = .false.
-    end if
 
     ! Determine sphere radii
     write (uout,'("+ Pre-calculating the beta-sphere radii at lvl : ",A)') string(setsph_lvl)
@@ -138,32 +131,34 @@ contains
     korder = 0
 
     ! mask for the property output
+    allocate(res(sy%npropi))
     do i = 1, sy%npropi
-       reason(i) = ""
+       res(i)%reason = ""
+       res(i)%done = .false.
+       allocate(res(i)%psum(nnuc))
+       res(i)%psum = 0d0
+       res(i)%outmode = out_field
     end do
     if (prop_mode == 0) then
-       maskprop = .false.
-       maskprop(1) = .true.
+       res(1)%done = .true.
        do i = 2, sy%npropi
-          reason(i) = "because prop_mode = 0"
+          res(i)%reason = "because prop_mode = 0"
        end do
     else if (prop_mode == 1) then
-       maskprop = .false.
-       maskprop(1) = .true.
-       maskprop(2) = .true.
+       res(1)%done = .true.
+       res(2)%done = .true.
        do i = 3, sy%npropi
-          reason(i) = "because prop_mode = 1"
+          res(i)%reason = "because prop_mode = 1"
        end do
     else if (prop_mode == 2) then
-       maskprop = .false.
-       maskprop(1) = .true.
-       maskprop(2) = .true.
-       maskprop(3) = .true.
+       res(1)%done = .true.
+       res(2)%done = .true.
+       res(3)%done = .true.
        do i = 4, sy%npropi
-          reason(i) = "because prop_mode = 2"
+          res(i)%reason = "because prop_mode = 2"
        end do
     else
-       maskprop = .true.
+       res(:)%done = .true.
     end if
 
     ! header
@@ -198,19 +193,6 @@ contains
     end if
     write (uout,*)
 
-    ! ! Wigner-Seitz information
-    ! if (ws_use) then
-    !    write (uout,'("* LOCAL symmetry of : ",3(A,2X))') (string(ws_origin(j),'f',decimal=6),j=1,3)
-    !    write (uout,'("Number of sym. ops.: ",A)') string(leqv)
-    !    do i = 1, leqv
-    !       write (uout,'("Operation ",A)') string(i)
-    !       write (uout,'(3(A,2X))') (string(lrotm(1,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !       write (uout,'(3(A,2X))') (string(lrotm(2,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !       write (uout,'(3(A,2X))') (string(lrotm(3,j,i),'f',decimal=1,length=5,justify=3),j=1,3)
-    !    end do
-    !    write (uout,*)
-    ! end if
-
     ! Integration spehres
     if (sy%c%nneq > size(sphfactor)) then
        call ferror('qtree_integration','too many non-equivalent atoms',faterr)
@@ -241,41 +223,6 @@ contains
     end if
 
     write (uout,'("+ Initial number of tetrahedra in IWS: ",A)') string(nt_orig)
-    ! if (ws_use) then
-    !    write (uout,'("* Origin of WS cell: ",A)') (string(ws_origin(j),'e',decimal=6),j=1,3)
-    !    if (ws_scale > 0d0) then
-    !       write (uout,'("* Scaling of WS cell: ",A)') string(ws_scale,'f',decimal=6)
-    !    end if
-    ! else
-    !    write (uout,'("* Using the conventional unit cell")') 
-    ! end if
-    ! write (uout,'("* LIST of tetrahedra in crystallographic coordinates")')
-    ! do i = 1, nt_orig
-    !    ! output
-    !    write (uout,'("* Tetrahedron number: ",A)') string(i)
-    !    write (uout,'("     Origin: ",3(A,2X))') (string(torig(j,i),'f',decimal=6),j=1,3)
-    !    do j = 1, 3
-    !       write (uout,'("     Edge ",A,": ",3(A,2X))') string(j), (string(tvec(k,j,i),'f',decimal=6),k=1,3)
-    !    end do
-    !    write (uout,'("     Volume : ",A)') string(tvol(i),'f',decimal=6)
-    !    if (tvol(i) < vcutoff) then
-    !       write (uout,'(" (the volume of this tetrahedron is smaller than the vcutoff, will be skipped)")')
-    !    end if
-    !    write (uout,'(" Cartesian to convex matrix: ")')
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(cmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(" Convex to cartesian matrix: ")')
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(1,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(2,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'(4X,3(A,2X))') (string(dmat(3,j,i),'f',decimal=6,length=12,justify=4),j=1,3)
-    !    write (uout,'("* Origin (cart.): ",3(A,2X))') (string(borig(j,i),'f',decimal=6),j=1,3)
-    !    do j = 1, 3
-    !       write (uout,'("* (v",A,"-v0) (cart./2**l): ",3(A,2X))') string(j), &
-    !          (string(bvec(k,j,i),'f',decimal=6,length=12,justify=4),k=1,3)
-    !    end do
-    !    write (uout,*)
-    ! end do
 
     if (ws_scale > 0d0) then
        vtotal = sy%c%omega / ws_scale**3 
@@ -721,21 +668,26 @@ contains
     end do
 
     ! output the results
-    allocate(icp(nnuc),xattr(3,nnuc),outprop(sy%npropi,nnuc))
+    bas%nattr = nnuc
+    allocate(bas%icp(nnuc),bas%xattr(3,nnuc))
     k = 0
     do i = 1, nnuc
        k = k + 1
-       outprop(:,k) = atprop(i,:)
+       do j = 1, sy%npropi
+          res(j)%psum(i) = atprop(i,j)
+       end do
        do j = 1, sy%f(sy%iref)%ncpcel
           if (sy%f(sy%iref)%cpcel(j)%idx == i) then
-             icp(k) = j
-             xattr(:,k) = sy%f(sy%iref)%cpcel(j)%x
+             bas%icp(k) = j
+             bas%xattr(:,k) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
     end do
-    call int_output(maskprop,reason,nnuc,icp(1:nnuc),xattr(:,1:nnuc),outprop(:,1:nnuc),.true.)
-    deallocate(icp,xattr,outprop)
+
+    call int_output_header(bas,res,.true.,.true.)
+    call int_output_fields(bas,res,.true.,.true.)
+    deallocate(bas%icp,bas%xattr,res)
 
     ! clean up
     if (.not.quiet) call tictac("End QTREE")
@@ -837,7 +789,7 @@ contains
     nfrozen = .false.
     do i = 1, nnuc
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
-          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+          rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        else
@@ -926,7 +878,7 @@ contains
                       do nid = 1, nnuc
                          if (.not.nucmask(nid)) cycle
                          ! check if this point is inside a shell around the nucleus
-                         call sy%f(sy%iref)%nearest_cp(xx,nid0,dist,idx=nid)
+                         call sy%f(sy%iref)%nearest_cp(xx,nid0,dist,nid0=nid)
                          if (dist > r_betagp(nid)-mdist .and. dist < r_betagp(nid)+min(rdist,r_betagp(nid))) then
                             idx = cindex(vin,lvl)
                             trm(idx,tto) = int(term_rec(tt,vin,lvl,trm,fgr,lapgr),1)
@@ -1026,7 +978,7 @@ contains
     ndo = 0
     do i = 1, nnuc
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
-          rmt = sy%f(sy%iref)%elk%rmt_atom(sy%c%at(i)%x)
+          rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        elseif (i<=sy%c%nneq) then

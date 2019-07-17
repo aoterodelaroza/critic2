@@ -20,6 +20,44 @@ submodule (types) proc
 
 contains
 
+  !> Clear of values and flags of a scalar value type.
+  module subroutine scalar_value_clear(s)
+    class(scalar_value), intent(inout) :: s
+
+    s%f = 0d0
+    s%fval = 0d0
+    s%gf = 0d0
+    s%hf = 0d0
+    s%gfmod = 0d0
+    s%gfmodval = 0d0
+    s%del2f = 0d0
+    s%del2fval = 0d0
+    s%gkin = 0d0
+    s%stress = 0d0
+    s%vir = 0d0
+    s%hfevec = 0d0
+    s%hfeval = 0d0
+    s%r = 0
+    s%s = 0
+    s%spinpol = .false.
+    s%fspin = 0d0
+    s%fspinval = 0d0
+    s%gfmodspin = 0d0
+    s%gfmodspinval = 0d0
+    s%lapspin = 0d0
+    s%lapspinval = 0d0
+    s%gkinspin = 0d0
+    s%fspc = 0d0
+    s%isnuc = .false.
+    s%avail_der1 = .false.
+    s%avail_der2 = .false.
+    s%avail_gkin = .false.
+    s%avail_stress = .false.
+    s%avail_vir = .false.
+    s%avail_spin = .false.
+
+  end subroutine scalar_value_clear
+
   !> Adapt the size of an allocatable 1D type(pointpropable) array
   module subroutine realloc_pointpropable(a,nnew)
     type(pointpropable), intent(inout), allocatable :: a(:)
@@ -91,11 +129,11 @@ contains
   end subroutine realloc_species
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_atom(a,nnew)
-    type(atom), intent(inout), allocatable :: a(:)
+  module subroutine realloc_basicatom(a,nnew)
+    type(basicatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
-    type(atom), allocatable :: temp(:)
+    type(basicatom), allocatable :: temp(:)
     integer :: nold
 
     if (.not.allocated(a)) then
@@ -109,7 +147,28 @@ contains
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
 
-  end subroutine realloc_atom
+  end subroutine realloc_basicatom
+
+  !> Adapt the size of an allocatable 1D type(atom) array
+  module subroutine realloc_neqatom(a,nnew)
+    type(neqatom), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(neqatom), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_neqatom
 
   !> Adapt the size of an allocatable 1D type(celatom) array
   module subroutine realloc_celatom(a,nnew)

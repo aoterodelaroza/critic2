@@ -9,13 +9,11 @@
 #include <stdlib.h>
 #include <string>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_dock.h"
-
-#include "shader.h"
-#include "view.h"
 
 // constants
 #define PI 3.14159265358979323846
@@ -74,9 +72,6 @@ struct ImGuiStyleUI_ {
 };
 extern ImGuiStyleUI_ ImGuiStyleUI;
 
-// Shader
-extern Shader *shader;
-
 // Fonts (defined in main.cpp)
 extern ImFont* fontdefault;
 extern ImFont* fonticon;
@@ -113,6 +108,11 @@ extern float view_scale_atoms;
 extern int view_isphres;
 extern bool view_show_bonds;
 extern float view_scale_bonds;
+extern bool view_show_labels;
+extern int view_format_labels;
+extern bool view_lat_labels;
+extern float view_scale_labels;
+extern float view_rgb_labels[3];
 extern int view_icylres;
 const float mousesens_rot0 = 2.0f;
 extern float view_mousesens_rot;

@@ -36,6 +36,7 @@ module param
   real*8, parameter :: cte      = 2.71828182845904523536d0 !< e
   real*8, parameter :: ctsq2    = sqrt(2d0) !< sqrt(2)
   real*8, parameter :: ctsq3    = sqrt(3d0) !< sqrt(3)
+  real*8, parameter :: ctsq32   = ctsq3 / 2d0 !< sqrt(3) / 2
   real*8, parameter :: cteuler  = 0.57721566490153286061d0 !< gamma
   real*8, parameter :: ctgold   = 1.61803398874989484820d0 !< golden ratio (1+sqrt(5))/2
   real*8, parameter :: bohrtoa  =  0.52917720859d0 !< bohr to angstrom conversion factor
@@ -87,27 +88,35 @@ module param
   integer, parameter :: mlen = 512 ! length for fixed-length strings (filenames, etc.)
   integer, parameter :: mmlen = 2048 ! long length for fixed-length strings
 
+  ! Enumerate for coordinate types
+  integer, parameter, public :: icrd_cart = 0 ! Cartesian
+  integer, parameter, public :: icrd_crys = 1 ! Crystallographic
+  integer, parameter, public :: icrd_rcrys = 2 ! Reduced crystallographic
+
   ! Enumerate for structure formats
   integer, parameter, public :: isformat_unknown = 0
   integer, parameter, public :: isformat_cif = 1
   integer, parameter, public :: isformat_shelx = 2
   integer, parameter, public :: isformat_cube = 3
-  integer, parameter, public :: isformat_struct = 4
-  integer, parameter, public :: isformat_abinit = 5
-  integer, parameter, public :: isformat_elk = 6
-  integer, parameter, public :: isformat_qein = 7
-  integer, parameter, public :: isformat_qeout = 8
-  integer, parameter, public :: isformat_crystal = 9
-  integer, parameter, public :: isformat_xyz = 10
-  integer, parameter, public :: isformat_wfn = 11
-  integer, parameter, public :: isformat_wfx = 12
-  integer, parameter, public :: isformat_fchk = 13
-  integer, parameter, public :: isformat_molden = 14
-  integer, parameter, public :: isformat_gaussian = 15
-  integer, parameter, public :: isformat_siesta = 16
-  integer, parameter, public :: isformat_xsf = 17
-  integer, parameter, public :: isformat_gen = 18
-  integer, parameter, public :: isformat_vasp = 19
+  integer, parameter, public :: isformat_bincube = 4
+  integer, parameter, public :: isformat_struct = 5
+  integer, parameter, public :: isformat_abinit = 6
+  integer, parameter, public :: isformat_elk = 7
+  integer, parameter, public :: isformat_qein = 8
+  integer, parameter, public :: isformat_qeout = 9
+  integer, parameter, public :: isformat_crystal = 10
+  integer, parameter, public :: isformat_xyz = 11
+  integer, parameter, public :: isformat_wfn = 12
+  integer, parameter, public :: isformat_wfx = 13
+  integer, parameter, public :: isformat_fchk = 14
+  integer, parameter, public :: isformat_molden = 15
+  integer, parameter, public :: isformat_gaussian = 16
+  integer, parameter, public :: isformat_siesta = 17
+  integer, parameter, public :: isformat_xsf = 18
+  integer, parameter, public :: isformat_gen = 19
+  integer, parameter, public :: isformat_vasp = 20
+  integer, parameter, public :: isformat_pwc = 21
+  integer, parameter, public :: isformat_axsf = 22
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 
@@ -125,34 +134,35 @@ module param
   integer, parameter, public :: ifformat_elk = 2
   integer, parameter, public :: ifformat_pi = 3
   integer, parameter, public :: ifformat_cube = 4
-  integer, parameter, public :: ifformat_abinit = 5
-  integer, parameter, public :: ifformat_vasp = 6
-  integer, parameter, public :: ifformat_vaspchg = 7
-  integer, parameter, public :: ifformat_qub = 8
-  integer, parameter, public :: ifformat_xsf = 9
-  integer, parameter, public :: ifformat_elkgrid = 10
-  integer, parameter, public :: ifformat_siestagrid = 11
-  integer, parameter, public :: ifformat_dftb = 12
-  integer, parameter, public :: ifformat_chk = 13
-  integer, parameter, public :: ifformat_wfn = 14
-  integer, parameter, public :: ifformat_wfx = 15
-  integer, parameter, public :: ifformat_fchk = 16
-  integer, parameter, public :: ifformat_molden = 17
-  integer, parameter, public :: ifformat_as = 18
-  integer, parameter, public :: ifformat_as_promolecular = 19
-  integer, parameter, public :: ifformat_as_core = 20
-  integer, parameter, public :: ifformat_as_lap = 21
-  integer, parameter, public :: ifformat_as_grad = 22
-  integer, parameter, public :: ifformat_as_pot = 23
-  integer, parameter, public :: ifformat_as_clm = 24
-  integer, parameter, public :: ifformat_as_clm_sub = 25
-  integer, parameter, public :: ifformat_as_ghost = 26
-  integer, parameter, public :: ifformat_copy = 27
-  integer, parameter, public :: ifformat_promolecular = 28
-  integer, parameter, public :: ifformat_promolecular_fragment = 29
-  integer, parameter, public :: ifformat_as_hxx1 = 30
-  integer, parameter, public :: ifformat_as_hxx2 = 31
-  integer, parameter, public :: ifformat_as_hxx3 = 32
+  integer, parameter, public :: ifformat_bincube = 5
+  integer, parameter, public :: ifformat_abinit = 6
+  integer, parameter, public :: ifformat_vasp = 7
+  integer, parameter, public :: ifformat_vaspchg = 8
+  integer, parameter, public :: ifformat_qub = 9
+  integer, parameter, public :: ifformat_xsf = 10
+  integer, parameter, public :: ifformat_elkgrid = 11
+  integer, parameter, public :: ifformat_siestagrid = 12
+  integer, parameter, public :: ifformat_dftb = 13
+  integer, parameter, public :: ifformat_pwc = 14
+  integer, parameter, public :: ifformat_wfn = 15
+  integer, parameter, public :: ifformat_wfx = 16
+  integer, parameter, public :: ifformat_fchk = 17
+  integer, parameter, public :: ifformat_molden = 18
+  integer, parameter, public :: ifformat_as = 19
+  integer, parameter, public :: ifformat_as_promolecular = 20
+  integer, parameter, public :: ifformat_as_core = 21
+  integer, parameter, public :: ifformat_as_lap = 22
+  integer, parameter, public :: ifformat_as_grad = 23
+  integer, parameter, public :: ifformat_as_pot = 24
+  integer, parameter, public :: ifformat_as_clm = 25
+  integer, parameter, public :: ifformat_as_clm_sub = 26
+  integer, parameter, public :: ifformat_as_ghost = 27
+  integer, parameter, public :: ifformat_copy = 28
+  integer, parameter, public :: ifformat_promolecular = 29
+  integer, parameter, public :: ifformat_promolecular_fragment = 30
+  integer, parameter, public :: ifformat_as_hxx1 = 31
+  integer, parameter, public :: ifformat_as_hxx2 = 32
+  integer, parameter, public :: ifformat_as_hxx3 = 33
 
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat0) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4
@@ -217,9 +227,9 @@ module param
      199,000,102, 204,000,089, 209,000,079, & ! 103-105 Lr, Rf, Db
      217,000,069, 224,000,056, 230,000,046, & ! 106-108 Sg, Bh, Hs
      235,000,038, 160,000,066, 015,130,015, & ! 109-111 Mt, Ds, Rg
-     020,090,255, 200,000,200, 255,180,070, & ! 112-114 Cn, Uut, Fl
-     000,220,220, 230,010,010, 140,255,140, & ! 115-117 Uup, Lv, Uuh
-     112,112,255, &                           ! 118 Uuh
+     020,090,255, 200,000,200, 255,180,070, & ! 112-114 Cn, Nh, Fl
+     000,220,220, 230,010,010, 140,255,140, & ! 115-117 Mc, Lv, Ts
+     112,112,255, &                           ! 118 Og
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
      255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol)) !< jmol color definitions
@@ -263,28 +273,40 @@ module param
      139,000,042, 144,000,029, 149,000,019, & ! 103-105 Lr, Rf, Db
      157,000,009, 164,000,000, 170,000,000, & ! 106-108 Sg, Bh, Hs
      175,000,000, 100,000,006, 000,070,000, & ! 109-111 Mt, Ds, Rg  
-     000,030,195, 140,000,140, 195,120,010, & ! 112-114 Cn, Uut, Fl 
-     000,160,160, 170,000,000, 080,195,080, & ! 115-117 Uup, Lv, Uuh
+     000,030,195, 140,000,140, 195,120,010, & ! 112-114 Cn, Nh, Fl 
+     000,160,160, 170,000,000, 080,195,080, & ! 115-117 Mc, Lv, Ts
      112,112,255, &                           ! 118 Uuh
      072,159,004, 255,217,061, 149,136,255, & ! 119-121 ncp, bcp, rcp
      255,102,087, 044,255,000&                ! 122-123 ccp, xcp
      /),shape(JMLcol2)) !< jmol color definitions, slightly darker
+  
+  ! Covalent radii in angstrom from http://dx.doi.org/10.1039/b801115j
+  ! C (6): sp3=0.76,sp2=0.73,sp=0.69 -> average = 0.73
+  ! Mn (25): h.s.=1.61 l.s.=1.39 -> average = 1.50
+  ! Fe (26): h.s.=1.52 l.s.=1.32 -> average = 1.42
+  ! Co (27): h.s.=1.50 l.s.=1.26 -> average = 1.38
+  ! Elements that do not have radius are assigned 1.50 (CSD).
+  real*8, parameter :: atmcov0(maxzat0) = (/&
+     ! 1       2       3       4       5       6       7       8       9       0
+     0.31d0, 0.28d0, 1.28d0, 0.96d0, 0.84d0, 0.73d0, 0.71d0, 0.66d0, 0.57d0, 0.58d0,& ! 1-10
+     1.66d0, 1.41d0, 1.21d0, 1.11d0, 1.07d0, 1.05d0, 1.02d0, 1.06d0, 2.03d0, 1.76d0,& ! 11-20
+     1.70d0, 1.60d0, 1.53d0, 1.39d0, 1.50d0, 1.42d0, 1.38d0, 1.24d0, 1.32d0, 1.22d0,& ! 21-30
+     1.22d0, 1.20d0, 1.19d0, 1.20d0, 1.20d0, 1.16d0, 2.20d0, 1.95d0, 1.90d0, 1.75d0,& ! 31-40
+     1.64d0, 1.54d0, 1.47d0, 1.46d0, 1.42d0, 1.39d0, 1.45d0, 1.44d0, 1.42d0, 1.39d0,& ! 41-50
+     1.39d0, 1.38d0, 1.39d0, 1.40d0, 2.44d0, 2.15d0, 2.07d0, 2.04d0, 2.03d0, 2.01d0,& ! 51-60
+     1.99d0, 1.98d0, 1.98d0, 1.96d0, 1.94d0, 1.92d0, 1.92d0, 1.89d0, 1.90d0, 1.87d0,& ! 61-70
+     1.87d0, 1.75d0, 1.70d0, 1.62d0, 1.51d0, 1.44d0, 1.41d0, 1.36d0, 1.36d0, 1.32d0,& ! 71-80
+     1.45d0, 1.46d0, 1.48d0, 1.40d0, 1.50d0, 1.50d0, 2.60d0, 2.21d0, 2.15d0, 2.06d0,& ! 81-90
+     2.00d0, 1.96d0, 1.90d0, 1.87d0, 1.80d0, 1.69d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0,& ! 91-100
+     1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0,& ! 101-110
+     1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 0.00d0, 0.00d0,& ! 111-120
+     0.00d0, 0.00d0, 0.00d0/) / bohrtoa ! 121-123
+  real*8 :: atmcov(maxzat0) = atmcov0
 
-  ! covalent radii in pm, from tessel
-  real*8, parameter :: atmcov(maxzat0) = (/&
-     23,  70,  68,  35,  83,  68,  68,  68,  64,  70,  97, 110,&   ! 1-12
-     135, 120, 105, 102, 99,  70, 133,  99, 144, 147, 133, 135,&   ! 13-24
-     135, 134, 133, 150, 152, 145, 122, 117, 121, 122, 121, 191,&  ! 25-36
-     147, 112, 178, 157, 148, 147, 135, 140, 145, 150, 159, 169,&  ! 37-48
-     163, 146, 146, 147, 140, 198, 167, 134, 187, 183, 182, 181,&  ! 49-60
-     180, 180, 199, 179, 176, 175, 174, 173, 172, 194, 172, 157,&  ! 61-72
-     143, 137, 135, 137, 132, 150, 150, 170, 155, 154, 154, 168,&  ! 73-84
-     170, 240, 200, 190, 188, 179, 161, 158, 155, 153, 151, 151,&  ! 85-96
-     151, 151, 151, 151, 151, 151, 151, 151, 151,-999,-999,-999,&  ! 97-108
-     -999,-999,-999,-999,-999,-999,-999,-999,-999,-999,&           ! 109-118
-      50,  50,  50,  50,  20/) / bohr2pm                           ! 119-123
-
-  ! van der waals radii, from the CSD
+  ! Van der Waals radii follow the CSD:
+  ! From Bondi: http://dx.doi.org/10.1021/j100785a001
+  ! except H from Rowland and Taylor http://dx.doi.org/10.1021/jp953141
+  ! Elements that do not have radius are assigned 2.00.
   real*8, parameter :: atmvdw(maxzat0) = (/&
       1.09d0, 1.40d0, 1.82d0, 2.00d0, 2.00d0, 1.70d0, 1.55d0, 1.52d0, 1.47d0, 1.54d0,& ! 1-10
       2.27d0, 1.73d0, 2.00d0, 2.10d0, 1.80d0, 1.80d0, 1.75d0, 1.88d0, 2.75d0, 2.00d0,& ! 11-20
@@ -297,8 +319,8 @@ module param
       1.96d0, 2.02d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,& ! 81-90
       2.00d0, 1.86d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,& ! 91-100
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,& ! 101-1100
-      2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,&                 ! 111-118
-         0d0,    0d0,    0d0,    0d0,    0d0/) / bohrtoa                               ! 119-123
+      2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 0.00d0, 0.00d0,& ! 111-118
+      0.00d0, 0.00d0, 0.00d0/) / bohrtoa                                               ! 119-123
 
   ! standard atomic weights
   real*8, parameter :: atmass(maxzat0) = (/&

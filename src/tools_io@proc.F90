@@ -622,7 +622,7 @@ contains
        'TL', 'PB', 'BI', 'PO', 'AT', 'RN', 'FR', 'RA', 'AC', 'TH',& ! 81-90
        'PA', 'U ', 'NP', 'PU', 'AM', 'CM', 'BK', 'CF', 'ES', 'FM',& ! 91-100
        'MD', 'NO', 'LR', 'RF', 'DB', 'SG', 'BH', 'HS', 'MT', 'DS',& ! 101-110
-       'RG', 'CN', 'U3', 'FL', 'U5', 'LV', 'U7', 'U8',& ! 111-118
+       'RG', 'CN', 'NH', 'FL', 'MC', 'LV', 'TS', 'OG',& ! 111-118
        'XN', 'XB', 'XR', 'XC', 'XZ'& ! 119-123
        /)                           
 
@@ -659,7 +659,7 @@ contains
   !> chemical symbol of the atom, or XX if it is not in range.
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
-  module function nameguess (zat,nounderscore)
+  module function nameguess(zat,nounderscore)
     use param, only: maxzat0
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
@@ -677,7 +677,7 @@ contains
        'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',& ! 81-90
        'Pa', 'U_', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',& ! 91-100
        'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',& ! 101-110
-       'Rg', 'Cn', 'U3', 'Fl', 'U5', 'Lv', 'U7', 'U8',& ! 111-118
+       'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og',& ! 111-118
        'Xn', 'Xb', 'Xr', 'Xc', 'Xz'& ! 119-123
        /) 
 
@@ -1272,8 +1272,7 @@ contains
 
   end subroutine ferror
 
-  !> Interface to the timer routines of different computers. Returns
-  !> machine seconds at the calling time. (private)
+  !> Write a timestamp to the output, with an optional prefix message.
   module subroutine tictac(mesg)
     character*(*), intent(in) :: mesg !< Prefix message
     integer :: values(8)

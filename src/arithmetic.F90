@@ -18,21 +18,11 @@
 ! Evaluation of arithmetic expressions. This entire module is
 ! THREAD-SAFE (or should be, at least).
 module arithmetic
-#ifdef HAVE_LIBXC
-  use xc_f90_types_m, only: xc_f90_pointer_t
-#endif
-  use hashmod, only: hash
-  use types, only: scalar_value
-  use iso_c_binding, only: c_ptr
-  use param, only: mlen
   implicit none
 
   public :: eval
+  public :: eval_grid
   public :: fields_in_eval
-  public :: tokenize
-  public :: iprec
-  public :: iassoc
-  public :: istype
   public :: setvariable
   public :: isvariable
   public :: clearvariable
@@ -40,151 +30,35 @@ module arithmetic
   public :: listvariables
 
   private
-  integer, parameter, public :: fun_openpar  = 1  !< open parenthesis
-  integer, parameter, public :: fun_closepar = 2  !< close parenthesis
-  integer, parameter, public :: fun_uplus    = 3  !< unary +
-  integer, parameter, public :: fun_uminus   = 4  !< unary -
-  integer, parameter, public :: fun_abs      = 5  !< abs(.)
-  integer, parameter, public :: fun_exp      = 6  !< exp(.)
-  integer, parameter, public :: fun_sqrt     = 7  !< sqrt(.)
-  integer, parameter, public :: fun_floor    = 8  !< floor(.)
-  integer, parameter, public :: fun_ceiling  = 9  !< ceiling(.)
-  integer, parameter, public :: fun_round    = 10 !< round(.)
-  integer, parameter, public :: fun_log      = 11 !< log(.)
-  integer, parameter, public :: fun_log10    = 12 !< log10(.)
-  integer, parameter, public :: fun_sin      = 13 !< sin(.)
-  integer, parameter, public :: fun_asin     = 14 !< asin(.)
-  integer, parameter, public :: fun_cos      = 15 !< cos(.)
-  integer, parameter, public :: fun_acos     = 16 !< acos(.)
-  integer, parameter, public :: fun_tan      = 17 !< tan(.)
-  integer, parameter, public :: fun_atan     = 18 !< atan(.)
-  integer, parameter, public :: fun_atan2    = 19 !< atan2(.)
-  integer, parameter, public :: fun_sinh     = 20 !< sinh(.)
-  integer, parameter, public :: fun_cosh     = 21 !< cosh(.)
-  integer, parameter, public :: fun_erf      = 22 !< erf(.)
-  integer, parameter, public :: fun_erfc     = 23 !< erfc(.)
-  integer, parameter, public :: fun_min      = 24 !< min(.)
-  integer, parameter, public :: fun_max      = 25 !< max(.)
-  integer, parameter, public :: fun_power    = 26 !< **
-  integer, parameter, public :: fun_leq      = 27 !< <=
-  integer, parameter, public :: fun_geq      = 28 !< >=
-  integer, parameter, public :: fun_equal    = 29 !< ==
-  integer, parameter, public :: fun_neq      = 30 !< !=
-  integer, parameter, public :: fun_and      = 31 !< &&
-  integer, parameter, public :: fun_or       = 32 !< ||
-  integer, parameter, public :: fun_plus     = 33 !< binary +
-  integer, parameter, public :: fun_minus    = 34 !< binary -
-  integer, parameter, public :: fun_prod     = 35 !< *
-  integer, parameter, public :: fun_div      = 36 !< /
-  integer, parameter, public :: fun_modulo   = 37 !< %
-  integer, parameter, public :: fun_great    = 38 !< >
-  integer, parameter, public :: fun_less     = 39 !< <
-  integer, parameter, public :: fun_xc       = 40 !< xc(.,...)  (X)
-  integer, parameter, public :: fun_gtf      = 41 !< Thomas-Fermi kinetic energy density
-  integer, parameter, public :: fun_vtf      = 42 !< Potential energy density calcd using gtf and the local virial theorem
-  integer, parameter, public :: fun_htf      = 43 !< Total energy density calcd using gtf and the local virial theorem
-  integer, parameter, public :: fun_gtf_kir  = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
-  integer, parameter, public :: fun_vtf_kir  = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter, public :: fun_htf_kir  = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter, public :: fun_gkin     = 47 !< Kinetic energy density, G-version (grho * grho)
-  integer, parameter, public :: fun_kkin     = 48 !< Kinetic energy density, K-version (rho * laprho)
-  integer, parameter, public :: fun_l        = 49 !< Lagrangian density (-1/4 * laprho)
-  integer, parameter, public :: fun_elf      = 50 !< Electron localization function (ELF)
-  integer, parameter, public :: fun_vir      = 51 !< Electronic potential energy density, virial field
-  integer, parameter, public :: fun_he       = 52 !< Energy density, G + V
-  integer, parameter, public :: fun_lol      = 53 !< Localized-orbital locator (LOL)
-  integer, parameter, public :: fun_lol_kir  = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
 
-#ifdef HAVE_LIBXC
-  integer, parameter :: maxfun = 600
-  type libxc_functional
-     logical :: init = .false.
-     integer :: family ! LDA, GGA, etc.
-     integer :: id     ! identifier
-     type(xc_f90_pointer_t) :: conf ! the pointer used to call the library
-     type(xc_f90_pointer_t) :: info ! information about the functional
-  end type libxc_functional
-  type(libxc_functional) :: ifun(maxfun)
-#endif
-
-  ! token type
-  type token
-     integer :: type = 0
-     real*8 :: fval = 0d0
-     integer :: ival = 0
-     character(len=:), allocatable :: sval
-     character*10 :: fder = ""
-  end type token
-  public :: token
-  integer, parameter, public :: token_undef = 0
-  integer, parameter, public :: token_num = 1
-  integer, parameter, public :: token_fun = 2
-  integer, parameter, public :: token_op = 3
-  integer, parameter, public :: token_lpar = 4
-  integer, parameter, public :: token_rpar = 5
-  integer, parameter, public :: token_comma = 6
-  integer, parameter, public :: token_field = 7
-  
   ! module procedure interfaces
   interface
-     recursive module function eval(expr,hardfail,iok,x0,sptr,fh,fcheck,feval,periodic)
+     recursive module function eval(expr,hardfail,iok,x0,sptr,periodic)
+       use iso_c_binding, only: c_ptr
        real*8 :: eval
        character(*), intent(in) :: expr
        logical, intent(in) :: hardfail
        logical, intent(out) :: iok
        real*8, intent(in), optional :: x0(3)
        type(c_ptr), intent(in), optional :: sptr
-       type(hash), intent(in), optional :: fh
-       optional :: fcheck, feval
        logical, intent(in), optional :: periodic
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
      end function eval
-     module subroutine fields_in_eval(expr,fh,n,idlist)
+     module subroutine eval_grid(n,expr,sptr,f,iok)
+       use iso_c_binding, only: c_ptr
+       integer, intent(in) :: n(3)
+       character(*), intent(in) :: expr
+       type(c_ptr), intent(in) :: sptr
+       real*8, intent(out) :: f(n(1),n(2),n(3))
+       logical, intent(out) :: iok
+     end subroutine eval_grid
+     module subroutine fields_in_eval(expr,n,idlist,sptr)
+       use iso_c_binding, only: c_ptr
        use param, only: mlen
        character(*), intent(in) :: expr
-       type(hash), intent(in) :: fh
        integer, intent(out) :: n
        character(len=mlen), allocatable, intent(inout) :: idlist(:)
+       type(c_ptr), intent(in) :: sptr
      end subroutine fields_in_eval
-     module function tokenize(expr,ntok,toklist,lpexit,fh) 
-       logical :: tokenize
-       character(*), intent(in) :: expr
-       integer, intent(out) :: ntok
-       type(token), intent(inout), allocatable :: toklist(:)
-       integer, intent(inout) :: lpexit
-       type(hash), intent(in), optional :: fh
-     end function tokenize
-     module function iprec(c)
-       integer :: iprec
-       integer, intent(in) :: c
-     end function iprec
-     module function iassoc(c)
-       integer :: iassoc
-       integer, intent(in) :: c
-     end function iassoc
-     module function istype(c,type)
-       integer, intent(in) :: c
-       character*(*), intent(in) :: type
-       logical :: istype
-     endfunction istype
      module subroutine setvariable(ikey,ival)
        character*(*), intent(in) :: ikey
        real*8, intent(in) :: ival

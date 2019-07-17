@@ -35,6 +35,7 @@ module gui_interface
      real(c_float) :: r(3) !< atom position (Cartesian, bohr) 
      integer(c_int) :: is !< atom species
      integer(c_int) :: z !< atomic number
+     character(kind=c_char,len=1) :: zsymb(3) !< atomic symbol
      character(kind=c_char,len=1) :: name(11) !< atomic name
      integer(c_int) :: idx !< index from the nneq list
      integer(c_int) :: cidx !< index from the complete list
@@ -45,7 +46,9 @@ module gui_interface
      integer(c_int) :: ncon !< number of neighbors
   end type c_atom
 
-  ! Scene type - holds all the information to render one scene.
+  ! scene type - holds all the information to render one scene.  This
+  ! type is not c-interoperable. Access to individual scenes is
+  ! achieved by remapping the pointers below.
   type scene
      integer :: idfile !< id of the file that generated this scene
      character(kind=c_char,len=1) :: file(512) !< name of the file
@@ -75,19 +78,11 @@ module gui_interface
      real(c_float) :: avec(3,3) ! lattice vectors
      real(c_float) :: molx0(3) ! molecule centering translation
      real(c_float) :: molborder(3) ! molecular cell
-
   end type scene
 
-  integer(c_int), bind(c) :: nfiles = 0
-  integer(c_int), bind(c) :: nsc = 0
-  type(scene), allocatable, target :: sc(:)
-  integer :: ilastfile = 0
-
-  character(kind=c_char,len=1), target :: errmsg_c(512)
-  type(c_ptr), bind(c) :: errmsg
-
   !xx! public interface
-  ! routines
+
+  ! Routines. All public routines are accessed from the GUI via critic2.h
   public :: gui_initialize
   public :: open_file
   public :: scene_initialize
@@ -96,25 +91,46 @@ module gui_interface
   public :: gui_end
   private :: realloc_scene
 
-  ! pointers to the current scene
-  integer(c_int) :: icursc = -1
-  logical :: scupdated = .false.
+  ! Variables. All bind(c) variables are accessed from the GUI via critic2.h.
 
-  integer(c_int), bind(c) :: isinit 
+  ! General information for the run
+  character(kind=c_char,len=1), allocatable, target :: c2home_c(:) ! Location of data files
+  type(c_ptr), bind(c) :: c2home
+
+  ! File and scene tree
+  integer(c_int), bind(c) :: nfiles = 0 ! Number of files
+  integer(c_int), bind(c) :: nsc = 0 ! Number of scenes
+  type(scene), allocatable, target :: sc(:) ! Information about the loaded scenes
+  integer :: ilastfile = 0 ! Integer pointer to the last file
+  
+  ! Error message container to pass errors to the GUI
+  character(kind=c_char,len=1), target :: errmsg_c(512)
+  type(c_ptr), bind(c) :: errmsg
+
+  ! Pointers to the current scene. The correspond mostly to pointers
+  ! to (or copies of) the information in an instance of the scene type
+  ! above. Those variables that do not appear in the scene type have a
+  ! comment after them.
+  integer(c_int) :: icursc = -1 ! Id of the current scene
+  logical :: scupdated = .false. ! .true. if the current scene is up to date
+
   integer(c_int), bind(c) :: idfile
   type(c_ptr), bind(c) :: file
   type(c_ptr), bind(c) :: name
+  integer(c_int), bind(c) :: isinit
 
-  real(c_float), bind(c) :: scenerad
+  real(c_float), bind(c) :: scenerad ! (srad, radius of the encompassing sphere)
+
+  integer(c_int), bind(c) :: ismolecule
 
   integer(c_int), bind(c) :: nf
-  integer(c_int), bind(c) :: iref
+  integer(c_int), bind(c) :: iref ! Current reference field for this system
   type(c_ptr), bind(c) :: fieldname
 
   integer(c_int), bind(c) :: nat
   type(c_ptr), bind(c) :: at
 
-  integer(c_int), bind(c) :: mncon
+  integer(c_int), bind(c) :: mncon ! Maximum number of atom neighbors
   type(c_ptr), bind(c) :: idcon
   type(c_ptr), bind(c) :: lcon
 
@@ -122,22 +138,24 @@ module gui_interface
   type(c_ptr), bind(c) :: moldiscrete
 
   type(c_ptr), bind(c) :: avec(3)
-  integer(c_int), bind(c) :: ismolecule
   type(c_ptr), bind(c) :: molx0
   type(c_ptr), bind(c) :: molborder
 
+  !xx! private interface
   ! parameters
-  real(c_float), parameter :: minsrad = 10.0_c_float !< minimum scene radius
+  real(c_float), parameter, private :: minsrad = 10.0_c_float ! minimum scene radius
 
 contains
 
   !> Initialize the critic2 GUI.
   subroutine gui_initialize() bind(c)
+    use c_interface_module, only: f_c_string
     use iso_fortran_env, only: input_unit, output_unit
+    use iso_c_binding, only: c_loc
     use systemmod, only: systemmod_init
     use spgs, only: spgs_init
     use config, only: getstring, istring_datadir
-    use global, only: global_init, config_write, initial_banner, crsmall
+    use global, only: global_init, config_write, initial_banner, critic_home
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
        tictac, interactive, uin, filepath
     use param, only: param_init
@@ -158,9 +176,6 @@ contains
     call spgs_init()
     call systemmod_init(1)
 
-    ! always calculate the bonds
-    crsmall = huge(crsmall)
-
     ! banner and compilation info; do not copy input
     call initial_banner()
     call config_write()
@@ -176,6 +191,12 @@ contains
     idfile = 0
     scenerad = minsrad
     scupdated = .true.
+
+    ! set the global information variables
+    if (allocated(c2home_c)) deallocate(c2home_c)
+    allocate(c2home_c(len(critic_home)+1))
+    call f_c_string(critic_home,c2home_c)
+    c2home = c_loc(c2home_c)
 
   end subroutine gui_initialize
 
@@ -230,6 +251,7 @@ contains
   end function open_file
 
   subroutine scene_initialize(isc) bind(c)
+    use tools_io, only: nameguess
     use c_interface_module, only: f_c_string
     use param, only: atmcov, jmlcol
     integer(c_int), value, intent(in) :: isc
@@ -239,6 +261,7 @@ contains
     integer :: mncon_, id
     character(len=:), allocatable :: errmsg
     real*8 :: x(3)
+    character*2 :: zsymb
 
     if (isc > nsc .or. isc < 1) return
     if (sc(isc)%isinit == 0 .or. sc(isc)%isinit == 2) return
@@ -274,15 +297,17 @@ contains
        sc(isc)%at(i)%idx = idx
        sc(isc)%at(i)%cidx = i
        sc(isc)%at(i)%z = iz
+       zsymb = nameguess(iz,.true.)
        call f_c_string(sc(isc)%sy%c%spc(is)%name,sc(isc)%at(i)%name,11)
-       sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
+       call f_c_string(zsymb,sc(isc)%at(i)%zsymb,3)
+       if (allocated(sc(isc)%sy%c%nstar)) then
+          sc(isc)%at(i)%ncon = sc(isc)%sy%c%nstar(i)%ncon
+       else
+          sc(isc)%at(i)%ncon = 0
+       end if
        mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
-       if (atmcov(iz) > 1) then
-          sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
-       else
-          sc(isc)%at(i)%rad = real(1.5d0*atmcov(iz),c_float)
-       end if
+       sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
        sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
        sc(isc)%at(i)%rgb(4) = 1.0
     end do
@@ -301,7 +326,7 @@ contains
     if (allocated(sc(isc)%moldiscrete)) deallocate(sc(isc)%moldiscrete)
     allocate(sc(isc)%moldiscrete(sc(isc)%nmol))
     do i = 1, sc(isc)%sy%c%nmol
-       if (sc(isc)%sy%c%moldiscrete(i)) then
+       if (sc(isc)%sy%c%mol(i)%discrete) then
           sc(isc)%moldiscrete(i) = 1
        else
           sc(isc)%moldiscrete(i) = 0
@@ -328,7 +353,7 @@ contains
     end do
 
     ! lattice vectors
-    sc(isc)%avec = real(sc(isc)%sy%c%crys2car,c_float)
+    sc(isc)%avec = real(sc(isc)%sy%c%m_x2c,c_float)
     sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
     sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
     sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)
@@ -436,7 +461,7 @@ contains
     call grid1_clean_grids()
     
     ! final message
-    write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
+    write (uout,'("CRITIC2 ended successfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
        string(nwarns), string(ncomms)
     call print_clock()
     call tictac('CRITIC2')

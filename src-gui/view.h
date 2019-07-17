@@ -26,11 +26,15 @@
 #include "imgui/imgui_dock.h"
 #include "imgui/gl3w.h"
 #include "settings.h"
+#include "scene.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
+
+#include <map>
 
 struct View
 {
@@ -38,9 +42,20 @@ struct View
   enum MouseBehavior_{MB_Navigation,MB_Pointer,MB_Angle,MB_Ruler,
 		      MB_Builder,MB_Alignment,MB_Query};
 
+  enum Variable_{V_ALL, V_lightpos, V_lightcolor, V_ambient, V_diffuse, V_specular, V_shininess,
+                 V_wireframe, V_orthogonal, V_fov, V_resetdistance, V_bgrgb, V_show_atoms,
+                 V_isphres, V_show_bonds, V_icylres, V_show_labels, V_format_labels, V_lat_labels,
+                 V_scale_labels, V_rgb_labels
+  };
+
+  // constructor
+  View(char *title_, float atex, int iscene=0);
+  ~View();
+
   // view methods
-  void SetDefaults();
   void changeScene(int isc);
+  void setDefaultAllScenes(Variable_ var);
+  void setDefault(Scene *sc_=nullptr, Variable_ var=V_ALL);
   void Draw();
   void Update();
   void Delete();
@@ -51,15 +66,6 @@ struct View
   void createTex(float atex);
   void deleteTex();
   bool updateTexSize();
-
-  // camera methods
-  void resetView();
-  bool alignViewAxis(int iaxis);
-  void updateProjection();
-  void updateView();
-  void updateWorld();
-  glm::vec3 cam_world_coords();
-  glm::vec3 cam_view_coords();
 
   // coordinate transformations
   // pos: mouse coordinates
@@ -81,38 +87,18 @@ struct View
   glm::vec3 texpos_to_view(glm::vec2 pos, float depth); 
   float texpos_viewdepth(glm::vec2 texpos); // depth from current view at texpos or 1.0 if background pixel found
   
+  // draw atomic labels (requires setting the c2 scene pointers first)
+  void drawAtomLabel(glm::vec3 x0, int iatom, int ix, int iy, int iz);
+
   // draw shapes
-  void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res, bool blend);
-  void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res, bool blend);
+  void drawSphere(glm::vec3 r0, float rad, glm::vec4 rgb, int res);
+  void drawCylinder(glm::vec3 r1, glm::vec3 r2, float rad, glm::vec4 rgb, int res);
   void drawUnitCell(glm::vec3 &v0, glm::vec3 &vx, glm::vec3 &vy, glm::vec3 &vz, bool colors);
 
-  // draw settings
-  bool isucell; // draw the unit cell?
-  bool ismolcell; // draw the molecular cell?
-  bool isborder; // draw the atoms on the border?
-  bool ismotif; // draw the molecular motif
-  int ncell[3]; // number of unit cells in each direction
-
-  // view settings
-  float resetd; // reset distance (scenerad)
-  float zfov; // field of view angle (degrees)
-  float bgrgb[4]; // background color
-  bool show_atoms; // show atoms?
-  float scale_atoms; // global scale atoms
-  int isphres; // atom resolution
-  bool show_bonds; // show bonds?
-  float scale_bonds; // global scale bonds
-  int icylres; // bond resolution
-
-  // camera matrices and vectors
-  bool iswire = false; // use wire
-  bool isortho = false; // is ortho or perspective?
-  glm::vec3 v_pos = {}; // position vector
-  glm::vec3 v_front = {}; // front vector
-  glm::vec3 v_up = {}; // up vector
-  glm::mat4 m_projection = glm::mat4(1.0); // projection
-  glm::mat4 m_view = glm::mat4(1.0); // view
-  glm::mat4 m_world = glm::mat4(1.0); // world
+  // map of scenes
+  std::map<int,Scene *> scmap; // map of the known scenes
+  Scene *sc = nullptr; // pointer to the current scene
+  int iscene = -1; // integer identifier of the current scene
 
   // saved states for the mouse interaction
   MouseBehavior_ mousebehavior = MB_Navigation; // mouse behavior
@@ -120,28 +106,25 @@ struct View
   bool rlock = false; // dragging
   glm::vec3 mpos0_r; // saved mouse position (for dragging)
   glm::vec3 cpos0_r; // saved camera position in view coords (for dragging)
-
   bool llock = false; // lmb is dragging
   glm::vec3 mpos0_l; // saved mouse position (for rotating)
   glm::vec3 cpos0_l; // saved camera position in view coords (for rotating)
-
   bool slock = false; // scroll dragging
   float mpos0_s; // mouse y position (for scrolling using keys)
 
-  bool updatescene = false; // update the scene next pass
+  // special effects for this view
+  float SE_pixelated = 1.0f;
 
-  // associated objects
-  GLuint FBO; // framebuffer object (multisample)
-  GLuint FBOtex; // framebuffer object (multisample) texture
-  GLuint FBOdepth; // framebuffer object (multisample) depth buffer
-  GLuint FBO0; // framebuffer object
-  GLuint FBOtex0; // framebuffer object textures
-  GLuint FBOdepth0; // framebuffer object depth buffers
+  // associated textures
+  GLuint FBO; // framebuffer object
+  GLuint FBOtex; // framebuffer object texture
+  GLuint FBOdepth; // framebuffer object depth buffer
+  float FBO_atex; // side of the render texture (pixels)
+  float arender; // side of the square used for rendering (pixels), arender <= FBO_atex
 
-  float FBO_atex; // side of the texture (pixels)
-  float FBO_a; // side of the texture square used for rendering (pixels)
+  // dock
+  float bgrgb[4]; // background color
   char *title; // title
-  int iscene = -1; // integer identifier of the associated scene
   ImGui::Dock *dock = nullptr; // dock
   ImRect vrect; // rectangle for the current view
 };
@@ -155,8 +138,8 @@ void DrawAllViews();
 // Force-update all views
 void ForceUpdateAllViews();
 
-// Set all views settings to default value 
-void SetDefaultAllViews();
+// Set default values for all views
+void SetDefaultAllViews(View::Variable_ var=View::V_ALL);
 
 // Main view
 extern View *mainview;

@@ -78,25 +78,19 @@ contains
   !> code is aware of the presence of atoms, which are added as
   !> attractors at the beginning of the run. Two attractors are
   !> considered equal if they are within a ditsance of ratom (bohr).
-  module subroutine bader_integrate(s,ff,discexpr,atexist,ratom,nbasin0,xcoord,volnum0)
+  module subroutine bader_integrate(s,bas)
     use systemmod, only: system
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
     use arithmetic, only: eval
-    use param, only: vsmall
-    use types, only: realloc
+    use param, only: vsmall, icrd_crys
+    use types, only: realloc, basindat
     type(system), intent(inout) :: s
-    real*8, intent(in) :: ff(:,:,:)
-    character*(*), intent(in) :: discexpr
-    logical, intent(in) :: atexist
-    real*8, intent(in) :: ratom
-    integer, intent(out) :: nbasin0
-    real*8, allocatable, intent(inout) :: xcoord(:,:)
-    integer, allocatable, intent(inout) :: volnum0(:,:,:)
+    type(basindat), intent(inout) :: bas
 
     integer :: i, j, k, l, path_volnum, p(3)
-    integer :: ptemp(3), ref_itrs, irefine_edge, nid, lvec(3)
-    real*8 :: dlat(3), dcar(3), dist, dv(3), x(3), fval
+    integer :: ptemp(3), ref_itrs, irefine_edge, nid
+    real*8 :: dlat(3), dcar(3), dv(3), x(3), fval
     integer :: bat(s%c%ncel)
     logical :: isassigned, ok
 
@@ -106,19 +100,19 @@ contains
        call ferror("bader_integrate","system does not have crystal",faterr)
 
     ! deallocate the arguments and private globals
-    if (allocated(volnum0)) deallocate(volnum0)
+    if (allocated(bas%idg)) deallocate(bas%idg)
     if (allocated(volnum)) deallocate(volnum)
     if (allocated(known)) deallocate(known)
     if (allocated(path)) deallocate(path)
 
     ! Pre-allocate atoms as maxima
-    allocate(xcoord(3,s%c%ncel))
-    xcoord = 0d0
+    allocate(bas%xattr(3,s%c%ncel))
+    bas%xattr = 0d0
     nbasin = 0
-    if (atexist) then
+    if (bas%atexist) then
        nbasin = s%c%ncel
        do i = 1, s%c%ncel
-          xcoord(:,i) = s%c%atcel(i)%x
+          bas%xattr(:,i) = s%c%atcel(i)%x
        end do
     end if
 
@@ -127,8 +121,8 @@ contains
 
     ! metrics
     do i = 1, 3
-       n(i) = size(ff,i)
-       lat2car(:,i) = s%c%crys2car(:,i) / n(i)
+       n(i) = size(bas%f,i)
+       lat2car(:,i) = s%c%m_x2c(:,i) / n(i)
     end do
     car2lat = matinv(lat2car)
 
@@ -157,7 +151,7 @@ contains
           do k = 1, n(3)
              p = (/i, j, k/)
              if (volnum(i,j,k) == 0) then
-                call max_neargrid(ff,p)
+                call max_neargrid(bas%f,p)
                 path_volnum = volnum(p(1),p(2),p(3))
 
                 ! maximum
@@ -166,18 +160,17 @@ contains
 
                    ! check if it is an atom (use ratom)
                    isassigned = .false.
-                   if (atexist) then
-                      nid = 0
-                      call s%c%nearest_atom(dv,nid,dist,lvec)
-                      if (dist < ratom) then
+                   if (bas%atexist) then
+                      nid = s%c%identify_atom(dv,icrd_crys,distmax=bas%ratom)
+                      if (nid > 0) then
                          path_volnum = nid
                          isassigned = .true.
                       end if
                    end if
                    ! check if it is a known nnm
-                   if (.not.isassigned .and. ratom > vsmall) then
+                   if (.not.isassigned .and. bas%ratom > vsmall) then
                       do l = 1, nbasin
-                         if (s%c%are_lclose(dv,xcoord(:,l),ratom)) then
+                         if (s%c%are_lclose(dv,bas%xattr(:,l),bas%ratom)) then
                             path_volnum = l
                             isassigned = .true.
                             exit
@@ -187,18 +180,18 @@ contains
                    ! well, it must be a new attractor then
                    if (.not.isassigned) then
                       ok = .true.
-                      if (len_trim(discexpr) > 0) then
+                      if (len_trim(bas%expr) > 0) then
                          x = s%c%x2c(dv)
-                         fval = s%eval(discexpr,.false.,ok,x)
+                         fval = s%eval(bas%expr,.false.,ok,x)
                          if (.not.ok) &
                             call ferror("yt","invalid DISCARD expression",faterr)
                          ok = (abs(fval) < 1d-30)
                       end if
                       if (ok) then
                          nbasin = nbasin + 1
-                         if (nbasin > size(xcoord,2)) call realloc(xcoord,3,2*nbasin)
+                         if (nbasin > size(bas%xattr,2)) call realloc(bas%xattr,3,2*nbasin)
                          path_volnum = nbasin
-                         xcoord(:,nbasin) = dv
+                         bas%xattr(:,nbasin) = dv
                       end if
                    end if
                 end if
@@ -223,16 +216,16 @@ contains
     ref_itrs = 1
     irefine_edge = -1
     do while (.true.)
-       call refine_edge(ff,irefine_edge,ref_itrs)
+       call refine_edge(bas%f,irefine_edge,ref_itrs)
        if (irefine_edge == 0) exit
        ref_itrs = ref_itrs + 1
     end do
 
     ! wrap up
     deallocate(known,path)
-    call realloc(xcoord,3,nbasin)
-    call move_alloc(volnum,volnum0)
-    nbasin0 = nbasin
+    call realloc(bas%xattr,3,nbasin)
+    call move_alloc(volnum,bas%idg)
+    bas%nattr = nbasin
     if (allocated(known)) deallocate(known)
     if (allocated(path)) deallocate(path)
 

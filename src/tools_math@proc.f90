@@ -18,6 +18,9 @@
 submodule (tools_math) proc
   implicit none
 
+  !xx! private procedures
+  ! subroutine bhole_xfuncs(x,rhs,f,df)
+
 contains
 
   !> Calculate the cross-correlation between two functions with
@@ -63,7 +66,7 @@ contains
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor. Input angles in degrees.
-  module function crys2car_from_cellpar(aal,bbl) result(mat)
+  module function m_x2c_from_cellpar(aal,bbl) result(mat)
     use tools_io, only: ferror, faterr
 
     real*8, intent(in) :: aal(3),bbl(3)
@@ -80,7 +83,7 @@ contains
     HH2 = (calphl-cbetal*cgamml) / HH1
     fac = 1d0 - cbetal*cbetal - HH2*HH2
     if (fac < 0d0) &
-       call ferror("crys2car_from_cellpar","invalid cell",faterr)
+       call ferror("m_x2c_from_cellpar","invalid cell",faterr)
     HH3 = sqrt(max(1d0 - cbetal*cbetal - HH2*HH2,0d0))
 
     mat = 0d0
@@ -91,12 +94,12 @@ contains
     mat(2,3) = aal(3) * HH2
     mat(3,3) = aal(3) * HH3
 
-  end function crys2car_from_cellpar
+  end function m_x2c_from_cellpar
 
   !> Gives a cartesian to crystallographic conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor.
-  module function car2crys_from_cellpar(aal,bbl) result(mat)
+  module function m_c2x_from_cellpar(aal,bbl) result(mat)
     real*8, intent(in) :: aal(3),bbl(3)
     real*8 :: mat(3,3)
 
@@ -118,7 +121,7 @@ contains
     mat(2,3) = - HH2 / (aal(2) * HH1 * HH3)
     mat(3,3) = 1d0 / (aal(3) * HH3)
 
-  end function car2crys_from_cellpar
+  end function m_c2x_from_cellpar
 
   !> Factorial of an integer (returns real)
   module function factorial(n) result(f)
@@ -565,33 +568,254 @@ contains
     return
   end function ep
 
-  !> Compute greatest common divisor of array of integers n
-  !> num is the number of elements of n to be included.
-  module function gcd(n,num)
-    use tools_io, only: ferror, faterr
-    integer, dimension(:) :: n !< Input array of numbers
-    integer :: num !< Do the gcd of 1..num
-    integer :: gcd 
+  !> Compute the greatest common divisor of an array of num integers (n). 
+  module function gcdn(n,num)
+    integer, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer :: gcdn
 
-    integer :: ini, i, mayor, menor, nresto
+    integer :: i
 
-    if (num <= 0 .or. any(n <= 0)) call ferror('gcd','incorrect arguments',faterr)
+    gcdn = 0
+    if (num <= 0) return
+    if (num == 1) then
+       gcdn = n(1)
+       return
+    end if
 
-    ini=n(1)
-    do i=2,num
-       mayor=max(ini,n(i))
-       menor=min(ini,n(i))
-       nresto=mod(mayor,menor)
-       do while (nresto .ne. 0)
-          mayor=menor
-          menor=nresto
-          nresto=mod(mayor,menor)
-       enddo
-       ini=menor
-    enddo
-    gcd=ini
+    gcdn = gcd2(n(1),n(2))
+    do i = 3, num
+       gcdn = gcd2(gcdn,n(i))
+    end do
 
-  end function gcd
+  end function gcdn
+  
+  !> Compute greatest common divisor of two integers.
+  module function gcd2(m,n)
+    integer, intent(in) :: m
+    integer, intent(in) :: n
+    integer :: gcd2
+
+    integer :: mhi, mlo, q
+
+    gcd2 = 1
+
+    mhi = max(m,n)
+    mlo = min(m,n)
+    do while (.true.)
+       q = mod(mhi,mlo)
+       if (q == 0) exit
+       mhi = mlo
+       mlo = q
+    end do
+    gcd2 = mlo
+
+  end function gcd2
+  
+  !> Compute the least common multiple of an array of num integers (n). 
+  module function lcmn(n,num)
+    integer, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer :: lcmn
+
+    integer :: i
+
+    lcmn = 0
+    if (num <= 0) return
+    if (num == 1) then
+       lcmn = n(1)
+       return
+    end if
+
+    lcmn = lcm2(n(1),n(2))
+    do i = 3, num
+       lcmn = lcm2(lcmn,n(i))
+    end do
+
+  end function lcmn
+
+  !> Compute the least common multiple of two integers.
+  module function lcm2(m,n)
+    integer, intent(in) :: m, n
+    integer :: lcm2
+
+    lcm2 = m * (n / gcd2(m,n))
+
+  end function lcm2
+
+  !> Compute the greatest common divisor of an array of num integers (n). 
+  !> integer*8 version.
+  module function gcdn_i8(n,num)
+    integer*8, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer*8 :: gcdn_i8
+
+    integer :: i
+
+    gcdn_i8 = 0
+    if (num <= 0) return
+    if (num == 1) then
+       gcdn_i8 = n(1)
+       return
+    end if
+
+    gcdn_i8 = gcd2_i8(n(1),n(2))
+    do i = 3, num
+       gcdn_i8 = gcd2_i8(gcdn_i8,n(i))
+    end do
+
+  end function gcdn_i8
+  
+  !> Compute greatest common divisor of two integers.  integer*8
+  !> version.
+  module function gcd2_i8(m,n)
+    integer*8, intent(in) :: m
+    integer*8, intent(in) :: n
+    integer*8 :: gcd2_i8
+
+    integer*8 :: mhi, mlo, q
+
+    gcd2_i8 = 1
+
+    mhi = max(m,n)
+    mlo = min(m,n)
+    do while (.true.)
+       q = mod(mhi,mlo)
+       if (q == 0) exit
+       mhi = mlo
+       mlo = q
+    end do
+    gcd2_i8 = mlo
+
+  end function gcd2_i8
+  
+  !> Compute the least common multiple of an array of num integers
+  !> (n).  integer*8 version.
+  module function lcmn_i8(n,num)
+    integer*8, intent(in) :: n(num)
+    integer, intent(in) :: num
+    integer*8 :: lcmn_i8
+
+    integer :: i
+
+    lcmn_i8 = 0
+    if (num <= 0) return
+    if (num == 1) then
+       lcmn_i8 = n(1)
+       return
+    end if
+
+    lcmn_i8 = lcm2_i8(n(1),n(2))
+    do i = 3, num
+       lcmn_i8 = lcm2_i8(lcmn_i8,n(i))
+    end do
+
+  end function lcmn_i8
+
+  !> Compute the least common multiple of two integers.  integer*8
+  !> version.
+  module function lcm2_i8(m,n)
+    integer*8, intent(in) :: m, n
+    integer*8 :: lcm2_i8
+
+    lcm2_i8 = m * (n / gcd2_i8(m,n))
+
+  end function lcm2_i8
+
+  !> Find a rational number q/r that approximates x0 to within eps (r > 0).
+  module subroutine rational_approx(x0,q,r,eps)
+    real*8, intent(in) :: x0
+    integer*8, intent(out):: q, r
+    real*8, intent(in) :: eps
+
+    real*8 :: x, diff, qr
+    integer*8 :: nx, a, b, c, d
+
+    ! convert to 0->1
+    nx = floor(x0)
+    x = x0 - nx
+
+    ! set a and b and check if x0 is an integer
+    a = 0
+    b = 1
+    diff = abs(real(a,8)/real(b,8) - x)
+    if (diff < eps) then
+       q = a
+       r = b
+       goto 999
+    end if
+
+    ! set c and d and check if x0 is an integer
+    c = 1
+    d = 1
+    diff = abs(real(c,8)/real(d,8) - x)
+    if (diff < eps) then
+       q = c
+       r = d
+       goto 999
+    end if
+
+    ! bisect the fraction: a/b < (a+c)/(b+d) < c/d
+    do while (.true.)
+       q = a+c
+       r = b+d
+
+       qr = real(q,8) / real(r,8)
+       diff = abs(qr - x)
+       if (diff < eps) exit
+
+       if (x > qr) then
+          a = q
+          b = r
+       else
+          c = q
+          d = r
+       end if
+    end do
+
+    ! recover the original value
+999 continue
+    q = r * nx + q
+
+    return
+
+  end subroutine rational_approx
+
+  !> Find the lattice vector corresponding to the input real vector
+  !> x0. If allowr is .true. yy can be either in x0 or -x0 direction,
+  !> and the routine chooses the one with fewer minus signs.
+  module function lattice_direction(x0,allowr) result(yy)
+    real*8, intent(in) :: x0(3)
+    logical, intent(in) :: allowr
+    integer :: yy(3)
+
+    integer*8 :: q(3), r(3), dl
+    integer :: i, miny, nminus, nplus
+
+    do i = 1, 3
+       call rational_approx(x0(i),q(i),r(i),1d-5)
+    end do
+    dl = lcm(r,3)
+
+    do i = 1, 3
+       yy(i) = int(q(i) * (dl / r(i)),4)
+    end do
+
+    miny = maxval(abs(yy))
+    do i = 1, 3
+       if (yy(i) /= 0) then
+          miny = min(miny,abs(yy(i)))
+       end if
+    end do
+    yy = yy / miny
+
+    if (allowr) then
+       nminus = count(yy < 0)
+       nplus = count(yy > 0)
+       if (nminus > nplus) yy = - yy
+    end if
+
+  end function lattice_direction
 
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric matrix.
   !> The eigenvectors are stored column-wise in mat.
@@ -790,15 +1014,14 @@ contains
   end subroutine plane_scale_extend
 
   !> This routine selects particular contour values (ziso(1:niso))
-  !> based on the given selection scheme (niso_type). lin0 and lin1
-  !> are the limits of the linear range fmax and fmin are the maximum
-  !> and minimum values of the field. 
-  module subroutine assign_ziso(niso_type,niso,ziso,lin0,lin1,fmax,fmin)
+  !> based on the given selection scheme (niso_type). fmax and fmin
+  !> are the maximum and minimum values of the field.
+  module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
     use param, only: pi
     integer, intent(in) :: niso_type
     integer, intent(inout) :: niso
     real*8, allocatable, intent(inout) :: ziso(:)
-    real*8, intent(in) :: lin0, lin1, fmax, fmin
+    real*8, intent(in) :: fmin, fmax
 
     real*8 :: ffmin, ffmax, delta
     integer :: i
@@ -812,7 +1035,7 @@ contains
        if (allocated(ziso)) deallocate(ziso)
        allocate(ziso(niso))
        do i = 1, niso
-          ziso(i) = lin0 + real(i-1,8) * (lin1 - lin0) / real(niso-1,8)
+          ziso(i) = fmin + real(i-1,8) * (fmax - fmin) / real(niso-1,8)
        end do
     elseif (niso_type == niso_log) then
        if (allocated(ziso)) deallocate(ziso)
@@ -844,7 +1067,7 @@ contains
           ! positive contours
           allocate(ziso(niso))
           ffmin = log(max(fmin,eps))
-          ffmax = log(abs(fmax))
+          ffmax = log(max(abs(fmax),eps))
           delta = (ffmax-ffmin)/(niso-1)
           do i = 1, niso
              ziso(i)=exp(ffmin+(i-1)*delta)
@@ -1063,7 +1286,7 @@ contains
   end function rmsd_walker
 
   !> Find the Gauss-Legendre nodes and weights for an interval.
-  module subroutine gauleg (x1,x2,x,w,n)
+  module subroutine gauleg(x1,x2,x,w,n)
     use param, only: pi
     real*8, intent(in) :: x1 !< Left limit of the interval
     real*8, intent(in) :: x2 !< Right limit of the interval
@@ -1125,5 +1348,163 @@ contains
     end do
 
   end subroutine gauleg
+
+  !> Calculates the Becke-Roussel (BR) hole parameters. The
+  !> spherically averaged exchange hole in the BR model is an
+  !> exponential A*exp(-alpha * r) at a distance b from the reference
+  !> point. A = prefac, alpha = alf, b = b. Input: spin density
+  !> (rho), curvature of the hole (quad), and normalization (hnorm). 
+  !>  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
+  module subroutine bhole(rho,quad,hnorm,b,alf,prefac)
+    use tools_io, only: ferror, faterr
+    use param, only: pi, third, twothird
+    real*8, intent(in) :: rho !< Density
+    real*8, intent(in) :: quad !< Q-value
+    real*8, intent(in) :: hnorm !< Hole normalization
+    real*8, intent(out) :: b !< Hole b
+    real*8, intent(out) :: alf !< Hole a
+    real*8, intent(out) :: prefac !< Hole A
+
+    real*8 :: rhs, x0, shift, x1, x, expo, f, df, quad0
+    integer :: i
+    real*8, parameter :: tiny = 1d-20
+
+    quad0 = quad
+    if (abs(quad) < tiny) quad0 = sign(tiny,quad)
+    rhs=twothird*(pi*rho/max(hnorm,tiny))**twothird*rho/quad0
+    x0=2.d0
+    shift=1.d0
+    if(rhs.lt.0.d0)go to 10
+    if(rhs.gt.0.d0)go to 20
+10  do i=1,16
+       x=x0-shift
+       call bhole_xfuncs(x,rhs,f,df)
+       if(f.lt.0.d0)go to 88
+       shift=0.1d0*shift
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to initialize",faterr)
+20  do i=1,16
+       x=x0+shift
+       call bhole_xfuncs(x,rhs,f,df)
+       if(f.gt.0.d0)go to 88
+       shift=0.1d0*shift
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to initialize",faterr)
+88  continue
+    do i=1,100
+       call bhole_xfuncs(x,rhs,f,df)
+       x1=x-f/df
+       if(dabs(x1-x).lt.1.d-10)go to 111
+       x=x1
+    enddo
+    call ferror("bhole","bhole: newton algorithm failed to converge",faterr)
+111 x = x1
+    if (x1 < tiny) then
+       expo=dexp(-tiny)
+       prefac=max(tiny/expo,0d0)
+       alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
+       b = x/alf
+    else
+       expo=dexp(-x)
+       prefac=max(rho/expo,0d0)
+       alf=(8.d0*pi*prefac/max(hnorm,tiny))**third
+       b = x/alf
+    end if
+
+  end subroutine bhole
+
+  !> Calculate the effective hole normalization using the reverse BR
+  !> trick. From numol. rho = spin density; quad = qsigma; uxpos = 
+  !> Slater potential (spin). xlnrm = effective hole normalization.
+  module subroutine xlnorm(rho,quad,uxpos,xlnrm)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    real*8, intent(in) :: rho, quad, uxpos
+    real*8, intent(out) :: xlnrm
+
+    real*8 :: rhs, x0, shift, x, f, df, x1, alf, a
+    integer :: i
+    logical :: found
+
+    if (rho < 1.d-10) then
+       xlnrm=1.D0
+       return
+    end if
+    rhs=-4.d0*pi/3.d0*rho*rho/quad/uxpos
+    x0=2.D0
+    shift=1.D0
+    found = .false.
+    if (rhs < 0.d0) then
+       do i = 1, 16
+          x = x0 - shift
+          call xlfuns(x,rhs,f,df)
+          if (f < 0.D0) then
+             found = .true.
+             exit
+          end if
+          shift=0.1d0*shift
+       end do
+       if (.not.found) &
+          call ferror('xlnorm','newton algorithm failed to initialize',faterr)
+    else
+       do i=1, 16
+          x=x0+shift
+          call xlfuns(x,rhs,f,df)
+          if(f > 0.D0) then
+             found = .true.
+             exit
+          endif
+          shift=0.1d0*shift
+       end DO
+       if (.not.found) &
+          call ferror('xlnorm','newton algorithm failed to initialize',faterr)
+    endif
+    found = .false.
+    do i = 1, 100
+       call xlfuns(x,rhs,f,df)
+       x1=x-f/df
+       if(dabs(x1-x) < 1.d-10) then
+          found = .true.
+          exit
+       end if
+       x=x1
+    end do
+    if (.not.found) &
+       call ferror('xlnorm','newton algorithm failed to converge',faterr)
+    x=x1
+    alf=dsqrt(6.d0*quad*x/rho/(x-2.d0))
+    a=rho*exp(x)
+    xlnrm=min(8.d0*pi*a/alf**3,2.d0)
+
+  contains
+    ! RHS of the BR hole equation and derivative
+    subroutine xlfuns(x,rhs,f,df)
+      real*8, intent(in) :: x, rhs
+      real*8, intent(out) :: f, df
+      real*8 :: expo, bot
+      expo=exp(x)
+      bot=(x-2.d0)*(expo-1.d0-0.5d0*x)
+      f = x*x/bot - rhs
+      df=4.d0*x-(4.d0*x-3.d0*x*x+x**3)*expo
+      df=df/bot**2
+    end subroutine xlfuns
+  end subroutine xlnorm
+
+  !xx! private procedures
+
+  !< RHS of the BR hole equation, and derivative. 
+  subroutine bhole_xfuncs(x,rhs,f,df)
+    real*8, intent(in) :: x !< x-value
+    real*8, intent(in) :: rhs !< Right-hand side
+    real*8, intent(out) :: f !< Value of the function
+    real*8, intent(out) :: df !< Value of the function derivative
+
+    real*8 :: expo23
+
+    expo23=dexp(-2.d0/3.d0*x)
+    f = x*expo23/(x-2.d0) - rhs
+    df=2.d0/3.d0*(2.d0*x-x**2-3.d0)/(x-2.d0)**2*expo23
+
+  end subroutine bhole_xfuncs
 
 end submodule proc

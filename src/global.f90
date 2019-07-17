@@ -45,7 +45,7 @@ module global
   character(len=:), allocatable :: mlib_file !< The path to the molecular library file
 
   ! Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE). Up
-  ! to Pu (93).  VAlues are bohr. This distance is usually enough to
+  ! to Pu (93). Values are bohr. This distance is usually enough to
   ! converge any density or orbital (dftb+, pi) contribution from an
   ! atom.
   real*8, parameter :: cutrad(maxzat0) = (/&
@@ -120,7 +120,7 @@ module global
 
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
-  integer :: crsmall = 5000
+  integer :: crsmall = 1100
 
   ! navigation options
   real*8 :: NAV_step !< gradient path step length (bohr)
@@ -153,9 +153,8 @@ module global
   integer, parameter :: INT_lebedev = 5 !< lebedev
 
   ! mesh type and quality for molecular integrations
-  ! 0 = Becke, >0 = Franchini with 1 (small), 2 (normal), 3 (good),
-  ! 4(very good), 5 (excellent).
-  integer :: MESH_type !< type and quality of mesh for molecular integration
+  integer :: mesh_type !< type of mesh for molecular integrations (see meshmod)
+  integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
 
   ! qtree
   ! note: ws_origin also used in auto
@@ -175,7 +174,6 @@ module global
   integer :: plot_mode
   logical :: docontacts
   real*8 :: ws_origin(3), ws_scale
-  logical :: ws_use
   integer :: autosph
   logical :: killext, checkbeta
   integer :: minl 

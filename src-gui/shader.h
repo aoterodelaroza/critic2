@@ -5,99 +5,98 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <iostream>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 #include "imgui/gl3w.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 class Shader{
 public:
-  GLuint id;
+  // id of the shader program. glDeleteProgram(id): A value of id = 0 will be silently ignored.
+  GLuint id = 0;
 
-  Shader(){
-    id = glCreateProgram();
-    if (!id)
-      exit(EXIT_FAILURE);
+  Shader(const char* vpath, const char* fpath){
+    loadShader(vpath,fpath,true);
+  }
 
-    const char *vs[] =
-      {
-        "#version 330 core                                                          \n"
-        "uniform mat4 model;                                                        \n"
-        "uniform mat4 projection;                                                   \n"
-        "uniform mat4 view;                                                         \n"
-        "uniform mat4 world;                                                        \n"
-	"uniform mat3 normrot;                                                      \n"
-	"                                                                           \n"
-        "layout (location = 0) in vec3 inPosition;                                  \n"
-        "layout (location = 1) in vec3 inNormal;                                    \n"
-	"                                                                           \n"
-	"out vec3 Normal;                                                           \n"
-	"out vec4 fragPos;                                                          \n"
-	"                                                                           \n"
-        "void main() {                                                              \n"
-        "  fragPos = view * world * model * vec4(inPosition, 1.0);                  \n"
-        "  gl_Position = projection * fragPos;                                      \n"
-	"  Normal = normalize(normrot * inNormal);                                  \n"
-        "}\n"
-      };
+  // Adapted from learnopengl.com by Joey de Vries (https://joeydevries.com).
+  void loadShader(const char* vpath, const char* fpath, bool crashiffail){
+    std::string vcode, fcode;
+    std::ifstream vfile, ffile;
 
-    const char *fs[] =  
-      {
-        "#version 330 core                                                             \n"
-        "                                                                              \n"
-        "uniform int uselighting;                                                      \n"
-        "uniform vec4 vColor;                                                          \n"
-	"uniform vec3 lightPos;                                                        \n"
-	"uniform vec3 lightColor;                                                      \n"
-        "uniform float ambient;                                                        \n"
-        "uniform float diffuse;                                                        \n"
-        "uniform float specular;                                                       \n"
-        "uniform int shininess;                                                        \n"
-        "                                                                              \n"
-	"in vec3 Normal;                                                               \n"
-	"in vec4 fragPos;                                                              \n"
-        "                                                                              \n"
-        "out vec4 outputColor;                                                         \n"
-        "                                                                              \n"
-        "void main() {                                                                 \n"
-        "  if (uselighting != 0){                                                      \n"
-        "    vec3 viewdir = normalize(-vec3(fragPos));                                 \n"
-        "    vec3 lightdir = normalize(lightPos - vec3(fragPos));                      \n"
-        "    vec3 reflectdir = reflect(-lightdir,Normal);                              \n"
-        "    float diff = diffuse * max(dot(Normal,lightdir),0.f);                     \n"
-        "    float spec = specular * pow(max(dot(viewdir,reflectdir),0.0f),shininess); \n"
-        "    outputColor = vec4((ambient + diff + spec) * lightColor,1.0f) * vColor;   \n"
-        "  } else {                                                                    \n"
-        "    outputColor = vColor;                                                     \n"
-        "  }                                                                           \n"
-        "}\n"
-      };
+    // ensure ifstream objects can throw exceptions:
+    vfile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
+    ffile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
 
-    // vertex shader
-    GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, vs, NULL);
+    try{
+      vfile.open(vpath);
+      ffile.open(fpath);
+
+      std::stringstream vstream, fstream;
+      vstream << vfile.rdbuf();
+      fstream << ffile.rdbuf();
+
+      vfile.close();
+      ffile.close();
+
+      vcode = vstream.str();
+      fcode = fstream.str();
+    } catch (std::ifstream::failure e) {
+      printf("Could not find shader file: %s or %s\n",vpath,fpath);
+      exit(1);
+    }
+    const char* vcodec = vcode.c_str();
+    const char* fcodec = fcode.c_str();
+
+    GLuint vertex, fragment, idnew;
+    
+    vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vcodec, NULL);
     glCompileShader(vertex);
-    checkCompileErrors(vertex, "VERTEX");
-    // fragment Shader
-    GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, fs, NULL);
+    if (!checkCompileErrors(vertex, "VERTEX", crashiffail))
+      goto fail;
+
+    fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fcodec, NULL);
     glCompileShader(fragment);
-    checkCompileErrors(fragment, "FRAGMENT");
-    // shader Program
+    if (!checkCompileErrors(fragment, "FRAGMENT", crashiffail))
+      goto faildeletevertex;
+
+    id = glCreateProgram();
     glAttachShader(id, vertex);
     glAttachShader(id, fragment);
     glLinkProgram(id);
-    checkCompileErrors(id, "PROGRAM");
-    glDeleteShader(vertex);
+    if (!checkCompileErrors(id, "PROGRAM", crashiffail))
+      goto faildeletefragment;
+
+    idnew = glCreateProgram();
+    glAttachShader(idnew, vertex);
+    glAttachShader(idnew, fragment);
+    glLinkProgram(idnew);
+    if (!checkCompileErrors(idnew, "PROGRAM", crashiffail))
+      goto faildeletefragment;
+    
+    glDeleteProgram(id);
+    id = idnew;
+
+    faildeletefragment:
     glDeleteShader(fragment);
-    // set the global variables
-    glUseProgram(id); 
+
+    faildeletevertex:
+    glDeleteShader(vertex);
+
+    fail:
+    return;
   }
 
-  void use() const{ 
+  void use(){ 
     glUseProgram(id); 
   }
 
@@ -121,25 +120,31 @@ public:
   }
 
 private:
-  // utility function for checking shader compilation/linking errors.
-  void checkCompileErrors(unsigned int shader, std::string type) const{
+  bool checkCompileErrors(unsigned int shader, std::string type, bool crashiffail) const{
     int success;
     char infoLog[1024];
     if (type != "PROGRAM"){
       glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
       if (!success){
 	glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-	std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << std::endl << infoLog << std::endl;
-	exit(EXIT_FAILURE);
+	std::cout << "Shader compilation error of type: " << type << std::endl << infoLog << std::endl;
+        if (crashiffail) 
+          exit(EXIT_FAILURE);
+        else
+          return false;
       }
     } else {
       glGetProgramiv(shader, GL_LINK_STATUS, &success);
       if (!success){
 	glGetProgramInfoLog(shader, 1024, NULL, infoLog);
-	std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << std::endl << infoLog << std::endl;
-	exit(EXIT_FAILURE);
+	std::cout << "Shader linking error of type: " << type << std::endl << infoLog << std::endl;
+        if (crashiffail) 
+          exit(EXIT_FAILURE);
+        else
+          return false;
       }
     }
+    return true;
   }
 };
 #endif

@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2019 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>. 
 !
@@ -38,7 +38,7 @@ program critic
   use fieldmod, only: type_grid
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_clearsym, struct_charges, struct_atomlabel, struct_write,&
-     struct_powder, struct_rdf, struct_environ, struct_packing,&
+     struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_compare, struct_identify
   use systemmod, only: systemmod_init, systemmod_end, sy
   use spgs, only: spgs_init
@@ -445,6 +445,12 @@ program critic
         if (.not.ok) cycle
         call struct_environ(sy,line(lp:))
 
+        ! coord
+     elseif (equal(word,'coord')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call struct_coord(sy,line(lp:))
+
         ! packing
      elseif (equal(word,'packing')) then
         call check_structure_defined(ok)
@@ -478,7 +484,9 @@ program critic
            cycle
         end if
         if (equal(word,"sum")) then
-           write (uout,'("SUM(",A,") = ",A/)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
+           write (uout,'("SUM(",A,") = ",A)') string(id), string(sum(sy%f(id)%grid%f),'e',decimal=12)
+           write (uout,'("INTEGRAL(",A,") = ",A/)') string(id), &
+              string(sum(sy%f(id)%grid%f * sy%f(id)%c%omega / real(product(sy%f(id)%grid%n),8)),'e',decimal=12)
         elseif(equal(word,"min")) then
            write (uout,'("MIN(",A,") = ",A/)') string(id), string(minval(sy%f(id)%grid%f),'e',decimal=12)
         elseif(equal(word,"max")) then
@@ -537,9 +545,7 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
-        !
 
-        ! end
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
@@ -552,7 +558,7 @@ program critic
   enddo
 
   call grid1_clean_grids()
-  ! call systemmod_end() ! older ifort compilers have trouble deallocating sy
+  ! call systemmod_end() ! old ifort compilers have trouble deallocating sy
 
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&

@@ -19,13 +19,13 @@ submodule (pi_private) proc
   implicit none
 
   !xx! private procedures
+  ! subroutine read_ion(f,fichero,ni)
   ! subroutine buscapar(line,chpar,nchpar,ipar,nipar)
   ! function entero (palabra,ipal)
   ! subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
 
   ! parameters for PI common info
   integer, parameter :: msa = 4
-  integer, parameter :: mnt = 20
   integer, parameter :: msto = 45
   integer, parameter :: maos = 45
   integer, parameter :: mstosym = 15
@@ -39,56 +39,273 @@ contains
   module subroutine pi_end(f)
     class(piwfn), intent(inout) :: f
 
-    if (allocated(f%piname)) deallocate(f%piname)
-    if (allocated(f%pi_used)) deallocate(f%pi_used)
-    if (allocated(f%nsym)) deallocate(f%nsym)
-    if (allocated(f%naos)) deallocate(f%naos)
-    if (allocated(f%naaos)) deallocate(f%naaos)
-    if (allocated(f%nsto)) deallocate(f%nsto)
-    if (allocated(f%nasto)) deallocate(f%nasto)
-    if (allocated(f%nn)) deallocate(f%nn)
-    if (allocated(f%z)) deallocate(f%z)
-    if (allocated(f%xnsto)) deallocate(f%xnsto)
-    if (allocated(f%c)) deallocate(f%c)
-    if (allocated(f%nelec)) deallocate(f%nelec)
-    if (allocated(f%pgrid)) deallocate(f%pgrid)
-    if (allocated(f%renv)) deallocate(f%renv)
-    if (allocated(f%idxenv)) deallocate(f%idxenv)
-    if (allocated(f%zenv)) deallocate(f%zenv)
+    if (allocated(f%bas)) deallocate(f%bas)
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    f%isealloc = .false.
 
   end subroutine pi_end
 
-  !> Register structural information
-  module subroutine register_struct(f,nenv,spc,atenv)
-    use types, only: atom, celatom, species
+  !> Build a pi field from external file
+  module subroutine pi_read(f,nfile,piat,file,env,errmsg)
+    use global, only: cutrad
+    use tools_io, only: isinteger, equali
+    use param, only: mlen
     class(piwfn), intent(inout) :: f
-    integer, intent(in) :: nenv
-    type(species), intent(in) :: spc(*)
-    type(celatom), intent(in) :: atenv(nenv)
-    
-    integer :: i
+    integer, intent(in) :: nfile
+    character*10, intent(in) :: piat(:)
+    character(len=mlen), intent(in) :: file(:)
+    type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
 
-    f%nenv = nenv
-    if (allocated(f%renv)) deallocate(f%renv)
-    allocate(f%renv(3,nenv))
-    if (allocated(f%idxenv)) deallocate(f%idxenv)
-    allocate(f%idxenv(nenv))
-    if (allocated(f%zenv)) deallocate(f%zenv)
-    allocate(f%zenv(nenv))
+    integer :: i, j, ithis
+    logical :: iok, found
+    real*8 :: crad, rrho, rrho1, rrho2
 
-    do i = 1, nenv
-       f%renv(:,i) = atenv(i)%r
-       f%idxenv(i) = atenv(i)%idx
-       f%zenv(i) = spc(atenv(i)%is)%z
+    real*8, parameter :: az = exp(-6d0)
+    real*8, parameter :: b = 0.002
+    real*8, parameter :: pi_cutdens = 1d-12 
+
+    ! restart and allocate all fields
+    if (allocated(f%bas)) deallocate(f%bas)
+    allocate(f%bas(env%nspc))
+
+    do i = 1, nfile
+       iok = isinteger(ithis,piat(i))
+       found = .false.
+       do j = 1, env%nspc
+          if (equali(piat(i),env%spc(j)%name)) then
+             call read_ion(f,file(i),j)
+             found = .true.
+          else if (iok) then
+             if (ithis == j) then
+                call read_ion(f,file(i),j)
+                found = .true.
+             end if
+          end if
+       end do
+       if (.not.found) then
+          errmsg = "unknown species for pi ion file: " // trim(file(i))
+          call f%end()
+          return
+       end if
     end do
-    
-  end subroutine register_struct
 
-  !> From PI: read an ion description file.
-  module subroutine read_ion(f,fichero,ni)
+    ! find the individual species cutoffs and maximum cutoff
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    allocate(f%spcutoff(env%nspc,2))
+    f%spcutoff = 0d0
+    f%globalcutoff = -1d0
+    do i = 1, env%nspc
+       f%spcutoff(i,2) = cutrad(env%spc(i)%z)
+       f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
+    end do
+
+    ! pointer to the environment
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%e)
+       allocate(f%e)
+       call f%e%extend(env,f%globalcutoff)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%e => env
+    end if
+
+    ! fill the interpolation tables
+    do i = 1, env%nspc
+       if (.not.f%bas(i)%pi_used) cycle
+       ! determine cutoff radius (crad)
+       crad = cutrad(env%spc(i)%z)
+       call rhoex1(f,i,crad,rrho,rrho1,rrho2)
+       do while (rrho > pi_cutdens) 
+          crad = crad * 1.05d0
+          call rhoex1(f,i,crad,rrho,rrho1,rrho2)
+       end do
+
+       ! fill some grid info
+       f%bas(i)%pgrid%isinit = .true.
+       f%bas(i)%pgrid%a = az / real(env%spc(i)%z,8)
+       f%bas(i)%pgrid%b = b
+       f%bas(i)%pgrid%ngrid = ceiling(log(crad/f%bas(i)%pgrid%a) / f%bas(i)%pgrid%b) + 1
+       f%bas(i)%pgrid%rmax = f%bas(i)%pgrid%a * exp((f%bas(i)%pgrid%ngrid - 1) * f%bas(i)%pgrid%b)
+       f%bas(i)%pgrid%rmax2 = f%bas(i)%pgrid%rmax * f%bas(i)%pgrid%rmax
+       allocate(f%bas(i)%pgrid%r(f%bas(i)%pgrid%ngrid))
+       allocate(f%bas(i)%pgrid%f(f%bas(i)%pgrid%ngrid))
+       allocate(f%bas(i)%pgrid%fp(f%bas(i)%pgrid%ngrid))
+       allocate(f%bas(i)%pgrid%fpp(f%bas(i)%pgrid%ngrid))
+       do j = 1, f%bas(i)%pgrid%ngrid
+          f%bas(i)%pgrid%r(j) = f%bas(i)%pgrid%a * exp((j-1)*f%bas(i)%pgrid%b)
+          call rhoex1(f,i,f%bas(i)%pgrid%r(j),f%bas(i)%pgrid%f(j),f%bas(i)%pgrid%fp(j),f%bas(i)%pgrid%fpp(j))
+       end do
+    end do
+
+  end subroutine pi_read
+
+  !> Determine the density and derivatives at a given target point
+  !> (cartesian).  It is possible to use the 'approximate' method, by
+  !> interpolating on a grid.  This routine is thread-safe.
+  module subroutine rho2(f,xpos,exact,rho,grad,h)
+    use tools_math, only: ep
+    use param, only: pi, one, icrd_cart
+    class(piwfn), intent(in) :: f
+    real*8, intent(in) :: xpos(3)
+    logical, intent(in) :: exact
+    real*8, intent(out) :: rho, grad(3), h(3,3)
+
+    real*8, parameter :: pi4 = 4d0 * pi
+    real*8, parameter :: eps = 1d-6
+    integer :: ion
+    integer :: i, j, k, j1, l
+    real*8 :: xion, yion, zion, rions2, rion, rion1, rion2
+    real*8 :: xr, yr, zr, x2r, y2r, z2r, xyr, xzr, yzr
+    integer :: ni, llplus1, norb, norb1
+    real*8 :: phi, phip, phipp, zj, or
+    real*8 :: rhop, rhopp, rhofac1, xx2r(3), xxion(3), rfac, radd
+    integer :: n0, nm1, nm2, nenv, ierr, lvec(3)
+    real*8 :: tmprho
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+
+    real*8, parameter :: eps0 = 1d-7
+
+    ! calculate the environment of the input point
+    rho = 0d0
+    grad = 0d0
+    h = 0d0
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
+
+    if (exact) then
+       ! calculate exactly the contribution of each atom
+       !.....recorre todos los iones de la red
+       do ion= 1, nenv 
+          ni = f%e%at(eid(ion))%is
+          if (.not.f%bas(ni)%pi_used) cycle
+          rhop = 0d0
+          rhopp = 0d0
+          !
+          xion = xpos(1) - f%e%at(eid(ion))%r(1)
+          yion = xpos(2) - f%e%at(eid(ion))%r(2)
+          zion = xpos(3) - f%e%at(eid(ion))%r(3)
+          xxion = (/ xion, yion, zion /)
+          rions2 = xion*xion+yion*yion+zion*zion
+          rion = sqrt(rions2)
+          if (rion.gt.eps) then
+             !.r powers
+             rion1=one/rion
+             rion2=rion1*rion1
+             !.x powers 
+             xr=xion*rion1
+             yr=yion*rion1
+             zr=zion*rion1
+             x2r=xr*xr
+             y2r=yr*yr
+             z2r=zr*zr
+             xx2r = (/ x2r, y2r, z2r /)
+             xyr=xr*yr
+             xzr=xr*zr
+             yzr=yr*zr
+          else
+             ! trap nuclei
+             rho = 0d0
+             grad = (/ 0d0, 0d0, 0d0 /)
+             h = 0d0
+             h(1,1) = -1d0
+             h(2,2) = -1d0
+             h(3,3) = -1d0
+             return
+          endif
+          !........Every atomic symmetry
+          do l = 1, f%bas(ni)%nsym
+             llplus1=l*(l-1)
+             !...........every orbital
+             do norb = 1, f%bas(ni)%naos(l)
+                norb1 = norb + f%bas(ni)%naaos(l)
+                phi = 0d0
+                phip = 0d0
+                phipp = 0d0
+
+                !..............every primitive
+                do j = 1, f%bas(ni)%nsto(l)
+                   j1 = j + f%bas(ni)%nasto(l)
+                   n0 = f%bas(ni)%nn(j1)
+                   nm1 = n0-1   
+                   nm2 = n0-2
+                   zj = f%bas(ni)%z(j1)
+                   or=ep(rion,nm1)*exp(-zj*rion)*f%bas(ni)%c(j,norb1)
+                   or=or*f%bas(ni)%xnsto(j1)
+                   phi = phi + or
+                   phip = phip + or * (nm1*rion1-zj)
+                   phipp = phipp + or * (nm2*nm1*rion2-2*zj*nm1*rion1+zj*zj)
+                enddo
+                rho = rho + f%bas(ni)%nelec(norb1) * phi * phi
+                rhop = rhop + f%bas(ni)%nelec(norb1) * phi * phip
+                rhopp = rhopp + f%bas(ni)%nelec(norb1) * (phip*phip + phi*phipp)
+             enddo
+          enddo
+          grad = grad + rion1 * rhop * (/ xion, yion, zion /)
+          rhofac1 = (rhopp - rhop * rion1)
+          do i = 1, 3
+             h(i,i) = h(i,i) + rhop * rion1 + xx2r(i) * rhofac1
+             do j = i+1,3
+                h(i,j) = h(i,j) + xxion(i) * xxion(j) * rion2 * rhofac1
+             end do
+          end do
+       enddo
+       rho = rho / pi4
+       grad = grad * 2d0 / pi4
+       h = h * 2d0 / pi4
+       h(2,1) = h(1,2)
+       h(3,1) = h(1,3)
+       h(3,2) = h(2,3)
+    else
+       ! use the density grids
+       do i = 1, nenv
+          ni = f%e%at(eid(i))%is
+          if (.not.f%bas(ni)%pi_used) cycle
+
+          xxion = xpos - f%e%at(eid(i))%r
+          rion = max(norm2(xxion),eps0)
+          rion1 = 1d0 / rion
+          rion2 = rion1 * rion1
+          call f%bas(ni)%pgrid%interp(rion,tmprho,rhop,rhopp)
+          rho = rho + tmprho
+          grad = grad + rhop * xxion * rion1
+          rfac = (rhopp - rhop * rion1)
+          do j = 1, 3
+             h(j,j) = h(j,j) + rhop * rion1 + rfac * rion2 * xxion(j) * xxion(j)
+             do k = 1, j-1
+                radd = rfac * rion2 * xxion(j) * xxion(k)
+                h(j,k) = h(j,k) + radd
+                h(k,j) = h(k,j) + radd
+             end do
+          end do
+       end do
+       h(2,1) = h(1,2)
+       h(3,1) = h(1,3)
+       h(3,2) = h(2,3)
+    endif
+
+  end subroutine rho2
+
+  !xx! private procedures
+
+  !> Read a PI ion description file from file fichero and species ni.
+  subroutine read_ion(f,fichero,ni)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
     use param, only: fact, zero
-    class(piwfn), intent(inout) :: f
+    type(piwfn), intent(inout) :: f
     character*(*) :: fichero
     integer :: ni
 
@@ -113,28 +330,28 @@ contains
     integer :: nref, nxef, nyef, nzef
 
     ! allocate
-    if (.not.allocated(f%pi_used)) then
-       allocate(f%pi_used(0:mnt))
-       f%pi_used = .false.
-    end if
-    if (.not.allocated(f%piname)) allocate(f%piname(0:mnt))
-    if (.not.allocated(f%nsym)) allocate(f%nsym(0:mnt))
-    if (.not.allocated(f%naos)) allocate(f%naos(msa,0:mnt))
-    if (.not.allocated(f%naaos)) allocate(f%naaos(msa,0:mnt))
-    if (.not.allocated(f%nsto)) allocate(f%nsto(msa,0:mnt))
-    if (.not.allocated(f%nasto)) allocate(f%nasto(msa,0:mnt))
-    if (.not.allocated(f%nn)) allocate(f%nn(msto,0:mnt))
-    if (.not.allocated(f%z)) allocate(f%z(msto,0:mnt))
-    if (.not.allocated(f%xnsto)) allocate(f%xnsto(msto,0:mnt))
-    if (.not.allocated(f%c)) allocate(f%c(mstosym,maos,0:mnt))
-    if (.not.allocated(f%nelec)) allocate(f%nelec(maos,0:mnt))
-
-    f%pi_used(ni) = .true.
-    f%piname(ni) = fichero
+    f%bas(ni)%pi_used = .true.
+    f%bas(ni)%piname = trim(fichero)
+    if (allocated(f%bas(ni)%naos)) deallocate(f%bas(ni)%naos)
+    if (allocated(f%bas(ni)%naaos)) deallocate(f%bas(ni)%naaos)
+    if (allocated(f%bas(ni)%nsto)) deallocate(f%bas(ni)%nsto)
+    if (allocated(f%bas(ni)%nasto)) deallocate(f%bas(ni)%nasto)
+    if (allocated(f%bas(ni)%nn)) deallocate(f%bas(ni)%nn)
+    if (allocated(f%bas(ni)%z)) deallocate(f%bas(ni)%z)
+    if (allocated(f%bas(ni)%xnsto)) deallocate(f%bas(ni)%xnsto)
+    if (allocated(f%bas(ni)%c)) deallocate(f%bas(ni)%c)
+    if (allocated(f%bas(ni)%nelec)) deallocate(f%bas(ni)%nelec)
+    allocate(f%bas(ni)%naos(msa))
+    allocate(f%bas(ni)%naaos(msa))
+    allocate(f%bas(ni)%nsto(msa))
+    allocate(f%bas(ni)%nasto(msa))
+    allocate(f%bas(ni)%nn(msto))
+    allocate(f%bas(ni)%z(msto))
+    allocate(f%bas(ni)%xnsto(msto))
+    allocate(f%bas(ni)%c(mstosym,maos))
+    allocate(f%bas(ni)%nelec(maos))
 
     !.....abrir el fichero:
-    if (ni.gt.mnt) stop 'pi(leerion): el ion por leer es >mnt !'
-    if (ni.lt.0) stop 'pi(leerion): ni<0 !'
     lui=fopen_read(fichero)
 
     !.....Determinar la version de pi a que corresponde el fichero:
@@ -161,37 +378,37 @@ contains
     !.....Leer STOs:
     ok = getline_raw(lui,linea,.true.)
     read (lui,'(a6,x,f10.0)',err=999) tition, zn
-    read (lui,*,err=999) f%nsym(ni)
-    if (f%nsym(ni).gt.msa) stop 'pi(leerion): nsym > msa !'
-    if (f%nsym(ni).lt.0) stop 'pi(leerion): nsym < 0 !'
-    read (lui,*,err=999) (f%nsto(i,ni),i=1,f%nsym(ni))
-    f%nasto(1,ni)=0  
+    read (lui,*,err=999) f%bas(ni)%nsym
+    if (f%bas(ni)%nsym.gt.msa) stop 'pi(leerion): nsym > msa !'
+    if (f%bas(ni)%nsym.lt.0) stop 'pi(leerion): nsym < 0 !'
+    read (lui,*,err=999) (f%bas(ni)%nsto(i),i=1,f%bas(ni)%nsym)
+    f%bas(ni)%nasto(1)=0  
     ntsto=0
-    do i=1,f%nsym(ni)
-       ntsto=ntsto+f%nsto(i,ni)
-       if (i.gt.1) f%nasto(i,ni)=f%nasto(i-1,ni)+f%nsto(i-1,ni)
-       if (f%nsto(i,ni).gt.mstosym) stop 'pi(leerion): demasiados stos en una simetria !'
+    do i=1,f%bas(ni)%nsym
+       ntsto=ntsto+f%bas(ni)%nsto(i)
+       if (i.gt.1) f%bas(ni)%nasto(i)=f%bas(ni)%nasto(i-1)+f%bas(ni)%nsto(i-1)
+       if (f%bas(ni)%nsto(i).gt.mstosym) stop 'pi(leerion): demasiados stos en una simetria !'
     end do
     if (ntsto.gt.msto) stop 'pi(leerion): demasiados stos !'
-    read (lui,*,err=999) (f%nn(k,ni),k=1,ntsto)
-    read (lui,*,err=999) (f%z(k,ni),k=1,ntsto)
+    read (lui,*,err=999) (f%bas(ni)%nn(k),k=1,ntsto)
+    read (lui,*,err=999) (f%bas(ni)%z(k),k=1,ntsto)
     do k=1,ntsto
-       nk2=f%nn(k,ni)*2
-       f%xnsto(k,ni)=dsqrt((2d0*f%z(k,ni))**(nk2+1)/fact(nk2))
+       nk2=f%bas(ni)%nn(k)*2
+       f%bas(ni)%xnsto(k)=dsqrt((2d0*f%bas(ni)%z(k))**(nk2+1)/fact(nk2))
     end do
 
     !.....Leer informacion orbital:
-    read (lui,*,err=999) (f%naos(i,ni),i=1,f%nsym(ni))
-    f%naaos(1,ni)=0  
+    read (lui,*,err=999) (f%bas(ni)%naos(i),i=1,f%bas(ni)%nsym)
+    f%bas(ni)%naaos(1)=0  
     ntaos=0
-    do i=1,f%nsym(ni)
-       ntaos=ntaos+f%naos(i,ni)
-       if (i.gt.1) f%naaos(i,ni)=f%naaos(i-1,ni)+f%naos(i-1,ni)
+    do i=1,f%bas(ni)%nsym
+       ntaos=ntaos+f%bas(ni)%naos(i)
+       if (i.gt.1) f%bas(ni)%naaos(i)=f%bas(ni)%naaos(i-1)+f%bas(ni)%naos(i-1)
     end do
     if (ntaos.gt.maos) stop 'pi(leerion): demasiados aos !'
-    read (lui,*,err=999) (f%nelec(k,ni),k=1,ntaos)
+    read (lui,*,err=999) (f%bas(ni)%nelec(k),k=1,ntaos)
     read (lui,*,err=999) (eorb,k=1,ntaos)
-    read (lui,*,err=999) (((f%c(k,j+f%naaos(i,ni),ni),k=1,f%nsto(i,ni)),j=1,f%naos(i,ni)),i=1,f%nsym(ni))
+    read (lui,*,err=999) (((f%bas(ni)%c(k,j+f%bas(ni)%naaos(i)),k=1,f%bas(ni)%nsto(i)),j=1,f%bas(ni)%naos(i)),i=1,f%bas(ni)%nsym)
 
     !.....Este fragmento depende de la version de pi:
     if (style .lt. pi7_type) then
@@ -210,15 +427,15 @@ contains
        !........version pi7:
        openshell = .false.
        iao = 0
-       do isy = 1, f%nsym(ni)
+       do isy = 1, f%bas(ni)%nsym
           ncsh = 0
           nosh = 0
-          do i = 1, f%naos(isy,ni)
+          do i = 1, f%bas(ni)%naos(isy)
              iao = iao + 1
              deg = (2 * isy - 1) * 2
-             if (f%nelec(iao,ni).eq.zero) then
+             if (f%bas(ni)%nelec(iao).eq.zero) then
                 nosh = nosh + 1
-             else if (f%nelec(iao,ni).eq.deg) then
+             else if (f%bas(ni)%nelec(iao).eq.deg) then
                 ncsh = ncsh + 1
              else
                 nosh = nosh + 1
@@ -253,8 +470,8 @@ contains
        read (lui,*,err=999) ileeaexch
     endif
     ndensi=0
-    do i=1,f%nsym(ni)
-       ndensi=ndensi+(f%nsto(i,ni)*(f%nsto(i,ni)+1))/2
+    do i=1,f%bas(ni)%nsym
+       ndensi=ndensi+(f%bas(ni)%nsto(i)*(f%bas(ni)%nsto(i)+1))/2
     end do
     if (ndensi.gt.mdens) stop 'pi(leerion): too many charge densities!'
     if (ndensi.gt.0.and.ileeaexch.eq.1) then
@@ -271,198 +488,6 @@ contains
     stop 'pi(leerion): read error !'
 
   end subroutine read_ion
-
-  !> Determine the density and derivatives at a given target point
-  !> (cartesian).  It is possible to use the 'approximate' method, by
-  !> interpolating on a grid.  This routine is thread-safe.
-  module subroutine rho2(f,xpos,exact,rho,grad,h)
-    use tools_math, only: ep
-    use param, only: pi, one
-    class(piwfn), intent(in) :: f
-    real*8, intent(in) :: xpos(3)
-    logical, intent(in) :: exact
-    real*8, intent(out) :: rho, grad(3), h(3,3)
-
-    real*8, parameter :: pi4 = 4d0 * pi
-    real*8, parameter :: eps = 1d-6
-    integer :: ion
-    integer :: i, j, k, j1, l
-    real*8 :: xion, yion, zion, rions2, rion, rion1, rion2
-    real*8 :: xr, yr, zr, x2r, y2r, z2r, xyr, xzr, yzr
-    integer :: ni, llplus1, norb, norb1
-    real*8 :: phi, phip, phipp, zj, or
-    real*8 :: rhop, rhopp, rhofac1, xx2r(3), xxion(3), rfac, radd
-    integer :: n0, nm1, nm2
-    real*8 :: tmprho
-
-    real*8, parameter :: eps0 = 1d-7
-
-    if (exact) then
-       ! calculate exactly the contribution of each atom
-       rho = 0d0
-       grad = 0d0
-       h = 0d0
-       !.....recorre todos los iones de la red
-       !
-       do ion= 1, f%nenv 
-          rhop = 0d0
-          rhopp = 0d0
-          !
-          xion = xpos(1) - f%renv(1,ion)
-          yion = xpos(2) - f%renv(2,ion)
-          zion = xpos(3) - f%renv(3,ion)
-          xxion = (/ xion, yion, zion /)
-          rions2 = xion*xion+yion*yion+zion*zion
-          rion = sqrt(rions2)
-          if (rion.gt.eps) then
-             !.r powers
-             rion1=one/rion
-             rion2=rion1*rion1
-             !.x powers 
-             xr=xion*rion1
-             yr=yion*rion1
-             zr=zion*rion1
-             x2r=xr*xr
-             y2r=yr*yr
-             z2r=zr*zr
-             xx2r = (/ x2r, y2r, z2r /)
-             xyr=xr*yr
-             xzr=xr*zr
-             yzr=yr*zr
-          else
-             ! trap nuclei
-             rho = 0d0
-             grad = (/ 0d0, 0d0, 0d0 /)
-             h = 0d0
-             h(1,1) = -1d0
-             h(2,2) = -1d0
-             h(3,3) = -1d0
-             return
-          endif
-          !........Every atomic symmetry
-          ni= f%idxenv(ion)
-          do l = 1, f%nsym(ni)
-             llplus1=l*(l-1)
-             !...........every orbital
-             do norb = 1, f%naos(l,ni)
-                norb1 = norb + f%naaos(l,ni)
-                phi = 0d0
-                phip = 0d0
-                phipp = 0d0
-
-                !..............every primitive
-                do j = 1, f%nsto(l,ni)
-                   j1 = j + f%nasto(l,ni)
-                   n0 = f%nn(j1,ni)
-                   nm1 = n0-1   
-                   nm2 = n0-2
-                   zj = f%z(j1,ni)
-                   or=ep(rion,nm1)*exp(-zj*rion)*f%c(j,norb1,ni)
-                   or=or*f%xnsto(j1,ni)
-                   phi = phi + or
-                   phip = phip + or * (nm1*rion1-zj)
-                   phipp = phipp + or * (nm2*nm1*rion2-2*zj*nm1*rion1+zj*zj)
-                enddo
-                rho = rho + f%nelec(norb1,ni) * phi * phi
-                rhop = rhop + f%nelec(norb1,ni) * phi * phip
-                rhopp = rhopp + f%nelec(norb1,ni) * (phip*phip + phi*phipp)
-             enddo
-          enddo
-          grad = grad + rion1 * rhop * (/ xion, yion, zion /)
-          rhofac1 = (rhopp - rhop * rion1)
-          do i = 1, 3
-             h(i,i) = h(i,i) + rhop * rion1 + xx2r(i) * rhofac1
-             do j = i+1,3
-                h(i,j) = h(i,j) + xxion(i) * xxion(j) * rion2 * rhofac1
-             end do
-          end do
-       enddo
-       rho = rho / pi4
-       grad = grad * 2d0 / pi4
-       h = h * 2d0 / pi4
-       h(2,1) = h(1,2)
-       h(3,1) = h(1,3)
-       h(3,2) = h(2,3)
-    else
-       ! use the density grids
-       rho = 0d0
-       grad = 0d0
-       h = 0d0
-       do i = 1, f%nenv
-          xxion = xpos - f%renv(:,i)
-          rion = max(norm2(xxion),eps0)
-          rion1 = 1d0 / rion
-          rion2 = rion1 * rion1
-          ni = f%idxenv(i)
-          call f%pgrid(ni)%interp(rion,tmprho,rhop,rhopp)
-          rho = rho + tmprho
-          grad = grad + rhop * xxion * rion1
-          rfac = (rhopp - rhop * rion1)
-          do j = 1, 3
-             h(j,j) = h(j,j) + rhop * rion1 + rfac * rion2 * xxion(j) * xxion(j)
-             do k = 1, j-1
-                radd = rfac * rion2 * xxion(j) * xxion(k)
-                h(j,k) = h(j,k) + radd
-                h(k,j) = h(k,j) + radd
-             end do
-          end do
-       end do
-       h(2,1) = h(1,2)
-       h(3,1) = h(1,3)
-       h(3,2) = h(2,3)
-    endif
-
-  end subroutine rho2
-
-  !> Fills the interpolation grids for ion densities.
-  module subroutine fillinterpol(f)
-    use global, only: cutrad
-    class(piwfn), intent(inout) :: f
-
-    real*8, parameter :: az = exp(-6d0)
-    real*8, parameter :: b = 0.002
-    real*8, parameter :: pi_cutdens = 1d-12 
-
-    integer :: i, ii, j
-    real*8 :: crad, rrho, rrho1, rrho2
-    logical :: done(mnt)
-
-    if (allocated(f%pgrid)) deallocate(f%pgrid)
-    allocate(f%pgrid(mnt))
-    done = .false.
-    do ii = 1, f%nenv
-       i = f%idxenv(ii)
-       if (done(i)) cycle
-       done(i) = .true.
-
-       ! determine cutoff radius (crad)
-       crad = cutrad(f%zenv(ii))
-       call rhoex1(f,i,crad,rrho,rrho1,rrho2)
-       do while (rrho > pi_cutdens) 
-          crad = crad * 1.05d0
-          call rhoex1(f,i,crad,rrho,rrho1,rrho2)
-       end do
-       
-       ! fill some grid info
-       f%pgrid(i)%isinit = .true.
-       f%pgrid(i)%a = az / real(f%zenv(ii),8)
-       f%pgrid(i)%b = b
-       f%pgrid(i)%ngrid = ceiling(log(crad/f%pgrid(i)%a) / f%pgrid(i)%b) + 1
-       f%pgrid(i)%rmax = f%pgrid(i)%a * exp((f%pgrid(i)%ngrid - 1) * f%pgrid(i)%b)
-       f%pgrid(i)%rmax2 = f%pgrid(i)%rmax * f%pgrid(i)%rmax
-       allocate(f%pgrid(i)%r(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%f(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%fp(f%pgrid(i)%ngrid))
-       allocate(f%pgrid(i)%fpp(f%pgrid(i)%ngrid))
-       do j = 1, f%pgrid(i)%ngrid
-          f%pgrid(i)%r(j) = f%pgrid(i)%a * exp((j-1)*f%pgrid(i)%b)
-          call rhoex1(f,i,f%pgrid(i)%r(j),f%pgrid(i)%f(j),f%pgrid(i)%fp(j),f%pgrid(i)%fpp(j))
-       end do
-    end do
-
-  end subroutine fillinterpol
-
-  !xx! private procedures
 
   subroutine buscapar(line,chpar,nchpar,ipar,nipar)
     integer, parameter :: mpar=3
@@ -550,7 +575,7 @@ contains
 
   end subroutine buscapar
 
-  function entero (palabra,ipal)
+  function entero(palabra,ipal)
     logical :: entero
     character*(*) :: palabra
     integer :: ipal
@@ -593,26 +618,26 @@ contains
     rion = max(rion0,eps0)
     rion1 = 1d0 / rion
     rion2 = rion1 * rion1
-    do l = 1, f%nsym(ni)
-       do norb = 1, f%naos(l,ni)
-          norb1  = norb + f%naaos(l,ni)
+    do l = 1, f%bas(ni)%nsym
+       do norb = 1, f%bas(ni)%naos(l)
+          norb1  = norb + f%bas(ni)%naaos(l)
           dumr   = zero
           dumgr  = zero
           dumgr2 = zero
-          do j = 1, f%nsto(l,ni)
-             j1  = j + f%nasto(l,ni)
-             nj1 = f%nn(j1,ni)-1
+          do j = 1, f%bas(ni)%nsto(l)
+             j1  = j + f%bas(ni)%nasto(l)
+             nj1 = f%bas(ni)%nn(j1)-1
              nj2 = nj1-1
-             zj  = f%z(j1,ni)
-             or  = ep(rion,nj1) * exp(-zj*rion) * f%c(j,norb1,ni)
-             or  = or * f%xnsto(j1,ni)
+             zj  = f%bas(ni)%z(j1)
+             or  = ep(rion,nj1) * exp(-zj*rion) * f%bas(ni)%c(j,norb1)
+             or  = or * f%bas(ni)%xnsto(j1)
              dumr = dumr + or
              dumgr = dumgr + or * (nj1 * rion1 - zj)
              dumgr2 = dumgr2 + or * (nj2*nj1*rion2-2*zj*nj1*rion1+zj*zj)
           enddo
-          rhoval = rhoval + f%nelec(norb1,ni) * dumr * dumr
-          gradr = gradr + f%nelec(norb1,ni) * dumgr * dumr
-          grad2r = grad2r + f%nelec(norb1,ni) * (dumgr * dumgr + dumr * dumgr2)
+          rhoval = rhoval + f%bas(ni)%nelec(norb1) * dumr * dumr
+          gradr = gradr + f%bas(ni)%nelec(norb1) * dumgr * dumr
+          grad2r = grad2r + f%bas(ni)%nelec(norb1) * (dumgr * dumgr + dumr * dumgr2)
        enddo
     enddo
     rhoval = rhoval/pi4

@@ -24,8 +24,11 @@ gawk '
     gsub(/^.*\(/,"")
     gsub(/\).*$/,"")
     split($0,a,",")
-    for (i in a)
-        hassubmodule[a[i]] = 1
+    for (i in a){
+      nsubdep[fs]++
+      subdep[fs][nsubdep[fs]] = a[i]
+      hassubmodule[a[i]] = 1
+    }
 }
 /^( |\t)*use( |\t)*[^ \t\n]*/{
     nm = tolower($2)
@@ -55,6 +58,13 @@ END{
 	    }
             print str 
         }
+        if (issubmodule[f[i]]){
+          str = sprintf("%s.o:",f[i])
+	  for (j=1;j<=nsubdep[i];j++){
+	    str = sprintf("%s %s.smod %s.mod",str,subdep[i][j],subdep[i][j])
+	  }
+	  print str
+	}
     }
 }
 ' *.f90 *.F90

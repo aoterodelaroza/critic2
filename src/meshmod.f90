@@ -29,10 +29,22 @@ module meshmod
 
   private
 
+  !> Type of mesh
+  integer, parameter, public :: mesh_type_becke = 1
+  integer, parameter, public :: mesh_type_franchini = 2
+
+  !> Size of mesh
+  integer, parameter, public :: mesh_level_small = 1
+  integer, parameter, public :: mesh_level_normal = 2
+  integer, parameter, public :: mesh_level_good = 3
+  integer, parameter, public :: mesh_level_vgood = 4
+  integer, parameter, public :: mesh_level_amazing = 5
+
   !> Becke-style mesh for molecular/crystal integration
   type mesh
      integer :: n = 0 !< Number of mesh points
      integer :: type !< Type of mesh
+     integer :: lvl !< Level of the mesh
      real*8, allocatable :: w(:) !< Mesh weights
      real*8, allocatable :: x(:,:) !< Cartesian coordinates of the mesh points
      real*8, allocatable :: f(:,:) !< Scalar field values on the mesh
@@ -42,6 +54,7 @@ module meshmod
      procedure :: gen_becke => genmesh_becke
      procedure :: gen_franchini => genmesh_franchini
      procedure :: fill => fillmesh
+     procedure :: report
   end type mesh
   public :: mesh
   
@@ -49,14 +62,16 @@ module meshmod
      module subroutine endmesh(m)
        class(mesh), intent(inout) :: m
      end subroutine endmesh
-     module subroutine genmesh(m,c,type)
+     module subroutine genmesh(m,c,type,lvl)
        class(mesh), intent(inout) :: m
        type(crystal), intent(inout) :: c
        integer, intent(in), optional :: type
+       integer, intent(in), optional :: lvl
      end subroutine genmesh
-     module subroutine genmesh_becke(m,c)
+     module subroutine genmesh_becke(m,c,lvl)
        class(mesh), intent(inout) :: m
        type(crystal), intent(in) :: c
+       integer, intent(in) :: lvl
      end subroutine genmesh_becke
      module subroutine genmesh_franchini(m,c,lvl)
        class(mesh), intent(inout) :: m
@@ -69,6 +84,9 @@ module meshmod
        integer, intent(in) :: prop(:)
        logical, intent(in) :: periodic
      end subroutine fillmesh
+     module subroutine report(m)
+       class(mesh), intent(inout) :: m
+     end subroutine report
   end interface
 
 end module meshmod

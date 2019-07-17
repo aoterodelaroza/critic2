@@ -80,9 +80,6 @@ contains
     
     call s%end()
     allocate(s%c)
-    s%fcheck => field_fcheck
-    s%feval => field_feval
-    s%cube => field_cube
 
   end subroutine system_init
   
@@ -108,7 +105,6 @@ contains
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     call s%fh%init()
     call s%fh%put("rho0",0)
-    call s%f(0)%init_cplist
     call s%set_reference(0,.false.)
     s%refset = .false.
 
@@ -141,20 +137,36 @@ contains
   module subroutine set_default_integprop(s)
     class(system), intent(inout) :: s
 
-    s%npropi = max(s%npropi,3)
-    if (.not.allocated(s%propi)) allocate(s%propi(s%npropi))
-    s%propi(1)%used = .true.
-    s%propi(1)%itype = itype_v
-    s%propi(1)%fid = 0
-    s%propi(1)%prop_name = "Volume"
-    s%propi(2)%used = .true.
-    s%propi(2)%itype = itype_fval
-    s%propi(2)%fid = s%iref
-    s%propi(2)%prop_name = "Pop"
-    s%propi(3)%used = .true.
-    s%propi(3)%itype = itype_lapval
-    s%propi(3)%fid = s%iref
-    s%propi(3)%prop_name = "Lap"
+    if (allocated(s%propi)) deallocate(s%propi)
+    if (.not.s%c%ismolecule) then
+       ! Volume, population, and Laplacian in crystals
+       s%npropi = 3
+       allocate(s%propi(s%npropi))
+       s%propi(1)%used = .true.
+       s%propi(1)%itype = itype_v
+       s%propi(1)%fid = 0
+       s%propi(1)%prop_name = "Volume"
+       s%propi(2)%used = .true.
+       s%propi(2)%itype = itype_fval
+       s%propi(2)%fid = s%iref
+       s%propi(2)%prop_name = "Pop"
+       s%propi(3)%used = .true.
+       s%propi(3)%itype = itype_lapval
+       s%propi(3)%fid = s%iref
+       s%propi(3)%prop_name = "Lap"
+    else
+       ! Population, and Laplacian in molecules
+       s%npropi = 2
+       allocate(s%propi(s%npropi))
+       s%propi(1)%used = .true.
+       s%propi(1)%itype = itype_fval
+       s%propi(1)%fid = s%iref
+       s%propi(1)%prop_name = "Pop"
+       s%propi(2)%used = .true.
+       s%propi(2)%itype = itype_lapval
+       s%propi(2)%fid = s%iref
+       s%propi(2)%prop_name = "Lap"
+    end if
 
   end subroutine set_default_integprop
 
@@ -190,7 +202,7 @@ contains
 
     integer :: i, j, nal
     character*4 :: sprop, yesno
-    character(len=:), allocatable :: aux, str
+    character(len=:), allocatable :: aux, str, stradd
     integer :: numclass(0:3), multclass(0:3)
 
     if (lcrys) call s%c%report(.true.,.true.)
@@ -221,6 +233,7 @@ contains
        end if
        do i = 1, s%npropi
           if (.not.s%propi(i)%used) cycle
+          stradd = ""
           select case(s%propi(i)%itype)
           case(itype_v)
              sprop = "v"
@@ -240,6 +253,14 @@ contains
              sprop = "mpol"
           case(itype_deloc)
              sprop = "dloc"
+             stradd = " | use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " // string(s%propi(i)%fachk) //&
+                ", Wannier_cutoff = " // string(s%propi(i)%wancut,'f',5,2)
+          case(itype_deloc_sijchk)
+             sprop = "dloc"
+             stradd = " | read Sij from checkpoint file: " // string(s%propi(i)%sijchkfile)
+          case(itype_deloc_fachk)
+             sprop = "dloc"
+             stradd = " | read Fa from checkpoint file: " // string(s%propi(i)%fachkfile)
           case default
              call ferror('report','unknown property',faterr)
           end select
@@ -249,9 +270,10 @@ contains
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
                 string(s%propi(i)%expr)
           else
-             write (uout,'(2X,4(A,2X))') &
+             write (uout,'(2X,99(A,2X))') &
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
-                string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name)
+                string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name), &
+                string(stradd)
           end if
        end do
        write (uout,*)
@@ -361,9 +383,6 @@ contains
     if (s%c%isinit) then
        s%isinit = .true.
 
-       ! fill environments, asterisms, nearest neighbors
-       call s%c%struct_fill(.true.,-1,.false.,.true.,.false.)
-
        ! load the promolecular density field and set it as reference
        call s%reset_fields()
     else
@@ -424,7 +443,8 @@ contains
     ! Maybe we can load it as a grid if all the fields are grids
     ! and they are the same size
     if (seed%iff == ifformat_as_ghost) then
-       call fields_in_eval(seed%expr,s%fh,nn,idlist)
+       syl => s
+       call fields_in_eval(seed%expr,nn,idlist,c_loc(syl))
        ok = .true.
        n = -1
        do i = 1, nn
@@ -565,7 +585,7 @@ contains
        end if
 
        syl => s
-       call s%f(id)%field_new(seed,s%c,id,s%fh,c_loc(syl),s%fcheck,s%feval,s%cube,errmsg)
+       call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg)
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
@@ -600,11 +620,20 @@ contains
   end subroutine load_field_string
 
   !> Returns true if the field is initialized. The field can be
-  !> indexed by number (id) or by key (key).
-  module function goodfield(s,id,key) result(ok)
+  !> indexed by number (id) or by key (key), and one of them must be
+  !> present. If type is given, the field is only good if it is of the
+  !> given type. If n is given and the type is a grid the field is
+  !> only good if its grid has dimensions n. If idout is present,
+  !> return the numeric ID of the field in that variable.
+  module function goodfield(s,id,key,type,n,idout) result(ok)
+    use fieldmod, only: type_grid
+    use tools_io, only: ferror, faterr
     class(system), intent(in) :: s
     integer, intent(in), optional :: id
     character*(*), intent(in), optional :: key
+    integer, intent(in), optional :: type
+    integer, intent(in), optional :: n(3)
+    integer, intent(out), optional :: idout
     logical :: ok
 
     integer :: id0
@@ -615,9 +644,20 @@ contains
        id0 = id
     elseif (present(key)) then
        id0 = s%fieldname_to_idx(key)
+    else
+       call ferror("goodfield","must give either id or key",faterr)
     end if
     if (id0 < 0 .or. id0 > s%nf) return
     if (.not.s%f(id0)%isinit) return
+    if (present(type)) then
+       if (s%f(id0)%type /= type) return
+    end if
+    if (present(n)) then
+       if (s%f(id0)%type /= type_grid) return
+       if (.not.s%f(id0)%grid%isinit) return
+       if (any(s%f(id0)%grid%n /= n)) return
+    end if
+    if (present(idout)) idout = id0
     ok = .true.
 
   end function goodfield
@@ -690,113 +730,6 @@ contains
 
   end subroutine field_copy
 
-  !> Check that the id is a grid and is a sane field. Wrapper around
-  !> goodfield() to pass it to the arithmetic module.  This routine is
-  !> thread-safe. psy is the pointer to the system.
-  module function field_fcheck(sptr,id,iout)
-    use iso_c_binding, only: c_ptr, c_associated, c_f_pointer
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(out), optional :: iout
-    logical :: field_fcheck
-
-    type(system), pointer :: syl => null()
-    integer :: iid
-
-    call c_f_pointer(sptr,syl)
-    field_fcheck = .false.
-    if (.not.associated(syl)) return
-    iid = syl%fieldname_to_idx(id)
-    field_fcheck = syl%goodfield(iid)
-    if (present(iout)) iout = iid
-
-  end function field_fcheck
-
-  !> Evaluate the field at a point. Wrapper around grd() to pass it to
-  !> the arithmetic module.  This routine is thread-safe.
-  recursive module function field_feval(sptr,id,nder,fder,x0,periodic)
-    use iso_c_binding, only: c_ptr, c_f_pointer
-    use types, only: scalar_value
-    use param, only: sqpi, pi
-    type(scalar_value) :: field_feval
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(in) :: nder
-    character*(*), intent(in) :: fder
-    real*8, intent(in) :: x0(3)
-    logical, intent(in), optional :: periodic
-
-    type(system), pointer :: syl
-    integer :: iid, lvec(3)
-    real*8 :: xp(3), dist, u
-    real*8, parameter :: rc = 1.4d0
-    
-    field_feval%f = 0d0
-    field_feval%fval = 0d0
-    field_feval%gf = 0d0
-    field_feval%gfmod = 0d0
-    field_feval%gfmodval = 0d0
-    field_feval%hf = 0d0
-    field_feval%del2f = 0d0
-    field_feval%del2fval = 0d0
-    field_feval%fspc = 0d0
-
-    call c_f_pointer(sptr,syl)
-    if (.not.associated(syl)) return
-    iid = syl%fieldname_to_idx(id)
-    if (iid >= 0) then
-       call syl%f(iid)%grd(x0,nder,field_feval,fder=fder,periodic=periodic)
-    elseif (trim(id) == "ewald") then
-       xp = syl%c%c2x(x0)
-       field_feval%f = syl%c%ewald_pot(xp,.false.)
-       field_feval%fval = field_feval%f
-    end if
-
-  end function field_feval
-
-  !> Check that the field given by id is a grid of size n
-  !> and return the grid, or return ifail = .true..
-  module function field_cube(sptr,n,id,fder,dry,ifail) result(q)
-    use iso_c_binding, only: c_ptr, c_f_pointer
-    use fieldmod, only: type_grid
-    type(c_ptr), intent(in) :: sptr
-    character*(*), intent(in) :: id
-    integer, intent(in) :: n(3)
-    character*(*), intent(in) :: fder
-    logical, intent(in) :: dry
-    logical, intent(out) :: ifail
-    real*8 :: q(n(1),n(2),n(3))
-
-    type(system), pointer :: syl
-    integer :: iid
-    logical :: isgrid
-
-    call c_f_pointer(sptr,syl)
-
-    ifail = .false.
-    q = 0d0
-    if (.not.associated(syl)) goto 999
-    iid = syl%fieldname_to_idx(id)
-    if (.not.syl%f(iid)%isinit) goto 999
-    isgrid = (syl%f(iid)%type == type_grid)
-    if (isgrid) isgrid = isgrid .and. all(syl%f(iid)%grid%n == n)
-    if (isgrid) isgrid = isgrid .and. (trim(fder) == "" .or. trim(fder)=="v")
-    if (isgrid) then
-       if (.not.dry) then
-          q = syl%f(iid)%grid%f
-       else
-          q = 0d0
-       end if
-    else
-       goto 999
-    end if
-
-    return
-999 continue
-    ifail = .true.
-    q = 0d0
-  end function field_cube
-
   !> Unload a field given by identifier id.
   module subroutine unload_field(s,id)
     class(system), intent(inout) :: s
@@ -838,20 +771,22 @@ contains
   module subroutine new_integrable_string(s,line,errmsg)
     use global, only: eval_next
     use tools_io, only: getword, lgetword, equal,&
-       isexpression_or_word, string, isinteger, getline
+       isexpression_or_word, string, isinteger, getline, isreal
     use types, only: realloc
     class(system), intent(inout) :: s
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
 
     logical :: ok
-    integer :: id, lp, lpold, idum
+    integer :: id, lp, lpold, idum, lp2
     character(len=:), allocatable :: word, expr, str
-    logical :: useexpr
+    logical :: useexpr, inpsijchk, inpfachk
 
     lp=1
     useexpr = .false.
     errmsg = ""
+    inpsijchk = .false.
+    inpfachk = .false.
 
     lpold = lp
     word = getword(line,lp)
@@ -863,6 +798,10 @@ contains
        if (equal(word,'clear')) then
           call s%set_default_integprop()
           return
+       elseif (equal(word,'deloc_sijchk')) then
+          inpsijchk = .true.
+       elseif (equal(word,'deloc_fachk')) then
+          inpfachk = .true.
        else 
           lp = lpold
           if (isexpression_or_word(expr,line,lp)) then
@@ -890,6 +829,18 @@ contains
        s%propi(s%npropi)%itype = itype_expr
        s%propi(s%npropi)%prop_name = trim(adjustl(expr))
        s%propi(s%npropi)%expr = expr
+    elseif (inpsijchk) then
+       s%propi(s%npropi)%used = .true.
+       s%propi(s%npropi)%fid = -1
+       s%propi(s%npropi)%itype = itype_deloc_sijchk
+       s%propi(s%npropi)%prop_name = "delocsij"
+       s%propi(s%npropi)%sijchkfile = getword(line,lp)
+    elseif (inpfachk) then
+       s%propi(s%npropi)%used = .true.
+       s%propi(s%npropi)%fid = -1
+       s%propi(s%npropi)%itype = itype_deloc_fachk
+       s%propi(s%npropi)%prop_name = "delocfa"
+       s%propi(s%npropi)%fachkfile = getword(line,lp)
     else
        s%propi(s%npropi)%used = .true.
        s%propi(s%npropi)%fid = id
@@ -921,6 +872,35 @@ contains
           elseif (equal(word,"deloc")) then
              s%propi(s%npropi)%itype = itype_deloc
              str = trim(str) // "#deloca"
+             s%propi(s%npropi)%useu = .true.
+             s%propi(s%npropi)%sijchk = .true.
+             s%propi(s%npropi)%fachk = .true.
+             s%propi(s%npropi)%wancut = 4d0
+             s%propi(s%npropi)%sijchkfile = ""
+             s%propi(s%npropi)%fachkfile = ""
+             
+             do while (.true.)
+                lp2 = lp
+                word = lgetword(line,lp)
+                if (equal(word,"nosijchk")) then
+                   s%propi(s%npropi)%sijchk = .false.
+                else if (equal(word,"nofachk")) then
+                   s%propi(s%npropi)%fachk = .false.
+                else if (equal(word,"nou")) then
+                   s%propi(s%npropi)%useu = .false.
+                else if (equal(word,"wancut")) then
+                   ok = isreal(s%propi(s%npropi)%wancut,line,lp)
+                   if (.not.ok) then
+                      errmsg = "Wrong WANCUT value"
+                      s%npropi = s%npropi - 1
+                      return
+                   end if
+                else
+                   lp = lp2
+                   exit
+                end if
+             end do
+
           elseif (equal(word,"deloc")) then
              s%propi(s%npropi)%itype = itype_deloc
              str = trim(str) // "#deloca"
@@ -948,7 +928,8 @@ contains
     use arithmetic, only: fields_in_eval
     use types, only: realloc
     use param, only: mlen
-    class(system), intent(inout) :: s
+    use iso_c_binding, only: c_loc, c_ptr
+    class(system), intent(inout), target :: s
     character*(*), intent(in) :: line0
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -956,6 +937,7 @@ contains
     integer :: lp, n, i
     character(len=:), allocatable :: expr, word, lword, line
     character(len=mlen), allocatable :: idlist(:)
+    type(system), pointer :: syl
 
     errmsg = ""
     lp = 1
@@ -1051,7 +1033,8 @@ contains
 
     ! Determine the fields in the expression, check that they are defined
     if (s%propp(s%npropp)%ispecial == 0) then
-       call fields_in_eval(expr,s%fh,n,idlist)
+       syl => s
+       call fields_in_eval(expr,n,idlist,c_loc(syl))
        do i = 1, n
           if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
              errmsg = "Unknown field in arithmetic expression (POINTPROP)"
@@ -1080,7 +1063,7 @@ contains
   end subroutine new_pointprop_string
   
   !> Evaluate an arithmetic expression using the system's fields  
-  module function system_eval(s,expr,hardfail,iok,x0) 
+  module function system_eval_expression(s,expr,hardfail,iok,x0) 
     use arithmetic, only: eval
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
@@ -1088,14 +1071,14 @@ contains
     logical, intent(in) :: hardfail
     logical, intent(out) :: iok
     real*8, intent(in), optional :: x0(3)
-    real*8 :: system_eval
+    real*8 :: system_eval_expression
 
     type(system), pointer :: syl
 
     syl => s
-    system_eval = eval(expr,hardfail,iok,x0,c_loc(syl),s%fh,s%fcheck,s%feval)
+    system_eval_expression = eval(expr,hardfail,iok,x0,c_loc(syl),.not.sy%c%ismolecule)
 
-  end function system_eval
+  end function system_eval_expression
 
   !> Calculate the properties of a field or all fields at a point plus
   !> the defined point properties of the system. The properties at
@@ -1140,6 +1123,10 @@ contains
        write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
        write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gf(j),'e',decimal=9),j=1,3)
        write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+       write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
+       if (res%avail_gkin) then
+          write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
+       end if
        write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
        write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
        write (uout,'("  Hessian:")')
@@ -1151,6 +1138,18 @@ contains
        if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
+       if (res%avail_spin .and. res%spinpol) then
+          write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(1),'e',decimal=9), &
+             string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
+          if (res%avail_gkin) then
+             write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
+          end if
+          write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(2),'e',decimal=9), &
+             string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
+          if (res%avail_gkin) then
+             write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
+          end if
+       end if
 
        ! properties at points defined by the user
        do i = 1, s%npropp
@@ -1277,5 +1276,5 @@ contains
     call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,itype)
 
   end subroutine addcp
-
+  
 end submodule proc

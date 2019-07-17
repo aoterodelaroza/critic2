@@ -43,7 +43,7 @@ contains
 
     type(field), allocatable :: temp(:)
     integer :: l1, u1
-
+    
     if (.not.allocated(a)) &
        call ferror('realloc_field','array not allocated',faterr)
     l1 = lbound(a,1)
@@ -77,10 +77,8 @@ contains
     call f%dftb%end()
     f%zpsp = -1
     f%expr = ""
-    nullify(f%fh)
-    nullify(f%fcheck)
-    nullify(f%feval)
     call f%fr%init()
+    f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
     f%ncp = 0
@@ -112,7 +110,6 @@ contains
     use tools_io, only: string, lgetword, equal, isexpression_or_word, zatguess,&
        isinteger, getword
     use param, only: sqfp
-    use hashmod, only: hash
     class(field), intent(inout) :: ff
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
@@ -218,17 +215,20 @@ contains
 
   end subroutine field_set_options
 
-  !> Load a new field using the given field seed and the crystal
-  !> structure pointer. The ID of the field in the system is also
-  !> required.
-  module subroutine field_new(f,seed,c,id,fh,sptr,fcheck,feval,cube,errmsg)
+  !> Load a new field using the given field seed, the crystal
+  !> structure pointer, the ID of the new field in the system (id)
+  !> and the parent system's C pointer (sptr). If an error was 
+  !> found, returns a non-zero-length error message (errmsg).
+  module subroutine field_new(f,seed,c,id,sptr,errmsg)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
     use tools_io, only: equal, isinteger
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
-       ifformat_cube, ifformat_abinit, ifformat_vasp, ifformat_vaspchg, ifformat_qub,&
-       ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb, ifformat_chk,&
+       ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
+       ifformat_vaspchg, ifformat_qub,&
+       ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb,&
+       ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
        ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
@@ -239,49 +239,13 @@ contains
     type(fieldseed), intent(in) :: seed 
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
-    type(hash), intent(in) :: fh
     type(c_ptr), intent(in) :: sptr
     character(len=:), allocatable, intent(out) :: errmsg
 
-    interface
-       !> Check that the id is a grid and is a sane field
-       function fcheck(sptr,id,iout)
-         use iso_c_binding, only: c_ptr
-         logical :: fcheck
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(out), optional :: iout
-       end function fcheck
-       !> Evaluate the field at a point
-       function feval(sptr,id,nder,fder,x0,periodic)
-         use types, only: scalar_value
-         use iso_c_binding, only: c_ptr
-         type(scalar_value) :: feval
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(in) :: nder
-         character*(*), intent(in) :: fder
-         real*8, intent(in) :: x0(3)
-         logical, intent(in), optional :: periodic
-       end function feval
-       !> Return the grid from field id
-       real*8 function cube(sptr,n,id,fder,dry,ifail)
-         use iso_c_binding, only: c_ptr
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(in) :: n(3)
-         character*(*), intent(in) :: fder
-         logical, intent(in) :: dry
-         logical, intent(out) :: ifail
-         dimension cube(n(1),n(2),n(3))
-       end function cube
-    end interface
-
-    character(len=:), allocatable :: ofile
-    integer :: i, j, k, n(3), ithis
+    integer :: i, j, k, n(3)
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok, found
+    logical :: iok
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -290,6 +254,7 @@ contains
     end if
     call f%end()
     f%c => c
+    f%sptr = sptr
     f%id = id
     f%name = adjustl(trim(seed%fid))
 
@@ -319,47 +284,34 @@ contains
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(seed%file(1),seed%file(2))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2))
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(seed%file(1),seed%file(2),seed%file(3))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3))
           f%type = type_elk
           f%file = seed%file(3)
        endif
 
     elseif (seed%iff == ifformat_pi) then
-       call f%pi%end()
-       do i = 1, seed%nfile
-          iok = isinteger(ithis,seed%piat(i))
-          found = .false.
-          do j = 1, c%nneq
-             if (equal(seed%piat(i),c%spc(c%at(j)%is)%name)) then
-                call f%pi%read_ion(seed%file(i),j)
-                found = .true.
-             else if (iok) then
-                if (ithis == j) then
-                   call f%pi%read_ion(seed%file(i),j)
-                   found = .true.
-                end if
-             end if
-          end do
-          if (.not.found) then
-             errmsg = "unknown atom for pi ion file: " // trim(seed%file(i))
-             call f%end()
-             return
-          end if
-       end do
-
-       call f%pi%register_struct(f%c%nenv,f%c%spc,f%c%atenv(1:f%c%nenv))
-       call f%pi%fillinterpol()
+       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call f%end()
+          return
+       end if
        f%type = type_pi
        f%file = "<pi ion files>"
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
        call f%grid%read_cube(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_bincube) then
+       call f%grid%end()
+       call f%grid%read_bincube(seed%file(1))
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -407,60 +359,43 @@ contains
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%atcel(1:f%c%ncel),f%c%spc(1:f%c%nspc))
-       call f%dftb%register_struct(f%c%crys2car,f%c%atenv(1:f%c%nenv),f%c%spc(1:f%c%nspc))
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env)
        f%type = type_dftb
        f%file = seed%file(1)
 
-    elseif (seed%iff == ifformat_chk) then
+    elseif (seed%iff == ifformat_pwc) then
        call f%grid%end()
 
-       if (seed%nfile == 1) then
-          ofile = ""
-       else
-          ofile = seed%file(2)
-       end if
-       f%grid%wan%useu = .not.seed%nou
-       f%grid%wan%sijchk = seed%sijchk
-       f%grid%wan%fachk = seed%fachk
-       f%grid%wan%haschk = .false.
-       f%grid%wan%cutoff = seed%wancut
        f%type = type_grid
        f%file = seed%file(1)
-
-       if (len_trim(seed%unkgen) > 0 .and. len_trim(seed%evc) > 0) then
-          call f%grid%read_unkgen(seed%file(1),ofile,seed%unkgen,seed%evc,&
-             f%c%omega,seed%sijchk)
-       else
-          call f%grid%read_unk(seed%file(1),ofile,f%c%omega,seed%nou,&
-             seed%sijchk)
+       call f%grid%read_pwc(seed%file(1))
+       if (seed%nfile == 2) then
+          call f%grid%read_wannier_chk(seed%file(2))
+       elseif (seed%nfile == 3) then
+          call f%grid%read_wannier_chk(seed%file(2),seed%file(3))
        end if
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1))
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_wfn(seed%file(1),f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1))
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_wfx(seed%file(1),f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual)
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%readvirtual)
-       call f%wfn%register_struct(f%c%ncel,f%c%atcel)
+       call f%wfn%read_molden(seed%file(1),seed%readvirtual,f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
@@ -496,13 +431,13 @@ contains
        f%file = ""
 
     elseif (seed%iff == ifformat_as_ghost) then
-       call f%load_ghost(c,id,"<ghost>",seed%expr,sptr,fh,fcheck,feval)
+       call f%load_ghost(c,id,"<ghost>",seed%expr,sptr)
 
     elseif (seed%iff == ifformat_as) then
        f%type = type_grid
        f%file = ""
        n = seed%n
-       call f%grid%new_eval(sptr,n,seed%expr,fh,cube)
+       call f%grid%new_eval(sptr,n,seed%expr)
        if (.not.f%grid%isinit) then
           call f%grid%end()
           f%grid%n = n
@@ -519,7 +454,7 @@ contains
                 do i = 1, n(1)
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
-                   rho = eval(seed%expr,.true.,iok,x,sptr,fh,fcheck,feval,.true.)
+                   rho = eval(seed%expr,.true.,iok,x,sptr,.true.)
                    !$omp critical(write)
                    f%grid%f(i,j,k) = rho
                    !$omp end critical(write)
@@ -554,8 +489,10 @@ contains
 
   end subroutine field_new
 
-  !> Load a ghost field.
-  module subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
+  !> Load a ghost field using expression expr. c = pointer to the
+  !> crystal structure, id = numerical ID of the new field. name =
+  !> name of the new field. sptr = C pointer to the parent system.
+  module subroutine load_ghost(f,c,id,name,expr,sptr)
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use hashmod, only: hash
@@ -566,29 +503,6 @@ contains
     character*(*), intent(in) :: name
     character*(*), intent(in) :: expr
     type(c_ptr), intent(in) :: sptr
-    type(hash), intent(in), target :: fh 
-    interface
-       !> Check that the id is a grid and is a sane field
-       function fcheck(sptr,id,iout)
-         use iso_c_binding, only: c_ptr
-         logical :: fcheck
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(out), optional :: iout
-       end function fcheck
-       !> Evaluate the field at a point
-       function feval(sptr,id,nder,fder,x0,periodic)
-         use types, only: scalar_value
-         use iso_c_binding, only: c_ptr
-         type(scalar_value) :: feval
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(in) :: nder
-         character*(*), intent(in) :: fder
-         real*8, intent(in) :: x0(3)
-         logical, intent(in), optional :: periodic
-       end function feval
-    end interface
 
     if (.not.c%isinit) return
     call f%end()
@@ -603,10 +517,7 @@ contains
     f%file = ""
     f%zpsp = c%zpsp
     f%expr = expr
-    f%fh => fh
     f%sptr = sptr
-    f%fcheck => fcheck
-    f%feval => feval
     call f%init_cplist()
 
   end subroutine load_ghost
@@ -672,17 +583,17 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (ityp == ifformat_as_lap) then
-       call f%grid%laplacian(g,c%crys2car)
+       call f%grid%laplacian(g,c%m_x2c)
     elseif (ityp == ifformat_as_grad) then
-       call f%grid%gradrho(g,c%crys2car)
+       call f%grid%gradrho(g,c%m_x2c)
     elseif (ityp == ifformat_as_pot) then
-       call f%grid%pot(g,c%crys2car,isry)
+       call f%grid%pot(g,c%m_x2c,isry)
     elseif (ityp == ifformat_as_hxx1) then
-       call f%grid%hxx(g,1,c%crys2car)
+       call f%grid%hxx(g,1,c%m_x2c)
     elseif (ityp == ifformat_as_hxx2) then
-       call f%grid%hxx(g,2,c%crys2car)
+       call f%grid%hxx(g,2,c%m_x2c)
     elseif (ityp == ifformat_as_hxx3) then
-       call f%grid%hxx(g,3,c%crys2car)
+       call f%grid%hxx(g,3,c%m_x2c)
     end if
     f%usecore = .false. 
     f%numerical = .false. 
@@ -700,9 +611,11 @@ contains
   !> is present and false, consider the field is defined in a
   !> non-periodic system. This routine is thread-safe.
   recursive module subroutine grd(f,v,nder,res,fder,periodic)
+    use wfn_private, only: wfn_uhf
     use arithmetic, only: eval
     use types, only: scalar_value
     use tools_io, only: ferror, faterr
+    use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
     integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
@@ -710,11 +623,12 @@ contains
     character*(*), intent(in), optional :: fder !< modifier for the special field
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wc(3), dist, x(3)
-    integer :: i, nid, lvec(3), idx(3)
-    real*8 :: rho, grad(3), h(3,3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
+    integer :: i, nid, idx(3)
+    real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
+    real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
-    logical :: isgrid, iok, per
+    logical :: isgrid, iok, per, skipvalassign
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -722,19 +636,9 @@ contains
     if (.not.f%isinit) call ferror("grd","field not initialized",faterr)
 
     ! initialize output quantities 
-    res%f = 0d0
-    res%fval = 0d0
-    res%gf = 0d0
-    res%hf = 0d0
-    res%gfmod = 0d0
-    res%gfmodval = 0d0
-    res%del2f = 0d0
-    res%del2fval = 0d0
-    res%gkin = 0d0
-    res%vir = 0d0
-    res%stress = 0d0
-    res%fspc = 0d0
-    res%isnuc = .false.
+    call res%clear()
+    res%avail_der1 = (nder > 0)
+    res%avail_der2 = (nder > 1)
 
     ! check consistency
     if (nder < 0 .and. f%type /= type_wfn) &
@@ -794,10 +698,13 @@ contains
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = f%c%c2x(v)
+    wxr = f%c%c2xr(v)
     if (per) then
        do i = 1, 3
           if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
              wx(i) = wx(i) - real(floor(wx(i)),8)
+          if (wxr(i) < -flooreps .or. wxr(i) > 1d0+flooreps) &
+             wxr(i) = wxr(i) - real(floor(wxr(i)),8)
        end do
     else
        if (.not.f%c%ismolecule) &
@@ -811,8 +718,10 @@ contains
        end if
     end if
     wc = f%c%x2c(wx)
+    wcr = f%c%xr2c(wxr)
 
     ! type selector
+    skipvalassign = .false.
     select case(f%type)
     case(type_grid)
        isgrid = .false.
@@ -829,52 +738,77 @@ contains
           res%hf = 0d0
        else
           call f%grid%interp(wx,res%f,res%gf,res%hf)
-          res%gf = matmul(transpose(f%c%car2crys),res%gf)
-          res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+          res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+          res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
        endif
 
     case(type_wien)
        call f%wien%rho2(wx,res%f,res%gf,res%hf)
-       res%gf = matmul(transpose(f%c%car2crys),res%gf)
-       res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+       res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+       res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
     case(type_elk)
        call f%elk%rho2(wx,nder,res%f,res%gf,res%hf)
-       res%gf = matmul(transpose(f%c%car2crys),res%gf)
-       res%hf = matmul(matmul(transpose(f%c%car2crys),res%hf),f%c%car2crys)
+       res%gf = matmul(transpose(f%c%m_c2x),res%gf)
+       res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
     case(type_pi)
-       call f%pi%rho2(wc,f%exact,res%f,res%gf,res%hf)
-       ! transformation not needed because of pi_register_struct:
+       call f%pi%rho2(wcr,f%exact,res%f,res%gf,res%hf)
        ! all work done in Cartesians in a finite environment.
 
     case(type_wfn)
        if (nder >= 0) then
-          call f%wfn%rho2(wc,nder,res%f,res%gf,res%hf,res%gkin,res%vir,res%stress)
+          call f%wfn%rho2(wcr,nder,rhox,rhov,gradx,gradv,hx,hv,gkinx,res%vir,res%stress)
+          skipvalassign = .true.
+          ! arrange output values
+          res%f = rhox(1)
+          res%fval = rhov(1)
+          res%fspin = rhox(2:3)
+          res%fspinval = rhov(2:3)
+
+          res%gf = gradx(:,1)
+          res%gfmodval = norm2(gradv(:,1))
+          res%gfmodspin(1) = norm2(gradx(:,2))
+          res%gfmodspin(2) = norm2(gradx(:,3))
+          res%gfmodspinval(1) = norm2(gradv(:,2))
+          res%gfmodspinval(2) = norm2(gradv(:,3))
+
+          res%gkin = gkinx(1)
+          res%gkinspin = gkinx(2:3)
+
+          res%hf = hx(:,:,1)
+          res%del2fval = hv(1,1,1)+hv(2,2,1)+hv(3,3,1)
+          res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
+          res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
+          res%lapspinval(1) = hv(1,1,2) + hv(2,2,2) + hv(3,3,2)
+          res%lapspinval(2) = hv(1,1,3) + hv(2,2,3) + hv(3,3,3)
+
+          res%avail_gkin = .true.
+          res%avail_stress = .true.
+          res%avail_vir = .true.
+          res%avail_spin = .true.
+          res%spinpol = (f%wfn%wfntyp == wfn_uhf)
        else
-          call f%wfn%calculate_mo(wc,res%fspc,fder)
+          call f%wfn%calculate_mo(wcr,res%fspc,fder)
           return
        end if
-       ! transformation not needed because all work done in Cartesians
-       ! in a finite environment. wfn assumes the crystal structure
-       ! resulting from load xyz/wfn/wfx (molecule at the center of 
-       ! a big cube).
+       ! all work done in Cartesians in a finite environment.
 
     case(type_dftb)
-       call f%dftb%rho2(wc,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
-       ! transformation not needed because of dftb_register_struct:
+       call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
+       res%avail_gkin = .true.
        ! all work done in Cartesians in a finite environment.
 
     case(type_promol)
-       call f%c%promolecular(wc,res%f,res%gf,res%hf,nder,periodic=periodic)
+       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call f%c%promolecular(wc,res%f,res%gf,res%hf,nder,fr=f%fr,periodic=periodic)
+       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
-       res%f = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
+       res%f = eval(f%expr,.true.,iok,wc,f%sptr,periodic)
        res%gf = 0d0
        res%hf = 0d0
 
@@ -882,14 +816,16 @@ contains
        call ferror("grd","unknown scalar field type",faterr)
     end select
 
-    ! save the valence-only value
-    res%fval = res%f
-    res%gfmodval = res%gfmod
-    res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+    if (.not.skipvalassign) then
+       ! save the valence-only value
+       res%fval = res%f
+       res%gfmodval = res%gfmod
+       res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+    end if
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,rho,grad,h,nder,zpsp=f%zpsp,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -897,12 +833,9 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    nid = 0
-    call f%c%nearest_atom(wx,nid,dist,lvec)
-    if (per .or. .not.per .and. all(lvec == 0)) then
-       res%isnuc = (dist < 1d-5)
-       if (res%isnuc) res%gf = 0d0
-    end if
+    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
+    res%isnuc = (nid > 0)
+    if (res%isnuc) res%gf = 0d0
     res%gfmod = norm2(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
@@ -915,14 +848,17 @@ contains
   recursive module function grd0(f,v,periodic)
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr
+    use param, only: icrd_cart
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
     real*8 :: grd0
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wc(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
+    real*8 :: hx(3,3,3), hv(3,3,3), gradx(3,3), gradv(3,3)
+    real*8 :: rhox(3), rhov(3), gkinx(3)
     logical :: iok, per
 
     ! initialize 
@@ -936,10 +872,13 @@ contains
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
     wx = f%c%c2x(v)
+    wxr = f%c%c2xr(v)
     if (per) then
        do i = 1, 3
           if (wx(i) < -flooreps .or. wx(i) > 1d0+flooreps) &
              wx(i) = wx(i) - real(floor(wx(i)),8)
+          if (wxr(i) < -flooreps .or. wxr(i) > 1d0+flooreps) &
+             wxr(i) = wxr(i) - real(floor(wxr(i)),8)
        end do
     else
        if (.not.f%c%ismolecule) &
@@ -953,6 +892,7 @@ contains
        end if
     end if
     wc = f%c%x2c(wx)
+    wcr = f%c%xr2c(wxr)
 
     ! type selector
     select case(f%type)
@@ -963,23 +903,24 @@ contains
     case(type_elk)
        call f%elk%rho2(wx,0,rho,grad,h)
     case(type_pi)
-       call f%pi%rho2(wc,f%exact,rho,grad,h)
+       call f%pi%rho2(wcr,f%exact,rho,grad,h)
     case(type_wfn)
-       call f%wfn%rho2(wc,0,rho,grad,h,gkin,vir,stress)
+       call f%wfn%rho2(wcr,0,rhox,rhov,gradx,gradv,hx,hv,gkinx,vir,stress)
+       rho = rhox(1)
     case(type_dftb)
-       call f%dftb%rho2(wc,f%exact,0,rho,grad,h,gkin)
+       call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
-       call f%c%promolecular(wc,rho,grad,h,0,periodic=periodic)
+       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
-       call f%c%promolecular(wc,rho,grad,h,0,fr=f%fr,periodic=periodic)
+       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
-       rho = eval(f%expr,.true.,iok,wc,f%sptr,f%fh,f%fcheck,f%feval,periodic)
+       rho = eval(f%expr,.true.,iok,wc,f%sptr,periodic)
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select
 
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,rhoaux,grad,h,0,zpsp=f%zpsp,periodic=periodic)
+       call f%c%promolecular(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
        rho = rho + rhoaux
     end if
     grd0 = rho
@@ -1254,13 +1195,14 @@ contains
     use global, only: dunit0, iunit, iunitname0
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
-    use param, only: maxzat0
+    use param, only: maxzat0, hartoev
     class(field), intent(in) :: f
     logical, intent(in) :: isload
     logical, intent(in) :: isset
+    real*8 :: fspin
 
     character(len=:), allocatable :: str, aux
-    integer :: i, j, k, n(3)
+    integer :: i, j, k, n(3), i2
 
     ! header
     if (.not.f%isinit) then
@@ -1282,7 +1224,7 @@ contains
     if (f%type == type_promol) then
        ! promolecular densities
        if (isload) then
-          write (uout,'("  Atoms in the environment: ",A)') string(f%c%nenv)
+          write (uout,'("  Atoms in the environment: ",A)') string(f%c%env%n)
        end if
     elseif (f%type == type_grid) then
        ! grids
@@ -1322,11 +1264,11 @@ contains
        if (isset) then
           write (uout,'("  Exact calculation? ",L)') f%exact
        end if
-       write (uout,'("  List of atoms and associated ion files")')
-       write (uout,'("# nat  name    Z  ion file")')
-       do i = 1, f%c%nneq
-          if (f%pi%pi_used(i)) then
-             str = f%pi%piname(i)
+       write (uout,'("  List of species and associated ion files")')
+       write (uout,'("# spc  name    Z  ion file")')
+       do i = 1, f%c%nspc
+          if (f%pi%bas(i)%pi_used) then
+             str = trim(f%pi%bas(i)%piname)
           else
              str = "<not used>"
           end if
@@ -1361,6 +1303,11 @@ contains
           end if
           write (uout,'("  Number of primitives ",A,": ",A)') str, string(f%wfn%npri)
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
+          if (allocated(f%wfn%cint)) then
+             write (uout,'("  Basis set data available for molecular integrals")') 
+          else
+             write (uout,'("  Basis set data NOT available")') 
+          end if
        end if
     elseif (f%type == type_dftb) then
        if (isload) then
@@ -1405,35 +1352,45 @@ contains
     write (uout,'("  Number of non-equivalent critical points: ",A)') string(f%ncp)
     write (uout,'("  Number of critical points in the unit cell: ",A)') string(f%ncpcel)
 
-    ! Wannier information
+    if (f%grid%isqe) then
+       if (f%grid%qe%nspin == 1) then
+          fspin = 2d0
+       else
+          fspin = 1d0
+       end if
+
+       write (uout,*)
+       write (uout,'("+ Plane-wave Kohn-Sham states for this field")') 
+       write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
+          string(f%grid%qe%nbnd)
+       do i = 1, f%grid%qe%nks
+          write (uout,'("# kpt ",A," (",A,X,A,X,A,")")') string(i,2,justify=ioj_right), &
+             (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3)
+          if (f%grid%qe%nspin == 1) then
+             write (uout,'(10(X,A))') " Ek:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+          else
+             write (uout,'(10(X,A))') "Eup:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             i2 = i + f%grid%qe%nks
+             write (uout,'(10(X,A))') "Edn:", (string(f%grid%qe%ek(j,i2) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i2)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+          end if
+       end do
+    end if
+
     if (f%grid%iswan) then
        write (uout,*)
-       write (uout,'("+ Wannier functions available for this field")') 
-       if (f%grid%wan%haschk) then
-          write (uout,'("  Source: sij-chk checkpoint file")') 
-       else
-          if (allocated(f%grid%wan%ngk)) then
-             write (uout,'("  Source: unkgen")') 
-          else
-             write (uout,'("  Source: UNK files")') 
-          end if
-       endif
-       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%wan%nwan(i)),i=1,3)
-       write (uout,'("  Number of bands: ",A)') string(f%grid%wan%nbnd)
-       write (uout,'("  Number of spin channels: ",A)') string(f%grid%wan%nspin)
-       if (f%grid%wan%cutoff > 0d0) &
-          write (uout,'("  Overlap calculation distance cutoff: ",A)') string(f%grid%wan%cutoff,'f',10,4)
-       write (uout,'("  List of k-points: ")')
-       do i = 1, f%grid%wan%nks
-          write (uout,'(4X,A,A,99(X,A))') string(i),":", (string(f%grid%wan%kpt(j,i),'f',8,4),j=1,3)
-       end do
+       write (uout,'("+ Wannier functions information for this field")') 
+       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
+       write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
-       do i = 1, f%grid%wan%nspin
-          do j = 1, f%grid%wan%nbnd
+       do i = 1, f%grid%qe%nspin
+          do j = 1, f%grid%qe%nbndw(i)
              write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
-                (string(f%grid%wan%center(k,j,i),'f',10,6,4),k=1,3),&
-                string(f%grid%wan%spread(j,i) * dunit0(iunit),'f',14,8,4)
+                (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
+                string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
        end do
     end if
@@ -1450,6 +1407,7 @@ contains
 
     if (.not.f%c%isinit) return
 
+    f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
 
@@ -1480,7 +1438,6 @@ contains
        f%cp(i)%brdist = 0d0
        f%cp(i)%brpathlen = 0d0
        f%cp(i)%brang = 0d0
-       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
 
        ! calculate the point group symbol
        f%cp(i)%pg = f%c%sitesymm(f%cp(i)%x,atomeps)
@@ -1501,45 +1458,79 @@ contains
 
   end subroutine init_cplist
 
+  !> Calculate the scalar field at the nuclei and fill the
+  !> corresponding fields in f%cp and f%cpcel. This operation is
+  !> deferred from init_cplist to avoid the slow down of field
+  !> initalization it causes.
+  module subroutine init_cplist_deferred(f)
+    class(field), intent(inout) :: f
+
+    integer :: i
+
+    if (.not.f%fcp_deferred) return
+    f%fcp_deferred = .false.
+    
+    do i = 1, f%c%nneq
+       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
+    end do
+
+  end subroutine init_cplist_deferred
+
   !> Given the point xp in crystallographic coordinates, calculates
-  !> the nearest CP of type 'type' or non-equivalent index 'idx'. In the
-  !> output, nid represents the id (complete CP list), dist is the
-  !> distance. If nozero is true, skip zero-distance CPs.
-  module subroutine nearest_cp(f,xp,nid,dist,type,idx,nozero)
+  !> the nearest CP. In output, nid is the id from the complete CP
+  !> list and dist is the distance. If type is given, only search
+  !> among the CPs of that type. If nid0, consider only CPs with index
+  !> nid0 (complete list) If id0, consider only CPs with index id0
+  !> (non-equivalent list). If nozero, skip zero-distance CPs.
+  module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
     class(field), intent(in) :: f
     real*8, intent(in) :: xp(:)
     integer, intent(out) :: nid
     real*8, intent(out) :: dist
+    integer, intent(out), optional :: lvec(3)
     integer, intent(in), optional :: type
-    integer, intent(in), optional :: idx
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
     logical, intent(in), optional :: nozero
 
-    real*8, parameter :: eps2 = 1d-10 * 1d-10
+    real*8, parameter :: eps = 1d-10
 
-    real*8 :: temp(3), d2, d2min
+    real*8 :: temp(3), dd, dmin
     integer :: j
 
-    ! check if it is a known cp
     nid = 0
-    d2min = 1d30
+    dmin = 1d30
     do j = 1, f%ncpcel
        if (present(type)) then
           if (f%cpcel(j)%typ /= type) cycle
        end if
-       if (present(idx)) then
-          if (f%cpcel(j)%idx /= idx) cycle
+       if (present(nid0)) then
+          if (f%cpcel(j)%idx /= nid0) cycle
        end if
-       temp = f%cpcel(j)%x - xp
-       call f%c%shortest(temp,d2)
+       if (present(id0)) then
+          if (j /= id0) cycle
+       end if
+
+       if (f%c%ismolecule) then
+          temp = f%cpcel(j)%x - (xp - floor(xp))
+          temp = f%c%x2c(temp)
+          dd = norm2(temp)
+       else
+          temp = f%cpcel(j)%x - xp
+          call f%c%shortest(temp,dd)
+       end if
        if (present(nozero)) then
-          if (d2 < eps2) cycle
+          if (dd < eps) cycle
        end if
-       if (d2 < d2min) then
+       if (dd < dmin) then
           nid = j
-          d2min = d2
+          dmin = dd
+          if (present(lvec)) then
+             lvec = nint(f%cpcel(j)%x - xp - temp)
+          end if
        end if
     end do
-    dist = sqrt(d2min)
+    dist = dmin
 
   end subroutine nearest_cp
 
@@ -1552,15 +1543,14 @@ contains
     real*8, intent(in) :: x0(3)
     real*8, intent(in) :: eps
 
-    real*8 :: x(3), dist2, eps2
+    real*8 :: x(3), dist2
     integer :: i
 
     identify_cp = 0
-    eps2 = eps*eps
     do i = 1, f%ncpcel
        x = x0 - f%cpcel(i)%x
        call f%c%shortest(x,dist2)
-       if (dist2 < eps2) then
+       if (dist2 < eps) then
           identify_cp = i
           return
        end if
@@ -1608,7 +1598,7 @@ contains
        if (f%type == type_wien) then
           rmt = f%wien%rmt_atom(f%c%at(n)%x)
        else
-          rmt = f%elk%rmt_atom(f%c%at(n)%x)
+          rmt = f%elk%rmt(f%c%at(n)%is)
        end if
        mepsm = 0d0
        mepsp = 0d0
@@ -1774,7 +1764,7 @@ contains
              if (f%type == type_wien) then
                 inrmt = (dist < f%wien%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
              else
-                inrmt = (dist < f%elk%rmt_atom(f%c%at(f%c%atcel(i)%idx)%x))
+                inrmt = (dist < f%elk%rmt(f%c%atcel(i)%is))
              end if
              if (inrmt) then
                 if (wpts(f%c%atcel(i)%idx) >= npts) cycle out
@@ -1890,6 +1880,7 @@ contains
     use types, only: scalar_value, realloc
     use global, only: CP_hdegen, rbetadef
     use types, only: realloc
+    use param, only: icrd_crys
     class(field), intent(inout) :: f
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
@@ -1898,7 +1889,7 @@ contains
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
     real*8 :: xc(3), ehess(3)
-    integer :: nid, lvec(3)
+    integer :: nid
     real*8 :: dist
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
@@ -1935,17 +1926,10 @@ contains
     end if
 
     ! distance to atoms
-    nid = 0
-    call f%c%nearest_atom(xc,nid,dist,lvec)
-    if (dist < nuceps) then
-       goto 999
-    end if
-
-    ! distance to hydrogens
-    if (f%c%spc(f%c%atcel(nid)%is)%z == 1) then
-       if (dist < nucepsh) then
-          goto 999
-       end if
+    nid = f%c%identify_atom(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
+    if (nid > 0) then
+       if (dist < nuceps) goto 999
+       if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
     end if
 
     ! reallocate if more slots are needed for the new cp
@@ -2037,65 +2021,27 @@ contains
     class(field), intent(inout) :: f
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
 
-    integer :: i, j, k, iperm(f%ncp), nin, nina
-    integer :: perms, perm(2,f%ncp)
-    integer :: num, mi
-    type(cp_type) :: aux
+    integer :: i, j, mi
     real*8, allocatable :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:), iaux(:)
+    real*8, allocatable :: raux(:)
+    integer, allocatable :: iperm(:)
 
-    ! Sort the nneq CP list
-    iperm(1:f%ncp) = (/ (j,j=1,f%ncp) /)
+    if (f%fcp_deferred) then
+       call f%init_cplist_deferred()
+       f%fcp_deferred = .false.
+    end if
 
-    ! The nuclei are already ordered. 
-    nin = f%c%nneq
-    do i = 0, 3
-       ! First sort by class
-       num = count(f%cp(1:f%ncp)%typind == i)
-       nina = nin + 1
-       do j = 1, num
-          do k = nin+1, f%ncp
-             if (f%cp(k)%typind == i) then
-                aux = f%cp(k)
-                f%cp(k) = f%cp(nin+1)
-                f%cp(nin+1) = aux
-                nin = nin + 1
-                exit
-             end if
-          end do
-       end do
-
-       ! Then sort by density
-       call mergesort(f%cp(nina:nin)%s%f,iperm(nina:nin))
-
-       ! reverse
-       allocate(iaux(nina:nin))
-       iaux = iperm(nina:nin) + nina - 1
-       do j = nina, nin
-          iperm(j) = iaux(nin-j+nina)
-       end do
-       deallocate(iaux)
-    end do
-
-    ! unroll transposition as product of permutations
-    perms = 0
+    ! Sort the nneq CP list: first by type then by density, the atoms at the top
+    allocate(iperm(f%ncp),raux(f%ncp),iaux(f%ncp))
     do i = 1, f%ncp
-       if (iperm(i) /= i) then
-          do j = i+1, f%ncp
-             if (iperm(j) == i) exit
-          end do
-          perms = perms + 1
-          perm(1,perms) = i
-          perm(2,perms) = j
-          iperm(j) = iperm(i)
-          iperm(i) = i
-       end if
+       raux(i) = -f%cp(i)%s%f
+       iaux(i) = f%cp(i)%typind
+       iperm(i) = i
     end do
-    do i = perms, 1, -1
-       aux = f%cp(perm(1,i))
-       f%cp(perm(1,i)) = f%cp(perm(2,i))
-       f%cp(perm(2,i)) = aux
-    end do
+    call mergesort(raux,iperm,f%c%nneq+1,f%ncp)
+    call mergesort(iaux,iperm,f%c%nneq+1,f%ncp)
+    f%cp = f%cp(iperm)
 
     ! Rewrite the complete CP list
     f%ncpcel = 0
@@ -2131,6 +2077,7 @@ contains
     use global, only: nav_step, nav_gradeps, rbetadef
     use tools_math, only: eigns
     use types, only: scalar_value, gpathp, realloc
+    use param, only: icrd_crys
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
     integer, intent(in) :: iup
@@ -2180,12 +2127,15 @@ contains
     if (present(path)) then
        if (allocated(path)) deallocate(path)
        allocate(path(100))
-       if (present(pathini)) then
-          xcaux = pathini
-          xxaux = fid%c%c2x(xcaux)
+    end if
+    if (present(pathini)) then
+       xcaux = pathini
+       xxaux = fid%c%c2x(xcaux)
+       if (present(path)) then
           call fid%grd(xcaux,2,resaux)
-          call addtopath(nstep,xcaux,xxaux,resaux)
+          call addtopath(0,xcaux,xxaux,resaux)
        end if
+       plen = norm2(xpoint - pathini)
     end if
 
     ! properties at point
@@ -2221,10 +2171,9 @@ contains
        end if
 
        ! nearest nucleus
-       idnuc = 0
-       call fid%c%nearest_atom(xpoint,idnuc,sphrad,lvec)
-       xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x - lvec)
-       xnucr = fid%c%atcel(idnuc)%x - lvec
+       call fid%c%nearest_atom(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
+       xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
+       xnucr = fid%c%atcel(idnuc)%x + lvec
        idnuc = fid%c%atcel(idnuc)%idx
 
        ! get nearest -3 CP (idncp) and +3 CP (idccp), skip hydrogens
@@ -2241,19 +2190,18 @@ contains
           xcpr = 0d0
        end if
        if (fid%ncpcel > 0) then
-          cprad = cprad * cprad
           do i = 1, fid%ncpcel
              if (.not.(fid%cpcel(i)%typ==-3 .and. iup==1 .or. fid%cpcel(i)%typ==3 .and. iup==-1)) cycle  ! only cages if down, only ncps if up
              dx = xpoint - fid%cpcel(i)%x
              call fid%c%shortest(dx,dist2)
              if (dist2 < cprad) then
+                dx = fid%c%c2x(dx)
                 cprad = dist2
                 idcp = fid%cpcel(i)%idx
                 xcp = fid%c%x2c(fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx))
                 xcpr = fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx)
              end if
           end do
-          cprad = sqrt(cprad)
        end if
 
        ! is it a nuclear position? 
@@ -2267,6 +2215,7 @@ contains
        if (ok) then
           ! Found a CP as the last point in the path
           incstep = .true.
+          plen = plen + norm2(xcart - xcp)
           xpoint = xcp
           ier = 0
           if (present(path)) then

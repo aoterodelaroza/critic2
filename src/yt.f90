@@ -43,16 +43,10 @@ module yt
   end type ytdata
   
   interface
-     module subroutine yt_integrate(s,ff,discexpr,atexist,ratom,nbasin,xcoord,idg,luw)
+     module subroutine yt_integrate(s,bas)
+       use types, only: basindat
        type(system), intent(inout) :: s
-       real*8, intent(in) :: ff(:,:,:)
-       character*(*), intent(in) :: discexpr
-       logical, intent(in) :: atexist
-       real*8, intent(in) :: ratom
-       integer, intent(out) :: nbasin
-       real*8, allocatable, intent(inout) :: xcoord(:,:)
-       integer, allocatable, intent(inout) :: idg(:,:,:)
-       integer, intent(out) :: luw
+       type(basindat), intent(inout) :: bas
      end subroutine yt_integrate
      module subroutine yt_weights(luw,din,idb,w,dout)
        integer, intent(in), optional :: luw

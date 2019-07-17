@@ -28,7 +28,6 @@
 #include "imgui/imgui_widgets.h"
 
 #include "critic2.h"
-#include "shader.h"
 #include "shapes.h"
 #include "view.h"
 #include "dialog.h"
@@ -36,10 +35,12 @@
 #include "keybinding.h"
 #include "menu.h"
 #include "tree.h"
+#include "text.h"
 
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstdlib>
 
 using namespace ImGui;
 
@@ -75,13 +76,14 @@ int main(int argc, char *argv[]){
     UpdateTreeData();
   }
 
-  // Initialize
+  // Initialize glfw
   glfwSetErrorCallback(error_callback);
   if (!glfwInit()) exit(EXIT_FAILURE);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_SAMPLES, 4);
 
   // Set up window
   GLFWwindow* rootwin = glfwCreateWindow(850, 720, "gcritic2", nullptr, nullptr);
@@ -100,13 +102,16 @@ int main(int argc, char *argv[]){
   DefaultSettings();
   SetDefaultKeyBindings();
 
+  // Initialize the freetype library
+  InitFreetype();
+
   // Find and read configuration file
   if (!FindConfigurationFile())
     NewMessage(Message_Error,"Could not open configuration file. Using defaults.");
   else if (!ReadConfigurationFile(conffile))
     NewMessage(Message_Error,"Could not read configuration file. Using defaults.");
 
-  // Shader and opengl settings
+  // Opengl settings
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
 
@@ -120,6 +125,8 @@ int main(int argc, char *argv[]){
 
   // Main loop
   while (!glfwWindowShouldClose(rootwin)){
+    static bool first = true;
+
     // New frame
     ImGui_ImplGlfwGL3_ResetKeyMouseEvents();
     glfwPollEvents();
@@ -160,7 +167,6 @@ int main(int argc, char *argv[]){
     MessageDispatch();
 
     // Dock everything in the first pass and set default sizes
-    static bool first = true;
     if (first){
       first = false;
 
@@ -175,7 +181,7 @@ int main(int argc, char *argv[]){
     }
 
     // xxxx for imgui testing xxxx //
-    ShowTestWindow();
+    // ShowTestWindow();
 
     // xxxx for debugging the dock system xxxx //
     // PrintDock__();
@@ -198,7 +204,8 @@ int main(int argc, char *argv[]){
   c2::gui_end();
   DeleteBuffers();
   ShutdownDock();
-  delete shader;
+  delete mainview;
+
   ImGui_ImplGlfwGL3_Shutdown();
   glfwTerminate();
 

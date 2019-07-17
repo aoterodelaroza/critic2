@@ -10,6 +10,7 @@ namespace c2 {
     float r[3];
     int is;
     int z;
+    char zsymb[3];
     char name[11];
     int idx;
     int cidx;
@@ -28,9 +29,14 @@ namespace c2 {
   extern "C" void scene_set_reference_field(int isc,int iref);
   extern "C" void gui_end();
 
+  // General information for the run
+  extern "C" char *c2home;
+
   // number of scenes and files
-  extern "C" int nsc;
   extern "C" int nfiles;
+  extern "C" int nsc;
+
+  // error messages passed from the Fortran side
   extern "C" char *errmsg;
 
   // pointers to the current scene

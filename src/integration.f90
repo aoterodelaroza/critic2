@@ -69,8 +69,8 @@ module integration
   public :: int_radialquad
   public :: gauleg_mquad
   public :: lebedev_mquad
-  public :: int_output
-  public :: int_reorder_gridout
+  public :: int_output_header
+  public :: int_output_fields
   
   interface
      module subroutine intgrid_driver(line)
@@ -107,27 +107,20 @@ module integration
        integer, intent(out) :: neval !< Number of evaluations
        real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
      end subroutine lebedev_mquad
-     module subroutine int_output(pmask,reason,nattr,icp,xattr,aprop,usesym,sij,mpole)
-       logical, intent(in) :: pmask(sy%npropi)
-       character*(*), intent(in) :: reason(sy%npropi)
-       integer, intent(in) :: nattr
-       integer, intent(in) :: icp(nattr)
-       real*8, intent(in) :: xattr(3,nattr)
-       real*8, intent(in) :: aprop(sy%npropi,nattr)
-       logical, intent(in) :: usesym
-       real*8, intent(in), allocatable, optional :: sij(:,:,:,:,:)
-       real*8, intent(in), allocatable, optional :: mpole(:,:,:)
-     end subroutine int_output
-     module subroutine int_reorder_gridout(ff,nattr,xgatt,idg,atexist,ratom,luw,icp)
-       type(field), intent(inout) :: ff
-       integer, intent(inout) :: nattr
-       real*8, intent(inout), allocatable :: xgatt(:,:)
-       integer, intent(inout), allocatable :: idg(:,:,:)
-       logical, intent(in) :: atexist
-       real*8, intent(in) :: ratom
-       integer, intent(inout) :: luw
-       integer, intent(inout), allocatable :: icp(:)
-     end subroutine int_reorder_gridout
+     module subroutine int_output_header(bas,res,nomol0,usesym0)
+       use types, only: basindat, int_result
+       type(basindat), intent(in) :: bas
+       type(int_result), intent(in) :: res(:)
+       logical, intent(in), optional :: nomol0
+       logical, intent(in), optional :: usesym0
+     end subroutine int_output_header
+     module subroutine int_output_fields(bas,res,nomol0,usesym0)
+       use types, only: basindat, int_result
+       type(basindat), intent(in) :: bas
+       type(int_result), intent(in) :: res(:)
+       logical, intent(in), optional :: nomol0
+       logical, intent(in), optional :: usesym0
+     end subroutine int_output_fields
   end interface
 
 end module integration

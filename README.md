@@ -44,8 +44,6 @@ environment generation, file conversion).
 * THANKS: acknowledgements. Please read this for details on the
   license of code that critic2 uses.
 * src/: source code. The critic2 binary is generated in here.
-* doc/: manual (user-guide.txt) and syntax reference (syntax.txt). You
-        can compile the manual with compile.sh (rst2latex required).
 * tools/: some tools to work with the files produced by critic2.
 * dat/: atomic density and cif database data. These need to be
   accessible to critic2 at runtime (see below).
@@ -57,7 +55,7 @@ environment generation, file conversion).
 If you downloaded the code from the git repository and not from a
 package, you will need to run:
 
-    autoreconf -i
+    autoreconf
 
 Prepare for compilation by doing:
 
@@ -102,9 +100,9 @@ ${CRITIC_HOME}/dat/.
 ## Which compilers work?
 
 Critic2 uses some features from the more modern Fortran standards,
-which may not be available in old compilers. In consequence, not all
-compilers may be able to generate the binary and, even if they do, it
-may be broken. Two versions of critic2 are distributed. The
+which may not be available in some (most) compilers. In consequence,
+not all compilers may be able to generate the binary and, even if they
+do, it may be broken. Two versions of critic2 are distributed. The
 **development** version, corresponding to the master branch of the
 repository, and the **stable** version, in the stable branch. Only
 patches addressing serious bugs will be introduced in the stable
@@ -115,11 +113,11 @@ starting at 4.9. All intel fortran compiler versions from 2011 onwards
 also compile the stable code. To download the stable version, click on
 the **Branch:** button above and select **stable**.
 
-The development version can be compiled with gfortran-6 and
-later. Most other compilers have issues. This is the list of compilers
-tested:
+The development version can be compiled with gfortran-6 and later. All
+other compilers tested have issues, and fail to produce a working
+binary. This is the list of compilers tested:
 
-* gfortran 4.8: critic2 can not be compiled with this version because
+* gfortran 4.8: critic2 cannot be compiled with this version because
   allocatable components in user-defined types are not supported.
 * gfortran 4.9 through 5.4 (and possibly older and newer gfortran-5):
   the code compiles correctly but there are errors allocating and
@@ -127,38 +125,32 @@ tested:
   user-defined types. The program is usable, but problems will arise
   if more than one crystal structure or more than 10 scalar fields are
   loaded.
-* gfortran 6.x and gfortran 7.x: no errors.
-* ifort 12.1: catastrophic internal compiler error of unknown origin. 
-* ifort-14.0.2.144, ifort-15.0.5.233, and ifort-15.2: the compilation
-  succeeds, but inexplicable errors happen at runtime when the global
-  field array is deallocated in the system_end subroutine. The run may
-  also hang if the field array is reallocated (move_alloc
-  bug?). Similarly to early versions of gfortran, the program is
-  usable, but errors will occur if several crystal structures are
-  loaded.
-* ifort 16.0.4 and ifort 17.0.1: they gives less problems than earlier
-  versions of ifort but occasional errors still occur when loading and
-  unloading very many crystal structures in sequence. For ifort
-  17.0.1, the trispline interpolation in grids does not work.
+* gfortran 6.x, 7.x, 8.x: no errors.
+* ifort, all versions from 12.1 up to 18.0.3: catastrophic internal
+  compiler errors of unknown origin.
 * Portland Group Fortran compiler (pgfortran), version 17.3. There are
   two important compiler problems: i) passing subroutines and
   functions whose interface includes multidimensional arrays as
   arguments or function results does not work, and ii) internal
   compiler error when compiling meshmod.f90.
 
-In summary: **Only recent versions of gfortran and intel fortran are
-guaranteed to work with the development version. If you can not use
-gfortran 6 or newer or ifort 16.x or newer, download the stable
-version.** I do not think this is because of errors in the critic2
-code (though if you find that it is, please let me know).
+In summary: **Only recent versions of gfortran are guaranteed to work
+with the development version. If you cannot use gfortran 6 or newer,
+download the stable version.** I do not think this is because of
+errors in the critic2 code (though if you find that it is, please let
+me know). If you paid for a recent version of your compiler and it
+throws an internal compiler error while trying to build critic2, you
+may want to consider submitting a bug report to the developer.
 
 If a recent compiler is not available, an alternative is to compile
 the program elsewhere with the static linking option:
 
-    LDFLAGS=-static ./configure ...
+    LDFLAGS='-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive' ./configure ...
 
-provided the machine has the same architecture. You can choose the
-compiler by changing the FC and F77 flags before configure:
+provided the machine has the same architecture. (The part between the
+-Wl is there to prevent statically-linked gfortran executables from
+segfaulting.) You can choose the compiler by changing the FC and F77
+flags before configure:
 
     FC=gfortran F77=gfortran ./configure ...
 
@@ -166,27 +158,27 @@ compiler by changing the FC and F77 flags before configure:
 
 Critic2 can be compiled with [libxc](http://octopus-code.org/wiki/Libxc) and
 [libcint](https://github.com/sunqm/libcint) support. Libxc is a
-library that implements the calculatio nof exchange-correlation
+library that implements the calculation of exchange-correlation
 energies and potentials for a number of different functionals. It is
 used in critic2 to calculate exchange and correlation energy densities
 via the xc() function in arithmetic expressions. See 'Use of LIBXC in
 arithmetic expressions' in the user's guide for instructions on how to
 use libxc in critic2. 
 
-To compile critic2 with libxc support, two --with-libxc options must
-be passed to configure:
+To compile critic2 with libxc support, use:
 
-    ./configure --with-libxc-prefix=/opt/libxc --with-libxc-include=/opt/libxc/include
+    ./configure --with-libxc=/opt/libxc
 
 Here the /opt/libxc directory is the target for the libxc installation
-(use --prefix=/opt/libxc when you configure libxc). 
+(use --prefix=/opt/libxc when you configure libxc). Versions of libxc
+earlier than 3.0 are not supported. 
 
 libcint is a library for molecular integrals between GTOs. It is used
 for testing and in some options to the MOLCALC keyword. To compile
 critic2 with libcint support, do either of these two:
 
     ./configure --with-cint-shared=/opt/libcint/build 
-    ./configure --with-cint-static=/opt/libcint/build/
+    ./configure --with-cint-static=/opt/libcint/build
 
 The first will use the libcint.so file in that directory and
 dynamically link to it. The libcint.so path needs to be available when
@@ -200,13 +192,15 @@ critic2; otherwise the compilation will fail.
 
 ## Using critic2
 
-The user's guide is in the doc/ directory in plain text format
-(user-guide.txt). A copy of the manual in PDF format (user-guide.pdf)
-can be generated by running the compile.sh script. This requires a
-working LaTeX installation, the rst2latex program (included in the
-docutils package), and awk. A concise summary of the syntax can be
-found in the syntax.txt file. Several examples are provided in the
-examples/ subdirectory.
+The manual for critic2 has been moved online. To access it, please
+visit:
+
+https://aoterodelaroza.github.io/critic2/
+
+For a text version of the manual, please clone the following
+repository: 
+
+https://github.com/aoterodelaroza/aoterodelaroza.github.io
 
 Critic2 reads a single input file (the cri file). A simple input is:
 
@@ -219,9 +213,6 @@ density from the same cube file, and then calculates the atomic
 charges and volumes. Run critic2 as:
 
     critic2 cubicBN.cri cubicBN.cro
-
-A detailed description of the keywords accepted by critic2 is given in
-the user's guide and a short reference in the syntax.txt file. 
 
 ## References and citation
 

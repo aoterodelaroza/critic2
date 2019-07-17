@@ -20,24 +20,25 @@
 
 ! Structure class and routines for basic crystallography computations
 module crystalmod
+  use environmod, only: environ
   use spglib, only: SpglibDataset
-  use types, only: atom, celatom, neighstar, species
+  use types, only: neqatom, celatom, neighstar, species
   use fragmentmod, only: fragment
   use param, only: maxzat0, mlen
   implicit none
 
   private
 
-  !> Crystal type
+  !> The crystal class. A crystal contains the structural information for the
+  !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule 
+  !> (%ismolecule=.true.) embedded in a large cell. When use in combination
+  !> with the system class, the crystal needs to be passed as pointer to the
+  !> system, and therefore needs to be declared as TARGET.
   type crystal
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
-     logical :: isenv = .false. !< were the atomic environments determined?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
-     logical :: isast = .false. !< have the molecular asterisms and connectivity been calculated?
      logical :: isewald = .false. !< do we have the data for ewald's sum?
-     logical :: isrecip = .false. !< symmetry information about the reciprocal cell
-     logical :: isnn = .false. !< information about the nearest neighbors
 
      ! file name for the occasional critic2 trick
      character(len=mlen) :: file
@@ -48,7 +49,7 @@ module crystalmod
      type(species), allocatable :: spc(:) !< Species
      ! non-equivalent atoms list
      integer :: nneq = 0 !< Number of non-equivalent atoms
-     type(atom), allocatable :: at(:) !< Non-equivalent atom array
+     type(neqatom), allocatable :: at(:) !< Non-equivalent atom array
      ! complete atoms list
      integer :: ncel = 0 !< Number of atoms in the main cell
      type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell
@@ -59,53 +60,56 @@ module crystalmod
      real*8 :: gtensor(3,3) !< metric tensor (3,3)
      real*8 :: ar(3) !< reciprocal cell lengths
      real*8 :: grtensor(3,3) !< reciprocal metric tensor (3,3)
-     ! crystallographic/cartesian conversion matrices
-     real*8 :: crys2car(3,3) !< crystallographic to cartesian matrix
-     real*8 :: car2crys(3,3) !< cartesian to crystallographic matrix
-     real*8 :: n2_x2c !< sqrt(3)/norm-2 of the crystallographic to cartesian matrix
-     real*8 :: n2_c2x !< sqrt(3)/norm-2 of the cartesian to crystallographic matrix
+     ! crystallographic/cartesian conversion matrices and norm-2s
+     real*8 :: m_x2c(3,3) !< input cell, crystallographic -> cartesian (m_x2c(:,i) are the lattice vectors)
+     real*8 :: m_c2x(3,3) !< input cell, cartesian -> crystallographic
+     real*8 :: m_xr2c(3,3) !< reduced cryst -> input cartesian
+     real*8 :: m_c2xr(3,3) !< cartesian -> reduced cryst
+     real*8 :: m_xr2x(3,3) !< reduced cryst -> input cryst
+     real*8 :: m_x2xr(3,3) !< input cryst -> reduced cryst
+     real*8 :: n2_x2c !< norm2 of input cell, crystallographic -> cartesian
+     real*8 :: n2_c2x !< norm2 of input cell, cartesian -> crystallographic
+     real*8 :: n2_xr2c !< norm2 of reduced cryst -> input cartesian
+     real*8 :: n2_c2xr !< norm2 of cartesian -> reduced cryst
+     real*8 :: n2_xr2x !< norm2 of reduced cryst -> input cryst
+     real*8 :: n2_x2xr !< norm2 of input cryst -> reduced cryst
      ! space-group symmetry
      type(SpglibDataset) :: spg !< spglib's symmetry dataset
      integer :: neqv !< number of symmetry operations
-     integer :: neqvg !< number of symmetry operations, reciprocal space
      integer :: ncv  !< number of centering vectors
      real*8, allocatable :: cen(:,:) !< centering vectors
      real*8 :: rotm(3,4,48) !< symmetry operations
-     real*8 :: rotg(3,3,48) !< symmetry operations, reciprocal space
      ! variables for molecular systems
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
      real*8 :: molborder(3) !< molecular cell border (cryst coords)
      ! wigner-seitz cell 
-     integer :: nws !< number of WS neighbors/faces
-     integer :: ivws(3,16) !< WS neighbor lattice points
-     integer :: nvert_ws !< number of vertices of the WS cell
-     integer, allocatable :: nside_ws(:) !< number of sides of WS faces
-     integer, allocatable :: iside_ws(:,:) !< sides of the WS faces
-     real*8, allocatable :: vws(:,:) !< vertices of the WS cell
+     integer :: ws_nv !< number of vertices
+     integer :: ws_nf !< number of facets
+     integer :: ws_mnfv !< maximum number of vertices per facet
+     integer :: ws_ineighx(3,14) !< WS neighbor lattice points (cryst. coords.)
+     real*8 :: ws_ineighc(3,14) !< WS neighbor lattice points (Cart. coords.)
+     integer :: ws_ineighxr(3,14) !< WS neighbor lattice points (del cell, cryst.)
+     integer :: ws_nside(14) !< number of sides of WS faces
+     integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
+     real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
      logical :: isortho !< is the cell orthogonal?
-     ! rotations and translations for finding shortest vectors
-     real*8 :: rdelr(3,3) !< x_del = x_cur * c%rdelr
-     real*8 :: rdeli(3,3) !< x_cur = x_del * c%rdeli
-     real*8 :: rdeli_x2c(3,3) !< c_cur = x_del * c%rdeli_x2c
-     real*8 :: crys2car_del(3,3) !< crys2car delaunay cell
-     integer :: ivws_del(3,16) !< WS neighbor lattice points (del cell, Cartesian)
      logical :: isortho_del !< is the reduced cell orthogonal?
      ! core charges
      integer :: zpsp(maxzat0)
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
-     integer :: nenv = 0 !< Environment around the main cell
-     real*8 :: dmax0_env !< Maximum environment distance
-     type(celatom), allocatable :: atenv(:) !< Atoms around the main cell
+     type(environ) :: env
 
      !! Initialization level: isast !!
      ! asterisms
      type(neighstar), allocatable :: nstar(:) !< Neighbor stars
      integer :: nmol = 0 !< Number of molecules in the unit cell
      type(fragment), allocatable :: mol(:) !< Molecular fragments
-     logical, allocatable :: moldiscrete(:) !< Is the crystal extended or molecular?
+     integer :: nlvac = 0 !< Number of vacuum lattice vectors
+     integer :: lvac(3,2) !< Vacuum lattice vectors
+     integer :: lcon(3,2) !< Connected lattice vectors
 
      !! Initialization level: isewald !!
      ! ewald data
@@ -115,14 +119,19 @@ module crystalmod
    contains
      ! construction, destruction, initialization
      procedure :: init => struct_init !< Allocate arrays and nullify variables
-     procedure :: checkflags !< Check the flags for a given crystal
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
-     procedure :: struct_fill !< Initialize the structure from minimal info (already in the object)
+
+     ! get information about the structure or atoms
+     procedure :: identify_spc
 
      ! basic crystallographic operations
-     procedure :: x2c !< Convert crystallographic to cartesian
-     procedure :: c2x !< Convert cartesian to crystallographic
+     procedure :: x2c !< Convert input cryst. -> cartesian
+     procedure :: c2x !< Convert input cartesian -> cryst.
+     procedure :: xr2c !< Convert reduced cryst. -> cartesian
+     procedure :: c2xr !< Convert cartesian -> reduced cryst.
+     procedure :: xr2x !< Convert reduced cryst. -> input cryst.
+     procedure :: x2xr !< Convert input cryst. -> reduced cryst.
      procedure :: distance !< Distance between points in crystallographic coordinates
      procedure :: eql_distance !< Shortest distance between lattice-translated vectors
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
@@ -134,16 +143,12 @@ module crystalmod
      procedure :: identify_fragment_from_xyz !< Build a crystal fragment from an xyz file
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
-     procedure :: get_mult_reciprocal !< Reciprocal-space multiplicity of a point
 
      ! molecular environments and neighbors
-     procedure :: build_env !< Build the crystal environment (atenv)
-     procedure :: find_asterisms !< Find the molecular asterisms (atomic connectivity)
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
-     procedure :: pointshell !< Calculate atomic shells around a point
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
 
@@ -168,7 +173,7 @@ module crystalmod
      ! symmetry and WS cell
      procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
-     procedure :: pmwigner !< Poor man's wigner
+     procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
 
      ! structure writers
      procedure :: write_mol
@@ -183,6 +188,7 @@ module crystalmod
      procedure :: write_cif
      procedure :: write_d12
      procedure :: write_escher
+     procedure :: write_db
      procedure :: write_gulp
      procedure :: write_lammps
      procedure :: write_siesta_fdf
@@ -233,21 +239,13 @@ module crystalmod
   character(len=12), parameter, public :: laue_string(0:11) = (/ &
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
-
+  
   ! module procedure interfaces
   interface
+     !xx! proc submodule
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
-     module subroutine checkflags(c,crash,env0,ast0,recip0,nn0,ewald0)
-       class(crystal), intent(inout) :: c
-       logical :: crash
-       logical, intent(in), optional :: env0
-       logical, intent(in), optional :: ast0
-       logical, intent(in), optional :: recip0
-       logical, intent(in), optional :: nn0
-       logical, intent(in), optional :: ewald0
-     end subroutine checkflags
      module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
@@ -257,11 +255,12 @@ module crystalmod
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
      end subroutine struct_new
-     module subroutine struct_fill(c,env0,iast0,recip0,lnn0,ewald0)
+     module function identify_spc(c,str) result(res)
+       use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
-       integer :: iast0
-       logical, intent(in) :: env0, recip0, lnn0, ewald0
-     end subroutine struct_fill
+       character*(*), intent(in) :: str
+       integer :: res
+     end function identify_spc
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3) 
@@ -272,6 +271,26 @@ module crystalmod
        real*8, intent(in)  :: xx(3)
        real*8 :: res(3)
      end function c2x
+     pure module function xr2c(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function xr2c
+     pure module function c2xr(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function c2xr
+     pure module function xr2x(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function xr2x
+     pure module function x2xr(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function x2xr
      pure module function distance(c,x1,x2)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x1(3)
@@ -284,38 +303,47 @@ module crystalmod
        real*8, intent(in) :: x2(3)
        real*8 :: eql_distance
      end function eql_distance
-     pure module subroutine shortest(c,x,dist2)
+     pure module subroutine shortest(c,x,dist)
        class(crystal), intent(in) :: c
        real*8, intent(inout) :: x(3)
-       real*8, intent(out) :: dist2
+       real*8, intent(out) :: dist
      end subroutine shortest
-     module function are_close(c,x0,x1,eps,d2)
+     module function are_close(c,x0,x1,eps,dd)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3), x1(3)
        real*8, intent(in) :: eps
-       real*8, intent(out), optional :: d2
+       real*8, intent(out), optional :: dd
        logical :: are_close
      end function are_close
-     module function are_lclose(c,x0,x1,eps,d2)
+     module function are_lclose(c,x0,x1,eps,dd)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3), x1(3)
        real*8, intent(in) :: eps
-       real*8, intent(out), optional :: d2
+       real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
-     module subroutine nearest_atom(c,xp,nid,dist,lvec)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: xp(:)
-       integer, intent(inout) :: nid
-       real*8, intent(out) :: dist
-       integer, intent(out) :: lvec(3)
-     end subroutine nearest_atom
-     module function identify_atom(c,x0,lncel0)
+     module function identify_atom(c,x0,icrd,lvec,dist,distmax)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: lncel0
+       integer, intent(in) :: icrd
+       integer, intent(out), optional :: lvec(3)
+       real*8, intent(out), optional :: dist
+       real*8, intent(in), optional :: distmax
        integer :: identify_atom
      end function identify_atom
+     module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: xp(3)
+       integer, intent(in) :: icrd
+       integer, intent(out) :: nid
+       real*8, intent(out) :: dist
+       real*8, intent(in), optional :: distmax
+       integer, intent(out), optional :: lvec(3)
+       integer, intent(in), optional :: cidx0
+       integer, intent(in), optional :: idx0
+       integer, intent(in), optional :: is0
+       logical, intent(in), optional :: nozero
+     end subroutine nearest_atom
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nat
@@ -341,18 +369,10 @@ module crystalmod
        real*8, intent(in) :: x0(3)
        integer :: mult
      end function get_mult
-     module function get_mult_reciprocal(c,x0) result (mult)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       integer :: mult
-     end function get_mult_reciprocal
      module subroutine build_env(c,dmax0)
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: dmax0
      end subroutine build_env
-     module subroutine find_asterisms(c)
-       class(crystal), intent(inout) :: c
-     end subroutine find_asterisms
      module function listatoms_cells(c,nx,doborder) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nx(3)
@@ -375,15 +395,6 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
-     module subroutine pointshell(c,x0,shmax,nneig,wat,dist,xenv)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       integer, intent(in) :: shmax
-       integer, intent(out) :: nneig(shmax)
-       integer, intent(out) :: wat(shmax)
-       real*8, intent(out) :: dist(shmax)
-       real*8, intent(inout), allocatable, optional :: xenv(:,:,:)
-     end subroutine pointshell
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
@@ -396,10 +407,11 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
-     module subroutine powder(c,th2ini0,th2end0,npts,lambda0,fpol,&
+     module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
         sigma,t,ih,th2p,ip,hvecp)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: th2ini0, th2end0
+       logical, intent(in) :: ishard
        integer, intent(in) :: npts
        real*8, intent(in) :: lambda0
        real*8, intent(in) :: fpol
@@ -410,13 +422,17 @@ module crystalmod
        real*8, allocatable, intent(inout) :: ip(:)
        integer, allocatable, intent(inout) :: hvecp(:,:)
      end subroutine powder
-     module subroutine rdf(c,rend,sigma,npts,t,ih)
+     module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0)
        class(crystal), intent(in) :: c
+       real*8, intent(in) :: rini
        real*8, intent(in) :: rend
        real*8, intent(in) :: sigma
+       logical, intent(in) :: ishard
        integer, intent(in) :: npts
        real*8, allocatable, intent(inout) :: t(:)
        real*8, allocatable, intent(inout) :: ih(:)
+       integer, intent(in), optional :: npairs0
+       integer, intent(in), optional :: ipairs0(:,:)
      end subroutine rdf
      module subroutine calculate_ewald_cutoffs(c)
        class(crystal), intent(inout) :: c
@@ -451,11 +467,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        logical, intent(in) :: verbose
      end subroutine cell_delaunay
-     module subroutine delaunay_reduction(c,rmat,rmati,sco,rbas)
+     module subroutine delaunay_reduction(c,rmat,rbas)
        class(crystal), intent(in) :: c
        real*8, intent(out) :: rmat(3,4)
-       real*8, intent(in), optional :: rmati(3,3)
-       real*8, intent(out), optional :: sco(4,4)
        real*8, intent(out), optional :: rbas(3,3)
      end subroutine delaunay_reduction
      module subroutine struct_report(c,lcrys,lq)
@@ -467,30 +481,22 @@ module crystalmod
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv)
      end subroutine struct_report_symxyz
-     module subroutine spglib_wrap(c,usenneq,onlyspg)
+     module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: usenneq
        logical, intent(in) :: onlyspg
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine spglib_wrap
-     module subroutine wigner(c,xorigin,nvec,vec,area0,ntetrag,tetrag,&
-        nvert_ws,nside_ws,iside_ws,vws)
+     module subroutine wigner(c,area)
+       class(crystal), intent(inout) :: c
+       real*8, intent(out), optional :: area(14)
+     end subroutine wigner
+     module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xorigin(3)
-       integer, intent(out), optional :: nvec
-       integer, intent(out), optional :: vec(3,16)
-       real*8, intent(out), optional :: area0(40)
        integer, intent(out), optional :: ntetrag
        real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
-       integer, intent(out), optional :: nvert_ws
-       integer, allocatable, intent(inout), optional :: nside_ws(:)
-       integer, allocatable, intent(inout), optional :: iside_ws(:,:)
-       real*8, allocatable, intent(inout), optional :: vws(:,:)
-     end subroutine wigner
-     module subroutine pmwigner(c,ntetrag,tetrag)
-       class(crystal), intent(in) :: c
-       integer, intent(out), optional :: ntetrag
-       real*8, allocatable, intent(out), optional :: tetrag(:,:,:)
-     end subroutine pmwigner
+     end subroutine getiws
      module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
@@ -570,10 +576,13 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_escher
-     module subroutine write_gulp(c,file,dodreiding)
+     module subroutine write_db(c,file)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+     end subroutine write_db
+     module subroutine write_gulp(c,file)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
-       logical :: dodreiding
      end subroutine write_gulp
      module subroutine write_lammps(c,file)
        class(crystal), intent(in) :: c
@@ -596,11 +605,12 @@ module crystalmod
        character*(*), intent(in) :: file
        integer, intent(in), optional :: lu0
      end subroutine write_dftbp_gen
-     module subroutine writegrid_cube(c,g,file,onlyheader,xd0,x00)
+     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
+       logical, intent(in) :: binary
        real*8, intent(in), optional :: xd0(3,3)
        real*8, intent(in), optional :: x00(3)
      end subroutine writegrid_cube
@@ -610,16 +620,16 @@ module crystalmod
        character*(*), intent(in) :: file
        logical :: onlyheader
      end subroutine writegrid_vasp
-     module subroutine promolecular(c,x0,f,fp,fpp,nder,zpsp,fr,periodic)
+     module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
+       integer, intent(in) :: icrd
        real*8, intent(out) :: f
        real*8, intent(out) :: fp(3)
        real*8, intent(out) :: fpp(3,3)
        integer, intent(in) :: nder
        integer, intent(in), optional :: zpsp(:) 
        type(fragment), intent(in), optional :: fr
-       logical, intent(in), optional :: periodic
      end subroutine promolecular
      module subroutine promolecular_grid(c,f,n,zpsp,fr)
        use grid3mod, only: grid3
@@ -629,6 +639,13 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)  
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_grid
+     !xx! environproc submodule
+     module subroutine environ_init(e)
+       class(environ), intent(inout) :: e
+     end subroutine environ_init
+     module subroutine environ_end(e)
+       class(environ), intent(inout) :: e
+     end subroutine environ_end
   end interface
 
 end module crystalmod

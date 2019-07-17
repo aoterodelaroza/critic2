@@ -32,7 +32,6 @@ submodule (xdm) proc
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
   
-
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
   integer, parameter :: chf_bhahlyp = -3
@@ -118,14 +117,15 @@ contains
   !xx! private procedures
 
   !> Calculate XDM using grids.
-  module subroutine xdm_grid(line)
+  subroutine xdm_grid(line)
+    use environmod, only: environ
     use systemmod, only: sy
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
-    use global, only: eval_next, fileroot, cutrad
+    use global, only: eval_next, cutrad
     use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
        warning, ioj_right
-    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa
+    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa, icrd_crys
     character*(*), intent(inout) :: line
 
     logical :: ok, dopro, docor
@@ -138,16 +138,15 @@ contains
     real*8 :: mll(3), avoll, a1, a2, c6, c8, c9, c10, rvdw, ri2, db2
     real*8 :: eat, sat(3,3), ri3, rix, fcom, cn0, fll, rvdwx, exx, fxx
     integer :: ll, iat, nvec, imax, jmax, kmax, i3, i3i, l1, l2
-    real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:)
-    integer, allocatable :: lvec(:,:), ityp(:)
+    real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:), dist(:)
+    integer, allocatable :: lvec(:,:), ityp(:), eid(:)
     logical :: isdefa, onlyc
     real*8 :: etotal, sigma(3,3), for(3,sy%c%ncel), ehadd(6:10)
-    integer :: nclean, iclean(8), upto
+    integer :: nclean, iclean(8), upto, lvec2(3), nat, ierr
+    logical :: isealloc
+    type(environ), pointer :: lenv
 
     real*8, parameter :: ecut = 1d-11
-
-    ! check that we have an environment
-    call sy%c%checkflags(.true.,env0=.true.)
 
     write (uout,'("+ Using: grid fields.")')
     ! initialization and defaults
@@ -277,17 +276,19 @@ contains
        call ferror("xdm_driver","Using default a1 and a2 parameters",warning)
 
     ! we need at least the density and the b or kinetic energy density or elf
-    if (ielf > 0) then
-       itau = sy%getfieldnum()
-       write (uout,'("+ Calculating tau from elf and rho")')
-       call taufromelf(ielf,irho,itau)
-       nclean = nclean + 1
-       iclean(nclean) = itau
-       write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
-       call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
-    else
-       call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
-       return
+    if (itau < 0) then
+       if (ielf > 0) then
+          itau = sy%getfieldnum()
+          write (uout,'("+ Calculating tau from elf and rho")')
+          call taufromelf(ielf,irho,itau)
+          nclean = nclean + 1
+          iclean(nclean) = itau
+          ! write (uout,'("+ Writing kinetic energy density to: ",A)') trim(fileroot)//"-tau.cube"
+          ! call write_cube(trim(fileroot)//"-tau.cube","Kinetic energy density","Written by critic2 for XDM",sy%f(itau)%grid%n,sy%f(itau)%grid%f)
+       else
+          call ferror("xdm_driver","no tau or elf field given",faterr,line,syntax=.true.)
+          return
+       endif
     endif
 
     ! initialize
@@ -333,10 +334,9 @@ contains
           do j = 1, n(2)
              do i = 1, n(1)
                 x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/)
-                x = sy%c%x2c(x)
 
-                if (dopro) call sy%c%promolecular(x,rhoat,rdum1,rdum2,0)
-                if (docor) call sy%c%promolecular(x,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
+                if (dopro) call sy%c%promolecular(x,icrd_crys,rhoat,rdum1,rdum2,0)
+                if (docor) call sy%c%promolecular(x,icrd_crys,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
                 !$omp critical(write)
                 if (dopro) sy%f(ipdens)%grid%f(i,j,k) = rhoat
                 if (docor) sy%f(icor)%grid%f(i,j,k) = rhocore
@@ -348,13 +348,13 @@ contains
 
        if (dopro) then
           sy%f(ipdens)%grid%isinit = .true.
-          write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
-          call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
+          ! write (uout,'("+ Writing promolecular density to: ",A)') trim(fileroot)//"-pdens.cube"
+          ! call write_cube(trim(fileroot)//"-pdens.cube","Promolecular density","Written by critic2 for XDM",n,sy%f(ipdens)%grid%f)
        end if
        if (docor) then
           sy%f(icor)%grid%isinit = .true.
-          write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
-          call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
+          ! write (uout,'("+ Writing core density to: ",A)') trim(fileroot)//"-core.cube"
+          ! call write_cube(trim(fileroot)//"-core.cube","Core density","Written by critic2 for XDM",n,sy%f(icor)%grid%f)
        endif
     end if
 
@@ -362,20 +362,20 @@ contains
     if (ilap < 0 .and. ib < 0) then
        ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
-       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%crys2car)
+       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(ilap)%isinit = .true.
-       write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
-       call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
+       ! write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
+       ! call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ilap
     endif
     if (igrad < 0 .and. ib < 0) then
        igrad = sy%getfieldnum()
        write (uout,'("+ Calculating gradient of rho")')
-       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
        sy%f(igrad)%isinit = .true.
-       write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
-       call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
+       ! write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
+       ! call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = igrad
     endif
@@ -409,7 +409,7 @@ contains
 
                 ds = taus - 0.25d0 * grho**2 / rhos
                 qs = 1d0/6d0 * (lap - 2d0 * ds)
-                rhs = 2d0/3d0 * pi**(2d0/3d0) * (rhos)**(5d0/3d0) / max(qs,1d-14)
+                rhs = 2d0/3d0 * pi**(2d0/3d0) * (rhos)**(5d0/3d0) / qs
 
                 if (rhs > 0d0) then
                    xroot = 3d0
@@ -447,8 +447,8 @@ contains
 
        ! write the cube for b
        sy%f(ib)%grid%isinit = .true.
-       write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
-       call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
+       ! write (uout,'("+ Writing BR exchange-hole dipole (b) to: ",A)') trim(fileroot)//"-b.cube"
+       ! call write_cube(trim(fileroot)//"-b.cube","BR hole dipole moment","Written by critic2 for XDM",n,sy%f(ib)%grid%f)
        nclean = nclean + 1
        iclean(nclean) = ib
     else
@@ -461,7 +461,7 @@ contains
     do i = 1, sy%c%nneq
        rmax = max(rmax,cutrad(sy%c%spc(sy%c%at(i)%is)%z))
     end do
-    call search_lattice(sy%c%crys2car,rmax,imax,jmax,kmax)
+    call search_lattice(sy%c%m_x2c,rmax,imax,jmax,kmax)
     allocate(lvec(3,(2*imax+1)*(2*jmax+1)*(2*kmax+1)))
     nvec = 0
     do i = -imax,imax
@@ -498,10 +498,11 @@ contains
     do iat = 1, sy%c%nneq
        mll = 0d0
        avoll = 0d0
+
        do ll = 1, nvec
-          do i = 1, n(1)
+          do k = 1, n(3)
              do j = 1, n(2)
-                do k = 1, n(3)
+                do i = 1, n(1)
                    x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/) + lvec(:,ll)
                    x = sy%c%x2c(x - sy%c%at(iat)%x)
                    if (any(abs(x) > cutrad(sy%c%spc(sy%c%at(iat)%is)%z))) cycle
@@ -633,17 +634,30 @@ contains
 
     ! set the atomic environment for the sum
     rmax = (maxc6/ecut)**(1d0/6d0)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
+    else
+       isealloc = .false.
+       lenv => sy%c%env
+    end if
     rmax2 = rmax*rmax
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
+       call lenv%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("xdm_grid","error listing atoms from the environment",faterr)
+
        eat = 0d0
        sat = 0d0
-       do jj = 1, sy%c%nenv
-          j = sy%c%atenv(jj)%idx
-          x = sy%c%atenv(jj)%r - sy%c%atcel(ii)%r
-          ri2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
-          if (ri2 < 1d-15 .or. ri2>rmax2) cycle
-          ri = sqrt(ri2)
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%idx
+          x = lenv%x2c((lenv%xr2x(lenv%at(eid(jj))%x) + lvec2 - sy%c%atcel(ii)%x))
+
+          if (dist(jj) < 1d-10 .or. dist(jj)>rmax) cycle
+          ri = dist(jj)
+          ri2 = ri * ri
           ri3 = ri2 * ri
 
           fcom = 1.5d0 * alpha(i)*alpha(j) / (ml(1,i)*alpha(j)+ml(1,j)*alpha(i))
@@ -690,6 +704,9 @@ contains
     etotal= - 0.5d0 * etotal
     sigma = - 0.5d0 * sigma / sy%c%omega
     ehadd = - 0.5d0 * ehadd
+    if (allocated(eid)) deallocate(eid)
+    if (allocated(dist)) deallocate(dist)
+    if (isealloc) deallocate(lenv)
      
     write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
        string(etotal,'e',decimal=10), string(etotal*2,'e',decimal=10)
@@ -731,7 +748,7 @@ contains
   end subroutine xdm_grid
 
   !> Calculate XDM from the information in a QE output
-  module subroutine xdm_qe(line0)
+  subroutine xdm_qe(line0)
     use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
        lgetword, isinteger, equal
@@ -826,8 +843,6 @@ contains
     deallocate(ito,ifrom)
 
     lu = fopen_read(string(sy%c%file))
-    call sy%c%build_env(150d0)
-
     main: do while (getline(lu,line))
        ! read the parameters
        if (trim(line) == "* XDM dispersion") then
@@ -873,7 +888,7 @@ contains
   end subroutine xdm_qe
 
   !> Calculate XDM from the information in a QE output
-  module subroutine xdm_excitation(line0)
+  subroutine xdm_excitation(line0)
     use systemmod, only: sy
     use tools_io, only: ferror, faterr, uin, uout, ucopy, getline, isreal,&
        equal, lgetword, getword, string
@@ -944,10 +959,11 @@ contains
 
   end subroutine xdm_excitation
 
-  module subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
+  subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
     use systemmod, only: sy
     use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, getword,&
        ferror, faterr
+    use param, only: icrd_cart
     character*(*), intent(in) :: file
     logical, intent(inout) :: haveit(sy%c%ncel,0:1)
     real*8, intent(inout) :: v(sy%c%ncel,0:1)
@@ -974,7 +990,7 @@ contains
        elseif (equal(w1,"#") .and. equal(w2,"n")) then
           do i = 1, nat
              read (lu,*) id, atsym, x(1:3)
-             idx = sy%c%identify_atom(x,.true.)
+             idx = sy%c%identify_atom(x,icrd_cart)
              if (idx == 0) &
                 call ferror("xdm_excitation_readpostg","atom not found",faterr)
              idmap(i) = idx
@@ -995,14 +1011,14 @@ contains
   end subroutine xdm_excitation_readpostg
 
   !> Calculate XDM in molecules and crystals using the wavefunction.
-  module subroutine xdm_wfn(a1o,a2o,chf)
+  subroutine xdm_wfn(a1o,a2o,chf)
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn, type_dftb
     use grid1mod, only: grid1, agrid
-    use global, only: mesh_type
+    use global, only: mesh_type, mesh_level
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
-    use param, only: bohrtoa, im_rho, im_null, im_b
+    use param, only: bohrtoa, im_rho, im_null, im_b, icrd_cart
     
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
@@ -1059,21 +1075,8 @@ contains
     endif
 
     ! prepare the mesh
-    call m%gen(sy%c,MESH_type)
-    write (uout,'("mesh size      ",A)') string(m%n)
-    if (MESH_type == 0) then
-       write (uout,'("mesh type      Becke")')
-    elseif (MESH_type == 1) then
-       write (uout,'("mesh type      Franchini (small)")')
-    elseif (MESH_type == 2) then
-       write (uout,'("mesh type      Franchini (normal)")')
-    elseif (MESH_type == 3) then
-       write (uout,'("mesh type      Franchini (good)")')
-    elseif (MESH_type == 4) then
-       write (uout,'("mesh type      Franchini (very good)")')
-    elseif (MESH_type == 5) then
-       write (uout,'("mesh type      Franchini (excellent)")')
-    end if
+    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%report()
 
     ! properties to calculate 
     prop(1) = im_rho
@@ -1106,7 +1109,7 @@ contains
     ! fill the actual periodic promolecular density
     if (.not.sy%c%ismolecule) then
        do j = 1, m%n
-          call sy%c%promolecular(m%x(:,j),rho,dum1,dum2,0,periodic=.true.)
+          call sy%c%promolecular(m%x(:,j),icrd_cart,rho,dum1,dum2,0)
           m%f(j,2) = rho
        enddo
     end if
@@ -1161,7 +1164,7 @@ contains
   end subroutine xdm_wfn
 
   !> Write the header of a cube file
-  module subroutine write_cube(file,line1,line2,n,c)
+  subroutine write_cube(file,line1,line2,n,c)
     use systemmod, only: sy
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
@@ -1207,8 +1210,9 @@ contains
 
   end subroutine write_cube
 
-  module function free_volume(iz) result(afree)
+  function free_volume(iz) result(afree)
     use grid1mod, only: grid1, agrid
+    use tools_io, only: ferror, faterr
     use param, only: pi
     integer, intent(in) :: iz
     real*8 :: afree
@@ -1224,12 +1228,15 @@ contains
        q = h * k
        r = rmid * q / (1d0-q)
        rwei = 4d0*pi*h * r**2 * rmid/(1d0-q)**2
+       if (.not.agrid(iz)%isinit) then
+          call ferror("free_volume","atomic density grids not initialized",faterr)
+       end if
        call agrid(iz)%interp(r,rhofree,raux1,raux2)
        afree = afree + rhofree * rwei * r**3
     end do
   end function free_volume
 
-  module function frevol(z,chf)
+  function frevol(z,chf)
     use tools_io, only: faterr, ferror
     use param, only: maxzat0
     integer, intent(in) :: z
@@ -1461,52 +1468,60 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  module subroutine calc_edisp(c6,c8,c10,rvdw)
+  subroutine calc_edisp(c6,c8,c10,rvdw)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use tools_io, only: uout
+    use environmod, only: environ
+    use tools_io, only: uout, ferror, faterr
+    use param, only: icrd_cart
     real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
 
-    type(crystal) :: caux
-    integer :: i, j, jj, iz
-    real*8 :: d, d2
-    real*8 :: xij(3)
+    integer :: i, j, jj, iz, nat, ierr, lvec(3)
+    real*8 :: d
     real*8 :: e
-    real*8 :: rmax, rmax2, maxc6
+    real*8 :: rmax, maxc6
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    type(environ), pointer :: lenv
+    logical :: isealloc
 
     real*8, parameter :: ecut = 1d-11
-
-    ! check that we have an environment
-    call sy%c%checkflags(.true.,env0=.true.)
 
     ! build the environment
     maxc6 = maxval(c6)
     rmax = (maxc6/ecut)**(1d0/6d0)
-    rmax2 = rmax * rmax
-    caux = sy%c
-    call caux%build_env(150d0)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
+    else
+       isealloc = .false.
+       lenv => sy%c%env
+    end if
 
     ! calculate the energies and derivatives
     e = 0d0
-    do i = 1, caux%ncel
-       iz = caux%spc(caux%atcel(i)%is)%z
+    do i = 1, lenv%ncell
+       iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
-       do jj = 1, caux%nenv
-          j = caux%atenv(jj)%cidx
-          iz = caux%spc(caux%atenv(jj)%is)%z
-          if (iz < 1) cycle
-          xij = caux%atenv(jj)%r-caux%atcel(i)%r
-          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
-          if (d2 < 1d-15 .or. d2>rmax2) cycle
-          d = sqrt(d2)
+       call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%cidx
+          iz = lenv%spc(lenv%at(eid(jj))%is)%z
+          if (iz < 1) cycle
+          if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
+          d = dist(jj)
           e = e - c6(i,j) / (rvdw(i,j)**6 + d**6) &
                 - c8(i,j) / (rvdw(i,j)**8 + d**8) &
                 - c10(i,j) / (rvdw(i,j)**10 + d**10)
        end do
     end do
     e = 0.5d0 * e
+    if (isealloc) deallocate(lenv)
 
     write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
     write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
@@ -1516,10 +1531,12 @@ contains
 
   !> Calculate the dispersion energy using moments and volumes
   !> for a given molecular motif.
-  module function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
+  function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use param, only: alpha_free
+    use environmod, only: environ
+    use tools_io, only: ferror, faterr
+    use param, only: alpha_free, icrd_cart
     real*8, intent(in) :: a1, a2
     real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
     real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
@@ -1527,18 +1544,17 @@ contains
     integer, intent(in) :: i0, i1
     real*8 :: calc_edisp_from_mv
 
-    type(crystal) :: caux
-    real*8 :: d, d2
-    real*8 :: xij(3), x0(3)
+    real*8 :: d
+    real*8 :: x0(3)
     real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
-    integer :: jj, i, j, k, iz
+    integer :: jj, i, j, k, iz, nat, lvec2(3), ierr
     real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw
-    real*8, allocatable :: alpha(:,:)
+    real*8, allocatable :: alpha(:,:), dist(:)
+    integer, allocatable :: eid(:)
+    type(environ), pointer :: lenv
+    logical :: isealloc
 
     real*8, parameter :: ecut = 1d-11
-
-    ! check that we have an environment
-    call sy%c%checkflags(.true.,env0=.true.)
 
     ! free volumes and polarizabilities
     allocate(alpha(sy%c%ncel,0:1))
@@ -1562,29 +1578,37 @@ contains
     ! build the environment
     rmax = (maxc6/ecut)**(1d0/6d0)
     rmax2 = rmax * rmax
-    caux = sy%c
-    call caux%build_env(150d0)
+    if (rmax >= sy%c%env%dmax0) then
+       isealloc = .true.
+       allocate(lenv)
+       call lenv%extend(sy%c%env,rmax)
+    else
+       isealloc = .false.
+       lenv => sy%c%env
+    end if
 
     ! calculate the energies and derivatives
     e = 0d0
-    do i = 1, caux%ncel
-       iz = caux%spc(caux%atcel(i)%is)%z
+    do i = 1, lenv%ncell
+       iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
-       x0 = caux%x2c(caux%atcel(i)%x + lvec(:,i,i1))
+       x0 = sy%c%x2c(sy%c%atcel(i)%x + lvec(:,i,i1))
        alpha1 = alpha(i,i1)
        ml1 = mm(:,i,i1)
 
-       do jj = 1, caux%nenv
-          j = caux%atenv(jj)%cidx
-          iz = caux%spc(caux%atenv(jj)%is)%z
+       call lenv%list_near_atoms(x0,icrd_cart,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       if (ierr /= 0) &
+          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
+
+       do jj = 1, nat
+          j = lenv%at(eid(jj))%cidx
+          iz = lenv%spc(lenv%at(eid(jj))%is)%z
           if (iz < 1) cycle
 
-          xij = caux%atenv(jj)%r - x0
-          d2 = xij(1)*xij(1) + xij(2)*xij(2) + xij(3)*xij(3)
-          if (d2 < 1d-15 .or. d2>rmax2) cycle
-          d = sqrt(d2)
+          if (dist(jj) < 1d-15 .or. dist(jj)>rmax2) cycle
+          d = dist(jj)
 
-          if (all(caux%atenv(jj)%lenv == lvec(:,j,i1))) then
+          if (all(lenv%at(eid(jj))%lvec + lvec2 == lvec(:,j,i1))) then
              alpha0 = alpha(j,i1)
              ml0 = mm(:,j,i1)
           else
@@ -1607,6 +1631,7 @@ contains
     end do
     calc_edisp_from_mv = 0.5d0 * e
     deallocate(alpha)
+    if (isealloc) deallocate(lenv)
 
   end function calc_edisp_from_mv
 
@@ -1614,7 +1639,7 @@ contains
   !> volumes and moments (v, mm) and the damping function parameters
   !> (a1, a2, chf). Print out the calculated values. Works for
   !> molecules and crystals.
-  module subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
+  subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
     use systemmod, only: sy
     use tools_io, only: uout, string
     use param, only: alpha_free
@@ -1674,7 +1699,7 @@ contains
   end subroutine calc_coefs
 
   !> Calculate the kinetic energy density from the elf
-  module subroutine taufromelf(ielf,irho,itau)
+  subroutine taufromelf(ielf,irho,itau)
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
@@ -1705,7 +1730,7 @@ contains
 
     ! allocate a temporary field for the gradient
     igrad = sy%getfieldnum()
-    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%crys2car)
+    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
     sy%f(igrad)%isinit = .true.
     
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))

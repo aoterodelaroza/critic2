@@ -17,11 +17,13 @@
 
 !> User-defined types and overloaded reallocation procedures.
 module types
+  use param, only: mlen
   implicit none
 
   private
   public :: species
-  public :: atom
+  public :: basicatom
+  public :: neqatom
   public :: celatom
   public :: anyatom
   public :: cp_type
@@ -31,13 +33,16 @@ module types
   public :: neighstar
   public :: realloc
   public :: gpathp
+  public :: basindat
+  public :: int_result
 
   ! overloaded functions
   interface realloc
      module procedure realloc_pointpropable
      module procedure realloc_integrable
      module procedure realloc_species
-     module procedure realloc_atom
+     module procedure realloc_basicatom
+     module procedure realloc_neqatom
      module procedure realloc_celatom
      module procedure realloc_anyatom
      module procedure realloc_cp
@@ -65,55 +70,81 @@ module types
      real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
   end type species
 
-  !> Non-equivalent atom list type (nneq)
-  type atom
+  !> The most basic atom possible
+  type basicatom
      real*8 :: x(3)   !< coordinates (crystallographic)
-     real*8 :: r(3)   !< coordinates (cartesian)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
+  end type basicatom
+
+  !> Atom from the non-equivalent atom list (nneq)
+  type :: neqatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
      integer :: is = 0 !< species
      integer :: mult  !< multiplicity
      real*8 :: rnn2   !< half the nearest neighbor distance
-  end type atom
+  end type neqatom
   
-  !> Equivalent atom list (type)
-  type celatom
-     real*8 :: x(3)  !< coordinates (crystallographic)
-     real*8 :: r(3)  !< coordinates (cartesian)
-     integer :: is   !< species
-     integer :: idx  !< corresponding atom from the non-equivalent atom list
-     integer :: cidx !< corresponding equivalent atom from the complete atom list
-     integer :: ir   !< rotation matrix to the representative equivalent atom
-     integer :: ic   !< translation vector to the representative equivalent atom
-     integer :: lvec(3) !< lattice vector to the representative equivalent atom
-     integer :: lenv(3) !< lattice vector to the main cell atom (for environments)
-  end type celatom
-
-  !> Any atom in the crystal (not necessarily in the main cell), type
-  type anyatom
-     real*8 :: x(3) !< coordinates (crystallographic)
-     real*8 :: r(3) !< coordinates (cartesian)
-     integer :: is   !< species
+  !> Any atom in the crystal type
+  type :: anyatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
      integer :: idx !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding atom from the complete atom list
      integer :: lvec(3) !< lattice vector to the atom in the complete atom list
   end type anyatom
 
+  !> Atom from the complete atom list
+  type :: celatom
+     real*8 :: x(3)   !< coordinates (crystallographic)
+     real*8 :: r(3)   !< coordinates (Cartesian)
+     integer :: is = 0 !< species
+     integer :: idx !< corresponding atom from the non-equivalent atom list
+     integer :: cidx !< corresponding atom from the complete atom list
+     integer :: lvec(3) !< lattice vector to the atom in the complete atom list
+     integer :: ir   !< rotation matrix to the representative equivalent atom
+     integer :: ic   !< translation vector to the representative equivalent atom
+     integer :: lenv(3) !< lattice vector to the main cell atom (for environments)
+  end type celatom
+  
   !> Result of the evaluation of a scalar field
   type scalar_value
      ! basic
-     real*8 :: f, fval, gf(3), hf(3,3), gfmod, gfmodval, del2f, del2fval
-     ! kinetic energy density
-     real*8 :: gkin
-     ! schrodinger stress tensor
-     real*8 :: stress(3,3)
-     ! electronic potential energy density, virial field
-     real*8 :: vir
-     ! additional local properties
-     real*8 :: hfevec(3,3), hfeval(3)
-     integer :: r, s
-     ! is it a nuclear position?
-     logical :: isnuc
-     ! specialized return field (molecular orbital values, etc.)
-     real*8 :: fspc
+     real*8 :: f = 0d0 ! field
+     real*8 :: fval = 0d0 ! field (valence only)
+     real*8 :: gf(3) = 0d0 ! field gradient
+     real*8 :: hf(3,3) = 0d0 ! field Hessian
+     real*8 :: gfmod = 0d0 ! field gradient norm
+     real*8 :: gfmodval = 0d0 ! field gradient norm (valence only)
+     real*8 :: del2f = 0d0 ! field Laplacian
+     real*8 :: del2fval = 0d0 ! field Laplacian (valence only)
+     real*8 :: gkin = 0d0 ! kinetic energy density
+     real*8 :: stress(3,3) = 0d0 ! schrodinger stress tensor
+     real*8 :: vir = 0d0 ! electronic potential energy density, virial field
+     real*8 :: hfevec(3,3) = 0d0 ! field Hessian eigenvectors
+     real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
+     integer :: r = 0 ! field Hessian rank
+     integer :: s = 0 ! field Hessian signature
+     logical :: spinpol = .false. ! whether this wavefuntion is spin-polarized
+     real*8 :: fspin(2) ! density, spin up/dn
+     real*8 :: fspinval(2) ! density, spin up/dn, valence only
+     real*8 :: gfmodspin(2) ! gradient norm, spin up/dn
+     real*8 :: gfmodspinval(2) ! gradient norm, spin up/dn, valence only
+     real*8 :: lapspin(2) ! laplacian, spin up/dn
+     real*8 :: lapspinval(2) ! laplacian, spin up/dn, valence only
+     real*8 :: gkinspin(2) ! kinetic energy density, spin up/dn
+     real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
+     logical :: isnuc = .false. ! is it a nuclear position?
+     logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
+     logical :: avail_der2 = .false. ! second derivatives of the scalar field are available
+     logical :: avail_gkin = .false. ! kinetic energy density is available
+     logical :: avail_stress = .false. ! stress tensor is available
+     logical :: avail_vir = .false. ! virial field is available
+     logical :: avail_spin = .false. ! spin quantities are available
+   contains
+     procedure :: clear => scalar_value_clear
   end type scalar_value
 
   !> Critical point type
@@ -157,9 +188,16 @@ module types
      integer :: itype
      integer :: fid
      character*(10) :: prop_name
-     character*(2048) :: expr
+     character(len=mlen) :: expr
      integer :: lmax
      real*8 :: x0(3)
+     ! integration of delocalization indices with Wannier functions
+     logical :: useu = .true.
+     logical :: sijchk = .true.
+     logical :: fachk = .true.
+     real*8 :: wancut = 4d0
+     character(len=mlen) :: sijchkfile = ""
+     character(len=mlen) :: fachkfile = ""
   end type integrable
 
   !> Information about a point-property field
@@ -188,7 +226,49 @@ module types
      real*8 :: hf(3,3)
   end type gpathp
   
+  !> Basin data for grid integration
+  type basindat
+     ! integration input
+     integer :: imtype ! integration type (imtype_*)
+     logical :: atexist ! .true. if atoms are assumed to be attractors
+     real*8 :: ratom ! size of the atoms in bohr
+     integer :: ndrawbasin ! draw basins? -1 = none, 0 = all, num.
+     character*3 :: basinfmt ! draw basin format (obj, ply, off)
+     character(len=:), allocatable :: expr ! discard attractor expression
+     logical :: wcube ! write weight cubes
+     ! integration grid
+     integer :: n(3) ! number of grid points
+     real*8, allocatable :: f(:,:,:) ! basin field
+     ! integration results
+     integer :: nattr ! number of attractors
+     real*8, allocatable :: xattr(:,:) ! coordinates of attractors (cryst. coords.a)
+     integer, allocatable :: idg(:,:,:) ! attractor assignment of grid nodes
+     integer, allocatable :: icp(:) ! identify of the attractors in the CP list
+     integer :: luw ! YT weights generator, logical unit
+  end type basindat
+
+  !> Integration results, type and outmode values
+  integer, parameter, public :: out_none = 0
+  integer, parameter, public :: out_field = 1
+  integer, parameter, public :: out_mpoles = 2
+  integer, parameter, public :: out_delocwan = 3
+  type int_result
+     logical :: done = .false. ! Whether it was integrated
+     integer :: outmode = out_none ! In which part of the output does this result go?
+     character*60 :: reason = "" ! Reason for not integrating or delaying
+     integer :: nwan(3) ! Number of R vectors in wannier
+     integer :: nspin ! Number of spins in wannier
+     real*8, allocatable :: psum(:) ! integrated atomic properties
+     real*8, allocatable :: mpole(:,:) ! integrated multipoles
+     real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
+     complex*16, allocatable :: sijc(:,:,:,:) ! Sij from Wannier
+     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
+  end type int_result
+
   interface
+     module subroutine scalar_value_clear(s)
+       class(scalar_value), intent(inout) :: s
+     end subroutine scalar_value_clear
      module subroutine realloc_pointpropable(a,nnew)
        type(pointpropable), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
@@ -201,10 +281,14 @@ module types
        type(species), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_species
-     module subroutine realloc_atom(a,nnew)
-       type(atom), intent(inout), allocatable :: a(:)
+     module subroutine realloc_basicatom(a,nnew)
+       type(basicatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
-     end subroutine realloc_atom
+     end subroutine realloc_basicatom
+     module subroutine realloc_neqatom(a,nnew)
+       type(neqatom), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_neqatom
      module subroutine realloc_celatom(a,nnew)
        type(celatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

@@ -25,21 +25,20 @@ contains
   module subroutine global_init(ghome,datadir)
     use tools_io, only: string, ferror, warning, uout
     use param, only: dirsep
-
     character*(*) :: ghome, datadir
-
     integer :: isenv
     logical :: lchk
-
-    character(len=:), allocatable :: msg1, msg2, msg3
+    character(len=:), allocatable :: cifstr, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
+
+    cifstr = dirsep // "cif" // dirsep // "cif_core.dic"
 
     ! read the -r option
     if (len_trim(ghome) > 0) then
        critic_home = string(ghome) // dirsep // "dat"
-       inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+       inquire(file=trim(critic_home) // cifstr,exist=lchk)
        if (lchk) goto 99
-       write (uout,'("  File not found: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
+       write (uout,'("  File not found: ",A)') trim(critic_home) // cifstr
     endif
 
     ! read env variable CRITIC_HOME
@@ -47,24 +46,24 @@ contains
     call get_environment_variable("CRITIC_HOME",critic_home,status=isenv)
     if (isenv ==0) then
        critic_home = trim(critic_home) // dirsep // "dat"
-       inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+       inquire(file=trim(critic_home) // cifstr,exist=lchk)
        if (lchk) goto 99
-       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home)// dirsep // "cif_core.dic"
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // cifstr
     else
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+    inquire(file=trim(critic_home) // cifstr,exist=lchk)
     if (lchk) goto 99
-    msg2 = "(!) 2. Not found (install path): " // trim(critic_home)// dirsep // "cif_core.dic"
+    msg2 = "(!) 2. Not found (install path): " // trim(critic_home) // cifstr
 
     ! then the current directory
     critic_home = "."
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
+    inquire(file=trim(critic_home) // cifstr,exist=lchk)
     if (lchk) goto 99
-    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home)// dirsep // "cif_core.dic"
+    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home) // cifstr
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
@@ -76,8 +75,8 @@ contains
 99  continue
 
     ! library file path
-    clib_file = trim(critic_home) // dirsep // "crystal.dat"
-    mlib_file = trim(critic_home) // dirsep // "molecule.dat"
+    clib_file = trim(critic_home) // dirsep // "lib" // dirsep // "crystal.dat"
+    mlib_file = trim(critic_home) // dirsep // "lib" // dirsep // "molecule.dat"
 
     ! set all default values
     call global_set_defaults()
@@ -86,6 +85,7 @@ contains
 
   !> Set the default values for all the global variables
   module subroutine global_set_defaults()
+    use meshmod, only: mesh_type_franchini, mesh_level_good
 
     precisecube = .true.
 
@@ -117,7 +117,8 @@ contains
     INT_iasprec = 1d-5
 
     ! molecular mesh
-    MESH_type = 3
+    mesh_type = mesh_type_franchini
+    mesh_level = mesh_level_good
 
     ! qtree
     ! gradient_mode set in critic->set_reference
@@ -140,7 +141,6 @@ contains
     docontacts = .false.
     ws_origin = (/0d0, 0d0, 0d0/)
     ws_scale = -1d0
-    ws_use = .true.
     killext = .true.
     plotsticks = .true.
     autosph = 2
@@ -165,9 +165,10 @@ contains
     write (uout,'("    \___| |_|    |_|  \__| |_|  \___| |____|   ")')
     write (uout,*)
     write (uout,'("* CRITIC2: analysis of real-space scalar fields in solids and molecules.")')
-    write (uout,'("  (c) 1996-2015 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na")')
+    write (uout,'("  (c) 1996-2019 A. Otero-de-la-Roza, A. Martin-Pendas, V. Lua~na")')
     write (uout,'("  Distributed under GNU GPL v.3 (see COPYING for details)")')
     write (uout,'("  Bugs, requests, and rants: aoterodelaroza@gmail.com ")')
+    write (uout,'("  Website: https://aoterodelaroza.github.io/critic2/")')
     write (uout,'("  If you find this software useful, please cite:")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018.")')
     write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166.")')
@@ -180,8 +181,8 @@ contains
     use tools_io, only: uout
 
     write (uout,'("Critic2 requires a sequence of keywords to operate. Please read the manual")')
-    write (uout,'("distributed with the program (dat/user-guide.txt) and the syntax file")')
-    write (uout,'("(doc/syntax.txt). The command-line syntax is:")')
+    write (uout,'("distributed with the program (https://aoterodelaroza.github.io/critic2/).")')
+    write (uout,'("The command-line syntax is:")')
     write (uout,'("")')
     write (uout,'("     critic2 [-q] [-h] [-r /path/to/critic2] [inputfile [outputfile]] ")')
     write (uout,'("")')
@@ -201,7 +202,7 @@ contains
        istring_f77, istring_fc, istring_cc, istring_fflags,&
        istring_fcflags, istring_cflags, istring_ldflags,&
        istring_atarget, istring_adate, istring_enabledebug,&
-       istring_revision, istring_datadir, istring_version
+       istring_datadir, istring_version
     use param, only: dirsep
     use tools_io, only: uout
     logical :: lchk
@@ -216,8 +217,8 @@ contains
     write (uout,'("       debug?: ",A)') getstring(istring_enabledebug)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
-    inquire(file=trim(critic_home)// dirsep // "cif_core.dic",exist=lchk)
-    write (uout,'("     dic file: ",A)') trim(critic_home)// dirsep // "cif_core.dic"
+    inquire(file=trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic",exist=lchk)
+    write (uout,'("     dic file: ",A)') trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic"
     write (uout,'("...was found?: ",L)') lchk
     write (uout,*)
 
@@ -225,16 +226,19 @@ contains
 
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
+    use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_small,&
+       mesh_level_normal, mesh_level_good, mesh_level_vgood, mesh_level_amazing
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
-       faterr, string, uout, isassignment, getword
+       faterr, string, uout, isassignment, getword, zatguess
+    use param, only: maxzat0, atmcov
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
     character(len=:), allocatable :: word, var
     logical :: ok
     real*8 :: rdum
-    integer :: idum
+    integer :: idum, lp2
     logical :: iok
 
     word = lgetword(line,lp)
@@ -254,6 +258,7 @@ contains
        ok = isreal(bondfactor,line,lp)
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)
+       bondfactor = min(bondfactor,2.0d0)
        call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)
@@ -333,15 +338,30 @@ contains
           end if
        end do
     else if (equal (word,'meshtype')) then
+       ! meshtype {becke|franchini} [small|normal|good|verygood|amazing]
        word = lgetword(line,lp)
        if (equal(word,'becke')) then
-          MESH_type = 0
+          mesh_type = mesh_type_becke
        elseif (equal(word,'franchini')) then
-          ok = isinteger(MESH_type,line,lp)
-          if (MESH_type < 0 .or. MESH_type > 5) &
-             call ferror('critic_setvariables','Invalid Franchini quality in MESHTYPE',faterr,line,syntax=.true.)
+          mesh_type = mesh_type_franchini
        else
           call ferror('critic_setvariables','Unknown keyword in MESHTYPE',faterr,line,syntax=.true.)
+       end if
+
+       lp2 = lp
+       word = lgetword(line,lp)
+       if (equal(word,'small')) then
+          MESH_level = mesh_level_small
+       else if (equal(word,'normal')) then
+          MESH_level = mesh_level_normal
+       else if (equal(word,'good')) then
+          MESH_level = mesh_level_good
+       else if (equal(word,'verygood')) then
+          MESH_level = mesh_level_vgood
+       else if (equal(word,'amazing')) then
+          MESH_level = mesh_level_amazing
+       else
+          lp = lp2
        end if
        call check_no_extra_word(ok)
        
@@ -485,9 +505,6 @@ contains
        else
           call check_no_extra_word(ok)
        end if
-    elseif (equal(word,'nows')) then
-       ws_use = .false.
-       call check_no_extra_word(ok)
     elseif (equal(word,'killext')) then
        killext = .true.
        call check_no_extra_word(ok)
@@ -576,6 +593,30 @@ contains
     elseif (equal(word,'precisecube')) then
        precisecube = .true.
        call check_no_extra_word(ok)
+    elseif (equal(word,'radii')) then
+       do while(.true.)
+          lp2 = lp
+          ok = isinteger(idum,line,lp)
+          if (.not.ok) then
+             word = lgetword(line,lp)
+             if (len_trim(word) == 0) then
+                lp = lp2
+                exit
+             else
+                idum = zatguess(word)
+                if (idum < 1 .or. idum > maxzat0) then
+                   call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+                   return
+                end if
+             end if
+          end if
+          if (eval_next_real(rdum,line,lp)) then
+             atmcov(idum) = rdum / dunit0(iunit)
+          else
+             call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+             return
+          end if
+       end do
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,.false.,iok)
        if (.not.iok) then

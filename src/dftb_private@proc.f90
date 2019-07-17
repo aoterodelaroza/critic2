@@ -27,7 +27,7 @@ submodule (dftb_private) proc
   ! function next_hsd_atom(lu,at) result(ok)
   ! subroutine build_interpolation_grid1(ff)
   ! subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
-  ! subroutine realloc_dftbatom(a,nnew)
+  ! subroutine realloc_dftbbasis(a,nnew)
   
   ! minimum distance (bohr)
   real*8, parameter :: mindist = 1d-6
@@ -45,39 +45,32 @@ contains
     if (allocated(f%ispec)) deallocate(f%ispec)
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
-    if (allocated(f%renv)) deallocate(f%renv)
-    if (allocated(f%lenv)) deallocate(f%lenv)
-    if (allocated(f%idxenv)) deallocate(f%idxenv)
-    if (allocated(f%zenv)) deallocate(f%zenv)
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    f%isealloc = .false.
 
   end subroutine dftb_end
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
-    use types, only: celatom, atom, species
+  module subroutine dftb_read(f,filexml,filebin,filehsd,env)
+    use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
-    use param, only: tpi, maxzat0
+    use param, only: tpi
     class(dftbwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
-    type(celatom), intent(in) :: atcel(:) !< complete atom list
-    type(species), intent(in) :: spc(:) !< species list
+    type(environ), intent(in), target :: env !< environment of the cell
 
-    integer :: lu, i, j, k, idum, n, nat, id
-    integer, allocatable :: zcel(:)
+    integer :: lu, i, j, k, idum, n, id
     character(len=:), allocatable :: line
     logical :: ok, iread(5)
-    type(dftbatom) :: at
+    type(dftbbasis) :: at
     real*8, allocatable :: dw(:)
-
-    ! number of atoms in the cell
-    nat = size(atcel)
-    allocate(zcel(nat))
-    do i = 1, nat
-       zcel(i) = spc(atcel(i)%is)%z
-    end do
 
     ! detailed.xml, first pass
     lu = fopen_read(filexml)
@@ -154,21 +147,21 @@ contains
     allocate(f%bas(10))
     n = 0
     do while(next_hsd_atom(lu,at))
-       if (.not.any(zcel == at%z)) cycle
+       if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
        n = n + 1 
-       if (n > size(f%bas)) call realloc_dftbatom(f%bas,2*n)
+       if (n > size(f%bas)) call realloc_dftbbasis(f%bas,2*n)
        f%bas(n) = at
     end do
-    call realloc_dftbatom(f%bas,n)
+    call realloc_dftbbasis(f%bas,n)
     call fclose(lu)
 
     ! tie the atomic numbers to the basis types
     if (allocated(f%ispec)) deallocate(f%ispec)
-    allocate(f%ispec(maxzat0))
+    allocate(f%ispec(env%nspc))
     f%ispec = 0
-    do i = 1, maxzat0
+    do i = 1, env%nspc
        do j = 1, n
-          if (f%bas(j)%z == i) then
+          if (f%bas(j)%z == env%spc(i)%z) then
              f%ispec(i) = j
              exit
           end if
@@ -177,13 +170,13 @@ contains
 
     ! indices for the atomic orbitals, for array sizes later on
     if (allocated(f%idxorb)) deallocate(f%idxorb)
-    allocate(f%idxorb(nat))
+    allocate(f%idxorb(env%ncell))
     n = 0
     f%maxnorb = 0
     f%maxlm = 0
-    do i = 1, nat
-       id = f%ispec(zcel(i))
-       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(zcel(i)),faterr)
+    do i = 1, env%ncell
+       id = f%ispec(env%at(i)%is)
+       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(env%spc(env%at(i)%is)%z),faterr)
 
        f%maxnorb = max(f%maxnorb,f%bas(id)%norb)
        f%idxorb(i) = n + 1
@@ -196,7 +189,36 @@ contains
     f%maxlm = (f%maxlm+3)*(f%maxlm+3)
 
     call build_interpolation_grid1(f)
-    deallocate(zcel)
+
+    ! find the individual species cutoffs and maximum cutoff
+    if (allocated(f%spcutoff)) deallocate(f%spcutoff)
+    allocate(f%spcutoff(env%nspc,2))
+    f%spcutoff = 0d0
+    f%globalcutoff = -1d0
+    do i = 1, env%nspc
+       id = f%ispec(i)
+       do j = 1, f%bas(id)%norb
+          f%spcutoff(i,2) = max(f%spcutoff(i,2),f%bas(id)%cutoff(j))
+       end do
+       f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
+    end do
+
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%e)
+       allocate(f%e)
+       call f%e%extend(env,f%globalcutoff)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%e => env
+    end if
 
   end subroutine dftb_read
 
@@ -207,8 +229,7 @@ contains
   !> thread-safe.
   module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
     use tools_math, only: tosphere, genylm, ylmderiv
-    use tools_io, only: ferror, faterr
-    use param, only: img
+    use param, only: img, icrd_cart
     class(dftbwfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     logical, intent(in) :: exact !< exact or approximate calculation
@@ -218,45 +239,61 @@ contains
     real*8, intent(out) :: h(3,3) !< Hessian 
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
-    integer, parameter :: maxenvl = 50
-
     integer :: ion, it, is, istate, ik, iorb, i, l, m, lmax
     integer :: ixorb, ixorb0
-    real*8 :: xion(3), rcut, dist, r, tp(2)
-    complex*16 :: xao(f%midxorb), xaol(f%midxorb), xmo, xmop(3), xmopp(6)
-    complex*16 :: xaolp(3,f%midxorb), xaolpp(6,f%midxorb)
-    complex*16 :: xaop(3,f%midxorb), xaopp(6,f%midxorb)
-    real*8 :: rao(f%midxorb), raol(f%midxorb), rmo, rmop(3), rmopp(6)
-    real*8 :: raolp(3,f%midxorb), raolpp(6,f%midxorb)
-    real*8 :: raop(3,f%midxorb), raopp(6,f%midxorb)
-    integer :: nenvl, idxion(maxenvl), ionl
-    real*8 :: rl(f%maxnorb,maxenvl), rlp(f%maxnorb,maxenvl), rlpp(f%maxnorb,maxenvl)
-    complex*16 :: phase(maxenvl,f%nkpt), ylm(f%maxlm)
+    real*8 :: xion(3), rcut, r, tp(2)
+    complex*16, allocatable :: xao(:), xaol(:), xaolp(:,:), xaolpp(:,:), xaop(:,:), xaopp(:,:)
+    complex*16, allocatable :: phase(:,:), ylm(:)
+    complex*16 :: xmo, xmop(3), xmopp(6)
+    real*8, allocatable :: rao(:), raol(:), raolp(:,:), raolpp(:,:), raop(:,:), raopp(:,:)
+    real*8, allocatable :: rl(:,:), rlp(:,:), rlpp(:,:)
+    real*8, allocatable :: phi(:,:,:), phip(:,:,:,:), phipp(:,:,:,:)
+    integer, allocatable :: idxion(:)
+    real*8 :: rmo, rmop(3), rmopp(6)
+    integer :: nenvl, ionl
     integer :: imin, ip, im, iphas
-    real*8 :: phi(f%maxlm,f%maxnorb,maxenvl)
-    real*8 :: phip(3,f%maxlm,f%maxnorb,maxenvl)
-    real*8 :: phipp(6,f%maxlm,f%maxnorb,maxenvl)
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
+    integer :: nenv, lvec(3), ierr, lenv(3)
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    
+    ! calculate the environment of the input point
+    rho = 0d0
+    grad = 0d0
+    h = 0d0
+    gkin = 0d0
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
-    nenvl = 0
+    allocate(rl(f%maxnorb,nenv),rlp(f%maxnorb,nenv),rlpp(f%maxnorb,nenv),ylm(f%maxlm))
+    allocate(idxion(nenv))
+    if (.not.f%isreal) then
+       allocate(phase(nenv,f%nkpt))
+    end if
+    allocate(phi(f%maxlm,f%maxnorb,nenv))
     phi = 0d0
-    phip = 0d0
-    phipp = 0d0
-    do ion = 1, f%nenv
-       xion = xpos - f%renv(:,ion)
-       it = f%ispec(f%zenv(ion))
+    if (nder >= 1) then
+       allocate(phip(3,f%maxlm,f%maxnorb,nenv))
+       phip = 0d0
+    end if
+    if (nder >= 2) then
+       allocate(phipp(6,f%maxlm,f%maxnorb,nenv))
+       phipp = 0d0
+    end if
+
+    nenvl = 0
+    do ion = 1, nenv
+       xion = xpos - f%e%at(eid(ion))%r
+       it = f%ispec(f%e%at(eid(ion))%is)
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
-       if (any(abs(xion) > rcut)) cycle
-       dist = norm2(xion)
-       if (dist > rcut) cycle
+       if (dist(ion) > rcut) cycle
 
        ! write down this atom
        nenvl = nenvl + 1
-       if (nenvl > maxenvl) call ferror('rho2','local environment exceeded array size',faterr)
-       idxion(nenvl) = ion
+       idxion(nenvl) = eid(ion)
 
        ! calculate the spherical harmonics contributions for this atom
        lmax = maxval(f%bas(it)%l(1:f%bas(it)%norb))
@@ -266,11 +303,11 @@ contains
 
        ! calculate the radial contributions for this atom
        do iorb = 1, f%bas(it)%norb
-          if (dist > f%bas(it)%cutoff(iorb)) cycle
+          if (dist(ion) > f%bas(it)%cutoff(iorb)) cycle
           if (exact) then
-             call calculate_rl(f,it,iorb,dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+             call calculate_rl(f,it,iorb,dist(ion),rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           else
-             call f%bas(it)%orb(iorb)%interp(dist,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
+             call f%bas(it)%orb(iorb)%interp(dist(ion),rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl))
           end if
        end do
 
@@ -283,8 +320,10 @@ contains
           ip = imin+l
           call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
           phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(ylm(ip),8)
-          phip(:,ip,iorb,nenvl) = real(xgrad1,8)
-          phipp(:,ip,iorb,nenvl) = real(xhess1,8)
+          if (nder >= 1) &
+             phip(:,ip,iorb,nenvl) = real(xgrad1,8)
+          if (nder >= 2) &
+             phipp(:,ip,iorb,nenvl) = real(xhess1,8)
 
           ! |m| > 0
           do m = 1, l
@@ -295,30 +334,33 @@ contains
              call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad2,xhess2)
 
              phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
-             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
-             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
-
              phi(im,iorb,nenvl) = rl(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
+             if (nder < 1) cycle
+             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
              phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
+             if (nder < 2) cycle
+             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
              phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
           end do
        end do
 
+       lenv = floor(f%e%c2x(f%e%at(eid(ion))%r))
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
-             phase(nenvl,ik) = exp(img * dot_product(f%lenv(:,ion),f%dkpt(:,ik)))
+             phase(nenvl,ik) = exp(img * dot_product(lenv,f%dkpt(:,ik)))
           end do
        end if
     end do
-
-    ! initialize
-    rho = 0d0
-    grad = 0d0
-    h = 0d0
-    gkin = 0d0
+    deallocate(rl,rlp,rlpp,ylm)
 
     if (.not.f%isreal) then
+       allocate(xao(f%midxorb),xaol(f%midxorb))
+       if (nder >= 1) &
+          allocate(xaolp(3,f%midxorb),xaop(3,f%midxorb))
+       if (nder >= 2) &
+          allocate(xaolpp(6,f%midxorb),xaopp(6,f%midxorb))
+
        ! complex version; for crystals with non-gamma k-points
        ! run over spins
        do is = 1, f%nspin
@@ -331,29 +373,35 @@ contains
                 ! in critic are in the same order as in dftb+, which is
                 ! why indexing the evecc/evecr works.
                 xao = 0d0
-                xaop = 0d0
-                xaopp = 0d0
+                if (nder >= 1) &
+                   xaop = 0d0
+                if (nder >= 2) &
+                   xaopp = 0d0
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   it = f%ispec(f%zenv(ion))
+                   it = f%ispec(f%e%at(ion)%is)
 
                    ! run over atomic orbitals
-                   ixorb0 = f%idxorb(f%idxenv(ion))
+                   ixorb0 = f%idxorb(f%e%at(ion)%cidx)
                    ixorb = ixorb0 - 1
                    do iorb = 1, f%bas(it)%norb
                       ! run over ms for the same l
                       do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                          ixorb = ixorb + 1
                          xaol(ixorb) = phi(i,iorb,ionl)
-                         xaolp(:,ixorb) = phip(:,i,iorb,ionl)
-                         xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                         if (nder >= 1) &
+                            xaolp(:,ixorb) = phip(:,i,iorb,ionl)
+                         if (nder >= 2) &
+                            xaolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                       end do
                    end do ! iorb
 
                    xao(ixorb0:ixorb) = xao(ixorb0:ixorb) + xaol(ixorb0:ixorb) * phase(ionl,ik)
-                   xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
-                   xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
+                   if (nder >= 1) &
+                      xaop(:,ixorb0:ixorb) = xaop(:,ixorb0:ixorb) + xaolp(:,ixorb0:ixorb) * phase(ionl,ik)
+                   if (nder >= 2) &
+                      xaopp(:,ixorb0:ixorb) = xaopp(:,ixorb0:ixorb) + xaolpp(:,ixorb0:ixorb) * phase(ionl,ik)
                 end do ! ion
 
                 ! calculate the value of this extended orbital and its derivatives
@@ -362,24 +410,39 @@ contains
                 xmopp = 0d0
                 do i = 1, f%midxorb
                    xmo = xmo + conjg(xao(i))*f%evecc(i,istate,ik,is)
-                   xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
-                   xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
+                   if (nder >= 1) &
+                      xmop = xmop + conjg(xaop(:,i))*f%evecc(i,istate,ik,is)
+                   if (nder >= 2) &
+                      xmopp = xmopp + conjg(xaopp(:,i))*f%evecc(i,istate,ik,is)
                 end do
 
                 ! accumulate properties
                 rho = rho + real(conjg(xmo)*xmo,8) * f%docc(istate,ik,is)
+                if (nder < 1) cycle
                 grad = grad + real(conjg(xmop)*xmo+conjg(xmo)*xmop,8) * f%docc(istate,ik,is)
+                gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
+                if (nder < 2) cycle
                 h(1,1) = h(1,1) + real(conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1),8) * f%docc(istate,ik,is)
                 h(1,2) = h(1,2) + real(conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2),8) * f%docc(istate,ik,is)
                 h(1,3) = h(1,3) + real(conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3),8) * f%docc(istate,ik,is)
                 h(2,2) = h(2,2) + real(conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4),8) * f%docc(istate,ik,is)
                 h(2,3) = h(2,3) + real(conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5),8) * f%docc(istate,ik,is)
                 h(3,3) = h(3,3) + real(conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6),8) * f%docc(istate,ik,is)
-                gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
              end do ! states
           end do ! k-points
        end do ! spins
+       deallocate(xao,xaol)
+       if (nder >= 1) &
+          deallocate(xaolp,xaop)
+       if (nder >= 2) &
+          deallocate(xaolpp,xaopp)
+       deallocate(phase)
     else
+       allocate(rao(f%midxorb),raol(f%midxorb))
+       if (nder >= 1) &
+          allocate(raolp(3,f%midxorb),raop(3,f%midxorb))
+       if (nder >= 2) &
+          allocate(raolpp(6,f%midxorb),raopp(6,f%midxorb))
        ! real, for molecules or crystals with a single k-point at gamma
        ! run over spins
        do is = 1, f%nspin
@@ -390,29 +453,35 @@ contains
              ! in critic are in the same order as in dftb+, which is
              ! why indexing the evecc/evecr works.
              rao = 0d0
-             raop = 0d0
-             raopp = 0d0
+             if (nder >= 1) &
+                raop = 0d0
+             if (nder >= 2) &
+                raopp = 0d0
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                it = f%ispec(f%zenv(ion))
+                it = f%ispec(f%e%at(ion)%is)
 
                 ! run over atomic orbitals
-                ixorb0 = f%idxorb(f%idxenv(ion))
+                ixorb0 = f%idxorb(f%e%at(ion)%cidx)
                 ixorb = ixorb0 - 1
                 do iorb = 1, f%bas(it)%norb
                    ! run over ms for the same l
                    do i = f%bas(it)%l(iorb)*f%bas(it)%l(iorb)+1, (f%bas(it)%l(iorb)+1)*(f%bas(it)%l(iorb)+1)
                       ixorb = ixorb + 1
                       raol(ixorb) = phi(i,iorb,ionl)
-                      raolp(:,ixorb) = phip(:,i,iorb,ionl)
-                      raolpp(:,ixorb) = phipp(:,i,iorb,ionl)
+                      if (nder >= 1) &
+                         raolp(:,ixorb) = phip(:,i,iorb,ionl)
+                      if (nder >= 2) &
+                         raolpp(:,ixorb) = phipp(:,i,iorb,ionl)
                    end do
                 end do ! iorb
 
                 rao(ixorb0:ixorb) = rao(ixorb0:ixorb) + raol(ixorb0:ixorb)
-                raop(:,ixorb0:ixorb) = raop(:,ixorb0:ixorb) + raolp(:,ixorb0:ixorb)
-                raopp(:,ixorb0:ixorb) = raopp(:,ixorb0:ixorb) + raolpp(:,ixorb0:ixorb)
+                if (nder >= 1) &
+                   raop(:,ixorb0:ixorb) = raop(:,ixorb0:ixorb) + raolp(:,ixorb0:ixorb)
+                if (nder >= 2) &
+                   raopp(:,ixorb0:ixorb) = raopp(:,ixorb0:ixorb) + raolpp(:,ixorb0:ixorb)
              end do ! ion
 
              ! calculate the value of this extended orbital and its derivatives
@@ -421,23 +490,33 @@ contains
              rmopp = 0d0
              do i = 1, f%midxorb
                 rmo = rmo + rao(i)*f%evecr(i,istate,is)
-                rmop = rmop + raop(:,i)*f%evecr(i,istate,is)
-                rmopp = rmopp + raopp(:,i)*f%evecr(i,istate,is)
+                if (nder >= 1) &
+                   rmop = rmop + raop(:,i)*f%evecr(i,istate,is)
+                if (nder >= 2) &
+                   rmopp = rmopp + raopp(:,i)*f%evecr(i,istate,is)
              end do
 
              ! accumulate properties
              rho = rho + (rmo*rmo) * f%docc(istate,1,is)
+             if (nder < 1) cycle
              grad = grad + (rmop*rmo+rmo*rmop) * f%docc(istate,1,is)
+             gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
+             if (nder < 2) cycle
              h(1,1) = h(1,1) + (rmopp(1)*rmo+rmop(1)*rmop(1)+rmop(1)*rmop(1)+rmo*rmopp(1)) * f%docc(istate,1,is)
              h(1,2) = h(1,2) + (rmopp(2)*rmo+rmop(1)*rmop(2)+rmop(2)*rmop(1)+rmo*rmopp(2)) * f%docc(istate,1,is)
              h(1,3) = h(1,3) + (rmopp(3)*rmo+rmop(1)*rmop(3)+rmop(3)*rmop(1)+rmo*rmopp(3)) * f%docc(istate,1,is)
              h(2,2) = h(2,2) + (rmopp(4)*rmo+rmop(2)*rmop(2)+rmop(2)*rmop(2)+rmo*rmopp(4)) * f%docc(istate,1,is)
              h(2,3) = h(2,3) + (rmopp(5)*rmo+rmop(2)*rmop(3)+rmop(3)*rmop(2)+rmo*rmopp(5)) * f%docc(istate,1,is)
              h(3,3) = h(3,3) + (rmopp(6)*rmo+rmop(3)*rmop(3)+rmop(3)*rmop(3)+rmo*rmopp(6)) * f%docc(istate,1,is)
-             gkin = gkin + (rmop(1)*rmop(1)+rmop(2)*rmop(2)+rmop(3)*rmop(3)) * f%docc(istate,1,is)
           end do ! states
        end do ! spins
+       deallocate(rao,raol)
+       if (nder >= 1) deallocate(raolp,raop)
+       if (nder >= 2) deallocate(raolpp,raopp)
     end if
+    deallocate(idxion,phi)
+    if (allocated(phip)) deallocate(phip)
+    if (allocated(phipp)) deallocate(phipp)
     ! clean up
     h(2,1) = h(1,2)
     h(3,1) = h(1,3)
@@ -445,69 +524,6 @@ contains
     gkin = 0.50 * gkin
 
   end subroutine rho2
-
-  !> Register structural information. rmat is the crys2car matrix,
-  !> maxcutoff is the maximum orbital cutoff, nenv, renv, lenv, idx,
-  !> and zenv is the environment information (number, position,
-  !> lattice vector, index in the complete list, and atomic number.
-  module subroutine register_struct(f,rmat,atenv,spc)
-    use types, only: celatom, atom, species
-    use types, only: realloc
-    class(dftbwfn), intent(inout) :: f
-    real*8, intent(in) :: rmat(3,3)
-    type(celatom), intent(in) :: atenv(:)
-    type(species), intent(in) :: spc(:)
-
-    real*8 :: maxcutoff
-    real*8 :: sphmax, x0(3), dist
-    integer :: i, j, nenv
-
-    ! calculate the maximum cutoff
-    maxcutoff = -1d0
-    do i = 1, size(f%bas)
-       do j = 1, f%bas(i)%norb
-          maxcutoff = max(maxcutoff,f%bas(i)%cutoff(j))
-       end do
-    end do
-
-    ! calculate the sphere radius that encompasses the unit cell
-    if (maxcutoff > f%globalcutoff) then
-       sphmax = norm2(matmul(rmat,(/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
-       sphmax = max(sphmax,norm2(matmul(rmat,(/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
-
-       nenv = size(atenv)
-       if (allocated(f%renv)) deallocate(f%renv)
-       allocate(f%renv(3,nenv))
-       if (allocated(f%lenv)) deallocate(f%lenv)
-       allocate(f%lenv(3,nenv))
-       if (allocated(f%idxenv)) deallocate(f%idxenv)
-       allocate(f%idxenv(nenv))
-       if (allocated(f%zenv)) deallocate(f%zenv)
-       allocate(f%zenv(nenv))
-
-       ! save the atomic environment
-       f%nenv = 0
-       x0 = matmul(rmat,(/0.5d0,0.5d0,0.5d0/))
-       do i = 1, nenv
-          dist = norm2(atenv(i)%r - x0)
-          if (dist <= sphmax+maxcutoff) then
-             f%nenv = f%nenv + 1
-             f%renv(:,f%nenv) = atenv(i)%r
-             f%lenv(:,f%nenv) = atenv(i)%lenv
-             f%idxenv(f%nenv) = atenv(i)%cidx
-             f%zenv(f%nenv) = spc(atenv(i)%is)%z
-          end if
-       end do
-       f%globalcutoff = maxcutoff
-       call realloc(f%renv,3,f%nenv)
-       call realloc(f%lenv,3,f%nenv)
-       call realloc(f%idxenv,f%nenv)
-       call realloc(f%zenv,f%nenv)
-    end if
-
-  end subroutine register_struct
 
   !xx! private procedures
 
@@ -746,16 +762,18 @@ contains
 
   !> Read the next atom from the hsd wfc file.
   function next_hsd_atom(lu,at) result(ok)
+    use types, only: realloc
     use tools_io, only: ferror, faterr, lgetword, equal, getline, isreal, string
     integer, intent(in) :: lu
-    type(dftbatom), intent(out) :: at
+    type(dftbbasis), intent(out) :: at
     logical :: ok
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     character(len=:), allocatable :: line, word, aux
-    integer :: idx, nb, lp, i, n
+    integer :: idx, nb, lp, i, j, k, n
     real*8 :: rdum
+    real*8, allocatable :: caux(:)
 
     ok = .false.
     at%norb = 0
@@ -774,10 +792,11 @@ contains
           do while(getline(lu,line,.true.))
              lp = 1
              word = lgetword(line,lp)
-             idx = index(line,"{")
-             aux = word
-             if (idx > 0) aux = word(1:idx-1)
-             word = trim(adjustl(aux))
+             idx = index(word,"{")
+             if (idx > 0) then
+                aux = word(1:idx-1)
+                word = trim(adjustl(aux))
+             end if
 
              if (equal(word,"atomicnumber")) then
                 idx = index(line,"=")
@@ -791,10 +810,11 @@ contains
                 do while(getline(lu,line,.true.))
                    lp = 1
                    word = lgetword(line,lp)
-                   idx = index(line,"{")
-                   aux = word
-                   if (idx > 0) aux = word(1:idx-1)
-                   word = trim(adjustl(aux))
+                   idx = index(word,"{")
+                   if (idx > 0) then
+                      aux = word(1:idx-1)
+                      word = trim(adjustl(aux))
+                   end if
                    if (equal(word,"angularmomentum")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
@@ -808,28 +828,53 @@ contains
                       word = line(idx+1:)
                       read (word,*) at%cutoff(at%norb)
                    elseif (equal(word,"exponents")) then
-                      nb = nb + 1
-                      ok = getline(lu,line,.true.)
+                      idx = index(line,"{")
+                      aux = line(idx+1:)
+                      line = aux
+
                       at%nexp(at%norb) = 0
-                      lp = 1
-                      do while (isreal(rdum,line,lp))
-                         at%nexp(at%norb) = at%nexp(at%norb) + 1
-                         at%eexp(at%nexp(at%norb),at%norb) = rdum
+                      do while (.true.)
+                         lp = 1
+                         do while (isreal(rdum,line,lp))
+                            at%nexp(at%norb) = at%nexp(at%norb) + 1
+                            at%eexp(at%nexp(at%norb),at%norb) = rdum
+                         end do
+                         if (index(line,"}") > 0) exit
+                         ok = getline(lu,line,.true.)
+                         if (.not.ok) exit
                       end do
                    elseif (equal(word,"coefficients")) then
-                      nb = nb + 1
                       if (at%nexp(at%norb) == 0) &
                          call ferror('next_hsd_atom','coefficients must come after exponents',faterr)
-                      do i = 1, at%nexp(at%norb)
-                         ok = getline(lu,line,.true.)
-                         n = 0
+                      idx = index(line,"{")
+                      aux = line(idx+1:)
+                      line = aux
+
+                      allocate(caux(10))
+                      n = 0
+                      do while(.true.)
                          lp = 1
                          do while (isreal(rdum,line,lp))
                             n = n + 1
-                            at%coef(n,i,at%norb) = rdum
+                            if (n > size(caux,1)) call realloc(caux,2*n)
+                            caux(n) = rdum
                          end do
-                         at%ncoef(i,at%norb) = n
+                         if (index(line,"}") > 0) exit
+                         ok = getline(lu,line,.true.)
+                         if (.not.ok) exit
                       end do
+                      if (mod(n,at%nexp(at%norb)) /= 0) &
+                         call ferror('next_hsd_atom','inconsistent number of coefficients',faterr)
+                         
+                      k = 0
+                      do i = 1, at%nexp(at%norb)
+                         at%ncoef(i,at%norb) = n / at%nexp(at%norb)
+                         do j = 1, at%ncoef(i,at%norb)
+                            k = k + 1
+                            at%coef(j,i,at%norb) = caux(k)
+                         end do
+                      end do
+                      deallocate(caux)
                    elseif (equal(word,"}")) then
                       nb = nb - 1
                       if (nb == 1) exit
@@ -846,7 +891,7 @@ contains
              end if
           end do
 
-          ! succesfully read an atom
+          ! successfully read an atom
           ok = .true.
           exit
        end if
@@ -937,16 +982,16 @@ contains
   end subroutine calculate_rl
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  subroutine realloc_dftbatom(a,nnew)
+  subroutine realloc_dftbbasis(a,nnew)
     use tools_io, only: ferror, faterr
-    type(dftbatom), intent(inout), allocatable :: a(:)
+    type(dftbbasis), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
-    type(dftbatom), allocatable :: temp(:)
+    type(dftbbasis), allocatable :: temp(:)
     integer :: nold
 
     if (.not.allocated(a)) &
-       call ferror('realloc_dftbatom','array not allocated',faterr)
+       call ferror('realloc_dftbbasis','array not allocated',faterr)
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))
@@ -954,6 +999,6 @@ contains
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
 
-  end subroutine realloc_dftbatom
+  end subroutine realloc_dftbbasis
 
 end submodule proc

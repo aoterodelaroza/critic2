@@ -26,6 +26,7 @@ submodule (graphics) proc
   ! subroutine obj_polygon(g,x,rgb)
   ! subroutine obj_stick(g,x1,x2,rgb,r)
   ! subroutine obj_surf(g,srf,fsurf)
+  ! subroutine obj_triangulation(g,srf,nv,xv,nf,if,xrho)
   ! function register_texture(g,rgb) result(imtl)
   ! subroutine ply_open(g)
   ! subroutine ply_close(g)
@@ -33,13 +34,14 @@ submodule (graphics) proc
   ! subroutine ply_polygon(g,x,rgb)
   ! subroutine ply_stick(g,x1,x2,rgb,r)
   ! subroutine ply_surf(g,srf,fsurf)
+  ! subroutine ply_triangulation(g,srf,nv,xv,nf,if,xrho)
   ! subroutine off_open(g)
   ! subroutine off_close(g)
   ! subroutine off_ball(g,x,rgb,r)
   ! subroutine off_polygon(g,x,rgb)
   ! subroutine off_stick(g,x1,x2,rgb,r)
   ! subroutine off_surf(g,srf,fsurf)
-  
+  ! subroutine off_triangulation(g,srf,nv,xv,nf,if,xrho)
 
   ! graphics database
   logical :: isinit = .false.
@@ -113,9 +115,9 @@ contains
     g%fmt = ifmt_unk
     g%file = ""
     g%nball = 0
-    g%nface = 0
     g%nstick = 0
     g%nsurf = 0
+    g%npoly = 0
     g%nmtl = 0
     g%nv = 0
     g%nf = 0
@@ -123,8 +125,8 @@ contains
 
   end subroutine graphics_close
 
-  !> Write a ball to graphics file with LU lu and format fmt. The
-  !> center is at x and the radius is r. rgb is the color.
+  !> Write a ball to a graphics file. The center is at x (Cartesian)
+  !> and the radius is r. rgb is the color.
   module subroutine graphics_ball(g,x,rgb,r)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
@@ -142,9 +144,8 @@ contains
 
   end subroutine graphics_ball
 
-  !> Write a polygon to graphics file with LU lu and format fmt.  The
-  !> vertices are in x, and are assumed to be consecutive. rgb is the
-  !> color.
+  !> Write a polygon to a graphics file.  The vertices are in x, and
+  !> are assumed to be consecutive. rgb is the color.
   module subroutine graphics_polygon(g,x,rgb)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
@@ -161,9 +162,8 @@ contains
 
   end subroutine graphics_polygon
 
-  !> Write a stick to graphics file with LU lu and format fmt.  The
-  !> vertices are in x, and are assumed to be consecutive. rgb is the
-  !> color.
+  !> Write a stick to a graphics file.  The vertices are in x, and are
+  !> assumed to be consecutive. rgb is the color.
   module subroutine graphics_stick(g,x1,x2,rgb,r)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
@@ -181,8 +181,7 @@ contains
 
   end subroutine graphics_stick
 
-  !> Write a surface (srf with colors fsurf) to graphics file with LU
-  !> lu and format fmt.
+  !> Write a surface (srf with colors fsurf) to graphics file.
   module subroutine graphics_surf(g,srf,fsurf)
     use tools_io, only: equal
     use surface, only: minisurf
@@ -199,6 +198,24 @@ contains
     end if
 
   end subroutine graphics_surf
+
+  !> Write a surface from its triangulation to a graphics file.
+  module subroutine graphics_triangulation(g,nv,xv,nf,if,xrho)
+    class(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: xv(3,nv)
+    integer, intent(in) :: if(3,nf)
+    real*8, intent(in), optional :: xrho(nv)
+
+    if (g%fmt == ifmt_obj) then
+       call obj_triangulation(g,nv,xv,nf,if,xrho)
+    elseif (g%fmt == ifmt_ply) then
+       call ply_triangulation(g,nv,xv,nf,if,xrho)
+    elseif (g%fmt == ifmt_off) then
+       call off_triangulation(g,nv,xv,nf,if,xrho)
+    end if
+
+  end subroutine graphics_triangulation
 
   !xx! private procedures
 
@@ -575,7 +592,6 @@ contains
     ! clear and initialize the mtl database
     g%nmtl = 0
     g%nball = 0
-    g%nface = 0
     g%nstick = 0
     g%nv = 0
     if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
@@ -609,7 +625,6 @@ contains
     ! clear the mtl database
     g%nmtl = 0
     g%nball = 0
-    g%nface = 0
     g%nstick = 0
     g%nv = 0
     deallocate(g%mtlrgb)
@@ -668,8 +683,8 @@ contains
 
     ! write the face to the obj
     n = size(x,2)
-    g%nface = g%nface + 1
-    write (g%lu,'("o face_",A)') string(g%nface)
+    g%npoly = g%npoly + 1
+    write (g%lu,'("o face_",A)') string(g%npoly)
     write (g%lu,'("s on")')
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
@@ -797,6 +812,51 @@ contains
     g%nv = g%nv + srf%nv
 
   end subroutine obj_surf
+
+  !> Write a surface from its triangulation to an OBJ file.
+  subroutine obj_triangulation(g,nv,xv,nf,if,xrho)
+    use tools_io, only: string
+    use param, only: pi
+    type(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: xv(3,nv)
+    integer, intent(in) :: if(3,nf)
+    real*8, intent(in), optional :: xrho(nv)
+
+    integer :: i, j, imtl
+    real*8 :: maxf, minf, xrgb(3), z
+
+    integer, parameter :: rgb_default(3) = (/128,128,128/)
+
+    ! limits of the color scale
+    if (present(xrho)) then
+       maxf = maxval(xrho)
+       minf = minval(xrho)
+    endif
+
+    ! write the surface to the obj
+    g%nsurf = g%nsurf + 1
+    write (g%lu,'("o surf_",A)') string(g%nsurf)
+    write (g%lu,'("s on")')
+    imtl = register_texture(g,rgb_default)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
+    do i = 1, nv
+       if (present(xrho)) then
+          z = (xrho(i) - minf) / (maxf - minf)
+          xrgb(1) = sqrt(z)
+          xrgb(2) = z**3
+          xrgb(3) = sin(2*z*pi)
+          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') xv(:,i), xrgb
+       else
+          write (g%lu,'("v ",3(E20.12,X))') xv(:,i)
+       end if
+    end do
+    do i = 1, nf
+       write (g%lu,'("f ",999(I10,X))') (if(j,i),j=1,3)
+    end do
+    g%nv = g%nv + nv
+
+  end subroutine obj_triangulation
 
   !> Register a texture using the color triplet.
   function register_texture(g,rgb) result(imtl)
@@ -1064,6 +1124,46 @@ contains
 
   end subroutine ply_surf
 
+  !> Write a surface from its triangulation to a PLY file.
+  subroutine ply_triangulation(g,nv,xv,nf,if,xrho)
+    use tools_io, only: string
+    use param, only: pi
+    type(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: xv(3,nv)
+    integer, intent(in) :: if(3,nf)
+    real*8, intent(in), optional :: xrho(nv)
+
+    real*8 :: maxf, minf, xrgb(3), z
+    integer :: i, j, rgb(3)
+
+    integer, parameter :: rgb_default(3) = (/128,128,128/)
+
+    ! limits of the color scale
+    if (present(xrho)) then
+       maxf = maxval(xrho)
+       minf = minval(xrho)
+    endif
+
+    rgb = rgb_default
+    do i = 1, nv
+       if (present(xrho)) then
+          z = (xrho(i) - minf) / (maxf - minf)
+          xrgb(1) = sqrt(z)
+          xrgb(2) = z**3
+          xrgb(3) = sin(2*z*pi)
+          rgb = nint(xrgb * 255)
+       end if
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(rgb(j)),j=1,3)
+    end do
+    do i = 1, nf
+       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+    end do
+    g%nv = g%nv + nv
+    g%nf = g%nf + nf
+
+  end subroutine ply_triangulation
+
   !> Open an off file
   subroutine off_open(g)
     use tools_io, only: ferror, fopen_scratch
@@ -1301,5 +1401,44 @@ contains
     g%nf = g%nf + srf%nf
 
   end subroutine off_surf
+
+  !> Write a surface from its triangulation to a OFF file.
+  subroutine off_triangulation(g,nv,xv,nf,if,xrho)
+    use tools_io, only: string
+    use param, only: pi
+    type(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: xv(3,nv)
+    integer, intent(in) :: if(3,nf)
+    real*8, intent(in), optional :: xrho(nv)
+
+    integer :: i, j
+    real*8 :: maxf, minf, xrgb(3), z
+
+    integer, parameter :: rgb_default(3) = (/128,128,128/)
+
+    ! limits of the color scale
+    if (present(xrho)) then
+       maxf = maxval(xrho)
+       minf = minval(xrho)
+    endif
+    
+    xrgb = real(rgb_default,8) / 255d0
+    do i = 1, nv
+       if (present(xrho)) then
+          z = (xrho(i) - minf) / (maxf - minf)
+          xrgb(1) = sqrt(z)
+          xrgb(2) = z**3
+          xrgb(3) = sin(2*z*pi)
+       end if
+       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
+    end do
+    do i = 1, nf
+       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+    end do
+    g%nv = g%nv + nv
+    g%nf = g%nf + nf
+
+  end subroutine off_triangulation
 
 end submodule proc

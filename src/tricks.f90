@@ -33,7 +33,8 @@ contains
     ! call trick_grid_sphere()
     ! call trick_stephens_nnm_channel(line0)
     ! call trick_cell_integral()
-    call trick_check_shortest()
+    ! call trick_check_shortest()
+    ! call trick_test_environment()
     ! write (*,*) "no tricks for now"
     
   end subroutine trick
@@ -66,6 +67,8 @@ contains
   !   real*8, allocatable :: xcoord(:,:)
   !   integer, allocatable :: idg(:,:,:), icp(:)
   !   real*8, allocatable :: w(:,:,:)
+
+  !   call sy%c%checkflags(.false.,nn0=.true.)
 
   !   ntot = f(2)%n(1)*f(2)%n(2)*f(2)%n(3)
 
@@ -119,9 +122,9 @@ contains
   !            do i = 1, cr%ncel
   !               x = cr%atcel(i)%x - x0
   !               call cr%shortest(x,d2)
-  !               if (d2 <= rsph(i)*rsph(i)) then
+  !               if (d2 <= rsph(i)) then
   !                  !$omp critical (smooth)
-  !                  f(4)%f(ix,iy,iz) = f(4)%f(ix,iy,iz) * sin(0.5d0*pi*sqrt(d2)/rsph(i))**6
+  !                  f(4)%f(ix,iy,iz) = f(4)%f(ix,iy,iz) * sin(0.5d0*pi*d2/rsph(i))**6
   !                  !$omp end critical (smooth)
   !                  exit
   !               end if
@@ -366,72 +369,290 @@ contains
 
   ! end subroutine trick_cell_integral
 
-  !> Check that the shortest vector is inside the calculated WS cell.
-  subroutine trick_check_shortest()
-    use systemmod, only: sy
-    use tools_io, only: uout, string, ioj_right
+  ! !> Check that the shortest vector is inside the calculated WS cell.
+  ! subroutine trick_check_shortest()
+  !   use systemmod, only: sy
+  !   use tools_io, only: uout, string, ioj_right
 
-    integer :: i, j, k, l
-    real*8 :: x(3), xs(3), xin(3), dd
-    integer :: nvws, nnok
-    real*8, allocatable :: xvws(:,:)
-    logical :: inside
+  !   integer :: i, j, k, l
+  !   real*8 :: x(3), xs(3), xin(3), dd
+  !   integer :: nvws, nnok
+  !   real*8, allocatable :: xvws(:,:)
+  !   logical :: inside
 
-    integer, parameter :: npts = 10
+  !   integer, parameter :: npts = 10
+  !   real*8, parameter :: eps = 1d-10
 
-    write (uout,*) "* Checking the implementation of the shortest routine"
-    write (uout,*)
+  !   write (uout,*) "* Checking the implementation of the shortest routine"
+  !   write (uout,*)
 
-    write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
-    nvws = sy%c%nws
-    do i = 1, nvws
-       write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ivws(j,i)),j=1,3)
-    end do
-    write (uout,*)
+  !   write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
+  !   nvws = sy%c%ws_nf
+  !   do i = 1, nvws
+  !      write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
+  !   end do
+  !   write (uout,*)
 
-    allocate(xvws(3,nvws))
-    write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
-    do i = 1, nvws
-       x = 0.5d0 * sy%c%x2c(real(sy%c%ivws(:,i),8))
-       xvws(:,i) = x
-       write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
-    end do
-    write (uout,*)
+  !   allocate(xvws(3,nvws))
+  !   write (uout,'("Half-Voronoi-relevant vectors in the WS cell (Cartesian coords.): ",A)') string(nvws)
+  !   do i = 1, nvws
+  !      x = 0.5d0 * sy%c%ws_ineighc(:,i)
+  !      xvws(:,i) = x
+  !      write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
+  !   end do
+  !   write (uout,*)
 
-    write (uout,'("Testing points")') 
-    nnok = 0
-    do i = 1, npts
-       do j = 1, npts
-          do k = 1, npts
-             xs = (/real(i-1,8),real(j-1,8),real(k-1,8)/) / real(npts,8)
-             xin = xs
-             call sy%c%shortest(xs,dd)
-             x = sy%c%c2x(xs)
+  !   write (uout,'("Testing points")') 
+  !   nnok = 0
+  !   do i = 1, npts
+  !      do j = 1, npts
+  !         do k = 1, npts
+  !            xs = (/real(i-1,8),real(j-1,8),real(k-1,8)/) / real(npts,8)
+  !            xin = xs
+  !            call sy%c%shortest(xs,dd)
+  !            x = sy%c%c2x(xs)
 
-             inside = .true.
-             do l = 1, nvws
-                inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= 1d-14)
-             end do
-             if (.not.inside) then
-                nnok = nnok + 1
-                write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
-                   (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
-             end if
+  !            inside = .true.
+  !            do l = 1, nvws
+  !               inside = inside .and. (dot_product(xvws(:,l),xs-xvws(:,l)) <= eps)
+  !            end do
+  !            if (.not.inside) then
+  !               nnok = nnok + 1
+  !               write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !                  (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
+  !            end if
 
-             write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
-                (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
-          end do
-       end do
-    end do
-    if (nnok == 0) then
-       write (uout,'("All points OK.")')
-    else
-       write (uout,'("There were ",A," points outside the WS cell")') string(nnok)
-    end if
-    write(uout,*)
+  !            write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !               (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
+  !         end do
+  !      end do
+  !   end do
+  !   if (nnok == 0) then
+  !      write (uout,'("All points OK.")')
+  !   else
+  !      write (uout,'("There were ",A," points outside the WS cell")') string(nnok)
+  !   end if
+  !   write(uout,*)
 
-    deallocate(xvws)
+  !   deallocate(xvws)
 
-  end subroutine trick_check_shortest
+  ! end subroutine trick_check_shortest
+
+  ! subroutine trick_test_environment()
+  !   use systemmod, only: sy
+  !   use global, only: atomeps
+  !   use tools_io, only: uout, string, tictac
+  !   use param, only: icrd_cart, icrd_crys, icrd_rcrys, atmcov, bohrtoa
+    
+  !   integer :: i, j
+  !   real*8 :: xx(3), x(3), dist1, dist2
+  !   real*8 :: f1, fp1(3), fpp1(3,3)
+  !   real*8 :: f2, fp2(3), fpp2(3,3)
+  !   integer :: nid1, nid2, lvec1(3), lvec2(3), nid3, nid4
+  !   integer :: nneig1(20), wat1(20), ierr, ierr1, ierr2
+  !   real*8 :: dd1(20)
+  !   integer :: nat, lveca(3)
+  !   integer, allocatable :: nida(:), ishella(:)
+  !   real*8, allocatable :: dista(:)
+  !   logical :: ok1, ok2, ok3
+
+  !   associate(env => sy%c%env, cr => sy%c)
+
+  !     write (uout,'("* Testing the environment....")')
+
+  !     ! ! Test the nearest_atom routine
+  !     ! do i = 1, 100
+  !     !    call random_number(x)
+  !     !    x = x * 10d0 - 5d0
+  !     !    call cr%nearest_atom(x,nid1,dist1,lvec1)
+  !     !    call env%nearest_atom(x,icrd_crys,nid2,dist2,lvec2)
+  !     !    write (*,*) "point ", i
+  !     !    write (*,*) "x = ", x
+  !     !    ! write (*,*) "nid1 = ", nid1
+  !     !    ! write (*,*) "nid2 = ", nid2
+  !     !    write (*,*) "nid = ", abs(nid1-nid2)
+  !     !    ! write (*,*) "dist1 = ", dist1
+  !     !    ! write (*,*) "dist2 = ", dist2
+  !     !    write (*,*) "dist = ", abs(dist1-dist2)
+  !     !    ! write (*,*) "lvec1 = ", lvec1
+  !     !    ! write (*,*) "lvec2 = ", lvec2
+  !     !    write (*,*) "lvecdif = ", abs(lvec1 - lvec2)
+  !     ! end do
+
+  !     ! ! Test the list_near_atoms routine
+  !     ! do i = 1, 1
+  !     !    call random_number(x)
+  !     !    x = x * 10d0 - 5d0
+
+  !     !    ! slow test
+  !     !    write (*,*) "point ", i, x
+  !     !    call cr%pointshell(x,10,nneig1,wat1,dd1)
+  !     !    write (*,*) "pointshell environment"
+  !     !    do j = 1, 10
+  !     !       write (*,*) j, nneig1(j), wat1(j), dd1(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10)
+  !     !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10000)
+  !     !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10)
+  !     !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10000)
+  !     !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=5d0)
+  !     !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=3000d0)
+  !     !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
+  !     !    do j = 1, nat
+  !     !       write (*,*) j, nida(j), dista(j), ishella(j)
+  !     !    end do
+  !     ! end do
+
+  !     ! ! Test the list_near_atoms routine in a high-symmetry environment
+  !     ! x = 0.5d0
+  !     ! ! write (*,*) "point ", i, x
+  !     ! ! call cr%pointshell(x,20,nneig1,wat1,dd1)
+  !     ! ! write (*,*) "pointshell environment"
+  !     ! ! do j = 1, 20
+  !     ! !    write (*,*) j, nneig1(j), wat1(j), dd1(j)
+  !     ! ! end do
+  !     ! ! x = 100d0
+  !     ! ! x = 0.6d0
+  !     ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=20d0)
+  !     ! write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
+  !     ! do j = 1, nat
+  !     !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)
+  !     ! end do
+
+  !     ! ! Test the promolecular routine
+  !     ! do i = 1, 100
+  !     !    call random_number(x)
+  !     !    x = x * 10d0 - 5d0
+  !     !    x = cr%x2c(x)
+  !     !    call cr%promolecular(x,f1,fp1,fpp1,2)
+  !     !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+  !     !    ! write (*,*) "point ", i
+  !     !    ! write (*,*) "x = ", x
+  !     !    write (*,*) "f ", abs(f1-f2)
+  !     !    ! write (*,*) "fp1 ", fp1
+  !     !    ! write (*,*) "fp2 ", fp2
+  !     !    ! write (*,*) "fpp1 ", fpp1(1,:)
+  !     !    ! write (*,*) "fpp2 ", fpp2(1,:)
+  !     !    ! write (*,*) "fpp1 ", fpp1(2,:)
+  !     !    ! write (*,*) "fpp2 ", fpp2(2,:)
+  !     !    ! write (*,*) "fpp1 ", fpp1(3,:)
+  !     !    ! write (*,*) "fpp2 ", fpp2(3,:)
+  !     ! end do
+
+  !     ! ! Test the promolecular routine timing
+  !     ! call tictac("1")
+  !     ! do i = 1, 100
+  !     !    call random_number(x)
+  !     !    x = x * 10d0 - 5d0
+  !     !    x = cr%x2c(x)
+  !     !    call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
+  !     ! end do
+  !     ! call tictac("2")
+  !     ! do i = 1, 100
+  !     !    call random_number(x)
+  !     !    x = x * 10d0 - 5d0
+  !     !    x = cr%x2c(x)
+  !     !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+  !     ! end do
+  !     ! call tictac("3")
+
+  !     ! ! Test the promolecular routine: going away from the system
+  !     ! xx = 0.5d0
+  !     ! do i = 1, 100
+  !     !    x = 0.5d0 + 2000d0 * real(i-1,8) / real(1000-1,8)
+  !     !    call cr%promolecular(x,f1,fp1,fpp1,2,periodic=.true.)
+  !     !    call env%promolecular(x,icrd_cart,f2,fp2,fpp2,2)
+  !     !    write (*,*) i, abs(f1-f2)
+  !     ! end do
+
+  !     ! ! Test the identify_atom routine
+  !     ! do i = 1, 1000
+  !     !    ! test that it gives the same result as with the crystal version
+  !     !    call random_number(x)
+  !     !    call random_number(xx)
+  !     !    x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/1000d0)
+
+  !     !    nid1 = cr%identify_atom(x,.true.)
+  !     !    nid2 = env%identify_atom(x,icrd_cart,.true.)
+  !     !    nid3 = cr%identify_atom(x,.false.)
+  !     !    nid4 = env%identify_atom(x,icrd_cart,.false.)
+  !     !    write (*,*) i, abs(nid1-nid2), abs(nid3-nid4), x
+
+  !     !    ! ! test for not finding the atom
+  !     !    ! call random_number(x)
+  !     !    ! call random_number(xx)
+  !     !    ! x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/30d0)
+  !     !    ! nid1 = env%identify_atom(x,icrd_cart,.true.)
+  !     !    ! nid2 = env%identify_atom(x,icrd_cart,.false.)
+  !     !    ! write (*,*) i, nid1, nid2
+  !     ! end do
+
+  !     ! ! find asterisms
+  !     ! write (*,*) "old asterisms:"
+  !     ! do i = 1, cr%ncel
+  !     !    write (*,*) "atom ", i, " is bonded to ", cr%nstar(i)%ncon
+  !     !    do j = 1, cr%nstar(i)%ncon
+  !     !       write (*,*) "-", cr%nstar(i)%idcon(j), " (", cr%nstar(i)%lcon(:,j), ")"
+  !     !    end do
+  !     ! end do
+  !     ! write (*,*) "new asterisms:"
+  !     ! call env%find_asterisms_covalent(cr%nstar)
+  !     ! do i = 1, cr%ncel
+  !     !    write (*,*) "atom ", i, " is bonded to ", cr%nstar(i)%ncon
+  !     !    do j = 1, cr%nstar(i)%ncon
+  !     !       write (*,*) "-", cr%nstar(i)%idcon(j), " (", cr%nstar(i)%lcon(:,j), ")"
+  !     !    end do
+  !     ! end do
+
+  !     ! ! find asterisms, timing info
+  !     ! call env%report()
+  !     ! call tictac("1")
+  !     ! call env%find_asterisms_covalent(cr%nstar)
+  !     ! call tictac("2")
+
+  !     do i = 0, 100
+  !        ! module subroutine nearest_atom_short(e,x0,icrd,distmax,eid,dist,ierr,cidx0,idx0,nozero)
+  !        xx = cr%x2c(cr%atcel(1)%x + (cr%atcel(2)%x-cr%atcel(1)%x) * real(i,8) / 100d0 + (/4,-8,12/))
+  !        write (*,*) "input: ", xx
+  !        call env%nearest_atom_long(xx,icrd_cart,env%dmax0-1d-10,nid1,lvec1,dist1,ierr1)
+  !        call env%nearest_atom_short(xx,icrd_cart,0.5d0*env%boxsize-1d-10,nid2,lvec2,dist2,ierr2)
+  !        if (ierr1 == 0 .and. ierr2 == 0) then
+  !           write (*,*) i/100d0, ierr1, ierr2, nid1, nid2, lvec1, lvec2, dist1, dist2, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
+  !        else if (ierr1 == 0) then
+  !           write (*,*) i/100d0, ierr1, nid1, lvec1, dist1, norm2(cr%x2c(cr%atcel(nid1)%x + lvec1) - xx)
+  !        else
+  !           write (*,*) i/100d0, ierr1, ierr2
+  !        end if
+  !     end do
+
+  !   end associate
+
+  ! end subroutine trick_test_environment
 
 end module tricks

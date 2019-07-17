@@ -26,7 +26,6 @@ submodule (grid3mod) proc
   ! function grid_near(f,x) result(res)
   ! function grid_floor(f,x) result(res)
   ! subroutine init_trispline(f)
-  ! subroutine pop_grid(q,nq,s,ns,fail)
 
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
@@ -290,149 +289,27 @@ submodule (grid3mod) proc
 
 contains
 
-  !> Build a 3d grid using an arithmetic expression.
-  module subroutine new_eval(f,sptr,n,expr,fh,field_cube)
-    use hashmod, only: hash
-    use arithmetic, only: token, tokenize, token_num, token_fun,&
-       token_op, token_lpar, token_rpar, token_comma, token_field, iprec, iassoc,&
-       istype, fun_openpar, fun_xc
+  !> Build a 3d grid of dimension n using an arithmetic expression
+  !> (expr). sptr = C pointer to the associated system.
+  module subroutine new_eval(f,sptr,n,expr)
+    use arithmetic, only: eval_grid
     use types, only: realloc
     use iso_c_binding, only: c_ptr
     class(grid3), intent(inout) :: f
     type(c_ptr), intent(in) :: sptr
     integer, intent(in) :: n(3)
     character(*), intent(in) :: expr
-    type(hash), intent(in) :: fh
-    interface
-       real*8 function field_cube(sptr,n,id,fder,dry,ifail)
-         import c_ptr
-         type(c_ptr), intent(in) :: sptr
-         character*(*), intent(in) :: id
-         integer, intent(in) :: n(3)
-         character*(*), intent(in) :: fder
-         logical, intent(in) :: dry
-         logical, intent(out) :: ifail
-         dimension field_cube(n(1),n(2),n(3))
-       end function field_cube
-    end interface
 
-    integer :: i, ntok, lp
-    integer :: c, s(100)
-    logical :: again, ok, ifail
-    integer :: nq, ns
-    real*8, allocatable :: q(:,:,:,:)
-    type(token), allocatable :: toklist(:)
+    logical :: iok
 
     call f%end()
     f%n = n
     f%mode = mode_default
     f%isinit = .true.
-
-    ! tokenize the expression in input
-    lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,fh)
-    if (.not.ok) then
-       goto 999
-       return
-    end if
-
-    ! initialize
-    nq = 0
-    ns = 0
-    allocate(q(n(1),n(2),n(3),1))
-
-    ! the grid version of the arithmetic evaluator does not support
-    ! certain types of operators (xc, chemfunction).
-    do i = 1, ntok
-       if (toklist(i)%ival == fun_xc) goto 999
-       if (istype(toklist(i)%ival,'chemfunction')) goto 999
-       if (toklist(i)%type == token_field) then
-          q(:,:,:,1) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.true.,ifail)
-          if (ifail) goto 999
-       end if
-    end do
-
-    ! run over tokens
-    do i = 1, ntok
-       if (toklist(i)%type == token_num) then
-          ! a number
-          nq = nq + 1
-          if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-          q(:,:,:,nq) = toklist(i)%fval
-       elseif (toklist(i)%type == token_fun) then
-          ! a function
-          ns = ns + 1
-          s(ns) = toklist(i)%ival
-       elseif (toklist(i)%type == token_op) then
-          ! a binary operator
-          c = toklist(i)%ival
-          again = .true.
-          do while (again)
-             again = .false.
-             if (ns > 0) then
-                if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop_grid(q,nq,s,ns,ifail)
-                   if (ifail) goto 999
-                   again = .true.
-                end if
-             end if
-          end do
-          ns = ns + 1
-          s(ns) = c
-       elseif (toklist(i)%type == token_lpar) then
-          ! left parenthesis
-          ns = ns + 1
-          s(ns) = fun_openpar
-       elseif (toklist(i)%type == token_rpar) then
-          ! right parenthesis
-           do while (ns > 0)
-              if (s(ns) == fun_openpar) exit
-              call pop_grid(q,nq,s,ns,ifail)
-              if (ifail) goto 999
-           end do
-           if (ns == 0) goto 999
-           ns = ns - 1
-           ! if the top of the stack is a function, pop it
-           if (ns > 0) then
-              c = s(ns)
-              if (istype(c,'function')) then
-                 call pop_grid(q,nq,s,ns,ifail)
-                 if (ifail) goto 999
-              end if
-           end if
-        elseif (toklist(i)%type == token_comma) then
-           ! a comma
-           do while (ns > 0)
-              if (s(ns) == fun_openpar) exit
-              call pop_grid(q,nq,s,ns,ifail)
-              if (ifail) goto 999
-           end do
-           if (s(ns) /= fun_openpar) goto 999
-        elseif (toklist(i)%type == token_field) then
-           ! a field
-           nq = nq + 1
-           if (nq > size(q,4)) call realloc(q,n(1),n(2),n(3),nq)
-           q(:,:,:,nq) = field_cube(sptr,n,toklist(i)%sval,toklist(i)%fder,.false.,ifail)
-           if (ifail) goto 999
-       else
-          goto 999
-       end if
-    end do
-
-    ! unwind the stack
-    do while (ns > 0)
-       call pop_grid(q,nq,s,ns,ifail)
-       if (ifail) goto 999
-    end do
     allocate(f%f(n(1),n(2),n(3)))
-    f%f = q(:,:,:,1)
-    if (allocated(q)) deallocate(q)
-
-    return
-999 continue
-    if (allocated(q)) deallocate(q)
-    call f%end()
-
+    call eval_grid(n,expr,sptr,f%f,iok)
+    if (.not.iok) call f%end()
+    
   end subroutine new_eval
 
   module subroutine grid_end(f)
@@ -440,16 +317,21 @@ contains
 
     f%mode = mode_default
     f%isinit = .false.
+    f%isqe = .false.
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
-    if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
-    if (allocated(f%wan%center)) deallocate(f%wan%center)
-    if (allocated(f%wan%spread)) deallocate(f%wan%spread)
-    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
-    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
-    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-    if (allocated(f%wan%u)) deallocate(f%wan%u)
+    if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
+    if (allocated(f%qe%wk)) deallocate(f%qe%wk)
+    if (allocated(f%qe%ek)) deallocate(f%qe%ek)
+    if (allocated(f%qe%occ)) deallocate(f%qe%occ)
+    if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
+    if (allocated(f%qe%igk_k)) deallocate(f%qe%igk_k)
+    if (allocated(f%qe%nl)) deallocate(f%qe%nl)
+    if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
+    if (allocated(f%qe%center)) deallocate(f%qe%center)
+    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
+    if (allocated(f%qe%u)) deallocate(f%qe%u)
     
   end subroutine grid_end
 
@@ -498,6 +380,7 @@ contains
 
     call f%end()
     f%isinit = .true.
+    f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
@@ -543,6 +426,7 @@ contains
        read (luc,*)
 
     f%isinit = .true.
+    f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
@@ -556,6 +440,50 @@ contains
     call fclose(luc)
 
   end subroutine read_cube
+
+  !> Read a grid in binary CUBE format
+  module subroutine read_bincube(f,file)
+    use tools_io, only: fopen_read, ferror, faterr, fclose
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: file !< Input file
+
+    integer :: luc
+    integer :: nat
+    integer :: istat, n(3), i, iz
+    logical :: ismo
+    real*8 :: x0(3), xd(3,3), rdum
+
+    call f%end()
+    luc = fopen_read(file,form="unformatted")
+
+    read (luc,iostat=istat) nat, x0
+    ismo = (nat < 0)
+    nat = abs(nat)
+
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading nat',faterr,file)
+    read (luc,iostat=istat) n, xd
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading nx, ny, nz',faterr,file)
+    do i = 1, nat
+       read (luc) iz, rdum, x0
+    end do
+
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+    f%n(:) = n
+    allocate(f%f(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) &
+       call ferror('read_cube','Error allocating grid',faterr,file)
+    read(luc,iostat=istat) f%f
+    if (istat /= 0) &
+       call ferror('read_cube','Error reading grid',faterr,file)
+
+    call fclose(luc)
+
+  end subroutine read_bincube
 
   !> Read a grid in siesta RHO format
   module subroutine read_siesta(f,file)
@@ -571,6 +499,8 @@ contains
     ! initialize
     call f%end()
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
 
     ! open file
@@ -624,6 +554,8 @@ contains
        call ferror('read_abinit',errmsg,faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     f%n(:) = hdr%ngfft(:)
     n = f%n
@@ -666,6 +598,8 @@ contains
        call ferror('read_vasp','Error reading nx, ny, nz',faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -697,6 +631,8 @@ contains
        call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -772,6 +708,8 @@ contains
     read (luc,*,iostat=istat) x0, x1, x2, x3
 
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
     allocate(ggloc(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -791,485 +729,127 @@ contains
 
   end subroutine read_xsf
 
-  !> Read the UNK generated by QE for Wannier and the wannier90
-  !> checkpoint file. The part that reads the checkpoint file has been
-  !> adapted from wannier90,
-  !> Copyright (C) 2007-13 Jonathan Yates, Arash Mostofi,       
-  !>                Giovanni Pizzi, Young-Su Lee,               
-  !>                Nicola Marzari, Ivo Souza, David Vanderbilt 
-  !> Distributed under GNU/GPL v2.
-  module subroutine read_unk(f,file,filedn,omega,nou,dochk)
-    use tools_math, only: det, matinv
-    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
-       fclose, string, fopen_write, uout
-    use types, only: realloc
-    use param, only: bohrtoa
+  !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
+  !> the Bloch states, k-points, and structural info.
+  module subroutine read_pwc(f,fpwc)
+    use tools_math, only: det
+    use tools_io, only: fopen_read, fclose, ferror
+    use param, only: hartoev
     class(grid3), intent(inout) :: f
-    character*(*), intent(in) :: file !< Input file (spin up or total)
-    character*(*), intent(in) :: filedn !< Input file (spin down)
-    real*8, intent(in) :: omega
-    logical, intent(in) :: nou
-    logical, intent(in) :: dochk
-
-    integer :: luc, luw
-    integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
-    integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
-    real*8 :: fspin
-    integer :: i, j, k, l
-    complex*16, allocatable :: raux(:,:,:), raux2(:,:,:)
-    integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: fname, oname, sijfname
-    logical :: haschk
-    ! for the wannier checkpoint (wannier90, 2.0.1)
-    character(len=33) :: header
-    real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
-    character(len=20) :: chkpt1
-    logical :: have_disentangled
-    complex*16, allocatable :: u_matrix(:,:,:)
-    complex*16 :: cdum
-
-    call f%end()
-
-    ! spin
-    if (len_trim(filedn) < 1) then
-       nspin = 1
-       fspin = 2d0
-    else
-       nspin = 2
-       fspin = 1d0
-    end if
-
-    ! checkpoint files
-    haschk = .false.
-    if (dochk) then
-       sijfname = trim(file) // "-sij"
-       inquire(file=sijfname,exist=haschk)
-    end if
-
-    ! read the grid size from the unk or the checkpoint
-    if (haschk) then
-       luc = fopen_read(sijfname,form="unformatted")
-       read (luc) n
-       call fclose(luc)
-    else
-       luc = fopen_read("UNK00001.1",form="unformatted")
-       read(luc) n, idum, jbnd
-       call fclose(luc)
-    endif
-    f%n = n
-
-    ! allocate the density
-    if (allocated(f%f)) deallocate(f%f)
-    allocate(f%f(f%n(1),f%n(2),f%n(3)))
-    f%f = 0d0
-
-    ! read the chk file/s
-    do ispin = 1, nspin
-       if (ispin == 1) then
-          luc = fopen_read(file,form="unformatted")
-       else
-          luc = fopen_read(filedn,form="unformatted")
-       end if
-
-       ! header and number of bands
-       read(luc) header
-       read(luc) nbnd 
-       read(luc) jbnd 
-       if (jbnd > 0) &
-          call ferror("read_unk","number of excluded bands /= 0",faterr)
-       read(luc) (idum,i=1,jbnd) 
-
-       ! real and reciprocal lattice
-       read(luc) ((rlatt(i,j),i=1,3),j=1,3)
-       if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("read_unk","wannier and current structure's volumes differ by more than 1%",faterr)
-       read(luc) ((rclatt(i,j),i=1,3),j=1,3)
+    character*(*), intent(in) :: fpwc
     
-       ! number of k-points
-       read(luc) nk 
-       read(luc) nk1, nk2, nk3
-       if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("read_unk","no monkhorst-pack grid or inconsistent k-point number",faterr)
-
-       ! k-points
-       allocate(f%wan%kpt(3,nk))
-       read(luc) ((f%wan%kpt(i,j),i=1,3),j=1,nk) 
-       do i = 1, nk
-          ik1 = nint(f%wan%kpt(1,i) * nk1)
-          ik2 = nint(f%wan%kpt(2,i) * nk2)
-          ik3 = nint(f%wan%kpt(3,i) * nk3)
-          if (abs(f%wan%kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan%kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
-             abs(f%wan%kpt(3,i) * nk3 - ik3) > 1d-5) then
-             write (uout,*) f%wan%kpt(:,i)
-             write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
-             write (uout,*) ik1, ik2, ik3
-             call ferror("read_unk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
-          end if
-       end do
-
-       read(luc) idum ! number of nearest k-point neighbours
-       read(luc) jbnd ! number of wannier functions
-       if (jbnd /= nbnd) &
-          call ferror("read_unk","number of wannier functions /= number of bands",faterr)
-       
-       ! checkpoint positon and disentanglement
-       read(luc) chkpt1
-       read(luc) have_disentangled
-       if (have_disentangled) & 
-          call ferror("read_unk","can not handle disentangled wannier functions",faterr)
-
-       ! u and m matrices
-       if (allocated(u_matrix)) deallocate(u_matrix)
-       allocate(u_matrix(nbnd,nbnd,nk))
-       read(luc) (((u_matrix(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nk)
-       read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nk) ! m matrix
-
-       ! wannier centers and spreads
-       if (ispin == 1) then
-          if (allocated(f%wan%center)) deallocate(f%wan%center)
-          if (allocated(f%wan%spread)) deallocate(f%wan%spread)
-          allocate(f%wan%center(3,nbnd,nspin),f%wan%spread(nbnd,nspin))
-       else
-          if (nbnd > size(f%wan%spread,1)) then
-             call realloc(f%wan%center,3,nbnd,nspin)
-             call realloc(f%wan%spread,nbnd,nspin)
-          end if
-       end if
-       read(luc) ((f%wan%center(i,j,ispin),i=1,3),j=1,nbnd)
-       read(luc) (f%wan%spread(i,ispin),i=1,nbnd)
-
-       ! end of wannier checkpoint
-       call fclose(luc)
-
-       ! dimensions for the supercell
-       f%wan%nwan = (/nk1,nk2,nk3/)
-       f%wan%nks = nk1*nk2*nk3
-       nall = f%n * f%wan%nwan
-
-       ! convert centers to crystallographic and spread to bohr
-       rlatti = matinv(rlatt)
-       do i = 1, nbnd
-          f%wan%center(:,i,ispin) = matmul(f%wan%center(:,i,ispin),rlatti)
-          do j = 1, 3
-             if (f%wan%center(j,i,ispin) > f%wan%nwan(j)) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nwan(j)
-             if (f%wan%center(j,i,ispin) < 0d0) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nwan(j)
-          end do
-          f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
-       end do
-
-       if (.not.haschk) then
-          ! allocate arrays and fill some info
-          if (.not.nou) allocate(raux(n(1),n(2),n(3)))
-          allocate(raux2(n(1),n(2),n(3)))
-
-          do ik = 1, nk
-             ! unk file name
-             fname = "UNK" // string(ik,5,pad0=.true.) // "." // string(ispin)
-
-             ! open file for reading
-             luc = fopen_read(fname,form="unformatted")
-
-             ! read the header
-             read(luc) naux, ikk, idum
-
-             ! read the bands and pass them to the WNK file open file for writing
-             do ibnd = 1, nbnd
-                oname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
-                luw = fopen_write(oname,form="unformatted")
-
-                if (.not.nou) then
-                   ! apply the transformation
-                   raux2 = 0d0
-                   rewind(luc)
-                   read(luc) naux, ikk, idum
-                   do jbnd = 1, nbnd
-                      read(luc) raux
-                      raux2 = raux2 + u_matrix(jbnd,ibnd,ik) * raux
-                   end do
-                else
-                   ! transfer this band to the new file
-                   read(luc) raux2
-                end if
-
-                ! write and close
-                write(luw) raux2
-                call fclose(luw)
-
-                f%f = f%f + real(conjg(raux2) * raux2,8)
-             end do
-
-             ! close the unk file
-             call fclose(luc)
-          end do
-          if (allocated(raux)) deallocate(raux)
-          deallocate(raux2)
-       end if
-    end do
-
-    if (haschk) then
-       ! read the density from the checkpoint file
-       luc = fopen_read(sijfname,form="unformatted")
-       read (luc) n
-       read (luc) f%f
-       call fclose(luc)
-    else
-       f%f = f%f * fspin / omega / real(nk,8)
-    end if
-
-    f%wan%sijchk = dochk
-    f%wan%haschk = haschk
-    f%isinit = .true.
-    f%mode = mode_default
-    f%iswan = .true.
-    f%wan%nbnd = nbnd
-    f%wan%nspin = nspin
-    if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
-    if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
-    if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-    if (allocated(f%wan%u)) deallocate(f%wan%u)
-
-  end subroutine read_unk
-
-  !> Read unkgen file created by pw2wannier.x.
-  module subroutine read_unkgen(f,fchk,fchkdn,funkgen,fevc,omega,dochk)
-    use tools_math, only: det, matinv
-    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
-       fclose, string, fopen_write, uout
-    use types, only: realloc
-    use param, only: bohrtoa
-    class(grid3), intent(inout) :: f
-    character*(*), intent(in) :: fchk !< Input file (chk file from wannier90)
-    character*(*), intent(in) :: fchkdn !< Input file (chk for the down spin)
-    character*(*), intent(in) :: funkgen !< unkgen file (unkgen file from wannier90)
-    character*(*), intent(in) :: fevc !< unkgen file (evc file from pw2wannier)
-    real*8, intent(in) :: omega !< unit cell
-    logical, intent(in) :: dochk !< use checkpoint file
-
+    integer :: i, ispin, ik, ibnd, ikk
     integer :: luc
-    integer :: nspin, ispin, ibnd, nbnd, jbnd, idum, nall(3)
-    integer :: n(3), ik, ik1, ik2, ik3, naux(3), ikk
-    real*8 :: fspin
-    integer :: i, j, k, l
+    integer :: npwx, ngms, nkstot
+    real*8 :: at(3,3), fspin
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
-    integer :: nk1, nk2, nk3, nk
-    character(len=:), allocatable :: sijfname
-    ! for the wannier checkpoint (wannier90, 2.0.1)
-    character(len=33) :: header
-    real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
-    character(len=20) :: chkpt1
-    logical :: have_disentangled, ok1, ok2, haschk
-    complex*16 :: cdum
-
+    logical :: gamma_only
+    
+    ! initialize
     call f%end()
+    f%qe%fpwc = fpwc
+    f%isqe = .true.
+    f%iswan = .false.
 
-    ! spin
-    if (len_trim(fchkdn) < 1) then
-       nspin = 1
+    ! open file
+    luc = fopen_read(fpwc,form="unformatted")
+
+    ! header and lattice vectors
+    read (luc) ! version
+    read (luc) ! nsp, nat
+    read (luc) ! atm
+    read (luc) ! ityp 
+    read (luc) ! tau
+    read (luc) at
+
+    ! read the dimensions for the arrays
+    read (luc) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
+    if (f%qe%nspin == 1) then
        fspin = 2d0
     else
-       nspin = 2
        fspin = 1d0
     end if
-    
-    ! checkpoint files
-    haschk = .false.
-    if (dochk) then
-       sijfname = trim(fchk) // "-sij"
-       inquire(file=sijfname,exist=haschk)
+    read (luc) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
+    read (luc) f%n
+    read (luc) npwx, ngms
+    nkstot = f%qe%nspin * f%qe%nks
+
+    ! read k-point info
+    if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
+    allocate(f%qe%kpt(3,f%qe%nks))
+    if (allocated(f%qe%wk)) deallocate(f%qe%wk)
+    allocate(f%qe%wk(f%qe%nks))
+    if (allocated(f%qe%ek)) deallocate(f%qe%ek)
+    allocate(f%qe%ek(f%qe%nbnd,nkstot))
+    if (allocated(f%qe%occ)) deallocate(f%qe%occ)
+    allocate(f%qe%occ(f%qe%nbnd,nkstot))
+    if (allocated(f%qe%ek)) deallocate(f%qe%ek)
+    allocate(f%qe%ek(f%qe%nbnd,nkstot))
+    read (luc) f%qe%kpt
+    read (luc) f%qe%wk
+    read (luc) f%qe%ek
+    read (luc) f%qe%occ
+
+    ! read k-point mapping
+    if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
+    allocate(f%qe%ngk(f%qe%nks))
+    if (allocated(f%qe%igk_k)) deallocate(f%qe%igk_k)
+    allocate(f%qe%igk_k(npwx,f%qe%nks))
+    if (allocated(f%qe%nl)) deallocate(f%qe%nl)
+    allocate(f%qe%nl(ngms))
+    read (luc) f%qe%ngk
+    read (luc) f%qe%igk_k
+    read (luc) f%qe%nl
+    if (gamma_only) then
+       if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
+       allocate(f%qe%nlm(ngms))
+       read (luc) f%qe%nlm
     end if
-    if (.not.haschk) then
-       inquire(file=funkgen,exist=ok1)
-       inquire(file=fevc,exist=ok2)
-       if (.not.ok1.or..not.ok2) &
-          call ferror("read_unkgen","unkgen/evc and chk-sij files not found",faterr)
-    end if
 
-    ! read the grid size from the unkgen or the checkpoint
-    if (haschk) then
-       luc = fopen_read(sijfname,form="unformatted")
-       read (luc) n
-       call fclose(luc)
-    else
-       luc = fopen_read(funkgen,form="unformatted")
-       read (luc) ikk, idum, ibnd, ispin
-       read (luc) n
-       call fclose(luc)
-    end if
-    f%n = n
-
-    ! read the chk file/s
-    do ispin = 1, nspin
-       if (ispin == 1) then
-          luc = fopen_read(fchk,form="unformatted")
-       else
-          luc = fopen_read(fchkdn,form="unformatted")
-       end if
-
-       ! header and number of bands
-       read(luc) header
-       read(luc) nbnd 
-       read(luc) jbnd 
-       if (jbnd > 0) &
-          call ferror("read_unkgen","number of excluded bands /= 0",faterr)
-       read(luc) (idum,i=1,jbnd) 
-
-       ! real and reciprocal lattice
-       read(luc) ((rlatt(i,j),i=1,3),j=1,3)
-       if (abs(det(rlatt) / bohrtoa**3 - omega) / omega > 1d-2) & 
-          call ferror("read_unkgen","wannier and current structure's volumes differ by more than 1%",faterr)
-       read(luc) ((rclatt(i,j),i=1,3),j=1,3)
-    
-       ! number of k-points
-       read(luc) nk 
-       read(luc) nk1, nk2, nk3
-       if (nk == 0 .or. nk1 == 0 .or. nk2 == 0 .or. nk3 == 0 .or. nk /= (nk1*nk2*nk3)) &
-          call ferror("read_unkgen","no monkhorst-pack grid or inconsistent k-point number",faterr)
-
-       ! k-points
-       if (allocated(f%wan%kpt)) deallocate(f%wan%kpt)
-       allocate(f%wan%kpt(3,nk))
-       read(luc) ((f%wan%kpt(i,j),i=1,3),j=1,nk) 
-       do i = 1, nk
-          ik1 = nint(f%wan%kpt(1,i) * nk1)
-          ik2 = nint(f%wan%kpt(2,i) * nk2)
-          ik3 = nint(f%wan%kpt(3,i) * nk3)
-          if (abs(f%wan%kpt(1,i) * nk1 - ik1) > 1d-5 .or.abs(f%wan%kpt(2,i) * nk2 - ik2) > 1d-5 .or.&
-             abs(f%wan%kpt(3,i) * nk3 - ik3) > 1d-5) then
-             write (uout,*) f%wan%kpt(:,i)
-             write (uout,*) f%wan%kpt(1,i)*nk1,f%wan%kpt(1,i)*nk2,f%wan%kpt(1,i)*nk3
-             write (uout,*) ik1, ik2, ik3
-             call ferror("read_unkgen","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
-          end if
-       end do
-
-       read(luc) idum ! number of nearest k-point neighbours
-       read(luc) jbnd ! number of wannier functions
-       if (jbnd /= nbnd) &
-          call ferror("read_unkgen","number of wannier functions /= number of bands",faterr)
-       
-       ! checkpoint positon and disentanglement
-       read(luc) chkpt1
-       read(luc) have_disentangled
-       if (have_disentangled) & 
-          call ferror("read_unkgen","can not handle disentangled wannier functions",faterr)
-
-       ! u and m matrices
-       if (allocated(f%wan%u)) deallocate(f%wan%u)
-       allocate(f%wan%u(nbnd,nbnd,nk))
-       read(luc) (((f%wan%u(i,j,k),i=1,nbnd),j=1,nbnd),k=1,nk)
-       read(luc) ((((cdum,i=1,nbnd),j=1,nbnd),k=1,idum),l=1,nk) ! m matrix
-
-       ! wannier centers and spreads
-       if (ispin == 1) then
-          if (allocated(f%wan%center)) deallocate(f%wan%center)
-          if (allocated(f%wan%spread)) deallocate(f%wan%spread)
-          allocate(f%wan%center(3,nbnd,nspin),f%wan%spread(nbnd,nspin))
-       else
-          if (nbnd > size(f%wan%spread,1)) then
-             call realloc(f%wan%center,3,nbnd,nspin)
-             call realloc(f%wan%spread,nbnd,nspin)
-          end if
-       end if
-       read(luc) ((f%wan%center(i,j,ispin),i=1,3),j=1,nbnd)
-       read(luc) (f%wan%spread(i,ispin),i=1,nbnd)
-
-       ! end of wannier checkpoint
-       call fclose(luc)
-
-       ! dimensions for the supercell
-       f%wan%nwan = (/nk1,nk2,nk3/)
-       nall = f%n * f%wan%nwan
-
-       ! convert centers to crystallographic and spread to bohr
-       rlatti = matinv(rlatt)
-       do i = 1, nbnd
-          f%wan%center(:,i,ispin) = matmul(f%wan%center(:,i,ispin),rlatti)
-          do j = 1, 3
-             if (f%wan%center(j,i,ispin) > f%wan%nwan(j)) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) - f%wan%nwan(j)
-             if (f%wan%center(j,i,ispin) < 0d0) &
-                f%wan%center(j,i,ispin) = f%wan%center(j,i,ispin) + f%wan%nwan(j)
-          end do
-          f%wan%spread(i,ispin) = sqrt(f%wan%spread(i,ispin)) / bohrtoa
-       end do
+    ! convert k-point coordinates to reciprocal crystallographic and
+    ! band energies to Hartree
+    do i = 1, f%qe%nks
+       f%qe%kpt(:,i) = matmul(f%qe%kpt(:,i),at)
     end do
-    f%wan%nks = nk
-    f%wan%nbnd = nbnd
-    f%wan%nspin = nspin
+    f%qe%ek = 0.5d0 * f%qe%ek
 
-    ! save the evc file name
-    f%wan%fevc = fevc
-
-    if (.not.haschk) then
-       ! read the unkgen info
-       luc = fopen_read(funkgen,form="unformatted")
-       read (luc) ikk, idum, ibnd, ispin
-       if (ikk /= 1 .or. idum /= nk .or. ibnd /= nbnd .or. ispin /= nspin) &
-          call ferror("read_unkgen","inconsistent unkgen",faterr)
-
-       read (luc) n
-       if (any(n /= f%n)) &
-          call ferror("read_unkgen","inconsistent unkgen",faterr)
-
-       ! allocate and read integer indices
-       read(luc) naux
-       if (allocated(f%wan%ngk)) deallocate(f%wan%ngk)
-       allocate(f%wan%ngk(nk))
-       if (allocated(f%wan%igk_k)) deallocate(f%wan%igk_k)
-       allocate(f%wan%igk_k(naux(2),nk))
-       if (allocated(f%wan%nls)) deallocate(f%wan%nls)
-       allocate(f%wan%nls(naux(3)))
-       read (luc) f%wan%ngk
-       read (luc) f%wan%igk_k
-       read (luc) f%wan%nls
-       call fclose(luc)
-    end if
-
-    ! allocate the density
+    ! calculate the electron density
     if (allocated(f%f)) deallocate(f%f)
     allocate(f%f(f%n(1),f%n(2),f%n(3)))
+    allocate(raux(f%n(1),f%n(2),f%n(3)),rseq(f%n(1)*f%n(2)*f%n(3)))
+    allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
     f%f = 0d0
 
-    if (.not.haschk) then
-       ! open the evc file
-       luc = fopen_read(fevc,form="unformatted")
-       allocate(evc(maxval(f%wan%ngk(1:nk))))
-
-       ! calculate the electron density
-       allocate(raux(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
-       do ispin = 1, nspin
-          do ik = 1, nk
-             do ibnd = 1, nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-                rseq = 0d0
-                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
-                raux = reshape(rseq,shape(raux))
-                call cfftnd(3,n,+1,raux)
-                f%f = f%f + real(conjg(raux) * raux,8)
-             end do
+    ikk = 0
+    do ispin = 1, f%qe%nspin
+       do ik = 1, f%qe%nks
+          ikk = ikk + 1
+          do ibnd = 1, f%qe%nbnd
+             rseq = 0d0
+             read (luc) evc(1:f%qe%ngk(ik))
+             rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
+             if (gamma_only) &
+                rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
+             raux = reshape(rseq,shape(raux))
+             call cfftnd(3,f%n,+1,raux)
+             f%f = f%f + f%qe%occ(ibnd,ikk) * real(conjg(raux) * raux,8)
           end do
        end do
-       deallocate(raux,rseq,evc)
-       call fclose(luc)
-       f%f = f%f * fspin / omega / real(nk,8)
-    else
-       luc = fopen_read(sijfname,form="unformatted")
-       read (luc) n
-       read (luc) f%f
-       call fclose(luc)
-    end if
+    end do
+    deallocate(raux,rseq,evc)
+    f%f = f%f * fspin / (det(at) * sum(f%qe%wk))
 
-    f%wan%sijchk = dochk
-    f%wan%haschk = haschk
+    ! close and clean up
+    call fclose(luc)
     f%isinit = .true.
     f%mode = mode_default
-    f%iswan = .true.
-    f%wan%nbnd = nbnd
-    f%wan%nspin = nspin
 
-  end subroutine read_unkgen
+    ! wannier transformation, if given
+    if (allocated(f%qe%center)) deallocate(f%qe%center)
+    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
+    if (allocated(f%qe%u)) deallocate(f%qe%u)
+
+  end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   module subroutine read_elk(f,file)
@@ -1307,9 +887,155 @@ contains
 
     n = f%n
     f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
     f%mode = mode_default
 
   end subroutine read_elk
+
+  !> Reads information from a wannier90 checkpoint file (.chk). Sets
+  !> the wannier information in the qe field only (center, spread, u).
+  !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
+  module subroutine read_wannier_chk(f,fileup,filedn)
+    use tools_math, only: matinv
+    use tools_io, only: faterr, ferror, uout, fopen_read, fclose
+    use param, only: bohrtoa
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: fileup
+    character*(*), intent(in), optional :: filedn
+
+    integer :: lu(2), ispin
+    character(len=33) :: header
+    integer :: i, j, k, l, nspin, is
+    integer :: nbnd, jbnd, idum, nks, nk(3), ik1, ik2, ik3
+    real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
+    character(len=20) :: chkpt1
+    logical :: have_disentangled
+    complex*16 :: cdum
+    real*8, allocatable :: kpt(:,:)
+
+    ! check qe is available
+    if (.not.f%isinit) then
+       call ferror("read_wannier_chk","cannot read wannier data with non-initialized grid",faterr)
+    end if
+    if (.not.f%isqe) then
+       call ferror("read_wannier_chk","cannot read wannier data without qe data",faterr)
+    end if
+
+    ! check nspin consistency
+    if (present(filedn)) then
+       if (f%qe%nspin /= 2) &
+          call ferror("read_wannier_chk","two chk files but nspin = 1",faterr)
+    else
+       if (f%qe%nspin /= 1) &
+          call ferror("read_wannier_chk","one chk file but nspin = 2",faterr)
+    end if
+    nspin = f%qe%nspin
+
+    ! open files and initialize
+    lu(1) = fopen_read(fileup,form="unformatted")
+    if (nspin == 2) &
+       lu(2) = fopen_read(filedn,form="unformatted")
+
+    ! header and number of bands
+    do is = nspin, 1, -1
+       read(lu(is)) header
+       read(lu(is)) nbnd 
+       read(lu(is)) jbnd 
+       if (jbnd > 0) &
+          call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
+       if (nbnd /= f%qe%nbnd .and. nspin == 1) &
+          call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
+       read(lu(is)) (idum,i=1,jbnd) 
+
+       ! real and reciprocal lattice
+       read(lu(is)) ((rlatt(i,j),i=1,3),j=1,3)
+       read(lu(is)) ((rclatt(i,j),i=1,3),j=1,3)
+    
+       ! number of k-points
+       read(lu(is)) nks
+       read(lu(is)) nk
+       if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) &
+          call ferror("read_wannier_chk","error in number of k-points (wannier)",faterr)
+       if (nks /= f%qe%nks) &
+          call ferror("read_wannier_chk","number of k-points from wannier different than qe",faterr)
+    end do
+
+    ! k-points
+    allocate(kpt(3,nks))
+    do is = nspin, 1, -1
+       read(lu(is)) ((kpt(i,j),i=1,3),j=1,nks) 
+       do i = 1, nks
+          ik1 = nint(kpt(1,i) * nk(1))
+          ik2 = nint(kpt(2,i) * nk(2))
+          ik3 = nint(kpt(3,i) * nk(3))
+          if (abs(kpt(1,i) * nk(1) - ik1) > 1d-5 .or.abs(kpt(2,i) * nk(2) - ik2) > 1d-5 .or.&
+             abs(kpt(3,i) * nk(3) - ik3) > 1d-5) then
+             write (uout,*) kpt(:,i)
+             write (uout,*) kpt(1,i)*nk(1),kpt(1,i)*nk(2),kpt(1,i)*nk(3)
+             write (uout,*) ik1, ik2, ik3
+             call ferror("read_wannier_chk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+          end if
+          if (any(abs(kpt(:,i) - f%qe%kpt(:,i)) > 1d-5)) then
+             write (uout,*) i
+             write (uout,*) kpt(:,i)
+             write (uout,*) f%qe%kpt(:,i)
+             call ferror("read_wannier_chk","inconsistent wannier/qe k-point coordinates",faterr)
+          end if
+       end do
+    end do
+
+    ! overwrite the k-point in the qe data (if this was a nscf calculation, the nk(3)
+    ! from qe is zero)
+    f%qe%nk = nk
+    f%qe%nbndw = 0
+
+    do is = nspin, 1, -1
+       read(lu(is)) idum ! number of nearest k-point neighbours
+       read(lu(is)) jbnd ! number of wannier functions
+       f%qe%nbndw(is) = jbnd
+
+       ! checkpoint position and disentanglement
+       read(lu(is)) chkpt1
+       read(lu(is)) have_disentangled
+       if (have_disentangled) & 
+          call ferror("read_wannier_chk","cannot handle disentangled wannier functions",faterr)
+    end do
+    
+    ! rest of the file: u and m matrices, wannier centers and spreads
+    jbnd = maxval(f%qe%nbndw(1:nspin))
+    if (allocated(f%qe%u)) deallocate(f%qe%u)
+    if (allocated(f%qe%center)) deallocate(f%qe%center)
+    if (allocated(f%qe%spread)) deallocate(f%qe%spread)
+    allocate(f%qe%u(jbnd,jbnd,nks,nspin))
+    allocate(f%qe%center(3,jbnd,nspin),f%qe%spread(jbnd,nspin))
+    do is = nspin, 1, -1
+       read(lu(is)) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
+       read(lu(is)) ! m matrix
+       read(lu(is)) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
+       read(lu(is)) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
+       call fclose(lu(is))
+    end do
+    
+    ! convert centers to crystallographic and spread to bohr
+    rlatti = matinv(rlatt)
+    do is = 1, nspin
+       do i = 1, f%qe%nbndw(is)
+          f%qe%center(:,i,is) = matmul(f%qe%center(:,i,is),rlatti)
+          do j = 1, 3
+             if (f%qe%center(j,i,is) > nk(j)) &
+                f%qe%center(j,i,is) = f%qe%center(j,i,is) - nk(j)
+             if (f%qe%center(j,i,is) < 0d0) &
+                f%qe%center(j,i,is) = f%qe%center(j,i,is) + nk(j)
+          end do
+          f%qe%spread(i,is) = sqrt(f%qe%spread(i,is)) / bohrtoa
+       end do
+    end do
+
+    ! clean up
+    f%iswan = .true.
+
+  end subroutine read_wannier_chk
 
   !> Interpolate the function value, first and second derivative at
   !> point x0 (crystallographic coords.) using the grid g.  This
@@ -1704,109 +1430,194 @@ contains
 
   end subroutine hxx
 
-  !> Build a Wannier function from QEs unk(r) functions in the UNK files.
-  module subroutine get_qe_wnr(f,ibnd,ispin,fout)
-    use tools_io, only: string, ferror, fopen_read, fopen_write,&
-       fclose
+  !> Read the pwc file from QE and write temporary, perhaps rotated
+  !> versions of the same file. This operation pre-arranges the data
+  !> in a manner that makes it easy for get_qe_wnr to work in
+  !> parallel. Returns the LUs of the spin-up and spin-down rotated
+  !> pwc files, which remain open. luevc_ibnd keeps track of the next
+  !> band in the LU (returns 1 for both spins). If useu is false, do
+  !> not rotate the coefficients (but still write the scratch files).
+  module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
+    use tools_io, only: fopen_scratch, string, fopen_read, fclose
+    class(grid3), intent(inout) :: f
+    integer, intent(out) :: luevc(2)
+    integer, intent(out) :: luevc_ibnd(2)
+    logical, intent(in) :: useu
+
+    integer :: i, ik, ibnd, jbnd, luc, ireg
+    complex*16, allocatable :: evc(:), evcnew(:)
+
+    luevc = -1
+    luevc_ibnd = 0
+
+    luc = fopen_read(f%qe%fpwc,form="unformatted")
+
+    ! skip the header of the pwc file
+    if (f%qe%gamma_only) then
+       ireg = 18
+    else
+       ireg = 17
+    end if
+
+    allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))),evcnew(maxval(f%qe%ngk(1:f%qe%nks))))
+
+    do i = 1, f%qe%nspin
+       luevc(i) = fopen_scratch(form="unformatted")
+    end do
+    do ibnd = 1, f%qe%nbnd
+       rewind(luc)
+       do i = 1, ireg
+          read (luc)
+       end do
+       do i = 1, f%qe%nspin
+          do ik = 1, f%qe%nks
+             evcnew = 0d0
+             do jbnd = 1, f%qe%nbnd
+                read (luc) evc(1:f%qe%ngk(ik))
+                if (ibnd > f%qe%nbndw(i) .or. jbnd > f%qe%nbndw(i)) cycle
+                if (useu) then
+                   evcnew(1:f%qe%ngk(ik)) = evcnew(1:f%qe%ngk(ik)) + f%qe%u(jbnd,ibnd,ik,i) * evc(1:f%qe%ngk(ik))
+                elseif (ibnd == jbnd) then
+                   evcnew(1:f%qe%ngk(ik)) = evc(1:f%qe%ngk(ik))
+                end if
+             end do
+             if (ibnd > f%qe%nbndw(i)) cycle
+             write (luevc(i)) evcnew(1:f%qe%ngk(ik))
+          end do
+       end do
+    end do
+    do i = 1, f%qe%nspin
+       rewind(luevc(i))
+       luevc_ibnd(i) = 1
+    end do
+
+    deallocate(evc,evcnew)
+    call fclose(luc)
+
+  end subroutine rotate_qe_evc
+
+  !> Build the Wannier functions for band ibnd and spin ispin from QEs
+  !> Bloch coefficients, parallel version. Returns the Wannier
+  !> functions in supercell grid fout. This version uses the logical
+  !> units for the scratch files containing the rotated Bloch
+  !> coefficients (luevc, one for each spin) and a pointer that tracks
+  !> the current band index in those files (luevc_ibnd). The latter is
+  !> updated by calls to this routine. isreal is .true. in output
+  !> if the Wannier function is real (abs(max(imag)/max(real)) < 1e-7).
+  module subroutine get_qe_wnr(f,ibnd,ispin,luevc,luevc_ibnd,fout)
+    use tools_io, only: uout, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
-    complex*16, intent(out) :: fout(f%wan%nwan(1)*f%n(1),f%wan%nwan(2)*f%n(2),f%wan%nwan(3)*f%n(3))
+    integer, intent(in) :: luevc(2)
+    integer, intent(inout) :: luevc_ibnd(2)
+    complex*16, intent(out), optional :: fout(:,:,:,:)
 
-    integer :: luc, i, j, k, nk1, nk2, nk3
-    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk
-    integer :: jbnd, imax(3)
-    complex*16 :: raux(f%n(1),f%n(2),f%n(3)), rseq(f%n(1)*f%n(2)*f%n(3))
-    complex*16 :: raux2(f%n(1),f%n(2),f%n(3))
-    character(len=:), allocatable :: fname
-    complex*16 :: tnorm, ph
-    complex*16, allocatable :: evc(:)
+    integer :: i, j, k, nk1, nk2, nk3
+    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk, ilat, ikg, ik0
+    integer :: imax(4)
+    complex*16 :: tnorm
+    complex*16, allocatable :: evc(:), rseq(:), raux(:,:,:), raux2(:,:,:)
     integer :: n(3)
+    real*8 :: xkpt(3)
+
+    if (present(fout)) then
+       if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
+          call ferror("get_qe_wnr","inconsistent grid size",faterr)
+       if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= size(fout,4)) &
+          call ferror("get_qe_wnr","inconsistent number of k-points",faterr)
+    end if
 
     n = f%n
-    nk1 = f%wan%nwan(1)
-    nk2 = f%wan%nwan(2)
-    nk3 = f%wan%nwan(3)
+    nk1 = f%qe%nk(1)
+    nk2 = f%qe%nk(2)
+    nk3 = f%qe%nk(3)
     fout = 0d0
     nk = nk1 * nk2 * nk3
     nall(1) = n(1) * nk1
     nall(2) = n(2) * nk2
     nall(3) = n(3) * nk3
 
-    if (allocated(f%wan%ngk)) then
-       allocate(evc(maxval(f%wan%ngk(1:nk))))
-       luc = fopen_read(f%wan%fevc,form="unformatted")
-       if (ispin == 2) then
+    allocate(evc(maxval(f%qe%ngk(1:nk))))
+
+    if (luevc_ibnd(ispin) > ibnd) then
+       rewind(luevc(ispin))
+       luevc_ibnd(ispin) = 1
+    end if
+    if (luevc_ibnd(ispin) /= ibnd) then
+       do i = 1, ibnd-luevc_ibnd(ispin)
           do ik = 1, nk
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-             end do
+             read (luevc(ispin)) evc(1:f%qe%ngk(ik))
           end do
-       end if
+       end do
+       luevc_ibnd(ispin) = ibnd
     end if
 
+    ! allocate auxiliary arrays
+    allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
+    allocate(raux(f%n(1),f%n(2),f%n(3)))
+    allocate(raux2(f%n(1),f%n(2),f%n(3)))
+    rseq = 0d0
+    raux2 = 0d0
+    raux = 0d0
+
     ! run over k-points
+    ikg = 0
+    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0,xkpt) firstprivate(evc,rseq,raux,raux2) schedule(dynamic)
     do ik = 1, nk
+       rseq = 0d0
+       !$omp critical (readio)
+       ikg = ikg + 1
+       ik0 = ikg
+       read (luevc(ispin)) evc(1:f%qe%ngk(ikg))
+       !$omp end critical (readio)
+       rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik0),ik0))) = evc(1:f%qe%ngk(ik0))
+       raux = reshape(rseq,shape(raux))
+       call cfftnd(3,n,+1,raux)
+
        ! phase factor
        do k = 1, n(3)
           do j = 1, n(2)
              do i = 1, n(1)
-                raux2(i,j,k) = exp(tpi*img*(f%wan%kpt(1,ik)*real(i-1,8)/real(n(1),8)+&
-                   f%wan%kpt(2,ik)*real(j-1,8)/real(n(2),8)+f%wan%kpt(3,ik)*real(k-1,8)/real(n(3),8)))
+                raux(i,j,k) = raux(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik0)*real(i-1,8)/real(n(1),8)+&
+                   f%qe%kpt(2,ik0)*real(j-1,8)/real(n(2),8)+f%qe%kpt(3,ik0)*real(k-1,8)/real(n(3),8)))
              end do
           end do
        end do
 
-       if (allocated(f%wan%ngk)) then
-          ! from a unkgen
-          if (f%wan%useu) then
-             rseq = 0d0
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-                rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = &
-                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) + &
-                   f%wan%u(jbnd,ibnd,ik) * evc(1:f%wan%ngk(ik))
-             end do
-          else
-             rseq = 0d0
-             do jbnd = 1, f%wan%nbnd
-                read (luc) evc(1:f%wan%ngk(ik))
-                if (jbnd == ibnd) &
-                   rseq(f%wan%nls(f%wan%igk_k(1:f%wan%ngk(ik),ik))) = evc(1:f%wan%ngk(ik))
-             end do
-          end if
-          raux = reshape(rseq,shape(raux))
-          call cfftnd(3,n,+1,raux)
-       else
-          ! from the WNK created using the UNK files
-          fname = "WNK." // string(ik) // "." // string(ibnd) // "." // string(ispin)
-          luc = fopen_read(fname,form="unformatted")
-          read(luc) raux
-          call fclose(luc)
-       end if
-
        ! add the contribution from this k-point
-       raux2 = raux2 * raux
        do ikk = 1, nk
-          ik1 = nint(f%wan%kpt(1,ikk) * nk1)
-          ik2 = nint(f%wan%kpt(2,ikk) * nk2)
-          ik3 = nint(f%wan%kpt(3,ikk) * nk3)
-          ph = exp(tpi*img*(f%wan%kpt(1,ik)*ik1+f%wan%kpt(2,ik)*ik2+f%wan%kpt(3,ik)*ik3))
-          fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) = &
-             fout(ik1*n(1)+1:(ik1+1)*n(1),ik2*n(2)+1:(ik2+1)*n(2),ik3*n(3)+1:(ik3+1)*n(3)) + &
-             raux2 * ph
+          xkpt = f%qe%kpt(:,ikk) - floor(f%qe%kpt(:,ikk))
+          ik1 = mod(nint(xkpt(1) * nk1),nk1)
+          ik2 = mod(nint(xkpt(2) * nk2),nk2)
+          ik3 = mod(nint(xkpt(3) * nk3),nk3)
+          ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
+          raux2 = raux * exp(-tpi*img*(f%qe%kpt(1,ik0)*ik1+f%qe%kpt(2,ik0)*ik2+f%qe%kpt(3,ik0)*ik3))
+          if (ilat < 1 .or. ilat > nk) then 
+             !$omp critical (ioerror)
+             write (uout,*) "kpoint number ", ikk
+             write (uout,*) "kpoint coords ", f%qe%kpt(:,ikk)
+             write (uout,*) "kpoint coords (main cell) ", xkpt
+             write (uout,*) "ik ", ik1, ik2, ik3
+             write (uout,*) "ilat ", ilat
+             call ferror("get_qe_wnr","could not classify a k-point, non-uniform grid?",faterr)
+             !$omp end critical (ioerror)
+          end if
+          !$omp critical (sum)
+          fout(:,:,:,ilat) = fout(:,:,:,ilat) + raux2
+          !$omp end critical (sum)
        end do
     end do
+    !$omp end parallel do
 
-    if (allocated(f%wan%ngk)) then
-       deallocate(evc)
-       call fclose(luc)
-    end if
+    deallocate(rseq,raux,raux2)
+    luevc_ibnd(ispin) = luevc_ibnd(ispin) + 1
+    if (allocated(evc)) deallocate(evc)
 
     ! normalize
     imax = maxloc(abs(fout))
-    tnorm = fout(imax(1),imax(2),imax(3))
+    tnorm = fout(imax(1),imax(2),imax(3),imax(4))
     tnorm = tnorm / abs(tnorm) * nk
     fout = fout / tnorm
 
@@ -2461,158 +2272,5 @@ contains
     deallocate(l,fg)
 
   end subroutine init_trispline
-
-  !> Pop from the stack and operate on the queue.  This routine is
-  !> thread-safe. Grid version
-  subroutine pop_grid(q,nq,s,ns,fail)
-    use arithmetic, only: istype, fun_plus, fun_minus, fun_prod, fun_div,&
-       fun_power, fun_modulo, fun_atan2, fun_min, fun_max, fun_great,&
-       fun_great, fun_less, fun_leq, fun_geq, fun_equal, fun_neq, fun_and,&
-       fun_or, fun_uplus, fun_uminus, fun_abs, fun_exp, fun_sqrt, fun_floor,&
-       fun_ceiling, fun_round, fun_log, fun_log10, fun_sin, fun_asin, fun_cos,&
-       fun_acos, fun_tan, fun_atan, fun_sinh, fun_cosh, fun_erf, fun_erfc,&
-       fun_xc
-    real*8, allocatable, intent(inout) :: q(:,:,:,:)
-    integer, intent(inout) :: s(:)
-    integer, intent(inout) :: nq, ns
-    logical, intent(out) :: fail
-
-    integer :: c
-
-    ! pop from the stack
-    fail = .false.
-    if (ns == 0) goto 999
-    c = s(ns)
-    ns = ns - 1
-
-    ! And apply to the queue
-    if (c == fun_xc) then
-       goto 999
-    elseif (istype(c,'binary')) then
-       ! a binary operator or function
-       if (nq < 2) goto 999
-       nq = nq - 1
-       select case(c)
-       case (fun_plus)
-          q(:,:,:,nq) = q(:,:,:,nq) + q(:,:,:,nq+1)
-       case (fun_minus)
-          q(:,:,:,nq) = q(:,:,:,nq) - q(:,:,:,nq+1)
-       case (fun_prod)
-          q(:,:,:,nq) = q(:,:,:,nq) * q(:,:,:,nq+1)
-       case (fun_div)
-          q(:,:,:,nq) = q(:,:,:,nq) / q(:,:,:,nq+1)
-       case (fun_power)
-          q(:,:,:,nq) = q(:,:,:,nq) ** q(:,:,:,nq+1)
-       case (fun_modulo)
-          q(:,:,:,nq) = modulo(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_atan2)
-          q(:,:,:,nq) = atan2(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_min)
-          q(:,:,:,nq) = min(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_max)
-          q(:,:,:,nq) = max(q(:,:,:,nq),q(:,:,:,nq+1))
-       case (fun_great)
-          where (q(:,:,:,nq) > q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_less)
-          where (q(:,:,:,nq) < q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_leq)
-          where (q(:,:,:,nq) <= q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_geq)
-          where (q(:,:,:,nq) >= q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_equal)
-          where (q(:,:,:,nq) == q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_neq)
-          where (q(:,:,:,nq) /= q(:,:,:,nq+1))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_and)
-          where (.not.(q(:,:,:,nq)==0d0).and..not.(q(:,:,:,nq+1)==0d0))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       case (fun_or)
-          where (.not.(q(:,:,:,nq)==0d0).or..not.(q(:,:,:,nq+1)==0d0))
-             q(:,:,:,nq) = 1d0
-          elsewhere
-             q(:,:,:,nq) = 0d0
-          end where
-       end select
-    elseif (istype(c,'unary')) then
-       ! a unary operator or function
-       if (nq < 1) goto 999
-       select case(c)
-       case (fun_uplus)
-          q(:,:,:,nq) = +q(:,:,:,nq)
-       case (fun_uminus)
-          q(:,:,:,nq) = -q(:,:,:,nq)
-       case (fun_abs)
-          q(:,:,:,nq) = abs(q(:,:,:,nq))
-       case (fun_exp)
-          q(:,:,:,nq) = exp(q(:,:,:,nq))
-       case (fun_sqrt)
-          q(:,:,:,nq) = sqrt(q(:,:,:,nq))
-       case (fun_floor)
-          q(:,:,:,nq) = floor(q(:,:,:,nq))
-       case (fun_ceiling)
-          q(:,:,:,nq) = ceiling(q(:,:,:,nq))
-       case (fun_round)
-          q(:,:,:,nq) = nint(q(:,:,:,nq))
-       case (fun_log)
-          q(:,:,:,nq) = log(q(:,:,:,nq))
-       case (fun_log10)
-          q(:,:,:,nq) = log10(q(:,:,:,nq))
-       case (fun_sin)
-          q(:,:,:,nq) = sin(q(:,:,:,nq))
-       case (fun_asin)
-          q(:,:,:,nq) = asin(q(:,:,:,nq))
-       case (fun_cos)
-          q(:,:,:,nq) = cos(q(:,:,:,nq))
-       case (fun_acos)
-          q(:,:,:,nq) = acos(q(:,:,:,nq))
-       case (fun_tan)
-          q(:,:,:,nq) = tan(q(:,:,:,nq))
-       case (fun_atan)
-          q(:,:,:,nq) = atan(q(:,:,:,nq))
-       case (fun_sinh)
-          q(:,:,:,nq) = sinh(q(:,:,:,nq))
-       case (fun_cosh)
-          q(:,:,:,nq) = cosh(q(:,:,:,nq))
-       case (fun_erf)
-          q(:,:,:,nq) = erf(q(:,:,:,nq))
-       case (fun_erfc)
-          q(:,:,:,nq) = erfc(q(:,:,:,nq))
-       end select
-    else
-       goto 999
-    end if
-
-    return
-999 continue
-    fail = .true.
-
-  end subroutine pop_grid
 
 end submodule proc

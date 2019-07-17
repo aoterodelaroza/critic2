@@ -20,7 +20,7 @@ submodule (bisect) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+  ! subroutine lim_surf(cpid, xin, xfin, delta, xmed, tstep, nwarn)
   ! subroutine lim_bundle(xup, xdn, xin, xfin, delta, xmed, tstep, nwarn)
   ! subroutine bisect_msurface(srf,cpid,prec,verbose)
   ! subroutine bundle_msurface(srf,prec,verbose)
@@ -858,27 +858,27 @@ contains
   !> for this method. This routine handles the output and calls the
   !> low-level integrals_*.
   module subroutine integrals(line)
-    use integration, only: int_output
     use systemmod, only: sy
+    use integration, only: int_output_header, int_output_fields
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
        fileroot
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
-
+    use types, only: basindat, int_result, out_field
     character*(*), intent(in) :: line
 
     integer :: meth, cpid, ntheta, nphi, np
-    logical :: usefiles, verbose
+    logical :: usefiles, verbose, ok
     integer :: lp
     integer :: linmin, linmax
     integer :: i, j, n
     real*8, allocatable :: atprop(:,:)
-    logical :: maskprop(sy%npropi), ok
     character(len=:), allocatable :: aux, word
     character*(10) :: pname
-    character*(30) :: reason(sy%npropi)
     integer, allocatable :: icp(:)
     real*8, allocatable :: xattr(:,:)
+    type(basindat) :: bas
+    type(int_result), allocatable :: res(:)
 
     ntheta = 0
     nphi = 0
@@ -926,10 +926,6 @@ contains
     end do
 
     if (.not.quiet) call tictac("Start INTEGRALS")
-    maskprop = .true.
-    do i = 1, sy%npropi
-       reason(i) = ""
-    end do
 
     if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
        pname = sy%propi(INT_radquad_errprop)%prop_name
@@ -957,8 +953,17 @@ contains
 
     ! allocate space for results
     n = linmax - linmin + 1
-    allocate(icp(n),xattr(3,n))
     allocate(atprop(sy%npropi,n))
+    atprop = 0d0
+    bas%nattr = n
+    allocate(res(sy%npropi),bas%icp(bas%nattr),bas%xattr(3,bas%nattr))
+    do i = 1, sy%npropi
+       res(i)%done = .true.
+       res(i)%reason = ""
+       allocate(res(i)%psum(n))
+       res(i)%psum = 0d0
+       res(i)%outmode = out_field
+    end do
 
     ! define the int files
     if (usefiles) then
@@ -987,15 +992,21 @@ contains
        ! arrange results for int_output
        do j = 1, sy%f(sy%iref)%ncpcel
           if (sy%f(sy%iref)%cpcel(j)%idx == i) then
-             icp(n) = j
-             xattr(:,n) = sy%f(sy%iref)%cpcel(j)%x
+             bas%icp(n) = j
+             bas%xattr(:,n) = sy%f(sy%iref)%cpcel(j)%x
              exit
           end if
        end do
     end do
     write (uout,*)
 
-    call int_output(maskprop,reason,n,icp(1:n),xattr(:,1:n),atprop(:,1:n),.true.)
+    do i = 1, sy%npropi
+       res(i)%psum = atprop(i,:)
+    end do
+
+    call int_output_header(bas,res,.true.,.true.)
+    call int_output_fields(bas,res,.true.,.true.)
+    deallocate(bas%icp,bas%xattr,res)
 
     ! Cleanup files
     if (allocated(intfile)) deallocate(intfile)
@@ -1016,7 +1027,7 @@ contains
   !> on the IAS. All xnuc, xin, xfin and xmed are given in
   !> crystallographic coordinates. The cpid is an index from the non
   !> -equivalent CP list
-  subroutine lim_surf (cpid, xin, xfin, delta, xmed, tstep, nwarn)
+  subroutine lim_surf(cpid, xin, xfin, delta, xmed, tstep, nwarn)
     use systemmod, only: sy
     use fieldmod, only: type_grid
     integer, intent(in) :: cpid
@@ -1076,7 +1087,7 @@ contains
           ! error in gradient. Calculate the nearest nucleus
           if (ier > 0) nwarn = nwarn + 1
           xpoint = sy%c%c2x(xpoint)
-          call sy%f(sy%iref)%nearest_cp(xpoint,imin,dtemp,sy%f(sy%iref)%typnuc)
+          call sy%f(sy%iref)%nearest_cp(xpoint,imin,dtemp,type=sy%f(sy%iref)%typnuc)
           if (dtemp <= bsr) then
              xin_ = xmed
           else
@@ -1095,7 +1106,6 @@ contains
        if (sy%f(sy%iref)%cpcel(i)%typ /= sy%f(sy%iref)%cp(cpid)%typ) cycle
        xtemp = sy%f(sy%iref)%cpcel(i)%x - xpoint
        call sy%c%shortest(xtemp,dtemp)
-       dtemp = sqrt(dtemp)
        if (dtemp <= sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta) then
           sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta = &
              0.75d0 * sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%rbeta
@@ -1191,7 +1201,7 @@ contains
     use fieldmod, only: type_grid
     use global, only: iunit, iunitname0, dunit0
     use surface, only: minisurf
-    use tools, only: mergesort
+    use tools, only: qcksort
     use tools_io, only: uout, string, ferror, faterr
     use param, only: vbig
     type(minisurf), intent(inout) :: srf
@@ -1232,13 +1242,13 @@ contains
     do j = 1, sy%f(sy%iref)%ncpcel
        xtemp = sy%f(sy%iref)%cpcel(j)%x - xnuc
        call sy%c%shortest(xtemp,rr2)
-       if (rr2 < 1d-10) cycle
+       if (rr2 < 1d-5) cycle
        if (rr2 < rmin) rmin = rr2
        if (rr2 < rminsame .and. sy%f(sy%iref)%cpcel(j)%typ == sy%f(sy%iref)%cp(cpid)%typ) &
           rminsame = rr2
     end do
-    rmin = sqrt(rmin)
-    rminsame = sqrt(rminsame)
+    rmin = rmin
+    rminsame = rminsame
     rnearsum = 0d0
     rfarsum = 0d0
     rzfssum = 0d0
@@ -1295,7 +1305,7 @@ contains
           rtry(7) = 0d0
        end if
        itry = (/ (k,k=1,ntries) /)           ! sort from smaller to larger
-       call mergesort(rtry,itry)
+       call qcksort(rtry,itry,1,ntries)
        id1 = 0
        do k = ntries,1,-1                    ! find best initial point
           riaprox = rtry(itry(k))
@@ -1334,7 +1344,7 @@ contains
           rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
        end if
        itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
-       call mergesort(rtry,itry)
+       call qcksort(rtry,itry,1,ntries)
        id2 = 0
        raprox = rother
        do k = 1,ntries                   ! find best initial point
@@ -2024,13 +2034,13 @@ contains
     write (lud,'("# CRYS2CART ")') 
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%crys2car(i,1:3), rr
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_x2c(i,1:3), rr
     end do
     write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
     write (lud,'("# CART2CRYS ")') 
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%car2crys(i,1:3), rr
+       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_c2x(i,1:3), rr
     end do
     write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
 

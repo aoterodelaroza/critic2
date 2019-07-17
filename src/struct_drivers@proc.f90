@@ -30,15 +30,16 @@ contains
     use systemmod, only: system
     use crystalmod, only: crystal
     use param, only: isformat_cif, isformat_shelx,&
-       isformat_cube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
+       isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp
+       isformat_vasp, isformat_pwc, isformat_axsf
     use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
-       string, uin, isinteger, lower
+       string, uin, isinteger, isreal, lower
     use types, only: realloc
     character*(*), intent(in) :: line
     integer, intent(in) :: mol0
@@ -51,7 +52,7 @@ contains
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, subline
     integer :: nn, isformat
-    real*8 :: rborder, raux
+    real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes
     type(crystalseed) :: seed
     character(len=:), allocatable :: errmsg
@@ -107,6 +108,9 @@ contains
     elseif (isformat == isformat_cube) then
        call seed%read_cube(word,mol,errmsg)
 
+    elseif (isformat == isformat_bincube) then
+       call seed%read_bincube(word,mol,errmsg)
+
     elseif (isformat == isformat_struct) then
        call seed%read_wien(word,mol,errmsg)
 
@@ -147,6 +151,7 @@ contains
        call seed%read_elk(word,mol,errmsg)
 
     elseif (isformat == isformat_qeout) then
+       lp2 = 1
        ok = isinteger(istruct,word2,lp2)
        if (.not.ok) istruct = 0
        call seed%read_qeout(word,mol,istruct,errmsg)
@@ -172,6 +177,29 @@ contains
 
     elseif (isformat == isformat_gen) then
        call seed%read_dftbp(word,rborder,docube,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_pwc) then
+       call seed%read_pwc(word,mol,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_axsf) then
+       istruct = 1
+       xnudge = 0d0
+
+       lp2 = 1
+       ok = isinteger(nn,word2,lp2)
+       if (ok) then
+          istruct = nn
+          word2 = getword(line,lp)
+          lp2 = 1
+          ok = isreal(raux,word2,lp2)
+          if (ok) xnudge = raux
+       end if
+
+       call seed%read_axsf(word,istruct,xnudge,rborder,docube,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
@@ -204,7 +232,6 @@ contains
     ! handle the doguess option
     if (.not.seed%ismolecule) then
        if (doguess == 0) then
-          seed%havesym = 0
           seed%findsym = 0
        elseif (doguess == 1 .and. seed%havesym == 0) then
           seed%findsym = 1
@@ -230,12 +257,12 @@ contains
   !> Clear the symmetry in the system.
   module subroutine struct_clearsym(s)
     use systemmod, only: system
-    use types, only: atom, realloc
+    use types, only: neqatom, realloc
     use tools_io, only: uout
     use param, only: eyet
     type(system), intent(inout) :: s
 
-    type(atom) :: aux(s%c%nneq)
+    type(neqatom) :: aux(s%c%nneq)
     integer :: i, j
 
     write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
@@ -277,11 +304,6 @@ contains
     end do
 
     ! recalculate the environments and asterisms and report
-    s%c%isenv = .false.
-    s%c%isast = .false.
-    s%c%isrecip = .false.
-    s%c%isnn = .false.
-    call s%c%struct_fill(.true.,-1,.false.,.true.,.false.)
     call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_clearsym
@@ -375,7 +397,7 @@ contains
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer
-    logical :: doborder, molmotif, dodreiding, dosym, docell, domolcell, ok
+    logical :: doborder, molmotif, dosym, docell, domolcell, ok
     logical :: onemotif, environ, lnmer
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv
 
@@ -400,6 +422,7 @@ contains
        xsph = 0d0
        rcub = -1d0
        xcub = 0d0
+       renv = 0d0
        do while(.true.)
           word = lgetword(line,lp)
           lp2 = 1
@@ -564,22 +587,16 @@ contains
        call s%c%write_escher(file)
        ok = check_no_extra_word()
        if (.not.ok) return
+    elseif (equal(wext,'db')) then
+       ! db
+       write (uout,'("* WRITE db file: ",A)') string(file)
+       call s%c%write_db(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'gin')) then
        ! gulp
-       dodreiding = .false.
-       do while(.true.)
-          word = lgetword(line,lp)
-          if (equal(word,'dreiding')) then
-             dodreiding = .true.
-          elseif (len_trim(word) > 1) then
-             call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
-          else
-             exit
-          end if
-       end do
        write (uout,'("* WRITE gulp file: ",A)') string(file)
-       call s%c%write_gulp(file,dodreiding)
+       call s%c%write_gulp(file)
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
        call s%c%write_lammps(file)
@@ -732,9 +749,9 @@ contains
           s%c%atcel(i)%is = s%c%at(s%c%atcel(i)%idx)%is
        end do
     end if
-    if (allocated(s%c%atenv)) then
-       do i = 1, s%c%nenv
-          s%c%atenv(i)%is = s%c%at(s%c%atenv(i)%idx)%is
+    if (allocated(s%c%env%at)) then
+       do i = 1, s%c%env%n
+          s%c%env%at(i)%is = s%c%at(s%c%env%at(i)%idx)%is
        end do
     end if
     deallocate(is)
@@ -791,7 +808,7 @@ contains
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:)
     integer, allocatable :: hvecp(:,:)
     character(len=:), allocatable :: root, word
-    logical :: ok
+    logical :: ok, ishard
 
     if (s%c%ismolecule) then
        call ferror("struct_powder","POWDER can not be used with molecules",faterr,syntax=.true.)
@@ -806,6 +823,7 @@ contains
     npts = 10001
     sigma = 0.05d0
     root = trim(fileroot) // "_xrd"
+    ishard = .false.
 
     ! header
     write (uout,'("* POWDER: powder diffraction pattern")')
@@ -821,6 +839,10 @@ contains
              call ferror('struct_powder','Incorrect TH2INI',faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,"hard")) then
+          ishard = .true.
+       elseif (equal(word,"soft")) then
+          ishard = .false.
        elseif (equal(word,"th2end")) then
           ok = eval_next(th2end,line,lp)
           if (.not.ok) then
@@ -861,7 +883,7 @@ contains
        end if
     end do
 
-    call s%c%powder(th2ini,th2end,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
+    call s%c%powder(th2ini,th2end,ishard,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
     np = size(th2p)
 
     ! write the data file 
@@ -915,26 +937,31 @@ contains
   !> structure.
   module subroutine struct_rdf(s,line)
     use systemmod, only: system
-    use global, only: fileroot, eval_next
+    use global, only: fileroot, eval_next, dunit0, iunit
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
-       ioj_center, getword, string, fclose
+       ioj_center, getword, string, fclose, isinteger
+    use types, only: realloc
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    real*8 :: rend
+    real*8 :: rini, rend
     character(len=:), allocatable :: root, word
-    logical :: ok
+    logical :: ok, ishard
     integer :: npts
     real*8, allocatable :: t(:), ih(:)
-
-    integer :: lp, lu, i
+    integer, allocatable :: ipairs(:,:)
+    integer :: lp, lu, i, npairs, ival
     real*8 :: sigma
 
     ! default values
+    rini = 0d0
     rend = 25d0
     root = trim(fileroot) // "_rdf"
     npts = 10001
     sigma = 0.05d0
+    npairs = 0
+    allocate(ipairs(2,10))
+    ishard = .false.
 
     ! header
     write (uout,'("* RDF: radial distribution function")')
@@ -950,12 +977,25 @@ contains
              call ferror('struct_rdf','Incorrect REND',faterr,line,syntax=.true.)
              return
           end if
+          rend = rend / dunit0(iunit)
+       elseif (equal(word,"rini")) then
+          ok = eval_next(rini,line,lp)
+          if (.not.ok) then
+             call ferror('struct_rdf','Incorrect RINI',faterr,line,syntax=.true.)
+             return
+          end if
+          rini = rini / dunit0(iunit)
        elseif (equal(word,"sigma")) then
           ok = eval_next(sigma,line,lp)
           if (.not.ok) then
              call ferror('struct_rdf','Incorrect SIGMA',faterr,line,syntax=.true.)
              return
           end if
+          sigma = sigma / dunit0(iunit)
+       elseif (equal(word,"hard")) then
+          ishard = .true.
+       elseif (equal(word,"soft")) then
+          ishard = .false.
        elseif (equal(word,"npts")) then
           ok = eval_next(npts,line,lp)
           if (.not.ok) then
@@ -964,6 +1004,17 @@ contains
           end if
        elseif (equal(word,"root")) then
           root = getword(line,lp)
+       elseif (equal(word,"pair")) then
+          npairs = npairs + 1
+          if (npairs > size(ipairs,2)) then
+             call realloc(ipairs,2,2*npairs)
+          end if
+          ipairs(1,npairs) = s%c%identify_spc(getword(line,lp))
+          ipairs(2,npairs) = s%c%identify_spc(getword(line,lp))
+          if (ipairs(1,npairs) == 0 .or. ipairs(2,npairs) == 0) then
+             call ferror('struct_rdf','Unknown species in RDF/PAIR option',faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror('struct_rdf','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -972,7 +1023,7 @@ contains
        end if
     end do
 
-    call s%c%rdf(rend,sigma,npts,t,ih)
+    call s%c%rdf(rini,rend,sigma,ishard,npts,t,ih,npairs,ipairs)
 
     ! write the data file 
     lu = fopen_write(trim(root) // ".dat")
@@ -991,7 +1042,7 @@ contains
     write (lu,*)
     write (lu,'("set xlabel ""r (bohr)""")')
     write (lu,'("set ylabel ""RDF(r)""")')
-    write (lu,'("set xrange [0:",A,"]")') string(rend,"f")
+    write (lu,'("set xrange [",A,":",A,"]")') string(rini,"f"), string(rend,"f")
     write (lu,'("set style data lines")')
     write (lu,'("set grid")')
     write (lu,'("unset key")')
@@ -1049,7 +1100,7 @@ contains
     dopowder = .true.
     xend = -1d0
     allocate(fname(1))
-    sorted = .true.
+    sorted = .false.
     sigma = sigma0
 
     ! read the input options
@@ -1177,7 +1228,7 @@ contains
        do i = 1, ns
           ! calculate the powder diffraction pattern
           if (dopowder) then
-             call c(i)%powder(th2ini,xend,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
+             call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
 
              ! normalize the integral of abs(ih)
              tini = ih(1)**2
@@ -1185,7 +1236,7 @@ contains
              nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
-             call c(i)%rdf(xend,sigma,npts,t,ih)
+             call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
              iha(:,i) = ih
           end if
        end do
@@ -1263,43 +1314,52 @@ contains
   !> non-equivalent atoms in the unit cell.
   module subroutine struct_environ(s,line)
     use systemmod, only: system
+    use environmod, only: environ
     use global, only: eval_next, dunit0, iunit, iunitname0
-    use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
+    use tools_io, only: string, lgetword, equal, ferror, faterr, noerr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
+    use param, only: bohrtoa, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    integer :: lp, lp2
-    integer :: nn, i, j, k, l
-    real*8 :: x0(3), xout(3), x0in(3)
-    logical :: doatoms, ok
+    real*8 :: up2d
+    integer :: nat, lvec(3)
+    integer, allocatable :: eid(:), ishell(:)
+    real*8, allocatable :: dist(:)
+    integer :: lp, lp2, ierr
     character(len=:), allocatable :: word
-    integer, allocatable :: nneig(:), wat(:)
-    real*8, allocatable :: dist(:), xenv(:,:,:)
+    real*8 :: x0(3), x0in(3)
+    logical :: doatoms, ok, groupshell
+    integer :: i, j, k, l
+    type(environ), target :: eaux
+    type(environ), pointer :: eptr
 
     integer :: iat, iby, iat_mode, iby_mode
     integer, parameter :: inone = 0
     integer, parameter :: iznuc = 1
     integer, parameter :: iid = 2
 
-    nn = 10
+    up2d = 5d0 / bohrtoa
+
     x0 = 0d0
     doatoms = .true.
     iat = 0
     iat_mode = inone
     iby = 0
     iby_mode = inone
+    groupshell = .false.
 
     ! parse input
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
-       if (equal(word,"shells")) then
-          ok = eval_next(nn,line,lp)
+       if (equal(word,"dist")) then
+          ok = eval_next(up2d,line,lp)
           if (.not.ok) then
-             call ferror('struct_environ','Wrong SHELLS syntax',faterr,line,syntax=.true.)
+             call ferror('struct_environ','Wrong DIST syntax',faterr,line,syntax=.true.)
              return
           end if
+          up2d = up2d / dunit0(iunit)
        elseif (equal(word,"point")) then
           ok = eval_next(x0(1),line,lp)
           ok = ok .and. eval_next(x0(2),line,lp)
@@ -1312,7 +1372,8 @@ contains
           x0in = x0
           if (s%c%ismolecule) &
              x0 = s%c%c2x(x0 / dunit0(iunit) - s%c%molx0)
-       elseif (equal(word,"at")) then
+       elseif (equal(word,"atom")) then
+          doatoms = .true.
           lp2 = lp
           word = lgetword(line,lp)
           iat = zatguess(word)
@@ -1338,6 +1399,8 @@ contains
           else
              iby_mode = iznuc
           end if
+       elseif (equal(word,"shells")) then
+          groupshell = .true.
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -1347,107 +1410,377 @@ contains
     end do
 
     write (uout,'("* ENVIRON")')
-    allocate(nneig(nn),wat(nn),dist(nn))
+    eptr => s%c%env
     if (doatoms) then
-       write (uout,'("+ Atomic environments")')
-       if (.not.s%c%ismolecule) then
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
-             iunitname0(iunit)
-       else
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
-             iunitname0(iunit), iunitname0(iunit)
-       end if
        do i = 1, s%c%nneq
-          if (iat_mode == iid) then
-             if (iat /= i) cycle
-          elseif (iat_mode == iznuc) then
-             if (iat /= s%c%spc(s%c%at(i)%is)%z) cycle
+          if (iat_mode == inone) cycle
+          if (iat_mode == iid .and. i /= iat) cycle
+          if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z /= iat) cycle
+
+          if (iby_mode == iid) then
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+          elseif (iby_mode == iznuc) then
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+          else
+             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
           end if
-          call s%c%pointshell(s%c%at(i)%x,nn,nneig,wat,dist,xenv)
-          do j = 1, nn
+          if (ierr > 0 .and..not.s%c%ismolecule) then
+             call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
+             call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
-                if (iby /= wat(j)) cycle
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
-                if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
-             end if
-             xout = xenv(:,1,j)
-             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-             if (j == 1) then
-                write (uout,'(I3,1X,"(",A4,")",4X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                   i, s%c%spc(s%c%at(i)%is)%name, nneig(j), dist(j)*dunit0(iunit), wat(j), &
-                   s%c%spc(s%c%at(wat(j))%is)%name, (string(xout(k),'f',12,7,ioj_right),k=1,3)
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
              else
-                if (wat(j) /= 0) then
-                   write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                      nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name,&
-                      (string(xout(k),'f',12,7,ioj_right),k=1,3)
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+             end if
+             if (ierr > 0) &
+                call ferror('struct_environ','unknown error calculating atom environment',faterr)
+             eptr => eaux
+          end if
+
+          write (uout,'("+ Environment of atom ",A," (",A,") at ",3(A,X))') string(i), string(s%c%spc(s%c%at(i)%is)%name), &
+             (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3)
+
+          if (groupshell) then
+             call output_by_shell()
+          else
+             call output_by_distance()
+          end if
+       end do
+    else
+       if (iby_mode == iid) then
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+       elseif (iby_mode == iznuc) then
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+       else
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+       end if
+       if (ierr > 0 .and..not.s%c%ismolecule) then
+          call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
+          call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
+          if (iby_mode == iid) then
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+          elseif (iby_mode == iznuc) then
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+          else
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+          end if
+          if (ierr > 0) &
+             call ferror('struct_environ','unknown error calculating point environment',faterr)
+          eptr => eaux
+       end if
+
+       write (uout,'("+ Environment of point ",3(A,X))') (string(x0in(j),'f',length=10,decimal=6),j=1,3)
+
+       if (groupshell) then
+          call output_by_shell()
+       else
+          call output_by_distance()
+       end if
+    end if
+
+  contains
+    subroutine output_by_distance()
+      integer :: mshel, eidx, cidx, nidx
+      real*8 :: xx(3)
+
+      mshel = maxval(ishell)
+      write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+      write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+      write (uout,'("# Number of atomic shells in the environment: ",A)') string(mshel)
+      write (uout,'("# nid = non-equivalent list atomic ID. id = complete list atomic ID plus lattice vector (lvec).")')
+      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. shel = shell ID.")')
+      if (s%c%ismolecule) then
+         write (uout,'("#nid   id      lvec     name   spc  dist(",A,") shel          Coordinates (",A,") ")') &
+            iunitname0(iunit), iunitname0(iunit)
+      else
+         write (uout,'("#nid   id      lvec     name   spc  dist(",A,") shel      Coordinates (cryst. coord.) ")') iunitname0(iunit)
+      end if
+      do j = 1, nat
+         eidx = eid(j)
+         nidx = eptr%at(eidx)%idx
+         cidx = eptr%at(eidx)%cidx
+         if (s%c%ismolecule) then
+            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+         else
+            xx = eptr%at(eidx)%x + lvec
+         end if
+
+         write (uout,'(2X,2(A,X),"(",A,X,A,X,A,")",99(X,A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+            (string(eptr%at(eidx)%lvec(k)+lvec(k),2,ioj_right),k=1,3), string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center),&
+            string(eptr%at(eidx)%is,2,ioj_right), string(dist(j)*dunit0(iunit),'f',12,6,4), string(ishell(j),3,ioj_center),&
+            (string(xx(k),'f',12,8,4),k=1,3)
+      end do
+      write (uout,*)
+    end subroutine output_by_distance
+
+    subroutine output_by_shell()
+      integer :: mshel, eidx, cidx, nidx, nneig, ishl0
+      real*8 :: xx(3)
+
+      mshel = maxval(ishell)
+      write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+      write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+      write (uout,'("# Number of atomic shells in the environment: ",A)') string(mshel)
+      write (uout,'("# ishl = shell ID. nneig = number of neighbors in the shell. nid = non-equivalent list atomic ID.")')
+      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. Rest of fields are for a single")') 
+      write (uout,'("# representative of the shell: id = complete list atomic ID plus lattice vector (lvec) and coordinates. ")')
+      if (s%c%ismolecule) then
+         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec            Coordinates (",A,") ")') &
+            iunitname0(iunit), iunitname0(iunit)
+      else
+         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec        Coordinates (cryst. coord.) ")') iunitname0(iunit)
+      end if
+      k = 1
+      main: do j = 1, mshel
+         ishl0 = k
+         do while (ishell(k) == j)
+            k = k + 1
+            if (k > nat) exit
+         end do
+         if (k == 1) exit
+         nneig = k - ishl0
+
+         eidx = eid(k-1)
+         nidx = eptr%at(k-1)%idx
+         cidx = eptr%at(k-1)%cidx
+         if (s%c%ismolecule) then
+            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+         else
+            xx = eptr%at(eidx)%x + lvec
+         end if
+
+         write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center), string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
+            string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
+            string(dist(k-1)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
+            (string(eptr%at(eidx)%lvec(l)+lvec(l),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)
+      end do main
+      write (uout,*)
+    end subroutine output_by_shell
+
+  end subroutine struct_environ
+
+  !> Calculate the coordination numbers of all atoms.
+  module subroutine struct_coord(s,line)
+    use systemmod, only: system
+    use environmod, only: environ
+    use global, only: bondfactor, eval_next
+    use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
+       ioj_left, ioj_right, uout, string
+    use param, only: atmcov, icrd_crys
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    character(len=:), allocatable :: word, str
+    integer :: lp, lp2, lpold, i, j, k, iat, iz
+    real*8, allocatable :: rad(:)
+    real*8 :: fac, dd, rnew
+    logical :: ok
+    integer :: nat, ierr, lvec(3)
+    integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
+    real*8, allocatable :: dist(:), up2dsp(:,:)
+    type(environ), target :: eaux
+    type(environ), pointer :: eptr
+
+    ! allocate the default radii
+    fac = bondfactor
+    allocate(rad(s%c%nspc))
+    rad = 0d0
+    do i = 1, s%c%nspc
+       if (s%c%spc(i)%z > 0) then
+          rad(i) = atmcov(s%c%spc(i)%z)
+       end if
+    end do
+
+    ! parse the input
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"dist")) then
+          ok = eval_next(dd,line,lp)
+          if (.not.ok) then
+             call ferror('struct_coord','Wrong DIST keyword',faterr,line,syntax=.true.)
+             return
+          end if
+          fac = 1d0
+          rad = 0.5d0 * dd
+       elseif (equal(word,"fac")) then
+          ok = eval_next(fac,line,lp)
+          if (.not.ok) then
+             call ferror('struct_coord','Wrong FAC keyword',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"radii")) then
+          do while (.true.)
+             lpold = lp
+             iat = 0
+             iz = 0
+             lp2 = 1
+             word = lgetword(line,lp)
+             if (equal(word,"fac").or.equal(word,"dist").or.equal(word,"radii")) then
+                lp = lpold
+                exit
+             end if
+             ok = isinteger(iat,word,lp2)
+             if (ok) then
+                ok = (iat > 0 .and. iat <= s%c%nspc)
+             end if
+             if (.not.ok) then
+                iz = zatguess(word)
+                ok = (iz >= 0)
+                if (.not. ok) then
+                   lp = lpold
+                   exit
                 end if
              end if
-          end do
-       end do
-       write (uout,*)
-    else
-       call s%c%pointshell(x0,nn,nneig,wat,dist,xenv)
-       ! List of atomic environments
-       write (uout,'("+ Atomic environments of (",A,",",A,",",A,")")') &
-          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
-       if (.not.s%c%ismolecule) then
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (cryst)")') &
-             iunitname0(iunit)
-       else
-          write (uout,'("     Atom     neig       d(",A,")     nneq  type           position (",A,")")') &
-             iunitname0(iunit), iunitname0(iunit)
-       end if
-       do j = 1, nn
-          if (iby_mode == iid) then
-             if (iby /= wat(j)) cycle
-          elseif (iby_mode == iznuc) then
-             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
-          end if
-          xout = xenv(:,1,j)
-          if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-          if (wat(j) /= 0) then
-             write (uout,'(5X,"...",6X,I4,3X,F12.7,3X,I4,3X,A4,3A)') &
-                nneig(j), dist(j)*dunit0(iunit), wat(j), s%c%spc(s%c%at(wat(j))%is)%name, &
-                (string(xout(k),'f',12,7,ioj_right),k=1,3)
-          end if
-       end do
-       write (uout,*)
 
-       ! Detailed list of neighbors
-       write (uout,'("+ Neighbors of (",A,",",A,",",A,")")') &
-          string(x0in(1),'f'), string(x0in(2),'f'), string(x0in(3),'f')
-       write (uout,'(" Atom Id           position (cryst. coords)      Distance (",A,")")') &
-          iunitname0(iunit)
-       do j = 1, nn
-          if (wat(j) == 0) cycle
-          if (iby_mode == iid) then
-             if (iby /= wat(j)) cycle
-          elseif (iby_mode == iznuc) then
-             if (iby /= s%c%spc(s%c%at(wat(j))%is)%z) cycle
-          end if
-          do k = 1, nneig(j)
-             xout = xenv(:,k,j)
-             if (s%c%ismolecule) xout = (s%c%x2c(xout)+s%c%molx0) * dunit0(iunit)
-             write (uout,'(6(A,X))') &
-                string(s%c%spc(s%c%at(wat(j))%is)%name,5,ioj_center), string(wat(j),2),&
-                (string(xout(l),'f',12,7,ioj_right),l=1,3),&
-                string(dist(j)*dunit0(iunit),'f',12,5,ioj_right)
+             ok = eval_next(rnew,line,lp)
+             if (.not.ok) then
+                call ferror('struct_coord','Wrong RADII keyword',faterr,line,syntax=.true.)
+                return
+             end if
+
+             if (iat > 0) then
+                rad(iat) = rnew
+             else
+                do i = 1, s%c%nspc
+                   if (s%c%spc(i)%z == iz) then
+                      rad(i) = rnew
+                   end if
+                end do
+             end if
+          end do
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_coord','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+
+    ! some output
+    write (uout,'("* COORD: calculation of coordination numbers")')
+    write (uout,'("+ Atomic radii for all species")')
+    write (uout,'("# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = ",A)') &
+       string(fac,'f',length=5,decimal=2,justify=ioj_left)
+    write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
+       string("Z",3,ioj_center), string("name",7,ioj_center),&
+       string("rad",length=5,justify=ioj_center)
+    do i = 1, s%c%nspc
+       write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
+          string(s%c%spc(i)%z,3,ioj_center), string(s%c%spc(i)%name,7,ioj_center),&
+          string(rad(i),'f',length=5,decimal=2,justify=ioj_right)
+    end do
+    write (uout,*)
+
+    ! calculate the coordination numbers (per atom)
+    allocate(up2dsp(s%c%nspc,2),coord2(s%c%nneq,s%c%nspc))
+    up2dsp = 0d0
+    coord2 = 0
+    eptr => s%c%env
+    do i = 1, s%c%nneq
+       up2dsp(:,2) = rad + rad(s%c%at(i)%is)
+       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,ierr,up2dsp=up2dsp,nozero=.true.)
+       do j = 1, nat
+          coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
+       end do
+    end do
+    deallocate(rad,up2dsp)
+
+    ! output coordination numbers (per non-equivalent atom)
+    write (uout,'("+ Pair coordination numbers (per non-equivalent atom in the cell)")')
+    write (uout,'("# id = non-equivalent atom ID. mult = multiplicity. rest = atomic species (by name).")')
+    write (uout,'("# ",99(A,X))') string("nid",4,ioj_center), string("name",7,ioj_center), &
+       string("mult",5,ioj_center), (string(s%c%spc(j)%name,5,ioj_left),j=1,s%c%nspc), "total"
+    do i = 1, s%c%nneq
+       write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+          string(s%c%at(i)%mult,5,ioj_center), (string(coord2(i,j),5,ioj_center),j=1,s%c%nspc),&
+          string(sum(coord2(i,1:s%c%nspc)),5,ioj_center)
+    end do
+    write (uout,*)
+
+    ! calculate the coordination numbers (per species)
+    allocate(coord2sp(s%c%nspc,s%c%nspc))
+    coord2sp = 0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          coord2sp(s%c%at(i)%is,j) = coord2sp(s%c%at(i)%is,j) + coord2(i,j) * s%c%at(i)%mult
+       end do
+    end do
+
+    write (uout,'("+ Pair coordination numbers (per species)")')
+    write (uout,'("# ",99(A,X))') string("spc",8,ioj_center), (string(s%c%spc(j)%name,5,ioj_center),j=1,s%c%nspc)
+    do i = 1, s%c%nspc
+       write (uout,'(2X,99(A,X))') string(i,3,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+          (string((coord2sp(i,j)+coord2sp(j,i))/2,5,ioj_center),j=1,s%c%nspc)
+    end do
+    write (uout,*)
+    deallocate(coord2sp)
+
+    ! calculate the number of triplets
+    allocate(coord3(s%c%nneq,s%c%nspc,s%c%nspc))
+    coord3 = 0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = 1, s%c%nspc
+             if (j == k) then
+                coord3(i,j,k) = coord3(i,j,k) + coord2(i,j) * (coord2(i,k)-1) / 2
+             else
+                coord3(i,j,k) = coord3(i,j,k) + coord2(i,j) * coord2(i,k)
+             end if
           end do
        end do
-       write (uout,*)
-    end if
-    deallocate(nneig,wat,dist)
-    if (allocated(xenv)) deallocate(xenv)
-    
-  end subroutine struct_environ
+    end do
+
+    write (uout,'("+ Triplet coordination numbers (per non-equivalent atom in the cell)")')
+    write (uout,'("# Y runs over atoms in the cell: nid = non-equivalent atom ID. mult = multiplicity.")')
+    write (uout,'("#  ---    Y    ---     X     Z")')
+    write (uout,'("# nid   name   mult   spc   spc  X-Y-Z")')
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = j, s%c%nspc
+             write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+                string(s%c%at(i)%mult,5,ioj_center), string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(k)%name,5,ioj_center),&
+                string((coord3(i,j,k)+coord3(i,k,j))/2,5,ioj_center)
+          end do
+       end do
+    end do
+    write (uout,*)
+
+    ! calculate the triplet coordination numbers (per species)
+    allocate(coord3sp(s%c%nspc,s%c%nspc,s%c%nspc))
+    coord3sp = 0
+    do i = 1, s%c%nneq
+       do j = 1, s%c%nspc
+          do k = 1, s%c%nspc
+             coord3sp(s%c%at(i)%is,j,k) = coord3sp(s%c%at(i)%is,j,k) + coord3(i,j,k) * s%c%at(i)%mult
+          end do
+       end do
+    end do
+
+    write (uout,'("+ Triplet coordination numbers (per species)")')
+    write (uout,'("#   Y     X     Z   X-Y-Z")')
+    do i = 1, s%c%nspc
+       do j = 1, s%c%nspc
+          do k = j, s%c%nspc
+             write (uout,'(2X,99(A,X))') string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+                string(s%c%spc(k)%name,5,ioj_center), string((coord3sp(i,j,k)+coord3sp(i,k,j))/2,5,ioj_center)
+          end do
+       end do
+    end do
+    write (uout,*)
+
+    deallocate(coord3,coord3sp)
+
+  end subroutine struct_coord
 
   !> Calculate the packing ratio of the crystal.
   module subroutine struct_packing(s,line)
     use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
-    use param, only: atmvdw
+    use param, only: atmvdw, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -1455,7 +1788,6 @@ contains
     logical :: dovdw, found, ok
     character(len=:), allocatable :: word
     integer :: i, j, n(3), ii(3), ntot, iaux, idx
-    integer :: lvec(3)
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
 
@@ -1494,6 +1826,7 @@ contains
     if (.not.dovdw) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
+
        ! prepare the grid
        write (uout,'("+ Est. precision in the % packing ratio: ",A)') string(prec,'e',10,3)
        prec = prec * s%c%omega / 100d0
@@ -1508,7 +1841,7 @@ contains
        vout = 0d0
        dv = s%c%omega / ntot
 
-       !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist,lvec) schedule(dynamic)
+       !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist) schedule(dynamic)
        do i = 0, ntot-1
           ! unpack the index
           ii(1) = modulo(i,n(1))
@@ -1520,11 +1853,12 @@ contains
           x = real(ii,8) / real(n)
 
           found = .false.
-          do j = 1, s%c%nneq
-             idx = j
-             call s%c%nearest_atom(x,idx,dist,lvec)
-             found = (dist < atmvdw(s%c%spc(s%c%at(j)%is)%z))
-             if (found) exit
+          do j = 1, s%c%nspc
+             call s%c%nearest_atom(x,icrd_crys,idx,dist,distmax=atmvdw(s%c%spc(j)%z),is0=j)
+             if (idx > 0) then
+                found = .true.
+                exit
+             end if
           end do
           if (.not.found) then
              vout = vout + dv
@@ -1735,7 +2069,6 @@ contains
     character(len=:), allocatable :: line, word
     real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
     real*8, allocatable :: pointlist(:,:)
-    logical, allocatable :: isrec(:)
     integer :: i, j, n, idx
     logical :: found, doenv
 
@@ -1743,7 +2076,6 @@ contains
     integer, parameter :: unit_au = 1
     integer, parameter :: unit_ang = 2
     integer, parameter :: unit_x = 3
-    integer, parameter :: unit_rec = 4
 
     real*8, parameter :: eps = 1d-4
 
@@ -1767,14 +2099,12 @@ contains
        ldunit = unit_au
     elseif (equal(word,'cryst')) then
        ldunit = unit_x
-    elseif (equal(word,'reciprocal')) then
-       ldunit = unit_rec
     elseif (len_trim(word) > 0) then
        doenv = .false.
     endif
 
     ! read the input coordinates
-    allocate(pointlist(3,10),isrec(10))
+    allocate(pointlist(3,10))
     n = 0
     if (doenv) then
        word = lgetword(line0,lp)
@@ -1805,8 +2135,6 @@ contains
                 unit = unit_au
              elseif (equal(word,'cryst')) then
                 unit = unit_x
-             elseif (equal(word,'reciprocal')) then
-                unit = unit_rec
              else
                 unit = ldunit
              endif
@@ -1819,10 +2147,8 @@ contains
              n = n + 1
              if (n > size(pointlist,2)) then
                 call realloc(pointlist,3,2*n)
-                call realloc(isrec,2*n)
              end if
              pointlist(:,n) = x0
-             isrec(n) = (unit == unit_rec)
           else
              ! this is an xyz file
              call readxyz()
@@ -1863,38 +2189,29 @@ contains
     do i = 1, n
        x0 = pointlist(:,i)
        x0out = x0
-       if (.not.isrec(i)) then
-          if (s%c%ismolecule) x0out = (s%c%x2c(x0)+s%c%molx0) * dunit0(iunit)
-          idx = s%f(s%iref)%identify_cp(x0,eps)
-          mm = s%c%get_mult(x0)
-          if (idx > 0) then
-             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
-                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
-                string(mm,length=3,justify=ioj_center), &
-                string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
-                string(s%f(s%iref)%cpcel(idx)%idx,length=4,justify=ioj_center), &
-                string(idx,length=4,justify=ioj_center)
-             do j = 1, 3
-                xmin(j) = min(xmin(j),x0(j))
-                xmax(j) = max(xmax(j),x0(j))
-                found = .true.
-             end do
-          else
-             write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
-                (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
-                string(mm,length=3,justify=ioj_center), &
-                string(" --- not found --- ")
-          endif
+       if (s%c%ismolecule) x0out = (s%c%x2c(x0)+s%c%molx0) * dunit0(iunit)
+       idx = s%f(s%iref)%identify_cp(x0,eps)
+       mm = s%c%get_mult(x0)
+       if (idx > 0) then
+          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+             (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
+             string(mm,length=3,justify=ioj_center), &
+             string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
+             string(s%f(s%iref)%cpcel(idx)%idx,length=4,justify=ioj_center), &
+             string(idx,length=4,justify=ioj_center)
+          do j = 1, 3
+             xmin(j) = min(xmin(j),x0(j))
+             xmax(j) = max(xmax(j),x0(j))
+             found = .true.
+          end do
        else
-          call s%c%checkflags(.false.,recip0=.true.)
-          mm = s%c%get_mult_reciprocal(x0)
           write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(" --- not found --- ")
        endif
     end do
-    deallocate(pointlist,isrec)
+    deallocate(pointlist)
 
     if (found) then
        if (.not.s%c%ismolecule) then
@@ -1936,10 +2253,8 @@ contains
          n = n + 1
          if (n > size(pointlist,2)) then
             call realloc(pointlist,3,2*n)
-            call realloc(isrec,2*n)
          end if
          pointlist(:,n) = x0
-         isrec(n) = (ldunit == unit_rec)
       end do
       call fclose(lu)
     end subroutine readxyz

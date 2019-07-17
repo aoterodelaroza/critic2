@@ -135,7 +135,7 @@ void ShowTree(){
       for (auto it = sf[i].sc.begin(); it != sf[i].sc.end(); it++){
 	nit++;
 	ImGuiTreeNodeFlags fl1 = ImGuiTreeNodeFlags_OpenOnArrow|ImGuiTreeNodeFlags_OpenOnDoubleClick;
-	if ((*it)->id == mainview->iscene)
+	if (mainview->sc && (*it)->id == mainview->sc->iscene)
 	  fl1 |= ImGuiTreeNodeFlags_Selected|ImGuiTreeNodeFlags_DefaultOpen;
 	n++;
 

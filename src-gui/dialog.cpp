@@ -131,6 +131,8 @@ static void DialogPreferences(bool *p_open){
     SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
 
     if (BeginDock("Preferences",p_open)){
+      bool updateviews = false;
+
       // Filter box
       AlignTextToFramePadding();
       Text("Filter");
@@ -174,15 +176,14 @@ static void DialogPreferences(bool *p_open){
 	}
       }
       Separator();
+      PushItemWidth(itemwidth);
       if (catid == 0){
 	// Interface
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("High DPI")){
-	  PushItemWidth(itemwidth);
 	  float oscale = ImGuiStyleUI.UIScaleFactor;
 	  if (filter.PassFilter("Global UI scale factor"))
-	    DragFloat("Global UI scale factor", &ImGuiStyleUI.UIScaleFactor, 0.01f, 0.25f, 5.0f, "%.1f", 1.0f);
-	  PopItemWidth();
+	    updateviews |= DragFloat("Global UI scale factor", &ImGuiStyleUI.UIScaleFactor, 0.01f, 0.25f, 5.0f, "%.1f", 1.0f);
 	  if (ImGuiStyleUI.UIScaleFactor != oscale){
 	    ScaleUI(ImGuiStyleUI.UIScaleFactor / oscale);
 	    oscale = ImGuiStyleUI.UIScaleFactor;
@@ -191,19 +192,16 @@ static void DialogPreferences(bool *p_open){
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Tooltips")){
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Enable tooltips"))
 	    Checkbox("Enable tooltips", &ImGuiStyleUI.TooltipEnabled);
 	  if (filter.PassFilter("Tooltip delay (s)"))
 	    DragFloat("Tooltip delay (s)", &ImGuiStyleUI.TooltipDelay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
 	  if (filter.PassFilter("Tooltip maximum width (pixel)"))
 	    DragFloat("Tooltip maximum width (pixel)", &ImGuiStyleUI.TooltipMaxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Drop targets")){
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Drop target looseness"))
 	    SliderFloat("Drop target looseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
 	  if (filter.PassFilter("Drop target minimum size"))
@@ -214,17 +212,14 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
 	  if (filter.PassFilter("Drop target body fraction"))
 	    SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Messages")){
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Message width"))
 	    DragFloat("Message width", &ImGuiStyleUI.MessageWidth, 1.f, 1.0, FLT_MAX, "%.0f", 1.0f); 
 	  if (filter.PassFilter("Message expiration time (s)"))
 	    DragFloat("Message expiration time (s)", &ImGuiStyleUI.MessageExpire, 0.2f, 0.0, 60.0, "%.1f", 1.0f); 
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
@@ -259,7 +254,6 @@ static void DialogPreferences(bool *p_open){
 	  if (filter.PassFilter("Touch extra padding"))
 	    SliderFloat2("Touch extra padding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
 	  PopItemWidth();
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Indent spacing"))
 	    SliderFloat("Indent spacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
 	  if (filter.PassFilter("Scroll bar width"))
@@ -272,12 +266,10 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("Tab height", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
 	  if (filter.PassFilter("Tab maximum width"))
 	    SliderFloat("Tab maximum width", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Rounding")){
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Window rounding"))
 	    SliderFloat("Window rounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
 	  if (filter.PassFilter("Child window rounding"))
@@ -292,7 +284,6 @@ static void DialogPreferences(bool *p_open){
 	    SliderFloat("Tab rounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
 	  if (filter.PassFilter("Popup rounding"))
 	    SliderFloat("Popup rounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
@@ -309,92 +300,125 @@ static void DialogPreferences(bool *p_open){
 	// Views
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Lighting")){
+          bool changed = false;
 	  // Views -> Lighting
 	  PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
-	  bool changed = false, anychanged = false;
 	  if (filter.PassFilter("Light position"))
-	    changed |= DragFloat3("Light position", &(view_lightpos[0]), 0.5f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f); 
-	  if (changed)
-	    shader->setVec3("lightPos",value_ptr(view_lightpos));
-	  anychanged |= changed;
-	  
+	    if (changed = DragFloat3("Light position", &(view_lightpos[0]), 0.5f, -FLT_MAX, FLT_MAX, "%.1f", 1.0f))
+              SetDefaultAllViews(View::V_lightpos);
+          updateviews |= changed;
+
 	  if (filter.PassFilter("Light color"))
-	    changed |= ColorEdit3("Light color", &(view_lightcolor[0]), coloreditflags);
-	  if (changed)
-	    shader->setVec3("lightColor",value_ptr(view_lightcolor));
-	  anychanged |= changed;
-	  PopItemWidth();
+	    if (changed = ColorEdit3("Light color", &(view_lightcolor[0]), coloreditflags))
+              SetDefaultAllViews(View::V_lightcolor);
+          updateviews |= changed;
+          PopItemWidth();
 
-	  PushItemWidth(itemwidth);
-	  changed = false;
 	  if (filter.PassFilter("Ambient light intensity"))
-	    changed |= DragFloat("Ambient light intensity", &view_ambient, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
-	  if (changed)
-	    shader->setFloat("ambient",view_ambient);
-	  anychanged |= changed;
+	    if (changed = DragFloat("Ambient light intensity", &view_ambient, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f))
+              SetDefaultAllViews(View::V_ambient);
+          updateviews |= changed;
 
-	  changed = false;
 	  if (filter.PassFilter("Diffuse light intensity"))
-	    changed |= DragFloat("Diffuse light intensity", &view_diffuse, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
-	  if (changed)
-	    shader->setFloat("diffuse",view_diffuse);
-	  anychanged |= changed;
+	    if (changed = DragFloat("Diffuse light intensity", &view_diffuse, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f))
+              SetDefaultAllViews(View::V_diffuse);
+          updateviews |= changed;
 
-	  changed = false;
 	  if (filter.PassFilter("Specular light intensity"))
-	    changed |= DragFloat("Specular light intensity", &view_specular, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f); 
-	  if (changed)
-	    shader->setFloat("specular",view_specular);
-	  anychanged |= changed;
+	    if (changed = DragFloat("Specular light intensity", &view_specular, 0.002f, 0.0f, 1.0f, "%.3f", 1.0f))
+              SetDefaultAllViews(View::V_specular);
+	  updateviews |= changed;
 
-	  changed = false;
-	  if (filter.PassFilter("Light shininess"))
-	    changed |= DragInt("Light shininess", &view_shininess, 1.0f, 0.0f, 256.f, "%.0f"); 
-	  if (changed)
-	    shader->setInt("shininess",view_shininess);
-	  anychanged |= changed;
-	  PopItemWidth();
-
-	  if (anychanged)
-	    ForceUpdateAllViews();
+          if (filter.PassFilter("Light shininess"))
+            if (changed = DragInt("Light shininess", &view_shininess, 1.0f, 0.0f, 256.f, "%.0f"))
+              SetDefaultAllViews(View::V_shininess);
+          updateviews |= changed;
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Mouse sensitivity")){
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Rotation mouse sensitivity"))
 	    DragFloat("Rotation mouse sensitivity", &view_mousesens_rot, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
 	  if (filter.PassFilter("Zoom mouse sensitivity"))
 	    DragFloat("Zoom mouse sensitivity", &view_mousesens_zoom, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
-	  PopItemWidth();
 	  TreePop();
 	}
 	if (setexpcol) SetNextTreeNodeOpen(expcol);
 	if (TreeNode("Scene settings")){
 	  bool changed = false;
-	  PushItemWidth(itemwidth);
 	  if (filter.PassFilter("Wireframe rendering"))
-	    changed |= Checkbox("Wireframe rendering", &view_wireframe);
-	  if (filter.PassFilter("Orthgonal projection"))
-	    changed |= Checkbox("Orthgonal projection", &view_orthogonal);
-	  if (filter.PassFilter("Field of view (degrees)"))
-	    changed |= DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f); 
-	  if (filter.PassFilter("Reset distance (scene radius)"))
-	    changed |= DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f); 
-	  if (filter.PassFilter("Background color"))
-	    changed |= ColorEdit4("Background color", view_bgrgb, coloreditflags);
-	  if (filter.PassFilter("Show atoms"))
-	    changed |= Checkbox("Show atoms", &view_show_atoms);
-	  if (filter.PassFilter("Atom resolution"))
-	    changed |= SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1); 
-	  if (filter.PassFilter("Show bonds"))
-	    changed |= Checkbox("Show bonds", &view_show_bonds);
-	  if (filter.PassFilter("Bond resolution"))
-	    changed |= SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1); 
-	  PopItemWidth();
+	    if (changed = Checkbox("Wireframe rendering", &view_wireframe))
+              SetDefaultAllViews(View::V_wireframe);
+          updateviews |= changed;
 
-	  if (changed)
-	    SetDefaultAllViews();
+	  if (filter.PassFilter("Orthgonal projection"))
+	    if (changed = Checkbox("Orthgonal projection", &view_orthogonal))
+              SetDefaultAllViews(View::V_orthogonal);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Field of view (degrees)"))
+	    if (changed = DragFloat("Field of view (degrees)", &view_fov, 2.5f, 0.0f, 180.0f, "%.1f", 1.0f))
+              SetDefaultAllViews(View::V_fov);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Reset distance (scene radius)"))
+	    if (changed = DragFloat("Reset distance (scene radius)", &view_resetdistance, 0.02f, 0.0f, 10.f, "%.2f", 1.0f))
+              SetDefaultAllViews(View::V_resetdistance);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Background color"))
+	    if (changed = ColorEdit4("Background color", view_bgrgb, coloreditflags))
+              SetDefaultAllViews(View::V_bgrgb);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Show atoms"))
+	    if (changed = Checkbox("Show atoms", &view_show_atoms))
+              SetDefaultAllViews(View::V_show_atoms);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Atom resolution"))
+	    if (changed = SliderInt("Atom resolution", &view_isphres, 0, nmaxsph-1))
+              SetDefaultAllViews(View::V_isphres);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Show bonds"))
+	    if (changed = Checkbox("Show bonds", &view_show_bonds))
+              SetDefaultAllViews(View::V_show_bonds);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Bond resolution"))
+	    if (changed = SliderInt("Bond resolution", &view_icylres, 0, nmaxcyl-1))
+              SetDefaultAllViews(View::V_icylres);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Show labels"))
+	    if (changed = Checkbox("Show labels", &view_show_labels))
+              SetDefaultAllViews(View::V_show_labels);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Label text")){
+            PushItemWidth(3.0f * itemwidth);
+	    if (changed = Combo("Label text", &view_format_labels, "Number\0Number (sym-only)\0Name\0Symbol\0Fragment\0"))
+              SetDefaultAllViews(View::V_format_labels);
+            PopItemWidth();
+          }
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Label shows lattice vector"))
+            if (changed = Checkbox("Label shows lattice vector", &view_lat_labels))
+              SetDefaultAllViews(View::V_lat_labels);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Label size"))
+            if (changed = DragFloat("Label size", &view_scale_labels, 0.01f, 0.0f, 5.f, "%.2f", 1.0f))
+              SetDefaultAllViews(View::V_scale_labels);
+          updateviews |= changed;
+
+	  if (filter.PassFilter("Label color"))
+	    if (changed = ColorEdit3("label color", view_rgb_labels, coloreditflags))
+              SetDefaultAllViews(View::V_rgb_labels);
+          updateviews |= changed;
+
 	  TreePop();
 	}
       } else if (catid == 2){
@@ -475,7 +499,7 @@ static void DialogPreferences(bool *p_open){
 	int ostyle_idx = style_idx;
 	PushItemWidth(3 * itemwidth + 2.f * g->Style.ItemInnerSpacing.x);
 	if (filter.PassFilter("Color theme")){
-	  if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0"),4){
+	  if (Combo("Color theme", &style_idx, "Mutant Orange\0Classic\0Dark\0Light\0",4)){
 	    if (style_idx != ostyle_idx){
 	      switch (style_idx){
 	      case 0: UIStyleColorsMutantOrange(); break;
@@ -486,6 +510,7 @@ static void DialogPreferences(bool *p_open){
 	    }
 	  }
 	}
+	PopItemWidth();
 	Separator();
 
 	// Interface -> Colors
@@ -621,7 +646,6 @@ static void DialogPreferences(bool *p_open){
 	  ColorEdit4("Message (Warning)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageWarning]), coloreditflags);
 	if (filter.PassFilter("Message (Error)"))
 	  ColorEdit4("Message (Error)", (float*)&(ImGuiStyleUI.Colors[ImGuiColUI_MessageError]), coloreditflags);
-	PopItemWidth(); 
       } else if (catid == 4){
 	// Fonts
 	PushItemWidth(1.5*itemwidth); 
@@ -646,6 +670,7 @@ static void DialogPreferences(bool *p_open){
 	}
 	EndChild();
       }
+      PopItemWidth();
       EndChild();
       Separator();
 
@@ -684,7 +709,10 @@ static void DialogPreferences(bool *p_open){
       }
       EndChild();
       EndGroup();
-    }
+
+      if (updateviews)
+        ForceUpdateAllViews();
+    } // BeginDock()
 
     dlgdock[DLG_Preferences] = GetCurrentDock();
     if (first){
@@ -693,7 +721,7 @@ static void DialogPreferences(bool *p_open){
       first = false;
     }
     EndDock();
-  } 
+  } // *p_open
   if (!(*p_open))
     filter.Clear();
 }
@@ -726,30 +754,30 @@ static void DialogStructInfo(bool *p_open){
     SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
 
     if (BeginDock("Structural Information",p_open)){
-      c2::set_scene_pointers(mainview->iscene);
-      Text("Current scene: %d\n",mainview->iscene);
-      Text("Is init?: %d\n",c2::isinit);
-      Text("Current file: %d\n",c2::idfile);
-      Text("File name: %s\n",c2::file);
-      Text("Scene name: %s\n",c2::name);
-      Text("Scene radius: %.2f\n",c2::scenerad);
-      Separator();
-      Text("Number of fields: %d\n",c2::nf);
-      Text("Reference field: %d\n",c2::iref);
-      Text("Field name: %s\n",c2::fieldname);
-      Separator();
-      Text("Number of atoms: %d\n",c2::nat);
-      Text("Number of molecules: %d\n",c2::nmol);
-      Text("Is molecular crystal: %d\n",c2::ismolecule);
-      Text("Cell vectors:\n");
-      Text("  %.10f %.10f %.10f\n",c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]);
-      Text("  %.10f %.10f %.10f\n",c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]);
-      Text("  %.10f %.10f %.10f\n",c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]);
-      float a = std::sqrt(c2::avec[0][0]*c2::avec[0][0]+c2::avec[0][1]*c2::avec[0][1]+c2::avec[0][2]*c2::avec[0][2]);
-      float b = std::sqrt(c2::avec[1][0]*c2::avec[1][0]+c2::avec[1][1]*c2::avec[1][1]+c2::avec[1][2]*c2::avec[1][2]);
-      float c = std::sqrt(c2::avec[2][0]*c2::avec[2][0]+c2::avec[2][1]*c2::avec[2][1]+c2::avec[2][2]*c2::avec[2][2]);
-      Text("Cell lengths (bohr): %.10f %.10f %.10f\n",a,b,c);
-      Text("Cell lengths (ang): %.10f %.10f %.10f\n",a*0.529177,b*0.529177,c*0.529177);
+      // c2::set_scene_pointers(mainview->iscene);
+      // Text("Current scene: %d\n",mainview->iscene);
+      // Text("Is init?: %d\n",c2::isinit);
+      // Text("Current file: %d\n",c2::idfile);
+      // Text("File name: %s\n",c2::file);
+      // Text("Scene name: %s\n",c2::name);
+      // Text("Scene radius: %.2f\n",c2::scenerad);
+      // Separator();
+      // Text("Number of fields: %d\n",c2::nf);
+      // Text("Reference field: %d\n",c2::iref);
+      // Text("Field name: %s\n",c2::fieldname);
+      // Separator();
+      // Text("Number of atoms: %d\n",c2::nat);
+      // Text("Number of molecules: %d\n",c2::nmol);
+      // Text("Is molecular crystal: %d\n",c2::ismolecule);
+      // Text("Cell vectors:\n");
+      // Text("  %.10f %.10f %.10f\n",c2::avec[0][0],c2::avec[0][1],c2::avec[0][2]);
+      // Text("  %.10f %.10f %.10f\n",c2::avec[1][0],c2::avec[1][1],c2::avec[1][2]);
+      // Text("  %.10f %.10f %.10f\n",c2::avec[2][0],c2::avec[2][1],c2::avec[2][2]);
+      // float a = std::sqrt(c2::avec[0][0]*c2::avec[0][0]+c2::avec[0][1]*c2::avec[0][1]+c2::avec[0][2]*c2::avec[0][2]);
+      // float b = std::sqrt(c2::avec[1][0]*c2::avec[1][0]+c2::avec[1][1]*c2::avec[1][1]+c2::avec[1][2]*c2::avec[1][2]);
+      // float c = std::sqrt(c2::avec[2][0]*c2::avec[2][0]+c2::avec[2][1]*c2::avec[2][1]+c2::avec[2][2]*c2::avec[2][2]);
+      // Text("Cell lengths (bohr): %.10f %.10f %.10f\n",a,b,c);
+      // Text("Cell lengths (ang): %.10f %.10f %.10f\n",a*0.529177,b*0.529177,c*0.529177);
     }
     dlgdock[DLG_StructInfo] = GetCurrentDock();
     if (first){

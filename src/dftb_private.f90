@@ -18,12 +18,13 @@
 ! Interface to DFTB+ wavefunctions.
 module dftb_private
   use grid1mod, only: grid1
+  use environmod, only: environ
   implicit none
   
   private
   
   !> atomic basis set information in dftb fields
-  type dftbatom
+  type dftbbasis
      character*10 :: name  !< name of the atom
      integer :: z !< atomic number
      integer :: norb !< number of orbitals
@@ -35,7 +36,7 @@ module dftb_private
      integer :: ncoef(5,4) !< number of coefficients
      real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
      type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
-  end type dftbatom
+  end type dftbbasis
   
   type dftbwfn
      logical :: isreal
@@ -52,19 +53,16 @@ module dftb_private
      integer :: midxorb
      integer :: maxnorb
      integer :: maxlm
-     type(dftbatom), allocatable :: bas(:)
+     type(dftbbasis), allocatable :: bas(:)
      ! structural info
-     integer :: nenv
-     real*8, allocatable :: renv(:,:)
-     integer, allocatable :: lenv(:,:)
-     integer, allocatable :: idxenv(:)
-     integer, allocatable :: zenv(:)
      real*8 :: globalcutoff = 0d0
+     real*8, allocatable :: spcutoff(:,:)
+     logical :: isealloc = .false.
+     type(environ), pointer :: e
    contains
      procedure :: end => dftb_end
      procedure :: read => dftb_read
      procedure :: rho2
-     procedure :: register_struct
   end type dftbwfn
   public :: dftbwfn
 
@@ -72,14 +70,13 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,atcel,spc)
-       use types, only: celatom, species
+     module subroutine dftb_read(f,filexml,filebin,filehsd,env)
+       use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
-       type(celatom), intent(in) :: atcel(:)
-       type(species), intent(in) :: spc(:)
+       type(environ), intent(in), target :: env
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
        class(dftbwfn), intent(inout) :: f
@@ -91,13 +88,6 @@ module dftb_private
        real*8, intent(out) :: h(3,3)
        real*8, intent(out) :: gkin
      end subroutine rho2
-     module subroutine register_struct(f,rmat,atenv,spc)
-       use types, only: celatom, species
-       class(dftbwfn), intent(inout) :: f
-       real*8, intent(in) :: rmat(3,3)
-       type(celatom), intent(in) :: atenv(:)
-       type(species), intent(in) :: spc(:)
-     end subroutine register_struct
   end interface
 
 end module dftb_private

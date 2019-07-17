@@ -700,11 +700,11 @@ contains
           if (dist < r2) then
              nid = i
              r2 = dist
-             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - temp)
+             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - sy%c%c2x(temp))
           end if
        end do
        xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
-       if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
+       if (abs(r2-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
        r2 = r_betaint(its) * r_betaint(its)
@@ -1000,11 +1000,11 @@ contains
           if (dist < r2) then
              nid = i
              r2 = dist
-             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - temp)
+             lvec = nint(sy%f(sy%iref)%cpcel(nid)%x - xp - sy%c%c2x(temp))
           end if
        end do
        xnuc = sy%c%x2c(sy%f(sy%iref)%cpcel(nid)%x - lvec)
-       if (abs(sqrt(r2)-r_betaint(its)) > 2d0*maxlen) then
+       if (abs(r2-r_betaint(its)) > 2d0*maxlen) then
           call ferror('integ_border_keast','unknown xnuc for the tetrahedron',faterr)
        end if
        r2 = r_betaint(its) * r_betaint(its)

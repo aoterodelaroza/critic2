@@ -21,7 +21,7 @@ submodule (rhoplot) proc
   !xx! private procedures
   ! subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
   ! subroutine relief(rootname,outfile,zmin,zmax)
-  ! subroutine colormap(rootname,outfile,cmopt)
+  ! subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
   ! subroutine hallarpuntos(ff,zc,x,y,nx,ny)
   ! subroutine ordenarpuntos (luw,calpha,ziso)
   ! subroutine linea (x,y,n,luw,ziso)
@@ -54,6 +54,8 @@ submodule (rhoplot) proc
   integer :: cpup(mncritp), cpdn(mncritp)
   integer :: indmax
   logical :: isneg
+
+  ! label height
   real*8 :: RHOP_Hmax = 1d-1
 
   real*8, parameter  :: epsdis = 1d-4 !< distance cutoff (bohr) for in-plane
@@ -127,6 +129,7 @@ contains
        write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
        write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
     else
+       write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
        xp = x0 / dunit0(iunit) - sy%c%molx0
        x0 = sy%c%c2x(xp)
     endif
@@ -372,7 +375,7 @@ contains
     logical :: ok, iok
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
-    logical :: dogrid, useexpr, iscube, doheader
+    logical :: dogrid, useexpr, iscube, isbincube, doheader
     type(grid3) :: faux
 
     ! read the points
@@ -449,6 +452,7 @@ contains
     id = sy%iref
     useexpr = .false.
     iscube = .true.
+    isbincube = .false.
     outfile = trim(fileroot) // ".cube" 
     do while (.true.)
        word = lgetword(line,lp)
@@ -460,6 +464,7 @@ contains
           end if
           wext1 = outfile(index(outfile,'.',.true.)+1:)
           iscube = (equal(wext1,'cube')) 
+          isbincube = (equal(wext1,'bincube')) 
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
@@ -541,8 +546,10 @@ contains
     ! write cube header
     write (uout,'("* CUBE written to file: ",A/)') string(outfile)
     if (doheader) then
-       if (iscube) then
-          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,xd,x0+sy%c%molx0)
+       if (isbincube) then
+          call ferror("rhoplot_cube","BINCUBE format is incompatible with HEADER",faterr)
+       else if (iscube) then
+          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,.false.,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(sy%f(id)%grid%f,outfile,.true.)
        endif
@@ -561,15 +568,15 @@ contains
        else
           faux = sy%f(id)%grid
        end if
-       if (iscube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,xd,x0+sy%c%molx0)
+       if (iscube .or. isbincube) then
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        end if
     else
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(c_loc(sy),nn,expr,sy%fh,sy%cube)
+          call faux%new_eval(c_loc(sy),nn,expr)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))
@@ -624,8 +631,8 @@ contains
           !$omp end parallel do
        end if
        ! cube body
-       if (iscube) then
-          call sy%c%writegrid_cube(lf,outfile,.false.,xd,x0+sy%c%molx0)
+       if (iscube .or. isbincube) then
+          call sy%c%writegrid_cube(lf,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
        else
           call sy%c%writegrid_vasp(lf,outfile,.false.)
        endif
@@ -637,7 +644,7 @@ contains
   !> Calculate properties on a plane.
   module subroutine rhoplot_plane(line)
     use systemmod, only: sy
-    use global, only: eval_next, dunit0, iunit, fileroot
+    use global, only: eval_next, dunit0, iunit, fileroot, iunitname0, iunit, dunit0
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -648,9 +655,9 @@ contains
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
     real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt
-    real*8 :: uu(3), vv(3), lin0, lin1
+    real*8 :: uu(3), vv(3), fmin, fmax
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
-    logical :: docontour, dorelief, docolormap
+    logical :: docontour, dorelief, docolormap, fset
     character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value) :: res
     logical :: ok, iok
@@ -690,8 +697,8 @@ contains
     ny = max(ny,2)
 
     ! read additional options
-    lin0 = 0d0
-    lin1 = 1d0
+    RHOP_Hmax = 1d-1
+    fset = .false.
     sx0 = 1d0
     sy0 = 1d0
     zx0 = 0d0
@@ -720,7 +727,7 @@ contains
              lp = lp2
              ok = isexpression_or_word(expr,line,lp)
              if (.not.ok) then
-                call ferror('rhoplot_point','wrong FIELD in LINE',faterr,line,syntax=.true.)
+                call ferror('rhoplot_plane','wrong FIELD in PLANE',faterr,line,syntax=.true.)
                 return
              end if
           else
@@ -754,6 +761,12 @@ contains
           end if
           zy0 = zy0 / dunit0(iunit)
           zy1 = zy1 / dunit0(iunit)
+       elseif (equal(word,'labelz')) then
+          ok = eval_next(RHOP_Hmax,line,lp)
+          if (.not. ok) then
+             call ferror('rhoplot_plane','wrong LABELZ keyword in PLANE',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'relief')) then
           dorelief = .true.
           zmin = -1d0
@@ -798,20 +811,19 @@ contains
                 call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
              end if
           end if
-          if (niso_type == niso_lin .or. niso_type == niso_log .or.&
-             niso_type == niso_atan) then
+          if (niso_type == niso_lin .or. niso_type == niso_log .or. niso_type == niso_atan) then
              ok = eval_next(niso,line,lp)
              if (.not.ok) then
                 call ferror("rhoplot_plane","number of isovalues not found",faterr,line,syntax=.true.)
                 return
              end if
-             if (niso_type == niso_lin) then
-                ok = eval_next(lin0,line,lp)
-                ok = ok .and. eval_next(lin1,line,lp)
-                if (.not.ok) then
-                   call ferror("rhoplot_plane","initial and final isovalues not found",faterr,line,syntax=.true.)
-                   return
-                end if
+             lp2 = lp
+             ok = eval_next(fmin,line,lp)
+             ok = ok .and. eval_next(fmax,line,lp)
+             if (.not.ok) then
+                lp = lp2
+             else
+                fset = .true.
              end if
           end if
        else if (equal(word,'colormap')) then
@@ -870,9 +882,9 @@ contains
     x2 = sy%c%x2c(x2)
     call plane_scale_extend(x0,x1,x2,sx0,sy0,zx0,zx1,zy0,zy1)
     uu = (x1-x0) / real(nx-1,8)
-    du = norm2(uu)
     vv = (x2-x0) / real(ny-1,8)
-    dv = norm2(vv)
+    du = norm2(uu) * dunit0(iunit)
+    dv = norm2(vv) * dunit0(iunit)
 
     ! allocate space for field values on the plane
     allocate(ff(nx,ny))
@@ -936,7 +948,7 @@ contains
     end if
 
     ! header
-    write (luout,'("# Field values (and derivatives) on a plane")')
+    write (luout,'("# Field values (and derivatives) on a plane (units=",A,").")') iunitname0(iunit)
     write (luout,'("# x y z u v f ")')
 
     x0 = sy%c%c2x(x0)
@@ -947,22 +959,23 @@ contains
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-          if (sy%c%ismolecule) then
-             xp = (sy%c%x2c(xp) + sy%c%molx0) * dunit0(iunit)
-          endif
-          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') &
-             xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
+          xp = (sy%c%x2c(xp) + sy%c%molx0) * dunit0(iunit)
+          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
        end do
        write (luout,*)
     end do
 
     ! contour/relief/colormap plots
     if (docontour) then
-       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       if (.not.fset) then
+          fmin = minval(ff)
+          fmax = maxval(ff)
+       end if
+       call assign_ziso(niso_type,niso,ziso,fmin,fmax)
        call contour(ff,x0,x1,x2,nx,ny,niso,ziso,root0,.true.,.true.)
     end if
     if (dorelief) call relief(root0,string(outfile),zmin,zmax)
-    if (docolormap) call colormap(root0,string(outfile),cmopt)
+    if (docolormap) call colormap(root0,string(outfile),cmopt,x0,x1,x2,.true.)
 
     if (len_trim(outfile) > 0) then
        call fclose(luout)
@@ -995,8 +1008,8 @@ contains
     integer :: cpid
     integer :: niso_type, nfi, ix, iy
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, rdum
-    real*8 :: ehess(3), x0(3), uu(3), vv(3), lin0, lin1
-    logical :: docontour, dograds, goodplane
+    real*8 :: ehess(3), x0(3), uu(3), vv(3), fmin, fmax
+    logical :: docontour, dograds, goodplane, fset
     integer :: n1, n2, niso, nder
     type(scalar_value) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
@@ -1026,6 +1039,7 @@ contains
     zx1 = 0d0
     zy0 = 0d0
     zy1 = 0d0
+    RHOP_Hmax = 1d-1
 
     !.Read user options:
     ll = len(line)
@@ -1051,7 +1065,7 @@ contains
           ok = ok .and. eval_next (r2(2), line, lp)
           ok = ok .and. eval_next (r2(3), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad limits for crystal',faterr,line,syntax=.true.)
              return
           end if
           if (sy%c%ismolecule) then
@@ -1065,14 +1079,14 @@ contains
           ok = eval_next(sx0,line,lp)
           ok = ok .and. eval_next(sy0,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong SCALE keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
        elseif (equal(word,'extendx')) then
           ok = eval_next(zx0,line,lp)
           ok = ok .and. eval_next(zx1,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong EXTENDX keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
           zx0 = zx0 / dunit0(iunit)
@@ -1081,7 +1095,7 @@ contains
           ok = eval_next(zy0,line,lp)
           ok = ok .and. eval_next(zy1,line,lp)
           if (.not. ok) then
-             call ferror('grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong EXTENDY keyword in PLANE',faterr,line,syntax=.true.)
              return
           end if
           zy0 = zy0 / dunit0(iunit)
@@ -1090,7 +1104,7 @@ contains
           ok = eval_next(outcpx, line, lp)
           ok = ok .and. eval_next(outcpy, line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad outcp options',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad outcp options',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1100,7 +1114,7 @@ contains
           ok = eval_next (xdum, line, lp)
           if (ok) RHOP_Hmax = xdum / dunit0(iunit)
           if (.not. ok) then
-             call ferror ('grdvec','Wrong hmax line',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Wrong hmax line',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1109,18 +1123,18 @@ contains
        else if (equal(word,'cp')) then
           newncriticp = newncriticp + 1
           if (newncriticp .gt. mncritp) then
-             call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+             call ferror('rhoplot_grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
              return
           end if
           ok = eval_next (cpid, line, lp)
           ok = ok .and. eval_next (cpup(newncriticp), line, lp)
           ok = ok .and. eval_next (cpdn(newncriticp), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','bad cp option',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','bad cp option',faterr,line,syntax=.true.)
              return
           end if
           if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
-             call ferror ('grdvec','cp not recognized',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','cp not recognized',faterr,line,syntax=.true.)
              return
           end if
           newcriticp(:,newncriticp) = sy%f(sy%iref)%cpcel(cpid)%x
@@ -1198,7 +1212,7 @@ contains
           dograds = .true.
           norig = norig + 1
           if (norig .gt. MORIG) then
-             call ferror ('grdvec','Too many ORIGIN points. Increase MORIG',faterr,syntax=.true.)
+             call ferror('rhoplot_grdvec','Too many ORIGIN points. Increase MORIG',faterr,syntax=.true.)
              return
           end if
           ok = eval_next (grpx(1,norig), line, lp)
@@ -1208,7 +1222,7 @@ contains
           ok = ok .and. eval_next (grpup(norig), line, lp)
           ok = ok .and. eval_next (grpdwn(norig), line, lp)
           if (.not. ok) then
-             call ferror ('grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
              return
           end if
           grpx(:,norig) = sy%c%c2x(grpx(:,norig) / dunit0(iunit) - sy%c%molx0)
@@ -1225,7 +1239,7 @@ contains
           do while (ok.and..not.equal(word, 'endcheck').and..not.equal(word, 'end'))
              newncriticp = newncriticp + 1
              if (newncriticp .gt. mncritp) then
-                call ferror ('grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
+                call ferror('rhoplot_grdvec','too many points in a check order. Increase MNCRITP',faterr,syntax=.true.)
                 return
              end if
              lp = 1
@@ -1293,23 +1307,31 @@ contains
           n2 = max(n2,2)
 
           ok = .true.
-          lin0 = 0d0
-          lin1 = 1d0
+          fset = .false.
           lpold = lp
           word = lgetword(line,lp)
-          if (equal(word,'atan')) then
-             niso_type = niso_atan
+          if (equal(word,'atan') .or. equal(word,'log') .or. equal(word,'lin')) then
+             if (equal(word,'log')) then
+                niso_type = niso_log
+             elseif (equal(word,'lin')) then
+                niso_type = niso_lin
+             else
+                niso_type = niso_atan
+             end if
              ok = eval_next (niso, line, lp)
-          else if (equal(word,'log')) then
-             niso_type = niso_log
-             ok = eval_next (niso, line, lp)
+             if (ok) then
+                lpold = lp
+                ok = eval_next (fmin, line, lp)
+                ok = ok .and. eval_next (fmax, line, lp)
+                if (.not.ok) then
+                   lp = lpold
+                   ok = .true.
+                else
+                   fset = .true.
+                end if
+             end if
           else if (equal(word,'bader')) then
              niso_type = niso_bader
-          else if (equal(word,'lin')) then
-             niso_type = niso_lin
-             ok = eval_next(niso, line, lp)
-             ok = ok .and. eval_next(lin0, line, lp)
-             ok = ok .and. eval_next(lin1, line, lp)
           else
              lp = lpold
              niso_type = niso_manual
@@ -1324,7 +1346,7 @@ contains
                 ziso(niso) = rdum
              end do
              if (niso == 0) then
-                call ferror("rhoplot_plane","wrong contour values",faterr,line,syntax=.true.)
+                call ferror("rhoplot_grdvec","wrong contour values",faterr,line,syntax=.true.)
                 return
              end if
              call realloc(ziso,niso)
@@ -1332,7 +1354,7 @@ contains
           end if
 
           if (.not.ok) then
-             call ferror ('grdvec','wrong contour values',faterr,line,syntax=.true.)
+             call ferror('rhoplot_grdvec','wrong contour values',faterr,line,syntax=.true.)
              return
           end if
           ok = check_no_extra_word()
@@ -1343,16 +1365,16 @@ contains
           if (.not.ok) return
           goto 999
        else
-          call ferror ('grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
+          call ferror('rhoplot_grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
           return
        endif
        doagain = getline(uin,line,ucopy=ucopy)
     enddo
-    call ferror('grdvec','Unexpected end of input',faterr,line,syntax=.true.)
+    call ferror('rhoplot_grdvec','Unexpected end of input',faterr,line,syntax=.true.)
     return
 999 continue
     if (.not.goodplane) then
-       call ferror ('grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
+       call ferror('rhoplot_grdvec','No PLANE given in GRDVEC',faterr,syntax=.true.)
        return
     end if
 
@@ -1400,7 +1422,7 @@ contains
        else
           nder = 2
        end if
-       !$omp parallel do private (xp,res,rhopt) schedule(dynamic)
+       !$omp parallel do private(xp,res,rhopt) schedule(dynamic)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1437,7 +1459,11 @@ contains
           end do
        end do
        !$omp end parallel do
-       call assign_ziso(niso_type,niso,ziso,lin0,lin1,maxval(ff),minval(ff))
+       if (.not.fset) then
+          fmin = minval(ff)
+          fmax = maxval(ff)
+       end if
+       call assign_ziso(niso_type,niso,ziso,fmin,fmax)
        call contour(ff,r0,r1,r2,n1,n2,niso,ziso,rootname,.false.,.false.)
        if (allocated(ziso)) deallocate(ziso)
        deallocate(ff)
@@ -1494,7 +1520,7 @@ contains
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     integer :: lud, lud1
     integer :: i, j
-    real*8 :: du, dv, r012, ua, va, ub, vc
+    real*8 :: r012, ua, va, ub, vc
     real*8, allocatable :: x(:), y(:)
 
     ! set rootname
@@ -1520,8 +1546,6 @@ contains
     rp02 = rp2 - rp0
     r01 = norm2(rp01)
     r02 = norm2(rp02)
-    du = r01 / real(nx-1,8)
-    dv = r02 / real(ny-1,8)
     r012 = dot_product(rp01,rp02)
     cosalfa = r012/r01/r02
     sinalfa = sqrt(max(1-cosalfa**2,0d0))
@@ -1561,11 +1585,11 @@ contains
     end do
 
     do i = 1, niso
-       call hallarpuntos (ff,ziso(i),x,y,nx,ny)
+       call hallarpuntos(ff,ziso(i),x,y,nx,ny)
        if (ziso(i).gt.0) then
-          call ordenarpuntos (lud,cosalfa,ziso(i))
+          call ordenarpuntos(lud,cosalfa,ziso(i))
        else
-          call ordenarpuntos (lud1,cosalfa,ziso(i))
+          call ordenarpuntos(lud1,cosalfa,ziso(i))
        endif
     enddo
     call fclose(lud)
@@ -1630,16 +1654,49 @@ contains
   end subroutine relief
 
   !> Write a gnuplot template for the color map plot
-  subroutine colormap(rootname,outfile,cmopt)
-    use tools_io, only: fopen_write, uout, string, fclose
+  subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
+    use systemmod, only: sy
+    use tools_math, only: cross, det, matinv
+    use tools_io, only: fopen_write, uout, string, fclose, ferror ,faterr
     character*(*), intent(in) :: rootname, outfile
     integer, intent(in) :: cmopt
+    real*8, intent(in) :: r0(3), r1(3), r2(3)
+    logical :: dolabels
 
-    character(len=:), allocatable :: file
+    character(len=:), allocatable :: file, fichlabel
     integer :: lu
+    real*8 :: r012
 
     ! file name
     file = trim(rootname) // '-colormap.gnu'
+
+    ! geometry
+    rp0 = sy%c%x2c(r0)
+    rp1 = sy%c%x2c(r1)
+    rp2 = sy%c%x2c(r2)
+    rp01 = rp1 - rp0
+    rp02 = rp2 - rp0
+    r01 = norm2(rp01)
+    r02 = norm2(rp02)
+    r012 = dot_product(rp01,rp02)
+    cosalfa = r012/r01/r02
+    sinalfa = sqrt(max(1-cosalfa**2,0d0))
+    indmax = nint(max(maxval(abs(r0)),maxval(abs(r1)),maxval(abs(r2))))
+
+    ! normal vector and plane equation
+    rpn(1:3) = cross(rp01,rp02)
+    rpn(4) = -dot_product(rpn(1:3),rp0)
+    rpn = rpn / (r01*r02)
+
+    ! plane to cartesian
+    amat(:,1) = rp01
+    amat(:,2) = rp02
+    amat(:,3) = rpn(1:3)
+
+    ! cartesian to plane
+    if (abs(det(amat)) < 1d-15) &
+       call ferror('colormap','Error in the input plane: singular matrix',faterr)
+    bmat = matinv(amat)
 
     ! connect unit
     lu = fopen_write(file)
@@ -1673,6 +1730,13 @@ contains
     write (lu,'("set cntrparam bspline")')
     write (lu,'("# set cntrparam levels incremental -min,step,max")')
     write (lu,'("")')
+
+    if (dolabels) then
+       fichlabel = trim(rootname) // "-label.gnu" 
+       write (lu,'("load ''",A,"''")') string(fichlabel) 
+       call write_fichlabel(rootname)
+    end if
+
     if (cmopt == 1) then
        write (lu,'("splot """,A,""" u 4:5:(log(abs($6))) ls 1 w pm3d notitle")') outfile
     elseif (cmopt == 2) then
@@ -1787,7 +1851,7 @@ contains
   end subroutine hallarpuntos
 
   !> Determines the connectivity of the set of contour points.
-  subroutine ordenarpuntos (luw,calpha,ziso)
+  subroutine ordenarpuntos(luw,calpha,ziso)
     use param, only: one, half, zero
     real*8, parameter :: eps = 0.10d0
 
@@ -1981,7 +2045,8 @@ contains
   end subroutine ordenarpuntos
 
   !> Write (x(n),y(n)) curve in luw.
-  subroutine linea (x,y,n,luw,ziso)
+  subroutine linea(x,y,n,luw,ziso)
+    use global, only: dunit0, iunit
     use tools_io, only: string
     integer, intent(in) :: n
     real*8, dimension(n), intent(in) :: x, y
@@ -1993,7 +2058,7 @@ contains
     write (luw,*)
     write (luw,'("# z = ",A)') string(ziso,'e',20,14)
     do i = 1, n
-       write (luw,20) x(i), y(i)
+       write (luw,20) x(i) * dunit0(iunit), y(i) * dunit0(iunit)
     enddo
 20  format (1p, 2(1x,e15.8))
 
@@ -2003,7 +2068,7 @@ contains
   !> by the vectors (r1-r0) & (r2-r0).
   subroutine plotvec(r0,r1,r2,autocheck,udat)
     use systemmod, only: sy
-    use global, only: dunit0, iunit, prunedist, gcpchange
+    use global, only: dunit0, iunit, iunitname0, prunedist, gcpchange
     use tools_math, only: cross, matinv, rsindex
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
@@ -2097,6 +2162,10 @@ contains
           string(u,'f',decimal=6,length=11,justify=4), string(v,'f',decimal=6,length=11,justify=4)
     enddo
     write (uout,*)
+
+    ! write the data file header
+    write (udat,'("# Gradient path information")') 
+    write (udat,'("# u(",A,") v(",A,") x(",A,") y(",A,") z(",A,") color")') (trim(iunitname0(iunit)),j=1,5)
 
     write (uout,'("+ List of gradient paths traced")')
     write (uout,'("# i       xcrys        ycrys        zcrys        type    up down    pts")')
@@ -2253,31 +2322,27 @@ contains
   !> Write the gradient path to the udat logical unit.
   subroutine wrtpath(xpath,nptf,udat,rp0,r01,r02,cosalfa,sinalfa)
     use systemmod, only: sy
-    use global, only: prunedist
+    use global, only: prunedist, dunit0, iunit
     use types, only: gpathp
-    use param, only: jmlcol
+    use param, only: jmlcol, icrd_crys
     type(gpathp) :: xpath(*)
     integer, intent(in) :: nptf
     integer, intent(in) :: udat
     real*8, intent(in) :: rp0(3), r01, r02, cosalfa, sinalfa
 
-    integer :: i, j, nid1, nid2, lvec(3), iz, rgb(3)
-    real*8 :: xxx, yyy, zzz, u, v, h, uort, vort, x0(3)
-    real*8 :: dist1, dist2
+    integer :: i, j, nid1, nid2, iz, rgb(3)
+    real*8 :: xxx, yyy, zzz, u, v, h, uort, vort
+    real*8 :: dist1, dist2, dd
     logical :: wasblank
 
     ! identify the endpoints
-    x0 = xpath(1)%x
-    nid1 = 0
-    call sy%c%nearest_atom(x0,nid1,dist1,lvec)
-    x0 = xpath(nptf)%x
-    nid2 = 0
-    call sy%c%nearest_atom(x0,nid2,dist2,lvec)
+    nid1 = sy%c%identify_atom(xpath(1)%x,icrd_crys,dist=dist1,distmax=1.1d0*prunedist)
+    nid2 = sy%c%identify_atom(xpath(nptf)%x,icrd_crys,dist=dist2,distmax=1.1d0*prunedist)
     rgb = (/0,0,0/)
-    if (dist1 < dist2 .and. dist1 < 1.1d0*prunedist) then
+    if (nid1 > 0 .and. (dist1 < dist2 .or. nid2 == 0)) then
        iz = sy%c%spc(sy%c%atcel(nid1)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
-    elseif (dist2 < dist1 .and. dist2 < 1.1d0*prunedist) then
+    elseif (nid2 > 0 .and. (dist2 < dist1 .or. nid1 == 0)) then
        iz = sy%c%spc(sy%c%atcel(nid2)%is)%z
        if (iz /= 1) rgb = jmlcol(:,iz)
     endif
@@ -2285,6 +2350,7 @@ contains
     write (udat,*)
     write (udat,*)
     wasblank = .true.
+    dd = dunit0(iunit)
     do i = 1, nptf
        !.transform the point to the plotting plane coordinates:
        xxx = xpath(i)%r(1) - rp0(1)
@@ -2301,7 +2367,7 @@ contains
              uort = u*r01 + v*r02*cosalfa
              vort = v*r02*sinalfa
              if (abs(h) < grphcutoff .or. grpproj > 0) then
-                write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+                write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j)*dd, j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
              end if
           end if
           if (.not.wasblank) write (udat,*)
@@ -2311,7 +2377,7 @@ contains
           uort = u*r01 + v*r02*cosalfa
           vort = v*r02*sinalfa
           if (abs(h) < grphcutoff .or. grpproj > 0) then
-             write (udat,200) uort, vort, (xpath(i)%r(j), j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
+             write (udat,200) uort*dd, vort*dd, (xpath(i)%r(j)*dd, j = 1, 3), (rgb(1) * 256 + rgb(2)) * 256 + rgb(3)
           end if
        endif
     enddo
@@ -2451,7 +2517,9 @@ contains
   !> contains the list of critical points contained in the plot
   !> plane, ready to be read in gnuplot.
   subroutine write_fichlabel(rootname)
+    use global, only: dunit0, iunit
     use systemmod, only: sy
+    use tools_math, only: det
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname
@@ -2486,8 +2554,6 @@ contains
        enddo
     enddo
 
-    ! write (uout,'("+ CPs accepted/rejected in the plot plane ")')
-    ! write (uout,'("A?(cp,lvec)       u               v               h")')
     do i = 1, sy%f(sy%iref)%ncpcel
        do j = 1, (inum)**3
           xp = sy%c%x2c(sy%f(sy%iref)%cpcel(i)%x + indcell(:,j))
@@ -2503,14 +2569,7 @@ contains
           if (uu.ge.-epsdis .and. uu.le.one+epsdis .and. &
              vv.ge.-epsdis .and. vv.le.one+epsdis .and. &
              abs(hh).le.RHOP_Hmax) then
-             ! write (uout,'("A(",A,",",A,")",X,3(A,X))') &
-             !    string(i,length=3), string(j,length=3),&
-             !    string(u,'e',length=15,decimal=8,justify=4),&
-             !    string(v,'e',length=15,decimal=8,justify=4),&
-             !    string(hh,'e',length=15,decimal=8,justify=4)
-
-             ! assign cp letter
-             ! check if it is a nucleus
+             ! assign cp letter, check if it is a nucleus
              select case (sy%f(sy%iref)%cpcel(i)%typ)
              case (3)
                 cpletter = "c"
@@ -2525,16 +2584,11 @@ contains
                    cpletter = "n"
                 endif
              end select
-             write (lul,'(3a,f12.6,a,f12.6,a)') 'set label "',trim(cpletter),'" at ',u,',',v,' center front'
-          else
-             ! write(uout,'("r(",A,",",A,")",X,3(A,X))') &
-             !    string(i,length=3), string(j,length=3), string(u,'e',length=15,decimal=8,justify=4),&
-             !    string(v,'e',length=15,decimal=8,justify=4),&
-             !    string(hh,'e',length=15,decimal=8,justify=4)
+             write (lul,'(3a,f12.6,a,f12.6,a)') 'set label "',trim(cpletter),'" at ',u * dunit0(iunit),&
+                ',',v * dunit0(iunit),' center front'
           end if
        end do
     end do
-    ! write (uout,*)
     call fclose(lul)
 
   end subroutine write_fichlabel
@@ -2544,6 +2598,7 @@ contains
   !> -values) and the .neg.iso (negative iso-values). If dograds,
   !> write the file containing the gradient paths.
   subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
+    use global, only: iunitname0, iunit, dunit0
     use tools_io, only: uout, string, fopen_write, string, fclose
     character*(*), intent(in) :: rootname
     logical, intent(in) :: dolabels, docontour, dograds
@@ -2551,7 +2606,9 @@ contains
     integer :: lun
     character(len=:), allocatable :: fichgnu, fichlabel, fichiso, fichiso1, fichgrd
     character(len=:), allocatable :: swri
+    real*8 :: dd
 
+    dd = dunit0(iunit)
     fichgnu = trim(rootname) // '.gnu' 
     fichlabel = trim(rootname) // "-label.gnu" 
     fichiso = trim(rootname) // ".iso" 
@@ -2570,11 +2627,10 @@ contains
     write (lun,*) 'set size ratio -1'
     write (lun,*) 'unset key'
     ! title
-    write (lun,*) 'set xlabel "x"'
-    write (lun,*) 'set ylabel "y"'
+    write (lun,*) 'set xlabel "x (',trim(iunitname0(iunit)),' )"'
+    write (lun,*) 'set ylabel "y (',trim(iunitname0(iunit)),' )"'
     ! ranges
-    write (lun,18) min(0d0,r02*cosalfa),&
-       max(r01,r01+r02*cosalfa),0d0,r02*sinalfa
+    write (lun,18) min(0d0,r02*cosalfa)*dd, max(r01,r01+r02*cosalfa)*dd, 0d0, r02*sinalfa*dd
     ! labels
     if (dolabels) &
        write (lun,*) 'load "',string(fichlabel),'"'

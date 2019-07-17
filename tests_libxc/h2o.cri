@@ -1,0 +1,8 @@
+molecule h2o.wfx
+load h2o.wfx
+
+molcalc "xc($1,1)+xc($1,8)" # LDA (same as SVWN in Gaussian)
+molcalc "xc($1,$1:g,101)+xc($1,$1:g,130)" # PBE
+molcalc "xc($1,$1:g,106)+xc($1,$1:g,131)" # BLYP
+molcalc "xc($1,$1:g,106)+xc($1,$1:g,132)" # BP86
+molcalc "xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)" # TPSS

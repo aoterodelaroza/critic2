@@ -915,3 +915,87 @@ pyridine molecule.
 
 This example shows how to find the complete topology of the LOL in the
 pyridine molecule.
+
+* dis_wannier
+** Source: Quantum ESPRESSO
+** System: several simple solids.
+** Description
+
+These five examples show how to calculate delocalization indices in
+solids via maximally localized Wannier functions (MLWF), using the
+method described in A. Otero-de-la-Roza et al. JCTC 14 (2018) 4699
+(http://dx.doi.org/10.1021/acs.jctc.8b00549). Theis method uses a
+recent version of Quantum ESPRESSO (6.3 or later) for the calculation
+of the self-consistent Kohn-Sham states and wannier90 for the
+transformation to MLWF. The calculations are carried out using a
+sequence of steps that are specified in the runit.sh script inside
+each subdirectory (which you will probably have to adapt to your
+particular QE and wannier90 installation). In general, you need to:
+
+1. Run a PAW SCF calculation.
+
+2. Write the all-electron density to a cube file (rhoae.cube). This
+   will be used to calcualte the Bader basins.
+
+3. Run a norm-conserving SCF calculation. This needs to be run with
+   wf_collect=.true. and the same ecutrho as step 1.
+
+4. Calculate the pseudo- valence electron density (for consistency
+   checks, not really needed).
+
+5. Use open_grid.x to unpack the symmetry from the calculation and
+   prepare the Wannier run (alternatively, use a non-selfconsistent
+   calculation, see mgo-nscf).
+
+6. Extract the KS coefficient, structure, and k-point mapping data to
+   a pwc file using pw2critic.
+
+7. Run wannier90 in the usual way to get the checkpoint file. In
+   spin-polarized cases, this needs to be done twice, once for each
+   spin component.
+
+The pwc and chk files generated in steps 6 and 7 are read as a 
+field in critic2 (see example cri files) and the calculation of the
+DIs is activated using INTEGRABLE and the DELOC keyword. In output,
+the localization indices as well as all interatomic DIs are given as a
+function of distance from the reference atom. In molecular crystals,
+molecular localization and delocalization indices are also calculated.
+
+To run this example, you will need the pseudopotentials in the data/
+directory, which can be downloaded with the fetch_data.sh script (and
+possibly to modify you runit.sh script to point towards the location
+of QE and wannier90). In all cases, sample output files (.cro) are
+provided as well.
+
+** mgo/
+
+This is a basic calculation of the delocalization indices in MgO with
+a 4x4x4 k-point grid using the current recommended procedure.
+
+** mgo-nscf/
+
+The same as the previous calculation, but using a non-SCF calculation
+instead of open_grid.x to extract the individual KS information. This
+is slower than the open_grid.x alternative.
+
+** graph/
+
+A slightly more complicated (and more expensive) calculation of
+graphite with a 8x8x2 k-point grid. Here, the advantage of using MLWFs
+can be seen very clearly. The DIs decay significantly more slowly with
+distance in-plane than out-of-plane.
+
+** urea/
+
+An example of a DI calculation in a simple molecular crystal. critic2
+automatically detects that the system is molecualr and groups the DIs
+by molecules, although the interatomic DIs are still computed.
+
+** feo/
+
+An example of a spin-polarized DI calculation. This is slighly more
+convoluted than the non-spin-polarized case because occupations need
+to be fixed, and two wannier90 runs are required for the spin-minority
+channel in order to "trick" wannier90 into not using the
+disentanglement procedure.
+

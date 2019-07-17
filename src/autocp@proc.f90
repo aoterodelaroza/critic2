@@ -55,9 +55,11 @@ contains
   module subroutine autocritic(line)
     use systemmod, only: sy
     use fieldmod, only: type_grid
+    use meshmod, only: mesh
     use graphics, only: grhandle
     use surface, only: minisurf
-    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
+    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
+       mesh_type, mesh_level
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -70,8 +72,9 @@ contains
     integer, parameter :: styp_triplet = 3 ! triplets
     integer, parameter :: styp_line = 4    ! line
     integer, parameter :: styp_sphere = 5  ! sphere
-    integer, parameter :: styp_oh = 6  ! octahedron subdivision
+    integer, parameter :: styp_oh = 6      ! octahedron subdivision
     integer, parameter :: styp_point = 7   ! point
+    integer, parameter :: styp_mesh = 7    ! molecular mesh
     type seed_
        integer :: typ        ! type of seeding strategy
        integer :: depth = 1  ! WS recursive subdivision level
@@ -85,7 +88,6 @@ contains
        integer :: nphi = 0   ! number of phi (azimuthal) points
        integer :: nseed = 0  ! number of seeds generated
     end type seed_
-    real*8, parameter :: seed_eps = 1d-5
     integer, parameter :: maxpointstr(0:7) =  (/ 6, 18,  66, 258, 1026, 4098, 16386, 66003  /)
     integer, parameter :: maxfacestr(0:7) =   (/ 8, 32, 128, 512, 2048, 8192, 32768, 131072 /)
 
@@ -96,9 +98,9 @@ contains
     real*8 :: gfnormeps
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
-    logical :: cpdebug
+    logical :: cpdebug, seedobj
     integer :: nseed 
-    integer :: i, j, k, i1, i2, i3, lp, lpo, n0
+    integer :: i, j, k, i1, i2, i3, lp, lpo, n0, nrun
     integer :: m, nf, ntheta, nphi, nr
     type(seed_), allocatable :: seed(:), saux(:)
     logical :: firstseed, hadx1
@@ -111,6 +113,7 @@ contains
     real*8 :: nuceps
     real*8 :: nucepsh
     type(grhandle) :: gr
+    type(mesh) :: meshseed
 
     if (.not.quiet) then
        call tictac("Start AUTO")
@@ -121,6 +124,7 @@ contains
     dochk = .false.
     gfnormeps = 1d-12
     cpdebug = .false.
+    seedobj = .false.
     dryrun = .false.
     if (.not.sy%c%ismolecule) then
        nseed = 1
@@ -152,8 +156,8 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'dry')) then
           dryrun = .true.
-       elseif (equal(word,'verbose')) then
-          cpdebug = .true.
+       elseif (equal(word,'seedobj')) then
+          seedobj = .true.
        elseif (equal(word,'gradeps')) then
           ok = eval_next(gfnormeps,line,lp)
           if (.not.ok) then
@@ -247,6 +251,8 @@ contains
              seed(nseed)%typ = styp_oh
           elseif (equal(word,'point')) then
              seed(nseed)%typ = styp_point
+          elseif (equal(word,'mesh')) then
+             seed(nseed)%typ = styp_mesh
           else
              call ferror('autocritic','Unknown keyword in AUTO/SEED',faterr,line,syntax=.true.)
              return
@@ -348,13 +354,14 @@ contains
        n0 = nn
        seed(i)%nseed = 0
        if (seed(i)%typ == styp_ws) then
-          ! Determine the WS cell
-          call sy%c%wigner(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
+          ! find the IWS
+          call sy%c%getiws(seed(i)%x0,ntetrag=ntetrag,tetrag=tetrag)
+
           if (seed(i)%rad > 0) call scale_ws(seed(i)%rad,seed(i)%x0,ntetrag,tetrag)
           ! Recursively subdivide each tetrahedron
           do nt = 1, ntetrag     
              do j = 1, 4
-                xdum = tetrag(j,:,nt)
+                xdum = tetrag(:,j,nt)
                 iniv(j,:) = sy%c%x2c(xdum)
              end do
              call barycentric(iniv,seed(i)%depth,nn,xseed)
@@ -488,6 +495,15 @@ contains
 
           ! clean up
           call srf%end()
+       elseif (seed(i)%typ == styp_mesh) then
+          call meshseed%gen(sy%c,mesh_type,mesh_level)
+          
+          call realloc(xseed,3,nn+meshseed%n)
+          do j = 1, meshseed%n
+             nn = nn + 1
+             xseed(:,nn) = sy%c%c2x(meshseed%x(:,j))
+          end do
+
        elseif (seed(i)%typ == styp_point) then
           ! add a point
           nn = nn + 1
@@ -563,6 +579,8 @@ contains
              string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
           str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
           str = str // ", nr=" // string(seed(i)%nr)
+       elseif (seed(i)%typ == styp_mesh) then
+          str = str // " Molecular integration mesh "
        elseif (seed(i)%typ == styp_point) then
           str = str // " Point         "
           str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
@@ -638,14 +656,14 @@ contains
        xseed(:,i) = sy%c%x2c(xseed(:,i))
     end do
 
-    ! uniq the list
-    call uniqc(xseed,1,nn,seed_eps)
+    ! ! uniq the list - double sum over seeds, bad idea
+    ! call uniqc(xseed,1,nn,seed_eps)
 
     ! this is the final list of seeds
     write (uout,'("+ Number of seeds: ",A)') string(nn)
 
     ! write the seeds to an obj file
-    if (cpdebug) then
+    if (seedobj) then
        str = trim(fileroot) // "_seeds.obj" 
        write (uout,'("+ Writing seeds to file: ",A)') str
        call sy%c%write_3dmodel(str,"obj",(/1,1,1/),.true.,.false.,.false.,&
@@ -657,7 +675,7 @@ contains
     endif
 
     ! Initialize the CP search
-    if (.not.allocated(sy%f(sy%iref)%cp)) call sy%f(sy%iref)%init_cplist
+    if (.not.allocated(sy%f(sy%iref)%cp)) call sy%f(sy%iref)%init_cplist()
 
     ! Read cps from external file
     if (dochk) call readchk()
@@ -665,19 +683,18 @@ contains
     ! If not a dry run, do the search
     if (.not.dryrun) then
        write (uout,'("+ Searching for CPs")')
-       if (cpdebug) &
-          write (uout,'("  CP localization progress:")')
+       write (uout,'("  CP localization progress:")')
        nss = max(nn / 25,1)
        ndegenr = 0
+       nrun = 0
        !$omp parallel do private(ier,x0) schedule(dynamic)
        do i = 1, nn
-          if (cpdebug) then
-             !$omp critical (progress)
-             if (mod(i,nss) == 1) then
-                write (uout,'("  [",A,"/",A,"]")') string(i), string(nn)
-             end if
-             !$omp end critical (progress)
+          !$omp critical (progress)
+          nrun = nrun + 1
+          if (mod(nrun,nss) == 1) then
+             write (uout,'("  [",A,"/",A,"]")') string(nrun), string(nn)
           end if
+          !$omp end critical (progress)
           x0 = xseed(:,i)
           call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
           if (ier <= 0) then
@@ -725,6 +742,12 @@ contains
     end if
     write (uout,*)
 
+    ! Calculate the field at the nuclei, if deferred
+    if (sy%f(sy%iref)%fcp_deferred) then
+       call sy%f(sy%iref)%init_cplist_deferred()
+       sy%f(sy%iref)%fcp_deferred = .false.
+    end if
+
     ! Short report of non-equivalent cp-list
     call cp_short_report()
 
@@ -766,7 +789,7 @@ contains
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist, gcpchange
-    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess
+    use tools_io, only: lgetword, equal, getword, ferror, faterr, nameguess, lower
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
@@ -780,6 +803,12 @@ contains
     type(system) :: syaux
     real*8 :: x(3), plen
     type(gpathp), allocatable :: xpath(:)
+
+    ! Calculate the field at the nuclei, if deferred
+    if (sy%f(sy%iref)%fcp_deferred) then
+       call sy%f(sy%iref)%init_cplist_deferred()
+       sy%f(sy%iref)%fcp_deferred = .false.
+    end if
 
     lp = 1
     do while (.true.)
@@ -805,7 +834,7 @@ contains
           agraph = .false.
           do while (.true.)
              word = getword(line,lp2)
-             if (equal(word,'graph')) then
+             if (equal(lower(word),'graph')) then
                 agraph = .true.
              elseif (len_trim(word) > 0) then
                 aux = line2 // " " // trim(word)
@@ -853,7 +882,7 @@ contains
              end if
           end do
           seed%useabr = 2
-          seed%crys2car = sy%c%crys2car
+          seed%m_x2c = sy%c%m_x2c
           seed%havesym = 0
           seed%findsym = 0
 
@@ -1755,7 +1784,7 @@ contains
                idir = -1
             end if
             do j = 1, 2
-               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j)) 
+               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j),pathini=f%cp(i)%r)
             end do
             !$omp critical (xdis1)
             f%cp(i)%brvec = xx 
@@ -1863,15 +1892,15 @@ contains
        ! calculate the max norm for this tetrag
        maxn = -1d30
        do j = 1, 4
-          x = tetrag(j,:,i) - wso
+          x = tetrag(:,j,i) - wso
           x = sy%c%x2c(x)
           maxn = max(norm2(x),maxn)
        end do
        ! scale to rad
        do j = 1, 4
-          x = tetrag(j,:,i) - wso
+          x = tetrag(:,j,i) - wso
           x = x / maxn * rad
-          tetrag(j,:,i) = x + wso
+          tetrag(:,j,i) = x + wso
        end do
     end do
 

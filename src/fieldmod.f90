@@ -36,29 +36,6 @@ module fieldmod
 
   public :: realloc_field
 
-  ! pointers for the arithmetic module
-  interface
-     !> Check that the id is a grid and is a sane field
-     function fcheck(sptr,id,iout)
-       import c_ptr
-       logical :: fcheck
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(out), optional :: iout
-     end function fcheck
-     !> Evaluate the field at a point
-     function feval(sptr,id,nder,fder,x0,periodic)
-       import c_ptr, scalar_value
-       type(scalar_value) :: feval
-       type(c_ptr), intent(in) :: sptr
-       character*(*), intent(in) :: id
-       integer, intent(in) :: nder
-       character*(*), intent(in) :: fder
-       real*8, intent(in) :: x0(3)
-       logical, intent(in), optional :: periodic
-     end function feval
-  end interface
-
   !> Scalar field types
   integer, parameter, public :: type_uninit = -1 !< uninitialized
   integer, parameter, public :: type_promol = 0 !< promolecular density
@@ -71,7 +48,12 @@ module fieldmod
   integer, parameter, public :: type_promol_frag = 8 !< promolecular density from a fragment
   integer, parameter, public :: type_ghost = 9 !< a ghost field
 
-  !> Definition of the field class
+  !> The field class. A field contains the information necessary to evaluate
+  !> a scalar field (like the density, but can be something else) at any point
+  !> in the unit cell. The class contains:
+  !> - One component for a certain type (%type) containing the density or wavefunction.
+  !> - The list of critical points: non-equivalent (%cp) and complete list (%cpcel).
+  !> - A number of flags controlling the behavior of the field.
   type field
      ! parent structure information
      type(crystal), pointer :: c => null() !< crsytal
@@ -86,26 +68,24 @@ module fieldmod
      character(len=mlen) :: name = "" !< field name
      character(len=mlen) :: file = "" !< file name
      ! scalar field types
-     type(elkwfn) :: elk
-     type(wienwfn) :: wien
-     type(piwfn) :: pi
-     type(grid3) :: grid
-     type(molwfn) :: wfn
-     type(dftbwfn) :: dftb
+     type(elkwfn) :: elk !< Elk densities
+     type(wienwfn) :: wien !< WIEN2k densities
+     type(piwfn) :: pi !< PI wavefunctions
+     type(grid3) :: grid !< Grid fields
+     type(molwfn) :: wfn !< GTO/STO atom-centered wavefunctions
+     type(dftbwfn) :: dftb !< DFTB wavefunctions
      ! promolecular and core densities
-     type(fragment) :: fr
-     integer :: zpsp(maxzat0)
+     type(fragment) :: fr !< Fragment for the fragment-based promolecular density
+     integer :: zpsp(maxzat0) !< Pseudopotential charges
      ! ghost field
-     character(len=mmlen) :: expr
-     type(hash), pointer :: fh => null()
-     type(c_ptr) :: sptr = c_null_ptr
-     procedure(fcheck), pointer, nopass :: fcheck => null()
-     procedure(feval), pointer, nopass :: feval => null()
+     character(len=mmlen) :: expr !< Expression for the ghost field
+     type(c_ptr) :: sptr = c_null_ptr !< Pointer to the parent system
      ! critical point list
-     integer :: ncp = 0
-     type(cp_type), allocatable :: cp(:)
-     integer :: ncpcel = 0
-     type(cp_type), allocatable :: cpcel(:)
+     logical :: fcp_deferred = .true. !< True if the calculation of CPs on nuclei was deferred
+     integer :: ncp = 0 !< Number of critical points (non-equivalent)
+     type(cp_type), allocatable :: cp(:) !< Critical points (non-equivalent)
+     integer :: ncpcel = 0 !< Number of critical points (complete list)
+     type(cp_type), allocatable :: cpcel(:) !< Critical points (complete list)
    contains
      procedure :: end => field_end !< Deallocate data and uninitialize
      procedure :: set_default_options => field_set_default_options !< Sets field default options
@@ -122,6 +102,7 @@ module fieldmod
      procedure :: typestring !< Return a string identifying the field type
      procedure :: printinfo !< Print field information to stdout
      procedure :: init_cplist !< Initialize the CP list
+     procedure :: init_cplist_deferred !< Calculate the scalar field for nuclei (deferred)
      procedure :: nearest_cp !< Given a point, find the nearest CP of a certain type
      procedure :: identify_cp !< Identify the CP given the position
      procedure :: testrmt !< Test for MT discontinuities
@@ -151,71 +132,21 @@ module fieldmod
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
-     module subroutine field_new(f,seed,c,id,fh,sptr,fcheck,feval,cube,errmsg)
+     module subroutine field_new(f,seed,c,id,sptr,errmsg)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed 
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
-       type(hash), intent(in) :: fh
        type(c_ptr), intent(in) :: sptr
        character(len=:), allocatable, intent(out) :: errmsg
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-          real*8 function cube(sptr,n,id,fder,dry,ifail)
-            import c_ptr
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: n(3)
-            character*(*), intent(in) :: fder
-            logical, intent(in) :: dry
-            logical, intent(out) :: ifail
-            dimension cube(n(1),n(2),n(3))
-          end function cube
-       end interface
      end subroutine field_new
-     module subroutine load_ghost(f,c,id,name,expr,sptr,fh,fcheck,feval)
+     module subroutine load_ghost(f,c,id,name,expr,sptr)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        character*(*), intent(in) :: name
        character*(*), intent(in) :: expr
        type(c_ptr), intent(in) :: sptr
-       type(hash), intent(in), target :: fh 
-       interface
-          function fcheck(sptr,id,iout)
-            import c_ptr
-            logical :: fcheck
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(out), optional :: iout
-          end function fcheck
-          function feval(sptr,id,nder,fder,x0,periodic)
-            import c_ptr, scalar_value
-            type(scalar_value) :: feval
-            type(c_ptr), intent(in) :: sptr
-            character*(*), intent(in) :: id
-            integer, intent(in) :: nder
-            character*(*), intent(in) :: fder
-            real*8, intent(in) :: x0(3)
-            logical, intent(in), optional :: periodic
-          end function feval
-       end interface
      end subroutine load_ghost
      module subroutine load_promolecular(f,c,id,name,fr)
        class(field), intent(inout) :: f
@@ -283,13 +214,18 @@ module fieldmod
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist
-     module subroutine nearest_cp(f,xp,nid,dist,type,idx,nozero)
+     module subroutine init_cplist_deferred(f)
+       class(field), intent(inout) :: f
+     end subroutine init_cplist_deferred
+     module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
        class(field), intent(in) :: f
        real*8, intent(in) :: xp(:)
        integer, intent(out) :: nid
        real*8, intent(out) :: dist
+       integer, intent(out), optional :: lvec(3)
        integer, intent(in), optional :: type
-       integer, intent(in), optional :: idx
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
        logical, intent(in), optional :: nozero
      end subroutine nearest_cp
      module function identify_cp(f,x0,eps)

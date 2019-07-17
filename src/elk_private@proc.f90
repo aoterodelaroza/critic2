@@ -30,7 +30,6 @@ submodule (elk_private) proc
   ! subroutine read_elk_state(f,filename)
   ! subroutine read_elk_myout(f,filename)
   ! subroutine sortidx(n,a,idx)
-  ! subroutine local_nearest_atom(f,xp,nid,dist,lvec)
 
   ! private to the module
   integer, parameter :: matom = 100
@@ -46,34 +45,20 @@ contains
     if (allocated(f%nrmt)) deallocate(f%nrmt)
     if (allocated(f%vgc)) deallocate(f%vgc)
     if (allocated(f%igfft)) deallocate(f%igfft)
-    if (allocated(f%xcel)) deallocate(f%xcel)
-    if (allocated(f%iesp)) deallocate(f%iesp)
     if (allocated(f%rhomt)) deallocate(f%rhomt)
     if (allocated(f%rhok)) deallocate(f%rhok)
     if (allocated(f%rmt)) deallocate(f%rmt)
 
   end subroutine elkwfn_end
 
-  !> Return the rmt for the atom at position x
-  module function rmt_atom(f,x)
-    class(elkwfn), intent(in) :: f
-    real*8, intent(in) :: x(3)
-    real*8 :: rmt_atom
-
-    integer :: nid
-    real*8 :: dist
-    integer :: lvec(3)
-
-    call local_nearest_atom(f,x,nid,dist,lvec)
-    rmt_atom = f%rmt(f%iesp(nid))
-
-  end function rmt_atom
-
   !> Read a elkwfn scalar field from an OUT file 
-  module subroutine read_out(f,file,file2,file3)
+  module subroutine read_out(f,env,file,file2,file3)
     class(elkwfn), intent(inout) :: f
+    type(environ), intent(in), target :: env
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
+
+    real*8 :: maxrmt
 
     call f%end()
 
@@ -81,11 +66,31 @@ contains
     call elk_geometry(f,file2)
 
     ! state data
-    call read_elk_state(f,file)
+    call read_elk_state(f,file,env)
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(f,file3)
+       call read_elk_myout(f,file3,env)
+    end if
+
+    ! save pointer to the environment
+    maxrmt = maxval(f%rmt(1:env%nspc))
+    if (f%isealloc) then
+       if (associated(f%e)) deallocate(f%e)
+    end if
+    nullify(f%e)
+    ! if (maxrmt >= env%dmax0 .and..not.env%ismolecule) then
+    if (.true.) then
+       ! Create a new environment to satisfy all searches.
+       ! The environment contains all the atoms in molecules anyway. 
+       f%isealloc = .true.
+       nullify(f%e)
+       allocate(f%e)
+       call f%e%extend(env,maxrmt)
+    else
+       ! keep a pointer to the environment
+       f%isealloc = .false.
+       f%e => env
     end if
 
   end subroutine read_out
@@ -95,6 +100,7 @@ contains
   module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
     use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
     use tools_io, only: ferror, faterr
+    use param, only: icrd_crys
     class(elkwfn), intent(in) :: f
     real(8), intent(in) :: vpl(3)
     real(8), intent(out) :: frho, gfrho(3), hfrho(3,3)
@@ -109,7 +115,7 @@ contains
     integer l,m,lm,ig,ifg
     real(8) r,tp(2), t0, t1, t2
     real(8) v1(3)
-    complex*16 :: ylm((f%lmaxvr+1+2)**2)
+    complex*16, allocatable :: ylm(:)
     real*8 :: xrho, xgrad(3)
     complex*16 :: xgrad1(3), xgrad2(3)
     real*8 :: xhess(6)
@@ -119,37 +125,34 @@ contains
     integer :: elem
     real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
     complex*16, parameter :: twopi1i = 1d0 / sqrt(2d0) / (0d0,1d0)
+    logical :: inmt
 
-    ! inline functions
+    ! inline function
     elem(l,m)=l*(l+1)+m+1
     !
 
     frho = 0d0
     gfrho = 0d0
     hfrho = 0d0
-    nid = 0
-    call local_nearest_atom(f,vpl,nid,dist,lvec)
-    ! write (*,*) "vpl:", vpl
-    ! do i = 1, f%ncel0
-    !    write (*,*) i, matmul(f%x2c,f%xcel(:,i))
-    ! end do
-    ! write (*,*) "nid:", nid
-    ! write (*,*) "pos:", matmul(f%x2c,f%xcel(:,nid))
-    ! write (*,*) "dist:", dist
-    ! write (*,*) "rhomt:", f%rhomt(1,1,:)
+    call f%e%nearest_atom(vpl,icrd_crys,nid,dist,lvec=lvec)
 
     ! inside a muffin tin
-    is = f%iesp(nid)
-    if (dist < f%rmt(is)) then
-       v1 = vpl + lvec - f%xcel(:,nid)
+    inmt = (nid > 0)
+    if (inmt) then
+       is = f%e%at(nid)%is
+       inmt = dist < f%rmt(is)
+    end if
+    if (inmt) then
+       v1 = vpl - (f%e%xr2x(f%e%at(nid)%x) - f%e%at(nid)%lvec + lvec)
        v1 = matmul(f%x2c,v1)
        call tosphere(v1,r,tp)
        if (abs(r-dist) > 1d-12) &
           call ferror("elk_rho2","invalid radius",faterr)
+
+       allocate(ylm((f%lmaxvr+1+2)**2))
        call genylm(f%lmaxvr+2,tp,ylm)
        r = min(max(r,f%spr(1,is)),f%rmt(is))
-       ir0 = min(max(floor(log(r / f%spr_a(is)) / &
-          f%spr_b(is) + 1),1),f%nrmt(is))
+       ir0 = min(max(floor(log(r / f%spr_a(is)) / f%spr_b(is) + 1),1),f%nrmt(is))
 
        lm = 0
        isig = -1d0
@@ -184,6 +187,7 @@ contains
              hfrho(3,3) = hfrho(3,3) + xhess(6)
           end do
        end do
+       deallocate(ylm)
 
        ! nullify gradient at the nucleus
        if (dist < 1d-5) then
@@ -232,16 +236,14 @@ contains
 
     integer :: ig, ifg
     real*8 :: krec2, rho, rho1, rho2
-    integer :: nspecies
     integer :: l, lp1, m, lm, is, ir, iat
     real*8 :: r, r1, r2
     real*8, allocatable :: rgrid(:)
 
     ! atomic spheres
-    nspecies = maxval(f%iesp)
     allocate(rgrid(size(f%rhomt,1)))
-    do iat = 1, f%ncel0
-       is = f%iesp(iat)
+    do iat = 1, f%e%ncell
+       is = f%e%at(iat)%is
        lm = 0
        do l = 0, f%lmaxvr
           lp1 = l + 1
@@ -279,18 +281,16 @@ contains
   ! and C. Ambrosch-Draxl.  This file is distributed under the terms
   ! of the GNU General Public License.
   subroutine elk_geometry(f,filename)
-    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, zatguess,&
-       fclose
+    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, fclose
     use tools_math, only: matinv
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
 
     character(len=:), allocatable :: line, atname
-    integer :: lu, i, zat, nat, j, lp
-    integer, allocatable :: natoms(:)
-    integer :: nspecies
-    real*8, allocatable :: aux(:,:)
+    integer :: lu, i, j, lp
+    integer :: nspecies, natoms
     logical :: ok
+    real*8 :: x(3)
 
     lu = fopen_read(filename)
     ! ignore the 'scale' stuff
@@ -301,18 +301,12 @@ contains
     read(lu,'(3G18.10)') f%x2c(:,1)
     read(lu,'(3G18.10)') f%x2c(:,2)
     read(lu,'(3G18.10)') f%x2c(:,3)
-    f%c2x = matinv(f%x2c)
 
     ok = getline_raw(lu,line,.true.)
     ok = getline_raw(lu,line,.true.)
     if (equal(line,'molecule')) call ferror('read_elk_geometry','Isolated molecules not supported',faterr,line)
 
-    f%ncel0 = 0
-    if (allocated(f%xcel)) deallocate(f%xcel)
-    allocate(f%xcel(3,matom))
     read(lu,'(I4)') nspecies
-    if (allocated(natoms)) deallocate(natoms)
-    allocate(natoms(nspecies))
     do i = 1, nspecies
        ok = getline_raw(lu,line,.true.)
        lp = 1
@@ -321,44 +315,23 @@ contains
           if (atname(j:j) == "'") atname(j:j) = " "
           if (atname(j:j) == '"') atname(j:j) = " "
        end do
-       zat = zatguess(atname)
-       if (zat == -1) call ferror('read_elk_geometry','Species file name must start with an atomic symbol',faterr)
-       read(lu,*) natoms(i)
-       do j = 1, natoms(i)
-          f%ncel0 = f%ncel0 + 1
-          if (f%ncel0 > size(f%xcel,2)) then
-             allocate(aux(3,2*size(f%xcel,2)))
-             aux(:,1:size(f%xcel,2)) = f%xcel
-             call move_alloc(aux,f%xcel)
-          end if
-          read(lu,*) f%xcel(:,f%ncel0)
+       read(lu,*) natoms
+       do j = 1, natoms
+          read(lu,*) x
        end do
     end do
     call fclose(lu)
-    allocate(aux(3,f%ncel0))
-    aux = f%xcel(:,1:f%ncel0)
-    call move_alloc(aux,f%xcel)
-
-    ! allocate indices
-    if (allocated(f%iesp)) deallocate(f%iesp)
-    allocate(f%iesp(f%ncel0))
-    nat = 0
-    do i = 1, nspecies
-       do j = 1, natoms(i)
-          nat = nat + 1
-          f%iesp(nat) = i
-       end do
-    end do
-    deallocate(natoms)
 
   end subroutine elk_geometry
 
-  subroutine read_elk_state(f,filename)
+  subroutine read_elk_state(f,filename,env)
+    use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det
     use param, only: pi
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
+    type(environ), intent(in), target :: env
 
     integer :: lu, i, j, k, idum
     integer :: vdum(3)
@@ -399,8 +372,7 @@ contains
     if (allocated(f%spr)) deallocate(f%spr)
     if (allocated(f%spr_a)) deallocate(f%spr_a)
     if (allocated(f%spr_b)) deallocate(f%spr_b)
-    allocate(f%spr(nrmtmax,nspecies),&
-       f%spr_a(nspecies),f%spr_b(nspecies))
+    allocate(f%spr(nrmtmax,nspecies),f%spr_a(nspecies),f%spr_b(nspecies))
 
     ! read elk-2.1.25 
     if (isnewer(2,1,22)) then
@@ -419,8 +391,7 @@ contains
        read(lu) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)
        f%rmt(i) = f%spr(f%nrmt(i),i)
        f%spr_a(i) = f%spr(1,i)
-       f%spr_b(i) = log(f%spr(f%nrmt(i),i) / &
-          f%spr(1,i)) / real(f%nrmt(i)-1,8)
+       f%spr_b(i) = log(f%spr(f%nrmt(i),i) / f%spr(1,i)) / real(f%nrmt(i)-1,8)
        if (isnewer(2,1,22)) then
           read(lu) idum  ! nrcmt(is)
           read(lu) rcmt(1:i,i)  ! rcmt(1:nrcmt(is),is)
@@ -442,7 +413,7 @@ contains
     read(lu) idum  ! ldapu,dftu
     read(lu) idum  ! lmmaxdm,lmmaxlu
     ngrtot = ngrid(1)*ngrid(2)*ngrid(3)
-    allocate(rhotmp(lmmaxvr,nrmtmax,f%ncel0))
+    allocate(rhotmp(lmmaxvr,nrmtmax,env%ncell))
     allocate(rhoktmp(ngrtot))
 
     ! read the density itself and close (there is more after this, ignored)
@@ -451,8 +422,8 @@ contains
 
     ! reorder the rhotmp to rhomt
     if (allocated(f%rhomt)) deallocate(f%rhomt)
-    allocate(f%rhomt(nrmtmax,lmmaxvr,f%ncel0))
-    do i = 1, f%ncel0
+    allocate(f%rhomt(nrmtmax,lmmaxvr,env%ncell))
+    do i = 1, env%ncell
        do j = 1, nrmtmax
           f%rhomt(j,:,i) = rhotmp(:,j,i)
        end do
@@ -506,7 +477,11 @@ contains
        end do
     end do
     ! sort by vector length
-    call sortidx(ngrtot,gc,idx)
+    do i = 1, ngrtot
+       idx(i) = i
+    end do
+    call qcksort(gc,idx,1,ngrtot)
+
     ! re-order arrays
     do ig=1,ngrtot
        rar(ig)=gc(ig)
@@ -553,10 +528,11 @@ contains
 
   end subroutine read_elk_state
 
-  subroutine read_elk_myout(f,filename)
+  subroutine read_elk_myout(f,filename,env)
     use tools_io, only: ferror, faterr, fopen_read, fclose
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
+    type(environ), intent(in), target :: env
 
     integer :: lu, i, j
     integer :: lmmaxvr, nrmtmax, natmtot, ngrtot
@@ -587,7 +563,7 @@ contains
 
     ! reorder the rhotmp to rhomt
     f%rhomt = 0d0
-    do i = 1, f%ncel0
+    do i = 1, env%ncell
        do j = 1, nrmtmax
           f%rhomt(j,:,i) = rhotmp(:,j,i)
        end do
@@ -600,106 +576,5 @@ contains
     deallocate(rhoktmp)
 
   end subroutine read_elk_myout
-
-  subroutine sortidx(n,a,idx)
-    ! !INPUT/OUTPUT PARAMETERS:
-    !   n   : number of elements in array (in,integer)
-    !   a   : real array (in,real(n))
-    !   idx : permutation index (out,integer(n))
-    ! !DESCRIPTION:
-    !   Finds the permutation index {\tt idx} which sorts the real array {\tt a}
-    !   into ascending order. No sorting of the array {\tt a} itself is performed.
-    !   Uses the heapsort algorthim.
-    !
-    ! !REVISION HISTORY:
-    !   Created October 2002 (JKD)
-    !   Included tolerance eps, April 2006 (JKD)
-    ! arguments
-    integer, intent(in) :: n
-    real(8), intent(in) :: a(n)
-    integer, intent(out) :: idx(n)
-    ! local variables
-    integer i,j,k,l,m
-    ! tolerance for deciding if one number is smaller than another
-    real(8), parameter :: eps=1.d-14
-    if (n.le.0) then
-       write(*,*)
-       write(*,'("Error(sortidx): n <= 0 : ",I8)') n
-       write(*,*)
-       stop
-    end if
-    do i=1,n
-       idx(i)=i
-    end do
-    if (n.eq.1) return
-    l=n/2+1
-    k=n
-10  continue
-    if (l.gt.1) then
-       l=l-1
-       m=idx(l)
-    else
-       m=idx(k)
-       idx(k)=idx(1)
-       k=k-1
-       if (k.eq.1) then
-          idx(1)=m
-          return
-       end if
-    end if
-    i=l
-    j=l+l
-20  continue
-    if (j.le.k) then
-       if (j.lt.k) then
-          if (a(idx(j)).lt.a(idx(j+1))+eps) j=j+1
-       end if
-       if (a(m).lt.a(idx(j))+eps) then
-          idx(i)=idx(j)
-          i=j
-          j=j+j
-       else
-          j=k+1
-       end if
-       goto 20
-    end if
-    idx(i)=m
-    goto 10
-  end subroutine sortidx
-
-  !> Calculate the nearest atom based on the structural information
-  !> in elkwfn.
-  subroutine local_nearest_atom(f,xp,nid,dist,lvec)
-    class(elkwfn), intent(in) :: f
-    real*8, intent(in) :: xp(:)
-    integer, intent(inout) :: nid
-    real*8, intent(out) :: dist
-    integer, intent(out) :: lvec(3)
-
-    real*8 :: temp(3), d2
-    integer :: j, i1, i2, i3
-
-    integer, parameter :: imax = 1
-
-    dist = 1d30
-    do j= 1, f%ncel0
-       do i1 = -imax, imax
-          do i2 = -imax, imax
-             do i3 = -imax, imax
-                temp = f%xcel(:,j) - xp
-                temp = temp - (nint(temp) + (/i1,i2,i3/))
-                temp = matmul(f%x2c,temp)
-                d2 = norm2(temp)
-                if (d2 < dist) then
-                   nid = j
-                   dist = d2
-                   lvec = nint(f%xcel(:,j) - xp) + (/i1,i2,i3/)
-                end if
-             end do
-          end do
-       end do
-    end do
-
-  end subroutine local_nearest_atom
 
 end submodule proc

@@ -325,8 +325,8 @@ void DeleteBuffers(){
   glDeleteVertexArrays(nmaxcyl, cylVAO);
   glDeleteBuffers(nmaxcyl, cylVBO);
   glDeleteBuffers(nmaxcyl, cylEBO);
-  delete sphi;
-  delete sphv;
-  delete cyli;
-  delete cylv;
+  delete [] sphi;
+  delete [] sphv;
+  delete [] cyli;
+  delete [] cylv;
 }

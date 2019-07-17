@@ -40,13 +40,14 @@ module crystalseedmod
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species
      ! cell
-     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use crys2car
+     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use m_x2c
      real*8 :: aa(3) !< Cell lengths (bohr)
      real*8 :: bb(3) !< Cell angles (degrees)
-     real*8 :: crys2car(3,3) !< Crystallographic to cartesian matrix
+     real*8 :: m_x2c(3,3) !< Crystallographic to cartesian matrix
      ! symmetry
      integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
      integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
+     integer :: checkrepeats = 0 !< Check if atoms are repeated on crystal build
      integer :: neqv = 0 !< Number of symmetry operations
      integer :: ncv = 0 !< Number ofcentering vectors
      real*8, allocatable :: cen(:,:) !< Centering vectors
@@ -64,6 +65,7 @@ module crystalseedmod
      procedure :: read_cif 
      procedure :: read_shelx 
      procedure :: read_cube 
+     procedure :: read_bincube 
      procedure :: read_wien 
      procedure :: read_vasp 
      procedure :: read_potcar
@@ -76,8 +78,18 @@ module crystalseedmod
      procedure :: read_siesta 
      procedure :: read_dftbp 
      procedure :: read_xsf 
+     procedure :: read_pwc
+     procedure :: read_axsf 
   end type crystalseed
   public :: crystalseed
+
+  ! assignment operator for the crystalseed class
+  interface assignment(=)
+     module subroutine assign_crystalseed(to,from)
+       class(crystalseed), intent(out) :: to
+       type(crystalseed), intent(in) :: from
+     end subroutine assign_crystalseed
+  end interface
 
   public :: realloc_crystalseed
   public :: struct_detect_format
@@ -120,6 +132,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cube
+     module subroutine read_bincube(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_bincube
      module subroutine read_wien(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
@@ -192,6 +210,21 @@ module crystalseedmod
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_xsf
+     module subroutine read_pwc(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_pwc
+     module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       integer, intent(in) :: nread0
+       real*8, intent(in) :: xnudge
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_axsf
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

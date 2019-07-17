@@ -131,7 +131,7 @@ contains
        endif
     end do
     axlen = sy%c%aa(ix)
-    if (rhei < 0d0) rhei = rtop
+    if (rhei < 0d0) rhei = rtop + 1d0 / axlen
     if (rtop0 < 0d0) rtop0 = rtop
 
     if (.not.doline) then
@@ -172,10 +172,8 @@ contains
           !$omp end parallel do
        else
           ! constant height
-          write (uout,'("  Mode: constant height, ",A,"-axis coord. = ",A)') &
-             laxis(ix), trim(string(rhei,'f',8,4))
-          write (uout,'("  In-plane points: ",A,", ",A)') &
-             string(np1), string(np2)
+          write (uout,'("  Mode: constant height, ",A,"-axis coord. = ",A)') laxis(ix), trim(string(rhei,'f',8,4))
+          write (uout,'("  In-plane points: ",A,", ",A)') string(np1), string(np2)
           !$omp parallel do private (xx,faux) schedule(dynamic)
           do i = 1, np1
              do j = 1, np2
@@ -271,7 +269,7 @@ contains
        if (iscur) then
           write (fid,'("set cbtics")')
        else
-          write (fid,'("set cbtics format ''%.2f''")')
+          write (fid,'("set cbtics format ''%.3f''")')
        end if
        if (iscur) then
           write (fid,'("set cblabel ''Distance to the surface (\305)''")')
@@ -417,7 +415,6 @@ contains
     real*8 :: z
 
     real*8 :: x0(3), ff, xbra(2), fbra(2), axlen, xx(3)
-    integer :: isign
 
     real*8, parameter :: step = 0.3d0
 
@@ -428,18 +425,13 @@ contains
     ff = sy%f(sy%iref)%grd0(x0)
     xbra(1) = x0(ix)
     fbra(1) = ff
-    if (ff > rho0) then
-       isign = 1
-    else
-       isign = -1
-    endif
 
     ! bracket 
     xx = x0
     do while(abs(xx(ix)-x0(ix)) < 0.5d0*axlen)
-       xx(ix) = xx(ix) + isign * step
+       xx(ix) = xx(ix) + step
        ff = sy%f(sy%iref)%grd0(xx)
-       if ((isign == 1 .and. ff <= rho0) .or. (isign == -1 .and. ff > rho0)) exit
+       if (ff <= rho0) exit
     end do
     if (abs(xx(ix)-x0(ix)) >= 0.5d0*axlen) &
        call ferror('stm_bisect','Could not bracket target density',faterr)
@@ -486,7 +478,7 @@ contains
     real*8, intent(in) :: rho0
     real*8 :: z
 
-    integer :: isign, i, k, nx, ibra(2)
+    integer :: i, k, nx, ibra(2)
     real*8 :: axlen, f0, f1, fbra(2)
     logical :: found
 
@@ -497,35 +489,25 @@ contains
 
     ! determine the stepping direction
     f0 = feval_grid(i1,i2,iz,ip1,ip2,ix)
-    if (f0 > rho0) then
-       isign = 1
-    else
-       isign = -1
-    endif
 
     ! find the interval
     found = .false.
     k = iz
     do i = 1, nx/2
-       k = modulo(k+isign-1,nx)+1
+       k = modulo(k,nx)+1
        f1 = feval_grid(i1,i2,k,ip1,ip2,ix)
-       if ((isign == 1 .and. f1 <= rho0).or.(isign == -1 .and. f1 > rho0)) then
-          if (isign == 1) then
-             ibra(1) = k-1
-             fbra(1) = feval_grid(i1,i2,modulo(k-1-1,nx)+1,ip1,ip2,ix)
-             ibra(2) = k
-             fbra(2) = f1
-          else
-             ibra(1) = k
-             fbra(1) = f1
-             ibra(2) = k+1
-             fbra(2) = feval_grid(i1,i2,modulo(k+1-1,nx)+1,ip1,ip2,ix)
-          endif
+       if (f1 <= rho0) then
+          ibra(1) = k-1
+          fbra(1) = feval_grid(i1,i2,modulo(k-1-1,nx)+1,ip1,ip2,ix)
+          ibra(2) = k
+          fbra(2) = f1
           found =.true.
           exit
        endif
     end do
-    if (.not.found) call ferror('stm_bisect_grid','Could not find density bracket',faterr)
+    if (.not.found) then
+       call ferror('stm_bisect_grid','Could not find density bracket',faterr)
+    end if
 
     ! interpolate the point in grid coordinates (1 to nx)
     z = ibra(1) + (rho0-fbra(1))/(fbra(2)-fbra(1)) * (ibra(2)-ibra(1))
