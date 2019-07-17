@@ -57,7 +57,6 @@ contains
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose, isinteger
     use types, only: basindat, int_result
-
     character*(*), intent(in) :: line
 
     real*8, parameter :: ratom_def0 = 1d0
@@ -253,7 +252,19 @@ contains
        call fclose(bas%luw)
     endif
 
+    !deallocate sy%f(sy%iref)
+    !call int_reorder_gridout(sy%f(sy%iref),bas) 
+    call clear_yt(sy%f(sy%iref)) 
   end subroutine intgrid_driver
+
+  module subroutine clear_yt(f)
+   ! clear some data after every integration run to make
+   ! sure that the results between integration runs would not affact each other
+   use systemmod, only: sy
+   class(field), intent(inout) :: f
+
+   f%ncpcel = sy%c%ncel
+  end subroutine clear_yt
 
   !> Do a radial numerical quadrature on the given ray, between the
   !> selected radii and return the properties. The r^2 factor is
