@@ -1321,7 +1321,7 @@ contains
     do ig = 1, ntot
        vgc2 = dot_product(vgc(:,ig),vgc(:,ig))
        if (vgc2 < 1d-12) then
-          zaux(igfft(ig)) = 0d0;
+          zaux(igfft(ig)) = 0d0
        else
           zaux(igfft(ig)) = -zaux(igfft(ig)) / vgc2
        end if

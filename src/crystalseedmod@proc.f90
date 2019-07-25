@@ -1313,6 +1313,7 @@ contains
   module subroutine read_wien(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, ferror, zatguess, fclose, equal, equali
     use types, only: realloc
+    use param, only: pi
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
@@ -1326,6 +1327,7 @@ contains
     character*80 :: titel
     character*10 :: aname
     logical :: readall
+    real*8 :: ahex, chex
 
     ! seed file
     errmsg = "Error reading file."
@@ -1402,6 +1404,14 @@ contains
     END IF
 
     READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
+
+    if (LATTIC(1:1) == 'R') then
+       ahex = seed%aa(1)
+       chex = seed%aa(3)
+       seed%aa = sqrt((chex/3d0)**2 + ahex**2/3d0)
+       seed%bb = 180d0 * (1d0 - 2d0 * acos(ahex/2d0/seed%aa(1)) / pi)
+    endif
+
 100 FORMAT(6F10.5)
     if(seed%bb(3) == 0.d0) seed%bb(3)=90.d0
     seed%useabr = 1
@@ -2694,7 +2704,7 @@ contains
     character*10 :: atn, latn
     integer :: lu, lp, i, j, iz, it
     real*8 :: r(3,3), x(3)
-    logical :: ok, ismol
+    logical :: ok, ismol, xread
     type(hash) :: usen
 
     ! open
@@ -2706,6 +2716,7 @@ contains
        return
     end if
 
+    xread = .false.
     errmsg = "Error reading file."
     do while (.true.)
        ok = getline_raw(lu,line)
@@ -2718,7 +2729,7 @@ contains
           end do
           r = r / bohrtoa
           ismol = .false.
-       elseif (equal(word,"primcoord")) then
+       elseif (equal(word,"primcoord").and..not.xread) then
           read (lu,*,err=999) seed%nat
           allocate(seed%x(3,seed%nat),seed%is(seed%nat))
           seed%nspc = 0
@@ -2763,7 +2774,8 @@ contains
              seed%is(i) = it
           end do
           ismol = .false.
-       elseif (equal(word,"atoms")) then
+          xread = .true.
+       elseif (equal(word,"atoms").and..not.xread) then
           ismol = .true.
           call usen%init()
           seed%nat = 0
@@ -2780,7 +2792,10 @@ contains
              end if
              seed%x(:,seed%nat) = x / bohrtoa
 
-             iz = zatguess(atn)
+             ok = isinteger(iz,atn)
+             if (.not.ok) then
+                iz = zatguess(atn)
+             end if
              if (iz < 0) then
                 errmsg = "Unknown atomic symbol: "//trim(atn)//"."
                 goto 999
@@ -2803,6 +2818,7 @@ contains
           call realloc(seed%x,3,seed%nat)
           call realloc(seed%is,seed%nat)
           call realloc(seed%spc,seed%nspc)
+          xread = .true.
        end if
     end do
     call realloc(seed%spc,seed%nspc)
