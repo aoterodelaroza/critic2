@@ -1315,6 +1315,7 @@ contains
   subroutine read_wien(seed,file,mol)
     use tools_io, only: fopen_read, faterr, ferror, zatguess, fclose
     use types, only: realloc
+    use param, only: pi
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
@@ -1327,6 +1328,7 @@ contains
     character*80 :: titel
     character*10 :: aname
     logical :: readall
+    real*8 :: ahex, chex
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file)
@@ -1391,6 +1393,14 @@ contains
     END IF
 
     READ(lut,100) seed%aa(1:3), seed%bb(1:3)
+
+    if (LATTIC(1:1) == 'R') then
+       ahex = seed%aa(1)
+       chex = seed%aa(3)
+       seed%aa = sqrt((chex/3d0)**2 + ahex**2/3d0)
+       seed%bb = 180d0 * (1d0 - 2d0 * acos(ahex/2d0/seed%aa(1)) / pi)
+    endif
+
 100 FORMAT(6F10.5)
     if(seed%bb(3) == 0.d0) seed%bb(3)=90.d0
     seed%useabr = 1
