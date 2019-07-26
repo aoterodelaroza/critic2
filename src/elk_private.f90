@@ -44,7 +44,6 @@ module elk_private
      complex*16, allocatable :: rhok(:) ! interstitial rho coeffs
      real*8, allocatable :: rmt(:) ! muffin tin radii
      integer :: n(3) ! interstitial grid size
-     logical :: isealloc = .false. ! is the environment local?
      type(environ), pointer :: e ! pointer to the environment
    contains
      procedure :: end => elkwfn_end !< Deallocate all data

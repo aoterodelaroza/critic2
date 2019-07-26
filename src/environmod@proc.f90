@@ -339,8 +339,10 @@ contains
 
     type(celatom) :: at(1)
 
-    call e%end()
-    call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,at,e0%m_xr2c,e0%m_x2xr,e0%m_x2c,dmax0,e0%at(1:e0%ncell))
+    if (dmax0 > e%dmax0) then
+       call e%end()
+       call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,at,e0%m_xr2c,e0%m_x2xr,e0%m_x2c,dmax0,e0%at(1:e0%ncell))
+    end if
 
   end subroutine environ_extend
 

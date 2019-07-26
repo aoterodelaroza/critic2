@@ -75,23 +75,8 @@ contains
 
     ! save pointer to the environment
     maxrmt = maxval(f%rmt(1:env%nspc))
-    if (f%isealloc) then
-       if (associated(f%e)) deallocate(f%e)
-    end if
     nullify(f%e)
-    ! if (maxrmt >= env%dmax0 .and..not.env%ismolecule) then
-    if (.true.) then
-       ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway. 
-       f%isealloc = .true.
-       nullify(f%e)
-       allocate(f%e)
-       call f%e%extend(env,maxrmt)
-    else
-       ! keep a pointer to the environment
-       f%isealloc = .false.
-       f%e => env
-    end if
+    f%e => env
 
   end subroutine read_out
 
