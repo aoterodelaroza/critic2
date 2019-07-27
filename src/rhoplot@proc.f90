@@ -369,7 +369,7 @@ contains
     integer :: lp, nti, id, nn(3)
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
-    integer :: lp2
+    integer :: lp2, nder
     character(len=:), allocatable :: word, outfile, prop, expr, wext1
     type(scalar_value) :: res
     logical :: ok, iok
@@ -448,6 +448,7 @@ contains
 
     ! read additional options
     nti = 0
+    nder = 0
     prop = "f"
     id = sy%iref
     useexpr = .false.
@@ -488,39 +489,51 @@ contains
        else if (equal(word,'f')) then
           nti = 0
           prop = word
+          nder = 0
        elseif (equal(word,'gx')) then
           nti = 1
           prop = word
+          nder = 1
        else if (equal(word,'gy')) then
           nti = 2
           prop = word
+          nder = 1
        else if (equal(word,'gz')) then
           nti = 3
           prop = word
+          nder = 1
        else if (equal(word,'gmod')) then
           nti = 4
           prop = word
+          nder = 1
        else if (equal(word,'hxx')) then
           nti = 5
           prop = word
+          nder = 2
        else if (equal(word,'hxy') .or. equal(word,'hyx')) then
           nti = 6
           prop = word
+          nder = 2
        else if (equal(word,'hxz') .or. equal(word,'hzx')) then
           nti = 7
           prop = word
+          nder = 2
        else if (equal(word,'hyy')) then
           nti = 8
           prop = word
+          nder = 2
        else if (equal(word,'hyz') .or. equal(word,'hzy')) then
           nti = 9
           prop = word
+          nder = 2
        else if (equal(word,'hzz')) then
           nti = 10
           prop = word
+          nder = 2
        else if (equal(word,'lap')) then
           nti = 11
           prop = word
+          nder = 2
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
           return
@@ -592,7 +605,7 @@ contains
                       + real(iz,8) * xd(:,3)
 
                    if (.not.useexpr) then
-                      call sy%f(id)%grd(xp,2,res,periodic=.not.sy%c%ismolecule)
+                      call sy%f(id)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
                       select case(nti)
                       case (0)
                          lappt = res%f
