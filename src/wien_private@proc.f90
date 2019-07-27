@@ -1365,12 +1365,12 @@ contains
           ! for m=0, ylm = slm. for m!=0, calculate real harmonics.
           if (m.eq.0) then
              ang(ilm)=dble(yl(idx))       !yl0
-             call ylmderiv(yl,r,l,m,rho(ilm),rho1(ilm),rho2(ilm),ygrad,yhess)
+             call ylmderiv(yl,r,l,m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad,yhess)
           else
              ! real harmonics, slm and derivatives
              ang(ilm)=dble(imag0*(yl(idx+m)+minu*yl(idx-m)))  !slm
-             call ylmderiv(yl,r,l, m,rho(ilm),rho1(ilm),rho2(ilm),ygrad,yhess)
-             call ylmderiv(yl,r,l,-m,rho(ilm),rho1(ilm),rho2(ilm),ygrad1,yhess1)
+             call ylmderiv(yl,r,l, m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad,yhess)
+             call ylmderiv(yl,r,l,-m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad1,yhess1)
              !real harmonics derivatives transformation
              do i=1,6
                 if (i.le.3) ygrad(i)=imag0*(ygrad(i)+minu*ygrad1(i))
@@ -1423,7 +1423,7 @@ contains
              minu=-m1
           endif
           if(l.eq.0 .and. m.eq.0) then
-             call ylmderiv(yl,r,0,0,rho(i),rho1(i),rho2(i),ygrad,yhess)
+             call ylmderiv(yl,r,0,0,rho(i),rho1(i),rho2(i),2,ygrad,yhess)
              chg=chg + (rho(i) * ang(i))
              do j=1,6
                 if (j.le.3) grad(j)=grad(j)+dble(ygrad(j))
@@ -1431,8 +1431,8 @@ contains
              enddo
              i=i+1
           elseif (l.eq.-3 .and. m.eq.2) then
-             call ylmderiv(yl,r, 3, 2, rho(i), rho1(i), rho2(i), ygrad, yhess)
-             call ylmderiv(yl,r, 3,-2, rho(i), rho1(i), rho2(i),ygradtemp,yhesstemp)
+             call ylmderiv(yl,r,3, 2,rho(i),rho1(i),rho2(i),2,ygrad,yhess)
+             call ylmderiv(yl,r,3,-2,rho(i),rho1(i),rho2(i),2,ygradtemp,yhesstemp)
              ygrad = imag0*(ygrad+minu*ygradtemp)
              yhess = imag0*(yhess+minu*yhesstemp)
 
@@ -1449,15 +1449,15 @@ contains
              frho1 = c1*rho1(i) + c2*rho1(i+1)
              frho2 = c1*rho2(i) + c2*rho2(i+1)
 
-             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,ygrad,yhess)
+             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,2,ygrad,yhess)
              if (m /= 0) then
-                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,2,ygradtemp,yhesstemp)
                 ygrad = imag0*(ygrad+minu*ygradtemp)
                 yhess = imag0*(yhess+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,ygrad1,yhess1)
+             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,2,ygrad1,yhess1)
              if (m+4 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,2,ygradtemp,yhesstemp)
                 ygrad1 = imag0*(ygrad1+minu*ygradtemp)
                 yhess1 = imag0*(yhess1+minu*yhesstemp)
              end if
@@ -1474,21 +1474,21 @@ contains
              frho1 = c1*rho1(i) + c2*rho1(i+1) + c3*rho1(i+2)
              frho2 = c1*rho2(i) + c2*rho2(i+1) + c3*rho2(i+2)
 
-             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,ygrad,yhess)
+             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,2,ygrad,yhess)
              if (m /= 0) then
-                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,2,ygradtemp,yhesstemp)
                 ygrad = imag0*(ygrad+minu*ygradtemp)
                 yhess = imag0*(yhess+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,ygrad1,yhess1)
+             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,2,ygrad1,yhess1)
              if (m+4 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,2,ygradtemp,yhesstemp)
                 ygrad1 = imag0*(ygrad1+minu*ygradtemp)
                 yhess1 = imag0*(yhess1+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+8,frho,frho1,frho2,ygrad2,yhess2)
+             call ylmderiv(yl,r,abs(l),m+8,frho,frho1,frho2,2,ygrad2,yhess2)
              if (m+8 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+8),frho,frho1,frho2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+8),frho,frho1,frho2,2,ygradtemp,yhesstemp)
                 ygrad2 = imag0*(ygrad2+minu*ygradtemp)
                 yhess2 = imag0*(yhess2+minu*yhesstemp)
              end if

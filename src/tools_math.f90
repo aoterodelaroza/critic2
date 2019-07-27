@@ -114,12 +114,13 @@ module tools_math
        real*8, intent(out) :: r
        real*8, intent(out) :: tp(2)
      end subroutine tosphere
-     module subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
+     module subroutine ylmderiv(yl,r,l,m,c,cp,cpp,nder,grad,hess)
        complex*16, dimension(:), intent(in) :: yl
        real*8, intent(in) :: r
        integer, intent(in) :: l, m
        real*8, intent(in) :: c, cp, cpp
-       complex*16, intent(out) :: grad(3), hess(6)
+       integer, intent(in) :: nder
+       complex*16, intent(out), optional :: grad(3), hess(6)
      end subroutine ylmderiv
      module subroutine radial_derivs (rlm,rho,rho1,rho2,r0,a,b)
        real*8, dimension(:), intent(in) :: rlm

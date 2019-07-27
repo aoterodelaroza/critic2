@@ -318,7 +318,7 @@ contains
 
           ! m = 0
           ip = imin+l
-          call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
+          call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad1,xhess1)
           phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(ylm(ip),8)
           if (nder >= 1) &
              phip(:,ip,iorb,nenvl) = real(xgrad1,8)
@@ -330,8 +330,8 @@ contains
              ip = imin + l + m
              im = imin + l - m
              iphas = (-1)**m
-             call ylmderiv(ylm,r,l, m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad1,xhess1)
-             call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),xgrad2,xhess2)
+             call ylmderiv(ylm,r,l, m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad1,xhess1)
+             call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad2,xhess2)
 
              phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
              phi(im,iorb,nenvl) = rl(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)

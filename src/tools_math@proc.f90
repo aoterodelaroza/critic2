@@ -298,16 +298,20 @@ contains
   !> spherical harmonics in standard (genylm) order. r is the distance
   !> to the origin, l and m are the angular momentum numbers, c, cp,
   !> and cpp are the value of f(r) and its first and second
-  !> derivative. On output, grad and hess are the gradient and the
-  !> hessian of f(r)*Ylm.
-  module subroutine ylmderiv(yl,r,l,m,c,cp,cpp,grad,hess)
+  !> derivative. nder = 0: skip the calculation. nder = 1: calculate
+  !> gradient. nder = 2: calculate hessian. On output, grad and hess
+  !> are the gradient and the hessian of f(r)*Ylm, calculated
+  !depending on the value of nder.
+  module subroutine ylmderiv(yl,r,l,m,c,cp,cpp,nder,grad,hess)
+    use tools_io, only: ferror, faterr
     use param, only: half
 
     complex*16, dimension(:), intent(in) :: yl
     real*8, intent(in) :: r
     integer, intent(in) :: l, m
     real*8, intent(in) :: c, cp, cpp
-    complex*16, intent(out) :: grad(3), hess(6)
+    integer, intent(in) :: nder
+    complex*16, intent(out), optional :: grad(3), hess(6)
 
     !.Obtains derivatives of f(r) Ylm. See formulas used in notes and
     ! varshalovic.
@@ -327,35 +331,23 @@ contains
     good(l,m)=l.ge.abs(m) .and. l.ge.0
     ! ---------------------
 
+    if (nder == 0) return
+
+    !.first derivatives
+    if (.not.present(grad)) then
+       call ferror("ylmderiv","nder > 0 but grad not present",faterr)
+    endif
     sqrt2=1d0/sqrt(2d0)
     r1=1d0/r
-    r2=r1*r1
-    !.first derivatives
+
     fcoef1=(l+1)*r1*c+cp
     fcoef2=   -l*r1*c+cp
     fden1=0d0
-    dden1=0d0
     if (l.gt.0) fden1=sqrt((2*l+1d0)*(2*l-1d0))
     fden2=sqrt((2*l+1d0)*(2*l+3d0))
-
-    !.second derivatives
-    dcoef1=(l*l-1)*r2*c + (2*l+1)*r1*cp +  cpp
-    dcoef2=l*(l+1)*r2*c -     2d0*r1*cp -  cpp
-    dcoef3=l*(l+2)*r2*c - (2*l+1)*r1*cp +  cpp
-
-    if (l.ge.2) dden1=sqrt((2*l-3d0)*(2*l-1d0)**2*(2*l+1d0))
-    dden2=(2*l-1) * (2*l+3)
-    dden3=sqrt((2*l+1d0)*(2*l+3d0)**2 *(2*l+5d0))
-
     c1=0d0
-    d1=0d0
-
     if (l.gt.0) c1=fcoef1/fden1
     c2=fcoef2/fden2
-
-    if (l.ge.2) d1=dcoef1/dden1
-    d2=dcoef2/dden2
-    d3=dcoef3/dden3
 
     lm1=l-1
     lp1=l+1
@@ -400,9 +392,29 @@ contains
     grad(1)=sqrt2*(dm-dp)
     grad(2)=(0d0,1d0)*sqrt2*(dm+dp)
     grad(3)=d0
+    if (nder == 1) return
     !.End first derivatives
 
     !.Second derivatives
+    if (.not.present(hess)) then
+       call ferror("ylmderiv","nder > 1 but hess not present",faterr)
+    endif
+    r2=r1*r1
+
+    dcoef1=(l*l-1)*r2*c + (2*l+1)*r1*cp +  cpp
+    dcoef2=l*(l+1)*r2*c -     2d0*r1*cp -  cpp
+    dcoef3=l*(l+2)*r2*c - (2*l+1)*r1*cp +  cpp
+
+    dden1=0d0
+    if (l.ge.2) dden1=sqrt((2*l-3d0)*(2*l-1d0)**2*(2*l+1d0))
+    dden2=(2*l-1) * (2*l+3)
+    dden3=sqrt((2*l+1d0)*(2*l+3d0)**2 *(2*l+5d0))
+
+    d1=0d0
+    if (l.ge.2) d1=dcoef1/dden1
+    d2=dcoef2/dden2
+    d3=dcoef3/dden3
+
     dm0=(0d0,0d0)
     if (good(lm2,mm1)) dm0=dm0-sqrt2*sqrt(lmm*lpm*lpmm1*lpmm2)*d1*yl(elem(lm2,mm1))
     if (good(l  ,mm1)) dm0=dm0+sqrt2*(2*m-1)*sqrt(lpm*lmmp1)*  d2*yl(elem(l  ,mm1))
@@ -446,7 +458,7 @@ contains
   !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
   !> and the first (rho1) and second (rho2) derivative at the
   !> distance r0. Does not apply to grid1_interp.
-  module subroutine radial_derivs (rlm,rho,rho1,rho2,r0,a,b)
+  module subroutine radial_derivs(rlm,rho,rho1,rho2,r0,a,b)
     real*8, dimension(:), intent(in) :: rlm
     real*8, intent(out) :: rho, rho1, rho2
     real*8, intent(in) :: r0
