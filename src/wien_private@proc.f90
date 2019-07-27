@@ -31,9 +31,9 @@ submodule (wien_private) proc
   ! subroutine rotat(vt,rotloc)
   ! subroutine reduc(v,atp,npos,pos,iat,rmt)
   ! function vnorm(v)
-  ! subroutine charge(f,chg,grad,hess,ir,r,jatom,v,natnr)
+  ! subroutine charge(f,nder,chg,grad,hess,ir,r,jatom,v,natnr)
   ! subroutine radial(f,rlm,rho,rho1,rho2,r,ir,jatom)
-  ! subroutine rhoout(f,v,chg,grad,hess)
+  ! subroutine rhoout(f,v,nder,chg,grad,hess)
   ! subroutine ylm(v,lmax,y)
 
   integer, parameter  :: ncom = 122 !< maximum number of LM pairs
@@ -169,11 +169,14 @@ contains
 
   end subroutine read_clmsum
 
-  !> Calculate the density and its derivatives at point v0 This
-  !> routine is thread-safe.
-  module subroutine rho2(f,v0,rho,grad,h)
+  !> Calculate the density and its derivatives at point v0
+  !> (cryst. coord.) up to the nder derivative. Returns
+  !> the density (rho), gradient (grad), and Hessian (h).
+  !> This routine is thread-safe.
+  module subroutine rho2(f,v0,nder,rho,grad,h)
     class(wienwfn), intent(in) :: f
     real*8, dimension(3), intent(in) :: v0
+    integer, intent(in) :: nder
     real*8, intent(out) :: rho, grad(3), h(3,3)
 
     logical                :: insphere
@@ -212,29 +215,31 @@ contains
     enddo
 11  continue
 
+    rho = 0d0
+    grad = 0d0
+    hess = 0d0
+    gradd = 0d0
+    mhess = 0d0
     !.calculate properties according to the position of v
     ! point in interstitial
     if (.not.insphere) then
-       call rhoout(f,v,chg,gradd,hess)
-
-       mhess(1,1)=hess(1)
-       mhess(2,1)=hess(2)
-       mhess(3,1)=hess(3)
-       mhess(2,2)=hess(4)
-       mhess(3,2)=hess(5)
-       mhess(3,3)=hess(6)
-       mhess(1,2)=mhess(2,1)
-       mhess(1,3)=mhess(3,1)
-       mhess(2,3)=mhess(3,2)
-
+       call rhoout(f,v,nder,chg,gradd,hess)
+       if (nder >= 2) then
+          mhess(1,1)=hess(1)
+          mhess(2,1)=hess(2)
+          mhess(3,1)=hess(3)
+          mhess(2,2)=hess(4)
+          mhess(3,2)=hess(5)
+          mhess(3,3)=hess(6)
+          mhess(1,2)=mhess(2,1)
+          mhess(1,3)=mhess(3,1)
+          mhess(2,3)=mhess(3,2)
+       end if
        ! point in muffin tin of iatnr(iat)
     else
        !    identify type of atom
        jatom=iabs(f%iatnr(iat))
-
-       vt(1)=v(1)
-       vt(2)=v(2)
-       vt(3)=v(3)
+       vt = v
        !    i am going to transfer coordinates from sphere iat to jatom
        !    rotate vt so as to make it fall in the equivalent point
        !    inside first of equivalent's atom muffin tin, instead of iat.
@@ -256,7 +261,7 @@ contains
           !    case of non-orthogonal unit cell axes
        else
           !       convert v to crystallographic coordinates (tocrsytal())
-          do  j1=1,3
+          do j1=1,3
              vt1(j1)=f%br3(j1,1)*vt(1)+f%br3(j1,2)*vt(2)+f%br3(j1,3)*vt(3)
           enddo
           !       mat = br3
@@ -354,54 +359,59 @@ contains
           if(ir.lt.1) ir=1
        endif
 
-       call charge(f,chg,gradd,hess,ir,r,jatom,vt,f%iatnr(iat))
+       call charge(f,nder,chg,gradd,hess,ir,r,jatom,vt,f%iatnr(iat))
 
-       !....reconstruct gradient and hessian in original setting.
-       !    x' = mat * x  -->  gr = (mat)^t * gr'
-       gx=mat(1,1)*gradd(1)+mat(2,1)*gradd(2)+mat(3,1)*gradd(3)
-       gy=mat(1,2)*gradd(1)+mat(2,2)*gradd(2)+mat(3,2)*gradd(3)
-       gz=mat(1,3)*gradd(1)+mat(2,3)*gradd(2)+mat(3,3)*gradd(3)
-       gradd(1)=gx
-       gradd(2)=gy
-       gradd(3)=gz
+       if (nder >= 1) then
+          !....reconstruct gradient and hessian in original setting.
+          !    x' = mat * x  -->  gr = (mat)^t * gr'
+          if(r < f%rnot(jatom)) then
+             gradd = 0d0
+          else
+             gx=mat(1,1)*gradd(1)+mat(2,1)*gradd(2)+mat(3,1)*gradd(3)
+             gy=mat(1,2)*gradd(1)+mat(2,2)*gradd(2)+mat(3,2)*gradd(3)
+             gz=mat(1,3)*gradd(1)+mat(2,3)*gradd(2)+mat(3,3)*gradd(3)
+             gradd(1)=gx
+             gradd(2)=gy
+             gradd(3)=gz
+          end if
 
-       !    store the values for the hessian
-       mhess(1,1)=hess(1)
-       mhess(2,1)=hess(2)
-       mhess(3,1)=hess(3)
-       mhess(2,2)=hess(4)
-       mhess(3,2)=hess(5)
-       mhess(3,3)=hess(6)
-       mhess(1,2)=mhess(2,1)
-       mhess(1,3)=mhess(3,1)
-       mhess(2,3)=mhess(3,2)
+          if (nder >= 2) then
+             !    store the values for the hessian
+             mhess(1,1)=hess(1)
+             mhess(2,1)=hess(2)
+             mhess(3,1)=hess(3)
+             mhess(2,2)=hess(4)
+             mhess(3,2)=hess(5)
+             mhess(3,3)=hess(6)
+             mhess(1,2)=mhess(2,1)
+             mhess(1,3)=mhess(3,1)
+             mhess(2,3)=mhess(3,2)
 
-       ! (amp: it can be optimized further)
-       ! x' = mat * x --> h = (mat)^t * h' * mat
-       do i=1,3
-          do j=1,i
-             temp(i,j)=0d0
-             do k=1,3
-                do l=1,3
-                   temp(i,j)=temp(i,j)+mhess(k,l)*mat(k,i)*mat(l,j)
+             ! (amp: it can be optimized further)
+             ! x' = mat * x --> h = (mat)^t * h' * mat
+             do i=1,3
+                do j=1,i
+                   temp(i,j)=0d0
+                   do k=1,3
+                      do l=1,3
+                         temp(i,j)=temp(i,j)+mhess(k,l)*mat(k,i)*mat(l,j)
+                      enddo
+                   enddo
+                   if (j.ne.i) temp(j,i)=temp(i,j)
                 enddo
              enddo
-             if (j.ne.i) temp(j,i)=temp(i,j)
-          enddo
-       enddo
-       do i=1,3
-          do j=1,3
-             mhess(i,j)=temp(i,j)
-          enddo
-       enddo
-
-       if(r.lt.f%rnot(jatom)) gradd = 0d0
-
+             do i=1,3
+                do j=1,3
+                   mhess(i,j)=temp(i,j)
+                enddo
+             enddo
+          end if
+       end if
     endif
 
     rho = chg
-    grad = matmul(f%br1,gradd)
-    h = matmul(matmul(f%br1,mhess),transpose(f%br1))
+    if (nder >= 1) grad = matmul(f%br1,gradd)
+    if (nder >= 2) h = matmul(matmul(f%br1,mhess),transpose(f%br1))
 
   end subroutine rho2
 
@@ -1287,12 +1297,16 @@ contains
       RETURN
   END FUNCTION VNORM
 
-  ! Calculate the density and derivatives inside a muffin tin.
-  subroutine charge(f,chg,grad,hess,ir,r,jatom,v,natnr)
+  ! Calculate the density and derivatives in the muffins, at
+  ! point v (cryst. coords.). Calculate derivatives up to nder.
+  ! Return density (chg), gradient (grad) and Hessian (hess) or
+  ! zero if nder is not high enough.
+  subroutine charge(f,nder,chg,grad,hess,ir,r,jatom,v,natnr)
     use tools_math, only: ylmderiv
     use tools_io, only: uout
     use param, only: c_kub
     class(wienwfn), intent(in) :: f
+    integer, intent(in) :: nder
     real*8, intent(out) :: chg
     real*8, dimension(3), intent(out) :: grad
     real*8, dimension(6), intent(out) :: hess
@@ -1332,16 +1346,9 @@ contains
     end do
 
     !.initiailze output variables
-    chg=0d0
-    grad(1)=0d0
-    grad(2)=0d0
-    grad(3)=0d0
-    hess(1)=0d0
-    hess(2)=0d0
-    hess(3)=0d0
-    hess(4)=0d0
-    hess(5)=0d0
-    hess(6)=0d0
+    chg = 0d0
+    grad = 0d0
+    hess = 0d0
 
     !.noncubic lattice
     if (natnr.le.0) then
@@ -1365,12 +1372,12 @@ contains
           ! for m=0, ylm = slm. for m!=0, calculate real harmonics.
           if (m.eq.0) then
              ang(ilm)=dble(yl(idx))       !yl0
-             call ylmderiv(yl,r,l,m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad,yhess)
+             call ylmderiv(yl,r,l,m,rho(ilm),rho1(ilm),rho2(ilm),nder,ygrad,yhess)
           else
              ! real harmonics, slm and derivatives
              ang(ilm)=dble(imag0*(yl(idx+m)+minu*yl(idx-m)))  !slm
-             call ylmderiv(yl,r,l, m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad,yhess)
-             call ylmderiv(yl,r,l,-m,rho(ilm),rho1(ilm),rho2(ilm),2,ygrad1,yhess1)
+             call ylmderiv(yl,r,l, m,rho(ilm),rho1(ilm),rho2(ilm),nder,ygrad,yhess)
+             call ylmderiv(yl,r,l,-m,rho(ilm),rho1(ilm),rho2(ilm),nder,ygrad1,yhess1)
              !real harmonics derivatives transformation
              do i=1,6
                 if (i.le.3) ygrad(i)=imag0*(ygrad(i)+minu*ygrad1(i))
@@ -1423,7 +1430,7 @@ contains
              minu=-m1
           endif
           if(l.eq.0 .and. m.eq.0) then
-             call ylmderiv(yl,r,0,0,rho(i),rho1(i),rho2(i),2,ygrad,yhess)
+             call ylmderiv(yl,r,0,0,rho(i),rho1(i),rho2(i),nder,ygrad,yhess)
              chg=chg + (rho(i) * ang(i))
              do j=1,6
                 if (j.le.3) grad(j)=grad(j)+dble(ygrad(j))
@@ -1431,8 +1438,8 @@ contains
              enddo
              i=i+1
           elseif (l.eq.-3 .and. m.eq.2) then
-             call ylmderiv(yl,r,3, 2,rho(i),rho1(i),rho2(i),2,ygrad,yhess)
-             call ylmderiv(yl,r,3,-2,rho(i),rho1(i),rho2(i),2,ygradtemp,yhesstemp)
+             call ylmderiv(yl,r,3, 2,rho(i),rho1(i),rho2(i),nder,ygrad,yhess)
+             call ylmderiv(yl,r,3,-2,rho(i),rho1(i),rho2(i),nder,ygradtemp,yhesstemp)
              ygrad = imag0*(ygrad+minu*ygradtemp)
              yhess = imag0*(yhess+minu*yhesstemp)
 
@@ -1449,15 +1456,15 @@ contains
              frho1 = c1*rho1(i) + c2*rho1(i+1)
              frho2 = c1*rho2(i) + c2*rho2(i+1)
 
-             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,2,ygrad,yhess)
+             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,nder,ygrad,yhess)
              if (m /= 0) then
-                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,nder,ygradtemp,yhesstemp)
                 ygrad = imag0*(ygrad+minu*ygradtemp)
                 yhess = imag0*(yhess+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,2,ygrad1,yhess1)
+             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,nder,ygrad1,yhess1)
              if (m+4 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,nder,ygradtemp,yhesstemp)
                 ygrad1 = imag0*(ygrad1+minu*ygradtemp)
                 yhess1 = imag0*(yhess1+minu*yhesstemp)
              end if
@@ -1474,21 +1481,21 @@ contains
              frho1 = c1*rho1(i) + c2*rho1(i+1) + c3*rho1(i+2)
              frho2 = c1*rho2(i) + c2*rho2(i+1) + c3*rho2(i+2)
 
-             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,2,ygrad,yhess)
+             call ylmderiv(yl,r,abs(l),m,frho,frho1,frho2,nder,ygrad,yhess)
              if (m /= 0) then
-                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-m,frho,frho1,frho2,nder,ygradtemp,yhesstemp)
                 ygrad = imag0*(ygrad+minu*ygradtemp)
                 yhess = imag0*(yhess+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,2,ygrad1,yhess1)
+             call ylmderiv(yl,r,abs(l),m+4,frho,frho1,frho2,nder,ygrad1,yhess1)
              if (m+4 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+4),frho,frho1,frho2,nder,ygradtemp,yhesstemp)
                 ygrad1 = imag0*(ygrad1+minu*ygradtemp)
                 yhess1 = imag0*(yhess1+minu*yhesstemp)
              end if
-             call ylmderiv(yl,r,abs(l),m+8,frho,frho1,frho2,2,ygrad2,yhess2)
+             call ylmderiv(yl,r,abs(l),m+8,frho,frho1,frho2,nder,ygrad2,yhess2)
              if (m+8 /= 0) then
-                call ylmderiv(yl,r,abs(l),-(m+8),frho,frho1,frho2,2,ygradtemp,yhesstemp)
+                call ylmderiv(yl,r,abs(l),-(m+8),frho,frho1,frho2,nder,ygradtemp,yhesstemp)
                 ygrad2 = imag0*(ygrad2+minu*ygradtemp)
                 yhess2 = imag0*(yhess2+minu*yhesstemp)
              end if
@@ -1504,14 +1511,10 @@ contains
        end do
     endif
 
-    !.....capture nuclei
+    !.capture nuclei
     if (r.lt.f%rnot(jatom)+1.d-10) then
-       grad(1)=0d0
-       grad(2)=0d0
-       grad(3)=0d0
-       hess(2)=0d0
-       hess(3)=0d0
-       hess(5)=0d0
+       grad = 0d0
+       hess = 0d0
        hess(1)=-1d15
        hess(4)=-1d15
        hess(6)=-1d15
@@ -1615,11 +1618,15 @@ contains
 
   end subroutine radial
 
-  ! Calculate the density and derivatives in the interstitial
-  subroutine rhoout(f,v,chg,grad,hess)
+  ! Calculate the density and derivatives in the interstitial, at
+  ! point v (cryst. coords.). Calculate derivatives up to nder.
+  ! Return density (chg), gradient (grad) and Hessian (hess) or
+  ! zero if nder is not high enough.
+  subroutine rhoout(f,v,nder,chg,grad,hess)
     use param, only: tpi, tpi2
     class(wienwfn), intent(in) :: f
     real*8, dimension(3), intent(in) :: v
+    integer, intent(in) :: nder
     real*8, intent(out) :: chg
     real*8, dimension(3), intent(out) :: grad
     real*8, dimension(6), intent(out) :: hess
@@ -1628,40 +1635,23 @@ contains
     real*8, dimension(3) :: vt
     integer :: kpp, niz, ntot
     integer :: i
-    real*8 :: arg, tpiarg, expo, dexpo, ddexpo
+    real*8 :: tpiarg, expo, dexpo, ddexpo
     real*8 :: ro, rhoexpo, rhodexpo, rhoddexpo
     real*8 :: aro, aroi
     complex*16 :: roc
 
+    !.initialize charge, grad, hessian
     chg = 0d0
     grad = 0d0
     hess = 0d0
 
-    !.initialize charge, grad, hessian
-    chg=0d0
-    grad(1)=0d0
-    grad(2)=0d0
-    grad(3)=0d0
-    hess(1)=0d0
-    hess(2)=0d0
-    hess(3)=0d0
-    hess(4)=0d0
-    hess(5)=0d0
-    hess(6)=0d0
-
     !.to crystallographic if cell is orthogonal
     if (f%ortho) then
-       factor(1)=1d0/f%a(1)
-       factor(2)=1d0/f%a(2)
-       factor(3)=1d0/f%a(3)
+       factor = 1d0 / f%a
     else
-       factor(1)=1d0
-       factor(2)=1d0
-       factor(3)=1d0
+       factor = 1d0
     endif
-    vt(1)=v(1)*factor(1)
-    vt(2)=v(2)*factor(2)
-    vt(3)=v(3)*factor(3)
+    vt = v * factor
 
     !.run over planewaves
     kpp=0
@@ -1679,8 +1669,7 @@ contains
              cycle
           endif
 
-          arg=dot_product(vt,f%krec(:,i))
-          tpiarg=tpi*arg
+          tpiarg=tpi*dot_product(vt,f%krec(:,i))
 
           aro = f%sk(niz)
           aroi = f%ski(niz)
@@ -1689,15 +1678,14 @@ contains
           roc = roc * cmplx(cos(tpiarg),sin(tpiarg),8)
           
           rhoexpo=real(roc,8)
-          rhodexpo=-tpi*aimag(roc)
-          rhoddexpo=-tpi2*rhoexpo
-
           chg=chg+rhoexpo
+          if (nder <= 0) cycle
 
-          grad(1)=grad(1)+rhodexpo*f%krec(1,i)
-          grad(2)=grad(2)+rhodexpo*f%krec(2,i)
-          grad(3)=grad(3)+rhodexpo*f%krec(3,i)
+          rhodexpo=-tpi*aimag(roc)
+          grad = grad + rhodexpo * f%krec(:,i)
+          if (nder <= 1) cycle
 
+          rhoddexpo=-tpi2*rhoexpo
           hess(1)=hess(1)+rhoddexpo*f%krec(1,i)*f%krec(1,i)
           hess(2)=hess(2)+rhoddexpo*f%krec(1,i)*f%krec(2,i)
           hess(3)=hess(3)+rhoddexpo*f%krec(1,i)*f%krec(3,i)
@@ -1715,29 +1703,25 @@ contains
              kpp=1
              niz=niz-1
           end if
-          if (abs(f%sk(niz)) < pwcutoff) then
-             cycle
-          endif
+          if (abs(f%sk(niz)) < pwcutoff) cycle
           ntot = ntot + 1
 
-          arg=dot_product(vt,f%krec(:,i))
-          tpiarg=tpi*arg
+          tpiarg=tpi*dot_product(vt,f%krec(:,i))
 
           aro = f%sk(niz)
           ro = aro * f%tauk(i)
           expo=cos(tpiarg)
-          dexpo=-sin(tpiarg)*tpi
-          ddexpo=-expo*tpi2
           rhoexpo=ro*expo
+          chg = chg + rhoexpo
+          if (nder <= 0) cycle
+
+          dexpo=-sin(tpiarg)*tpi
           rhodexpo=ro*dexpo
+          grad = grad + rhodexpo * f%krec(:,i)
+          if (nder <= 1) cycle
+
+          ddexpo=-expo*tpi2
           rhoddexpo=ro*ddexpo
-
-          chg=chg+rhoexpo
-
-          grad(1)=grad(1)+rhodexpo*f%krec(1,i)
-          grad(2)=grad(2)+rhodexpo*f%krec(2,i)
-          grad(3)=grad(3)+rhodexpo*f%krec(3,i)
-
           hess(1)=hess(1)+rhoddexpo*f%krec(1,i)*f%krec(1,i)
           hess(2)=hess(2)+rhoddexpo*f%krec(1,i)*f%krec(2,i)
           hess(3)=hess(3)+rhoddexpo*f%krec(1,i)*f%krec(3,i)
@@ -1748,15 +1732,15 @@ contains
     end if
 
     !.change back to cartesian coordinates for ortho structures
-    grad(1)=grad(1)*factor(1)
-    grad(2)=grad(2)*factor(2)
-    grad(3)=grad(3)*factor(3)
-    hess(1)=hess(1)*factor(1)*factor(1)
-    hess(2)=hess(2)*factor(1)*factor(2)
-    hess(3)=hess(3)*factor(1)*factor(3)
-    hess(4)=hess(4)*factor(2)*factor(2)
-    hess(5)=hess(5)*factor(2)*factor(3)
-    hess(6)=hess(6)*factor(3)*factor(3)
+    if (nder >= 1) grad = grad * factor
+    if (nder >= 2) then
+       hess(1)=hess(1)*factor(1)*factor(1)
+       hess(2)=hess(2)*factor(1)*factor(2)
+       hess(3)=hess(3)*factor(1)*factor(3)
+       hess(4)=hess(4)*factor(2)*factor(2)
+       hess(5)=hess(5)*factor(2)*factor(3)
+       hess(6)=hess(6)*factor(3)*factor(3)
+    end if
 
   end subroutine rhoout
 

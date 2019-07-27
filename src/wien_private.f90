@@ -85,9 +85,10 @@ module wien_private
        class(wienwfn), intent(inout) :: f
        character*(*), intent(in) :: file, file2
      end subroutine read_clmsum
-     module subroutine rho2(f,v0,rho,grad,h)
+     module subroutine rho2(f,v0,nder,rho,grad,h)
        class(wienwfn), intent(in) :: f
        real*8, dimension(3), intent(in) :: v0
+       integer, intent(in) :: nder
        real*8, intent(out) :: rho, grad(3), h(3,3)
      end subroutine rho2
      module subroutine tolap(f)

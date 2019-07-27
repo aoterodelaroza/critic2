@@ -743,7 +743,7 @@ contains
        endif
 
     case(type_wien)
-       call f%wien%rho2(wx,res%f,res%gf,res%hf)
+       call f%wien%rho2(wx,nder,res%f,res%gf,res%hf)
        res%gf = matmul(transpose(f%c%m_c2x),res%gf)
        res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
@@ -899,7 +899,7 @@ contains
     case(type_grid)
        call f%grid%interp(wx,rho,grad,h)
     case(type_wien)
-       call f%wien%rho2(wx,rho,grad,h)
+       call f%wien%rho2(wx,0,rho,grad,h)
     case(type_elk)
        call f%elk%rho2(wx,0,rho,grad,h)
     case(type_pi)
