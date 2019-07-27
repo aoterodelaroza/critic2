@@ -349,7 +349,7 @@ contains
     read(lu) vdum  ! version
     read(lu) spin  ! spinpol
     read(lu) nspecies  ! nspecies
-    read(lu) lmmaxvr  ! lmmaxvr
+    read(lu) lmmaxvr  ! lmmaxvr/lmmaxo
     f%lmaxvr = nint(sqrt(real(lmmaxvr,8))) - 1
 
     ! allocate radial grids
@@ -373,7 +373,7 @@ contains
     do i = 1, nspecies
        read(lu) idum  ! natoms(is)
        read(lu) f%nrmt(i)  ! nrmt(is)
-       read(lu) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)
+       read(lu) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)/rsp
        f%rmt(i) = f%spr(f%nrmt(i),i)
        f%spr_a(i) = f%spr(1,i)
        f%spr_b(i) = log(f%spr(f%nrmt(i),i) / f%spr(1,i)) / real(f%nrmt(i)-1,8)
@@ -400,6 +400,9 @@ contains
     ngrtot = ngrid(1)*ngrid(2)*ngrid(3)
     allocate(rhotmp(lmmaxvr,nrmtmax,env%ncell))
     allocate(rhoktmp(ngrtot))
+    if(isnewer(5,2,10)) then
+       read(lu) idum ! xcgrad
+    end if
 
     ! read the density itself and close (there is more after this, ignored)
     read(lu) rhotmp, rhoktmp ! rhomt, rhoir
