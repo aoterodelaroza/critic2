@@ -122,11 +122,13 @@ module tools_math
        integer, intent(in) :: nder
        complex*16, intent(out), optional :: grad(3), hess(6)
      end subroutine ylmderiv
-     module subroutine radial_derivs (rlm,rho,rho1,rho2,r0,a,b)
+     module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
        real*8, dimension(:), intent(in) :: rlm
-       real*8, intent(out) :: rho, rho1, rho2
+       integer, intent(in) :: nder
        real*8, intent(in) :: r0
        real*8, intent(in) :: a, b
+       real*8, intent(out) :: rho
+       real*8, intent(out), optional :: rho1, rho2
      end subroutine radial_derivs
      module function ep(x,i)
        integer, intent(in) :: i

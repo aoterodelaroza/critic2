@@ -457,12 +457,14 @@ contains
   !> Given the value of a function (rlm) on an exponential grid defined
   !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
   !> and the first (rho1) and second (rho2) derivative at the
-  !> distance r0. Does not apply to grid1_interp.
-  module subroutine radial_derivs(rlm,rho,rho1,rho2,r0,a,b)
+  !> distance r0. Only calculate derivatives up to nder.
+  module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
     real*8, dimension(:), intent(in) :: rlm
-    real*8, intent(out) :: rho, rho1, rho2
+    integer, intent(in) :: nder
     real*8, intent(in) :: r0
     real*8, intent(in) :: a, b
+    real*8, intent(out) :: rho
+    real*8, intent(out), optional :: rho1, rho2
     
     ! radial grid derivation formulas
     integer, parameter :: noef(6,3) = reshape((/&
@@ -494,8 +496,8 @@ contains
     r = max(r0,a)
     if (r >= rn) then
        rho = 0d0
-       rho1 = 0d0
-       rho2 = 0d0
+       if (present(rho1)) rho1 = 0d0
+       if (present(rho2)) rho2 = 0d0
        return
     end if
     ir = min(max(floor(log(r / a) / b + 1),1),nr)
@@ -512,7 +514,17 @@ contains
     rrlm(:,0) = rlm(temp_ir-1:temp_ir+2)
     x1dr12 = 0d0
     do i = 1, 4
+       ! calculate factors and distances
        ii = temp_ir - 2 + i
+       r1(i) = a*exp((ii-1)*b)
+       dr1(i) = r - r1(i)
+       do j = 1, i-1
+          x1dr12(i,j) = 1.d0 / (r1(i) - r1(j))
+          x1dr12(j,i) = -x1dr12(i,j)
+       end do
+       if (nder <= 0) cycle
+
+       ! first and second derivative coefficients
        if (ii <= 2) then
           ic = 1
        else if ( ii >= (nr-2)) then
@@ -520,29 +532,22 @@ contains
        else
           ic = 2
        end if
-
        rrlm(i,1:2) = 0d0
        do j = 1, 6
           jj = ii + noef(j,ic)
           rrlm(i,1) = rrlm(i,1) + coef1(j,ic) * rlm(jj)
+          if (nder <= 1) cycle
           rrlm(i,2) = rrlm(i,2) + coef2(j,ic) * rlm(jj)
        end do
        rrlm(i,1) = rrlm(i,1) * fac1
+       if (nder <= 1) cycle
        rrlm(i,2) = rrlm(i,2) * fac2
-
-       ! calculate factors and distances
-       r1(i) = a*exp((ii-1)*b)
-       dr1(i) = r - r1(i)
-       do j = 1, i-1
-          x1dr12(i,j) = 1.d0 / (r1(i) - r1(j))
-          x1dr12(j,i) = -x1dr12(i,j)
-       end do
     end do
 
     ! interpolate, lagrange 3rd order, 4 nodes
     rho = 0.d0
-    rho1 = 0.d0
-    rho2 = 0.d0
+    if (nder >= 1) rho1 = 0.d0
+    if (nder >= 2) rho2 = 0.d0
     do i = 1, 4
        prod = 1.d0
        do j = 1 ,4
@@ -552,12 +557,14 @@ contains
           prod = prod * dr1(j) * x1dr12(i,j)
        end do
        rho = rho + rrlm(i,0) * prod
+       if (nder <= 0) cycle
        rho1 = rho1 + rrlm(i,1) * prod
+       if (nder <= 1) cycle
        rho2 = rho2 + rrlm(i,2) * prod
     end do
 
-    rho2 = rho2 / (b * r)**2 - rho1 / b / r**2
-    rho1 = rho1 / b / r
+    if (nder >= 2) rho2 = rho2 / (b * r)**2 - rho1 / b / r**2
+    if (nder >= 1) rho1 = rho1 / b / r
 
   end subroutine radial_derivs
 
