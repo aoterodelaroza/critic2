@@ -197,7 +197,7 @@ contains
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
-       call bader_integrate(sy,bas)
+       call bader_integrate(sy,bas,sy%iref)
        write (uout,'("+ Attractors in BADER: ",A)') string(bas%nattr)
     elseif (bas%imtype == imtype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
@@ -207,7 +207,7 @@ contains
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
-       call yt_integrate(sy,bas)
+       call yt_integrate(sy,bas,sy%iref)
        write (uout,'("+ Attractors in YT: ",A)') string(bas%nattr)
     endif
 

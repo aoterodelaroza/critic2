@@ -43,10 +43,11 @@ module yt
   end type ytdata
   
   interface
-     module subroutine yt_integrate(s,bas)
+     module subroutine yt_integrate(s,bas,iref)
        use types, only: basindat
        type(system), intent(inout) :: s
        type(basindat), intent(inout) :: bas
+       integer, intent(in) :: iref
      end subroutine yt_integrate
      module subroutine yt_weights(luw,din,idb,w,dout)
        integer, intent(in), optional :: luw
