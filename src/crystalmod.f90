@@ -199,6 +199,7 @@ module crystalmod
      ! grid writers
      procedure :: writegrid_cube
      procedure :: writegrid_vasp
+     procedure :: writegrid_xsf
 
      ! promolecular and core density calculation
      procedure :: promolecular
@@ -618,8 +619,14 @@ module crystalmod
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
-       logical :: onlyheader
+       logical, intent(in) :: onlyheader
      end subroutine writegrid_vasp
+     module subroutine writegrid_xsf(c,g,file,onlyheader)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: g(:,:,:)
+       character*(*), intent(in) :: file
+       logical, intent(in) :: onlyheader
+     end subroutine writegrid_xsf
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)
