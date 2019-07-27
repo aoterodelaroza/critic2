@@ -300,8 +300,8 @@ contains
   !> and cpp are the value of f(r) and its first and second
   !> derivative. nder = 0: skip the calculation. nder = 1: calculate
   !> gradient. nder = 2: calculate hessian. On output, grad and hess
-  !> are the gradient and the hessian of f(r)*Ylm, calculated
-  !depending on the value of nder.
+  !> are the gradient and the hessian of f(r)*Ylm, or zero if
+  !> the value of nder is not high enough and they are present.
   module subroutine ylmderiv(yl,r,l,m,c,cp,cpp,nder,grad,hess)
     use tools_io, only: ferror, faterr
     use param, only: half
@@ -331,6 +331,8 @@ contains
     good(l,m)=l.ge.abs(m) .and. l.ge.0
     ! ---------------------
 
+    if (present(grad)) grad = 0d0
+    if (present(hess)) hess = 0d0
     if (nder == 0) return
 
     !.first derivatives
@@ -457,7 +459,8 @@ contains
   !> Given the value of a function (rlm) on an exponential grid defined
   !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
   !> and the first (rho1) and second (rho2) derivative at the
-  !> distance r0. Only calculate derivatives up to nder.
+  !> distance r0. Only calculate derivatives up to nder (returns 0
+  !> for the other derivatives if present).
   module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
     real*8, dimension(:), intent(in) :: rlm
     integer, intent(in) :: nder
@@ -491,15 +494,14 @@ contains
     real*8, dimension(4) :: r1, dr1
     real*8 :: prod
 
+    rho = 0d0
+    if (present(rho1)) rho1 = 0d0
+    if (present(rho2)) rho2 = 0d0
+
     nr = size(rlm)
     rn = a * exp(real(nr-1,8) * b)
     r = max(r0,a)
-    if (r >= rn) then
-       rho = 0d0
-       if (present(rho1)) rho1 = 0d0
-       if (present(rho2)) rho2 = 0d0
-       return
-    end if
+    if (r >= rn) return
     ir = min(max(floor(log(r / a) / b + 1),1),nr)
 
     ! careful with grid limits.

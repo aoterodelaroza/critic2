@@ -146,9 +146,9 @@ contains
              !isig = (-1)**m
              isig = -isig
              lm = lm + 1
-             call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),f%spr_a(is),f%spr_b(is),r,2,t0,t1,t2)
-             call ylmderiv(ylm,r,l,m,t0,t1,t2,2,xgrad1,xhess1)
-             if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,2,xgrad2,xhess2)
+             call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),f%spr_a(is),f%spr_b(is),r,nder,t0,t1,t2)
+             call ylmderiv(ylm,r,l,m,t0,t1,t2,nder,xgrad1,xhess1)
+             if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,nder,xgrad2,xhess2)
              if (m > 0) then
                 xrho = real((ylm(elem(l,m)) + isig * ylm(elem(l,-m))),8) * twopi1
                 xgrad = real(xgrad1 + isig * xgrad2,8) * twopi1
@@ -163,7 +163,9 @@ contains
                 xhess = real(xhess1,8)
              end if
              frho = frho + t0 * xrho
+             if (nder <= 0) cycle
              gfrho = gfrho + xgrad
+             if (nder <= 1) cycle
              do i = 1, 3
                 hfrho(1,i) = hfrho(1,i) + xhess(i)
              end do
@@ -201,15 +203,18 @@ contains
        end do
     end if
 
-    ! fill missing hessian elements
+    if (nder <= 0) return
+
+    ! transform to derivatives wrt cryst coordinates
+    gfrho = matmul(transpose(f%x2c),gfrho)
+    if (nder <= 1) return
+
+    ! fill missing hessian elements and transform
     do i = 1, 3
        do j = i+1, 3
           hfrho(j,i) = hfrho(i,j)
        end do
     end do
-
-    ! transform to derivatives wrt cryst coordinates
-    gfrho = matmul(transpose(f%x2c),gfrho)
     hfrho = matmul(matmul(transpose(f%x2c),hfrho),f%x2c)
 
   end subroutine rho2
