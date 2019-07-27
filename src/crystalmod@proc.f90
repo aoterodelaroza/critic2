@@ -5091,7 +5091,7 @@ contains
   !> grid in 3D array form (g), the filename (file), and whether to
   !> write the whole xsf or only the structure (onlyheader).
   module subroutine writegrid_xsf(c,g,file,onlyheader)
-    use tools_io, only: fopen_write, fclose, string
+    use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     real*8, intent(in) :: g(:,:,:)
@@ -5101,6 +5101,9 @@ contains
     real*8 :: x(3)
     integer :: n(3), i, j, ix, iy, iz, lu
 
+    if (c%ismolecule) then
+       call ferror('writegrid_xsf','molecular xsf files not supported yet',faterr)
+    end if
     do i = 1, 3
        n(i) = size(g,i)
     end do
