@@ -1873,9 +1873,9 @@ contains
   module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
-       wfn_read_log_geometry
+       wfn_read_log_geometry, wfn_read_dat_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
-       isformat_fchk, isformat_molden, isformat_gaussian
+       isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat
     use tools_io, only: equali
     use types, only: realloc
 
@@ -1909,6 +1909,9 @@ contains
     elseif (fmt == isformat_gaussian) then
        ! Gaussian output file
        call wfn_read_log_geometry(file,seed%nat,seed%x,z,name,errmsg)
+    elseif (fmt == isformat_dat) then
+       ! psi4 output file
+       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,name,errmsg)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -3132,7 +3135,7 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf
+       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3271,6 +3274,9 @@ contains
     elseif (equal(wextdot,'axsf')) then
        isformat = isformat_axsf
        ismol = .false.
+    elseif (equal(wextdot,'dat')) then
+       isformat = isformat_dat
+       ismol = .true.
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
@@ -3352,7 +3358,7 @@ contains
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
-       isformat_unknown, dirsep
+       isformat_dat, isformat_unknown, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3456,6 +3462,10 @@ contains
        call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
+    elseif (isformat == isformat_dat) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_mol(file,isformat_dat,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_gaussian) then
        call read_all_log(nseed,seed,file,errmsg)
     elseif (isformat == isformat_wfn.or.isformat == isformat_wfx.or.&
@@ -4368,7 +4378,7 @@ contains
     do while (getline_raw(lu,line))
        if (index(line,"Input orientation:") > 0) then
           in = mod(in,nseed) + 1
-          seed%nat = nat
+          seed(in)%nat = nat
           allocate(seed(in)%x(3,nat),seed(in)%is(nat))
 
           ok = getline_raw(lu,line)
