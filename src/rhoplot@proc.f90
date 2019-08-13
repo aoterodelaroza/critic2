@@ -375,8 +375,14 @@ contains
     logical :: ok, iok
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
-    logical :: dogrid, useexpr, iscube, isbincube, doheader
+    logical :: dogrid, useexpr, doheader
+    integer :: outform
     type(grid3) :: faux
+
+    integer, parameter :: outform_cube = 1
+    integer, parameter :: outform_bincube = 2
+    integer, parameter :: outform_vasp = 3
+    integer, parameter :: outform_xsf = 4
 
     ! read the points
     lp = 1
@@ -452,8 +458,7 @@ contains
     prop = "f"
     id = sy%iref
     useexpr = .false.
-    iscube = .true.
-    isbincube = .false.
+    outform = outform_cube
     outfile = trim(fileroot) // ".cube" 
     do while (.true.)
        word = lgetword(line,lp)
@@ -464,8 +469,15 @@ contains
              return
           end if
           wext1 = outfile(index(outfile,'.',.true.)+1:)
-          iscube = (equal(wext1,'cube')) 
-          isbincube = (equal(wext1,'bincube')) 
+          if (equal(wext1,'cube')) then
+             outform = outform_cube
+          elseif (equal(wext1,'bincube')) then
+             outform = outform_bincube
+          elseif (equal(wext1,'xsf')) then
+             outform = outform_xsf
+          else
+             outform = outform_vasp
+          end if
        else if (equal(word,'field')) then
           lp2 = lp
           word = getword(line,lp)
@@ -559,12 +571,14 @@ contains
     ! write cube header
     write (uout,'("* CUBE written to file: ",A/)') string(outfile)
     if (doheader) then
-       if (isbincube) then
+       if (outform == outform_bincube) then
           call ferror("rhoplot_cube","BINCUBE format is incompatible with HEADER",faterr)
-       else if (iscube) then
+       elseif (outform == outform_cube) then
           call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,.false.,xd,x0+sy%c%molx0)
-       else
+       elseif (outform == outform_vasp) then
           call sy%c%writegrid_vasp(sy%f(id)%grid%f,outfile,.true.)
+       elseif (outform == outform_xsf) then
+          call sy%c%writegrid_xsf(sy%f(id)%grid%f,outfile,.true.)
        endif
        return
     end if
@@ -581,11 +595,15 @@ contains
        else
           faux = sy%f(id)%grid
        end if
-       if (iscube .or. isbincube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
-       else
+       if (outform == outform_bincube) then
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,.true.,xd,x0+sy%c%molx0)
+       elseif (outform == outform_cube) then
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,.false.,xd,x0+sy%c%molx0)
+       elseif (outform == outform_vasp) then
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
-       end if
+       elseif (outform == outform_xsf) then
+          call sy%c%writegrid_xsf(faux%f,outfile,.false.)
+       endif
     else
        ok = .false.
        if (useexpr) then
@@ -644,10 +662,14 @@ contains
           !$omp end parallel do
        end if
        ! cube body
-       if (iscube .or. isbincube) then
-          call sy%c%writegrid_cube(lf,outfile,.false.,isbincube,xd,x0+sy%c%molx0)
-       else
+       if (outform == outform_bincube) then
+          call sy%c%writegrid_cube(lf,outfile,.false.,.true.,xd,x0+sy%c%molx0)
+       elseif (outform == outform_cube) then
+          call sy%c%writegrid_cube(lf,outfile,.false.,.false.,xd,x0+sy%c%molx0)
+       elseif (outform == outform_vasp) then
           call sy%c%writegrid_vasp(lf,outfile,.false.)
+       elseif (outform == outform_xsf) then
+          call sy%c%writegrid_xsf(lf,outfile,.false.)
        endif
        if (allocated(lf)) deallocate(lf)
     end if

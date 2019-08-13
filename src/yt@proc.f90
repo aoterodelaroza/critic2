@@ -31,7 +31,7 @@ contains
   !> added as attractors at the beginning of the run. Two attractors
   !> are considered equal if they are within a ditsance of ratom
   !> (bohr).
-  module subroutine yt_integrate(s,bas)
+  module subroutine yt_integrate(s,bas,iref)
     use systemmod, only: system
     use crystalmod, only: crystal
     use tools_math, only: m_x2c_from_cellpar, matinv
@@ -42,6 +42,7 @@ contains
     use types, only: realloc, basindat
     type(system), intent(inout) :: s
     type(basindat), intent(inout) :: bas
+    integer, intent(in) :: iref
 
     real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:)
@@ -60,13 +61,13 @@ contains
     if (.not.associated(s%c)) &
        call ferror("yt_integrate","system does not have crystal",faterr)
 
-    ! Pre-allocate atoms as maxima
-    allocate(bas%xattr(3,s%c%ncel))
+    ! Pre-allocate atoms and nnm as maxima
+    allocate(bas%xattr(3,s%f(iref)%ncpcel))
     bas%xattr = 0d0
     if (bas%atexist) then
-       bas%nattr = s%c%ncel
-       do i = 1, s%c%ncel
-          bas%xattr(:,i) = s%c%atcel(i)%x
+       bas%nattr = s%f(iref)%ncpcel
+       do i = 1, s%f(iref)%ncpcel
+          bas%xattr(:,i) = s%f(iref)%cpcel(i)%x
        end do
     else
        bas%nattr = 0

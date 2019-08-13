@@ -78,7 +78,7 @@ contains
   !> code is aware of the presence of atoms, which are added as
   !> attractors at the beginning of the run. Two attractors are
   !> considered equal if they are within a ditsance of ratom (bohr).
-  module subroutine bader_integrate(s,bas)
+  module subroutine bader_integrate(s,bas,iref)
     use systemmod, only: system
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
@@ -87,6 +87,7 @@ contains
     use types, only: realloc, basindat
     type(system), intent(inout) :: s
     type(basindat), intent(inout) :: bas
+    integer, intent(in) :: iref
 
     integer :: i, j, k, l, path_volnum, p(3)
     integer :: ptemp(3), ref_itrs, irefine_edge, nid
@@ -105,14 +106,14 @@ contains
     if (allocated(known)) deallocate(known)
     if (allocated(path)) deallocate(path)
 
-    ! Pre-allocate atoms as maxima
-    allocate(bas%xattr(3,s%c%ncel))
+    ! Pre-allocate atoms and nnm as maxima
+    allocate(bas%xattr(3,s%f(iref)%ncpcel))
     bas%xattr = 0d0
     nbasin = 0
     if (bas%atexist) then
-       nbasin = s%c%ncel
-       do i = 1, s%c%ncel
-          bas%xattr(:,i) = s%c%atcel(i)%x
+       nbasin = s%f(iref)%ncpcel
+       do i = 1, s%f(iref)%ncpcel
+          bas%xattr(:,i) = s%f(iref)%cpcel(i)%x
        end do
     end if
 
