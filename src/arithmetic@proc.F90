@@ -1661,19 +1661,19 @@ contains
 
        select case(ifun(ia)%family)
        case (XC_FAMILY_LDA)
-          rho = max(q(nq-1),1d-14)
+          rho = q(nq-1)
           call xc_f90_lda_exc(ifun(ia)%conf, 1, rho, zk)
           nq = nq - 1
        case (XC_FAMILY_GGA)
-          rho = max(q(nq-2),1d-14)
+          rho = q(nq-2)
           grho = q(nq-1)*q(nq-1)
           call xc_f90_gga_exc(ifun(ia)%conf, 1, rho, grho, zk)
           nq = nq - 2
        case (XC_FAMILY_MGGA)
-          rho = max(q(nq-4),1d-14)
+          rho = q(nq-4)
           grho = q(nq-3)*q(nq-3)
           lapl = q(nq-2)
-          tau = 2 * q(nq-1)
+          tau = q(nq-1)
           call xc_f90_mgga_exc(ifun(ia)%conf, 1, rho, grho, lapl, tau, zk)
           nq = nq - 4
        end select
