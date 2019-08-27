@@ -524,6 +524,7 @@ program critic
 
         ! libxc
      elseif (equal(word,'libxc')) then
+#ifdef HAVE_LIBXC
         doref = .false.
         doname = .false.
         doflags = .false.
@@ -547,6 +548,10 @@ program critic
            end if
         end do
         call listlibxc(doref,doname,doflags)
+#else
+        call ferror('critic2','critic2 was not compiled with LIBXC support',faterr,line,syntax=.true.)
+        cycle
+#endif
 
         ! reset
      elseif (equal(word,'reset')) then

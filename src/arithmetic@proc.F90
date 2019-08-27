@@ -627,13 +627,13 @@ contains
   !> List of the variables in the internal database.  This routine is
   !> thread-safe.
   module subroutine listlibxc(doref,doname,doflags)
-#ifdef HAVE_LIBXC
-    use xc_f90_lib_m
-    use tools_io, only: uout, string, ioj_left, ioj_right, ioj_center
-
     logical, intent(in) :: doref
     logical, intent(in) :: doname
     logical, intent(in) :: doflags
+
+#ifdef HAVE_LIBXC
+    use xc_f90_lib_m
+    use tools_io, only: uout, string, ioj_left, ioj_right, ioj_center
 
     integer :: i, nfun, id, ifam, ikind, iflags, mlen, iref
     integer, allocatable :: idlist(:)
