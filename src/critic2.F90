@@ -45,7 +45,7 @@ program critic
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults
-  use arithmetic, only: listvariables
+  use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
@@ -63,7 +63,7 @@ program critic
   !
   integer :: level, plevel, id
   integer :: i, nn, ismoli
-  logical :: ok
+  logical :: ok, doref, doname, doflags
   real*8 :: rdum
 
   ! initialize parameters
@@ -99,7 +99,7 @@ program critic
   endif
 
   ! Start reading
-  do while (getline(uin,line,ucopy=ucopy))
+  main: do while (getline(uin,line,ucopy=ucopy))
      lp=1
      word = lgetword(line,lp)
      subline = line(lp:)
@@ -522,6 +522,32 @@ program critic
         call listvariables()
         call sy%report(.false.,.true.,.true.,.true.,.true.,.false.,.false.)
 
+        ! libxc
+     elseif (equal(word,'libxc')) then
+        doref = .false.
+        doname = .false.
+        doflags = .false.
+        do while (.true.)
+           word = getword(line,lp)
+           if (equal(word,'ref').or.equal(word,'refs')) then
+              doref = .true.
+           elseif (equal(word,'name').or.equal(word,'names')) then
+              doname = .true.
+           elseif (equal(word,'flags')) then
+              doflags = .true.
+           elseif (equal(word,'all')) then
+              doflags = .true.
+              doname = .true.
+              doref = .true.
+           elseif (len_trim(word) > 0) then
+              call ferror('critic2','Unknown keyword in LIBXC',faterr,line,syntax=.true.)
+              cycle main
+           else
+              exit
+           end if
+        end do
+        call listlibxc(doref,doname,doflags)
+
         ! reset
      elseif (equal(word,'reset')) then
         call check_no_extra_word(ok)
@@ -555,7 +581,7 @@ program critic
         lp = 1
         call critic_setvariables(line, lp)
      endif
-  enddo
+  enddo main
 
   call grid1_clean_grids()
   ! call systemmod_end() ! old ifort compilers have trouble deallocating sy

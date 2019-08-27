@@ -28,6 +28,7 @@ module arithmetic
   public :: clearvariable
   public :: clearallvariables
   public :: listvariables
+  public :: listlibxc
 
   private
 
@@ -75,6 +76,11 @@ module arithmetic
      end subroutine clearallvariables
      module subroutine listvariables()
      end subroutine listvariables
+     module subroutine listlibxc(doref,doname,doflags)
+       logical, intent(in) :: doref
+       logical, intent(in) :: doname
+       logical, intent(in) :: doflags
+     end subroutine listlibxc
   end interface
 
 end module arithmetic

@@ -624,6 +624,124 @@ contains
 
   end subroutine listvariables
 
+  !> List of the variables in the internal database.  This routine is
+  !> thread-safe.
+  module subroutine listlibxc(doref,doname,doflags)
+#ifdef HAVE_LIBXC
+    use xc_f90_lib_m
+    use tools_io, only: uout, string, ioj_left, ioj_right, ioj_center
+
+    logical, intent(in) :: doref
+    logical, intent(in) :: doname
+    logical, intent(in) :: doflags
+
+    integer :: i, nfun, id, ifam, ikind, iflags, mlen, iref
+    integer, allocatable :: idlist(:)
+    character(len=256) :: name
+    character(len=2048) :: longname
+    type(xc_f90_pointer_t) :: p, info
+    character(len=:), allocatable :: str, aux
+
+    ! header and some libxc info
+    write (uout,'("* LIST of libxc functionals")') 
+    nfun = xc_f90_number_of_functionals()
+    allocate(idlist(nfun))
+    call xc_f90_available_functional_numbers(idlist(1)) ! hack
+    mlen = xc_f90_maximum_name_length()
+
+    ! gather and write info about the functionals in this libxc
+    do i = 1, nfun
+       id = idlist(i)
+       call xc_f90_functional_get_name(id,name)
+       call xc_f90_func_init(p, info, id, 1)
+       ifam = xc_f90_info_family(info)
+       ikind = xc_f90_info_kind(info)
+       iflags = xc_f90_info_flags(info)
+       call xc_f90_info_name(info,longname)
+
+       str = string(id,5,ioj_left)
+       str = str // " " // string(name,mlen+1,ioj_left)
+
+       select case (ikind)
+       case(XC_EXCHANGE)
+          str = str // " " // "x "
+       case(XC_CORRELATION)
+          str = str // " " // "c "
+       case(XC_EXCHANGE_CORRELATION)
+          str = str // " " // "xc"
+       case(XC_KINETIC)
+          str = str // " " // "k "
+       end select
+
+       select case (ifam)
+       case(XC_FAMILY_UNKNOWN)
+          str = str // " " // " unknown"
+       case(XC_FAMILY_NONE)
+          str = str // " " // "  none  "
+       case(XC_FAMILY_LDA)
+          str = str // " " // "  LDA   "
+       case(XC_FAMILY_GGA)
+          str = str // " " // "  GGA   "
+       case(XC_FAMILY_MGGA)
+          str = str // " " // "meta-GGA"
+       case(XC_FAMILY_LCA)
+          str = str // " " // "  LCA   "
+       case(XC_FAMILY_OEP)
+          str = str // " " // "  OEP   "
+       case(XC_FAMILY_HYB_GGA)
+          str = str // " " // " hyb-GGA"
+       case(XC_FAMILY_HYB_MGGA)
+          str = str // " " // "hyb-mGGA"
+       end select
+
+       if (doflags) then
+          aux = "-"
+          if (iand(iflags,XC_FLAGS_HAVE_EXC) /= 0) aux = aux // "E-"
+          if (iand(iflags,XC_FLAGS_HAVE_VXC) /= 0) aux = aux // "V-"
+          if (iand(iflags,XC_FLAGS_HAVE_FXC) /= 0) aux = aux // "F-"
+          if (iand(iflags,XC_FLAGS_HAVE_KXC) /= 0) aux = aux // "K-"
+          if (iand(iflags,XC_FLAGS_HAVE_LXC) /= 0) aux = aux // "L-"
+          if (iand(iflags,XC_FLAGS_1D) /= 0) aux = aux // "1D-"
+          if (iand(iflags,XC_FLAGS_2D) /= 0) aux = aux // "2D-"
+          if (iand(iflags,XC_FLAGS_3D) /= 0) aux = aux // "3D-"
+          if (iand(iflags,XC_FLAGS_HYB_CAM) /= 0) aux = aux // "CAM-"
+          if (iand(iflags,XC_FLAGS_HYB_CAMY) /= 0) aux = aux // "CAMY-"
+          if (iand(iflags,XC_FLAGS_HYB_VV10) /= 0) aux = aux // "VV10-"
+          if (iand(iflags,XC_FLAGS_HYB_LC) /= 0) aux = aux // "LC-"
+          if (iand(iflags,XC_FLAGS_HYB_LCY) /= 0) aux = aux // "LCY-"
+          if (iand(iflags,XC_FLAGS_STABLE) /= 0) aux = aux // "STB-"
+          if (iand(iflags,XC_FLAGS_DEVELOPMENT) /= 0) aux = aux // "DEV-"
+          if (iand(iflags,XC_FLAGS_NEEDS_LAPLACIAN) /= 0) aux = aux // "LAP-"
+          str = str // " " // string(aux,25,ioj_left)
+       end if
+          
+       if (doname) then
+          str = str // " " // trim(longname)
+       end if
+       
+       if (doref) then
+          iref = 0
+          do while (iref >= 0)
+             call xc_f90_info_refs(info,iref,longname)
+             if (iref < 0) exit
+             if (iref == 1) then
+                str = str // " [" // trim(longname)
+             else
+                str = str // "|" // trim(longname)
+             end if
+             if (iref == XC_MAX_REFERENCES) exit
+          end do
+          str = str // "]"
+       end if
+
+       call xc_f90_func_end(p)
+       write (uout,'(A)') trim(str)
+    end do
+    write (uout,*)
+
+#endif
+  end subroutine listlibxc
+
   !xx! private procedures
 
   !> Given an expression in string expr starting at lpexit, parse all
