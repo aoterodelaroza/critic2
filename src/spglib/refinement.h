@@ -36,21 +36,25 @@
 #define __refinement_H__
 
 #include "cell.h"
-#include "mathfunc.h"
 #include "spacegroup.h"
 #include "symmetry.h"
 
-Symmetry *
-ref_get_refined_symmetry_operations(const Cell * cell,
-                                    const Cell * primitive,
-                                    SPGCONST Spacegroup * spacegroup,
-                                    const double symprec);
-Cell * ref_get_Wyckoff_positions(int * wyckoffs,
-                                 int * equiv_atoms,
-                                 const Cell * primitive,
-                                 const Cell * cell,
-                                 SPGCONST Spacegroup * spacegroup,
-                                 const Symmetry * symmetry,
-                                 const int * mapping_table,
-                                 const double symprec);
+typedef struct {
+  Cell *bravais;
+  Symmetry *symmetry;
+  int *wyckoffs;
+  char (*site_symmetry_symbols)[7];
+  int *equivalent_atoms;
+  int *std_mapping_to_primitive;
+  double rotation[3][3];
+} ExactStructure;
+
+ExactStructure *
+ref_get_exact_structure_and_symmetry(Spacegroup * spacegroup,
+                                     const Cell * primitive,
+                                     const Cell * cell,
+                                     const int * mapping_table,
+                                     const double symprec);
+void ref_free_exact_structure(ExactStructure *exstr);
+
 #endif

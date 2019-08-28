@@ -15,7 +15,7 @@
 ! 
 module c_interface_module
   use, intrinsic :: ISO_C_Binding, &
-                                ! C type aliases for pointer derived types:
+     ! C type aliases for pointer derived types:
      C_ptr => C_ptr , &
      C_char_ptr => C_ptr, &
      C_const_char_ptr => C_ptr, &

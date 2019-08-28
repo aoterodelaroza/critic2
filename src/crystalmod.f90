@@ -170,8 +170,10 @@ module crystalmod
      procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
 
-     ! symmetry and WS cell
+     ! symmetry
      procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
+
+     ! WS cell
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
 

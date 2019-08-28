@@ -198,14 +198,16 @@ contains
 
   !> Print out the compilation details and the hardwired paths
   module subroutine config_write()
+    use spglib, only: spg_get_major_version, spg_get_minor_version, spg_get_micro_version
     use config, only: getstring, istring_package,&
        istring_f77, istring_fc, istring_cc, istring_fflags,&
        istring_fcflags, istring_cflags, istring_ldflags,&
        istring_atarget, istring_adate, istring_enabledebug,&
        istring_datadir, istring_version
     use param, only: dirsep
-    use tools_io, only: uout
+    use tools_io, only: uout, string
     logical :: lchk
+    integer :: iver(3)
 
     write (uout,'("+ ",A," (development), commit ",A,"")') getstring(istring_package), getstring(istring_version)
     write (uout,'(" compile host: ",A)') getstring(istring_atarget)
@@ -220,6 +222,11 @@ contains
     inquire(file=trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic",exist=lchk)
     write (uout,'("     dic file: ",A)') trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic"
     write (uout,'("...was found?: ",L)') lchk
+
+    iver(1) = spg_get_major_version()
+    iver(2) = spg_get_minor_version()
+    iver(3) = spg_get_micro_version()
+    write (uout,'("       spglib: ",A,".",A,".",A)') string(iver(1)), string(iver(2)), string(iver(3))
     write (uout,*)
 
   end subroutine config_write

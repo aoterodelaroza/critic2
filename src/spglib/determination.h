@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 Atsushi Togo */
+/* Copyright (C) 2017 Atsushi Togo */
 /* All rights reserved. */
 
 /* This file is part of spglib. */
@@ -32,11 +32,24 @@
 /* ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE */
 /* POSSIBILITY OF SUCH DAMAGE. */
 
-#ifndef __version_H__
-#define __version_H__
+#ifndef __determination_H__
+#define __determination_H__
 
-#define SPGLIB_MAJOR_VERSION 1
-#define SPGLIB_MINOR_VERSION 13
-#define SPGLIB_MICRO_VERSION 0
+#include "cell.h"
+#include "primitive.h"
+#include "refinement.h"
+#include "spacegroup.h"
+
+typedef struct {
+  Primitive *primitive;
+  Spacegroup *spacegroup;
+  ExactStructure *exact_structure;
+} DataContainer;
+
+DataContainer * det_determine_all(const Cell * cell,
+                                  const int hall_number,
+                                  const double symprec,
+                                  const double angle_symprec);
+void det_free_container(DataContainer * container);
 
 #endif

@@ -430,7 +430,6 @@ contains
     end if
 
     ! symmetry from spglib
-    hasspg = .false.
     clearsym = .false.
     if (.not.seed%ismolecule .and. seed%havesym == 0 .and. (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
        ! symmetry was not available, and I want it
@@ -439,10 +438,8 @@ contains
        if (len_trim(errmsg) > 0) then
           clearsym = .true.
           call ferror("struct_new","spglib: "//errmsg,faterr)
-       else
-          hasspg = .true.
        end if
-    else if (c%havesym > 0 .and..not.hasspg) then
+    else if (c%havesym > 0) then
        ! symmetry was already available, but I still want the space group details
        call c%spglib_wrap(.false.,.true.,errmsg)
        if (len_trim(errmsg) > 0) then
@@ -455,7 +452,7 @@ contains
 
     if (clearsym) then
        ! symmetry was not available or there was an error, and I do not 
-       ! want symmetry - make a copy of at() to atcel()
+       ! want symmetry - make a copy of at() to atcel() and set P1
        c%ncel = c%nneq
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))

@@ -1,7 +1,7 @@
 # Critic2 targets and sources
 dist_bin_SCRIPTS = 
 bin_PROGRAMS = critic2
-critic2_SOURCES = critic2.F90 cfftnd.f90 \
+critic2_SOURCES = critic2.F90 c_interface_module.f90 cfftnd.f90 \
 	spglib.f90 keast.f90 param.F90 spgs.f90 \
 	sympg.f90 doqhull.c quadpack.f90 tricks.f90 \
 	abinit_private.f90 abinit_private@proc.f90 autocp.f90 autocp@proc.f90 \
@@ -127,7 +127,7 @@ integration@proc.o integration@proc.smod : bader.mod
 bader@proc.o: bader.smod bader.mod
 critic2.o critic2.mod qtree@proc.o qtree@proc.smod : bisect.mod
 bisect@proc.o: bisect.smod bisect.mod
-gui_interface.o gui_interface.mod : c_interface_module.mod
+spglib.o spglib.mod gui_interface.o gui_interface.mod : c_interface_module.mod
 critic2.o critic2.mod gui_interface.o gui_interface.mod global@proc.o global@proc.smod : config.mod
 yt@proc.o yt@proc.smod xdm@proc.o xdm@proc.smod systemmod.o systemmod.mod systemmod.smod struct_drivers@proc.o struct_drivers@proc.smod struct_drivers.o struct_drivers.mod struct_drivers.smod meshmod@proc.o meshmod@proc.smod meshmod.o meshmod.mod meshmod.smod integration@proc.o integration@proc.smod fieldmod.o fieldmod.mod fieldmod.smod : crystalmod.mod
 crystalmod@proc.o: crystalmod.smod crystalmod.mod
@@ -182,7 +182,7 @@ qtree_utils@proc.o: qtree_utils.smod qtree_utils.mod
 integration@proc.o integration@proc.smod : quadpack.mod
 critic2.o critic2.mod : rhoplot.mod
 rhoplot@proc.o: rhoplot.smod rhoplot.mod
-crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : spglib.mod
+global@proc.o global@proc.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : spglib.mod
 critic2.o critic2.mod gui_interface.o gui_interface.mod crystalseedmod@proc.o crystalseedmod@proc.smod : spgs.mod
 critic2.o critic2.mod : stm.mod
 stm@proc.o: stm.smod stm.mod
