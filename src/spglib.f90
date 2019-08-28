@@ -22,26 +22,29 @@ module spglib
 
   private
 
-  public :: SpglibDataset, SpglibSpaceGroupType
+  public :: SpglibSpaceGroupType
+  public :: SpglibDataset
   public :: spg_get_major_version
   public :: spg_get_minor_version
   public :: spg_get_micro_version
-  public :: spg_standardize_cell
-  public :: spg_get_dataset
+  public :: spg_standardize_cell, spgat_standardize_cell
   public :: spg_get_symmetry, spgat_get_symmetry
   public :: spg_get_symmetry_with_collinear_spin, spgat_get_symmetry_with_collinear_spin
   public :: spg_get_multiplicity, spgat_get_multiplicity
   public :: spg_get_hall_number_from_symmetry
-  public :: spg_delaunay_reduce, spg_niggli_reduce
+  public :: spg_get_symmetry_from_database
+  public :: spg_delaunay_reduce
+  public :: spg_niggli_reduce
   public :: spg_find_primitive, spgat_find_primitive
   public :: spg_get_international, spgat_get_international
   public :: spg_get_schoenflies, spgat_get_schoenflies
   public :: spg_get_pointgroup
   public :: spg_refine_cell, spgat_refine_cell
-  public :: spg_get_ir_reciprocal_mesh
-  public :: spg_get_stabilized_reciprocal_mesh
   public :: spg_get_error_code
+
   public :: spg_get_error_message
+  public :: spg_get_dataset
+  public :: spg_get_spacegroup_type
 
   enum, bind(C)
      enumerator ::  SPGLIB_SUCCESS = 0
@@ -391,256 +394,43 @@ module spglib
        integer(c_int) :: spgat_refine_cell
      end function spgat_refine_cell
 
-
-     function spg_get_ir_reciprocal_mesh(grid_point, map, mesh, &
-        & is_shift, is_time_reversal, lattice, position, types, num_atom, symprec) bind(c)
-       import c_int, c_double
-       !   Beware the map refers to positions starting at 0
-       integer(c_int), intent(out) :: grid_point(3, *), map(*) ! size is product(mesh)
-       integer(c_int), intent(in) :: mesh(3), is_shift(3)
-       integer(c_int), intent(in), value :: is_time_reversal
-       real(c_double), intent(in) :: lattice(3,3), position(3, *)
-       integer(c_int), intent(in) :: types(*)
-       integer(c_int), intent(in), value :: num_atom
-       real(c_double), intent(in), value :: symprec
-       integer(c_int) :: spg_get_ir_reciprocal_mesh ! the number of points in the reduced mesh
-     end function spg_get_ir_reciprocal_mesh
-
-
-     function spg_get_stabilized_reciprocal_mesh(grid_point, map, mesh, is_shift, &
-        & is_time_reversal, lattice, num_rot, rotations, num_q, qpoints) bind(c)
-       import c_int, c_double
-       !   Beware the map refers to positions starting at 0
-       integer(c_int), intent(inout) :: grid_point(3,*), map(*)
-       integer(c_int), intent(in) :: mesh(3)
-       integer(c_int), intent(in) :: is_shift(3)
-       integer(c_int), intent(in), value :: is_time_reversal
-       real(c_double), intent(in) :: lattice(3,3)
-       integer(c_int), intent(in), value :: num_rot
-       integer(c_int), intent(in) :: rotations(3,3,*)
-       integer(c_int), intent(in), value :: num_q
-       real(c_double), intent(in) :: qpoints(3,*)
-       integer(c_int) :: spg_get_stabilized_reciprocal_mesh
-     end function spg_get_stabilized_reciprocal_mesh
-
      ! SpglibError spg_get_error_code(void);
      ! Get the error code from the last operation
      function spg_get_error_code() bind(c, name='spg_get_error_code')
        integer(kind(SPGLIB_SUCCESS)) :: spg_get_error_code
      end function spg_get_error_code
 
+     ! char *spg_get_error_message(SpglibError spglib_error);
+     ! Returns the error message based on the id from the last operation.
+     module function spg_get_error_message(spglib_error)
+       integer(kind(SPGLIB_SUCCESS)) :: spglib_error
+       character(len=32) :: spg_get_error_message
+     end function spg_get_error_message
+       
+     ! SpglibDataset* spg_get_dataset(SPGCONST double lattice[3][3],SPGCONST double position[][3],
+     !                                const int types[], const int num_atom, const double symprec);
+     ! SpglibDataset* spg_get_dataset_with_hall_number(SPGCONST double lattice[3][3],SPGCONST double position[][3],
+     !                                                 const int types[],const int num_atom,const int hall_number,
+     !                                                 const double symprec);
+     ! Get the dataset from the crystal geometry and precision. Optionally, indicate the
+     ! hall number.
+     module function spg_get_dataset(lattice, position, types, num_atom, symprec, hall_number) result(dset)
+       use iso_c_binding, only: c_int, c_double
+       real(c_double), intent(in) :: lattice(3,3)
+       real(c_double), intent(in) :: position(3,*)
+       integer(c_int), intent(in) :: types(*)
+       integer(c_int), intent(in), value :: num_atom
+       real(c_double), intent(in), value :: symprec
+       integer(c_int), intent(in), value, optional :: hall_number
+       type(SpglibDataset) :: dset
+     end function spg_get_dataset
+
+     ! SpglibSpacegroupType spg_get_spacegroup_type(const int hall_number);
+     ! Get the space group tyep information from the hall symbol
+     module function spg_get_spacegroup_type(hall_number) result(tp)
+       integer, intent(in) :: hall_number
+       type(SpglibSpaceGroupType) :: tp
+     end function spg_get_spacegroup_type
   end interface
-
-
-contains
-
-  ! char *spg_get_error_message(SpglibError spglib_error);
-  ! Returns the error message based on the id from the last operation.
-  function spg_get_error_message(spglib_error)
-    use c_interface_module, only: c_f_string
-    integer(kind(SPGLIB_SUCCESS)) :: spglib_error
-    character(len=32) :: spg_get_error_message
-    integer :: i
-
-    interface
-       function spg_get_error_message_c(spglib_error) bind(c, name='spg_get_error_message')
-         import c_ptr, SPGLIB_SUCCESS
-         integer(kind(SPGLIB_SUCCESS)), value :: spglib_error
-         type(c_ptr) :: spg_get_error_message_c
-       end function spg_get_error_message_c
-    end interface
-
-    call c_f_string(spg_get_error_message_c(spglib_error),spg_get_error_message)
-
-  end function spg_get_error_message
-
-  ! SpglibDataset* spg_get_dataset(SPGCONST double lattice[3][3],SPGCONST double position[][3],
-  !                                const int types[], const int num_atom, const double symprec);
-  ! SpglibDataset* spg_get_dataset_with_hall_number(SPGCONST double lattice[3][3],SPGCONST double position[][3],
-  !                                                 const int types[],const int num_atom,const int hall_number,
-  !                                                 const double symprec);
-  ! Get the dataset from the crystal geometry and precision. Optionally, indicate the
-  ! hall number.
-  function spg_get_dataset(lattice, position, types, num_atom, symprec, hall_number) result(dset)
-    use c_interface_module, only: c_f_string
-    real(c_double), intent(in) :: lattice(3,3)
-    real(c_double), intent(in) :: position(3,*)
-    integer(c_int), intent(in) :: types(*)
-    integer(c_int), intent(in), value :: num_atom
-    real(c_double), intent(in), value :: symprec
-    integer(c_int), intent(in), value, optional :: hall_number
-    type(SpglibDataset) :: dset
-
-    type, bind(c) :: SpglibDataset_c
-       integer(c_int) :: spacegroup_number
-       integer(c_int) :: hall_number
-       character(kind=c_char) :: international_symbol(11)
-       character(kind=c_char) :: hall_symbol(17)
-       character(kind=c_char) :: choice(6)
-       real(c_double) :: transformation_matrix(3,3)
-       real(c_double) :: origin_shift(3)
-       integer(c_int) :: n_operations
-       type(c_ptr) :: rotations
-       type(c_ptr) :: translations
-       integer(c_int) :: n_atoms
-       type(c_ptr) :: wyckoffs
-       type(c_ptr) :: site_symmetry_symbols
-       type(c_ptr) :: equivalent_atoms
-       type(c_ptr) :: mapping_to_primitive
-       integer(c_int) :: n_std_atoms
-       real(c_double) :: std_lattice(3,3)
-       type(c_ptr) :: std_types
-       type(c_ptr) :: std_positions
-       real(c_double)  :: std_rotation_matrix(3,3)
-       type(c_ptr) :: std_mapping_to_primitive
-       character(kind=c_char) :: pointgroup_symbol(6)
-    end type SpglibDataset_c
-
-    interface
-       function spg_get_dataset_c(lattice, position, types, num_atom, symprec) bind(c, name='spg_get_dataset')
-         import c_int, c_double, c_ptr
-         real(c_double), intent(in) :: lattice(3,3)
-         real(c_double), intent(in) :: position(3,*)
-         integer(c_int), intent(in) :: types(*)
-         integer(c_int), intent(in), value :: num_atom
-         real(c_double), intent(in), value :: symprec
-         type(c_ptr) :: spg_get_dataset_c
-       end function spg_get_dataset_c
-       function spg_get_dataset_with_hall_number_c(lattice, position, types, num_atom, hall_number, symprec) bind(c, name='spg_get_dataset_with_hall_number')
-         import c_int, c_double, c_ptr
-         real(c_double), intent(in) :: lattice(3,3)
-         real(c_double), intent(in) :: position(3,*)
-         integer(c_int), intent(in) :: types(*)
-         integer(c_int), intent(in), value :: num_atom
-         integer(c_int), intent(in), value :: hall_number
-         real(c_double), intent(in), value :: symprec
-         type(c_ptr) :: spg_get_dataset_with_hall_number_c
-       end function spg_get_dataset_with_hall_number_c
-
-       subroutine spg_free_dataset_c(dataset) bind(c, name = 'spg_free_dataset')
-         import SpglibDataset_c
-         type(SpglibDataset_c), intent(inout) :: dataset
-       end subroutine spg_free_dataset_c
-    end interface
-
-    type(SpglibDataset_c), pointer :: dset_c
-    type(c_ptr) :: dataset_ptr_c
-    integer(c_int) :: n_operations, n_atoms, n_std_atoms
-    integer :: i
-    integer(c_int) :: hall
-    integer(kind(SPGLIB_SUCCESS)) :: SpglibErrcode
-    real(c_double), pointer :: translations(:,:)
-    integer(c_int), pointer :: rotations(:,:,:), wyckoffs(:), equivalent_atoms(:), std_types(:), std_positions(:,:)
-
-    hall = 0
-    if (present(hall_number)) hall = hall_number
-    if (hall > 0) then
-       dataset_ptr_c = spg_get_dataset_with_hall_number_c(lattice, position, types, num_atom, hall, symprec)
-    else
-       dataset_ptr_c = spg_get_dataset_c(lattice, position, types, num_atom, symprec)
-    end if
-
-    if (c_associated(dataset_ptr_c)) then
-       dset%spglib_error = SPGLIB_SUCCESS
-
-       call c_f_pointer(dataset_ptr_c, dset_c)
-
-       dset%spacegroup_number     = dset_c%spacegroup_number
-       dset%hall_number           = dset_c%hall_number
-       dset%transformation_matrix = dset_c%transformation_matrix
-       dset%origin_shift          = dset_c%origin_shift
-       dset%n_operations          = dset_c%n_operations
-       dset%n_atoms               = dset_c%n_atoms
-       dset%n_std_atoms           = dset_c%n_std_atoms
-       dset%std_lattice           = dset_c%std_lattice
-       call c_f_string(dset_c%international_symbol,dset%international_symbol)
-       call c_f_string(dset_c%hall_symbol,dset%hall_symbol)
-       call c_f_string(dset_c%choice,dset%choice)
-       call c_f_string(dset_c%pointgroup_symbol,dset%pointgroup_symbol)
-       n_operations = dset_c%n_operations
-       n_atoms      = dset_c%n_atoms
-       n_std_atoms  = dset_c%n_std_atoms
-       call c_f_pointer(dset_c%rotations, rotations, shape=[3, 3, n_operations])
-       call c_f_pointer(dset_c%translations, translations, shape=[3, n_operations])
-       call c_f_pointer(dset_c%wyckoffs, wyckoffs, shape=[n_atoms])
-       call c_f_pointer(dset_c%equivalent_atoms, equivalent_atoms, shape=[n_atoms])
-       call c_f_pointer(dset_c%std_types, std_types, shape=[n_std_atoms])
-       call c_f_pointer(dset_c%std_positions, std_positions, shape=[3, n_std_atoms])
-       allocate(dset%rotations(3, 3, n_operations))
-       allocate(dset%translations(3, n_operations))
-       allocate(dset%wyckoffs(n_atoms))
-       allocate(dset%equivalent_atoms(n_atoms))
-       allocate(dset%std_types(n_std_atoms))
-       allocate(dset%std_positions(3, n_std_atoms))
-       dset%rotations        = rotations
-       dset%translations     = translations
-       dset%wyckoffs         = wyckoffs
-       dset%equivalent_atoms = equivalent_atoms
-       dset%std_types        = std_types
-       dset%std_positions    = std_positions
-       call spg_free_dataset_c(dset_c)
-    else
-       dset%spglib_error = spg_get_error_code()
-       dset%spacegroup_number = 0
-       dset%hall_number = 0
-       dset%international_symbol = ""
-       dset%hall_symbol = ""
-       dset%choice = ""
-       dset%transformation_matrix = 0.0_c_double
-       dset%origin_shift = 0.0_c_double
-       dset%n_operations = 0
-       dset%n_atoms = 0
-       dset%n_std_atoms = 0
-       dset%std_lattice = 0.0_c_double
-       dset%pointgroup_symbol = ""
-    end if
-
-  end function spg_get_dataset
-
-  ! SpglibSpacegroupType spg_get_spacegroup_type(const int hall_number);
-  ! Get the space group tyep information from the hall symbol
-  function spg_get_spacegroup_type(hall_number) result(tp)
-    use c_interface_module, only: c_f_string
-    integer, intent(in) :: hall_number
-    type(SpglibSpaceGroupType) :: tp
-    
-    type, bind(c) :: SpglibSpaceGroupType_c
-       integer(c_int) :: number
-       character(kind=c_char) :: international_short(11)
-       character(kind=c_char) :: international_full(20)
-       character(kind=c_char) :: international(32)
-       character(kind=c_char) :: schoenflies(7)
-       character(kind=c_char) :: hall_symbol(17)
-       character(kind=c_char) :: choice(6)
-       character(kind=c_char) :: pointgroup_international(6)
-       character(kind=c_char) :: pointgroup_schoenflies(4)
-       integer(c_int) :: arithmetic_crystal_class_number
-       character(kind=c_char) :: arithmetic_crystal_class_symbol(7)
-    end type SpglibSpaceGroupType_c
-
-    interface
-       function spg_get_spacegroup_type_c(hall_number) bind(c, name='spg_get_spacegroup_type')
-         import c_int, SpglibSpaceGroupType_c
-         integer(c_int), intent(in), value :: hall_number
-         type(SpglibSpaceGroupType_c) :: spg_get_spacegroup_type_c
-       end function spg_get_spacegroup_type_c
-    end interface
-
-    type(SpglibSpaceGroupType_c) :: tpc
-    
-    tpc = spg_get_spacegroup_type_c(hall_number)
-    tp%number = tpc%number
-    tp%arithmetic_crystal_class_number = tpc%arithmetic_crystal_class_number
-    call c_f_string(tpc%international_short,tp%international_short)
-    call c_f_string(tpc%international_full,tp%international_full)
-    call c_f_string(tpc%international,tp%international)
-    call c_f_string(tpc%schoenflies,tp%schoenflies)
-    call c_f_string(tpc%hall_symbol,tp%hall_symbol)
-    call c_f_string(tpc%choice,tp%choice)
-    call c_f_string(tpc%pointgroup_international,tp%pointgroup_international)
-    call c_f_string(tpc%pointgroup_schoenflies,tp%pointgroup_schoenflies)
-    call c_f_string(tpc%arithmetic_crystal_class_symbol,tp%arithmetic_crystal_class_symbol)
-    
-  end function spg_get_spacegroup_type
 
 end module spglib
