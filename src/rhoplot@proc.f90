@@ -64,31 +64,54 @@ submodule (rhoplot) proc
 
 contains
 
-  ! Calculate properties at a point
+  ! Calculate properties at a point or at a set of points given by the user.
   module subroutine rhoplot_point(line)
     use systemmod, only: sy
     use global, only: eval_next, dunit0, iunit
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
-       isexpression_or_word, uout, string
-    use types, only: scalar_value
+       isexpression_or_word, uout, string, fopen_read, fclose, getline
+    use types, only: scalar_value, realloc
     use param, only: bohrtoa
     character*(*), intent(in) :: line
 
     type(scalar_value) :: res
     logical :: ok, iok, doall
-    integer :: lp, lp2, j, ifi
-    real*8 :: x0(3), xp(3), rdum
-    character(len=:), allocatable :: word, expr
+    integer :: lp, lp2, i, j, ifi, lu
+    real*8 :: x0(3), xx(3), rdum, x1, y1, z1
+    character(len=:), allocatable :: word, expr, str
+    integer :: np
+    real*8, allocatable :: xp(:,:)
 
-    ! read the point
+    ! check if the next field is a file
     lp = 1
-    ok = eval_next(x0(1),line,lp)
-    ok = ok .and. eval_next(x0(2),line,lp)
-    ok = ok .and. eval_next(x0(3),line,lp)
-    if (.not. ok) then
-       call ferror('critic','wrong POINT command',faterr,line,syntax=.true.)
-       return
+    word = getword(line,lp)
+    if (len_trim(word) == 0) goto 999
+    inquire(file=word,exist=ok)
+
+    if (.not.ok) then
+       ! read the point
+       np = 1
+       allocate(xp(3,1))
+       lp = 1
+       ok = eval_next(xp(1,1),line,lp)
+       ok = ok .and. eval_next(xp(2,1),line,lp)
+       ok = ok .and. eval_next(xp(3,1),line,lp)
+       if (.not. ok) goto 999
+    else
+       np = 0
+       allocate(xp(3,10))
+       lu = fopen_read(word)
+       do while (getline(lu,str))
+          read (str,*,err=998) x1, y1, z1
+          np = np + 1
+          if (np > size(xp,2)) call realloc(xp,3,2*np)
+          xp(1,np) = x1
+          xp(2,np) = y1
+          xp(3,np) = z1
+       end do
+       call realloc(xp,3,np)
+       call fclose(lu)
     end if
 
     ! read additional options
@@ -123,24 +146,36 @@ contains
        end if
     end do
 
-    write (uout,'("* POINT ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
-    if (.not.sy%c%ismolecule) then
-       xp = sy%c%x2c(x0)
-       write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xp(j),'f',decimal=7),j=1,3)
-       write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xp(j)*bohrtoa,'f',decimal=7),j=1,3)
-    else
-       write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
-       xp = x0 / dunit0(iunit) - sy%c%molx0
-       x0 = sy%c%c2x(xp)
-    endif
-    if (ifi > -1) then
-       write (uout,'("+ Field: ",A)') string(ifi)
-       call sy%propty(ifi,x0,res,.true.,doall)
-    else
-       rdum = sy%eval(expr,.true.,iok,xp)
-       write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
-    endif
-    write (uout,*)
+    do i = 1, np
+       x0 = xp(:,i)
+       write (uout,'("* POINT ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
+       if (.not.sy%c%ismolecule) then
+          xx = sy%c%x2c(x0)
+          write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xx(j),'f',decimal=7),j=1,3)
+          write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xx(j)*bohrtoa,'f',decimal=7),j=1,3)
+       else
+          write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
+          xx = x0 / dunit0(iunit) - sy%c%molx0
+          x0 = sy%c%c2x(xx)
+       endif
+       if (ifi > -1) then
+          write (uout,'("+ Field: ",A)') string(ifi)
+          call sy%propty(ifi,x0,res,.true.,doall)
+       else
+          rdum = sy%eval(expr,.true.,iok,xx)
+          write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
+       endif
+       write (uout,*)
+    end do
+
+    return
+    
+998 continue
+    call ferror('critic','error reading file in POINT keyword',faterr,line,syntax=.true.)
+    return
+999 continue
+    call ferror('critic','wrong syntax in POINT keyword',faterr,line,syntax=.true.)
+    return
 
   end subroutine rhoplot_point
 
