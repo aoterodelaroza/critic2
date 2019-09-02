@@ -291,9 +291,8 @@ contains
     character(len=*), intent(out) :: F_string
     character(len=1,kind=C_char), dimension(:), pointer :: p_chars
     integer :: i
-    if (.not. C_associated(C_string)) then
-       F_string = ' '
-    else
+    f_string = ""
+    if (C_associated(C_string)) then
        call C_F_pointer(C_string,p_chars,[huge(0)])
        i=1
        do while(p_chars(i)/=NUL .and. i<=len(F_string))
@@ -310,6 +309,7 @@ contains
     character(len=*), intent(out) :: F_string
     integer :: i
     i=1
+    f_string = ""
     do while(C_string(i)/=NUL .and. i<=len(F_string))
        F_string(i:i) = C_string(i)
        i=i+1
