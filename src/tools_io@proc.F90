@@ -751,13 +751,14 @@ contains
        idx = 0
        if (present(toup)) then
           if (toup) then
-             idx = index(up,a(i:i))
-             if (idx > 0) deblank(j:j) = lo(idx:idx)
-          end if
-       elseif (present(todn)) then
-          if (todn) then
              idx = index(lo,a(i:i))
              if (idx > 0) deblank(j:j) = up(idx:idx)
+          end if
+       end if
+       if (present(todn)) then
+          if (todn) then
+             idx = index(up,a(i:i))
+             if (idx > 0) deblank(j:j) = lo(idx:idx)
           end if
        end if
        if (idx == 0) deblank(j:j) = a(i:i)
