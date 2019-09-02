@@ -767,6 +767,27 @@ contains
 
   end function deblank
 
+  !> Strip a character from a string. Return the stripped string.
+  module function stripchar(a,ch)
+    character*(*), intent(in) :: a
+    character, intent(in) :: ch
+    character*(len(a)) :: stripchar
+
+    integer :: i, j
+
+    stripchar = a
+    if (index(a,ch) == 0) return
+
+    j = 0
+    do i = 1, len(a)
+       if (a(i:i) == ch) cycle
+       j = j + 1
+       stripchar(j:j) = a(i:i)
+    end do
+    if (j < len(a)) stripchar(j+1:len(a)) = ""
+
+  end function stripchar
+
   !> Get next word from line at lp. If successful, increase lp. A word
   !> is defined as any sequence on nonblanks.
   module function getword(line,lp) result(word)

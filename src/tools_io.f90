@@ -188,6 +188,11 @@ module tools_io
        logical, intent(in), optional :: todn
        character*(len(a)) :: deblank
      end function deblank
+     module function stripchar(a,ch)
+       character*(*), intent(in) :: a
+       character, intent(in) :: ch
+       character*(len(a)) :: stripchar
+     end function stripchar
      module function getword(line,lp) result(word)
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp
