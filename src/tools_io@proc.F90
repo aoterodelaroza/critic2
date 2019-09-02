@@ -730,6 +730,42 @@ contains
 
   end function lower
 
+  !> Remove blanks from a string. Optionally, convert
+  !> to uppercase or lowercase.
+  module function deblank(a,toup,todn)
+    character*(*), intent(in) :: a
+    logical, intent(in), optional :: toup
+    logical, intent(in), optional :: todn
+    character*(len(a)) :: deblank
+
+    character(*), parameter :: lo = 'abcdefghijklmnopqrstuvwxyz'
+    character(*), parameter :: up = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    integer :: i, j, idx
+
+    deblank = a
+    j = 0
+    do i = 1, len(a)
+       if (a(i:i) == ' ') cycle
+       j = j + 1
+       idx = 0
+       if (present(toup)) then
+          if (toup) then
+             idx = index(up,a(i:i))
+             if (idx > 0) deblank(j:j) = lo(idx:idx)
+          end if
+       elseif (present(todn)) then
+          if (todn) then
+             idx = index(lo,a(i:i))
+             if (idx > 0) deblank(j:j) = up(idx:idx)
+          end if
+       end if
+       if (idx == 0) deblank(j:j) = a(i:i)
+    end do
+    if (j < len(a)) deblank(j+1:len(a)) = ""
+
+  end function deblank
+
   !> Get next word from line at lp. If successful, increase lp. A word
   !> is defined as any sequence on nonblanks.
   module function getword(line,lp) result(word)

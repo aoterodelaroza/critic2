@@ -182,6 +182,12 @@ module tools_io
        character*(*), intent(in) :: a
        character*(len(a)) :: lower
      end function lower
+     module function deblank(a,toup,todn)
+       character*(*), intent(in) :: a
+       logical, intent(in), optional :: toup
+       logical, intent(in), optional :: todn
+       character*(len(a)) :: deblank
+     end function deblank
      module function getword(line,lp) result(word)
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp
