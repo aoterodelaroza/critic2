@@ -421,13 +421,14 @@ contains
     type(SpglibSpaceGroupType) :: sa
     integer :: i
     
-    character(len=:), allocatable :: strs, strf
+    character(len=:), allocatable :: strs, strf, strcs
 
     write (uout,'("* LIST of space group types")') 
     write (uout,'("# Hall = Hall space group number. ITA = International space group number.")')
     write (uout,'("# HM-short = short Hermann-Mauguin symbol. HM-long = long H-M symbol.")')
-    write (uout,'("# choice = origin/setting choice. Hall-symbol = Hall space group symbol.")')
-    write (uout,'("#Hall ITA   HM-short HM-long       choice  Hall-symbol")')
+    write (uout,'("# choice = origin/setting choice. crys.-syst. = crystal system.")')
+    write (uout,'("# Hall-symbol = Hall space group symbol.")')
+    write (uout,'("#Hall ITA   HM-short HM-long       choice  crys.-syst.  Hall-symbol")')
     do i = 1, 530
        sa = spg_get_spacegroup_type(i)
 
@@ -436,9 +437,27 @@ contains
        strf = deblank(sa%international_full)
        strf = trim(stripchar(strf,"_"))
 
-       write (uout,'(5(A,X),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
+       if (sa%number >= 1 .and. sa%number <= 2) then
+          strcs = "triclinic"
+       elseif (sa%number >= 3 .and. sa%number <= 15) then
+          strcs = "monoclinic"
+       elseif (sa%number >= 16 .and. sa%number <= 74) then
+          strcs = "orthorhombic"
+       elseif (sa%number >= 75 .and. sa%number <= 142) then
+          strcs = "tetragonal"
+       elseif (sa%number >= 143 .and. sa%number <= 167) then
+          strcs = "trigonal"
+       elseif (sa%number >= 168 .and. sa%number <= 194) then
+          strcs = "hexagonal"
+       elseif (sa%number >= 195 .and. sa%number <= 230) then
+          strcs = "cubic"
+       else
+          strcs = "??"
+       end if
+
+       write (uout,'(6(A,X),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
           string(strs,8,ioj_left), string(strf,14,ioj_left), string(sa%choice,6,ioj_left), &
-          string(sa%hall_symbol)
+          string(strcs,12,ioj_left), string(sa%hall_symbol)
     end do
     write (uout,*)
 
