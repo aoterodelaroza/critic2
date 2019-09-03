@@ -27,7 +27,6 @@ submodule (crystalseedmod) proc
   ! subroutine read_cif_items(seed,mol,errmsg)
   ! function is_espresso(file)
   ! subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
-  ! subroutine spgs_wrap(seed,spg,usespgr)
 
 contains
 
@@ -4705,8 +4704,10 @@ contains
           goto 999
        end if
 
-       ! call spgs and hope for the best
-       call spgs_wrap(seed,spg,.false.)
+       ! call spglib and hope for the best
+       seed%havesym = 0
+       seed%findsym = -1
+       seed%checkrepeats = 0
     endif
 
     ! rest of the seed information
@@ -4994,33 +4995,5 @@ contains
     end if
 
   end subroutine qe_latgen
-
-  !> Wrapper to the spgs module. Sets the symetry in a crystal seed. 
-  !> (including seed%havesym but not seed%findsym). If the spg
-  !> was not correct, keep havesym = 0 and do nothing else.
-  subroutine spgs_wrap(seed,spg,usespgr)
-    use spgs, only: spgs_ncv, spgs_cen, spgs_n, spgs_m, spgs_driver
-    class(crystalseed), intent(inout) :: seed
-    character*(*), intent(in) :: spg
-    logical, intent(in) :: usespgr
-
-    if (spgs_driver(spg,usespgr)) then
-       seed%ncv = spgs_ncv
-       if (allocated(seed%cen)) deallocate(seed%cen)
-       allocate(seed%cen(3,seed%ncv))
-       seed%cen(:,1:seed%ncv) = real(spgs_cen(:,1:seed%ncv),8) / 12d0
-       seed%neqv = spgs_n
-       if (allocated(seed%rotm)) deallocate(seed%rotm)
-       allocate(seed%rotm(3,4,spgs_n))
-       seed%rotm = real(spgs_m(:,:,1:spgs_n),8)
-       seed%rotm(:,4,:) = seed%rotm(:,4,:) / 12d0
-       seed%havesym = 1
-       seed%checkrepeats = 0
-    else
-       seed%havesym = 0
-       seed%checkrepeats = 0
-    end if
-
-  end subroutine spgs_wrap
 
 end submodule proc

@@ -41,7 +41,6 @@ program critic
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_compare, struct_identify
   use systemmod, only: systemmod_init, systemmod_end, sy
-  use spgs, only: spgs_init
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults
@@ -76,7 +75,6 @@ program critic
 
   ! set default values and initialize the rest of the modules
   call global_init(ghome,getstring(istring_datadir))
-  call spgs_init()
   call systemmod_init(1)
 
   ! parse global control options

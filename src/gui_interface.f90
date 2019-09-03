@@ -153,7 +153,6 @@ contains
     use iso_fortran_env, only: input_unit, output_unit
     use iso_c_binding, only: c_loc
     use systemmod, only: systemmod_init
-    use spgs, only: spgs_init
     use config, only: getstring, istring_datadir
     use global, only: global_init, config_write, initial_banner, critic_home
     use tools_io, only: ioinit, ucopy, uout, start_clock, &
@@ -173,7 +172,6 @@ contains
 
     ! set default values and initialize the rest of the modules
     call global_init("",getstring(istring_datadir))
-    call spgs_init()
     call systemmod_init(1)
 
     ! banner and compilation info; do not copy input
