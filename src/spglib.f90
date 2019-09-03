@@ -32,7 +32,6 @@ module spglib
   public :: spg_get_symmetry_with_collinear_spin, spgat_get_symmetry_with_collinear_spin
   public :: spg_get_multiplicity, spgat_get_multiplicity
   public :: spg_get_hall_number_from_symmetry
-  public :: spg_get_symmetry_from_database
   public :: spg_delaunay_reduce
   public :: spg_niggli_reduce
   public :: spg_find_primitive, spgat_find_primitive
@@ -45,6 +44,8 @@ module spglib
   public :: spg_get_error_message
   public :: spg_get_dataset
   public :: spg_get_spacegroup_type
+  public :: spg_get_hall_number_from_symbol
+  public :: spg_get_symmetry_from_database
 
   enum, bind(C)
      enumerator ::  SPGLIB_SUCCESS = 0
@@ -264,16 +265,6 @@ module spglib
        integer(c_int) :: spg_get_hall_number_from_symmetry
      end function spg_get_hall_number_from_symmetry
      
-     ! int spg_get_symmetry_from_database(int rotations[192][3][3],double translations[192][3],
-     !                                    const int hall_number);
-     ! Return the symmetry operations from the hall number.
-     function spg_get_symmetry_from_database(rotations,translations,hall_number) bind(c)
-       import c_int, c_double
-       integer(c_int), intent(inout) :: rotations(3,3,192)
-       real(c_double), intent(inout) :: translations(3,192)
-       integer(c_int) :: spg_get_symmetry_from_database
-     end function spg_get_symmetry_from_database
-     
      ! int spg_delaunay_reduce(double lattice[3][3], const double symprec);
      ! Delaunay reduction for this cell. The result is overwritten in lattice.
      function spg_delaunay_reduce(lattice, symprec) bind(c)
@@ -431,6 +422,23 @@ module spglib
        integer, intent(in) :: hall_number
        type(SpglibSpaceGroupType) :: tp
      end function spg_get_spacegroup_type
+
+     ! Return the hall number corresponding to a space group symbol.
+     ! Returns -1 if not found.
+     module function spg_get_hall_number_from_symbol(symbol0)
+       character(len=*), intent(in) :: symbol0
+       integer(c_int) :: spg_get_hall_number_from_symbol
+     end function spg_get_hall_number_from_symbol
+     
+     ! Return the symmetry operations from the hall number.
+     module subroutine spg_get_symmetry_from_database(hnum,nrot,ncv,rot,cv)
+       integer, intent(in) :: hnum
+       integer, intent(out) :: nrot
+       integer, intent(out) :: ncv
+       real*8, intent(inout), allocatable :: rot(:,:,:)
+       real*8, intent(inout), allocatable :: cv(:,:)
+     end subroutine spg_get_symmetry_from_database
+
   end interface
 
 end module spglib

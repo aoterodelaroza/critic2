@@ -33,6 +33,7 @@ contains
 
   !> Parse a crystal environment
   module subroutine parse_crystal_env(seed,lu,oksyn)
+    use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
     use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
@@ -48,6 +49,7 @@ contains
     character(len=:), allocatable :: word, aux, aexp, line, name
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0, it
+    integer :: hnum
     real*8 :: rmat(3,3), scal, ascal, x(3), xn(3)
     logical :: ok, goodspg, useit
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
@@ -166,12 +168,15 @@ contains
           rmat = matinv(seed%m_x2c)
           seed%useabr = 2
 
-       else if (equal(word,'spg').or.equal(word,'spgr')) then
-          ! spg <spg>
-          useit = equal(word,'spgr')
-          word = line(lp:)
-          call spgs_wrap(seed,word,useit)
-          goodspg = (seed%havesym > 0)
+       else if (equal(word,'spg')) then
+          hnum = spg_get_hall_number_from_symbol(line(lp:))
+          call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
+          if (seed%neqv <= 0) then
+             call ferror('parse_crystal_env','Error interpreting space group symbol',faterr,line,syntax=.true.)
+             return
+          end if
+          seed%havesym = 1
+          goodspg = 1
 
        else if (equal(word,'symm')) then
           ! symm <line>

@@ -16,7 +16,14 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 submodule (spglib) proc
+  use hashmod, only: hash
   implicit none
+
+  ! save the mapping between international symbol, etc.
+  ! to hall number
+  logical :: mapavail = .false.
+  type(hash) :: ints, intf
+  integer :: inthnum(230)
 
 contains
 
@@ -26,7 +33,6 @@ contains
     use c_interface_module, only: c_f_string
     integer(kind(SPGLIB_SUCCESS)) :: spglib_error
     character(len=32) :: spg_get_error_message
-    integer :: i
 
     interface
        function spg_get_error_message_c(spglib_error) bind(c, name='spg_get_error_message')
@@ -112,9 +118,7 @@ contains
     type(SpglibDataset_c), pointer :: dset_c
     type(c_ptr) :: dataset_ptr_c
     integer(c_int) :: n_operations, n_atoms, n_std_atoms
-    integer :: i
     integer(c_int) :: hall
-    integer(kind(SPGLIB_SUCCESS)) :: SpglibErrcode
     real(c_double), pointer :: translations(:,:)
     integer(c_int), pointer :: rotations(:,:,:), wyckoffs(:), equivalent_atoms(:), std_types(:), std_positions(:,:)
 
@@ -228,5 +232,187 @@ contains
     call c_f_string(tpc%arithmetic_crystal_class_symbol,tp%arithmetic_crystal_class_symbol)
     
   end function spg_get_spacegroup_type
+  
+  ! Return the hall number corresponding to a space group symbol.
+  ! Returns -1 if not found.
+  module function spg_get_hall_number_from_symbol(symbol0) result(hnum)
+    use tools_io, only: isinteger, lgetword, equal, lower, deblank
+    character(len=*), intent(in) :: symbol0
+    integer(c_int) :: hnum
+
+    integer :: iaux, lp
+    character(len=:), allocatable :: word, symbol
+
+    call build_hall_mapping()
+
+    hnum = -1
+    lp = 1
+    if (isinteger(iaux,symbol0,lp)) then
+       word = lgetword(symbol0,lp)
+       if (equal(word,'hm')) then
+          if (iaux >= 1 .and. iaux <= 230) hnum = inthnum(iaux)
+       else
+          if (iaux >= 1 .and. iaux <= 530) hnum = iaux
+       end if
+    else
+       symbol = trim(deblank(symbol0,todn=.true.))
+       if (intf%iskey(symbol)) then
+          hnum = intf%get(symbol,hnum)
+       elseif (ints%iskey(symbol)) then
+          hnum = ints%get(symbol,hnum)
+       end if
+    end if
+
+  end function spg_get_hall_number_from_symbol
+
+  !xx! private procedures
+
+  ! Build the mapping that gives the Hall number from symbols, etc.
+  subroutine build_hall_mapping()
+    use tools_io, only: deblank, stripchar
+    type(SpglibSpaceGroupType) :: sa
+    integer :: i, iaux
+    character(len=:), allocatable :: aux
+
+    if (mapavail) return
+
+    do i = 1, 530
+       sa = spg_get_spacegroup_type(i)
+
+       aux = deblank(sa%international_short,todn=.true.)
+       aux = trim(stripchar(aux,"_"))
+       if (.not.ints%iskey(aux)) call ints%put(aux,i)
+
+       aux = deblank(sa%international_full,todn=.true.)
+       aux = trim(stripchar(aux,"_"))
+       if (.not.intf%iskey(aux)) call intf%put(aux,i)
+
+       iaux = sa%number
+       if (inthnum(iaux) == 0) inthnum(iaux) = i
+    end do
+    mapavail = .true.
+
+  end subroutine build_hall_mapping
+
+  ! Return the symmetry operations from the Hall number. If failed,
+  ! return nrot = ncv = 0.
+  module subroutine spg_get_symmetry_from_database(hnum,nrot,ncv,rot,cv)
+    use types, only: realloc
+    integer, intent(in) :: hnum
+    integer, intent(out) :: nrot
+    integer, intent(out) :: ncv
+    real*8, intent(inout), allocatable :: rot(:,:,:)
+    real*8, intent(inout), allocatable :: cv(:,:)
+    
+    integer(c_int) :: rot0(3,3,192)
+    real(c_double) :: cv0(3,192)
+    integer :: nop, i, j, k
+    logical :: found
+    real*8 :: xdif(3), xaux(3), xmaux(3,4)
+
+    real*8, parameter :: eps = 1d-5
+    integer, parameter :: eye(3,3) = reshape((/1,0,0,0,1,0,0,0,1/),shape(eye))
+
+    interface
+       ! int spg_get_symmetry_from_database(int rotations[192][3][3],double translations[192][3],
+       !                                    const int hall_number);
+       function spg_get_symmetry_from_database_c(rotations,translations,hall_number) bind(c,name='spg_get_symmetry_from_database')
+         import c_int, c_double
+         integer(c_int), intent(inout) :: rotations(3,3,192)
+         real(c_double), intent(inout) :: translations(3,192)
+         integer(c_int), value :: hall_number
+         integer(c_int) :: spg_get_symmetry_from_database_c
+       end function spg_get_symmetry_from_database_c
+    end interface
+
+    nrot = 0
+    ncv = 0
+    if (allocated(rot)) deallocate(rot)
+    if (allocated(cv)) deallocate(cv)
+
+    nop = spg_get_symmetry_from_database_c(rot0,cv0,hnum)
+    if (nop <= 0) goto 999
+
+    ! detect centering vectors
+    allocate(cv(3,10))
+    do i = 1, nop
+       if (all(rot0(:,:,i) - eye == 0)) then
+          ncv = ncv + 1
+          if (ncv > size(cv,2)) call realloc(cv,3,2*ncv)
+          cv(:,ncv) = cv0(:,i)
+       end if
+    end do
+    call realloc(cv,3,ncv)
+
+    ! allocate space for symmetry operations
+    if (mod(nop,ncv) /= 0) goto 999
+
+    ! reduce the number of operations using the centering vectors
+    nrot = 0
+    allocate(rot(3,4,nop/ncv))
+    do i = 1, nop
+       found = .false.
+       jloop: do j = 1, nrot
+          if (all(nint(rot(1:3,1:3,j)) == rot0(:,:,i))) then
+             do k = 1, ncv
+                xdif = (rot(1:3,4,j) + cv(:,k)) - cv0(:,i)
+                xdif = xdif - nint(xdif)
+                if (all(abs(xdif) < eps)) then
+                   found = .true.
+                   exit jloop
+                end if
+             end do
+          end if
+       end do jloop
+       if (.not.found) then
+          nrot = nrot + 1
+          rot(1:3,1:3,nrot) = rot0(:,:,i)
+          rot(1:3,4,nrot) = cv0(:,i)
+       end if
+    end do
+
+    ! tranpose the rotation matrices
+    do i = 1, nrot
+       rot(1:3,1:3,i) = transpose(rot(1:3,1:3,i))
+    end do
+
+    ! check that the first centering is the zero vector
+    if (.not.all(abs(cv(:,1)) < eps) .and. ncv > 1) then
+       k = 0
+       do j = 2, ncv
+          if (all(abs(cv(:,j)) < eps)) then
+             k = j
+             exit
+          end if
+       end do
+       if (k == 0) goto 999
+       xaux = cv(:,k)
+       cv(:,k) = cv(:,1)
+       cv(:,1) = xaux
+    end if
+
+    ! check that the first operation is the identity
+    if (.not.all(abs(rot(1:3,1:3,1) - eye) < eps) .and. all(abs(rot(1:3,4,1)) < eps) .and. nrot > 1) then
+       k = 0
+       do j = 2, nrot
+          if (all(abs(rot(1:3,1:3,j) - eye) < eps) .and. all(abs(rot(1:3,4,j)) < eps)) then
+             k = j
+             exit
+          end if
+       end do
+       if (k == 0) goto 999
+       xmaux = rot(:,:,k)
+       rot(:,:,k) = rot(:,:,1)
+       rot(:,:,1) = xmaux
+    end if
+
+    return
+999 continue
+    ncv = 0
+    nrot = 0
+    if (allocated(cv)) deallocate(cv)
+    if (allocated(rot)) deallocate(rot)
+
+  end subroutine spg_get_symmetry_from_database
 
 end submodule proc
