@@ -159,7 +159,7 @@ module spglib
        integer(c_int), intent(in), value :: to_primitive
        integer(c_int), intent(in), value :: no_idealize
        real(c_double), intent(in), value :: symprec, angle_tolerance
-       integer(c_int) :: spg_standardize_cell
+       integer(c_int) :: spgat_standardize_cell
      end function spgat_standardize_cell
      
      ! ## spglib.h
@@ -388,9 +388,11 @@ module spglib
 
      ! SpglibError spg_get_error_code(void);
      ! Get the error code from the last operation
-     function spg_get_error_code() bind(c, name='spg_get_error_code')
+     function spg_get_error_code() bind(c)
        integer(kind(SPGLIB_SUCCESS)) :: spg_get_error_code
      end function spg_get_error_code
+
+     !xx! functions implemented in the submodule
 
      ! char *spg_get_error_message(SpglibError spglib_error);
      ! Returns the error message based on the id from the last operation.
