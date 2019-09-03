@@ -44,6 +44,7 @@ program critic
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults
+  use spglib, only: spg_list_spg
   use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
@@ -550,6 +551,10 @@ program critic
         call ferror('critic2','critic2 was not compiled with LIBXC support',faterr,line,syntax=.true.)
         cycle
 #endif
+
+        ! spg
+     elseif (equal(word,'spg')) then
+        call spg_list_spg()
 
         ! reset
      elseif (equal(word,'reset')) then

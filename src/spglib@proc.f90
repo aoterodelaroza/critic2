@@ -415,4 +415,33 @@ contains
 
   end subroutine spg_get_symmetry_from_database
 
+  ! Write a list of all known space groups to the standard output
+  module subroutine spg_list_spg()
+    use tools_io, only: deblank, stripchar, string, uout, ioj_left, ioj_center
+    type(SpglibSpaceGroupType) :: sa
+    integer :: i
+    
+    character(len=:), allocatable :: strs, strf
+
+    write (uout,'("* LIST of space group types")') 
+    write (uout,'("# Hall = Hall space group number. ITA = International space group number.")')
+    write (uout,'("# HM-short = short Hermann-Mauguin symbol. HM-long = long H-M symbol.")')
+    write (uout,'("# choice = origin/setting choice. Hall-symbol = Hall space group symbol.")')
+    write (uout,'("#Hall ITA   HM-short HM-long       choice  Hall-symbol")')
+    do i = 1, 530
+       sa = spg_get_spacegroup_type(i)
+
+       strs = deblank(sa%international_short)
+       strs = trim(stripchar(strs,"_"))
+       strf = deblank(sa%international_full)
+       strf = trim(stripchar(strf,"_"))
+
+       write (uout,'(5(A,X),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
+          string(strs,8,ioj_left), string(strf,14,ioj_left), string(sa%choice,6,ioj_left), &
+          string(sa%hall_symbol)
+    end do
+    write (uout,*)
+
+  end subroutine spg_list_spg
+
 end submodule proc

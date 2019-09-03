@@ -46,6 +46,7 @@ module spglib
   public :: spg_get_spacegroup_type
   public :: spg_get_hall_number_from_symbol
   public :: spg_get_symmetry_from_database
+  public :: spg_list_spg
 
   enum, bind(C)
      enumerator ::  SPGLIB_SUCCESS = 0
@@ -438,6 +439,10 @@ module spglib
        real*8, intent(inout), allocatable :: rot(:,:,:)
        real*8, intent(inout), allocatable :: cv(:,:)
      end subroutine spg_get_symmetry_from_database
+
+     ! Write a list of all known space groups to the standard output
+     module subroutine spg_list_spg()
+     end subroutine spg_list_spg
 
   end interface
 
