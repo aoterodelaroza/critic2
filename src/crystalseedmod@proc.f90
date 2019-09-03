@@ -50,7 +50,7 @@ contains
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0, it
     integer :: hnum
     real*8 :: rmat(3,3), scal, ascal, x(3), xn(3)
-    logical :: ok, goodspg, useit
+    logical :: ok, goodspg
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
     logical :: icodef(3), iok, isset
     real*8 :: icoval(3)
@@ -175,7 +175,7 @@ contains
              return
           end if
           seed%havesym = 1
-          goodspg = 1
+          goodspg = .true.
 
        else if (equal(word,'symm')) then
           ! symm <line>

@@ -951,7 +951,7 @@ contains
     integer :: npts
     real*8, allocatable :: t(:), ih(:)
     integer, allocatable :: ipairs(:,:)
-    integer :: lp, lu, i, npairs, ival
+    integer :: lp, lu, i, npairs
     real*8 :: sigma
 
     ! default values
@@ -1573,7 +1573,7 @@ contains
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, str
+    character(len=:), allocatable :: word
     integer :: lp, lp2, lpold, i, j, k, iat, iz
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd, rnew
@@ -1581,7 +1581,6 @@ contains
     integer :: nat, ierr, lvec(3)
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
     real*8, allocatable :: dist(:), up2dsp(:,:)
-    type(environ), target :: eaux
     type(environ), pointer :: eptr
 
     ! allocate the default radii

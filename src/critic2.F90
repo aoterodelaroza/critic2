@@ -63,8 +63,11 @@ program critic
   !
   integer :: level, plevel, id
   integer :: i, nn, ismoli
-  logical :: ok, doref, doname, doflags
+  logical :: ok
   real*8 :: rdum
+#ifdef HAVE_LIBXC
+  logical :: doref, doname, doflags
+#endif
 
   ! initialize parameters
   call start_clock()

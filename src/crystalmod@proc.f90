@@ -183,7 +183,7 @@ contains
     logical, intent(in) :: crashfail
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
-    logical :: good, hasspg, clearsym
+    logical :: good, clearsym
     integer :: i, j, k, iat
     real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)

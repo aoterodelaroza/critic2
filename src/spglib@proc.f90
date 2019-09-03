@@ -417,7 +417,7 @@ contains
 
   ! Write a list of all known space groups to the standard output
   module subroutine spg_list_spg()
-    use tools_io, only: deblank, stripchar, string, uout, ioj_left, ioj_center
+    use tools_io, only: deblank, stripchar, string, uout, ioj_left
     type(SpglibSpaceGroupType) :: sa
     integer :: i
     

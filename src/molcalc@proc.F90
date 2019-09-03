@@ -236,11 +236,11 @@ contains
   end subroutine molcalc_expression
 
   subroutine molcalc_hfenergy()
+    use tools_io, only: ferror, faterr, uout, string
+#ifdef HAVE_CINT
     use systemmod, only: sy
     use fieldmod, only: type_wfn
     use wfn_private, only: wfn_rhf
-    use tools_io, only: ferror, faterr, uout, string
-#ifdef HAVE_CINT
 
     integer :: ioff, joff, koff, loff
     integer :: nbas, nbast
