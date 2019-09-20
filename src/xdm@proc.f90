@@ -751,14 +751,14 @@ contains
   subroutine xdm_qe(line0)
     use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
-       lgetword, isinteger, equal
+       lgetword, isinteger, equal, getword
     use types, only: realloc
 
     character*(*), intent(inout) :: line0
 
     integer :: i, j
     integer :: lu, lp, idx, idx1, idx2, idum
-    character(len=:), allocatable :: line, str, word, aux
+    character(len=:), allocatable :: line, str, word, aux, file
     logical :: ok, inbetween
     real*8 :: a1, a2
     real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
@@ -769,6 +769,7 @@ contains
     
     ! parse the options
     allocate(ifrom(10),ito(10))
+    file = sy%c%file
     lp = 1
     inbetween = .false.
     nfrom = 0
@@ -794,6 +795,8 @@ contains
           end do
           if (nto == 0) &
              call ferror("xdm_qe","No atoms found after AND keyword",faterr,line0,syntax=.true.)
+       else if (equal(word,"file")) then
+          file = getword(line0,lp)
        elseif (len_trim(word) > 0) then
           call ferror("xdm_qe","Unknown extra keyword: " // trim(word),faterr,line0,syntax=.true.)
           return
@@ -825,7 +828,7 @@ contains
     end if
 
     write (uout,'("* Sum the XDM dispersion energy using a QE output")')
-    write (uout,'("+ Reading coefficients from the file: ",A)') string(sy%c%file)
+    write (uout,'("+ Reading coefficients from the file: ",A)') string(file)
     if (nto > 0 .or. nfrom > 0) then
        str = "  Between atoms: "
        do i = 1, nfrom
@@ -842,7 +845,7 @@ contains
     end if
     deallocate(ito,ifrom)
 
-    lu = fopen_read(string(sy%c%file))
+    lu = fopen_read(string(file))
     main: do while (getline(lu,line))
        ! read the parameters
        if (trim(line) == "* XDM dispersion") then
