@@ -4479,7 +4479,7 @@ contains
     fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
     if (.not.checkcifop()) goto 999
     if (.not.fl) then
-       errmsg = "Error readinig cell lengths."
+       errmsg = "Error reading cell lengths."
        return
     end if
     seed%aa = seed%aa / bohrtoa
