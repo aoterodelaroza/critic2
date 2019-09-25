@@ -74,6 +74,7 @@ module crystalmod
      real*8 :: n2_xr2x !< norm2 of reduced cryst -> input cryst
      real*8 :: n2_x2xr !< norm2 of input cryst -> reduced cryst
      ! space-group symmetry
+     logical :: spgavail = .false. !< have spglib's symmetry?
      type(SpglibDataset) :: spg !< spglib's symmetry dataset
      integer :: neqv !< number of symmetry operations
      integer :: ncv  !< number of centering vectors

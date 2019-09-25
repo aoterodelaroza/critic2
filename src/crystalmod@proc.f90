@@ -106,6 +106,7 @@ contains
     c%n2_c2x = 0d0
 
     ! no symmetry
+    c%spgavail = .false.
     c%neqv = 1
     c%rotm = 0d0
     c%rotm(:,:,1) = eyet
@@ -206,7 +207,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string
+    use tools_io, only: ferror, faterr, zatguess, string, noerr
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -462,15 +463,23 @@ contains
 
     ! symmetry from spglib
     clearsym = .false.
-    if (.not.seed%ismolecule .and. seed%havesym == 0 .and. (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
-       ! symmetry was not available, and I want it
-       ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
-       call c%spglib_wrap(.true.,.false.,errmsg)
-       if (len_trim(errmsg) > 0) then
-          clearsym = .true.
-          call ferror("struct_new","spglib: "//errmsg,faterr)
+    !use tools_io, only: ferror, faterr, zatguess, string, noerr
+    if (.not.seed%ismolecule .and. seed%havesym == 0) then
+       if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) then
+          ! symmetry was not available, and I want it
+          ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
+          call c%spglib_wrap(.true.,.false.,errmsg)
+          if (len_trim(errmsg) > 0) then
+             clearsym = .true.
+             call ferror("struct_new","spglib: "//errmsg,faterr)
+          end if
+       else if (seed%findsym == -1 .and. seed%nat > crsmall) then
+          call ferror("struct_new","Symmetry not calculated because crystal has >"//string(crsmall)//" atoms",noerr)
+       else if (seed%findsym == 0) then
+          call ferror("struct_new","Symmetry not calculated because deactivated by user",noerr)
        end if
-    else if (c%havesym > 0) then
+
+    else if (.not.seed%ismolecule .and. c%havesym > 0) then
        ! symmetry was already available, but I still want the space group details
        call c%spglib_wrap(.false.,.true.,errmsg)
        if (len_trim(errmsg) > 0) then
@@ -498,6 +507,7 @@ contains
           c%atcel(i)%lvec = 0
           c%atcel(i)%is = c%at(i)%is
        end do
+       c%spgavail = .false.
        c%neqv = 1
        c%rotm = 0d0
        c%rotm(:,:,1) = eyet
@@ -2799,7 +2809,7 @@ contains
 
           if (c%havesym > 0) then
              write(uout,'("+ Crystal symmetry information")')
-             if (c%spg%n_atoms > 0) then
+             if (c%spgavail) then
                 if (len_trim(c%spg%choice) > 0) then
                    write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
                       string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
@@ -2817,7 +2827,7 @@ contains
                 write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
                 write(uout,'("  Laue class: ",A)') string(laue_string(laue))
              else
-                write(uout,'("  Unavailable because symmetry read from external file")')
+                write(uout,'("  -- not available --")')
              end if
              write (uout,*)
           end if
@@ -3057,6 +3067,7 @@ contains
     logical, allocatable :: used(:)
 
     ! get the dataset from spglib
+    c%spgavail = .false.
     errmsg = ""
     lattice = transpose(c%m_x2c)
     iz = 0
@@ -3088,6 +3099,7 @@ contains
        return
     end if
 
+    c%spgavail = .true.
     if (onlyspg) return
 
     ! make a copy of nneq into ncel, if appropriate
@@ -4251,7 +4263,7 @@ contains
     logical :: usesym
 
     ! use symmetry?
-    usesym = usesym0 .and. c%spg%n_atoms > 0
+    usesym = usesym0 .and. c%spgavail
 
     ! open output file
     lu = fopen_write(file)

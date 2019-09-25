@@ -120,7 +120,7 @@ module global
 
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
-  integer :: crsmall = 1100
+  integer :: crsmall = 2000
 
   ! navigation options
   real*8 :: NAV_step !< gradient path step length (bohr)
