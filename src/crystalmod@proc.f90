@@ -4346,28 +4346,37 @@ contains
 
   end subroutine write_critic
 
-  !> Write a simple cif file
-  module subroutine write_cif(c,file)
+  !> Write a simple cif file (filename = file) with the c crystal
+  !> structure. If usesym0, write symmetry to the cif file; otherwise
+  !> use P1.
+  module subroutine write_cif(c,file,usesym0)
     use global, only: fileroot
     use config, only: getstring, istring_version
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    logical, intent(in) :: usesym0
 
     integer :: i, iz, lu
     character(len=mlen), allocatable :: strfin(:)
     character(len=3) :: schpg
     character(len=:), allocatable :: sver
     integer :: holo, laue
+    logical :: usesym
 
-    allocate(strfin(c%neqv*c%ncv))
-    call c%struct_report_symxyz(strfin)
-    sver = getstring(istring_version)
+    ! use symmetry?
+    usesym = usesym0 .and. c%spg%n_atoms > 0
 
+    ! open output file
     lu = fopen_write(file)
+
+    ! header
+    sver = getstring(istring_version)
     write (lu,'("data_",A)') string(deblank(fileroot))
     write (lu,'("_audit_creation_method ''critic2-",A,"''")') string(sver)
+
+    ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa
     write (lu,'("_cell_length_b ",F20.10)') c%aa(2)*bohrtoa
     write (lu,'("_cell_length_c ",F20.10)') c%aa(3)*bohrtoa
@@ -4376,17 +4385,32 @@ contains
     write (lu,'("_cell_angle_gamma ",F14.4)') c%bb(3)
     write (lu,'("_cell_volume ",F20.6)') c%omega * bohrtoa**3
 
-    call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
-    write (lu,'("_space_group_crystal_system ",A)') string(holo_string(holo))
-    write (lu,'("_space_group_IT_number ",A)') string(c%spg%spacegroup_number)
-    write (lu,'("_space_group_name_H-M_alt ''",A,"''")') string(c%spg%international_symbol)
-    write (lu,'("_space_group_name_Hall ''",A,"''")') string(c%spg%hall_symbol)
+    ! write the symmetry, if applicable
+    if (usesym) then
+       allocate(strfin(c%neqv*c%ncv))
+       call c%struct_report_symxyz(strfin)
+       call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
+       write (lu,'("_space_group_crystal_system ",A)') string(holo_string(holo))
+       write (lu,'("_space_group_IT_number ",A)') string(c%spg%spacegroup_number)
+       write (lu,'("_space_group_name_H-M_alt ''",A,"''")') string(c%spg%international_symbol)
+       write (lu,'("_space_group_name_Hall ''",A,"''")') string(c%spg%hall_symbol)
 
-    write (lu,'("loop_")')
-    write (lu,'("_space_group_symop_operation_xyz")')
-    do i = 1, c%neqv*c%ncv
-       write (lu,'("  ''",A,"''")') string(strfin(i))
-    end do
+       write (lu,'("loop_")')
+       write (lu,'("_space_group_symop_operation_xyz")')
+       do i = 1, c%neqv*c%ncv
+          write (lu,'("  ''",A,"''")') string(strfin(i))
+       end do
+       deallocate(strfin)
+    else
+       write (lu,'("_space_group_crystal_system triclinic")')
+       write (lu,'("_space_group_IT_number 1")')
+       write (lu,'("_space_group_name_H-M_alt ''P 1''")')
+       write (lu,'("_space_group_name_Hall ''P 1''")')
+
+       write (lu,'("loop_")')
+       write (lu,'("_space_group_symop_operation_xyz")')
+       write (lu,'("  ''x,y,z''")')
+    end if
 
     write (lu,'("loop_")')
     write (lu,'("_atom_site_label")')
@@ -4394,12 +4418,18 @@ contains
     write (lu,'("_atom_site_fract_x")')
     write (lu,'("_atom_site_fract_y")')
     write (lu,'("_atom_site_fract_z")')
-    do i = 1, c%nneq
-       iz = c%at(i)%is
-       write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
-    end do
+    if (usesym) then
+       do i = 1, c%nneq
+          iz = c%at(i)%is
+          write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
+       end do
+    else
+       do i = 1, c%ncel
+          iz = c%atcel(i)%is
+          write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
+       end do
+    end if
     call fclose(lu)
-    deallocate(strfin)
 
   end subroutine write_cif
 

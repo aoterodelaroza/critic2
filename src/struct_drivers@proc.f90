@@ -558,14 +558,8 @@ contains
        call s%c%write_critic(file)
        ok = check_no_extra_word()
        if (.not.ok) return
-    elseif (equal(wext,'cif')) then
-       ! cif
-       write (uout,'("* WRITE cif file: ",A)') string(file)
-       call s%c%write_cif(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'d12')) then
-       ! d12
+    elseif (equal(wext,'cif') .or. equal(wext,'d12')) then
+       ! cif and d12
        dosym = .true.
        do while(.true.)
           word = lgetword(line,lp)
@@ -578,8 +572,14 @@ contains
              exit
           end if
        end do
-       write (uout,'("* WRITE crystal file: ",A)') string(file)
-       call s%c%write_d12(file,dosym)
+
+       if (equal(wext,'cif')) then
+          write (uout,'("* WRITE cif file: ",A)') string(file)
+          call s%c%write_cif(file,dosym)
+       else
+          write (uout,'("* WRITE crystal file: ",A)') string(file)
+          call s%c%write_d12(file,dosym)
+       end if
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'m')) then

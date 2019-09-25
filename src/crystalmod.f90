@@ -566,9 +566,10 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_critic
-     module subroutine write_cif(c,file)
+     module subroutine write_cif(c,file,usesym0)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       logical, intent(in) :: usesym0
      end subroutine write_cif
      module subroutine write_d12(c,file,dosym)
        class(crystal), intent(in) :: c
