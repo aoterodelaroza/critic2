@@ -211,37 +211,6 @@ module crystalmod
 
   ! other crystallography tools that are crystal-independent
   public :: search_lattice
-  public :: pointgroup_info
-  
-  ! holohedry identifier
-  integer, parameter, public :: holo_unk = 0 ! unknown
-  integer, parameter, public :: holo_tric = 1 ! triclinic
-  integer, parameter, public :: holo_mono = 2 ! monoclinic
-  integer, parameter, public :: holo_ortho = 3 ! orthorhombic
-  integer, parameter, public :: holo_tetra = 4 ! tetragonal
-  integer, parameter, public :: holo_trig = 5 ! trigonal
-  integer, parameter, public :: holo_hex = 6 ! hexagonal
-  integer, parameter, public :: holo_cub = 7 ! cubic
-  character(len=12), parameter, public :: holo_string(0:7) = (/ &
-     "unknown     ","triclinic   ","monoclinic  ","orthorhombic",&
-     "tetragonal  ","trigonal    ","hexagonal   ","cubic       "/)
-
-  ! Laue class identifier
-  integer, parameter, public :: laue_unk = 0 ! unknown
-  integer, parameter, public :: laue_1 = 1 ! -1
-  integer, parameter, public :: laue_2m = 2 ! 2/m
-  integer, parameter, public :: laue_mmm = 3 ! mmm
-  integer, parameter, public :: laue_4m = 4 ! 4/m
-  integer, parameter, public :: laue_4mmm = 5 ! 4/mmm
-  integer, parameter, public :: laue_3 = 6 ! -3
-  integer, parameter, public :: laue_3m = 7 ! -3m
-  integer, parameter, public :: laue_6m = 8 ! 6/m
-  integer, parameter, public :: laue_6mmm = 9 ! 6/mmm
-  integer, parameter, public :: laue_m3 = 10 ! m-3
-  integer, parameter, public :: laue_m3m = 11 ! m-3m
-  character(len=12), parameter, public :: laue_string(0:11) = (/ &
-     "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
-     "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
   
   ! module procedure interfaces
   interface
@@ -504,12 +473,6 @@ module crystalmod
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
      end subroutine search_lattice
-     module subroutine pointgroup_info(hmpg,schpg,holo,laue)
-       character*(*), intent(in) :: hmpg
-       character(len=3), intent(out) :: schpg
-       integer, intent(out) :: holo
-       integer, intent(out) :: laue
-     end subroutine pointgroup_info
      module subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
         environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
        class(crystal), intent(inout) :: c

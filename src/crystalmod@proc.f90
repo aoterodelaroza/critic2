@@ -19,11 +19,42 @@ submodule (crystalmod) proc
   implicit none
 
   !xx! private procedures
+  ! subroutine pointgroup_info(hmpg,schpg,holo,laue)
   ! subroutine lattpg(rmat,ncen,xcen,nn,rot)
   ! subroutine typeop(rot,type,vec,order)
   ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
   ! function perm3(p,r,t) result(res)
 
+  ! holohedry identifier
+  integer, parameter :: holo_unk = 0 ! unknown
+  integer, parameter :: holo_tric = 1 ! triclinic
+  integer, parameter :: holo_mono = 2 ! monoclinic
+  integer, parameter :: holo_ortho = 3 ! orthorhombic
+  integer, parameter :: holo_tetra = 4 ! tetragonal
+  integer, parameter :: holo_trig = 5 ! trigonal
+  integer, parameter :: holo_hex = 6 ! hexagonal
+  integer, parameter :: holo_cub = 7 ! cubic
+  character(len=12), parameter :: holo_string(0:7) = (/ &
+     "unknown     ","triclinic   ","monoclinic  ","orthorhombic",&
+     "tetragonal  ","trigonal    ","hexagonal   ","cubic       "/)
+
+  ! Laue class identifier
+  integer, parameter :: laue_unk = 0 ! unknown
+  integer, parameter :: laue_1 = 1 ! -1
+  integer, parameter :: laue_2m = 2 ! 2/m
+  integer, parameter :: laue_mmm = 3 ! mmm
+  integer, parameter :: laue_4m = 4 ! 4/m
+  integer, parameter :: laue_4mmm = 5 ! 4/mmm
+  integer, parameter :: laue_3 = 6 ! -3
+  integer, parameter :: laue_3m = 7 ! -3m
+  integer, parameter :: laue_6m = 8 ! 6/m
+  integer, parameter :: laue_6mmm = 9 ! 6/mmm
+  integer, parameter :: laue_m3 = 10 ! m-3
+  integer, parameter :: laue_m3m = 11 ! m-3m
+  character(len=12), parameter :: laue_string(0:11) = (/ &
+     "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
+     "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
+  
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
   integer, parameter :: inv=1 !< identifier for sym. operations
@@ -3467,152 +3498,6 @@ contains
 
   end subroutine search_lattice
 
-  !> Get the holohedry and the Laue class from the Hermann-Mauguin
-  !> point group label. Adapted from spglib, takes spglib HM point
-  !> group labels.
-  module subroutine pointgroup_info(hmpg,schpg,holo,laue)
-    use tools_io, only: equal
-    character*(*), intent(in) :: hmpg
-    character(len=3), intent(out) :: schpg
-    integer, intent(out) :: holo
-    integer, intent(out) :: laue
-
-    if (equal(hmpg,"")) then
-       schpg = ""
-       holo = holo_unk
-       laue = laue_unk
-    elseif (equal(hmpg,"1")) then
-       schpg = "C1"
-       holo = holo_tric
-       laue = laue_1
-    elseif (equal(hmpg,"-1")) then
-       schpg = "Ci"
-       holo = holo_tric
-       laue = laue_1
-    elseif (equal(hmpg,"2")) then
-       schpg = "C2"
-       holo = holo_mono
-       laue = laue_2m
-    elseif (equal(hmpg,"m")) then
-       schpg = "Cs"
-       holo = holo_mono
-       laue = laue_2m
-    elseif (equal(hmpg,"2/m")) then
-       schpg = "C2h"
-       holo = holo_mono
-       laue = laue_2m
-    elseif (equal(hmpg,"222")) then
-       schpg = "D2"
-       holo = holo_ortho
-       laue = laue_mmm
-    elseif (equal(hmpg,"mm2")) then
-       schpg = "C2v"
-       holo = holo_ortho
-       laue = laue_mmm
-    elseif (equal(hmpg,"mmm")) then
-       schpg = "D2h"
-       holo = holo_ortho
-       laue = laue_mmm
-    elseif (equal(hmpg,"4")) then
-       schpg = "C4"
-       holo = holo_tetra
-       laue = laue_4m
-    elseif (equal(hmpg,"-4")) then
-       schpg = "S4"
-       holo = holo_tetra
-       laue = laue_4m
-    elseif (equal(hmpg,"4/m")) then
-       schpg = "C4h"
-       holo = holo_tetra
-       laue = laue_4m
-    elseif (equal(hmpg,"422")) then
-       schpg = "D4"
-       holo = holo_tetra
-       laue = laue_4mmm
-    elseif (equal(hmpg,"4mm")) then
-       schpg = "C4v"
-       holo = holo_tetra
-       laue = laue_4mmm
-    elseif (equal(hmpg,"-42m")) then
-       schpg = "D2d"
-       holo = holo_tetra
-       laue = laue_4mmm
-    elseif (equal(hmpg,"4/mmm")) then
-       schpg = "D4h"
-       holo = holo_tetra
-       laue = laue_4mmm
-    elseif (equal(hmpg,"3")) then
-       schpg = "C3"
-       holo = holo_trig
-       laue = laue_3
-    elseif (equal(hmpg,"-3")) then
-       schpg = "C3i"
-       holo = holo_trig
-       laue = laue_3
-    elseif (equal(hmpg,"32")) then
-       schpg = "D3"
-       holo = holo_trig
-       laue = laue_3m
-    elseif (equal(hmpg,"3m")) then
-       schpg = "C3v"
-       holo = holo_trig
-       laue = laue_3m
-    elseif (equal(hmpg,"-3m")) then
-       schpg = "D3d"
-       holo = holo_trig
-       laue = laue_3m
-    elseif (equal(hmpg,"6")) then
-       schpg = "C6"
-       holo = holo_hex
-       laue = laue_6m
-    elseif (equal(hmpg,"-6")) then
-       schpg = "C3h"
-       holo = holo_hex
-       laue = laue_6m
-    elseif (equal(hmpg,"6/m")) then
-       schpg = "C6h"
-       holo = holo_hex
-       laue = laue_6m
-    elseif (equal(hmpg,"622")) then
-       schpg = "D6"
-       holo = holo_hex
-       laue = laue_6mmm
-    elseif (equal(hmpg,"6mm")) then
-       schpg = "C6v"
-       holo = holo_hex
-       laue = laue_6mmm
-    elseif (equal(hmpg,"-6m2")) then
-       schpg = "D3h"
-       holo = holo_hex
-       laue = laue_6mmm
-    elseif (equal(hmpg,"6/mmm")) then
-       schpg = "D6h"
-       holo = holo_hex
-       laue = laue_6mmm
-    elseif (equal(hmpg,"23")) then
-       schpg = "T"
-       holo = holo_cub
-       laue = laue_m3
-    elseif (equal(hmpg,"m-3")) then
-       schpg = "Th"
-       holo = holo_cub
-       laue = laue_m3
-    elseif (equal(hmpg,"432")) then
-       schpg = "O"
-       holo = holo_cub
-       laue = laue_m3m
-    elseif (equal(hmpg,"-43m")) then
-       schpg = "Td"
-       holo = holo_cub
-       laue = laue_m3m
-    elseif (equal(hmpg,"m-3m")) then
-       schpg = "Oh"
-       holo = holo_cub
-       laue = laue_m3m
-    end if
-
-  end subroutine pointgroup_info
-
   !> Write a xyz/gjf/cml file containing a finite piece of the crystal
   !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
   !> of unit cells to plot.  If doborder is .true., add all atoms at
@@ -5276,6 +5161,152 @@ contains
   end subroutine promolecular_grid
 
   !xx! private procedures
+
+  !> Get the holohedry and the Laue class from the Hermann-Mauguin
+  !> point group label. Adapted from spglib, takes spglib HM point
+  !> group labels.
+  subroutine pointgroup_info(hmpg,schpg,holo,laue)
+    use tools_io, only: equal
+    character*(*), intent(in) :: hmpg
+    character(len=3), intent(out) :: schpg
+    integer, intent(out) :: holo
+    integer, intent(out) :: laue
+
+    if (equal(hmpg,"")) then
+       schpg = ""
+       holo = holo_unk
+       laue = laue_unk
+    elseif (equal(hmpg,"1")) then
+       schpg = "C1"
+       holo = holo_tric
+       laue = laue_1
+    elseif (equal(hmpg,"-1")) then
+       schpg = "Ci"
+       holo = holo_tric
+       laue = laue_1
+    elseif (equal(hmpg,"2")) then
+       schpg = "C2"
+       holo = holo_mono
+       laue = laue_2m
+    elseif (equal(hmpg,"m")) then
+       schpg = "Cs"
+       holo = holo_mono
+       laue = laue_2m
+    elseif (equal(hmpg,"2/m")) then
+       schpg = "C2h"
+       holo = holo_mono
+       laue = laue_2m
+    elseif (equal(hmpg,"222")) then
+       schpg = "D2"
+       holo = holo_ortho
+       laue = laue_mmm
+    elseif (equal(hmpg,"mm2")) then
+       schpg = "C2v"
+       holo = holo_ortho
+       laue = laue_mmm
+    elseif (equal(hmpg,"mmm")) then
+       schpg = "D2h"
+       holo = holo_ortho
+       laue = laue_mmm
+    elseif (equal(hmpg,"4")) then
+       schpg = "C4"
+       holo = holo_tetra
+       laue = laue_4m
+    elseif (equal(hmpg,"-4")) then
+       schpg = "S4"
+       holo = holo_tetra
+       laue = laue_4m
+    elseif (equal(hmpg,"4/m")) then
+       schpg = "C4h"
+       holo = holo_tetra
+       laue = laue_4m
+    elseif (equal(hmpg,"422")) then
+       schpg = "D4"
+       holo = holo_tetra
+       laue = laue_4mmm
+    elseif (equal(hmpg,"4mm")) then
+       schpg = "C4v"
+       holo = holo_tetra
+       laue = laue_4mmm
+    elseif (equal(hmpg,"-42m")) then
+       schpg = "D2d"
+       holo = holo_tetra
+       laue = laue_4mmm
+    elseif (equal(hmpg,"4/mmm")) then
+       schpg = "D4h"
+       holo = holo_tetra
+       laue = laue_4mmm
+    elseif (equal(hmpg,"3")) then
+       schpg = "C3"
+       holo = holo_trig
+       laue = laue_3
+    elseif (equal(hmpg,"-3")) then
+       schpg = "C3i"
+       holo = holo_trig
+       laue = laue_3
+    elseif (equal(hmpg,"32")) then
+       schpg = "D3"
+       holo = holo_trig
+       laue = laue_3m
+    elseif (equal(hmpg,"3m")) then
+       schpg = "C3v"
+       holo = holo_trig
+       laue = laue_3m
+    elseif (equal(hmpg,"-3m")) then
+       schpg = "D3d"
+       holo = holo_trig
+       laue = laue_3m
+    elseif (equal(hmpg,"6")) then
+       schpg = "C6"
+       holo = holo_hex
+       laue = laue_6m
+    elseif (equal(hmpg,"-6")) then
+       schpg = "C3h"
+       holo = holo_hex
+       laue = laue_6m
+    elseif (equal(hmpg,"6/m")) then
+       schpg = "C6h"
+       holo = holo_hex
+       laue = laue_6m
+    elseif (equal(hmpg,"622")) then
+       schpg = "D6"
+       holo = holo_hex
+       laue = laue_6mmm
+    elseif (equal(hmpg,"6mm")) then
+       schpg = "C6v"
+       holo = holo_hex
+       laue = laue_6mmm
+    elseif (equal(hmpg,"-6m2")) then
+       schpg = "D3h"
+       holo = holo_hex
+       laue = laue_6mmm
+    elseif (equal(hmpg,"6/mmm")) then
+       schpg = "D6h"
+       holo = holo_hex
+       laue = laue_6mmm
+    elseif (equal(hmpg,"23")) then
+       schpg = "T"
+       holo = holo_cub
+       laue = laue_m3
+    elseif (equal(hmpg,"m-3")) then
+       schpg = "Th"
+       holo = holo_cub
+       laue = laue_m3
+    elseif (equal(hmpg,"432")) then
+       schpg = "O"
+       holo = holo_cub
+       laue = laue_m3m
+    elseif (equal(hmpg,"-43m")) then
+       schpg = "Td"
+       holo = holo_cub
+       laue = laue_m3m
+    elseif (equal(hmpg,"m-3m")) then
+       schpg = "Oh"
+       holo = holo_cub
+       laue = laue_m3m
+    end if
+
+  end subroutine pointgroup_info
 
   !> Calculate the point group of a lattice. rmat is the matrix of
   !> lattice vectors (G = rmat * rmat'). verbose activates output to
