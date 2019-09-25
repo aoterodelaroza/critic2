@@ -116,7 +116,7 @@ module global
   integer :: doguess
 
   ! symmetry precision (spglib)
-  real*8 :: symprec
+  real*8 :: symprec = 1d-2
 
   ! A crystal is considered small if it has less than this number of
   ! atoms in the unit cell.
