@@ -482,7 +482,7 @@ module crystalmod
      end subroutine struct_report
      module subroutine struct_report_symxyz(c,strfin)
        class(crystal), intent(in) :: c
-       character(len=mlen), intent(out), optional :: strfin(c%neqv)
+       character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
      end subroutine struct_report_symxyz
      module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
        class(crystal), intent(inout) :: c

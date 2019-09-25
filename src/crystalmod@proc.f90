@@ -2908,14 +2908,16 @@ contains
 
   end subroutine struct_report
 
-  !> Write the list of symmetry operations to stdout, using crystallographic
-  !> notation (if possible).
+  !> Write the list of symmetry operations to stdout, using
+  !> crystallographic notation (if possible). If strfin is present,
+  !> return the strings in that variable instead of writing them to
+  !> uout.
   module subroutine struct_report_symxyz(c,strfin)
     use tools_io, only: uout, string
     use global, only: symprec
     use param, only: mlen
     class(crystal), intent(in) :: c
-    character(len=mlen), intent(out), optional :: strfin(c%neqv)
+    character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
 
     real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
        -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&
@@ -2928,44 +2930,59 @@ contains
     character*1, parameter :: xyz(3) = (/"x","y","z"/)
 
     logical :: ok, iszero
-    integer :: i, j, k
-    character*255 :: strout(c%neqv)
+    integer :: i1, i2, i, j, k
+    character*255 :: strout(c%neqv*c%ncv)
+    real*8 :: xtrans
 
-    do i = 1, c%neqv
-       strout(i) = ""
-       do j = 1, 3
-          ! translation
-          ok = .false.
-          do k = 1, 25
-             if (abs(c%rotm(j,4,i) - rfrac(k)) < symprec) then
-                ok = .true.
-                strout(i) = trim(strout(i)) // sfrac(k)
-                iszero = (k == 13) .or. (k == 1) .or. (k == 25)
-                exit
-             end if
-          end do
-          if (.not.ok) return
+    i = 0
+    do i1 = 1, c%ncv
+       do i2 = 1, c%neqv
+          i = i + 1
+          strout(i) = "<not found>"
+       end do
+    end do
 
-          ! rotation
-          do k = 1, 3
-             if (abs(c%rotm(j,k,i) - 1d0) < symprec) then
-                if (iszero) then
-                   strout(i) = trim(strout(i)) // xyz(k)
-                else
-                   strout(i) = trim(strout(i)) // "+" // xyz(k)
+    i = 0
+    do i1 = 1, c%ncv
+       do i2 = 1, c%neqv
+          i = i + 1
+          strout(i) = ""
+          do j = 1, 3
+             ! translation
+             ok = .false.
+             do k = 1, 25
+                xtrans = c%rotm(j,4,i2)+c%cen(j,i1) - rfrac(k)
+                xtrans = xtrans - nint(xtrans)
+                if (abs(xtrans) < symprec) then
+                   ok = .true.
+                   strout(i) = trim(strout(i)) // sfrac(k)
+                   iszero = (k == 13) .or. (k == 1) .or. (k == 25)
+                   exit
                 end if
-                iszero = .false.
-             elseif (abs(c%rotm(j,k,i) + 1d0) < symprec) then
-                strout(i) = trim(strout(i)) // "-" // xyz(k)
-                iszero = .false.
-             elseif (abs(c%rotm(j,k,i)) > symprec) then
-                return
-             end if
-          end do
+             end do
+             if (.not.ok) return
 
-          ! the comma
-          if (j < 3) &
-             strout(i) = trim(strout(i)) // ","
+             ! rotation
+             do k = 1, 3
+                if (abs(c%rotm(j,k,i2) - 1d0) < symprec) then
+                   if (iszero) then
+                      strout(i) = trim(strout(i)) // xyz(k)
+                   else
+                      strout(i) = trim(strout(i)) // "+" // xyz(k)
+                   end if
+                   iszero = .false.
+                elseif (abs(c%rotm(j,k,i2) + 1d0) < symprec) then
+                   strout(i) = trim(strout(i)) // "-" // xyz(k)
+                   iszero = .false.
+                elseif (abs(c%rotm(j,k,i2)) > symprec) then
+                   return
+                end if
+             end do
+
+             ! the comma
+             if (j < 3) &
+                strout(i) = trim(strout(i)) // ","
+          end do
        end do
     end do
 
@@ -2973,7 +2990,7 @@ contains
        strfin = strout
     else
        write(uout,'("+ List of symmetry operations in crystallographic notation:")')
-       do k = 1, c%neqv
+       do k = 1, c%neqv*c%ncv
           write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
        enddo
        write (uout,*)
@@ -4332,42 +4349,57 @@ contains
   !> Write a simple cif file
   module subroutine write_cif(c,file)
     use global, only: fileroot
-    use tools_io, only: fopen_write, fclose, string, nameguess
+    use config, only: getstring, istring_version
+    use tools_io, only: fopen_write, fclose, string, nameguess, deblank
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
 
     integer :: i, iz, lu
+    character(len=mlen), allocatable :: strfin(:)
+    character(len=3) :: schpg
+    character(len=:), allocatable :: sver
+    integer :: holo, laue
+
+    allocate(strfin(c%neqv*c%ncv))
+    call c%struct_report_symxyz(strfin)
+    sver = getstring(istring_version)
 
     lu = fopen_write(file)
-
-    write (lu,'("data_",A)') string(fileroot)
-    write (lu,'("_cell_volume ",F20.6)') c%omega * bohrtoa**3
-    write (lu,'("_symmetry_space_group_name_H-M ''P 1''")');
-    write (lu,'("_symmetry_Int_Tables_number 1")');
-    write (lu,'("loop_")');
-    write (lu,'("_symmetry_equiv_pos_site_id")');
-    write (lu,'("_symmetry_equiv_pos_as_xyz")');
-    write (lu,'("1 x,y,z")');
+    write (lu,'("data_",A)') string(deblank(fileroot))
+    write (lu,'("_audit_creation_method ''critic2-",A,"''")') string(sver)
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa
     write (lu,'("_cell_length_b ",F20.10)') c%aa(2)*bohrtoa
     write (lu,'("_cell_length_c ",F20.10)') c%aa(3)*bohrtoa
     write (lu,'("_cell_angle_alpha ",F14.4)') c%bb(1)
     write (lu,'("_cell_angle_beta ",F14.4)') c%bb(2)
     write (lu,'("_cell_angle_gamma ",F14.4)') c%bb(3)
-    write (lu,'("_cell_formula_units_Z 1")')
-    write (lu,'("loop_")');
-    write (lu,'("_atom_site_label")');
-    write (lu,'("_atom_site_type_symbol")');
-    write (lu,'("_atom_site_fract_x")');
-    write (lu,'("_atom_site_fract_y")');
-    write (lu,'("_atom_site_fract_z")');
-    do i = 1, c%ncel
-       iz = c%atcel(i)%is
-       write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, &
-          nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
+    write (lu,'("_cell_volume ",F20.6)') c%omega * bohrtoa**3
+
+    call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
+    write (lu,'("_space_group_crystal_system ",A)') string(holo_string(holo))
+    write (lu,'("_space_group_IT_number ",A)') string(c%spg%spacegroup_number)
+    write (lu,'("_space_group_name_H-M_alt ''",A,"''")') string(c%spg%international_symbol)
+    write (lu,'("_space_group_name_Hall ''",A,"''")') string(c%spg%hall_symbol)
+
+    write (lu,'("loop_")')
+    write (lu,'("_space_group_symop_operation_xyz")')
+    do i = 1, c%neqv*c%ncv
+       write (lu,'("  ''",A,"''")') string(strfin(i))
+    end do
+
+    write (lu,'("loop_")')
+    write (lu,'("_atom_site_label")')
+    write (lu,'("_atom_site_type_symbol")')
+    write (lu,'("_atom_site_fract_x")')
+    write (lu,'("_atom_site_fract_y")')
+    write (lu,'("_atom_site_fract_z")')
+    do i = 1, c%nneq
+       iz = c%at(i)%is
+       write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
     end do
     call fclose(lu)
+    deallocate(strfin)
 
   end subroutine write_cif
 
