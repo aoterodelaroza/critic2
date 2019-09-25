@@ -462,16 +462,16 @@ contains
     end if
 
     ! symmetry from spglib
-    clearsym = .false.
-    !use tools_io, only: ferror, faterr, zatguess, string, noerr
+    clearsym = .true.
     if (.not.seed%ismolecule .and. seed%havesym == 0) then
        if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) then
           ! symmetry was not available, and I want it
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
           call c%spglib_wrap(.true.,.false.,errmsg)
           if (len_trim(errmsg) > 0) then
-             clearsym = .true.
              call ferror("struct_new","spglib: "//errmsg,faterr)
+          else
+             clearsym = .false.
           end if
        else if (seed%findsym == -1 .and. seed%nat > crsmall) then
           call ferror("struct_new","Symmetry not calculated because crystal has >"//string(crsmall)//" atoms",noerr)
@@ -483,11 +483,10 @@ contains
        ! symmetry was already available, but I still want the space group details
        call c%spglib_wrap(.false.,.true.,errmsg)
        if (len_trim(errmsg) > 0) then
-          clearsym = .true.
           call ferror("struct_new","spglib: "//errmsg,faterr)
+       else
+          clearsym = .false.
        end if
-    else
-       clearsym = .true.
     end if
 
     if (clearsym) then
