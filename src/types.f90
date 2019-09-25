@@ -83,6 +83,7 @@ module types
      real*8 :: r(3)   !< coordinates (Cartesian)
      integer :: is = 0 !< species
      integer :: mult  !< multiplicity
+     character*1 :: wyc !< Wyckoff letter
      real*8 :: rnn2   !< half the nearest neighbor distance
   end type neqatom
   

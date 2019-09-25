@@ -143,6 +143,7 @@ contains
     ! initialize atoms
     do i = 1, mneq0
        c%at(i)%rnn2 = 0d0
+       c%at(i)%wyc = "?"
     end do
 
     ! no molecular fragments
@@ -216,10 +217,12 @@ contains
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, clearsym
-    integer :: i, j, k, iat
+    integer :: i, j, k, iat, idx, ilet
     real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
+    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
+
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -364,10 +367,11 @@ contains
     end if
 
     ! move the crystallographic coordinates to the main cell, calculate the
-    ! Cartesian coordinates
+    ! Cartesian coordinates. Set the default wyckoff letter.
     do i = 1, c%nneq
        c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
        c%at(i)%r = c%x2c(c%at(i)%x)
+       c%at(i)%wyc = "?"
     end do
 
     ! rest of the cell metrics
@@ -497,6 +501,8 @@ contains
        allocate(c%atcel(c%ncel))
        do i = 1, c%ncel
           c%at(i)%mult = 1
+          c%at(i)%wyc = "?"
+
           c%atcel(i)%x = c%at(i)%x
           c%atcel(i)%r = c%at(i)%r
           c%atcel(i)%idx = i
@@ -511,6 +517,17 @@ contains
        c%rotm = 0d0
        c%rotm(:,:,1) = eyet
        c%spg%n_atoms = 0
+    end if
+
+    ! fill wyckoff letters
+    if (c%spgavail) then
+       do i = 1, c%ncel
+          idx = c%atcel(i)%idx
+          if (c%at(idx)%wyc == "?") then
+             ilet = c%spg%wyckoffs(i)+1
+             c%at(idx)%wyc = wycklet(ilet:ilet)
+          end if
+       end do
     end if
 
     ! load the atomic density grids
@@ -2707,21 +2724,20 @@ contains
        if (.not.c%ismolecule) then
           write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
-          write (uout,'("# name = atomic name (symbol). mult = multiplicity. Z = atomic number.")')
-          write (uout,'("# ",8(A,X))') string("nat",3,ioj_center), &
+          write (uout,'("# wyck = wyckoff position. name = atomic name (symbol). mult = multiplicity.")')
+          write (uout,'("# Z = atomic number.")')
+
+          write (uout,'("# ",99(A,X))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
-             string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center), &
-             string("mult",3,ioj_center), string("Z",3,ioj_center)
+             string("z",14,ioj_center), string("spc",3,ioj_center), string("wyck",4,ioj_center), &
+             string("name",7,ioj_center), string("mult",4,ioj_center), string("Z",3,ioj_center)
           do i=1, c%nneq
              is = c%at(i)%is
-             write (uout,'(2x,8(A,X))') &
-                string(i,3,ioj_center),&
-                string(c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
-                string(c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-                string(c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
-                string(is,3,ioj_center), &
+             write (uout,'(2x,99(A,X))') string(i,3,ioj_center),&
+                (string(c%at(i)%x(j),'f',length=14,decimal=10,justify=3),j=1,3),&
+                string(is,3,ioj_center), string(c%at(i)%mult,3,ioj_right) // c%at(i)%wyc, &
                 string(c%spc(is)%name,7,ioj_center), &
-                string(c%at(i)%mult,3,ioj_center), string(c%spc(is)%z,3,ioj_center)
+                string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,3,ioj_center)
           enddo
           write (uout,*)
 
@@ -3128,6 +3144,7 @@ contains
           c%at(c%nneq)%is = c%atcel(idx)%is
           c%at(c%nneq)%mult = 1
           c%at(c%nneq)%rnn2 = 0d0
+          c%at(c%nneq)%wyc = "?"
        else
           c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
        end if
