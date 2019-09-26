@@ -1581,7 +1581,7 @@ contains
        gprim = matmul(transpose(rprim),rprim)
        omegaa = sqrt(detsym(gprim))
        ! adjust the lengths to give the volume
-       scale = abs(scale) / abs(omegaa)**(1d0/3d0)
+       scale = (abs(scale) / abs(omegaa))**(1d0/3d0)
     end if
     rprim(1,:) = rprim(1,:) * scalex * scale
     rprim(2,:) = rprim(2,:) * scaley * scale
