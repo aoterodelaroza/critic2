@@ -249,19 +249,7 @@ contains
     logical :: iok
 
     word = lgetword(line,lp)
-    if (equal(word,'nosymm') .or. equal(word,'nosym')) then
-       doguess = 0
-       call check_no_extra_word(ok)
-    elseif (equal(word,'symm').or.equal(word,'sym')) then
-       ok = isinteger(doguess,line,lp)
-       if (.not.ok) doguess = 1
-       call check_no_extra_word(ok)
-    elseif (equal(word,'symprec')) then
-       ok = isreal(symprec,line,lp)
-       if (.not.ok) &
-          call ferror('critic_setvariables','Wrong symprec',faterr,line,syntax=.true.)
-       call check_no_extra_word(ok)
-    elseif (equal(word,'bondfactor')) then
+    if (equal(word,'bondfactor')) then
        ok = isreal(bondfactor,line,lp)
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)

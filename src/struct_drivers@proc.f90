@@ -254,60 +254,56 @@ contains
     end if
     
   end subroutine struct_crystal_input
-
+  
   !> Clear the symmetry in the system.
-  module subroutine struct_clearsym(s)
-    use systemmod, only: system
-    use types, only: neqatom, realloc
-    use tools_io, only: uout
-    use param, only: eyet
+  module subroutine struct_sym(s,line)
+    ! use systemmod, only: system
+    ! use types, only: neqatom, realloc
+    use global, only: symprec, doguess
+    use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal
+    ! use param, only: eyet
     type(system), intent(inout) :: s
+    character*(*), intent(in) :: line
 
-    type(neqatom) :: aux(s%c%nneq)
-    integer :: i, j
+    character(len=:), allocatable :: word, errmsg
+    integer :: idum, lp
+    logical :: ok
+    ! type(neqatom) :: aux(s%c%nneq)
+    ! integer :: i, j
 
-    write (uout,'("* CLEARSYM: clear all symmetry operations and rebuild the atom list.")')
+    ! header
+    write (uout,'("* SYM: manipulation of the crystal symmetry.")')
     write (uout,*)
 
-    ! nullify the space group
-    s%c%havesym = 0
-    s%c%neqv = 1
-    s%c%rotm(:,:,1) = eyet
-    s%c%ncv = 1
-    if (allocated(s%c%cen)) deallocate(s%c%cen)
-    allocate(s%c%cen(3,4))
-    s%c%cen = 0d0
+    ! no molecules here
+    if (s%c%ismolecule) then
+       call ferror('struct_sym','Symmetry not available in a MOLECULE',faterr,line,syntax=.true.)
+       return
+    end if
+    
+    ! parse the input
+    lp = 1
+    word = lgetword(line,lp)
+    if (equal(word,'clear')) then
+       write (uout,'("+ CLEAR the symmetry for this crystal structure.")')
+       call s%clearsym()
 
-    ! convert ncel to nneq
-    aux = s%c%at(1:s%c%nneq)
-    s%c%nneq = s%c%ncel
-    call realloc(s%c%at,s%c%ncel)
-    do i = 1, s%c%ncel
-       s%c%at(i) = aux(s%c%atcel(i)%idx)
-       s%c%at(i)%x = s%c%atcel(i)%x
-       s%c%at(i)%is = s%c%atcel(i)%is
-    end do
+    elseif (equal(word,'recalc')) then
+       write (uout,'("+ RECALCULATE the symmetry operations.")')
+       call s%c%spglib_wrap(.false.,.false.,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_sym","spglib: "//errmsg,faterr)
 
-    ! convert ncpcel to ncel for all fields
-    do i = 1, s%nf
-       if (s%f(i)%isinit) then
-          call realloc(s%f(i)%cp,s%f(i)%ncpcel)
-          do j = 1, s%f(i)%ncpcel
-             s%f(i)%cp(j) = s%f(i)%cpcel(j)
-             s%f(i)%cp(j)%mult = 1
-             s%f(i)%cp(j)%pg = 'C1'
-             s%f(i)%cpcel(j)%pg = 'C1'
-             s%f(i)%cpcel(j)%ir = 1
-             s%f(i)%cpcel(j)%ic = 1
-             s%f(i)%cpcel(j)%lvec = 0
-          end do
-       end if
-    end do
+    end if
+    write (uout,*)
 
-    ! recalculate the environments and asterisms and report
+    ! Reset all fields
+    call s%reset_fields()
+    
+    ! Write the report for the structure
     call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
-  end subroutine struct_clearsym
+  end subroutine struct_sym
 
   !> Change the charges and pseudopotential charges in the system.
   module subroutine struct_charges(s,line,oksyn)

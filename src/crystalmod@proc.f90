@@ -77,7 +77,6 @@ contains
   !xx! crystal class methods
   !> Initialize the struct arrays
   module subroutine struct_init(c)
-    use param, only: eyet
     class(crystal), intent(inout) :: c
 
     integer :: i
@@ -106,15 +105,7 @@ contains
     c%n2_c2x = 0d0
 
     ! no symmetry
-    c%spgavail = .false.
-    c%neqv = 1
-    c%rotm = 0d0
-    c%rotm(:,:,1) = eyet
-    c%ncv = 1
-    if (allocated(c%cen)) deallocate(c%cen)
-    allocate(c%cen(3,4))
-    c%cen = 0d0
-    c%spg%n_atoms = 0
+    call c%clearsym()
 
     ! no molecule
     c%ismolecule = .false.
@@ -143,7 +134,6 @@ contains
     ! initialize atoms
     do i = 1, mneq0
        c%at(i)%rnn2 = 0d0
-       c%at(i)%wyc = "?"
     end do
 
     ! no molecular fragments
@@ -217,12 +207,10 @@ contains
     
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, clearsym
-    integer :: i, j, k, iat, idx, ilet
+    integer :: i, j, k, iat, idx
     real*8, allocatable :: atpos(:,:), rnn2(:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
-    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
-
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -456,13 +444,7 @@ contains
           c%ncel = 0
        end if
     else
-       c%havesym = 0
-       c%neqv = 1
-       c%rotm = 0d0
-       c%rotm(:,:,1) = eyet
-       c%ncv = 1
-       if (.not.allocated(c%cen)) allocate(c%cen(3,4))
-       c%cen = 0d0
+       call c%clearsym()
     end if
 
     ! symmetry from spglib
@@ -478,9 +460,9 @@ contains
              clearsym = .false.
           end if
        else if (seed%findsym == -1 .and. seed%nat > crsmall) then
-          call ferror("struct_new","Symmetry not calculated because crystal has >"//string(crsmall)//" atoms",noerr)
+          call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
        else if (seed%findsym == 0) then
-          call ferror("struct_new","Symmetry not calculated because deactivated by user",noerr)
+          call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
        end if
 
     else if (.not.seed%ismolecule .and. c%havesym > 0) then
@@ -496,38 +478,7 @@ contains
     if (clearsym) then
        ! symmetry was not available or there was an error, and I do not 
        ! want symmetry - make a copy of at() to atcel() and set P1
-       c%ncel = c%nneq
-       if (allocated(c%atcel)) deallocate(c%atcel)
-       allocate(c%atcel(c%ncel))
-       do i = 1, c%ncel
-          c%at(i)%mult = 1
-          c%at(i)%wyc = "?"
-
-          c%atcel(i)%x = c%at(i)%x
-          c%atcel(i)%r = c%at(i)%r
-          c%atcel(i)%idx = i
-          c%atcel(i)%cidx = i
-          c%atcel(i)%ir = 1
-          c%atcel(i)%ic = 1
-          c%atcel(i)%lvec = 0
-          c%atcel(i)%is = c%at(i)%is
-       end do
-       c%spgavail = .false.
-       c%neqv = 1
-       c%rotm = 0d0
-       c%rotm(:,:,1) = eyet
-       c%spg%n_atoms = 0
-    end if
-
-    ! fill wyckoff letters
-    if (c%spgavail) then
-       do i = 1, c%ncel
-          idx = c%atcel(i)%idx
-          if (c%at(idx)%wyc == "?") then
-             ilet = c%spg%wyckoffs(i)+1
-             c%at(idx)%wyc = wycklet(ilet:ilet)
-          end if
-       end do
+       call c%clearsym(neq2cel=.true.)
     end if
 
     ! load the atomic density grids
@@ -3058,7 +3009,8 @@ contains
   !> In: cell vectors (m_x2c), ncel, atcel(:), at(:) Out: neqv, rotm,
   !> spg, at()%mult, ncel, and atcel(). If usenneq is .true., use nneq
   !> and at(:) instead of ncel and atcel. If onlyspg is .true., fill
-  !> only the spg field and leave the others unchanged.
+  !> only the spg field and the %wyc field in at(:) and leave the
+  !> other info unchanged.
   module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
@@ -3075,11 +3027,13 @@ contains
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: typ(:), iidx(:)
     integer :: ntyp, nat
-    integer :: i, j, k, iat, iz(maxzat0), idx
+    integer :: i, j, k, iat, iz(maxzat0), idx, ilet
     character(len=32) :: error
     logical :: found
     real*8 :: rotm(3,3), x0(3)
     logical, allocatable :: used(:)
+
+    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
 
     ! get the dataset from spglib
     c%spgavail = .false.
@@ -3114,115 +3068,203 @@ contains
        return
     end if
 
-    c%spgavail = .true.
-    if (onlyspg) return
+    if (.not.onlyspg) then
+       ! make a copy of nneq into ncel, if appropriate
+       if (usenneq) then
+          c%ncel = c%nneq
+          if (allocated(c%atcel)) deallocate(c%atcel)
+          allocate(c%atcel(c%ncel))
+          do i = 1, c%ncel
+             c%atcel(i)%x = c%at(i)%x
+             c%atcel(i)%r = c%at(i)%r
+             c%atcel(i)%is = c%at(i)%is
+          end do
+       end if
 
-    ! make a copy of nneq into ncel, if appropriate
-    if (usenneq) then
+       ! re-write nneq list based on the information from spg
+       allocate(iidx(c%ncel))
+       iidx = 0
+       c%nneq = 0
+       do i = 1, c%spg%n_atoms
+          idx = c%spg%equivalent_atoms(i) + 1
+          if (iidx(idx) == 0) then
+             c%nneq = c%nneq + 1
+             iidx(idx) = c%nneq
+             if (c%nneq > size(c%at,1)) call realloc(c%at,2*c%nneq)
+             c%at(c%nneq)%x = c%atcel(idx)%x
+             c%at(c%nneq)%r = c%atcel(idx)%r
+             c%at(c%nneq)%is = c%atcel(idx)%is
+             c%at(c%nneq)%mult = 1
+             c%at(c%nneq)%rnn2 = 0d0
+             c%at(c%nneq)%wyc = "?"
+          else
+             c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
+          end if
+          c%atcel(i)%idx = iidx(idx)
+       end do
+       deallocate(iidx)
+       call realloc(c%at,c%nneq)
+
+       ! unpack spglib's output into pure translations and symops
+       c%neqv = 1
+       c%rotm(:,:,1) = eyet
+       c%ncv = 1
+       if (.not.allocated(c%cen)) allocate(c%cen(3,1))
+       c%cen = 0d0
+       do i = 1, c%spg%n_operations
+          rotm = transpose(c%spg%rotations(:,:,i))
+
+          ! is this a pure translation?
+          if (all(abs(rotm - eye) < symprec)) then
+             found = .false.
+             do j = 1, c%ncv
+                if (all(abs(c%spg%translations(:,i) - c%cen(:,j)) < symprec)) then
+                   found = .true.
+                   exit
+                end if
+             end do
+             if (.not.found) then
+                c%ncv = c%ncv + 1
+                if (c%ncv > size(c%cen,2)) &
+                   call realloc(c%cen,3,2*c%ncv)
+                c%cen(:,c%ncv) = c%spg%translations(:,i)
+             end if
+             cycle
+          end if
+
+          ! Do I have this rotation already?
+          found = .false.
+          do j = 1, c%neqv
+             if (all(abs(rotm - c%rotm(1:3,1:3,j)) < symprec)) then
+                found = .true.
+             end if
+          end do
+          if (.not.found) then
+             c%neqv = c%neqv + 1
+             c%rotm(1:3,1:3,c%neqv) = rotm
+             c%rotm(1:3,4,c%neqv) = c%spg%translations(:,i)
+          end if
+       end do
+       call realloc(c%cen,3,c%ncv)
+       c%havesym = 1
+
+       ! generate symmetry operation info for the complete atom list
+       allocate(used(c%ncel))
+       used = .false.
+       main: do iat = 1, c%nneq
+          do i = 1, c%neqv
+             do j = 1, c%ncv
+                x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
+                found = .false.
+                do k = 1, c%ncel
+                   if (used(k)) cycle
+                   if (c%are_lclose(x0,c%atcel(k)%x,atomeps)) then
+                      c%atcel(k)%ir = i
+                      c%atcel(k)%ic = j
+                      c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
+                      used(k) = .true.
+                      exit
+                   end if
+                end do
+                if (all(used)) exit main
+             end do
+          end do
+       end do main
+       if (.not.all(used)) then
+          errmsg = "error building rotation and center information for atom list"
+          return
+       end if
+    end if
+    
+    ! fill wyckoff letters
+    do i = 1, c%ncel
+       idx = c%atcel(i)%idx
+       if (c%at(idx)%wyc == "?") then
+          ilet = c%spg%wyckoffs(i)+1
+          c%at(idx)%wyc = wycklet(ilet:ilet)
+       end if
+    end do
+
+    ! finish
+    c%spgavail = .true.
+
+  end subroutine spglib_wrap
+  
+  !> Clear the symmetry information from the crystal and rebuild the
+  !> atom list. If cel2neq, copy the atom information from atcel(:) to
+  !> at(:). If neq2cel, copy from at(:) to atcel(:). Note that if
+  !> neq2cel is used, then the environment and asterisms become
+  !> obsolete and need to be recalculated.
+  module subroutine clearsym(c,cel2neq,neq2cel)
+    use types, only: neqatom, realloc
+    use param, only: eyet
+    class(crystal), intent(inout) :: c
+    logical, intent(in), optional :: cel2neq
+    logical, intent(in), optional :: neq2cel
+
+    type(neqatom), allocatable :: aux(:)
+    integer :: idir, i
+
+    idir = 0
+    if (present(cel2neq)) then
+       if (cel2neq) idir = 1
+    end if
+    if (present(neq2cel)) then
+       if (neq2cel) idir = -1
+    end if
+
+    ! nullify the space group and all the symmetry info
+    c%spgavail = .false.
+    c%spg%n_atoms = 0
+    c%havesym = 0
+    c%neqv = 1
+    c%rotm = 0d0
+    c%rotm(:,:,1) = eyet
+    c%ncv = 1
+    if (allocated(c%cen)) deallocate(c%cen)
+    allocate(c%cen(3,4))
+    c%cen = 0d0
+    if (allocated(c%at) .and. c%nneq > 0) then
+       do i = 1, c%nneq
+          c%at(i)%mult = 1
+          c%at(i)%wyc = "?"
+       end do
+    end if
+
+    if (idir == 1) then
+       ! convert ncel to nneq
+       if (c%nneq /= c%ncel) then
+          allocate(aux(c%nneq))
+          aux = c%at(1:c%nneq)
+          c%nneq = c%ncel
+          call realloc(c%at,c%ncel)
+          do i = 1, c%ncel
+             c%at(i) = aux(c%atcel(i)%idx)
+             c%at(i)%x = c%atcel(i)%x
+             c%at(i)%is = c%atcel(i)%is
+             c%at(i)%mult = 1
+             c%at(i)%wyc = "?"
+          end do
+          deallocate(aux)
+       end if
+    elseif (idir == -1) then
+       ! convert nneq to ncel
        c%ncel = c%nneq
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
        do i = 1, c%ncel
           c%atcel(i)%x = c%at(i)%x
           c%atcel(i)%r = c%at(i)%r
+          c%atcel(i)%idx = i
+          c%atcel(i)%cidx = i
+          c%atcel(i)%ir = 1
+          c%atcel(i)%ic = 1
+          c%atcel(i)%lvec = 0
           c%atcel(i)%is = c%at(i)%is
        end do
     end if
 
-    ! re-write nneq list based on the information from spg
-    allocate(iidx(c%ncel))
-    iidx = 0
-    c%nneq = 0
-    do i = 1, c%spg%n_atoms
-       idx = c%spg%equivalent_atoms(i) + 1
-       if (iidx(idx) == 0) then
-          c%nneq = c%nneq + 1
-          iidx(idx) = c%nneq
-          if (c%nneq > size(c%at,1)) call realloc(c%at,2*c%nneq)
-          c%at(c%nneq)%x = c%atcel(idx)%x
-          c%at(c%nneq)%r = c%atcel(idx)%r
-          c%at(c%nneq)%is = c%atcel(idx)%is
-          c%at(c%nneq)%mult = 1
-          c%at(c%nneq)%rnn2 = 0d0
-          c%at(c%nneq)%wyc = "?"
-       else
-          c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
-       end if
-       c%atcel(i)%idx = iidx(idx)
-    end do
-    deallocate(iidx)
-    call realloc(c%at,c%nneq)
-
-    ! unpack spglib's output into pure translations and symops
-    c%neqv = 1
-    c%rotm(:,:,1) = eyet
-    c%ncv = 1
-    if (.not.allocated(c%cen)) allocate(c%cen(3,1))
-    c%cen = 0d0
-    do i = 1, c%spg%n_operations
-       rotm = transpose(c%spg%rotations(:,:,i))
-
-       ! is this a pure translation?
-       if (all(abs(rotm - eye) < symprec)) then
-          found = .false.
-          do j = 1, c%ncv
-             if (all(abs(c%spg%translations(:,i) - c%cen(:,j)) < symprec)) then
-                found = .true.
-                exit
-             end if
-          end do
-          if (.not.found) then
-             c%ncv = c%ncv + 1
-             if (c%ncv > size(c%cen,2)) &
-                call realloc(c%cen,3,2*c%ncv)
-             c%cen(:,c%ncv) = c%spg%translations(:,i)
-          end if
-          cycle
-       end if
-
-       ! Do I have this rotation already?
-       found = .false.
-       do j = 1, c%neqv
-          if (all(abs(rotm - c%rotm(1:3,1:3,j)) < symprec)) then
-             found = .true.
-          end if
-       end do
-       if (.not.found) then
-          c%neqv = c%neqv + 1
-          c%rotm(1:3,1:3,c%neqv) = rotm
-          c%rotm(1:3,4,c%neqv) = c%spg%translations(:,i)
-       end if
-    end do
-    call realloc(c%cen,3,c%ncv)
-    c%havesym = 1
-
-    ! generate symmetry operation info for the complete atom list
-    allocate(used(c%ncel))
-    used = .false.
-    main: do iat = 1, c%nneq
-       do i = 1, c%neqv
-          do j = 1, c%ncv
-             x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
-             found = .false.
-             do k = 1, c%ncel
-                if (used(k)) cycle
-                if (c%are_lclose(x0,c%atcel(k)%x,atomeps)) then
-                   c%atcel(k)%ir = i
-                   c%atcel(k)%ic = j
-                   c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
-                   used(k) = .true.
-                   exit
-                end if
-             end do
-             if (all(used)) exit main
-          end do
-       end do
-    end do main
-    if (.not.all(used)) then
-       errmsg = "error building rotation and center information for atom list"
-    end if
-       
-  end subroutine spglib_wrap
+  end subroutine clearsym
 
   !xx! Wigner-Seitz cell tools and cell partition
 

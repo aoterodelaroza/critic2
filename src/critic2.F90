@@ -37,20 +37,20 @@ program critic
      rhoplot_grdvec
   use fieldmod, only: type_grid
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
-     struct_clearsym, struct_charges, struct_atomlabel, struct_write,&
+     struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_compare, struct_identify
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
-     critic_clearvariable, critic_setvariables, global_set_defaults
+     critic_clearvariable, critic_setvariables, global_set_defaults, doguess, symprec
   use spglib, only: spg_list_spg
   use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
   use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
-     start_clock, print_clock
+     start_clock, print_clock, isinteger, isreal
   use param, only: param_init
   implicit none
 
@@ -61,7 +61,7 @@ program critic
   character(len=:), allocatable :: subline, word, word2
   character(len=:), allocatable :: line, errmsg
   !
-  integer :: level, plevel, id
+  integer :: level, plevel, id, idum
   integer :: i, nn, ismoli
   logical :: ok
   real*8 :: rdum
@@ -128,18 +128,29 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_molcell(sy,subline)
-
-        ! clearsym/clearsymm
-     elseif (equal(word,'clearsym') .or. equal(word,'clearsymm')) then
-        call check_structure_defined(ok)
-        if (.not.ok) cycle
-        call struct_clearsym(sy) 
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-
+        
+        ! sym/symm/nosym/nosymm
+     elseif (equal(word,'symm').or.equal(word,'sym').or.equal(word,'nosym').or.equal(word,'nosymm')) then
+        if (equal(word,'nosym').or.equal(word,'nosymm')) then
+           doguess = 0
+        else
+           word = lgetword(line,lp)
+           if (isinteger(idum,word)) then
+              doguess = idum
+           elseif (isreal(rdum,word)) then
+              symprec = rdum
+              call check_structure_defined(ok,silent=.true.)
+              if (ok) then
+                 if (.not.sy%c%ismolecule) &
+                    call struct_sym(sy,"recalc") 
+              end if
+           else
+              call struct_sym(sy,subline) 
+           end if
+        end if
+        
         ! q/qat, zpsp, nocore
-     elseif (equal(word,'q') .or. equal(word,'qat') &
-        .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
+     elseif (equal(word,'q') .or. equal(word,'qat') .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_charges(sy,line,ok)
@@ -624,8 +635,9 @@ contains
     end if
   end subroutine check_no_extra_word
 
-  subroutine check_structure_defined(ok)
+  subroutine check_structure_defined(ok,silent)
     logical, intent(out) :: ok
+    logical, intent(in), optional :: silent
 
     ok = associated(sy)
     if (.not.ok) goto 999
@@ -636,6 +648,9 @@ contains
 
     return
 999 continue
+    if (present(silent)) then
+       if (silent) return
+    end if
     call ferror('critic2','need CRYSTAL/MOLECULE before using this keyword',faterr,line,syntax=.true.)
 
   end subroutine check_structure_defined

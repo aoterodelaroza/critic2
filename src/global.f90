@@ -113,7 +113,7 @@ module global
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 
   ! guess and symmetry option (-1 = only for small systems, 0 = no, 1 = full)
-  integer :: doguess
+  integer :: doguess = -1
 
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2

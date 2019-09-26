@@ -83,6 +83,38 @@ contains
 
   end subroutine system_init
   
+  !< Clear symmetry in the system's structure and the CP list
+  module subroutine clearsym(s)
+    use types, only: realloc
+    class(system), intent(inout) :: s
+
+    integer :: i, j
+
+    if (.not.s%isinit) return
+    if (.not.s%c%isinit) return
+
+    ! clear the symmetry and re-write the non-equivalent atom list
+    call s%c%clearsym(cel2neq=.true.)
+
+    ! convert ncpcel to ncel for all fields
+    do i = 0, s%nf
+       if (s%f(i)%isinit) then
+          call realloc(s%f(i)%cp,s%f(i)%ncpcel)
+          do j = 1, s%f(i)%ncpcel
+             s%f(i)%cp(j) = s%f(i)%cpcel(j)
+             s%f(i)%cp(j)%mult = 1
+             s%f(i)%cp(j)%pg = 'C1'
+             s%f(i)%cpcel(j)%pg = 'C1'
+             s%f(i)%cpcel(j)%ir = 1
+             s%f(i)%cpcel(j)%ic = 1
+             s%f(i)%cpcel(j)%lvec = 0
+          end do
+          s%f(i)%ncp = s%f(i)%ncpcel
+       end if
+    end do
+
+  end subroutine clearsym
+
   !> Reset the fields, properties, and aliases to the promolecular
   !> density.  
   module subroutine reset_fields(s)

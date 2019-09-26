@@ -27,7 +27,7 @@ module struct_drivers
 
   private
   public :: struct_crystal_input
-  public :: struct_clearsym
+  public :: struct_sym
   public :: struct_charges
   public :: struct_write
   public :: struct_atomlabel
@@ -51,9 +51,10 @@ module struct_drivers
        type(crystal), intent(inout), optional :: cr0
        type(crystalseed), intent(inout), optional :: seed0
      end subroutine struct_crystal_input
-     module subroutine struct_clearsym(s)
+     module subroutine struct_sym(s,line)
        type(system), intent(inout) :: s
-     end subroutine struct_clearsym
+       character*(*), intent(in) :: line
+     end subroutine struct_sym
      module subroutine struct_charges(s,line,oksyn)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line

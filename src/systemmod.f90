@@ -53,6 +53,7 @@ module systemmod
    contains
      procedure :: end => system_end !< Terminate a system object
      procedure :: init => system_init !< Allocate space for crystal structure
+     procedure :: clearsym !< Clear symmetry in the system's structure and the CP list
      procedure :: reset_fields !< Reset fields, properties, and aliases to promolecular
      procedure :: set_reference !< Set a given field as reference
      procedure :: set_default_integprop !< Reset to default integrable properties
@@ -103,6 +104,9 @@ module systemmod
      end subroutine systemmod_init
      module subroutine systemmod_end()
      end subroutine systemmod_end
+     module subroutine clearsym(s)
+       class(system), intent(inout) :: s
+     end subroutine clearsym
      module subroutine system_end(s)
        class(system), intent(inout) :: s
      end subroutine system_end
