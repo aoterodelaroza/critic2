@@ -934,69 +934,80 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     logical :: isblank, isstress
-    integer :: lp, n, i
-    character(len=:), allocatable :: expr, word, lword, line
+    integer :: lp, lp2, n, i
+    character(len=:), allocatable :: expr, word, lword, line, aux
     character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
+    logical :: ismore
 
+    ! initialize and get the first word
     errmsg = ""
     lp = 1
     line = line0
     word = getword(line,lp)
-    isstress = .false.
     lword = lower(word)
-    if (equal(lword,'clear')) then
-       call s%set_default_pointprop()
-       return
-    elseif (equal(lword,'gtf')) then
-       lp = 1 
-       line = "gtf(" // string(s%iref) // ")"
-    elseif (equal(lword,'vtf')) then
-       lp = 1 
-       line = "vtf(" // string(s%iref) // ")"
-    elseif (equal(lword,'htf')) then
-       lp = 1 
-       line = "htf(" // string(s%iref) // ")"
-    elseif (equal(lword,'gtf_kir')) then
-       lp = 1 
-       line = "gtf_kir(" // string(s%iref) // ")"
-    elseif (equal(lword,'vtf_kir')) then
-       lp = 1 
-       line = "vtf_kir(" // string(s%iref) // ")"
-    elseif (equal(lword,'htf_kir')) then
-       lp = 1 
-       line = "htf_kir(" // string(s%iref) // ")"
-    elseif (equal(lword,'gkin')) then
-       lp = 1 
-       line = "gkin(" // string(s%iref) // ")"
-    elseif (equal(lword,'kkin')) then
-       lp = 1 
-       line = "kkin(" // string(s%iref) // ")"
-    elseif (equal(lword,'lag')) then
-       lp = 1 
-       line = "lag(" // string(s%iref) // ")"
-    elseif (equal(lword,'elf')) then
-       lp = 1 
-       line = "elf(" // string(s%iref) // ")"
-    elseif (equal(lword,'stress')) then
-       lp = 1
-       line = "stress(" // string(s%iref) // ")"
-       isstress = .true.
-    elseif (equal(lword,'vir')) then
-       lp = 1 
-       line = "vir(" // string(s%iref) // ")"
-    elseif (equal(lword,'he')) then
-       lp = 1 
-       line = "he(" // string(s%iref) // ")"
-    elseif (equal(lword,'lol')) then
-       lp = 1 
-       line = "lol(" // string(s%iref) // ")"
-    elseif (equal(lword,'lol_kir')) then
-       lp = 1 
-       line = "lol_kir(" // string(s%iref) // ")"
-    elseif (len_trim(lword) == 0) then
-       return
-    endif
+
+    ! determine if there are more words
+    lp2 = lp
+    aux = getword(line,lp2)
+    ismore = (len_trim(aux) > 0)
+
+    ! check if it is a single-word command
+    if (.not.ismore) then
+       isstress = .false.
+       if (equal(lword,'clear')) then
+          call s%set_default_pointprop()
+          return
+       elseif (equal(lword,'gtf')) then
+          lp = 1
+          line = "gtf(" // string(s%iref) // ")"
+       elseif (equal(lword,'vtf')) then
+          lp = 1
+          line = "vtf(" // string(s%iref) // ")"
+       elseif (equal(lword,'htf')) then
+          lp = 1
+          line = "htf(" // string(s%iref) // ")"
+       elseif (equal(lword,'gtf_kir')) then
+          lp = 1
+          line = "gtf_kir(" // string(s%iref) // ")"
+       elseif (equal(lword,'vtf_kir')) then
+          lp = 1
+          line = "vtf_kir(" // string(s%iref) // ")"
+       elseif (equal(lword,'htf_kir')) then
+          lp = 1
+          line = "htf_kir(" // string(s%iref) // ")"
+       elseif (equal(lword,'gkin')) then
+          lp = 1
+          line = "gkin(" // string(s%iref) // ")"
+       elseif (equal(lword,'kkin')) then
+          lp = 1
+          line = "kkin(" // string(s%iref) // ")"
+       elseif (equal(lword,'lag')) then
+          lp = 1
+          line = "lag(" // string(s%iref) // ")"
+       elseif (equal(lword,'elf')) then
+          lp = 1
+          line = "elf(" // string(s%iref) // ")"
+       elseif (equal(lword,'stress')) then
+          lp = 1
+          line = "stress(" // string(s%iref) // ")"
+          isstress = .true.
+       elseif (equal(lword,'vir')) then
+          lp = 1
+          line = "vir(" // string(s%iref) // ")"
+       elseif (equal(lword,'he')) then
+          lp = 1
+          line = "he(" // string(s%iref) // ")"
+       elseif (equal(lword,'lol')) then
+          lp = 1
+          line = "lol(" // string(s%iref) // ")"
+       elseif (equal(lword,'lol_kir')) then
+          lp = 1
+          line = "lol_kir(" // string(s%iref) // ")"
+       elseif (len_trim(lword) == 0) then
+          return
+       endif
+    end if
 
     ! Clean up the string
     expr = ""
