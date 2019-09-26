@@ -819,7 +819,7 @@ contains
   !> calculates the distance to all atoms in the system, hence it
   !> scales as O(N). Thread-safe.
   module subroutine nearest_atom_dumb(e,x0,icrd,cidx,lvec,dist,cidx0,idx0,is0,nozero)
-    use param, only: icrd_cart, icrd_crys, VBIG
+    use param, only: icrd_cart, VBIG
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: icrd
@@ -833,7 +833,7 @@ contains
 
     real*8, parameter :: epsmall2 = 1d-20
     integer :: i
-    real*8 :: xp(3), x(3), xx(3), d2
+    real*8 :: xp(3), x(3), d2
 
     if (.not.e%ismolecule) then
     end if

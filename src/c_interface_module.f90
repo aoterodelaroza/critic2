@@ -393,7 +393,7 @@ contains
     character(len=*), intent(in) :: F_string
     integer, intent(in), optional :: length
     character(len=1,kind=C_char), pointer :: C_string_ptr(:)
-    integer :: i
+    integer(C_size_t) :: i
     integer(C_size_t) :: strlen
     if (present(length)) then
        strlen = length

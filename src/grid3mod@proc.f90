@@ -734,7 +734,6 @@ contains
   module subroutine read_pwc(f,fpwc)
     use tools_math, only: det
     use tools_io, only: fopen_read, fclose, ferror
-    use param, only: hartoev
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     
@@ -904,14 +903,13 @@ contains
     character*(*), intent(in) :: fileup
     character*(*), intent(in), optional :: filedn
 
-    integer :: lu(2), ispin
+    integer :: lu(2)
     character(len=33) :: header
-    integer :: i, j, k, l, nspin, is
+    integer :: i, j, k, nspin, is
     integer :: nbnd, jbnd, idum, nks, nk(3), ik1, ik2, ik3
     real*8 :: rlatt(3,3), rclatt(3,3), rlatti(3,3)
     character(len=20) :: chkpt1
     logical :: have_disentangled
-    complex*16 :: cdum
     real*8, allocatable :: kpt(:,:)
 
     ! check qe is available

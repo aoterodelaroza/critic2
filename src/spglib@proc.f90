@@ -118,7 +118,7 @@ contains
     type(SpglibDataset_c), pointer :: dset_c
     type(c_ptr) :: dataset_ptr_c
     integer(c_int) :: n_operations, n_atoms, n_std_atoms
-    integer(c_int) :: hall, i
+    integer(c_int) :: hall
     real(c_double), pointer :: translations(:,:)
     integer(c_int), pointer :: rotations(:,:,:), wyckoffs(:), equivalent_atoms(:), std_types(:), std_positions(:,:)
 

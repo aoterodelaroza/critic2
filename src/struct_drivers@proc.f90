@@ -257,19 +257,12 @@ contains
   
   !> Clear the symmetry in the system.
   module subroutine struct_sym(s,line)
-    ! use systemmod, only: system
-    ! use types, only: neqatom, realloc
-    use global, only: symprec, doguess
     use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal
-    ! use param, only: eyet
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, errmsg
-    integer :: idum, lp
-    logical :: ok
-    ! type(neqatom) :: aux(s%c%nneq)
-    ! integer :: i, j
+    integer :: lp
 
     ! header
     write (uout,'("* SYM: manipulation of the crystal symmetry.")')

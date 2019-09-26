@@ -656,7 +656,7 @@ contains
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, idum, i
+    integer :: lu, i
     character(len=:), allocatable :: line
     logical :: ok, reloc
 
