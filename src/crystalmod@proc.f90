@@ -2358,7 +2358,7 @@ contains
   !> information about the new crystal. If doforce = .true.,
   !> force the transformation to the primitive even if it does
   !> not lead to a smaller cell.
-  module subroutine cell_standard(c,toprim,doforce,verbose)
+  module subroutine cell_standard(c,toprim,doforce,refine,verbose)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
@@ -2368,10 +2368,11 @@ contains
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
     logical, intent(in) :: doforce
+    logical, intent(in) :: refine
     logical, intent(in) :: verbose
     
     integer :: ntyp, nat
-    integer :: i, id, iprim
+    integer :: i, id, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
     real*8 :: rmat(3,3)
@@ -2389,9 +2390,13 @@ contains
        types(i) = c%atcel(i)%is
     end do
 
+    ! parse options
     iprim = 0
     if (toprim) iprim = 1
-    id = spg_standardize_cell(rmat,x,types,nat,iprim,1,symprec)
+    inorefine = 1
+    if (refine) inorefine = 0
+
+    id = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
     if (id == 0) &
        call ferror("cell_standard","could not find primitive cell",faterr)
     rmat = transpose(rmat)
@@ -4406,10 +4411,8 @@ contains
 
     ! we need symmetry for this
     if (dosym) then
-       ! This is to address a bug in gfortran 4.9 (and possibly earlier versions)
-       ! regarding assignment of user-defined types with allocatable components. 
        nc = c
-       call nc%cell_standard(.false.,.false.,.false.)
+       call nc%cell_standard(.false.,.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
        irhomb = 0

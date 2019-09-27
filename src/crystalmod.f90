@@ -427,10 +427,11 @@ module crystalmod
        real*8, intent(in), optional :: t0(3)
        logical, intent(in), optional :: verbose0
      end subroutine newcell
-     module subroutine cell_standard(c,toprim,doforce,verbose)
+     module subroutine cell_standard(c,toprim,doforce,refine,verbose)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
+       logical, intent(in) :: refine
        logical, intent(in) :: verbose
      end subroutine cell_standard
      module subroutine cell_niggli(c,verbose)

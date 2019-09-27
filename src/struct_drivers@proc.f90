@@ -1876,7 +1876,7 @@ contains
     logical :: ok, doprim, doforce
     integer :: lp, lp2, dotyp, i
     real*8 :: x0(3,3), t0(3), rdum(4)
-    logical :: doinv
+    logical :: doinv, dorefine
 
     if (s%c%ismolecule) then
        call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr,syntax=.true.)
@@ -1887,6 +1887,7 @@ contains
     lp = 1
     doprim = .false.
     doforce = .false.
+    dorefine = .false.
     dotyp = 0
     do while (.true.)
        word = lgetword(line,lp)
@@ -1905,6 +1906,8 @@ contains
           dotyp = 2
        elseif (equal(word,"delaunay")) then
           dotyp = 3
+       elseif (equal(word,"refine")) then
+          dorefine = .true.
        else
           lp = 1
           exit
@@ -1912,11 +1915,11 @@ contains
     end do
 
     if (dotyp == 1) then
-       call s%c%cell_standard(doprim,doforce,.true.)
+       call s%c%cell_standard(doprim,doforce,dorefine,.true.)
     elseif (dotyp == 2) then
-       call s%c%cell_niggli(.true.)
+       call s%c%cell_niggli(dorefine)
     elseif (dotyp == 3) then
-       call s%c%cell_delaunay(.true.)
+       call s%c%cell_delaunay(dorefine)
     end if
     if (dotyp > 0) return
 

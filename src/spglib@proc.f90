@@ -55,9 +55,9 @@ contains
   ! hall number.
   module function spg_get_dataset(lattice, position, types, num_atom, symprec, hall_number) result(dset)
     use c_interface_module, only: c_f_string
-    real(c_double), intent(in) :: lattice(3,3)
-    real(c_double), intent(in) :: position(3,*)
-    integer(c_int), intent(in) :: types(*)
+    real(c_double), intent(inout) :: lattice(3,3)
+    real(c_double), intent(inout) :: position(3,*)
+    integer(c_int), intent(inout) :: types(*)
     integer(c_int), intent(in), value :: num_atom
     real(c_double), intent(in), value :: symprec
     integer(c_int), intent(in), value, optional :: hall_number
@@ -91,18 +91,18 @@ contains
     interface
        function spg_get_dataset_c(lattice, position, types, num_atom, symprec) bind(c, name='spg_get_dataset')
          import c_int, c_double, c_ptr
-         real(c_double), intent(in) :: lattice(3,3)
-         real(c_double), intent(in) :: position(3,*)
-         integer(c_int), intent(in) :: types(*)
+         real(c_double), intent(inout) :: lattice(3,3)
+         real(c_double), intent(inout) :: position(3,*)
+         integer(c_int), intent(inout) :: types(*)
          integer(c_int), intent(in), value :: num_atom
          real(c_double), intent(in), value :: symprec
          type(c_ptr) :: spg_get_dataset_c
        end function spg_get_dataset_c
        function spg_get_dataset_with_hall_number_c(lattice, position, types, num_atom, hall_number, symprec) bind(c, name='spg_get_dataset_with_hall_number')
          import c_int, c_double, c_ptr
-         real(c_double), intent(in) :: lattice(3,3)
-         real(c_double), intent(in) :: position(3,*)
-         integer(c_int), intent(in) :: types(*)
+         real(c_double), intent(inout) :: lattice(3,3)
+         real(c_double), intent(inout) :: position(3,*)
+         integer(c_int), intent(inout) :: types(*)
          integer(c_int), intent(in), value :: num_atom
          integer(c_int), intent(in), value :: hall_number
          real(c_double), intent(in), value :: symprec
