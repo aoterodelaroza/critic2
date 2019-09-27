@@ -40,8 +40,9 @@ module fieldseedmod
      character(len=mlen) :: ids2 = "" !< id2.s in clm
      character(len=mlen) :: expr = "" !< expression in load as
      character(len=mmlen) :: elseopt = "" !< options to be handled elsewhere
-     logical :: testrmt = .true. !< whether to test rmt in wien/elk fields
-     logical :: readvirtual = .false. !< Read the virtual orbitals
+     logical :: testrmt = .true. !< whether to test rmt (wien/elk)
+     logical :: readvirtual = .false. !< Read the virtual orbitals (fchk/molden)
+     integer :: vaspblk = 1 !< Which VASP block to read (CHGCAR/CHG/...)
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
    contains

@@ -126,10 +126,11 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_abinit
-     module subroutine read_vasp(f,file,omega)
+     module subroutine read_vasp(f,file,omega,ibl)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
        real*8, intent(in) :: omega !< Cell volume
+       integer, intent(in), optional :: ibl !< grid block to read
      end subroutine read_vasp
      module subroutine read_qub(f,file)
        class(grid3), intent(inout) :: f
