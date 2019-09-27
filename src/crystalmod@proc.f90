@@ -198,7 +198,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string, noerr
+    use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -460,9 +460,9 @@ contains
              clearsym = .false.
           end if
        else if (seed%findsym == -1 .and. seed%nat > crsmall) then
-          call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
+          ! call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
        else if (seed%findsym == 0) then
-          call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
+          ! call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
        end if
 
     else if (.not.seed%ismolecule .and. c%havesym > 0) then
