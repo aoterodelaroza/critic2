@@ -1868,12 +1868,12 @@ contains
     use systemmod, only: system
     use global, only: eval_next
     use tools_math, only: matinv
-    use tools_io, only: ferror, faterr, lgetword, equal
+    use tools_io, only: uout, ferror, faterr, lgetword, equal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    logical :: ok, doprim, doforce
+    logical :: ok, doprim, doforce, changed
     integer :: lp, lp2, dotyp, i
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv, dorefine
@@ -1882,6 +1882,9 @@ contains
        call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr,syntax=.true.)
        return
     end if
+
+    write (uout,'("* Transformation to a new unit cell (NEWCELL)")')
+    write (uout,*)
 
     ! transform to the primitive?
     lp = 1
@@ -1914,77 +1917,93 @@ contains
        end if
     end do
 
+    t0 = 0d0
+    x0 = 0d0
     if (dotyp == 1) then
-       call s%c%cell_standard(doprim,doforce,dorefine,.true.)
+       x0 = s%c%cell_standard(doprim,doforce,dorefine)
+       changed = any(abs(x0) > 1d-5)
     elseif (dotyp == 2) then
-       call s%c%cell_niggli(dorefine)
+       x0 = s%c%cell_niggli()
+       changed = any(abs(x0) > 1d-5)
     elseif (dotyp == 3) then
-       call s%c%cell_delaunay(dorefine)
-    end if
-    if (dotyp > 0) return
-
-    ! read the vectors from the input
-    ok = eval_next(rdum(1),line,lp)
-    ok = ok .and. eval_next(rdum(2),line,lp)
-    ok = ok .and. eval_next(rdum(3),line,lp)
-    if (.not.ok) then
-       call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
-       return
-    end if
-    
-    lp2 = lp
-    ok = eval_next(rdum(4),line,lp)
-    if (ok) then
-       x0(:,1) = rdum(1:3)
-       x0(1,2) = rdum(4)
-       ok = eval_next(x0(2,2),line,lp)
-       ok = ok .and. eval_next(x0(3,2),line,lp)
-       ok = ok .and. eval_next(x0(1,3),line,lp)
-       ok = ok .and. eval_next(x0(2,3),line,lp)
-       ok = ok .and. eval_next(x0(3,3),line,lp)
+       x0 = s%c%cell_delaunay()
+       changed = any(abs(x0) > 1d-5)
+    else
+       ! read the vectors from the input
+       ok = eval_next(rdum(1),line,lp)
+       ok = ok .and. eval_next(rdum(2),line,lp)
+       ok = ok .and. eval_next(rdum(3),line,lp)
        if (.not.ok) then
           call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
           return
        end if
-    else
-       lp = lp2
-       x0 = 0d0
-       do i = 1, 3
-          x0(i,i) = rdum(i)
-       end do
-    end if
 
-    t0 = 0d0
-    doinv = .false.
-    do while (.true.)
-       word = lgetword(line,lp)
-       if (equal(word,"origin")) then
-          ok = eval_next(t0(1),line,lp)
-          ok = ok .and. eval_next(t0(2),line,lp)
-          ok = ok .and. eval_next(t0(3),line,lp)
+       lp2 = lp
+       ok = eval_next(rdum(4),line,lp)
+       if (ok) then
+          x0(:,1) = rdum(1:3)
+          x0(1,2) = rdum(4)
+          ok = eval_next(x0(2,2),line,lp)
+          ok = ok .and. eval_next(x0(3,2),line,lp)
+          ok = ok .and. eval_next(x0(1,3),line,lp)
+          ok = ok .and. eval_next(x0(2,3),line,lp)
+          ok = ok .and. eval_next(x0(3,3),line,lp)
           if (.not.ok) then
-             call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
+             call ferror("struct_newcell","Wrong syntax in NEWCELL",faterr,line,syntax=.true.)
              return
           end if
-       elseif (equal(word,"inv").or.equal(word,"inverse")) then
-          doinv = .true.
-       elseif (len_trim(word) > 0) then
-          call ferror('struct_newcell','Unknown extra keyword',faterr,line,syntax=.true.)
-          return
        else
-          exit
+          lp = lp2
+          do i = 1, 3
+             x0(i,i) = rdum(i)
+          end do
        end if
-    end do
-    if (doinv) x0 = matinv(x0)
 
-    ! transform to the new crystal
-    call s%c%newcell(x0,t0,.true.)
+       doinv = .false.
+       do while (.true.)
+          word = lgetword(line,lp)
+          if (equal(word,"origin")) then
+             ok = eval_next(t0(1),line,lp)
+             ok = ok .and. eval_next(t0(2),line,lp)
+             ok = ok .and. eval_next(t0(3),line,lp)
+             if (.not.ok) then
+                call ferror("struct_newcell","Wrong ORIGIN syntax in NEWCELL",faterr,line,syntax=.true.)
+                return
+             end if
+          elseif (equal(word,"inv").or.equal(word,"inverse")) then
+             doinv = .true.
+          elseif (len_trim(word) > 0) then
+             call ferror('struct_newcell','Unknown extra keyword',faterr,line,syntax=.true.)
+             return
+          else
+             exit
+          end if
+       end do
+       if (doinv) x0 = matinv(x0)
 
-    ! reset all fields and properties to the default
-    call s%reset_fields()
+       ! transform to the new crystal
+       call s%c%newcell(x0,t0)
+       changed = .true.
+    end if
 
-    ! report
-    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    if (changed) then
+       write (uout,'("  Lattice vectors of the new cell in the old setting (cryst. coord.):")')
+       write (uout,'(4X,3(A,X))') (string(x0(i,1),'f',12,7,4),i=1,3)
+       write (uout,'(4X,3(A,X))') (string(x0(i,2),'f',12,7,4),i=1,3)
+       write (uout,'(4X,3(A,X))') (string(x0(i,3),'f',12,7,4),i=1,3)
+       write (uout,'("  Origin translation: ",3(A,X))') (string(t0(i),'f',12,7,4),i=1,3)
+       if (dotyp == 1 .and. dorefine) &
+          write (uout,'("  Atomic positions have been refined.")')
+       write (uout,*)
+       
+       ! reset all fields and properties to the default
+       call s%reset_fields()
+       
+       ! report
+       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    else
+       write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
+    end if
 
   end subroutine struct_newcell
 

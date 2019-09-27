@@ -421,27 +421,29 @@ module crystalmod
        logical, intent(in) :: isnuc
        real*8 :: ewald_pot
      end function ewald_pot
-     module subroutine newcell(c,x00,t0,verbose0)
+     module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
        real*8, intent(in), optional :: t0(3)
-       logical, intent(in), optional :: verbose0
+       integer, intent(in), optional :: nnew
+       real*8, intent(in), optional :: xnew(:,:)
+       integer, intent(in), optional :: isnew(:)
      end subroutine newcell
-     module subroutine cell_standard(c,toprim,doforce,refine,verbose)
+     module function cell_standard(c,toprim,doforce,refine) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
        logical, intent(in) :: refine
-       logical, intent(in) :: verbose
-     end subroutine cell_standard
-     module subroutine cell_niggli(c,verbose)
+       real*8 :: x0(3,3)
+     end function cell_standard
+     module function cell_niggli(c) result(x0)
        class(crystal), intent(inout) :: c
-       logical, intent(in) :: verbose
-     end subroutine cell_niggli
-     module subroutine cell_delaunay(c,verbose)
+       real*8 :: x0(3,3)
+     end function cell_niggli
+     module function cell_delaunay(c) result(x0)
        class(crystal), intent(inout) :: c
-       logical, intent(in) :: verbose
-     end subroutine cell_delaunay
+       real*8 :: x0(3,3)
+     end function cell_delaunay
      module subroutine delaunay_reduction(c,rmat,rbas)
        class(crystal), intent(in) :: c
        real*8, intent(out) :: rmat(3,4)

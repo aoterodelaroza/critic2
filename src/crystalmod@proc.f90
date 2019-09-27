@@ -2165,7 +2165,7 @@ contains
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. 
-  module subroutine newcell(c,x00,t0,verbose0)
+  module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
@@ -2173,10 +2173,12 @@ contains
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
-    logical, intent(in), optional :: verbose0
+    integer, intent(in), optional :: nnew
+    real*8, intent(in), optional :: xnew(:,:)
+    integer, intent(in), optional :: isnew(:)
 
     type(crystalseed) :: ncseed
-    logical :: ok, found, verbose
+    logical :: ok, found
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
@@ -2206,8 +2208,6 @@ contains
     else
        t = 0d0
     end if
-    verbose = .false.
-    if (present(verbose0)) verbose = verbose0
 
     ! check that the vectors are pure translations
     do i = 1, 3
@@ -2232,16 +2232,6 @@ contains
        nr = -nint(1d0/dd)
        if (abs(-nr-1d0/dd) > eps) &
           call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-    end if
-
-    if (verbose) then
-       write (uout,'("* Transformation to a new unit cell (NEWCELL)")')
-       write (uout,'("  Lattice vectors of the new cell in the old setting (cryst. coord.):")')
-       write (uout,'(4X,3(A,X))') (string(x0(i,1),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,2),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,3),'f',12,7,4),i=1,3)
-       write (uout,'("  Origin translation: ",3(A,X))') (string(t(i),'f',12,7,4),i=1,3)
-       write (uout,*)
     end if
 
     ! inverse matrix
@@ -2289,56 +2279,68 @@ contains
     ncseed%nspc = c%nspc
     ncseed%spc = c%spc
 
-    ! build the new atom list
-    ncseed%nat = 0
-    nn = nint(c%ncel * fvol)
-    allocate(ncseed%x(3,nn),ncseed%is(nn))
-    do i = 1, nlat
-       do j = 1, c%ncel
-          ! candidate atom
-          x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
-          x = x - floor(x)
+    ! check if we have new atomic positions
+    if (present(nnew).and.present(xnew).and.present(isnew)) then
+       if (size(xnew,1) /= 3 .or. size(xnew,2) /= c%ncel) &
+          call ferror('newcell','NEWCELL: error in size of new atomic positions array',faterr)
+       ncseed%nat = nnew
+       allocate(ncseed%x(3,nnew),ncseed%is(nnew))
+       do i = 1, nnew
+          ncseed%x(:,i) = xnew(:,i)
+          ncseed%is(i) = isnew(i)
+       end do
+    else
+       ! build the new atom list
+       ncseed%nat = 0
+       nn = nint(c%ncel * fvol)
+       allocate(ncseed%x(3,nn),ncseed%is(nn))
+       do i = 1, nlat
+          do j = 1, c%ncel
+             ! candidate atom
+             x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
+             x = x - floor(x)
 
-          ! check if we have it already
-          ok = .true.
-          do m = 1, ncseed%nat
-             dx = x - ncseed%x(:,m)
-             dx = abs(dx - nint(dx))
-             if (all(dx < eps)) then
-                ok = .false.
-                exit
+             ! check if we have it already
+             ok = .true.
+             do m = 1, ncseed%nat
+                dx = x - ncseed%x(:,m)
+                dx = abs(dx - nint(dx))
+                if (all(dx < eps)) then
+                   ok = .false.
+                   exit
+                end if
+             end do
+             if (ok) then
+                ! add it to the list
+                ncseed%nat = ncseed%nat + 1
+                if (ncseed%nat > size(ncseed%x,2)) then
+                   call realloc(ncseed%x,3,2*ncseed%nat)
+                   call realloc(ncseed%is,2*ncseed%nat)
+                end if
+                ncseed%x(:,ncseed%nat) = x
+                ncseed%is(ncseed%nat) = c%atcel(j)%is
              end if
           end do
-          if (ok) then
-             ! add it to the list
-             ncseed%nat = ncseed%nat + 1
-             if (ncseed%nat > size(ncseed%x,2)) then
-                call realloc(ncseed%x,3,2*ncseed%nat)
-                call realloc(ncseed%is,2*ncseed%nat)
-             end if
-             ncseed%x(:,ncseed%nat) = x
-             ncseed%is(ncseed%nat) = c%atcel(j)%is
-          end if
        end do
-    end do
-    call realloc(ncseed%x,3,ncseed%nat)
-    call realloc(ncseed%is,ncseed%nat)
+       call realloc(ncseed%x,3,ncseed%nat)
+       call realloc(ncseed%is,ncseed%nat)
 
-    if (nr > 0) then
-       if (ncseed%nat / c%ncel /= nr) then
-          write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "ncseed%nat = ", ncseed%nat
-          write (uout,*) "nr = ", nr
-          call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
-       end if
-    else
-       if (c%ncel / ncseed%nat /= -nr) then
-          write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "ncseed%nat = ", ncseed%nat
-          write (uout,*) "nr = ", nr
-          call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
-       end if
-    endif
+       if (nr > 0) then
+          if (ncseed%nat / c%ncel /= nr) then
+             write (uout,*) "c%ncel = ", c%ncel
+             write (uout,*) "ncseed%nat = ", ncseed%nat
+             write (uout,*) "nr = ", nr
+             call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
+          end if
+       else
+          if (c%ncel / ncseed%nat /= -nr) then
+             write (uout,*) "c%ncel = ", c%ncel
+             write (uout,*) "ncseed%nat = ", ncseed%nat
+             write (uout,*) "nr = ", nr
+             call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
+          end if
+       endif
+    end if
 
     ! rest of the seed information
     ncseed%isused = .true.
@@ -2349,33 +2351,34 @@ contains
 
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
-    if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
 
   !> Transform to the standard cell. If toprim, convert to the
-  !> primitive standard cell. If verbose, write
-  !> information about the new crystal. If doforce = .true.,
-  !> force the transformation to the primitive even if it does
-  !> not lead to a smaller cell.
-  module subroutine cell_standard(c,toprim,doforce,refine,verbose)
+  !> primitive standard cell. If doforce = .true., force the
+  !> transformation to the primitive even if it does not lead to a
+  !> smaller cell. Return the transformation matrix, or a matrix
+  !> of zeros if no change was done.
+  module function cell_standard(c,toprim,doforce,refine) result(x0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
     use tools_math, only: det, matinv
-    use tools_io, only: ferror, faterr, uout
+    use tools_io, only: ferror, faterr
     use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
     logical, intent(in) :: doforce
     logical, intent(in) :: refine
-    logical, intent(in) :: verbose
+    real*8 :: x0(3,3)
     
     integer :: ntyp, nat
-    integer :: i, id, iprim, inorefine
+    integer :: i, nnew, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
     real*8 :: rmat(3,3)
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2396,8 +2399,8 @@ contains
     inorefine = 1
     if (refine) inorefine = 0
 
-    id = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
-    if (id == 0) &
+    nnew = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
+    if (nnew == 0) &
        call ferror("cell_standard","could not find primitive cell",faterr)
     rmat = transpose(rmat)
     do i = 1, 3
@@ -2407,35 +2410,34 @@ contains
     ! flip the cell?
     if (det(rmat) < 0d0) rmat = -rmat
 
-    ! if a primitive is wanted but det is not less than 1, do not make the change
-    if (all(abs(rmat - eye) < symprec)) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
-       return
-    end if
-    if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
-       return
-    end if
-
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
-    call c%newcell(rmat,verbose0=verbose)
+    if (refine) then
+       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types)
+    else
+       ! if a primitive is wanted but det is not less than 1, do not make the change
+       if (all(abs(rmat - eye) < symprec)) return
+       if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) return
+       call c%newcell(rmat)
+    end if
+    x0 = rmat
 
-  end subroutine cell_standard
+  end function cell_standard
 
-  !> Transform to the Niggli cell. If verbose, write information
-  !> about the new crystal.
-  module subroutine cell_niggli(c,verbose)
+  !> Transform to the Niggli cell. Return the transformation matrix,
+  !> or a matrix of zeros if no change was done.
+  module function cell_niggli(c) result(x0)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det
+    use param, only: eye
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
+    real*8 :: x0(3,3)
     
     real*8 :: rmat(3,3)
     integer :: id, i
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2454,22 +2456,28 @@ contains
     if (det(rmat) < 0d0) rmat = -rmat
 
     ! transform
-    call c%newcell(rmat,verbose0=verbose)
+    if (any(abs(rmat - eye) > symprec)) then
+       call c%newcell(rmat)
+       x0 = rmat
+    end if
 
-  end subroutine cell_niggli
+  end function cell_niggli
 
-  !> Transform to the Delaunay cell. If verbose, write information
-  !> about the new crystal.
-  module subroutine cell_delaunay(c,verbose)
+  !> Transform to the Delaunay cell. Return the transformation matrix,
+  !> or a matrix of zeros if no change was done.
+  module function cell_delaunay(c) result(x0)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det
+    use param, only: eye
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
+    real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
     integer :: id, i
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2488,9 +2496,12 @@ contains
     if (det(rmat) < 0d0) rmat = -rmat
 
     ! transform
-    call c%newcell(rmat,verbose0=verbose)
+    if (any(abs(rmat - eye) > symprec)) then
+       call c%newcell(rmat)
+       x0 = rmat
+    end if
 
-  end subroutine cell_delaunay
+  end function cell_delaunay
 
   !> Transforms the current basis to the Delaunay reduced basis.
   !> Return the four Delaunay vectors in crystallographic coordinates
@@ -4406,13 +4417,13 @@ contains
     character(len=3) :: schpg
     type(crystal) :: nc
     integer :: lu, spgnum, irhomb, count90, count120
-    real*8 :: xmin(6)
+    real*8 :: xmin(6), x0(3,3)
     logical :: ok
 
     ! we need symmetry for this
     if (dosym) then
        nc = c
-       call nc%cell_standard(.false.,.false.,.false.,.false.)
+       x0 = nc%cell_standard(.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
        irhomb = 0
