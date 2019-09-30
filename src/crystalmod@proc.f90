@@ -2794,16 +2794,8 @@ contains
           if (c%havesym > 0) then
              write(uout,'("+ Crystal symmetry information")')
              if (c%spgavail) then
-                if (len_trim(c%spg%choice) > 0) then
-                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
-                      string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
-                      string(c%spg%choice)
-                else
-                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
-                      string(c%spg%international_symbol), string(c%spg%spacegroup_number)
-                end if
-                ! write(uout,'("  Space group (Hall): ",A, " (number ",A,")")') &
-                !    string(c%spg%hall_symbol), string(c%spg%hall_number)
+                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
+                   string(c%spg%international_symbol), string(c%spg%spacegroup_number)
                 write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
 
                 call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)

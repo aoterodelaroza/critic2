@@ -257,12 +257,19 @@ contains
   
   !> Clear the symmetry in the system.
   module subroutine struct_sym(s,line)
-    use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal
+    use spglib, only: SpglibDataset
+    use global, only: symprec
+    use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, errmsg
-    integer :: lp
+    integer :: lp, i
+    real*8 :: osp
+    type(SpglibDataset) :: spg
+
+    real*8, parameter :: spmin = 1d-20
+    real*8, parameter :: factor = 10d0
 
     ! header
     write (uout,'("* SYM: manipulation of the crystal symmetry.")')
@@ -280,23 +287,34 @@ contains
     if (equal(word,'clear')) then
        write (uout,'("+ CLEAR the symmetry for this crystal structure.")')
        call s%clearsym()
+       call s%reset_fields()
+       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
     elseif (equal(word,'recalc')) then
        write (uout,'("+ RECALCULATE the symmetry operations.")')
        call s%c%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_sym","spglib: "//errmsg,faterr)
+       call s%reset_fields()
+       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
     elseif (equal(word,'analysis')) then
+       write (uout,'("+ ANALYSIS of the crystal symmetry.")')
+       write (uout,*)
+       osp = symprec
 
+       write (uout,'("# Sym.Prec. Space group")')
+       symprec = spmin / factor
+       do i = 1, 21
+          symprec = symprec * factor
+          call s%c%spglib_wrap(spg,.false.,errmsg)
+          if (len_trim(errmsg) > 0) exit
+          write (uout,'(1p,2X,A,A,X,"(",A,")")') string(symprec,'e',10,2), string(spg%international_symbol), &
+             string(spg%spacegroup_number)
+       end do
+       symprec = osp
     end if
     write (uout,*)
-
-    ! Reset all fields
-    call s%reset_fields()
-    
-    ! Write the report for the structure
-    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_sym
 
