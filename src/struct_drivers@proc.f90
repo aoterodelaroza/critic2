@@ -257,16 +257,20 @@ contains
   
   !> Clear the symmetry in the system.
   module subroutine struct_sym(s,line)
-    use spglib, only: SpglibDataset
+    use iso_c_binding, only: c_double
+    use crystalseedmod, only: crystalseed
+    use spglib, only: SpglibDataset, spg_standardize_cell
     use global, only: symprec
+    use tools_math, only: det, matinv
     use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
-
+    
     character(len=:), allocatable :: word, errmsg
     integer :: lp, i
     real*8 :: osp
     type(SpglibDataset) :: spg
+    real*8 :: x0(3,3)
 
     real*8, parameter :: spmin = 1d-20
     real*8, parameter :: factor = 10d0
@@ -287,16 +291,12 @@ contains
     if (equal(word,'clear')) then
        write (uout,'("+ CLEAR the symmetry for this crystal structure.")')
        call s%clearsym()
-       call s%reset_fields()
-       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
     elseif (equal(word,'recalc')) then
        write (uout,'("+ RECALCULATE the symmetry operations.")')
        call s%c%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_sym","spglib: "//errmsg,faterr)
-       call s%reset_fields()
-       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
     elseif (equal(word,'analysis')) then
        write (uout,'("+ ANALYSIS of the crystal symmetry.")')
@@ -312,9 +312,19 @@ contains
           write (uout,'(1p,2X,A,A,X,"(",A,")")') string(symprec,'e',10,2), string(spg%international_symbol), &
              string(spg%spacegroup_number)
        end do
+       write (uout,*)
        symprec = osp
+       return ! do not clear the fields or re-write the structure
+
+    elseif (equal(word,'refine')) then
+       x0 = s%c%cell_standard(.false.,.false.,.true.)
+       x0 = matinv(x0)
+       call s%c%newcell(x0)
     end if
-    write (uout,*)
+
+    ! clear the fields and report the new structure
+    call s%reset_fields()
+    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_sym
 

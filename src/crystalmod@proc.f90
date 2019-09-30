@@ -2236,7 +2236,9 @@ contains
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
-  !> structure using the unit cell given by those vectors. 
+  !> structure using the unit cell given by those vectors. If nnew,
+  !> xnew, and isnew are given, replace the nnew atoms with the
+  !> new positoins (xnew) and species (isnew).
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
