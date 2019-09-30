@@ -283,9 +283,11 @@ contains
 
     elseif (equal(word,'recalc')) then
        write (uout,'("+ RECALCULATE the symmetry operations.")')
-       call s%c%spglib_wrap(.false.,.false.,errmsg)
+       call s%c%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_sym","spglib: "//errmsg,faterr)
+
+    elseif (equal(word,'analysis')) then
 
     end if
     write (uout,*)

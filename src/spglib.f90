@@ -86,7 +86,7 @@ module spglib
      integer(c_int) :: n_operations
      integer(c_int), allocatable :: rotations(:,:,:)
      real(c_double), allocatable :: translations(:,:)
-     integer(c_int) :: n_atoms
+     integer(c_int) :: n_atoms = 0
      integer(c_int), allocatable :: wyckoffs(:)
      character(len=7), allocatable :: site_symmetry_symbols(:)
      integer(c_int), allocatable :: equivalent_atoms(:) !Beware mapping refers to positions starting at 0

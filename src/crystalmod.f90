@@ -172,7 +172,9 @@ module crystalmod
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
 
      ! symmetry
-     procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
+     procedure :: spglib_wrap !< Get the spg from the crystal geometry
+     procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
+     procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: clearsym !< Clear symmetry info and transform to a P1
 
      ! WS cell
@@ -458,12 +460,21 @@ module crystalmod
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
      end subroutine struct_report_symxyz
-     module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
-       class(crystal), intent(inout) :: c
+     module subroutine spglib_wrap(c,spg,usenneq,errmsg)
+       class(crystal), intent(in) :: c
+       type(SpglibDataset), intent(inout) :: spg
        logical, intent(in) :: usenneq
-       logical, intent(in) :: onlyspg
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine spglib_wrap
+     module subroutine spgtowyc(c,spg)
+       class(crystal), intent(inout) :: c
+       type(SpglibDataset), intent(inout), optional :: spg
+     end subroutine spgtowyc
+     module subroutine calcsym(c,usenneq,errmsg)
+       class(crystal), intent(inout) :: c
+       logical, intent(in) :: usenneq
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calcsym
      module subroutine clearsym(c,cel2neq,neq2cel)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: cel2neq
