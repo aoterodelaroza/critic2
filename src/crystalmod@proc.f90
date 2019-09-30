@@ -417,7 +417,7 @@ contains
              call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
 
              jloop: do j = 1, c%at(i)%mult
-                if (seed%checkrepeats > 0) then
+                if (seed%checkrepeats) then
                    do k = 1, iat
                       if (c%eql_distance(atpos(:,j),c%atcel(k)%x) < atomeps) cycle jloop
                    end do
@@ -2210,7 +2210,7 @@ contains
 
     ! symmetry
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
     if (copysym .and. c%spgavail) then
        seed%havesym = 1
        seed%neqv = c%neqv
