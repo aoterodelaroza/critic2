@@ -87,6 +87,7 @@ contains
   module subroutine global_set_defaults()
     use meshmod, only: mesh_type_franchini, mesh_level_good
 
+    ! global flags
     precisecube = .true.
 
     ! bond factor

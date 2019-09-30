@@ -159,6 +159,7 @@ module crystalmod
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
+     procedure :: makeseed !< make a crystal seed from a crystal
 
      ! unit cell transformations
      procedure :: newcell !< Change the unit cell and rebuild the crystal
@@ -423,6 +424,12 @@ module crystalmod
        logical, intent(in) :: isnuc
        real*8 :: ewald_pot
      end function ewald_pot
+     module subroutine makeseed(c,seed,copysym)
+       use crystalseedmod, only: crystalseed
+       class(crystal), intent(in) :: c
+       type(crystalseed), intent(out) :: seed
+       logical, intent(in) :: copysym
+     end subroutine makeseed
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)

@@ -2163,6 +2163,76 @@ contains
     ewald_pot = sum_real + sum_rec + sum0 + sum_back
 
   end function ewald_pot
+  
+  !> Make a crystal seed (seed) from a crystal structure
+  module subroutine makeseed(c,seed,copysym)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(in) :: c
+    type(crystalseed), intent(out) :: seed
+    logical, intent(in) :: copysym
+
+    integer :: i
+
+    ! general
+    seed%isused = .true.
+    seed%name = ""
+    seed%file = c%file
+    
+    ! atoms
+    if (copysym .and. c%spgavail) then
+       seed%nat = c%nneq
+       allocate(seed%x(3,c%nneq),seed%is(c%nneq))
+       do i = 1, c%nneq
+          seed%x(:,i) = c%at(i)%x
+          seed%is(i) = c%at(i)%is
+       end do
+    else
+       seed%nat = c%ncel
+       allocate(seed%x(3,c%ncel),seed%is(c%ncel))
+       do i = 1, c%ncel
+          seed%x(:,i) = c%atcel(i)%x
+          seed%is(i) = c%atcel(i)%is
+       end do
+    end if
+
+    ! species
+    seed%nspc = c%nspc
+    allocate(seed%spc(c%nspc))
+    do i = 1, c%nspc
+       seed%spc(i) = c%spc(i)
+    end do
+
+    ! cell
+    seed%useabr = 2
+    seed%aa = 0d0
+    seed%bb = 0d0
+    seed%m_x2c = c%m_x2c
+
+    ! symmetry
+    seed%findsym = -1
+    seed%checkrepeats = 0
+    if (copysym .and. c%spgavail) then
+       seed%havesym = 1
+       seed%neqv = c%neqv
+       seed%ncv = c%ncv
+       allocate(seed%rotm(3,4,c%neqv),seed%cen(3,c%ncv))
+       seed%rotm = c%rotm(:,:,1:c%neqv)
+       seed%cen = c%cen(:,1:c%ncv)
+    else
+       seed%havesym = 0
+       seed%neqv = 0
+       seed%ncv = 0
+    end if
+
+    ! molecular fields
+    seed%ismolecule = c%ismolecule
+    seed%cubic = (abs(c%aa(1)-c%aa(2)) < 1d-5).and.(abs(c%aa(1)-c%aa(3)) < 1d-5).and.&
+       all(abs(c%bb-90d0) < 1d-3)
+    seed%border = 0d0
+    seed%havex0 = .true.
+    seed%molx0 = c%molx0
+    
+  end subroutine makeseed
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal

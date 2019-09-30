@@ -115,7 +115,7 @@ program critic
            ismoli = 1
            if (iunit_isdef) iunit = iunit_ang
         end if
-        call struct_crystal_input(subline,ismoli,.true.,.true.,s0=sy)
+        call struct_crystal_input(subline,ismoli,.true.,.not.quiet,s0=sy)
 
         ! newcell
      elseif (equal(word,'newcell')) then
