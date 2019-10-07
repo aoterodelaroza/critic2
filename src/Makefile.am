@@ -12,7 +12,7 @@ critic2_SOURCES = critic2.F90 c_interface_module.f90 cfftnd.f90 \
 	environmod.f90 environmod@proc.f90 \
 	fieldmod.f90 fieldmod@proc.f90 fieldseedmod.f90 fieldseedmod@proc.f90 \
 	flux.f90 flux@proc.f90 fragmentmod.f90 fragmentmod@proc.f90 \
-	global.f90 global@proc.f90 graphics.f90 graphics@proc.f90 \
+	global.f90 global@proc.F90 graphics.f90 graphics@proc.f90 \
 	grid1mod.f90 grid1mod@proc.f90 grid3mod.f90 grid3mod@proc.f90 \
 	hashmod.f90 hashmod@proc.f90 hirshfeld.f90 hirshfeld@proc.f90 \
 	integration.f90 integration@proc.f90 meshmod.f90 meshmod@proc.f90 \
@@ -41,7 +41,7 @@ if GUI
 	environmod.f90 environmod@proc.f90 \
 	fieldmod.f90 fieldmod@proc.f90 fieldseedmod.f90 fieldseedmod@proc.f90 \
 	flux.f90 flux@proc.f90 fragmentmod.f90 fragmentmod@proc.f90 \
-	global.f90 global@proc.f90 graphics.f90 graphics@proc.f90 \
+	global.f90 global@proc.F90 graphics.f90 graphics@proc.f90 \
 	grid1mod.f90 grid1mod@proc.f90 grid3mod.f90 grid3mod@proc.f90 \
 	hashmod.f90 hashmod@proc.f90 hirshfeld.f90 hirshfeld@proc.f90 \
 	integration.f90 integration@proc.f90 meshmod.f90 meshmod@proc.f90 \
