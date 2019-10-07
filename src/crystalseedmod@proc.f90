@@ -2876,7 +2876,7 @@ contains
   !> Read the structure from a pwc file.
   module subroutine read_pwc(seed,file,mol,errmsg)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, fclose, zatguess
+    use tools_io, only: fopen_read, fclose, zatguess, ferror, faterr
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2885,7 +2885,7 @@ contains
     integer :: lu
     integer :: version, i
     character*3, allocatable :: atm(:)
-    real*8 :: r(3,3)
+    real*8 :: r(3,3), alat
 
     errmsg = ""
     ! open
@@ -2898,7 +2898,10 @@ contains
 
     ! header
     read (lu,err=999) version
-    read (lu,err=999) seed%nspc, seed%nat
+    if (version < 2) &
+       call ferror('read_pwc','This pwc file is too old. Please update your QE and regenerate it.',faterr)
+
+    read (lu,err=999) seed%nspc, seed%nat, alat
 
     ! species
     allocate(atm(seed%nspc),seed%spc(seed%nspc))
@@ -2914,11 +2917,12 @@ contains
     read (lu,err=999) seed%is
     read (lu,err=999) seed%x
     read (lu,err=999) seed%m_x2c
+    seed%m_x2c = seed%m_x2c * alat
 
     ! convert to crystallographic
     r = matinv(seed%m_x2c)
     do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i))
+       seed%x(:,i) = matmul(r,seed%x(:,i)) * alat
     end do
     seed%useabr = 2
 

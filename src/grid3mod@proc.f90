@@ -758,14 +758,14 @@ contains
   !> the Bloch states, k-points, and structural info.
   module subroutine read_pwc(f,fpwc)
     use tools_math, only: det
-    use tools_io, only: fopen_read, fclose, ferror
+    use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     
-    integer :: i, ispin, ik, ibnd, ikk
+    integer :: i, ispin, ik, ibnd, ikk, iver
     integer :: luc
-    integer :: npwx, ngms, nkstot
-    real*8 :: at(3,3), fspin
+    integer :: npwx, ngms, nkstot, nsp, nat
+    real*8 :: at(3,3), fspin, alat
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: gamma_only
     
@@ -779,12 +779,16 @@ contains
     luc = fopen_read(fpwc,form="unformatted")
 
     ! header and lattice vectors
-    read (luc) ! version
-    read (luc) ! nsp, nat
+    read (luc) iver ! version
+    if (iver < 2) &
+       call ferror('read_pwc','This pwc file is too old. Please update your QE and regenerate it.',faterr)
+
+    read (luc) nsp, nat, alat ! nsp, nat, alat
     read (luc) ! atm
     read (luc) ! ityp 
     read (luc) ! tau
     read (luc) at
+    at = at * alat
 
     ! read the dimensions for the arrays
     read (luc) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
@@ -833,7 +837,7 @@ contains
     ! convert k-point coordinates to reciprocal crystallographic and
     ! band energies to Hartree
     do i = 1, f%qe%nks
-       f%qe%kpt(:,i) = matmul(f%qe%kpt(:,i),at)
+       f%qe%kpt(:,i) = matmul(f%qe%kpt(:,i),at) / alat
     end do
     f%qe%ek = 0.5d0 * f%qe%ek
 
