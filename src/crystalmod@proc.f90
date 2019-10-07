@@ -197,7 +197,7 @@ contains
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string, noerr
+    use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -416,7 +416,7 @@ contains
              call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
 
              jloop: do j = 1, c%at(i)%mult
-                if (seed%checkrepeats > 0) then
+                if (seed%checkrepeats) then
                    do k = 1, iat
                       if (c%eql_distance(atpos(:,j),c%atcel(k)%x) < atomeps) cycle jloop
                    end do
@@ -452,24 +452,26 @@ contains
        if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) then
           ! symmetry was not available, and I want it
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
-          call c%spglib_wrap(.true.,.false.,errmsg)
+          call c%calcsym(.true.,errmsg)
           if (len_trim(errmsg) > 0) then
              call ferror("struct_new","spglib: "//errmsg,faterr)
           else
              clearsym = .false.
           end if
        else if (seed%findsym == -1 .and. seed%nat > crsmall) then
-          call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
+          ! call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
        else if (seed%findsym == 0) then
-          call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
+          ! call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
        end if
 
     else if (.not.seed%ismolecule .and. c%havesym > 0) then
        ! symmetry was already available, but I still want the space group details
-       call c%spglib_wrap(.false.,.true.,errmsg)
+       call c%spglib_wrap(c%spg,.false.,errmsg)
        if (len_trim(errmsg) > 0) then
           call ferror("struct_new","spglib: "//errmsg,faterr)
        else
+          c%spgavail = .true.
+          call c%spgtowyc(c%spg)
           clearsym = .false.
        end if
     end if
@@ -2160,11 +2162,83 @@ contains
     ewald_pot = sum_real + sum_rec + sum0 + sum_back
 
   end function ewald_pot
+  
+  !> Make a crystal seed (seed) from a crystal structure
+  module subroutine makeseed(c,seed,copysym)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(in) :: c
+    type(crystalseed), intent(out) :: seed
+    logical, intent(in) :: copysym
+
+    integer :: i
+
+    ! general
+    seed%isused = .true.
+    seed%name = ""
+    seed%file = c%file
+    
+    ! atoms
+    if (copysym .and. c%spgavail) then
+       seed%nat = c%nneq
+       allocate(seed%x(3,c%nneq),seed%is(c%nneq))
+       do i = 1, c%nneq
+          seed%x(:,i) = c%at(i)%x
+          seed%is(i) = c%at(i)%is
+       end do
+    else
+       seed%nat = c%ncel
+       allocate(seed%x(3,c%ncel),seed%is(c%ncel))
+       do i = 1, c%ncel
+          seed%x(:,i) = c%atcel(i)%x
+          seed%is(i) = c%atcel(i)%is
+       end do
+    end if
+
+    ! species
+    seed%nspc = c%nspc
+    allocate(seed%spc(c%nspc))
+    do i = 1, c%nspc
+       seed%spc(i) = c%spc(i)
+    end do
+
+    ! cell
+    seed%useabr = 2
+    seed%aa = 0d0
+    seed%bb = 0d0
+    seed%m_x2c = c%m_x2c
+
+    ! symmetry
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+    if (copysym .and. c%spgavail) then
+       seed%havesym = 1
+       seed%neqv = c%neqv
+       seed%ncv = c%ncv
+       allocate(seed%rotm(3,4,c%neqv),seed%cen(3,c%ncv))
+       seed%rotm = c%rotm(:,:,1:c%neqv)
+       seed%cen = c%cen(:,1:c%ncv)
+    else
+       seed%havesym = 0
+       seed%neqv = 0
+       seed%ncv = 0
+    end if
+
+    ! molecular fields
+    seed%ismolecule = c%ismolecule
+    seed%cubic = (abs(c%aa(1)-c%aa(2)) < 1d-5).and.(abs(c%aa(1)-c%aa(3)) < 1d-5).and.&
+       all(abs(c%bb-90d0) < 1d-3)
+    seed%border = 0d0
+    seed%havex0 = .true.
+    seed%molx0 = c%molx0
+    
+  end subroutine makeseed
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
-  !> structure using the unit cell given by those vectors. 
-  module subroutine newcell(c,x00,t0,verbose0)
+  !> structure using the unit cell given by those vectors. If nnew,
+  !> xnew, and isnew are given, replace the nnew atoms with the
+  !> new positoins (xnew) and species (isnew).
+  module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
@@ -2172,10 +2246,12 @@ contains
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
-    logical, intent(in), optional :: verbose0
+    integer, intent(in), optional :: nnew
+    real*8, intent(in), optional :: xnew(:,:)
+    integer, intent(in), optional :: isnew(:)
 
     type(crystalseed) :: ncseed
-    logical :: ok, found, verbose
+    logical :: ok, found
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
@@ -2205,8 +2281,6 @@ contains
     else
        t = 0d0
     end if
-    verbose = .false.
-    if (present(verbose0)) verbose = verbose0
 
     ! check that the vectors are pure translations
     do i = 1, 3
@@ -2231,16 +2305,6 @@ contains
        nr = -nint(1d0/dd)
        if (abs(-nr-1d0/dd) > eps) &
           call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-    end if
-
-    if (verbose) then
-       write (uout,'("* Transformation to a new unit cell (NEWCELL)")')
-       write (uout,'("  Lattice vectors of the new cell in the old setting (cryst. coord.):")')
-       write (uout,'(4X,3(A,X))') (string(x0(i,1),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,2),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,3),'f',12,7,4),i=1,3)
-       write (uout,'("  Origin translation: ",3(A,X))') (string(t(i),'f',12,7,4),i=1,3)
-       write (uout,*)
     end if
 
     ! inverse matrix
@@ -2288,56 +2352,68 @@ contains
     ncseed%nspc = c%nspc
     ncseed%spc = c%spc
 
-    ! build the new atom list
-    ncseed%nat = 0
-    nn = nint(c%ncel * fvol)
-    allocate(ncseed%x(3,nn),ncseed%is(nn))
-    do i = 1, nlat
-       do j = 1, c%ncel
-          ! candidate atom
-          x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
-          x = x - floor(x)
+    ! check if we have new atomic positions
+    if (present(nnew).and.present(xnew).and.present(isnew)) then
+       if (size(xnew,1) /= 3 .or. size(xnew,2) /= c%ncel) &
+          call ferror('newcell','NEWCELL: error in size of new atomic positions array',faterr)
+       ncseed%nat = nnew
+       allocate(ncseed%x(3,nnew),ncseed%is(nnew))
+       do i = 1, nnew
+          ncseed%x(:,i) = xnew(:,i)
+          ncseed%is(i) = isnew(i)
+       end do
+    else
+       ! build the new atom list
+       ncseed%nat = 0
+       nn = nint(c%ncel * fvol)
+       allocate(ncseed%x(3,nn),ncseed%is(nn))
+       do i = 1, nlat
+          do j = 1, c%ncel
+             ! candidate atom
+             x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
+             x = x - floor(x)
 
-          ! check if we have it already
-          ok = .true.
-          do m = 1, ncseed%nat
-             dx = x - ncseed%x(:,m)
-             dx = abs(dx - nint(dx))
-             if (all(dx < eps)) then
-                ok = .false.
-                exit
+             ! check if we have it already
+             ok = .true.
+             do m = 1, ncseed%nat
+                dx = x - ncseed%x(:,m)
+                dx = abs(dx - nint(dx))
+                if (all(dx < eps)) then
+                   ok = .false.
+                   exit
+                end if
+             end do
+             if (ok) then
+                ! add it to the list
+                ncseed%nat = ncseed%nat + 1
+                if (ncseed%nat > size(ncseed%x,2)) then
+                   call realloc(ncseed%x,3,2*ncseed%nat)
+                   call realloc(ncseed%is,2*ncseed%nat)
+                end if
+                ncseed%x(:,ncseed%nat) = x
+                ncseed%is(ncseed%nat) = c%atcel(j)%is
              end if
           end do
-          if (ok) then
-             ! add it to the list
-             ncseed%nat = ncseed%nat + 1
-             if (ncseed%nat > size(ncseed%x,2)) then
-                call realloc(ncseed%x,3,2*ncseed%nat)
-                call realloc(ncseed%is,2*ncseed%nat)
-             end if
-             ncseed%x(:,ncseed%nat) = x
-             ncseed%is(ncseed%nat) = c%atcel(j)%is
-          end if
        end do
-    end do
-    call realloc(ncseed%x,3,ncseed%nat)
-    call realloc(ncseed%is,ncseed%nat)
+       call realloc(ncseed%x,3,ncseed%nat)
+       call realloc(ncseed%is,ncseed%nat)
 
-    if (nr > 0) then
-       if (ncseed%nat / c%ncel /= nr) then
-          write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "ncseed%nat = ", ncseed%nat
-          write (uout,*) "nr = ", nr
-          call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
-       end if
-    else
-       if (c%ncel / ncseed%nat /= -nr) then
-          write (uout,*) "c%nneq = ", c%ncel
-          write (uout,*) "ncseed%nat = ", ncseed%nat
-          write (uout,*) "nr = ", nr
-          call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
-       end if
-    endif
+       if (nr > 0) then
+          if (ncseed%nat / c%ncel /= nr) then
+             write (uout,*) "c%ncel = ", c%ncel
+             write (uout,*) "ncseed%nat = ", ncseed%nat
+             write (uout,*) "nr = ", nr
+             call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
+          end if
+       else
+          if (c%ncel / ncseed%nat /= -nr) then
+             write (uout,*) "c%ncel = ", c%ncel
+             write (uout,*) "ncseed%nat = ", ncseed%nat
+             write (uout,*) "nr = ", nr
+             call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
+          end if
+       endif
+    end if
 
     ! rest of the seed information
     ncseed%isused = .true.
@@ -2348,32 +2424,34 @@ contains
 
     ! initialize the structure
     call c%struct_new(ncseed,.true.)
-    if (verbose) call c%report(.true.,.true.)
 
   end subroutine newcell
 
   !> Transform to the standard cell. If toprim, convert to the
-  !> primitive standard cell. If verbose, write
-  !> information about the new crystal. If doforce = .true.,
-  !> force the transformation to the primitive even if it does
-  !> not lead to a smaller cell.
-  module subroutine cell_standard(c,toprim,doforce,verbose)
+  !> primitive standard cell. If doforce = .true., force the
+  !> transformation to the primitive even if it does not lead to a
+  !> smaller cell. Return the transformation matrix, or a matrix
+  !> of zeros if no change was done.
+  module function cell_standard(c,toprim,doforce,refine) result(x0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell, spg_get_dataset
     use global, only: symprec
     use tools_math, only: det, matinv
-    use tools_io, only: ferror, faterr, uout
+    use tools_io, only: ferror, faterr
     use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
     logical, intent(in) :: doforce
-    logical, intent(in) :: verbose
+    logical, intent(in) :: refine
+    real*8 :: x0(3,3)
     
     integer :: ntyp, nat
-    integer :: i, id, iprim
+    integer :: i, nnew, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types(:)
     real*8 :: rmat(3,3)
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2388,10 +2466,14 @@ contains
        types(i) = c%atcel(i)%is
     end do
 
+    ! parse options
     iprim = 0
     if (toprim) iprim = 1
-    id = spg_standardize_cell(rmat,x,types,nat,iprim,1,symprec)
-    if (id == 0) &
+    inorefine = 1
+    if (refine) inorefine = 0
+
+    nnew = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
+    if (nnew == 0) &
        call ferror("cell_standard","could not find primitive cell",faterr)
     rmat = transpose(rmat)
     do i = 1, 3
@@ -2401,35 +2483,34 @@ contains
     ! flip the cell?
     if (det(rmat) < 0d0) rmat = -rmat
 
-    ! if a primitive is wanted but det is not less than 1, do not make the change
-    if (all(abs(rmat - eye) < symprec)) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
-       return
-    end if
-    if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) then
-       if (verbose) &
-          write (uout,'("+ Cell transformation does not lead to a smaller cell: skipping."/)')
-       return
-    end if
-
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
-    call c%newcell(rmat,verbose0=verbose)
+    if (refine) then
+       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types)
+    else
+       ! if a primitive is wanted but det is not less than 1, do not make the change
+       if (all(abs(rmat - eye) < symprec)) return
+       if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) return
+       call c%newcell(rmat)
+    end if
+    x0 = rmat
 
-  end subroutine cell_standard
+  end function cell_standard
 
-  !> Transform to the Niggli cell. If verbose, write information
-  !> about the new crystal.
-  module subroutine cell_niggli(c,verbose)
+  !> Transform to the Niggli cell. Return the transformation matrix,
+  !> or a matrix of zeros if no change was done.
+  module function cell_niggli(c) result(x0)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det
+    use param, only: eye
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
+    real*8 :: x0(3,3)
     
     real*8 :: rmat(3,3)
     integer :: id, i
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2448,22 +2529,28 @@ contains
     if (det(rmat) < 0d0) rmat = -rmat
 
     ! transform
-    call c%newcell(rmat,verbose0=verbose)
+    if (any(abs(rmat - eye) > symprec)) then
+       call c%newcell(rmat)
+       x0 = rmat
+    end if
 
-  end subroutine cell_niggli
+  end function cell_niggli
 
-  !> Transform to the Delaunay cell. If verbose, write information
-  !> about the new crystal.
-  module subroutine cell_delaunay(c,verbose)
+  !> Transform to the Delaunay cell. Return the transformation matrix,
+  !> or a matrix of zeros if no change was done.
+  module function cell_delaunay(c) result(x0)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det
+    use param, only: eye
     class(crystal), intent(inout) :: c
-    logical, intent(in) :: verbose
+    real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
     integer :: id, i
+
+    x0 = 0d0
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -2482,9 +2569,12 @@ contains
     if (det(rmat) < 0d0) rmat = -rmat
 
     ! transform
-    call c%newcell(rmat,verbose0=verbose)
+    if (any(abs(rmat - eye) > symprec)) then
+       call c%newcell(rmat)
+       x0 = rmat
+    end if
 
-  end subroutine cell_delaunay
+  end function cell_delaunay
 
   !> Transforms the current basis to the Delaunay reduced basis.
   !> Return the four Delaunay vectors in crystallographic coordinates
@@ -2775,16 +2865,8 @@ contains
           if (c%havesym > 0) then
              write(uout,'("+ Crystal symmetry information")')
              if (c%spgavail) then
-                if (len_trim(c%spg%choice) > 0) then
-                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,", setting ",A,")")') &
-                      string(c%spg%international_symbol), string(c%spg%spacegroup_number),&
-                      string(c%spg%choice)
-                else
-                   write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
-                      string(c%spg%international_symbol), string(c%spg%spacegroup_number)
-                end if
-                ! write(uout,'("  Space group (Hall): ",A, " (number ",A,")")') &
-                !    string(c%spg%hall_symbol), string(c%spg%hall_number)
+                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
+                   string(c%spg%international_symbol), string(c%spg%spacegroup_number)
                 write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
 
                 call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
@@ -3004,38 +3086,32 @@ contains
 
   end subroutine struct_report_symxyz
 
-  !> Use the spg library to find information about the space group.
-  !> In: cell vectors (m_x2c), ncel, atcel(:), at(:) Out: neqv, rotm,
-  !> spg, at()%mult, ncel, and atcel(). If usenneq is .true., use nneq
-  !> and at(:) instead of ncel and atcel. If onlyspg is .true., fill
-  !> only the spg field and the %wyc field in at(:) and leave the
-  !> other info unchanged.
-  module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
+  !> Use the spg library to find information about the space group,
+  !> encapsulated in the spg user-defined type (spg).
+  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:). 
+  !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
+  !> If error, return the error in errmsg. Otherwise, return
+  !> a zero-length string.
+  module subroutine spglib_wrap(c,spg,usenneq,errmsg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
-    use global, only: symprec, atomeps
+    use global, only: symprec
     use tools_io, only: string, equal
-    use param, only: maxzat0, eyet, eye
+    use param, only: maxzat0
     use types, only: realloc
-    class(crystal), intent(inout) :: c
+    class(crystal), intent(in) :: c
+    type(SpglibDataset), intent(inout) :: spg
     logical, intent(in) :: usenneq
-    logical, intent(in) :: onlyspg
     character(len=:), allocatable, intent(out) :: errmsg
 
     real(c_double) :: lattice(3,3)
     real(c_double), allocatable :: x(:,:)
-    integer, allocatable :: typ(:), iidx(:)
+    integer, allocatable :: typ(:)
     integer :: ntyp, nat
-    integer :: i, j, k, iat, iz(maxzat0), idx, ilet
+    integer :: i, iz(maxzat0)
     character(len=32) :: error
-    logical :: found
-    real*8 :: rotm(3,3), x0(3)
-    logical, allocatable :: used(:)
-
-    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
 
     ! get the dataset from spglib
-    c%spgavail = .false.
     errmsg = ""
     lattice = transpose(c%m_x2c)
     iz = 0
@@ -3057,7 +3133,7 @@ contains
           typ(i) = c%atcel(i)%is
        end do
     end if
-    c%spg = spg_get_dataset(lattice,x,typ,nat,symprec)
+    spg = spg_get_dataset(lattice,x,typ,nat,symprec)
     deallocate(x,typ)
 
     ! check error messages
@@ -3067,127 +3143,180 @@ contains
        return
     end if
 
-    if (.not.onlyspg) then
-       ! make a copy of nneq into ncel, if appropriate
-       if (usenneq) then
-          c%ncel = c%nneq
-          if (allocated(c%atcel)) deallocate(c%atcel)
-          allocate(c%atcel(c%ncel))
-          do i = 1, c%ncel
-             c%atcel(i)%x = c%at(i)%x
-             c%atcel(i)%r = c%at(i)%r
-             c%atcel(i)%is = c%at(i)%is
-          end do
-       end if
+  end subroutine spglib_wrap
+  
+  !> Set the Wyckoff positions in crystal c from the information in spg.
+  !> Assumes the atoms are in the same order. If spg is not present
+  !> or not initialized, then fill with "?".
+  module subroutine spgtowyc(c,spg)
+    class(crystal), intent(inout) :: c
+    type(SpglibDataset), intent(inout), optional :: spg
+    
+    integer :: i, idx, ilet
+    logical :: doit
 
-       ! re-write nneq list based on the information from spg
-       allocate(iidx(c%ncel))
-       iidx = 0
-       c%nneq = 0
-       do i = 1, c%spg%n_atoms
-          idx = c%spg%equivalent_atoms(i) + 1
-          if (iidx(idx) == 0) then
-             c%nneq = c%nneq + 1
-             iidx(idx) = c%nneq
-             if (c%nneq > size(c%at,1)) call realloc(c%at,2*c%nneq)
-             c%at(c%nneq)%x = c%atcel(idx)%x
-             c%at(c%nneq)%r = c%atcel(idx)%r
-             c%at(c%nneq)%is = c%atcel(idx)%is
-             c%at(c%nneq)%mult = 1
-             c%at(c%nneq)%rnn2 = 0d0
-             c%at(c%nneq)%wyc = "?"
-          else
-             c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
+    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
+
+    doit = .false.
+    if (present(spg)) then
+       if (spg%n_atoms > 0) doit = .true.
+    end if
+
+    ! fill wyckoff letters
+    if (doit) then
+       do i = 1, c%ncel
+          idx = c%atcel(i)%idx
+          if (c%at(idx)%wyc == "?") then
+             ilet = c%spg%wyckoffs(i)+1
+             c%at(idx)%wyc = wycklet(ilet:ilet)
           end if
-          c%atcel(i)%idx = iidx(idx)
        end do
-       deallocate(iidx)
-       call realloc(c%at,c%nneq)
+    else
+       do i = 1, c%nneq
+          c%at(i)%wyc = "?"
+       end do
+    end if
 
-       ! unpack spglib's output into pure translations and symops
-       c%neqv = 1
-       c%rotm(:,:,1) = eyet
-       c%ncv = 1
-       if (.not.allocated(c%cen)) allocate(c%cen(3,1))
-       c%cen = 0d0
-       do i = 1, c%spg%n_operations
-          rotm = transpose(c%spg%rotations(:,:,i))
+  end subroutine spgtowyc
 
-          ! is this a pure translation?
-          if (all(abs(rotm - eye) < symprec)) then
-             found = .false.
-             do j = 1, c%ncv
-                if (all(abs(c%spg%translations(:,i) - c%cen(:,j)) < symprec)) then
-                   found = .true.
-                   exit
-                end if
-             end do
-             if (.not.found) then
-                c%ncv = c%ncv + 1
-                if (c%ncv > size(c%cen,2)) &
-                   call realloc(c%cen,3,2*c%ncv)
-                c%cen(:,c%ncv) = c%spg%translations(:,i)
-             end if
-             cycle
-          end if
+  !> Calculate the crystal symmetry operations.
+  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:) 
+  !> Output: neqv, rotm, spg, at()%mult, ncel, and atcel(). 
+  !> If usenneq, use nneq and at(:) instead of ncel and atcel(:). 
+  !> If error, errmsg in output has length > 0 and contains the error
+  !> message.
+  module subroutine calcsym(c,usenneq,errmsg)
+    use iso_c_binding, only: c_double
+    use spglib, only: spg_get_dataset, spg_get_error_message
+    use global, only: symprec, atomeps
+    use tools_io, only: string, equal
+    use param, only: eyet, eye
+    use types, only: realloc
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: usenneq
+    character(len=:), allocatable, intent(out) :: errmsg
 
-          ! Do I have this rotation already?
+    integer, allocatable :: iidx(:)
+    integer :: i, j, k, iat, idx
+    logical :: found
+    real*8 :: rotm(3,3), x0(3)
+    logical, allocatable :: used(:)
+
+    c%spgavail = .false.
+    call c%spglib_wrap(c%spg,usenneq,errmsg)
+    if (len_trim(errmsg) > 0) return
+    c%spgavail = .true.
+    
+    ! make a copy of nneq into ncel, if appropriate
+    if (usenneq) then
+       c%ncel = c%nneq
+       if (allocated(c%atcel)) deallocate(c%atcel)
+       allocate(c%atcel(c%ncel))
+       do i = 1, c%ncel
+          c%atcel(i)%x = c%at(i)%x
+          c%atcel(i)%r = c%at(i)%r
+          c%atcel(i)%is = c%at(i)%is
+       end do
+    end if
+
+    ! re-write nneq list based on the information from spg
+    allocate(iidx(c%ncel))
+    iidx = 0
+    c%nneq = 0
+    do i = 1, c%spg%n_atoms
+       idx = c%spg%equivalent_atoms(i) + 1
+       if (iidx(idx) == 0) then
+          c%nneq = c%nneq + 1
+          iidx(idx) = c%nneq
+          if (c%nneq > size(c%at,1)) call realloc(c%at,2*c%nneq)
+          c%at(c%nneq)%x = c%atcel(idx)%x
+          c%at(c%nneq)%r = c%atcel(idx)%r
+          c%at(c%nneq)%is = c%atcel(idx)%is
+          c%at(c%nneq)%mult = 1
+          c%at(c%nneq)%rnn2 = 0d0
+          c%at(c%nneq)%wyc = "?"
+       else
+          c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
+       end if
+       c%atcel(i)%idx = iidx(idx)
+    end do
+    deallocate(iidx)
+    call realloc(c%at,c%nneq)
+
+    ! unpack spglib's output into pure translations and symops
+    c%neqv = 1
+    c%rotm(:,:,1) = eyet
+    c%ncv = 1
+    if (.not.allocated(c%cen)) allocate(c%cen(3,1))
+    c%cen = 0d0
+    do i = 1, c%spg%n_operations
+       rotm = transpose(c%spg%rotations(:,:,i))
+
+       ! is this a pure translation?
+       if (all(abs(rotm - eye) < symprec)) then
           found = .false.
-          do j = 1, c%neqv
-             if (all(abs(rotm - c%rotm(1:3,1:3,j)) < symprec)) then
+          do j = 1, c%ncv
+             if (all(abs(c%spg%translations(:,i) - c%cen(:,j)) < symprec)) then
                 found = .true.
+                exit
              end if
           end do
           if (.not.found) then
-             c%neqv = c%neqv + 1
-             c%rotm(1:3,1:3,c%neqv) = rotm
-             c%rotm(1:3,4,c%neqv) = c%spg%translations(:,i)
+             c%ncv = c%ncv + 1
+             if (c%ncv > size(c%cen,2)) &
+                call realloc(c%cen,3,2*c%ncv)
+             c%cen(:,c%ncv) = c%spg%translations(:,i)
+          end if
+          cycle
+       end if
+
+       ! Do I have this rotation already?
+       found = .false.
+       do j = 1, c%neqv
+          if (all(abs(rotm - c%rotm(1:3,1:3,j)) < symprec)) then
+             found = .true.
           end if
        end do
-       call realloc(c%cen,3,c%ncv)
-       c%havesym = 1
-
-       ! generate symmetry operation info for the complete atom list
-       allocate(used(c%ncel))
-       used = .false.
-       main: do iat = 1, c%nneq
-          do i = 1, c%neqv
-             do j = 1, c%ncv
-                x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
-                found = .false.
-                do k = 1, c%ncel
-                   if (used(k)) cycle
-                   if (c%are_lclose(x0,c%atcel(k)%x,atomeps)) then
-                      c%atcel(k)%ir = i
-                      c%atcel(k)%ic = j
-                      c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
-                      used(k) = .true.
-                      exit
-                   end if
-                end do
-                if (all(used)) exit main
-             end do
-          end do
-       end do main
-       if (.not.all(used)) then
-          errmsg = "error building rotation and center information for atom list"
-          return
-       end if
-    end if
-    
-    ! fill wyckoff letters
-    do i = 1, c%ncel
-       idx = c%atcel(i)%idx
-       if (c%at(idx)%wyc == "?") then
-          ilet = c%spg%wyckoffs(i)+1
-          c%at(idx)%wyc = wycklet(ilet:ilet)
+       if (.not.found) then
+          c%neqv = c%neqv + 1
+          c%rotm(1:3,1:3,c%neqv) = rotm
+          c%rotm(1:3,4,c%neqv) = c%spg%translations(:,i)
        end if
     end do
+    call realloc(c%cen,3,c%ncv)
+    c%havesym = 1
 
-    ! finish
-    c%spgavail = .true.
+    ! generate symmetry operation info for the complete atom list
+    allocate(used(c%ncel))
+    used = .false.
+    main: do iat = 1, c%nneq
+       do i = 1, c%neqv
+          do j = 1, c%ncv
+             x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
+             found = .false.
+             do k = 1, c%ncel
+                if (used(k)) cycle
+                if (c%are_lclose(x0,c%atcel(k)%x,atomeps)) then
+                   c%atcel(k)%ir = i
+                   c%atcel(k)%ic = j
+                   c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
+                   used(k) = .true.
+                   exit
+                end if
+             end do
+             if (all(used)) exit main
+          end do
+       end do
+    end do main
+    if (.not.all(used)) then
+       errmsg = "error building rotation and center information for atom list"
+       return
+    end if
 
-  end subroutine spglib_wrap
+    ! write down the Wyckoff positions from the spg
+    call c%spgtowyc(c%spg)
+
+  end subroutine calcsym
   
   !> Clear the symmetry information from the crystal and rebuild the
   !> atom list. If cel2neq, copy the atom information from atcel(:) to
@@ -4400,15 +4529,13 @@ contains
     character(len=3) :: schpg
     type(crystal) :: nc
     integer :: lu, spgnum, irhomb, count90, count120
-    real*8 :: xmin(6)
+    real*8 :: xmin(6), x0(3,3)
     logical :: ok
 
     ! we need symmetry for this
     if (dosym) then
-       ! This is to address a bug in gfortran 4.9 (and possibly earlier versions)
-       ! regarding assignment of user-defined types with allocatable components. 
        nc = c
-       call nc%cell_standard(.false.,.false.,.false.)
+       x0 = nc%cell_standard(.false.,.false.,.false.)
        call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
        xmin = 0d0
        irhomb = 0

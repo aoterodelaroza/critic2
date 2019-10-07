@@ -86,7 +86,7 @@ module spglib
      integer(c_int) :: n_operations
      integer(c_int), allocatable :: rotations(:,:,:)
      real(c_double), allocatable :: translations(:,:)
-     integer(c_int) :: n_atoms
+     integer(c_int) :: n_atoms = 0
      integer(c_int), allocatable :: wyckoffs(:)
      character(len=7), allocatable :: site_symmetry_symbols(:)
      integer(c_int), allocatable :: equivalent_atoms(:) !Beware mapping refers to positions starting at 0
@@ -140,8 +140,8 @@ module spglib
         to_primitive, no_idealize, symprec) bind(c)
        import c_int, c_double
        real(c_double), intent(inout) :: lattice(3,3)
-       real(c_double), intent(in) :: position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        integer(c_int), intent(in), value :: to_primitive
        integer(c_int), intent(in), value :: no_idealize
@@ -153,8 +153,8 @@ module spglib
         to_primitive, no_idealize, symprec, angle_tolerance) bind(c)
        import c_int, c_double
        real(c_double), intent(inout) :: lattice(3,3)
-       real(c_double), intent(in) :: position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        integer(c_int), intent(in), value :: to_primitive
        integer(c_int), intent(in), value :: no_idealize
@@ -176,8 +176,8 @@ module spglib
        integer(c_int), intent(inout) :: rotation(3,3,*)
        real(c_double), intent(inout) :: translation(3,*)
        integer(c_int), intent(in), value :: max_size
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_symmetry
@@ -189,8 +189,8 @@ module spglib
        integer(c_int), intent(inout) :: rotation(3,3,*)
        real(c_double), intent(inout) :: translation(3,*)
        integer(c_int), intent(in), value :: max_size
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_symmetry
@@ -208,9 +208,9 @@ module spglib
        integer(c_int), intent(inout) :: rotation(3,3,*)
        real(c_double), intent(inout) :: translation(3,*)
        integer(c_int), intent(in), value :: max_size
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
-       real(c_double), intent(in) :: spins(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
+       real(c_double), intent(inout) :: spins(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_symmetry_with_collinear_spin
@@ -222,9 +222,9 @@ module spglib
        integer(c_int), intent(inout) :: rotation(3,3,*)
        real(c_double), intent(inout) :: translation(3,*)
        integer(c_int), intent(in), value :: max_size
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
-       real(c_double), intent(in) :: spins(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
+       real(c_double), intent(inout) :: spins(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_symmetry_with_collinear_spin
@@ -236,8 +236,8 @@ module spglib
      ! for the operations.
      function spg_get_multiplicity( lattice, position, types, num_atom, symprec) bind(c)
        import c_int, c_double
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_multiplicity
@@ -245,8 +245,8 @@ module spglib
 
      function spgat_get_multiplicity( lattice, position, types, num_atom, symprec, angle_tolerance) bind(c)
        import c_int, c_double
-       real(c_double), intent(in) :: lattice(3,3), position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_multiplicity
@@ -259,8 +259,8 @@ module spglib
      ! Calculate the hall number from the symmetry operations.
      function spg_get_hall_number_from_symmetry(rotation,translation,num_operations,symprec) bind(c)
        import c_int, c_double
-       integer(c_int), intent(in) :: rotation(3,3,*)
-       real(c_double), intent(in) :: translation(3,*)
+       integer(c_int), intent(inout) :: rotation(3,3,*)
+       real(c_double), intent(inout) :: translation(3,*)
        integer(c_int), intent(in), value :: num_operations
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_hall_number_from_symmetry
@@ -312,8 +312,8 @@ module spglib
      function spg_get_international(symbol, lattice, position, types, num_atom, symprec) bind(c)
        import c_char, c_int, c_double
        character(kind=c_char), intent(out) :: symbol(11)
-       real(c_double), intent(in) :: lattice(3,3), position(3, *)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3, *)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_international ! the number corresponding to 'symbol'. 0 on failure
@@ -322,8 +322,8 @@ module spglib
      function spgat_get_international( symbol, lattice, position, types, num_atom, symprec, angle_tolerance) bind(c)
        import c_char, c_int, c_double
        character(kind=c_char), intent(out) :: symbol(11)
-       real(c_double), intent(in) :: lattice(3,3), position(3, *)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3, *)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_international ! the number corresponding to 'symbol'. 0 on failure
@@ -335,8 +335,8 @@ module spglib
      function spg_get_schoenflies( symbol, lattice, position, types, num_atom, symprec) bind(c)
        import c_char, c_int, c_double
        character(kind=c_char), intent(out) :: symbol(7)
-       real(c_double), intent(in) :: lattice(3,3), position(3, *)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3, *)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_schoenflies ! the number corresponding to 'symbol'. 0 on failure
@@ -345,8 +345,8 @@ module spglib
      function spgat_get_schoenflies( symbol, lattice, position, types, num_atom, symprec, angle_tolerance) bind(c)
        import c_char, c_int, c_double
        character(kind=c_char), intent(out) :: symbol(7)
-       real(c_double), intent(in) :: lattice(3,3), position(3, *)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3), position(3, *)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_schoenflies ! the number corresponding to 'symbol'. 0 on failure
@@ -359,7 +359,7 @@ module spglib
        import c_char, c_int, c_double
        character(kind=c_char) :: symbol(6)
        integer(c_int), intent(inout) :: trans_mat(3,3)
-       integer(c_int), intent(in) :: rotations(3,3,*)
+       integer(c_int), intent(inout) :: rotations(3,3,*)
        integer(c_int), intent(in), value :: num_rotations
        integer(c_int) :: spg_get_pointgroup
      end function spg_get_pointgroup
@@ -410,9 +410,9 @@ module spglib
      ! hall number.
      module function spg_get_dataset(lattice, position, types, num_atom, symprec, hall_number) result(dset)
        use iso_c_binding, only: c_int, c_double
-       real(c_double), intent(in) :: lattice(3,3)
-       real(c_double), intent(in) :: position(3,*)
-       integer(c_int), intent(in) :: types(*)
+       real(c_double), intent(inout) :: lattice(3,3)
+       real(c_double), intent(inout) :: position(3,*)
+       integer(c_int), intent(inout) :: types(*)
        integer(c_int), intent(in), value :: num_atom
        real(c_double), intent(in), value :: symprec
        integer(c_int), intent(in), value, optional :: hall_number

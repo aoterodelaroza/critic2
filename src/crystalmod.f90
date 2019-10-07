@@ -159,6 +159,7 @@ module crystalmod
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
+     procedure :: makeseed !< make a crystal seed from a crystal
 
      ! unit cell transformations
      procedure :: newcell !< Change the unit cell and rebuild the crystal
@@ -172,7 +173,9 @@ module crystalmod
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
 
      ! symmetry
-     procedure :: spglib_wrap !< Fill symmetry information in the crystal using spglib
+     procedure :: spglib_wrap !< Get the spg from the crystal geometry
+     procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
+     procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: clearsym !< Clear symmetry info and transform to a P1
 
      ! WS cell
@@ -421,26 +424,35 @@ module crystalmod
        logical, intent(in) :: isnuc
        real*8 :: ewald_pot
      end function ewald_pot
-     module subroutine newcell(c,x00,t0,verbose0)
+     module subroutine makeseed(c,seed,copysym)
+       use crystalseedmod, only: crystalseed
+       class(crystal), intent(in) :: c
+       type(crystalseed), intent(out) :: seed
+       logical, intent(in) :: copysym
+     end subroutine makeseed
+     module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
        real*8, intent(in), optional :: t0(3)
-       logical, intent(in), optional :: verbose0
+       integer, intent(in), optional :: nnew
+       real*8, intent(in), optional :: xnew(:,:)
+       integer, intent(in), optional :: isnew(:)
      end subroutine newcell
-     module subroutine cell_standard(c,toprim,doforce,verbose)
+     module function cell_standard(c,toprim,doforce,refine) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
-       logical, intent(in) :: verbose
-     end subroutine cell_standard
-     module subroutine cell_niggli(c,verbose)
+       logical, intent(in) :: refine
+       real*8 :: x0(3,3)
+     end function cell_standard
+     module function cell_niggli(c) result(x0)
        class(crystal), intent(inout) :: c
-       logical, intent(in) :: verbose
-     end subroutine cell_niggli
-     module subroutine cell_delaunay(c,verbose)
+       real*8 :: x0(3,3)
+     end function cell_niggli
+     module function cell_delaunay(c) result(x0)
        class(crystal), intent(inout) :: c
-       logical, intent(in) :: verbose
-     end subroutine cell_delaunay
+       real*8 :: x0(3,3)
+     end function cell_delaunay
      module subroutine delaunay_reduction(c,rmat,rbas)
        class(crystal), intent(in) :: c
        real*8, intent(out) :: rmat(3,4)
@@ -455,12 +467,21 @@ module crystalmod
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
      end subroutine struct_report_symxyz
-     module subroutine spglib_wrap(c,usenneq,onlyspg,errmsg)
-       class(crystal), intent(inout) :: c
+     module subroutine spglib_wrap(c,spg,usenneq,errmsg)
+       class(crystal), intent(in) :: c
+       type(SpglibDataset), intent(inout) :: spg
        logical, intent(in) :: usenneq
-       logical, intent(in) :: onlyspg
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine spglib_wrap
+     module subroutine spgtowyc(c,spg)
+       class(crystal), intent(inout) :: c
+       type(SpglibDataset), intent(inout), optional :: spg
+     end subroutine spgtowyc
+     module subroutine calcsym(c,usenneq,errmsg)
+       class(crystal), intent(inout) :: c
+       logical, intent(in) :: usenneq
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calcsym
      module subroutine clearsym(c,cel2neq,neq2cel)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: cel2neq

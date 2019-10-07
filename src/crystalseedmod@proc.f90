@@ -360,7 +360,7 @@ contains
     if (goodspg) then
        seed%havesym = 1
        seed%findsym = 0
-       seed%checkrepeats = 0
+       seed%checkrepeats = .false.
     else
        seed%havesym = 0
        seed%findsym = -1
@@ -1076,7 +1076,7 @@ contains
 
     ! use the symmetry in this file
     seed%havesym = 1
-    seed%checkrepeats = 1
+    seed%checkrepeats = .true.
     seed%findsym = -1
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
@@ -1207,7 +1207,7 @@ contains
 
     ! no symmetry
     seed%havesym = 0
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
     seed%findsym = -1
 
     ! molecule
@@ -1297,7 +1297,7 @@ contains
 
      ! no symmetry
      seed%havesym = 0
-     seed%checkrepeats = 0
+     seed%checkrepeats = .false.
      seed%findsym = -1
 
      ! molecule
@@ -1505,7 +1505,7 @@ contains
        seed%havesym = 0
        seed%findsym = -1
     end if
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     errmsg = ""
 999 continue
@@ -1681,7 +1681,7 @@ contains
     ! symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -1753,7 +1753,7 @@ contains
     ! the user may not want any symmetry - let critic2 guess.
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -1859,7 +1859,7 @@ contains
     ! symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -1920,7 +1920,7 @@ contains
     seed%useabr = 0
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
     if (len_trim(errmsg) > 0) goto 999
 
     seed%nspc = 0
@@ -2350,7 +2350,7 @@ contains
     ! symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2484,7 +2484,7 @@ contains
     ! no symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2553,7 +2553,7 @@ contains
     ! no symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2679,7 +2679,7 @@ contains
     ! no symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2859,7 +2859,7 @@ contains
     ! symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -2929,7 +2929,7 @@ contains
     ! no symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -3091,7 +3091,7 @@ contains
     ! symmetry
     seed%havesym = 0
     seed%findsym = -1
-    seed%checkrepeats = 0
+    seed%checkrepeats = .false.
 
     ! rest of the seed information
     seed%isused = .true.
@@ -3507,7 +3507,7 @@ contains
           if (doguess == 0) then
              seed(i)%havesym = 0
              seed(i)%findsym = 0
-             seed(i)%checkrepeats = 0
+             seed(i)%checkrepeats = .false.
           elseif (doguess == 1 .and. seed(i)%havesym == 0) then
              seed(i)%findsym = 1
           else
@@ -3933,7 +3933,7 @@ contains
              end do
 
              seed(iuse)%havesym = 0
-             seed(iuse)%checkrepeats = 0
+             seed(iuse)%checkrepeats = .false.
              seed(iuse)%findsym = -1
              seed(iuse)%isused = .true.
              seed(iuse)%ismolecule = mol
@@ -4153,7 +4153,7 @@ contains
           seed(is0)%is = is
 
           seed(is0)%havesym = 0
-          seed(is0)%checkrepeats = 0
+          seed(is0)%checkrepeats = .false.
           seed(is0)%findsym = -1
           seed(is0)%isused = .true.
           seed(is0)%ismolecule = mol
@@ -4279,7 +4279,7 @@ contains
        seed(nseed)%x = seed(nseed)%x / bohrtoa
        seed(nseed)%useabr = 0
        seed(nseed)%havesym = 0
-       seed(nseed)%checkrepeats = 0
+       seed(nseed)%checkrepeats = .false.
        seed(nseed)%findsym = -1
        seed(nseed)%isused = .true.
        seed(nseed)%ismolecule = .true.
@@ -4404,7 +4404,7 @@ contains
           seed(in)%spc = spc
           seed(in)%useabr = 0
           seed(in)%havesym = 0
-          seed(in)%checkrepeats = 0
+          seed(in)%checkrepeats = .false.
           seed(in)%findsym = -1
           seed(in)%isused = .true.
           seed(in)%ismolecule = .true.
@@ -4675,14 +4675,14 @@ contains
     end do
 
     seed%havesym = 1
-    seed%checkrepeats = 1
+    seed%checkrepeats = .true.
     seed%findsym = 0
     if (seed%neqv == 0) then
        seed%neqv = 1
        seed%rotm(:,:,1) = eyet
        seed%rotm = 0d0
        seed%havesym = 0
-       seed%checkrepeats = 0
+       seed%checkrepeats = .false.
        seed%findsym = -1
     end if
     call realloc(seed%rotm,3,4,seed%neqv)
@@ -4707,7 +4707,7 @@ contains
        ! call spglib and hope for the best
        seed%havesym = 0
        seed%findsym = -1
-       seed%checkrepeats = 0
+       seed%checkrepeats = .false.
     endif
 
     ! rest of the seed information

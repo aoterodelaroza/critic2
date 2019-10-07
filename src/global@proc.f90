@@ -87,6 +87,7 @@ contains
   module subroutine global_set_defaults()
     use meshmod, only: mesh_type_franchini, mesh_level_good
 
+    ! global flags
     precisecube = .true.
 
     ! bond factor
@@ -199,6 +200,9 @@ contains
   !> Print out the compilation details and the hardwired paths
   module subroutine config_write()
     use spglib, only: spg_get_major_version, spg_get_minor_version, spg_get_micro_version
+#ifdef HAVE_LIBXC
+    use xc_f90_lib_m
+#endif
     use config, only: getstring, istring_package,&
        istring_f77, istring_fc, istring_cc, istring_fflags,&
        istring_fcflags, istring_cflags, istring_ldflags,&
@@ -206,6 +210,7 @@ contains
        istring_datadir, istring_version
     use param, only: dirsep
     use tools_io, only: uout, string
+
     logical :: lchk
     integer :: iver(3)
 
@@ -227,6 +232,13 @@ contains
     iver(2) = spg_get_minor_version()
     iver(3) = spg_get_micro_version()
     write (uout,'("       spglib: ",A,".",A,".",A)') string(iver(1)), string(iver(2)), string(iver(3))
+
+#ifdef HAVE_LIBXC
+    call xc_f90_version(iver(1),iver(2),iver(3))
+    write (uout,'("        libxc: ",A,".",A,".",A)') string(iver(1)), string(iver(2)), string(iver(3))
+#else
+    write (uout,'("        libxc: <unavailable>")')
+#endif
     write (uout,*)
 
   end subroutine config_write

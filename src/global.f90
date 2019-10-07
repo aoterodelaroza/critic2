@@ -94,8 +94,8 @@ module global
 
   ! global control for critic
   character(len=:), allocatable :: fileroot !< file prefix
-  logical :: quiet
-  logical :: precisecube
+  logical :: quiet = .false.
+  logical :: precisecube = .true.
 
   ! units
   integer :: iunit

@@ -573,15 +573,21 @@ contains
 
   end subroutine read_abinit
 
-  !> Read a grid in VASP format
-  module subroutine read_vasp(f,file,omega)
-    use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose
+  !> Read a grid in VASP (CHGCAR/CHG) format from a file. Omega is the
+  !> cell volume used to divide the grid values (the CHGCAR contains
+  !> density * omega). In CHGCAR containing more than one grid block,
+  !> ibl can be used to choose which block to read (density, spin
+  !> density, etc.)
+  module subroutine read_vasp(f,file,omega,ibl)
+    use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
+       isinteger
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: omega !< Cell volume
+    integer, intent(in), optional :: ibl
 
     integer :: luc
-    integer :: istat, n(3), i, j, k
+    integer :: istat, n(3), i, j, k, ibcur, nnew(3)
     character(len=:), allocatable :: line
     logical :: ok
 
@@ -608,8 +614,27 @@ contains
     read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (istat /= 0) &
        call ferror('read_vasp','Error reading grid',faterr,file)
-    f%f(:,:,:) = f%f(:,:,:) / omega
 
+    if (present(ibl)) then
+       ibcur = 1
+       do while (ibcur < ibl)
+          nnew = 0
+          do while (all(nnew /= n))
+             ok = getline_raw(luc,line,.false.)
+             if (.not.ok) &
+                call ferror('read_vasp','Error reading grid block '//string(ibcur)//' < requested '//string(ibl),faterr,file)
+             ok = isinteger(nnew(1),line)
+             ok = ok .and. isinteger(nnew(2),line)
+             ok = ok .and. isinteger(nnew(3),line)
+          end do
+
+          read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+          if (istat /= 0) &
+             call ferror('read_vasp','Error reading grid in block '//string(ibcur),faterr,file)
+          ibcur = ibcur + 1
+       end do
+    end if
+    f%f(:,:,:) = f%f(:,:,:) / omega
     call fclose(luc)
 
   end subroutine read_vasp

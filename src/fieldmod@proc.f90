@@ -323,13 +323,13 @@ contains
 
     elseif (seed%iff == ifformat_vasp) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),f%c%omega)
+       call f%grid%read_vasp(seed%file(1),f%c%omega,seed%vaspblk)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vaspchg) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),1d0)
+       call f%grid%read_vasp(seed%file(1),1d0,seed%vaspblk)
        f%type = type_grid
        f%file = seed%file(1)
 

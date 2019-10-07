@@ -38,6 +38,7 @@ contains
     f%elseopt = ""
     f%testrmt = .true.
     f%readvirtual = .false.
+    f%vaspblk = 1
     f%fid = ""
 
   end subroutine fieldseed_end
@@ -463,7 +464,7 @@ contains
   module subroutine fieldseed_parse_options(f,line,lp0)
     use global, only: eval_next
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger
-    use param, only: ifformat_as_promolecular
+    use param, only: ifformat_as_promolecular, ifformat_vasp, ifformat_vaspchg
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     integer, intent(inout), optional :: lp0
@@ -554,6 +555,20 @@ contains
              f%errmsg = "missing file name in fragment"
              return
           end if
+       elseif ((f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg) .and.&
+          (isinteger(idum,lword).or.equal(lword,'rho').or.equal(lword,'spin').or.equal(lword,'magx').or.equal(lword,'magy').or.equal(lword,'magz'))) then
+          if (.not.isinteger(idum,lword)) then
+             if (equal(lword,'rho')) then
+                idum = 1
+             elseif (equal(lword,'spin').or.equal(lword,'magx')) then
+                idum = 2
+             elseif (equal(lword,'magy')) then
+                idum = 3
+             elseif (equal(lword,'magz')) then
+                idum = 4
+             end if
+          end if
+          f%vaspblk = idum
        else
           call f%end()
           f%errmsg = "unknown load keyword or file name: " // word
