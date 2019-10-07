@@ -20,7 +20,6 @@ submodule (crystalmod) proc
 
   !xx! private procedures
   ! subroutine pointgroup_info(hmpg,schpg,holo,laue)
-  ! subroutine lattpg(rmat,ncen,xcen,nn,rot)
   ! subroutine typeop(rot,type,vec,order)
   ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
   ! function perm3(p,r,t) result(res)
@@ -5377,78 +5376,6 @@ contains
     end if
 
   end subroutine pointgroup_info
-
-  !> Calculate the point group of a lattice. rmat is the matrix of
-  !> lattice vectors (G = rmat * rmat'). verbose activates output to
-  !> uout. ncen and xcen are the centering vectors for the lattice in
-  !> crystallographic coordinates. nn and rot, if present, receive the
-  !> symmetry operations for the lattice.
-  subroutine lattpg(rmat,ncen,xcen,nn,rot)
-    use sympg, only: nopsym, opsym, sym3d
-    use tools_math, only: matinv
-    use types, only: realloc
-    real*8, intent(in) :: rmat(3,3)
-    integer, intent(in) :: ncen
-    real*8, intent(in) :: xcen(3,ncen)
-    integer, intent(out), optional :: nn
-    real*8, intent(out), optional :: rot(3,3,48)
-
-    real*8 :: rmati(3,3), aal(3), gmat(3,3)
-    integer :: i, na, nb, nc, npos, ia, ib, ic, it, op
-    real*8  :: amax, amax2e, x(3), t(3), d2
-    real*8, allocatable :: ax(:,:)
-    integer, allocatable :: atZmol(:)
-
-    ! the reciprocal-space matrix is the transpose of the inverse
-    rmati = matinv(rmat)
-    gmat = matmul(rmat,transpose(rmat))
-    do i = 1, 3
-       aal(i) = sqrt(gmat(i,i))
-    end do
-
-    ! every lattice vector must be represented in the molecule
-    amax = 2d0*maxval(aal)
-    amax2e = amax + 1d-5
-    na = int((amax/aal(1)) - 1d-7) + 2
-    nb = int((amax/aal(2)) - 1d-7) + 2
-    nc = int((amax/aal(3)) - 1d-7) + 2
-
-    ! build the lattice point molecule
-    npos = 0
-    allocate(ax(3,10))
-    do ia = -na, na
-       do ib = -nb, nb
-          do ic = -nc, nc
-             do it = 1, ncen
-                x = real((/ia,ib,ic/),8) + xcen(:,it)
-                t = matmul(x,rmat)
-                d2 = norm2(t)
-                if (d2 <= amax2e) then
-                   npos = npos + 1
-                   if (npos > size(ax,2)) call realloc(ax,3,2*npos)
-                   ax(:,npos) = t
-                end if
-             end do
-          end do
-       end do
-    end do
-    call realloc(ax,3,npos)
-    allocate(atZmol(npos))
-    atzmol = 1
-
-    ! Use symmetry to determine the point group. Default options
-    call sym3d(rmat,ax,atZmol,npos,.false.)
-
-    ! fill the reciprocal space matrices and clean up
-    if (present(nn) .and. present(rot)) then
-       nn = nopsym
-       do op = 1, nn
-          rot(:,:,op) = matmul(transpose(rmati),matmul(opsym(op,:,:),transpose(rmat)))
-       end do
-    end if
-    deallocate(atZmol,ax)
-
-  end subroutine lattpg
 
   !> For the symmetry operation rot, compute the order and
   !> characteristic direction of the operation. The output is given in
