@@ -175,8 +175,8 @@ module fieldmod
      recursive module function grd0(f,v,periodic)
        class(field), intent(inout) :: f
        real*8, dimension(3), intent(in) :: v
-       real*8 :: grd0
        logical, intent(in), optional :: periodic
+       real*8 :: grd0
      end function grd0
      recursive module function der1i(f,dir,x,h,errcnv,pool,periodic)
        class(field), intent(inout) :: f
@@ -230,9 +230,9 @@ module fieldmod
      end subroutine nearest_cp
      module function identify_cp(f,x0,eps)
        class(field), intent(in) :: f
-       integer :: identify_cp
        real*8, intent(in) :: x0(3)
        real*8, intent(in) :: eps
+       integer :: identify_cp
      end function identify_cp
      module subroutine testrmt(f,ilvl,errmsg)
        class(field), intent(inout) :: f
