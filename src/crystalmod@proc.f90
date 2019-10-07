@@ -2434,7 +2434,7 @@ contains
   !> of zeros if no change was done.
   module function cell_standard(c,toprim,doforce,refine) result(x0)
     use iso_c_binding, only: c_double
-    use spglib, only: spg_standardize_cell, spg_get_dataset
+    use spglib, only: spg_standardize_cell
     use global, only: symprec
     use tools_math, only: det, matinv
     use tools_io, only: ferror, faterr
@@ -2460,7 +2460,7 @@ contains
     rmat = transpose(c%m_x2c)
     nat = c%ncel
     ntyp = c%nspc
-    allocate(x(3,c%ncel),types(c%ncel))
+    allocate(x(3,4*c%ncel),types(4*c%ncel)) ! to make room for spglib
     do i = 1, c%ncel
        x(:,i) = c%atcel(i)%x
        types(i) = c%atcel(i)%is
@@ -3187,7 +3187,7 @@ contains
   !> message.
   module subroutine calcsym(c,usenneq,errmsg)
     use iso_c_binding, only: c_double
-    use spglib, only: spg_get_dataset, spg_get_error_message
+    use spglib, only: spg_get_error_message
     use global, only: symprec, atomeps
     use tools_io, only: string, equal
     use param, only: eyet, eye
