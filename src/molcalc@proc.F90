@@ -32,21 +32,24 @@ contains
        lgetword, getword
     character*(*), intent(inout) :: line
 
-    character(len=:), allocatable :: word, lword, expr, savevar
-    integer :: lp
+    character(len=:), allocatable :: word, expr, savevar
+    integer :: lp, lpo, imode
     logical :: ok
+    integer, parameter :: imode_none = 0
+    integer, parameter :: imode_nelec = 1
+    integer, parameter :: imode_peach = 2
+    integer, parameter :: imode_hf = 3
+    integer, parameter :: imode_expr = 4
 
     write (uout,'("* MOLCALC: calculations using molecular meshes and wavefunctions ")')
 
+    imode = imode_none
     savevar = ""
-    lp = 1
-    ok =  isexpression_or_word(expr,line,lp)
-    if (.not.ok) then
-       call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
-       return
-    end if
+    expr = ""
 
+    lp = 1
     do while (.true.)
+       lpo = lp
        word = lgetword(line,lp)
        if (equal(word,'assign')) then
           savevar = getword(line,lp)
@@ -54,22 +57,33 @@ contains
              call ferror('molcalc_driver','Zero-length variable name in MOLCALC/ASSIGN',faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,'peach')) then
+          imode = imode_peach
+       elseif (equal(word,'hf')) then
+          imode = imode_hf
+       else if (len_trim(word) == 0 .and. imode == imode_none) then
+          imode = imode_nelec
+          exit
        else if (len_trim(word) > 0) then
-          call ferror('molcalc_driver','Unknown keyword',faterr,line,syntax=.true.)
-          return
+          if (isexpression_or_word(expr,line,lpo)) then
+             lp = lpo
+             imode = imode_expr
+          else
+             call ferror('molcalc_driver','Wrong syntax in MOLCALC',faterr,syntax=.true.)
+             return
+          end if
        else
           exit
        end if
     end do
 
-    lword = lower(expr)
-    if (equal(lword,"nelec")) then
-       call molcalc_nelec()
-    elseif (equal(lword,"peach")) then
-       call molcalc_peach()
-    elseif (equal(lword,"hf")) then
-       call molcalc_hfenergy()
-    else
+    if (imode == imode_nelec) then
+       call molcalc_nelec(savevar)
+    elseif (imode == imode_peach) then
+       call molcalc_peach(savevar)
+    elseif (imode == imode_hf) then
+       call molcalc_hfenergy(savevar)
+    elseif (imode == imode_expr) then
        call molcalc_expression(expr,savevar)
     end if
 
@@ -77,32 +91,37 @@ contains
 
   !xx! private procedures
 
-  subroutine molcalc_nelec()
+  subroutine molcalc_nelec(savevar)
+    use arithmetic, only: setvariable
     use systemmod, only: sy
     use meshmod, only: mesh
     use global, only: mesh_type, mesh_level
     use tools_io, only: string, uout
-    use param, only: im_volume, im_rho
+    use param, only: im_rho
+    character*(*), intent(in) :: savevar
 
     type(mesh) :: m
-    integer :: prop(2)
+    integer :: prop(1)
+    real*8 :: nelec
 
     call m%gen(sy%c,mesh_type,mesh_level)
 
     write (uout,'("+ Simple molecular integrals (NELEC)")')
     call m%report()
 
-    prop(1) = im_volume
-    prop(2) = im_rho
+    prop(1) = im_rho
     call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
 
-    write (uout,'("+ Volume (bohr^3) = ",A)') string(sum(m%f(:,1) * m%w),'f',14,8)
-    write (uout,'("+ Number of electrons = ",A)') string(sum(m%f(:,2) * m%w),'f',14,8)
+    nelec = sum(m%f(:,1) * m%w)
+    write (uout,'("+ Volume (bohr^3) = ",A)') string(sum(m%w),'f',14,8)
+    write (uout,'("+ Field integral = ",A)') string(nelec,'f',14,8)
     write (uout,*)
+    if (len_trim(savevar) > 0) call setvariable(trim(savevar),nelec)
 
   end subroutine molcalc_nelec
 
-  subroutine molcalc_peach()
+  subroutine molcalc_peach(savevar)
+    use arithmetic, only: setvariable
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn
@@ -110,6 +129,7 @@ contains
     use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
        lgetword, equal, uout
     use types, only: realloc
+    character*(*), intent(in) :: savevar
 
     type(mesh) :: m
     integer :: i, n, lp
@@ -188,6 +208,7 @@ contains
 
     write (uout,'("+ PEACH = ",A)') string(lam,'f',8,3)
     write (uout,*)
+    if (len_trim(savevar) > 0) call setvariable(trim(savevar),lam)
 
     deallocate(imo1,imo2,kk)
     return
@@ -235,13 +256,15 @@ contains
 
   end subroutine molcalc_expression
 
-  subroutine molcalc_hfenergy()
+  subroutine molcalc_hfenergy(savevar)
+    use arithmetic, only: setvariable
     use tools_io, only: ferror, faterr, uout, string
-#ifdef HAVE_CINT
     use systemmod, only: sy
     use fieldmod, only: type_wfn
     use wfn_private, only: wfn_rhf
+    character*(*), intent(in) :: savevar
 
+#ifdef HAVE_CINT
     integer :: ioff, joff, koff, loff
     integer :: nbas, nbast
     integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4), i1, j1
@@ -386,6 +409,7 @@ contains
       write (uout,'("+ Total energy = ",A," Hartree")') string(etot,'f',decimal=10)
       write (uout,'("  Number of electrons = ",A)') string(sum(pmn * smn),'f',decimal=10)
       write (uout,*)
+      if (len_trim(savevar) > 0) call setvariable(trim(savevar),etot)
 
     end associate
 
