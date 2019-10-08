@@ -41,7 +41,7 @@ contains
     integer, parameter :: imode_hf = 3
     integer, parameter :: imode_expr = 4
 
-    write (uout,'("* MOLCALC: calculations using molecular meshes and wavefunctions ")')
+    write (uout,'("* MOLCALC: calculations using meshes ")')
 
     imode = imode_none
     savevar = ""
@@ -106,7 +106,7 @@ contains
 
     call m%gen(sy%c,mesh_type,mesh_level)
 
-    write (uout,'("+ Simple molecular integrals (NELEC)")')
+    write (uout,'("+ Mesh integral of the reference field")')
     call m%report()
 
     prop(1) = im_rho
