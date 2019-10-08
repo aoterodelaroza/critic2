@@ -475,7 +475,7 @@ contains
      ! calculate density, rdg,... read from chkpoint if available
      lchk = .false.
      if (usechk) then
-        lchk = readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+        lchk = readchk(oname,x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
      end if
 
      if (.not.lchk) then
@@ -562,7 +562,7 @@ contains
         deallocate(rhofragl)
 
         ! save the ncichk file
-        if (usechk) call writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
+        if (usechk) call writechk(oname,x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
      endif
 
      ! calculate cutoff effect on grid
@@ -960,16 +960,15 @@ contains
   !> crho, cgrad, rhoat, and rhofrag contain the density, rdg,
   !> promolecular, and fragment promolecular densities on output, and
   !> they should already be allocated when passed to this function.
-  function readchk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
-    use global, only: fileroot
+  function readchk(oname,x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag) result(lchk)
     use tools_io, only: uout, fopen_read, fclose
-    logical :: lchk
-    
+    character*(*), intent(in) :: oname
     real*8, intent(in) :: x0(3), xmat(3,3)
     integer, intent(in) :: nstep(3)
     real*8, allocatable, dimension(:,:,:), intent(inout) :: crho, cgrad, rhoat
     integer, intent(in) :: nfrag
     real*8, allocatable, dimension(:,:,:,:), intent(inout) :: rhofrag
+    logical :: lchk
 
     integer :: luchk
     character(len=:), allocatable :: chkfile
@@ -977,7 +976,7 @@ contains
     real*8 :: xxx(3)
     integer :: ixx(3), nfrag0
 
-    chkfile = trim(fileroot) // ".chk_nci" 
+    chkfile = trim(oname) // ".chk_nci" 
     
     inquire(file=chkfile,exist=lchk)
 
@@ -1024,9 +1023,9 @@ contains
   end function readchk
 
   !> Write the checkpoint file.
-  subroutine writechk(x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
-    use global, only: fileroot
+  subroutine writechk(oname,x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)
     use tools_io, only: uout, fopen_write, fclose
+    character*(*), intent(in) :: oname
     real*8, intent(in) :: x0(3), xmat(3,3)
     integer, intent(in) :: nstep(3)
     real*8, allocatable, dimension(:,:,:), intent(in) :: crho, cgrad, rhoat
@@ -1038,7 +1037,7 @@ contains
     integer :: luchk
 
     ! open the file
-    chkfile = trim(fileroot) // ".chk_nci" 
+    chkfile = trim(oname) // ".chk_nci" 
     write(uout,'("  Writing the checkpoint file: ",A/)') trim(chkfile)
     luchk = fopen_write(chkfile,"unformatted")
 
