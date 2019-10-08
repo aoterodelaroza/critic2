@@ -1433,7 +1433,6 @@ contains
     eptr => s%c%env
     if (doatoms) then
        do i = 1, s%c%nneq
-          if (iat_mode == inone) cycle
           if (iat_mode == iid .and. i /= iat) cycle
           if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z /= iat) cycle
 
