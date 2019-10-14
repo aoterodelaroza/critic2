@@ -252,7 +252,7 @@ contains
   end function hashfun
 
   !> Free a node
-  module recursive subroutine free_node(self)
+  recursive module subroutine free_node(self)
     class(node), intent(inout) :: self
 
     if (associated(self%next)) then
@@ -266,7 +266,7 @@ contains
   end subroutine free_node
 
   !> Get a value from a node or its children
-  module recursive subroutine get_node(self,key,val)
+  recursive module subroutine get_node(self,key,val)
     class(node), intent(in) :: self
     character*(*), intent(in) :: key
     character*1, allocatable, intent(inout) :: val(:)
@@ -285,7 +285,7 @@ contains
   end subroutine get_node
 
   !> Put a value in a node or its children
-  module recursive subroutine put_node(self,key,val)
+  recursive module subroutine put_node(self,key,val)
     class(node), intent(inout) :: self
     character*(*), intent(in) :: key
     character*1, intent(in) :: val(:)
@@ -308,7 +308,7 @@ contains
   end subroutine put_node
 
   !> Check whether this node or any of its children is the key
-  module recursive function iskey_node(self,key) result(iskey)
+  recursive module function iskey_node(self,key) result(iskey)
     class(node), intent(in) :: self
     character*(*), intent(in) :: key
     logical :: iskey
@@ -340,7 +340,7 @@ contains
   end subroutine delkey_hash
 
   !> Delete the node that matches the key (doesn't work on the first)
-  module recursive subroutine delkey_node(self,key)
+  recursive module subroutine delkey_node(self,key)
     class(node), intent(inout) :: self
     character*(*), intent(in) :: key
 

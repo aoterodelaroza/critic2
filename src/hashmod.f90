@@ -133,20 +133,20 @@ module hashmod
        integer, intent(in) :: lenh
        integer :: hashfun
      end function hashfun
-     module recursive subroutine free_node(self)
+     recursive module subroutine free_node(self)
        class(node), intent(inout) :: self
      end subroutine free_node
-     module recursive subroutine get_node(self,key,val)
+     recursive module subroutine get_node(self,key,val)
        class(node), intent(in) :: self
        character*(*), intent(in) :: key
        character*1, allocatable, intent(inout) :: val(:)
      end subroutine get_node
-     module recursive subroutine put_node(self,key,val)
+     recursive module subroutine put_node(self,key,val)
        class(node), intent(inout) :: self
        character*(*), intent(in) :: key
        character*1, intent(in) :: val(:)
      end subroutine put_node
-     module recursive function iskey_node(self,key) result(iskey)
+     recursive module function iskey_node(self,key) result(iskey)
        class(node), intent(in) :: self
        character*(*), intent(in) :: key
        logical :: iskey
@@ -155,7 +155,7 @@ module hashmod
        class(hash), intent(inout) :: self
        character*(*), intent(in) :: key
      end subroutine delkey_hash
-     module recursive subroutine delkey_node(self,key)
+     recursive module subroutine delkey_node(self,key)
        class(node), intent(inout) :: self
        character*(*), intent(in) :: key
      end subroutine delkey_node
