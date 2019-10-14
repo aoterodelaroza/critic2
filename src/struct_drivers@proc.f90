@@ -1447,11 +1447,14 @@ contains
              call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
              call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                   lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                   lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
              else
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                   lvec,ierr,ishell,up2d=up2d,nozero=.true.)
              end if
              if (ierr > 0) &
                 call ferror('struct_environ','unknown error calculating atom environment',faterr)
@@ -1549,7 +1552,8 @@ contains
          write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec            Coordinates (",A,") ")') &
             iunitname0(iunit), iunitname0(iunit)
       else
-         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec        Coordinates (cryst. coord.) ")') iunitname0(iunit)
+         write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec        Coordinates (cryst. coord.) ")')&
+            iunitname0(iunit)
       end if
       k = 1
       main: do j = 1, mshel
@@ -1570,7 +1574,8 @@ contains
             xx = eptr%at(eidx)%x + lvec
          end if
 
-         write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center), string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
+         write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center),&
+            string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
             string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
             string(dist(k-1)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
             (string(eptr%at(eidx)%lvec(l)+lvec(l),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)

@@ -98,7 +98,8 @@ contains
          real(c_double), intent(in), value :: symprec
          type(c_ptr) :: spg_get_dataset_c
        end function spg_get_dataset_c
-       function spg_get_dataset_with_hall_number_c(lattice, position, types, num_atom, hall_number, symprec) bind(c, name='spg_get_dataset_with_hall_number')
+       function spg_get_dataset_with_hall_number_c(lattice,position,types,num_atom,hall_number,symprec)&
+          bind(c, name='spg_get_dataset_with_hall_number')
          import c_int, c_double, c_ptr
          real(c_double), intent(inout) :: lattice(3,3)
          real(c_double), intent(inout) :: position(3,*)

@@ -889,7 +889,9 @@ contains
                                if (r_betagp(nid) < mdist) then
                                   r_betagp(nid) = mdist
                                   sphfactor(nid) = r_betagp(nid) / rref(nid)
-                                  if (verbose) write (uout,'("+ Freezing nuc ",I4," and setting small beta-sphere -- r= ",F14.6)') nid, r_betagp(nid)
+                                  if (verbose) write (uout,&
+                                     '("+ Freezing nuc ",I4," and setting small beta-sphere -- r= ",F14.6)')&
+                                     nid, r_betagp(nid)
                                   nfrozen(nid) = .true.
                                end if
                                nucmask(nid) = .false.
