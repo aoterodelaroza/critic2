@@ -72,3 +72,5 @@ src/TAGS
 # gui
 imgui.ini
 
+# cmake 
+build/
