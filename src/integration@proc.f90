@@ -1801,7 +1801,8 @@ contains
                 psic2 = 0d0
                 w = 0d0
                 wmask = .false.
-                !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic,psic2,w,wmask) schedule(dynamic)
+                !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb)&
+                !$omp firstprivate(psic,psic2,w,wmask) schedule(dynamic)
                 do i = 1, natt1
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
