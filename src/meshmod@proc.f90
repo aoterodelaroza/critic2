@@ -101,7 +101,8 @@ contains
     rr = 0d0
     do i = 1, c%ncel
        do j = i+1, c%ncel
-          rr(i,j) = sqrt((c%atcel(i)%r(1)-c%atcel(j)%r(1))**2+(c%atcel(i)%r(2)-c%atcel(j)%r(2))**2+(c%atcel(i)%r(3)-c%atcel(j)%r(3))**2)
+          rr(i,j) = sqrt((c%atcel(i)%r(1)-c%atcel(j)%r(1))**2+(c%atcel(i)%r(2)-c%atcel(j)%r(2))**2&
+             + (c%atcel(i)%r(3)-c%atcel(j)%r(3))**2)
           rr(j,i) = rr(i,j)
        enddo
     enddo

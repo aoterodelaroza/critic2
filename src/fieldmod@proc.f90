@@ -1367,14 +1367,20 @@ contains
           write (uout,'("# kpt ",A," (",A,X,A,X,A,")")') string(i,2,justify=ioj_right), &
              (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3)
           if (f%grid%qe%nspin == 1) then
-             write (uout,'(10(X,A))') " Ek:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') " Ek:",&
+                (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:",&
+                (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
           else
-             write (uout,'(10(X,A))') "Eup:", (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Eup:",&
+                (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:",&
+                (string(f%grid%qe%occ(j,i)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
              i2 = i + f%grid%qe%nks
-             write (uout,'(10(X,A))') "Edn:", (string(f%grid%qe%ek(j,i2) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:", (string(f%grid%qe%occ(j,i2)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Edn:",&
+                (string(f%grid%qe%ek(j,i2) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             write (uout,'(10(X,A))') "Occ:",&
+                (string(f%grid%qe%occ(j,i2)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
           end if
        end do
     end if

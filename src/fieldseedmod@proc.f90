@@ -556,7 +556,8 @@ contains
              return
           end if
        elseif ((f%iff == ifformat_vasp .or. f%iff == ifformat_vaspchg) .and.&
-          (isinteger(idum,lword).or.equal(lword,'rho').or.equal(lword,'spin').or.equal(lword,'magx').or.equal(lword,'magy').or.equal(lword,'magz'))) then
+          (isinteger(idum,lword).or.equal(lword,'rho').or.equal(lword,'spin').or.&
+          equal(lword,'magx').or.equal(lword,'magy').or.equal(lword,'magz'))) then
           if (.not.isinteger(idum,lword)) then
              if (equal(lword,'rho')) then
                 idum = 1

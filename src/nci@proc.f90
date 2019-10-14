@@ -736,8 +736,10 @@ contains
         write (luvmd,'("")')
      end if
      write (luvmd,'("# Load the cubes")')
-     write (luvmd,'("mol new ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")') trim(oname)//"-dens.cube"
-     write (luvmd,'("mol addfile ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")') trim(oname)//"-grad.cube"
+     write (luvmd,'("mol new ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")')&
+        trim(oname)//"-dens.cube"
+     write (luvmd,'("mol addfile ",A," type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")')&
+        trim(oname)//"-grad.cube"
      write (luvmd,'("")')
      write (luvmd,'("# representation of the atoms")')
      write (luvmd,'("mol top 1")')

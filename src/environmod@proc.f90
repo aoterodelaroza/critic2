@@ -894,7 +894,8 @@ contains
   !> iz0.  If nozero, disregard zero-distance atoms. The output error
   !> condition ierr is 0 if the search was successful or non-zero if
   !> the input search conditions could not be met by this environment.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,&
+     up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: mergesort

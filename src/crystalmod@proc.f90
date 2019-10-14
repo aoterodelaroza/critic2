@@ -2803,7 +2803,8 @@ contains
 
           write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,A,": ",3(A,X))') lvecname(i), (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'(4X,A,": ",3(A,X))') lvecname(i),&
+                (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,*)
        end if
@@ -2898,7 +2899,8 @@ contains
        ! Discrete molecules, if available
        if (allocated(c%nstar) .and. allocated(c%mol) .and. c%nmol > 0) then
           write (uout,'("+ List of fragments in the system (",A,")")') string(c%nmol)
-          write (uout,'("# Id = fragment ID. nat = number of atoms in fragment. C-o-m = center of mass (",A,").")') iunitname0(iunit)
+          write (uout,'("# Id = fragment ID. nat = number of atoms in fragment. C-o-m = center of mass (",A,").")')&
+             iunitname0(iunit)
           write (uout,'("# Discrete = is this fragment finite?")')
           write (uout,'("# Id  nat           Center of mass            Discrete  ")')
           do i = 1, c%nmol

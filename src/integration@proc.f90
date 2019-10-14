@@ -1202,7 +1202,8 @@ contains
     do l = 1, sy%npropi
        if (res(l)%done) cycle
        if (.not.sy%propi(l)%used) cycle
-       if (sy%propi(l)%itype /= itype_deloc.and.sy%propi(l)%itype /= itype_deloc_sijchk.and.sy%propi(l)%itype /= itype_deloc_fachk) cycle
+       if (sy%propi(l)%itype /= itype_deloc.and.sy%propi(l)%itype /= itype_deloc_sijchk.and.&
+          sy%propi(l)%itype /= itype_deloc_fachk) cycle
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
           
        ! check consistency of the field, if applicable
@@ -1441,7 +1442,8 @@ contains
           write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlat)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
           if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
-             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ", string(sy%propi(l)%wancut,'f',5,2)
+             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
+                string(sy%propi(l)%wancut,'f',5,2)
           else
              write (uout,'(99(A,X))') "  Discarding no overlaps."
           end if
@@ -1753,7 +1755,8 @@ contains
                    do jmo = 1, nmo
                       call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
                       if (ibb /= ibnd2) cycle
-                      x = (sy%f(fid)%grid%qe%center(:,ibnd1,is) + (/ia,ja,ka/) - (sy%f(fid)%grid%qe%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
+                      x = (sy%f(fid)%grid%qe%center(:,ibnd1,is) + (/ia,ja,ka/)&
+                         - (sy%f(fid)%grid%qe%center(:,ibnd2,is) + (/ib,jb,kb/))) / real(nwan,8)
                       call nc%shortest(x,d2)
                       if (d2 > d0) &
                          lovrlp(ia,ja,ka,ib,jb,kb) = .false.

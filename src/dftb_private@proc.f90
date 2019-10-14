@@ -422,12 +422,18 @@ contains
                 grad = grad + real(conjg(xmop)*xmo+conjg(xmo)*xmop,8) * f%docc(istate,ik,is)
                 gkin = gkin + real(conjg(xmop(1))*xmop(1)+conjg(xmop(2))*xmop(2)+conjg(xmop(3))*xmop(3),8) * f%docc(istate,ik,is)
                 if (nder < 2) cycle
-                h(1,1) = h(1,1) + real(conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)+conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1),8) * f%docc(istate,ik,is)
-                h(1,2) = h(1,2) + real(conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)+conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2),8) * f%docc(istate,ik,is)
-                h(1,3) = h(1,3) + real(conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)+conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3),8) * f%docc(istate,ik,is)
-                h(2,2) = h(2,2) + real(conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)+conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4),8) * f%docc(istate,ik,is)
-                h(2,3) = h(2,3) + real(conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)+conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5),8) * f%docc(istate,ik,is)
-                h(3,3) = h(3,3) + real(conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)+conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6),8) * f%docc(istate,ik,is)
+                h(1,1) = h(1,1) + real(conjg(xmopp(1))*xmo+conjg(xmop(1))*xmop(1)&
+                                + conjg(xmop(1))*xmop(1)+conjg(xmo)*xmopp(1),8) * f%docc(istate,ik,is)
+                h(1,2) = h(1,2) + real(conjg(xmopp(2))*xmo+conjg(xmop(1))*xmop(2)&
+                                + conjg(xmop(2))*xmop(1)+conjg(xmo)*xmopp(2),8) * f%docc(istate,ik,is)
+                h(1,3) = h(1,3) + real(conjg(xmopp(3))*xmo+conjg(xmop(1))*xmop(3)&
+                                + conjg(xmop(3))*xmop(1)+conjg(xmo)*xmopp(3),8) * f%docc(istate,ik,is)
+                h(2,2) = h(2,2) + real(conjg(xmopp(4))*xmo+conjg(xmop(2))*xmop(2)&
+                                + conjg(xmop(2))*xmop(2)+conjg(xmo)*xmopp(4),8) * f%docc(istate,ik,is)
+                h(2,3) = h(2,3) + real(conjg(xmopp(5))*xmo+conjg(xmop(2))*xmop(3)&
+                                + conjg(xmop(3))*xmop(2)+conjg(xmo)*xmopp(5),8) * f%docc(istate,ik,is)
+                h(3,3) = h(3,3) + real(conjg(xmopp(6))*xmo+conjg(xmop(3))*xmop(3)&
+                                + conjg(xmop(3))*xmop(3)+conjg(xmo)*xmopp(6),8) * f%docc(istate,ik,is)
              end do ! states
           end do ! k-points
        end do ! spins
@@ -923,7 +929,8 @@ contains
           ff%bas(it)%orb(iorb)%z = ff%bas(it)%z
           ff%bas(it)%orb(iorb)%qat = 0
 
-          allocate(ff%bas(it)%orb(iorb)%r(npt),ff%bas(it)%orb(iorb)%f(npt),ff%bas(it)%orb(iorb)%fp(npt),ff%bas(it)%orb(iorb)%fpp(npt),stat=istat)
+          allocate(ff%bas(it)%orb(iorb)%r(npt),ff%bas(it)%orb(iorb)%f(npt),&
+                   ff%bas(it)%orb(iorb)%fp(npt),ff%bas(it)%orb(iorb)%fpp(npt),stat=istat)
           if (istat /= 0) call ferror('build_interpolation_grid1',&
              'could not allocate memory for orbital radial grids',faterr)
           do ipt = 1, npt
