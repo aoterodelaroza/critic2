@@ -16,7 +16,7 @@ pkg_search_module(GL REQUIRED gl)
 
 include_directories(${GLFW_INCLUDE_DIRS} ${FREETYPE2_INCLUDE_DIRS} ${GLM_INCLUDE_DIRS} ${GL_INCLUDE_DIRS})
 
-add_executable(gcritic2 ${SOURCES} $<TARGET_OBJECTS:lcritic2>  $<TARGET_OBJECTS:cubpack>
+add_executable(gcritic2 ${SOURCES} $<TARGET_OBJECTS:lcritic2> $<TARGET_OBJECTS:cubpack>
                  $<TARGET_OBJECTS:ciftbx> $<TARGET_OBJECTS:oldlibs>
                  $<TARGET_OBJECTS:qhull> $<TARGET_OBJECTS:spglib>)
 target_link_libraries(gcritic2 ${GLFW_LIBRARIES} ${FREETYPE2_LIBRARIES} 

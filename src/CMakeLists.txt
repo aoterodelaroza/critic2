@@ -29,13 +29,13 @@ set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
             xdm@proc.f90 yt.f90 yt@proc.f90
             doqhull.c
             arithmetic.F90 arithmetic@proc.F90 config@proc.F90
-            config@proc.F90.in molcalc@proc.F90 param.F90
+            molcalc@proc.F90 param.F90
             tools_io@proc.F90 wfn_private@proc.F90
 )
 
 set(SOURCESP critic2.F90)
 
-include_directories(cubpack qhull)
+include_directories(cubpack ${CMAKE_CURRENT_BINARY_DIR}/cubpack qhull)
 add_subdirectory(cubpack)
 add_subdirectory(ciftbx)
 add_subdirectory(oldlibs)
@@ -55,8 +55,8 @@ set(TARGET ${CMAKE_SYSTEM})
 string(TIMESTAMP DATE "%Y%m%d")
 set(DEBUG "")
 set(AC_REVISION "")
-configure_file(config@proc.F90.in config@proc.F90)
 set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
+configure_file(config@proc.F90.in ${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90)
 
 add_executable(critic2 ${SOURCES} ${SOURCESP} $<TARGET_OBJECTS:cubpack>
                $<TARGET_OBJECTS:ciftbx> $<TARGET_OBJECTS:oldlibs>
