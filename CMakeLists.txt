@@ -48,6 +48,12 @@ set(CMAKE_Fortran_FLAGS_${BT} "${FFLAGS_${BT}}")
 set(CMAKE_C_FLAGS_${BT} "${CFLAGS_${BT}}")
 set(CMAKE_CXX_FLAGS_${BT} "${CXXFLAGS_${BT}}")
 
+## the syntax.txt target
+add_custom_target(syntax 
+                  COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/12_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
+		  )
+
+## process subdirectories
 add_subdirectory(src)
 add_subdirectory(dat)
 if (ENABLE_GUI)
