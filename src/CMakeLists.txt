@@ -32,7 +32,6 @@ set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
             molcalc@proc.F90 param.F90
             tools_io@proc.F90 wfn_private@proc.F90
 )
-
 set(SOURCESP critic2.F90)
 
 include_directories(cubpack ${CMAKE_CURRENT_BINARY_DIR}/cubpack qhull)
