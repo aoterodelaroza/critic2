@@ -31,14 +31,14 @@ find_package(OpenMP MODULE COMPONENTS Fortran)
 
 ## compiler flags, fortran
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
-   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
-   set(FFLAGS_RELEASE "-O3")
+  set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
+  set(FFLAGS_RELEASE "-O3")
 elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
-   set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
-   set(FFLAGS_RELEASE "-O3")
-   if (NOT ${CMAKE_CROSSCOMPILING})
-     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-rdynamic")
-   endif()
+  set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
+  set(FFLAGS_RELEASE "-O3")
+  if (NOT ${CMAKE_CROSSCOMPILING})
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-rdynamic")
+  endif()
 endif()
 
 ## compiler flags, C
@@ -67,8 +67,8 @@ set(CMAKE_CXX_FLAGS_${BT} "${CXXFLAGS_${BT}}")
 
 ## the syntax.txt target
 add_custom_target(syntax 
-                  COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/12_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
-                  )
+  COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/12_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
+  )
 
 ## process subdirectories
 add_subdirectory(src)
