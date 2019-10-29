@@ -1526,7 +1526,7 @@ contains
          if (s%c%ismolecule) then
             xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
          else
-            xx = eptr%at(eidx)%x + lvec
+            xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
          end if
 
          write (uout,'(2X,2(A,X),"(",A,X,A,X,A,")",99(X,A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
@@ -1571,7 +1571,7 @@ contains
          if (s%c%ismolecule) then
             xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
          else
-            xx = eptr%at(eidx)%x + lvec
+            xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
          end if
 
          write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center),&
