@@ -1186,11 +1186,13 @@ contains
     elseif (imol == 1) then
        ismol = .true.
     end if
-    if (usedot .and. (s%c%ismolecule .neqv. ismol)) &
-       call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
-    if (usedot.and..not.s%c%isinit) &
-       call ferror('struct_compare','Current structure is not initialized.',faterr)
-       
+    if (usedot) then
+       if ((s%c%ismolecule .neqv. ismol)) &
+          call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
+       if (.not.s%c%isinit) &
+          call ferror('struct_compare','Current structure is not initialized.',faterr)
+    end if
+
     ! Read the structures and header
     write (uout,'("* COMPARE: compare structures")')
     if (ismol) then
