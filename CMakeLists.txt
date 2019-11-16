@@ -25,13 +25,17 @@ if(NOT CROSSCOMPILE)
   set(CROSSCOMPILE "OFF" CACHE STRING "Choose the cross-compilation toolchain." FORCE)
 endif()
 set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
+option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS instead of the internal copy in oldlibs." ON)
 
 ## openmp
 find_package(OpenMP MODULE COMPONENTS Fortran)
 
 ## lapack
-find_package(LAPACK)
-set(LAPACK_FOUND "")
+if (USE_EXTERNAL_LAPACK)
+  find_package(LAPACK)
+else()
+  set(LAPACK_FOUND "")
+endif()
 
 ## compiler flags, fortran
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
