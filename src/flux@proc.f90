@@ -175,10 +175,15 @@ contains
           end if
        elseif (equal(word,'ncp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= -3)) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
              call ferror ('fluxprint','ncp identifier not known.',faterr,line,syntax=.true.)
              return
           end if
+          if (sy%f(sy%iref)%cpcel(cpid)%typ /= -3) then
+             call ferror ('fluxprint','ncp identifier not known.',faterr,line,syntax=.true.)
+             return
+          end if
+
           ok=ok.and.eval_next(ntheta,line,lp)
           ok=ok.and.eval_next(nphi,line,lp)
           if (.not. ok) then
@@ -220,7 +225,11 @@ contains
 
        elseif (equal(word,'bcp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= -1) ) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
+             call ferror ('fluxprint','bcp identifier not recognized.',faterr,line,syntax=.true.)
+             return
+          end if
+          if (sy%f(sy%iref)%cpcel(cpid)%typ /= -1) then
              call ferror ('fluxprint','bcp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
@@ -285,7 +294,11 @@ contains
 
        elseif (equal(word,'rcp')) then
           ok=eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= 1) ) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
+             call ferror ('fluxprint','rcp identifier not recognized.',faterr,line,syntax=.true.)
+             return
+          end if
+          if (sy%f(sy%iref)%cpcel(cpid)%typ /= 1) then
              call ferror ('fluxprint','rcp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
@@ -348,7 +361,11 @@ contains
 
        elseif (equal(word,'ccp')) then
           ok = eval_next(cpid,line,lp)
-          if (cpid < 0 .or. cpid > sy%f(sy%iref)%ncpcel .or. (sy%f(sy%iref)%cpcel(cpid)%typ /= 3)) then
+          if (cpid <= 0 .or. cpid > sy%f(sy%iref)%ncpcel) then
+             call ferror ('fluxprint','ccp identifier not recognized.',faterr,line,syntax=.true.)
+             return
+          end if
+          if (sy%f(sy%iref)%cpcel(cpid)%typ /= 3) then
              call ferror ('fluxprint','ccp identifier not recognized.',faterr,line,syntax=.true.)
              return
           end if
