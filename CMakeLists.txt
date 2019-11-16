@@ -29,6 +29,10 @@ set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
 ## openmp
 find_package(OpenMP MODULE COMPONENTS Fortran)
 
+## lapack
+find_package(LAPACK)
+set(LAPACK_FOUND "")
+
 ## compiler flags, fortran
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")

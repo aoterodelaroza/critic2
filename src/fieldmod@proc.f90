@@ -1834,41 +1834,37 @@ contains
 
   !> Do a Newton-Raphson search at point r (Cartesian). A CP is found
   !> when the gradient is less than gfnormeps. ier is the exit code: 0
-  !> (success), 1 (singular Hessian), and 2 (too many iterations).
+  !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations).
   module subroutine newton(f,r,gfnormeps,ier)
-    use tools_math, only: detsym
+    use tools_math, only: matinvsym
     use types, only: scalar_value
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
     real*8, intent(in) :: gfnormeps
 
-    real*8 :: r1(3), xx(3), er
-    integer :: iw(3)
     integer :: it
     type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
 
     do it = 1, maxit
-       ! Evaluate and stop criterion
+       ! evaluate and stop criterion
        call f%grd(r,2,res)
        if (res%gfmod < gfnormeps) then
           ier = 0
           return
        end if
 
-       ! Invert h matrix and do a Newton-Raphson step (H^{-1}*grad).
-       if (abs(detsym(res%hf)) < 1d-30) then
-          ier = 1
-          return
-       end if
-       call dgeco(res%hf,3,3,iw,er,r1)
-       call dgedi(res%hf,3,3,iw,xx,r1,1)
+       ! invert the Hessian
+       call matinvsym(res%hf,3,ier)
+       if (ier /= 0) return
+
+       ! advance
        r = r - matmul(res%hf,res%gf)
     end do
 
-    ! Too many iterations
+    ! too many iterations
     ier = 2
 
   end subroutine newton
@@ -2081,7 +2077,6 @@ contains
   !> present, initialize the output path with this point (Cartesian).
   module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
-    use tools_math, only: eigns
     use types, only: scalar_value, gpathp, realloc
     use param, only: icrd_crys
     class(field), intent(inout) :: fid

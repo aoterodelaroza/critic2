@@ -453,8 +453,8 @@ contains
   !> Paint the interior of a tetrahedral region
   module subroutine tetrah_paint(base_t,iv,l,color,trm)
     use qtree_basic, only: qtreei, qtreeidx, maxl, cindex
+    use tools_math, only: matinv1
     use global, only: color_allocate
-
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
     integer, intent(in) :: l
@@ -463,7 +463,7 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    integer :: i, j, k, o, n
+    integer :: i, j, k, o, n, ier
     integer :: lrest, l2, vin(3)
     real*8 :: p(3,3), cond(3), acond(3)
     real*8 :: er, r1(3), xx(3), iw(3)
@@ -513,8 +513,7 @@ contains
                 p(1,:) = iv(:,i)
                 p(2,:) = iv(:,j)
                 p(3,:) = iv(:,k)
-                call dgeco(p,3,3,iw,er,r1)
-                call dgedi(p,3,3,iw,xx,r1,1)
+                call matinv1(p,3,ier)
                 cond = (/1d0, 1d0, 1d0/)
                 cond = matmul(p,cond)
                 acond = abs(cond)

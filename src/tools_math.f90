@@ -45,6 +45,8 @@ module tools_math
   public :: detsym
   public :: det
   public :: matinv
+  public :: matinv1
+  public :: matinvsym
   public :: plane_scale_extend
   public :: assign_ziso
   public :: comb
@@ -227,6 +229,16 @@ module tools_math
        real*8, intent(in) :: m(3,3)
        real*8 :: mo(3,3)
      end function matinv
+     module subroutine matinv1(m,n,ier)
+       integer, intent(in) :: n
+       real*8, intent(inout) :: m(n,n)
+       integer, intent(out) :: ier
+     end subroutine matinv1
+     module subroutine matinvsym(m,n,ier)
+       integer, intent(in) :: n
+       real*8, intent(inout) :: m(n,n)
+       integer, intent(out) :: ier
+     end subroutine matinvsym
      module subroutine plane_scale_extend(x0,x1,x2,sxi,syi,zx0i,zx1i,zy0i,zy1i)
        real*8, intent(inout) :: x0(3), x1(3), x2(3)
        real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i

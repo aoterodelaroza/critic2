@@ -140,7 +140,7 @@ contains
     use global, only: minl, prop_mode, integ_scheme, integ_mode, keastnum,&
        qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_origin,&
        ws_scale
-    use tools_math, only: mixed, cross
+    use tools_math, only: mixed, cross, matinv1
     use tools_io, only: ferror, faterr, uout, warning
     integer, intent(in) :: lvl, plvl
     logical, intent(in) :: verbose
@@ -151,7 +151,7 @@ contains
     integer :: i, j, ntetrag
     real*8 :: xp1(3), xp2(3), xp3(3), xx(3), dist, iw(3), r1(3), er
     real*8 :: vtotal, sumi
-    integer :: l2
+    integer :: l2, ier
     integer(qtreeidx) :: siz
     real*8, allocatable :: tetrag(:,:,:)
 
@@ -307,8 +307,8 @@ contains
        cmat(3,:,i) = cross(xp1,xp2) / (6d0 * tvol(i))
 
        dmat(:,:,i) = cmat(:,:,i)
-       call dgeco(dmat(:,:,i),3,3,iw,er,r1)
-       call dgedi(dmat(:,:,i),3,3,iw,xx,r1,1)
+       call matinv1(dmat(:,:,i),3,ier)
+       if (ier /= 0) call ferror('qtree_initialize','failed inverting dmat',faterr)
 
        ! fill cartesian / 2**maxl vectors
        borig(:,i) = sy%c%x2c(torig(:,i))

@@ -846,18 +846,18 @@ contains
     real*8, intent(inout) :: mat(:,:) !< Input matrix and output eigenvectors (column-wise)
     real*8, intent(out), optional :: eval(:) !< Output eigenvalues
 
-    real*8 :: work(size(mat,1))
-    integer :: ifail
-    real*8 :: loceval(size(mat,1))
+    real*8 :: onework(1)
+    integer :: lwork, info
+    real*8, allocatable :: work(:)
 
-    work = 0d0
-    if (present(eval)) then
-       call trace(mat,eval,work,size(mat,1),ifail)
-    else
-       call trace(mat,loceval,work,size(mat,1),ifail)
-    end if
-
-    if (ifail /= 0) call ferror('eig','Error in diagonalization',faterr)
+    lwork = -1
+    call dsyev('V','U',size(mat,1),mat,size(mat,1),eval,onework,lwork,info)
+    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    lwork = nint(onework(1))
+    allocate(work(lwork))
+    call dsyev('V','U',size(mat,1),mat,size(mat,1),eval,work,lwork,info)
+    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    deallocate(work)
 
   end subroutine eig
 
@@ -869,20 +869,21 @@ contains
     real*8, intent(out), optional :: eval(:) !< Real part of the eigenvalues
     real*8, intent(out), optional :: evali(:) !< Imaginary part of the eigenvalues
 
-    integer :: ifail
-    real*8, dimension(size(mat,1)) :: loceval, localevali, work1, work2, work3
-    real*8, dimension(size(mat,1),size(mat,1)) :: mati, matt, matt2
+    real*8 :: onework(1)
+    real*8, allocatable :: ares(:,:), work(:)
+    integer :: lwork, info, n
 
-    mati = 0d0
+    n = size(mat,1)
+    allocate(ares(n,n))
+    lwork = -1
+    call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,onework,lwork,info)
+    lwork = nint(onework(1))
+    allocate(work(lwork))
+    call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,work,lwork,info)
+    if (info /= 0) call ferror('eigns','Error in diagonalization',faterr)
+    mat = ares
+    deallocate(work,ares)
 
-    if (present(eval)) then
-       call cg(size(mat,1),size(mat,1),mat,mati,eval,evali,1,matt,matt2,work1,work2,work3,ifail)
-    else
-       call cg(size(mat,1),size(mat,1),mat,mati,loceval,localevali,1,matt,matt2,work1,work2,work3,ifail)
-    end if
-    mat = matt
-
-    if (ifail /= 0) call ferror('eigns','Error in diagonalization',faterr)
   end subroutine eigns
 
   !> Given a point x0 (cartesian), calculate the rank and signature of
@@ -989,6 +990,63 @@ contains
     mo = transpose(mo) / det(m)
 
   end function matinv
+  
+  !> Inverse of an nxn real matrix. Uses LAPACK.
+  module subroutine matinv1(m,n,ier)
+    integer, intent(in) :: n
+    real*8, intent(inout) :: m(n,n)
+    integer, intent(out) :: ier
+    
+    integer :: lwork
+    real*8, allocatable :: work(:)
+    integer :: ipiv(n), info
+
+    ier = 1
+    lwork = 64 * n
+    allocate(work(lwork))
+
+    call dgetrf(n,n,m,n,ipiv,info)
+    if (info /= 0) return
+    call dgetri(n,m,n,ipiv,work,lwork,info)
+    if (info /= 0) return
+
+    ier = 0
+    deallocate(work)
+
+  end subroutine matinv1
+
+  !> Inverse of an nxn real symmetric matrix. Uses LAPACK.
+  module subroutine matinvsym(m,n,ier)
+    integer, intent(in) :: n
+    real*8, intent(inout) :: m(n,n)
+    integer, intent(out) :: ier
+    
+    integer :: lwork
+    real*8, allocatable :: work(:)
+    real*8 :: onework(1)
+    integer :: ipiv(n), info
+    integer :: i, j
+
+    ier = 1
+    lwork = -1
+    call dsytrf('L',n,m,n,ipiv,onework,lwork,info)
+    if (info /= 0) return
+    lwork = nint(onework(1))
+    allocate(work(lwork))
+    call dsytrf('L',n,m,n,ipiv,work,lwork,info)
+    if (info /= 0) return
+    call dsytri('L',n,m,n,ipiv,work,info)
+    if (info /= 0) return
+
+    ier = 0
+    deallocate(work)
+    do i = 1, n
+       do j = i+1, n
+          m(i,j) = m(j,i)
+       end do
+    end do
+
+  end subroutine matinvsym
 
   !> Scale or extend the plane defined by points x0, x1, x2 (Cartesian)
   !> with scale factors sxi, syi (default: 1) and extend factors

@@ -834,11 +834,9 @@ contains
     allocate(k2(3,f%nwav))
     allocate(f%sk(f%nwav))
     f%sk = 0d0
-    if (f%cmpl) then
-       allocate(f%ski(f%nwav))
-       f%ski = 0d0
-    end if
 
+    if (allocated(f%ski)) deallocate(f%ski)
+    f%cmpl = .false.
     do i = 1, f%nwav
        read(lu,2071,END=36) (K2(J,i),J=1,3), ttmpk, ttmpki
        if (abs(ttmpki) > pwcutoff .and..not.f%cmpl) then
