@@ -75,7 +75,7 @@ endif()
 
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES})
-  target_link_libraries(lcritic2 OpenMP::OpenMP_Fortran)
+  target_link_libraries(lcritic2 PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -18,7 +18,7 @@ include_directories(${GLFW_INCLUDE_DIRS} ${FREETYPE2_INCLUDE_DIRS} ${GLM_INCLUDE
 
 add_executable(gcritic2 ${SOURCES} $<TARGET_OBJECTS:lcritic2> $<TARGET_OBJECTS:cubpack>
   $<TARGET_OBJECTS:ciftbx> $<TARGET_OBJECTS:qhull> $<TARGET_OBJECTS:spglib>)
-target_link_libraries(gcritic2
+target_link_libraries(gcritic2 PRIVATE
   ${GLFW_LIBRARIES} 
   ${FREETYPE2_LIBRARIES} 
   ${GLM_LIBRARIES} 
@@ -26,9 +26,10 @@ target_link_libraries(gcritic2
   OpenMP::OpenMP_Fortran
   ${CMAKE_DL_LIBS}
   )
-target_link_libraries(gcritic2 ${LAPACK_LIBRARIES})
-##if (NOT LAPACK_FOUND)
-  target_link_libraries(gcritic2 oldlibs)
-##endif()
+if (LAPACK_FOUND)
+  target_link_libraries(gcritic2 PRIVATE ${LAPACK_LIBRARIES})
+else()
+  target_link_libraries(gcritic2 PRIVATE oldlibs)
+endif()
 
 install(TARGETS gcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
