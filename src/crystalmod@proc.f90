@@ -274,19 +274,22 @@ contains
        c%bb = 90d0
 
        c%m_x2c = m_x2c_from_cellpar(c%aa,c%bb)
-       c%m_c2x = matinv(c%m_x2c)
+       c%m_c2x = c%m_x2c
+       call matinv(c%m_c2x,3)
        g = matmul(transpose(c%m_x2c),c%m_x2c)
     elseif (seed%useabr == 1) then
        ! use aa and bb
        c%aa = seed%aa
        c%bb = seed%bb
        c%m_x2c = m_x2c_from_cellpar(c%aa,c%bb)
-       c%m_c2x = matinv(c%m_x2c)
+       c%m_c2x = c%m_x2c
+       call matinv(c%m_c2x,3)
        g = matmul(transpose(c%m_x2c),c%m_x2c)
     elseif (seed%useabr == 2) then
        ! use m_x2c
        c%m_x2c = seed%m_x2c
-       c%m_c2x = matinv(c%m_x2c)
+       c%m_c2x = c%m_x2c
+       call matinv(c%m_c2x,3)
        g = matmul(transpose(c%m_x2c),c%m_x2c)
        do i = 1, 3
           c%aa(i) = sqrt(g(i,i))
@@ -364,7 +367,8 @@ contains
     ! rest of the cell metrics
     c%gtensor = g
     c%omega = sqrt(max(det(g),0d0))
-    c%grtensor = matinv(g)
+    c%grtensor = g
+    call matinv(c%grtensor,3)
     do i = 1, 3
        c%ar(i) = sqrt(c%grtensor(i,i))
     end do
@@ -2308,7 +2312,8 @@ contains
     end if
 
     ! inverse matrix
-    x0inv = matinv(x0)
+    x0inv = x0
+    call matinv(x0inv,3)
 
     ! metrics of the new cell
     ncseed%m_x2c = matmul(c%m_x2c,x0)
@@ -3520,10 +3525,12 @@ contains
        c%m_x2xr = eye
     else
        c%m_xr2x = rdel
-       c%m_x2xr = matinv(c%m_xr2x)
+       c%m_x2xr = c%m_xr2x
+       call matinv(c%m_x2xr,3)
     end if
     c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
-    c%m_c2xr = matinv(c%m_xr2c)
+    c%m_c2xr = c%m_xr2c
+    call matinv(c%m_c2xr,3)
 
     do i = 1, 3
        x0 = c%m_xr2x(i,:)

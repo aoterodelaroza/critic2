@@ -1635,7 +1635,8 @@ contains
     ! cartesian to plane
     if (abs(det(amat)) < 1d-15) &
        call ferror('contour','Error in the input plane: singular matrix',faterr)
-    bmat = matinv(amat)
+    bmat = amat
+    call matinv(bmat,3)
 
     ! define plane limits
     ua = 0d0
@@ -1766,7 +1767,8 @@ contains
     ! cartesian to plane
     if (abs(det(amat)) < 1d-15) &
        call ferror('colormap','Error in the input plane: singular matrix',faterr)
-    bmat = matinv(amat)
+    bmat = amat
+    call matinv(bmat,3)
 
     ! connect unit
     lu = fopen_write(file)
@@ -2187,7 +2189,8 @@ contains
     amat(:,3) = rpn(1:3)
 
     ! cartesian to plane
-    bmat = matinv(amat)
+    bmat = amat
+    call matinv(bmat,3)
 
     write (uout,'("* Plot of the gradient vector field in the plane:")')
     write (uout,'("    r = r0 + u * (r1 - r0) + v * (r2 - r0)")')

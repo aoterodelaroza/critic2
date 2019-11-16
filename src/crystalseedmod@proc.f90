@@ -48,7 +48,7 @@ contains
     character(len=:), allocatable :: word, aux, aexp, line, name
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0, it
-    integer :: hnum
+    integer :: hnum, ier
     real*8 :: rmat(3,3), scal, ascal, x(3), xn(3)
     logical :: ok, goodspg
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
@@ -164,7 +164,10 @@ contains
              ascal = 1d0 / dunit0(iunit0)
           end if
           seed%m_x2c = transpose(rmat) * scal * ascal
-          rmat = matinv(seed%m_x2c)
+          rmat = seed%m_x2c
+          call matinv(rmat,3,ier)
+          if (ier /= 0) &
+             call ferror('parse_crystal_env','Error inverting matrix',faterr)
           seed%useabr = 2
 
        else if (equal(word,'spg')) then
@@ -1126,7 +1129,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
-    integer :: i, j, nstep(3), nn, iz, it
+    integer :: i, j, nstep(3), nn, iz, it, ier
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
     logical :: ismo, ok
     character(len=:), allocatable :: line
@@ -1163,7 +1166,12 @@ contains
 
     seed%m_x2c = rmat
     rmat = transpose(rmat)
-    rmat = matinv(rmat)
+    call matinv(rmat,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
+
     seed%useabr = 2
 
     ! Atomic positions.
@@ -1232,7 +1240,7 @@ contains
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu
+    integer :: lu, ier
     integer :: i, j, nstep(3), nn, iz, it
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
 
@@ -1253,7 +1261,11 @@ contains
 
      seed%m_x2c = rmat
      rmat = transpose(rmat)
-     rmat = matinv(rmat)
+     call matinv(rmat,3,ier)
+     if (ier /= 0) then
+        errmsg = "Error inverting matrix"
+        goto 999
+     end if
      seed%useabr = 2
      
      ! Atomic positions.
@@ -1543,7 +1555,7 @@ contains
     character(len=:), allocatable :: word, line
     logical :: ok, iscar
 
-    integer :: i, j
+    integer :: i, j, ier
     real*8 :: scalex, scaley, scalez, scale
     real*8 :: rprim(3,3), gprim(3,3)
     real*8 :: omegaa
@@ -1594,7 +1606,11 @@ contains
        goto 999
     end if
     seed%m_x2c = rprim
-    rprim = matinv(rprim)
+    call matinv(rprim,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
     seed%useabr = 2
 
     ! For versions >= 5.2, a line indicating the atom types appears here
@@ -2181,7 +2197,7 @@ contains
        cell_damping, press_conv_thr
 
     ! local to this routine
-    integer :: lu, ios, lp, i, j
+    integer :: lu, ios, lp, i, j, ier
     character(len=:), allocatable :: line, word
     character*10 :: atm
     real*8 :: r(3,3)
@@ -2328,7 +2344,11 @@ contains
 
     ! fill the cell metrics
     seed%m_x2c = r
-    r = matinv(seed%m_x2c)
+    call matinv(r,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
     seed%useabr = 2
 
     ! do the atom stuff
@@ -2376,7 +2396,7 @@ contains
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, i, j
+    integer :: lu, i, j, ier
     character(len=:), allocatable :: line
     integer :: idum, iz, lp
     real*8 :: r(3,3), x(3)
@@ -2468,7 +2488,12 @@ contains
 
     ! cell
     seed%m_x2c = transpose(r)
-    r = matinv(seed%m_x2c)
+    r = seed%m_x2c
+    call matinv(r,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
     seed%useabr = 2
 
     ! atoms
@@ -2580,7 +2605,7 @@ contains
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu
+    integer :: lu, ier
     real*8 :: r(3,3)
     integer :: i, iz, idum, lp
     logical :: ok, molout
@@ -2651,7 +2676,13 @@ contains
 
        ! fill the cell metrics
        seed%m_x2c = transpose(r)
-       r = matinv(seed%m_x2c)
+       r = seed%m_x2c
+       call matinv(r,3,ier)
+       if (ier /= 0) then
+          errmsg = "Error inverting matrix"
+          goto 999
+       end if
+
        if (isfrac == "c") then
           errmsg = 'Lattice plus C not supported.'
           goto 999
@@ -2709,7 +2740,7 @@ contains
 
     character(len=:), allocatable :: line, word, name
     character*10 :: atn, latn
-    integer :: lu, lp, i, j, iz, it
+    integer :: lu, lp, i, j, iz, it, ier
     real*8 :: r(3,3), x(3)
     logical :: ok, ismol, xread
     type(hash) :: usen
@@ -2841,7 +2872,12 @@ contains
     if (.not.ismol) then
        ! fill the cell metrics
        seed%m_x2c = transpose(r)
-       r = matinv(seed%m_x2c)
+       r = seed%m_x2c
+       call matinv(r,3,ier)
+       if (ier /= 0) then
+          errmsg = "Error inverting matrix"
+          goto 999
+       end if
        seed%useabr = 2
        
        ! convert atoms to crystallographic
@@ -2883,7 +2919,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
-    integer :: version, i
+    integer :: version, i, ier
     character*3, allocatable :: atm(:)
     real*8 :: r(3,3), alat
 
@@ -2920,7 +2956,12 @@ contains
     seed%m_x2c = seed%m_x2c * alat
 
     ! convert to crystallographic
-    r = matinv(seed%m_x2c)
+    r = seed%m_x2c
+    call matinv(r,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
     do i = 1, seed%nat
        seed%x(:,i) = matmul(r,seed%x(:,i)) * alat
     end do
@@ -2965,7 +3006,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: line, word, name
-    integer :: lu, lp, iprim, i, it, iz, j
+    integer :: lu, lp, iprim, i, it, iz, j, ier
     real*8 :: r(3,3), x(3)
     logical :: ok, ismol, didreadr, didreadx
     
@@ -3077,7 +3118,12 @@ contains
     if (.not.ismol) then
        ! fill the cell metrics
        seed%m_x2c = transpose(r)
-       r = matinv(seed%m_x2c)
+       r = seed%m_x2c
+       call matinv(r,3,ier)
+       if (ier /= 0) then
+          errmsg = "Error inverting matrix"
+          goto 999
+       end if
        seed%useabr = 2
 
        ! convert atoms to crystallographic
@@ -3692,7 +3738,7 @@ contains
     logical, intent(in) :: mol !< Is this a molecule? 
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, ideq, i, j, is0
+    integer :: lu, ideq, i, j, is0, ier
     character(len=:), allocatable :: line
     character*10 :: atn, sdum
     character*40 :: sene
@@ -3928,7 +3974,13 @@ contains
              seed(iuse)%m_x2c = m_x2c
 
              seed(iuse)%useabr = 2
-             r = matinv(seed(iuse)%m_x2c)
+             r = seed(iuse)%m_x2c
+             call matinv(r,3,ier)
+             if (ier /= 0) then
+                errmsg = "Error inverting matrix"
+                goto 999
+             end if
+
              do i = 1, seed(iuse)%nat
                 if (tox) then
                    seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
@@ -3984,11 +4036,11 @@ contains
     logical, intent(in) :: mol !< Is this a molecule? 
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, i, is0
+    integer :: lu, i, is0, ier
     character(len=:), allocatable :: line
     character*10 :: sdum, atn
     character*40 :: sene
-    integer :: idum, iz, isz(maxzat0), idx
+    integer :: idum, iz, isz(maxzat0), idx, ier
     real*8 :: rdum, r(3,3), rtrans(3,3), dd
     logical :: ok
     ! interim copy of seed info
@@ -4061,7 +4113,12 @@ contains
           end if
 
           rtrans = m_x2c_from_cellpar(aa,bb)
-          rtrans = matinv(rtrans) * r
+          call matinv(rtrans,3,ier)
+          if (ier /= 0) then
+             errmsg = "Error inverting matrix"
+             goto 999
+          end if
+          rtrans = rtrans * r
           dd = abs(det(rtrans))
           if (abs(dd - 1d0) > 1d-10) then
              errmsg = "Invalid transformation matrix"
@@ -4143,7 +4200,11 @@ contains
           hasx = .false.
 
           seed(is0)%m_x2c = r
-          r = matinv(r)
+          call matinv(r,3,ier)
+          if (ier /= 0) then
+             errmsg = "Error inverting matrix"
+             goto 999
+          end if
           seed(is0)%useabr = 2
 
           seed(is0)%nat = nat

@@ -140,7 +140,7 @@ contains
     use global, only: minl, prop_mode, integ_scheme, integ_mode, keastnum,&
        qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_origin,&
        ws_scale
-    use tools_math, only: mixed, cross, matinv1
+    use tools_math, only: mixed, cross, matinv
     use tools_io, only: ferror, faterr, uout, warning
     integer, intent(in) :: lvl, plvl
     logical, intent(in) :: verbose
@@ -307,7 +307,7 @@ contains
        cmat(3,:,i) = cross(xp1,xp2) / (6d0 * tvol(i))
 
        dmat(:,:,i) = cmat(:,:,i)
-       call matinv1(dmat(:,:,i),3,ier)
+       call matinv(dmat(:,:,i),3,ier)
        if (ier /= 0) call ferror('qtree_initialize','failed inverting dmat',faterr)
 
        ! fill cartesian / 2**maxl vectors

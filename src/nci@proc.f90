@@ -68,7 +68,7 @@ contains
     ! voids
     real*8 :: rho_void
     ! cube limits
-    real*8 :: x(3), xd(3), x0(3), x1(3), x0x(3), x1x(3), xinc(3), xmat(3,3)
+    real*8 :: x(3), xd(3), x0(3), x1(3), x0x(3), x1x(3), xinc(3), xmat(3,3), xmati(3,3)
     real*8 :: xx0(3), xx1(3)
     integer :: nstep(3), imin(3), imax(3)
     ! cutoffs
@@ -686,7 +686,9 @@ contains
      bbl(3) = acos(gg(1,2) / aal(1) / aal(2)) * 180d0 / pi
      isortho = all(abs(bbl - 90d0) < 1d-4)
      rchol = m_x2c_from_cellpar(aal,bbl)
-     rchol = transpose(matmul(rchol,matinv(xmat)))
+     xmati = xmat
+     call matinv(xmati,3)
+     rchol = transpose(matmul(rchol,xmati))
 
      ! VMD screw-up log, entry #3:
      ! The origin of the isosurface box is translated by -1/2 of 

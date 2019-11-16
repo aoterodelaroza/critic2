@@ -83,16 +83,19 @@ contains
     logical :: dorepeat
     real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
     real*8 :: x0(3), x1(3), dist, rcut0
-    integer :: i1, i2, i3, i, m, imax, i3min, nreg
+    integer :: i1, i2, i3, i, m, imax, i3min, nreg, ier
     integer, allocatable :: iord(:)
 
     ! fill the matrices
     e%m_xr2c = m_xr2c
-    e%m_c2xr = matinv(m_xr2c)
+    e%m_c2xr = m_xr2c
+    call matinv(e%m_c2xr,3)
     e%m_x2xr = m_x2xr
-    e%m_xr2x = matinv(m_x2xr)
+    e%m_xr2x = m_x2xr
+    call matinv(e%m_xr2x,3)
     e%m_x2c = m_x2c
-    e%m_c2x = matinv(m_x2c)
+    e%m_c2x = m_x2c
+    call matinv(e%m_c2x,3)
 
     ! do nothing else if there are no atoms
     e%n = n

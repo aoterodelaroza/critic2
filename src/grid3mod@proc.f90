@@ -1045,7 +1045,8 @@ contains
     end do
     
     ! convert centers to crystallographic and spread to bohr
-    rlatti = matinv(rlatt)
+    rlatti = rlatt
+    call matinv(rlatti,3)
     do is = 1, nspin
        do i = 1, f%qe%nbndw(is)
           f%qe%center(:,i,is) = matmul(f%qe%center(:,i,is),rlatti)

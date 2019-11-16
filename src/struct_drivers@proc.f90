@@ -318,7 +318,7 @@ contains
 
     elseif (equal(word,'refine')) then
        x0 = s%c%cell_standard(.false.,.false.,.true.)
-       x0 = matinv(x0)
+       call matinv(x0,3)
        call s%c%newcell(x0)
     end if
 
@@ -2015,7 +2015,7 @@ contains
              exit
           end if
        end do
-       if (doinv) x0 = matinv(x0)
+       if (doinv) call matinv(x0,3)
 
        ! transform to the new crystal
        call s%c%newcell(x0,t0)

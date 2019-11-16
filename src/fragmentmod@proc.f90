@@ -221,7 +221,8 @@ contains
 
     ! crystal structure
     if (present(r)) then
-       ri = matinv(r)
+       ri = r
+       call matinv(ri,3)
        g = matmul(transpose(r),r)
        do i = 1, 3
           aa(i) = sqrt(g(i,i)) 

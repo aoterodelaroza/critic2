@@ -973,78 +973,81 @@ contains
 
   end function det
 
-  !> Inverse of a 3x3 matrix
-  module function matinv(m) result(mo)
-    real*8, intent(in) :: m(3,3) !< Input matrix
-    real*8 :: mo(3,3) !< Inverse of input
-
-    mo(1,1) =   m(2,2)*m(3,3) - m(2,3)*m(3,2)
-    mo(1,2) = - m(2,1)*m(3,3) + m(2,3)*m(3,1)
-    mo(1,3) =   m(2,1)*m(3,2) - m(2,2)*m(3,1)
-    mo(2,1) = - m(1,2)*m(3,3) + m(1,3)*m(3,2)
-    mo(2,2) =   m(1,1)*m(3,3) - m(1,3)*m(3,1)
-    mo(2,3) = - m(1,1)*m(3,2) + m(1,2)*m(3,1)
-    mo(3,1) =   m(1,2)*m(2,3) - m(1,3)*m(2,2)
-    mo(3,2) = - m(1,1)*m(2,3) + m(1,3)*m(2,1)
-    mo(3,3) =   m(1,1)*m(2,2) - m(1,2)*m(2,1)
-    mo = transpose(mo) / det(m)
-
-  end function matinv
-  
-  !> Inverse of an nxn real matrix. Uses LAPACK.
-  module subroutine matinv1(m,n,ier)
+  !> Invert an nxn real general matrix. Uses LAPACK. If ier = 0, no
+  !> error; otherwise, ier contains the LAPACK error code.
+  module subroutine matinv(m,n,ier)
     integer, intent(in) :: n
     real*8, intent(inout) :: m(n,n)
-    integer, intent(out) :: ier
+    integer, intent(out), optional :: ier
     
     integer :: lwork
+    real*8 :: onework(1)
     real*8, allocatable :: work(:)
     integer :: ipiv(n), info
 
-    ier = 1
-    lwork = 64 * n
+    ! LU factorization
+    call dgetrf(n,n,m,n,ipiv,info)
+    if (info /= 0) goto 999
+
+    ! allocate work space for inverse
+    lwork = -1
+    call dgetri(n,m,n,ipiv,onework,lwork,info)
+    if (info /= 0) goto 999
+    lwork = nint(onework(1))
     allocate(work(lwork))
 
-    call dgetrf(n,n,m,n,ipiv,info)
-    if (info /= 0) return
+    ! calculate the inverse
     call dgetri(n,m,n,ipiv,work,lwork,info)
-    if (info /= 0) return
-
-    ier = 0
+    if (info /= 0) goto 999
     deallocate(work)
+    if (present(ier)) ier = 0
 
-  end subroutine matinv1
+    return
+999 continue
+    if (present(ier)) ier = info
 
-  !> Inverse of an nxn real symmetric matrix. Uses LAPACK.
+  end subroutine matinv
+
+  !> Invert an nxn real symmetric matrix. Uses LAPACK. If ier = 0, no
+  !> error; otherwise, ier contains the LAPACK error code.
   module subroutine matinvsym(m,n,ier)
     integer, intent(in) :: n
     real*8, intent(inout) :: m(n,n)
-    integer, intent(out) :: ier
+    integer, intent(out), optional :: ier
     
     integer :: lwork
     real*8, allocatable :: work(:)
     real*8 :: onework(1)
-    integer :: ipiv(n), info
-    integer :: i, j
+    integer :: ipiv(n)
+    integer :: i, j, info
 
-    ier = 1
+    ! allocate work space for LDL^T factorization
     lwork = -1
     call dsytrf('L',n,m,n,ipiv,onework,lwork,info)
-    if (info /= 0) return
+    if (info /= 0) goto 999
     lwork = nint(onework(1))
     allocate(work(lwork))
-    call dsytrf('L',n,m,n,ipiv,work,lwork,info)
-    if (info /= 0) return
-    call dsytri('L',n,m,n,ipiv,work,info)
-    if (info /= 0) return
 
-    ier = 0
+    ! LDL^T factorization
+    call dsytrf('L',n,m,n,ipiv,work,lwork,info)
+    if (info /= 0) goto 999
+
+    ! calculate the inverse
+    call dsytri('L',n,m,n,ipiv,work,info)
+    if (info /= 0) goto 999
+
+    ! propagate to the rest of the matrix
     deallocate(work)
     do i = 1, n
        do j = i+1, n
           m(i,j) = m(j,i)
        end do
     end do
+    if (present(ier)) ier = 0
+
+    return
+999 continue
+    if (present(ier)) ier = info
 
   end subroutine matinvsym
 

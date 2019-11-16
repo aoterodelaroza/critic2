@@ -125,7 +125,8 @@ contains
        n(i) = size(bas%f,i)
        lat2car(:,i) = s%c%m_x2c(:,i) / n(i)
     end do
-    car2lat = matinv(lat2car)
+    car2lat = lat2car
+    call matinv(car2lat,3)
 
     ! distance between neighboring points
     lat_i_dist = 0d0

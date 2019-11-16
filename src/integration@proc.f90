@@ -2332,7 +2332,8 @@ contains
     caux%aa = sy%c%aa / real(n,8)
     caux%bb = sy%c%bb
     caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
-    caux%m_c2x = matinv(caux%m_x2c)
+    caux%m_c2x = caux%m_x2c
+    call matinv(caux%m_c2x,3)
     call caux%wigner()
 
     ! output
