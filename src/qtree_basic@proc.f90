@@ -149,7 +149,7 @@ contains
     real*8, allocatable, intent(out) :: acum_atprop(:,:)
 
     integer :: i, j, ntetrag
-    real*8 :: xp1(3), xp2(3), xp3(3), xx(3), dist, iw(3), r1(3), er
+    real*8 :: xp1(3), xp2(3), xp3(3), xx(3), dist
     real*8 :: vtotal, sumi
     integer :: l2, ier
     integer(qtreeidx) :: siz

@@ -757,7 +757,7 @@ contains
   !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
   !> the Bloch states, k-points, and structural info.
   module subroutine read_pwc(f,fpwc)
-    use tools_math, only: det
+    use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
@@ -865,7 +865,7 @@ contains
        end do
     end do
     deallocate(raux,rseq,evc)
-    f%f = f%f * fspin / (det(at) * sum(f%qe%wk))
+    f%f = f%f * fspin / (det3(at) * sum(f%qe%wk))
 
     ! close and clean up
     call fclose(luc)
@@ -1102,7 +1102,7 @@ contains
   !> Cartesian matrix for this grid.
   module subroutine laplacian(flap,frho,x2c)
     use tools_io, only: ferror, faterr
-    use tools_math, only: cross, det
+    use tools_math, only: cross, det3
     use param, only: pi
     class(grid3), intent(inout) :: flap
     type(grid3), intent(in) :: frho
@@ -1132,7 +1132,7 @@ contains
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det(x2c))
+    vol = abs(det3(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     allocate(ivg(3,ntot))
@@ -1191,7 +1191,7 @@ contains
   !> the crystallographic to Cartesian matrix for this grid.
   module subroutine gradrho(fgrho,frho,x2c)
     use tools_io, only: faterr, ferror
-    use tools_math, only: det, cross
+    use tools_math, only: det3, cross
     use param, only: pi
     class(grid3), intent(inout) :: fgrho
     type(grid3), intent(in) :: frho
@@ -1219,7 +1219,7 @@ contains
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det(x2c))
+    vol = abs(det3(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     n12 = n(1)*n(2)
@@ -1272,7 +1272,7 @@ contains
   !> the output potential is in Ry; otherwise in Hartree.
   module subroutine pot(fpot,frho,x2c,isry)
     use tools_io, only: ferror, faterr
-    use tools_math, only: cross, det
+    use tools_math, only: cross, det3
     use param, only: pi
     class(grid3), intent(inout) :: fpot
     type(grid3), intent(in) :: frho
@@ -1303,7 +1303,7 @@ contains
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det(x2c))
+    vol = abs(det3(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     allocate(ivg(3,ntot))
@@ -1372,7 +1372,7 @@ contains
   !> is the crystallographic to Cartesian matrix for this grid.
   module subroutine hxx(fxx,frho,ix,x2c)
     use tools_io, only: ferror, faterr
-    use tools_math, only: det, cross
+    use tools_math, only: det3, cross
     use param, only: pi
     class(grid3), intent(inout) :: fxx
     type(grid3), intent(in) :: frho
@@ -1403,7 +1403,7 @@ contains
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det(x2c))
+    vol = abs(det3(x2c))
     bvec = 2d0 * pi / vol * bvec
 
     allocate(ivg(3,ntot))

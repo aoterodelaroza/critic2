@@ -42,8 +42,8 @@ module tools_math
   public :: cross
   public :: mixed
   public :: mnorm2
-  public :: detsym
-  public :: det
+  public :: det3sym
+  public :: det3
   public :: matinv
   public :: matinvsym
   public :: plane_scale_extend
@@ -218,14 +218,14 @@ module tools_math
        real*8, intent(in) :: a(3,3)
        real*8 :: mnorm2
      end function mnorm2
-     module function detsym(m)
+     module function det3sym(m)
        real*8, intent(in) :: m(3,3)
-       real*8 :: detsym
-     end function detsym
-     module function det(m)
+       real*8 :: det3sym
+     end function det3sym
+     module function det3(m)
        real*8, intent(in) :: m(3,3)
-       real*8 :: det
-     end function det
+       real*8 :: det3
+     end function det3
      module subroutine matinv(m,n,ier)
        integer, intent(in) :: n
        real*8, intent(inout) :: m(n,n)

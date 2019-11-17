@@ -5145,8 +5145,9 @@ C
          call getlin(flag)
          jchar=max(0,dchar(iname)-1)
 CDBG     if(jchar.lt.0) write(6,'(7H dchar ,i5)') jchar
-         do 220 i=1,nitem
-220      lloop(i+iname-iloop(iname))=0
+         do i=1,nitem
+            lloop(i+iname-iloop(iname))=0
+         end do
          goto 240
 C
 C....... Read a packet of loop items
@@ -6218,8 +6219,9 @@ C
        im=0
        quoted=.false.
        quote_=' '
-       do 205 i=1,11
-205    jj(i)=0
+       do i=1,11
+          jj(i)=0
+       end do
 210    ip = jchar
        do 250 i=jchar,lastch
          ip = i
@@ -6453,8 +6455,9 @@ C
 3200   type_='numb'
        im=0
        innerdepth = depth_
-       do 3205 i=1,11
-3205     jj(i)=0
+       do i=1,11
+          jj(i)=0
+       end do
        ip = jchar
        do 3250 i=jchar,lastch
        ip = i

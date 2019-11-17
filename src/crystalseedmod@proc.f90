@@ -1543,7 +1543,7 @@ contains
     use types, only: realloc
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
-    use tools_math, only: detsym, matinv
+    use tools_math, only: det3sym, matinv
     use param, only: bohrtoa
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -1591,7 +1591,7 @@ contains
     end do
     if (scale < 0d0) then
        gprim = matmul(transpose(rprim),rprim)
-       omegaa = sqrt(detsym(gprim))
+       omegaa = sqrt(det3sym(gprim))
        ! adjust the lengths to give the volume
        scale = (abs(scale) / abs(omegaa))**(1d0/3d0)
     end if
@@ -1600,7 +1600,7 @@ contains
     rprim(3,:) = rprim(3,:) * scalez * scale
     rprim = rprim / bohrtoa
     gprim = matmul(transpose(rprim),rprim)
-    omegaa = sqrt(detsym(gprim))
+    omegaa = sqrt(det3sym(gprim))
     if (omegaa < 0d0) then
        errmsg = "Negative cell volume."
        goto 999
@@ -4026,7 +4026,7 @@ contains
 
   !> Read all structures from a QE outupt. Returns all crystal seeds.
   subroutine read_all_crystalout(nseed,seed,file,mol,errmsg)
-    use tools_math, only: m_x2c_from_cellpar, matinv, det
+    use tools_math, only: m_x2c_from_cellpar, matinv, det3
     use tools_io, only: fopen_read, fclose, getline_raw, string
     use types, only: realloc
     use param, only: maxzat0, bohrtoa
@@ -4119,7 +4119,7 @@ contains
              goto 999
           end if
           rtrans = rtrans * r
-          dd = abs(det(rtrans))
+          dd = abs(det3(rtrans))
           if (abs(dd - 1d0) > 1d-10) then
              errmsg = "Invalid transformation matrix"
              goto 999

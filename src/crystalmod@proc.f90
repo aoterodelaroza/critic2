@@ -196,7 +196,7 @@ contains
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
-       det, mnorm2
+       det3, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
@@ -366,7 +366,7 @@ contains
 
     ! rest of the cell metrics
     c%gtensor = g
-    c%omega = sqrt(max(det(g),0d0))
+    c%omega = sqrt(max(det3(g),0d0))
     c%grtensor = g
     call matinv(c%grtensor,3)
     do i = 1, 3
@@ -2244,7 +2244,7 @@ contains
   !> new positoins (xnew) and species (isnew).
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
-    use tools_math, only: det, matinv, mnorm2
+    use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -2270,14 +2270,14 @@ contains
 
     ! initialize
     x0 = x00
-    dd = det(x0)
+    dd = det3(x0)
 
     if (abs(dd) < eps) then
        call ferror('newcell','invalid input vectors',faterr)
     elseif (dd < 0d0) then
        ! flip the cell
        x0 = -x0
-       dd = det(x0)
+       dd = det3(x0)
        call ferror('newcell','det < 0; vectors flipped',warning)
     endif
     if (present(t0)) then
@@ -2318,7 +2318,7 @@ contains
     ! metrics of the new cell
     ncseed%m_x2c = matmul(c%m_x2c,x0)
     ncseed%useabr = 2
-    fvol = abs(det(x0))
+    fvol = abs(det3(x0))
     if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
        call ferror("newcell","Inconsistent newcell volume",faterr)
 
@@ -2441,7 +2441,7 @@ contains
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell
     use global, only: symprec
-    use tools_math, only: det, matinv
+    use tools_math, only: det3, matinv
     use tools_io, only: ferror, faterr
     use param, only: eye
     class(crystal), intent(inout) :: c
@@ -2486,7 +2486,7 @@ contains
     end do
 
     ! flip the cell?
-    if (det(rmat) < 0d0) rmat = -rmat
+    if (det3(rmat) < 0d0) rmat = -rmat
 
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
     if (refine) then
@@ -2494,7 +2494,7 @@ contains
     else
        ! if a primitive is wanted but det is not less than 1, do not make the change
        if (all(abs(rmat - eye) < symprec)) return
-       if (toprim .and. .not.(det(rmat) < 1d0-symprec) .and..not.doforce) return
+       if (toprim .and. .not.(det3(rmat) < 1d0-symprec) .and..not.doforce) return
        call c%newcell(rmat)
     end if
     x0 = rmat
@@ -2507,7 +2507,7 @@ contains
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
-    use tools_math, only: det
+    use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
     real*8 :: x0(3,3)
@@ -2531,7 +2531,7 @@ contains
     end do
 
     ! flip the cell?
-    if (det(rmat) < 0d0) rmat = -rmat
+    if (det3(rmat) < 0d0) rmat = -rmat
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
@@ -2547,7 +2547,7 @@ contains
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
-    use tools_math, only: det
+    use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
     real*8 :: x0(3,3)
@@ -2571,7 +2571,7 @@ contains
     end do
 
     ! flip the cell?
-    if (det(rmat) < 0d0) rmat = -rmat
+    if (det3(rmat) < 0d0) rmat = -rmat
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
@@ -2589,7 +2589,7 @@ contains
   !> cells).
   module subroutine delaunay_reduction(c,rmat,rbas)
     use tools, only: qcksort
-    use tools_math, only: det
+    use tools_math, only: det3
     use tools_io, only: faterr, ferror
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
@@ -2655,7 +2655,7 @@ contains
           rbas(:,2) = xstar(:,iord(i))
           do j = i+1, 7
              rbas(:,3) = xstar(:,iord(j))
-             dd = det(rbas)
+             dd = det3(rbas)
              if (abs(dd) > eps) then
                 ok = .true.
                 exit iloop
@@ -3409,7 +3409,7 @@ contains
   !> for the Delaunay transformations.
   module subroutine wigner(c,area)
     use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use tools_math, only: mixed, cross, matinv, mnorm2, det
+    use tools_math, only: mixed, cross, matinv, mnorm2, det3
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
     use types, only: realloc

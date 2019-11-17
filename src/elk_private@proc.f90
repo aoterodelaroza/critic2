@@ -317,7 +317,7 @@ contains
   subroutine read_elk_state(f,filename,env)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
-    use tools_math, only: cross, det
+    use tools_math, only: cross, det3
     use param, only: pi
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
@@ -434,7 +434,7 @@ contains
     bvec(:,1) = cross(f%x2c(:,2),f%x2c(:,3))
     bvec(:,2) = cross(f%x2c(:,3),f%x2c(:,1))
     bvec(:,3) = cross(f%x2c(:,1),f%x2c(:,2))
-    omega = abs(det(f%x2c))
+    omega = abs(det3(f%x2c))
     bvec = 2d0 * pi / omega * bvec
 
     ! the reciprocal space spanned

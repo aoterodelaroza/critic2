@@ -261,7 +261,7 @@ contains
     use crystalseedmod, only: crystalseed
     use spglib, only: SpglibDataset, spg_standardize_cell
     use global, only: symprec
-    use tools_math, only: det, matinv
+    use tools_math, only: matinv
     use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line

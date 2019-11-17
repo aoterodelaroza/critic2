@@ -94,7 +94,7 @@ CONTAINS
 !
    INTEGER                                   :: I, DIVAXN
    REAL(KIND=STND), PARAMETER                :: ONE = 1
-   REAL(KIND=STND), PARAMETER                :: SMALL = 100*EPSILON(ONE) 
+   REAL(KIND=STND), PARAMETER                :: SMALL = 100D0*EPSILON(ONE) 
    REAL(KIND=STND), DIMENSION(N)             :: CENTER, DFS, GTEMP
    REAL(KIND=STND), DIMENSION(N,N)           :: VERDIF
    REAL(KIND=STND), DIMENSION(NF,RLS)        :: RULE

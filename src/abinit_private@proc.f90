@@ -177,7 +177,7 @@ submodule (abinit_private) proc
   !xx! private subroutines
   ! subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
   ! subroutine hdr_io_2(fform,hdr,unit,errmsg)
-  ! subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
+  ! subroutine pawrhoij_io(pawrhoij,unitfi,nspden_in,typat,headform,errmsg)
 
 contains
   
@@ -747,7 +747,7 @@ contains
     end do
 
     if (hdr%usepaw==1) then ! Reading the Rhoij tab if the PAW method was used.
-       call pawrhoij_io(hdr%pawrhoij,unit,hdr%nsppol,hdr%nspinor,hdr%nspden,hdr%lmn_size,hdr%typat,hdr%headform,errmsg2)
+       call pawrhoij_io(hdr%pawrhoij,unit,hdr%nspden,hdr%typat,hdr%headform,errmsg2)
        if (len_trim(errmsg2) > 0) then
           errmsg = errmsg2
           goto 10
@@ -759,13 +759,13 @@ contains
 
   end subroutine hdr_io_2
 
-  subroutine pawrhoij_io(pawrhoij,unitfi,nsppol_in,nspinor_in,nspden_in,nlmn_type,typat,headform,errmsg)
+  subroutine pawrhoij_io(pawrhoij,unitfi,nspden_in,typat,headform,errmsg)
     implicit none
     !Arguments ------------------------------------
     !scalars
-    integer,intent(in) :: unitfi,headform,nspden_in,nspinor_in,nsppol_in
+    integer,intent(in) :: unitfi,headform,nspden_in
     !arrays
-    integer,intent(in) :: typat(:),nlmn_type(:)
+    integer,intent(in) :: typat(:)
     type(pawrhoij_type),intent(inout) :: pawrhoij(:)
     character(len=:), allocatable, intent(out) :: errmsg
 

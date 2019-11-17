@@ -956,28 +956,28 @@ contains
   end function mnorm2
 
   !> Determinant of a real 3x3 symmetric matrix
-  module function detsym(m)
+  module function det3sym(m)
     real*8, intent(in) :: m(3,3) !< Input matrix
-    real*8 :: detsym
+    real*8 :: det3sym
 
-    detsym = m(1,1) * m(2,2) * m(3,3) + &
+    det3sym = m(1,1) * m(2,2) * m(3,3) + &
        2d0 * m(1,2) * m(2,3) * m(1,3) - &
        m(1,3) * m(1,3) * m(2,2) - &
        m(2,3) * m(2,3) * m(1,1) - &
        m(1,2) * m(1,2) * m(3,3) 
 
-  end function detsym
+  end function det3sym
 
   !> Determinant of a real 3x3 matrix
-  module function det(m)
+  module function det3(m)
     real*8, intent(in) :: m(3,3) !< Input matrix
-    real*8 :: det
+    real*8 :: det3
 
-    det = m(1,1) * (m(2,2) * m(3,3) - m(2,3) * m(3,2)) + &
-          m(1,2) * (m(2,3) * m(3,1) - m(2,1) * m(3,3)) + &
-          m(1,3) * (m(2,1) * m(3,2) - m(2,2) * m(3,1))
+    det3 = m(1,1) * (m(2,2) * m(3,3) - m(2,3) * m(3,2)) + &
+       m(1,2) * (m(2,3) * m(3,1) - m(2,1) * m(3,3)) + &
+       m(1,3) * (m(2,1) * m(3,2) - m(2,2) * m(3,1))
 
-  end function det
+  end function det3
 
   !> Invert an nxn real general matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.

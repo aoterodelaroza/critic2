@@ -1578,7 +1578,7 @@ contains
   subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
     use systemmod, only: sy
     use tools_io, only: fopen_write, uout, string, faterr, ferror, fclose
-    use tools_math, only: cross, det, matinv
+    use tools_math, only: cross, det3, matinv
     integer, intent(in) :: nx, ny
     real*8, intent(in) :: ff(nx,ny)
     real*8, intent(in) :: r0(3), r1(3), r2(3)
@@ -1633,7 +1633,7 @@ contains
     amat(:,3) = rpn(1:3)
 
     ! cartesian to plane
-    if (abs(det(amat)) < 1d-15) &
+    if (abs(det3(amat)) < 1d-15) &
        call ferror('contour','Error in the input plane: singular matrix',faterr)
     bmat = amat
     call matinv(bmat,3)
@@ -1727,7 +1727,7 @@ contains
   !> Write a gnuplot template for the color map plot
   subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
     use systemmod, only: sy
-    use tools_math, only: cross, det, matinv
+    use tools_math, only: cross, det3, matinv
     use tools_io, only: fopen_write, uout, string, fclose, ferror ,faterr
     character*(*), intent(in) :: rootname, outfile
     integer, intent(in) :: cmopt
@@ -1765,7 +1765,7 @@ contains
     amat(:,3) = rpn(1:3)
 
     ! cartesian to plane
-    if (abs(det(amat)) < 1d-15) &
+    if (abs(det3(amat)) < 1d-15) &
        call ferror('colormap','Error in the input plane: singular matrix',faterr)
     bmat = amat
     call matinv(bmat,3)
@@ -2529,7 +2529,7 @@ contains
           end if
        endif
 
-       !.Determine the points to be added as gradient path origins:
+       !.Det3ermine the points to be added as gradient path origins:
        ncopies = 0
        hmin = 1d30
        do l = 1, (inum)**3
@@ -2592,7 +2592,7 @@ contains
   subroutine write_fichlabel(rootname)
     use global, only: dunit0, iunit
     use systemmod, only: sy
-    use tools_math, only: det
+    use tools_math, only: det3
     use tools_io, only: uout, string, fopen_write, fclose, nameguess
     use param, only: one
     character*(*), intent(in) :: rootname

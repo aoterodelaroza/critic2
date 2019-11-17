@@ -991,7 +991,7 @@ contains
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
-    use param, only: pi, sqpi
+    use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals

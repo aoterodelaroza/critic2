@@ -969,18 +969,21 @@ contains
             INDEX=INDEX+1
             DO 25 I=1,f%nIORD
             X=0.
-            DO 26 J=1,3
- 26         X=X+f%IZ(J,1,I)*f%POS(J,INDEX)
+            DO J=1,3
+               X=X+f%IZ(J,1,I)*f%POS(J,INDEX)
+            END DO
             X=X+f%TAU(1,I) + 5.d0
             X= MOD (X+toler2,ONE)-toler2
             Y=0.
-            DO 27 J=1,3
- 27         Y=Y+f%IZ(J,2,I)*f%POS(J,INDEX)
+            DO J=1,3
+               Y=Y+f%IZ(J,2,I)*f%POS(J,INDEX)
+            END DO
             Y=Y+f%TAU(2,I) + 5.d0
             Y= MOD (Y+toler2,ONE)-toler2
             Z=0.
-            DO 28 J=1,3
- 28         Z=Z+f%IZ(J,3,I)*f%POS(J,INDEX)
+            DO J=1,3
+               Z=Z+f%IZ(J,3,I)*f%POS(J,INDEX)
+            END DO
             Z=Z+f%TAU(3,I) + 5.d0
             Z= MOD (Z+toler2,ONE)-toler2
             X1=ABS(X-f%POS(1,INDEX1))
@@ -1078,8 +1081,9 @@ contains
       if (f%npos > nnpos) then
          call ferror('GENER','Max. cell origins (nnpos) exceeded',faterr)
       end if
-      DO 2 I=1,3
-   2  f%ATP(I,f%NPOS)=f%BR2(1,I)*JA+f%BR2(2,I)*JB+f%BR2(3,I)*JC
+      DO I=1,3
+         f%ATP(I,f%NPOS)=f%BR2(1,I)*JA+f%BR2(2,I)*JB+f%BR2(3,I)*JC
+      END DO
       GOTO 12
     1 CONTINUE
       RETURN
@@ -1160,13 +1164,16 @@ contains
     !    dotpro                   dot product
     !    j,jc                     indexes
     !
-      DO 10 JC=1,3
-      DOTPRO=0.0
-      DO 20 J=1,3
-  20  DOTPRO=DOTPRO+VT(J)*IZ(J,Jc)
-  10  VN(JC)=DOTPRO+TAU(JC)*A(JC)
-      DO 30 J=1,3
-  30  VT(J)= VN(J)
+      DO JC=1,3
+         DOTPRO=0.0
+         DO J=1,3
+            DOTPRO=DOTPRO+VT(J)*IZ(J,Jc)
+         END DO
+         VN(JC)=DOTPRO+TAU(JC)*A(JC)
+      END DO
+      DO J=1,3
+         VT(J)= VN(J)
+      END DO
       RETURN
   END SUBROUTINE ROTATOR
 
@@ -1191,14 +1198,17 @@ contains
     !     dotpro                  dot product
     !     j,jc                    indexes
     !
-      DO 10 JC=1,3
-      DOTPRO=0.0
-      DO 20 J=1,3
-  20  DOTPRO=DOTPRO+VT(J)*IZ(J,Jc)
-  10  VN(JC)=DOTPRO+TAU(JC)
-      DO 30 J=1,3
-  30  VT(J)= VN(J)
-      RETURN
+    DO JC=1,3
+       DOTPRO=0.0
+       DO J=1,3
+          DOTPRO=DOTPRO+VT(J)*IZ(J,Jc)
+       END DO
+       VN(JC)=DOTPRO+TAU(JC)
+    END DO
+    DO J=1,3
+       VT(J)= VN(J)
+    END DO
+    RETURN
   END SUBROUTINE ROTATO
 
   SUBROUTINE ROTAT(VT,ROTLOC)
@@ -1220,13 +1230,16 @@ contains
     !
     real*8 :: VT(3),ROTLOC(3,3),VN(3), dotpro
     integer :: jc, j
-      DO 10 JC=1,3
-      DOTPRO=0.0
-      DO 20 J=1,3
-  20  DOTPRO=DOTPRO+VT(J)*ROTLOC(JC,J)
-  10  VN(JC)=DOTPRO
-      DO 30 J=1,3
-  30  VT(J)= VN(J)
+      DO JC=1,3
+         DOTPRO=0.0
+         DO J=1,3
+            DOTPRO=DOTPRO+VT(J)*ROTLOC(JC,J)
+         END DO
+         VN(JC)=DOTPRO
+      END DO
+      DO J=1,3
+         VT(J)= VN(J)
+      END DO
       RETURN
   END SUBROUTINE ROTAT
 
@@ -1252,22 +1265,26 @@ contains
     integer :: j, i, npos, iat
     real*8 :: V(3),ATP(3,*),VHELP(3),POS(3,*),VTEST(3), rmt, r, rtest
 
-      DO  9 J=1,3
-   9  VHELP(J)=V(J)
+    DO J=1,3
+         VHELP(J)=V(J)
+      END DO
 !      R=VNORM(V)
       R=99999.
       DO 10 I=1,NPOS
-      DO 11 J=1,3
-  11  VTEST(J)=V(J)-ATP(J,I)-POS(J,IAT)
+      DO J=1,3
+         VTEST(J)=V(J)-ATP(J,I)-POS(J,IAT)
+      END DO
       RTEST=VNORM(VTEST)
       IF(RTEST.LT.R) THEN
       R=RTEST
-      DO 12 J=1,3
-  12  VHELP(J)=VTEST(J)
+      DO J=1,3
+         VHELP(J)=VTEST(J)
+      END DO
       END IF
   10  CONTINUE
-      DO 13 J=1,3
-  13  V(J)=VHELP(J)
+      DO J=1,3
+         V(J)=VHELP(J)
+      END DO
       if(r.gt.rmt+1d-4) then
          write(uout,*) ' Reduction failed, r-reduc gt.rmt',r,rmt, abs(r-rmt)
       endif
@@ -1289,8 +1306,9 @@ contains
       integer :: i
 
       VNORM=0.0
-      DO 1 I=1,3
-    1 VNORM=VNORM+V(I)**2
+      DO I=1,3
+         VNORM=VNORM+V(I)**2
+      END DO
       VNORM=SQRT(VNORM)
       RETURN
   END FUNCTION VNORM
