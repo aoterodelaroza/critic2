@@ -12,6 +12,7 @@ set(critic2_DESCRIPTION "Analysis of quantum mechanical calculations in molecule
 set(CMAKE_VERBOSE_MAKEFILE ON)
 include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 
 ## default build type, and type options
 if(NOT CMAKE_BUILD_TYPE)
@@ -25,7 +26,8 @@ if(NOT CROSSCOMPILE)
   set(CROSSCOMPILE "OFF" CACHE STRING "Choose the cross-compilation toolchain." FORCE)
 endif()
 set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
-option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS instead of the internal copy in oldlibs." ON)
+option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS instead of the internal copy." ON)
+option(USE_EXTERNAL_QHULL "Use external HULL instead of the internal copy." ON)
 
 ## openmp
 find_package(OpenMP MODULE COMPONENTS Fortran)
@@ -35,6 +37,13 @@ if (USE_EXTERNAL_LAPACK)
   find_package(LAPACK)
 else()
   set(LAPACK_FOUND "")
+endif()
+
+## qhull
+if (USE_EXTERNAL_QHULL)
+  find_package(Qhull)
+else()
+  set(QHULL_FOUND "")
 endif()
 
 ## compiler flags, fortran

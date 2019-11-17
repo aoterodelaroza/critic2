@@ -37,10 +37,12 @@ set(SOURCESP critic2.F90)
 include_directories(cubpack ${CMAKE_CURRENT_BINARY_DIR}/cubpack qhull)
 add_subdirectory(cubpack)
 add_subdirectory(ciftbx)
-add_subdirectory(qhull)
 add_subdirectory(spglib)
 if (NOT LAPACK_FOUND)
   add_subdirectory(oldlibs)
+endif()
+if (NOT QHULL_FOUND)
+  add_subdirectory(qhull)
 endif()
 
 set(PACKAGE ${CMAKE_PROJECT_NAME})
@@ -62,15 +64,23 @@ set(AC_REVISION "")
 set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
 configure_file(config@proc.F90.in ${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90)
 
-add_executable(critic2 ${SOURCES} ${SOURCESP} $<TARGET_OBJECTS:cubpack>
-  $<TARGET_OBJECTS:ciftbx> $<TARGET_OBJECTS:qhull> $<TARGET_OBJECTS:spglib>
+add_executable(critic2 ${SOURCES} ${SOURCESP}
+  $<TARGET_OBJECTS:cubpack>
+  $<TARGET_OBJECTS:ciftbx> 
+  $<TARGET_OBJECTS:spglib>
   )
 target_link_libraries(critic2 PRIVATE OpenMP::OpenMP_Fortran)
-if(LAPACK_FOUND)
+if (LAPACK_FOUND)
   target_link_options(critic2 PRIVATE ${LAPACK_LINKER_FLAGS})
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
 else()
   target_link_libraries(critic2 PRIVATE oldlibs)
+endif()
+if (QHULL_FOUND)
+  target_include_directories(critic2 PRIVATE ${QHULL_INCLUDE_DIRS})
+  target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
+else()
+  target_link_libraries(critic2 PRIVATE qhull)
 endif()
 
 if (ENABLE_GUI)

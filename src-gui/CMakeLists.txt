@@ -14,10 +14,17 @@ pkg_search_module(FREETYPE2 REQUIRED freetype2)
 pkg_search_module(GLM REQUIRED glm)
 pkg_search_module(GL REQUIRED gl)
 
-include_directories(${GLFW_INCLUDE_DIRS} ${FREETYPE2_INCLUDE_DIRS} ${GLM_INCLUDE_DIRS} ${GL_INCLUDE_DIRS})
-
-add_executable(gcritic2 ${SOURCES} $<TARGET_OBJECTS:lcritic2> $<TARGET_OBJECTS:cubpack>
-  $<TARGET_OBJECTS:ciftbx> $<TARGET_OBJECTS:qhull> $<TARGET_OBJECTS:spglib>)
+add_executable(gcritic2 ${SOURCES} 
+  $<TARGET_OBJECTS:lcritic2> 
+  $<TARGET_OBJECTS:cubpack>
+  $<TARGET_OBJECTS:ciftbx> 
+  $<TARGET_OBJECTS:spglib>)
+target_include_directories(gcritic2 PRIVATE
+  ${GLFW_INCLUDE_DIRS} 
+  ${FREETYPE2_INCLUDE_DIRS} 
+  ${GLM_INCLUDE_DIRS}
+  ${GL_INCLUDE_DIRS}
+  )
 target_link_libraries(gcritic2 PRIVATE
   ${GLFW_LIBRARIES} 
   ${FREETYPE2_LIBRARIES} 
@@ -30,6 +37,12 @@ if (LAPACK_FOUND)
   target_link_libraries(gcritic2 PRIVATE ${LAPACK_LIBRARIES})
 else()
   target_link_libraries(gcritic2 PRIVATE oldlibs)
+endif()
+if (QHULL_FOUND)
+  target_include_directories(gcritic2 PRIVATE ${QHULL_INCLUDE_DIRS})
+  target_link_libraries(gcritic2 PRIVATE ${QHULL_LIBRARIES})
+else()
+  target_link_libraries(gcritic2 PRIVATE qhull)
 endif()
 
 install(TARGETS gcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
