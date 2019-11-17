@@ -838,28 +838,29 @@ contains
 
   end function lattice_direction
 
-  !> Find the eigenvectors and eigenvalues of a real nxn symmetric matrix.
-  !> The eigenvectors are stored column-wise in mat.
-  module subroutine eig(mat,eval)
+  !> Find the eigenvectors and eigenvalues of a real nxn symmetric
+  !> matrix, mat. The eigenvectors are stored column-wise in mat.
+  !> The eigenvalues, in ascending order, are returned in eval.
+  module subroutine eigsym(mat,n,eval)
     use tools_io, only: ferror, faterr
-    ! diagonalize a real symmetric matrix
-    real*8, intent(inout) :: mat(:,:) !< Input matrix and output eigenvectors (column-wise)
-    real*8, intent(out), optional :: eval(:) !< Output eigenvalues
+    integer, intent(in) :: n
+    real*8, intent(inout) :: mat(n,n)
+    real*8, intent(out), optional :: eval(:)
 
     real*8 :: onework(1)
     integer :: lwork, info
     real*8, allocatable :: work(:)
 
     lwork = -1
-    call dsyev('V','U',size(mat,1),mat,size(mat,1),eval,onework,lwork,info)
+    call dsyev('V','U',n,mat,n,eval,onework,lwork,info)
     if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
     lwork = nint(onework(1))
     allocate(work(lwork))
-    call dsyev('V','U',size(mat,1),mat,size(mat,1),eval,work,lwork,info)
+    call dsyev('V','U',n,mat,n,eval,work,lwork,info)
     if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
     deallocate(work)
 
-  end subroutine eig
+  end subroutine eigsym
 
   !> Find the eigenvectors and eigenvalues of a real nxn matrix.
   !> The eigenvectors are stored column-wise in mat.
@@ -886,7 +887,7 @@ contains
 
   end subroutine eigns
 
-  !> Given a point x0 (cartesian), calculate the rank and signature of
+  !> Given the (symmetric) Hessiam matrix mat, calculate its rank (r) and signature (s) of
   !> the hessian of f. Adapted to the determination of CP type.  If
   !> the Hessian elements are less than eps (in absolute value), it is
   !> considered zero.
@@ -898,7 +899,7 @@ contains
 
     integer :: nhplus, nhminus, i
 
-    call eig(mat,ehess)
+    call eigsym(mat,3,ehess)
 
     nhplus = 0
     nhminus = 0
@@ -944,7 +945,7 @@ contains
     real*8 :: b(3,3), eval(3)
 
     b = matmul(transpose(a),a)
-    call eig(b,eval)
+    call eigsym(b,3,eval)
     mnorm2 = sqrt(maxval(eval))
     
   end function mnorm2

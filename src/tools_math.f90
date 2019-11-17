@@ -36,7 +36,7 @@ module tools_math
   public :: lcm
   public :: rational_approx
   public :: lattice_direction
-  public :: eig
+  public :: eigsym
   public :: eigns
   public :: rsindex
   public :: cross
@@ -182,10 +182,11 @@ module tools_math
        logical, intent(in) :: allowr
        integer :: yy(3)
      end function lattice_direction
-     module subroutine eig(mat,eval)
-       real*8, intent(inout) :: mat(:,:)
+     module subroutine eigsym(mat,n,eval)
+       integer, intent(in) :: n
+       real*8, intent(inout) :: mat(n,n)
        real*8, intent(out), optional :: eval(:)
-     end subroutine eig
+     end subroutine eigsym
      module subroutine eigns(mat,eval,evali)
        real*8, intent(inout) :: mat(:,:)
        real*8, intent(out), optional :: eval(:)

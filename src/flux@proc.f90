@@ -1105,7 +1105,7 @@ contains
   subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
     use systemmod, only: sy
     use global, only: prunedist
-    use tools_math, only: eig
+    use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
     use param, only: pi
     use types, only: scalar_value
@@ -1146,7 +1146,7 @@ contains
     xbcp = sy%c%x2c(xbcp)
     call sy%f(sy%iref)%grd(xbcp,2,res)
     evec = res%hf
-    call eig(evec,reval)
+    call eigsym(evec,3,reval)
 
     if (ircp * reval(1) > 0) then
        vup = evec(:,1)

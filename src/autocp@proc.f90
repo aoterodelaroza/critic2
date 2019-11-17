@@ -1735,7 +1735,7 @@ contains
   !> non-equivalent bcp and rcp.
   subroutine makegraph()
     use systemmod, only: sy
-    use tools_math, only: eig
+    use tools_math, only: eigsym
     use types, only: scalar_value
     use param, only: pi
     integer :: i, j, k
@@ -1769,7 +1769,7 @@ contains
             ! the third component of the hessian is up/down direction
             call f%grd(f%cp(i)%r,2,res)
             evec = res%hf
-            call eig(evec,reval)
+            call eigsym(evec,3,reval)
             if (isbcp) then
                xx = evec(:,3)
             else
@@ -1807,7 +1807,7 @@ contains
             isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
             call f%grd(f%cpcel(i)%r,2,res)
             evec = res%hf
-            call eig(evec,reval)
+            call eigsym(evec,3,reval)
             if (isbcp) then
                xx = evec(:,3)
             else

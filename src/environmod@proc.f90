@@ -83,7 +83,7 @@ contains
     logical :: dorepeat
     real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
     real*8 :: x0(3), x1(3), dist, rcut0
-    integer :: i1, i2, i3, i, m, imax, i3min, nreg, ier
+    integer :: i1, i2, i3, i, m, imax, i3min, nreg
     integer, allocatable :: iord(:)
 
     ! fill the matrices

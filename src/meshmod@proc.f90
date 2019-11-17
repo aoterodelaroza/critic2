@@ -239,7 +239,7 @@ contains
     type(crystal), intent(in) :: c
     integer, intent(in) :: lvl
 
-    real*8 :: r, r1, vp0, vpsum
+    real*8 :: r, vp0, vpsum
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer, allocatable :: eid(:)
@@ -301,7 +301,7 @@ contains
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,r1,xnuc,nat,lvec,ierr) &
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat,lvec,ierr) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
@@ -417,7 +417,6 @@ contains
     
     type(scalar_value) :: res
     integer :: i, j, n, nder
-    real*8 :: rhos, drho2, d2rho, taup, dsigs, quads
     real*8 :: fval
     character*10 :: fder
 
@@ -444,7 +443,7 @@ contains
        end select
     end do
 
-    !$omp parallel do private(fval,res,fder,rhos,drho2,d2rho,taup,dsigs,quads)
+    !$omp parallel do private(fval,res,fder)
     do i = 1, m%n
        if (nder >= 0) then
           call ff%grd(m%x(:,i),nder,res,periodic=periodic)
