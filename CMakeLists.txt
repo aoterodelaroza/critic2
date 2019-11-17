@@ -26,8 +26,9 @@ if(NOT CROSSCOMPILE)
   set(CROSSCOMPILE "OFF" CACHE STRING "Choose the cross-compilation toolchain." FORCE)
 endif()
 set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
-option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS instead of the internal copy." ON)
-option(USE_EXTERNAL_QHULL "Use external HULL instead of the internal copy." ON)
+option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library, if available." ON)
+option(USE_EXTERNAL_QHULL "Use external QHULL library, if available." ON)
+option(USE_EXTERNAL_SPGLIB "Use external spglib library, if available." ON)
 
 ## openmp
 find_package(OpenMP MODULE COMPONENTS Fortran)
@@ -44,6 +45,13 @@ if (USE_EXTERNAL_QHULL)
   find_package(Qhull)
 else()
   set(QHULL_FOUND "")
+endif()
+
+## spglib
+if (USE_EXTERNAL_SPGLIB)
+  find_package(Spglib)
+else()
+  set(SPGLIB_FOUND "")
 endif()
 
 ## compiler flags, fortran

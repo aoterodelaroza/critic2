@@ -18,7 +18,7 @@ add_executable(gcritic2 ${SOURCES}
   $<TARGET_OBJECTS:lcritic2> 
   $<TARGET_OBJECTS:cubpack>
   $<TARGET_OBJECTS:ciftbx> 
-  $<TARGET_OBJECTS:spglib>)
+  )
 target_include_directories(gcritic2 PRIVATE
   ${GLFW_INCLUDE_DIRS} 
   ${FREETYPE2_INCLUDE_DIRS} 
@@ -43,6 +43,11 @@ if (QHULL_FOUND)
   target_link_libraries(gcritic2 PRIVATE ${QHULL_LIBRARIES})
 else()
   target_link_libraries(gcritic2 PRIVATE qhull)
+endif()
+if (SPGLIB_FOUND)
+  target_link_libraries(gcritic2 PRIVATE ${SPGLIB_LIBRARIES})
+else()
+  target_link_libraries(gcritic2 PRIVATE spglib)
 endif()
 
 install(TARGETS gcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

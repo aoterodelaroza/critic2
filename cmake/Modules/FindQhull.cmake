@@ -1,5 +1,6 @@
 ## This file comes from the point cloud library (pcl) at:
 ##   https://github.com/PointCloudLibrary/pcl
+## Modified for this project a little bit.
 ##
 ###############################################################################
 # Find QHULL
@@ -84,6 +85,7 @@ find_package_handle_standard_args(Qhull
   FOUND_VAR QHULL_FOUND
   REQUIRED_VARS QHULL_LIBRARIES QHULL_INCLUDE_DIRS
 )
+mark_as_advanced(QHULL_LIBRARIES QHULL_LIBRARY QHULL_LIBRARY_DEBUG)
 
 if(QHULL_FOUND)
   set(HAVE_QHULL ON)

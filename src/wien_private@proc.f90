@@ -1265,7 +1265,7 @@ contains
     integer :: j, i, npos, iat
     real*8 :: V(3),ATP(3,*),VHELP(3),POS(3,*),VTEST(3), rmt, r, rtest
 
-    DO J=1,3
+      DO J=1,3
          VHELP(J)=V(J)
       END DO
 !      R=VNORM(V)
