@@ -5519,7 +5519,7 @@ contains
   !> direction of the axis or the normal to the plane, 0 for a point
   !> symmetry element). Used in the structure initialization.
   subroutine typeop(rot,type,vec,order)
-    use tools_math, only: eigns
+    use tools_math, only: eig
     use tools_io, only: ferror, faterr
     use param, only: tpi, eye
 
@@ -5558,7 +5558,7 @@ contains
     else
        nm=3
        ! It is an axis or a plane. Diagonalize.
-       call eigns(mat,eigen,eigeni)
+       call eig(mat,3,eigen,eigeni)
 
        ! Determine actual operation.
        nones = 0

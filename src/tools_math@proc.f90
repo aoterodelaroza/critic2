@@ -862,35 +862,40 @@ contains
 
   end subroutine eigsym
 
-  !> Find the eigenvectors and eigenvalues of a real nxn matrix.
-  !> The eigenvectors are stored column-wise in mat.
-  module subroutine eigns(mat,eval,evali)
+  !> Find the eigenvectors and eigenvalues of a real nxn matrix.  The
+  !> eigenvectors are stored column-wise in mat, and the real and
+  !> complex parts of the eigenvalues are given in eval and evali,
+  !> respectively. Complex conjugates appear adjacent. If j and j+1
+  !> form a conjugate pair, the eigenvectors are:
+  !>   mat(:,j) + i * mat(:,j+1)
+  !>   mat(:,j) - i * mat(:,j+1)
+  module subroutine eig(mat,n,eval,evali)
     use tools_io, only: ferror, faterr
-    real*8, intent(inout) :: mat(:,:) !< Input matrix and output eigenvectors (column-wise)
-    real*8, intent(out), optional :: eval(:) !< Real part of the eigenvalues
-    real*8, intent(out), optional :: evali(:) !< Imaginary part of the eigenvalues
+    integer, intent(in) :: n
+    real*8, intent(inout) :: mat(n,n)
+    real*8, intent(out), optional :: eval(n)
+    real*8, intent(out), optional :: evali(n)
 
     real*8 :: onework(1)
     real*8, allocatable :: ares(:,:), work(:)
     integer :: lwork, info, n
 
-    n = size(mat,1)
     allocate(ares(n,n))
     lwork = -1
     call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,onework,lwork,info)
     lwork = nint(onework(1))
     allocate(work(lwork))
     call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,work,lwork,info)
-    if (info /= 0) call ferror('eigns','Error in diagonalization',faterr)
+    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
     mat = ares
     deallocate(work,ares)
 
-  end subroutine eigns
+  end subroutine eig
 
-  !> Given the (symmetric) Hessiam matrix mat, calculate its rank (r) and signature (s) of
-  !> the hessian of f. Adapted to the determination of CP type.  If
-  !> the Hessian elements are less than eps (in absolute value), it is
-  !> considered zero.
+  !> Given the symmetric matrix mat, diagonalize it and calculate its
+  !> rank (r) and signature (s). Return the eigenvectors in mat and
+  !> the eigenvalues in ehess. Use the threshold eps to determine if an
+  !> eigenvalue is zero.
   module subroutine rsindex(mat,ehess,r,s,eps)
     real*8, intent(inout)  :: mat(3,3)
     real*8, intent(out) :: ehess(3)
@@ -1335,7 +1340,7 @@ contains
 
     ! the a matrix (eq. 47), diagonalization, and rotation matrix
     a = matmul(transpose(c3),c3) * c2 - c1;
-    call eigns(a,eval,evali)
+    call eig(a,3,eval,evali)
     idx = maxloc(eval,1)
     xex = a(:,idx)
     xex = xex / norm2(xex)

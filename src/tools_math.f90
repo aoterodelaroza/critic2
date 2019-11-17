@@ -37,7 +37,7 @@ module tools_math
   public :: rational_approx
   public :: lattice_direction
   public :: eigsym
-  public :: eigns
+  public :: eig
   public :: rsindex
   public :: cross
   public :: mixed
@@ -187,11 +187,12 @@ module tools_math
        real*8, intent(inout) :: mat(n,n)
        real*8, intent(out), optional :: eval(:)
      end subroutine eigsym
-     module subroutine eigns(mat,eval,evali)
-       real*8, intent(inout) :: mat(:,:)
-       real*8, intent(out), optional :: eval(:)
-       real*8, intent(out), optional :: evali(:)
-     end subroutine eigns
+     module subroutine eig(mat,n,eval,evali)
+       integer, intent(in) :: n
+       real*8, intent(inout) :: mat(n,n)
+       real*8, intent(out), optional :: eval(n)
+       real*8, intent(out), optional :: evali(n)
+     end subroutine eig
      module subroutine rsindex(mat,ehess,r,s,eps)
        real*8, intent(inout)  :: mat(3,3)
        real*8, intent(out) :: ehess(3)
