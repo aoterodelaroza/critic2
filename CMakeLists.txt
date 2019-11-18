@@ -29,9 +29,14 @@ set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
 option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library, if available." ON)
 option(USE_EXTERNAL_QHULL "Use external QHULL library, if available." ON)
 option(USE_EXTERNAL_SPGLIB "Use external spglib library, if available." ON)
+option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 
 ## openmp
-find_package(OpenMP MODULE COMPONENTS Fortran)
+if (ENABLE_OPENMP)
+  find_package(OpenMP MODULE COMPONENTS Fortran)
+else()
+  set(OpenMP_FOUND "")
+endif()
 
 ## lapack
 if (USE_EXTERNAL_LAPACK)

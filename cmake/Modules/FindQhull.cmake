@@ -88,12 +88,5 @@ find_package_handle_standard_args(Qhull
 mark_as_advanced(QHULL_LIBRARIES QHULL_LIBRARY QHULL_LIBRARY_DEBUG)
 
 if(QHULL_FOUND)
-  set(HAVE_QHULL ON)
-  if(NOT QHULL_USE_STATIC)
-    add_definitions("-Dqh_QHpointer")
-    if(MSVC)
-      add_definitions("-Dqh_QHpointer_dllimport")
-    endif()
-  endif()
   message(STATUS "QHULL found (include: ${QHULL_INCLUDE_DIRS}, lib: ${QHULL_LIBRARIES})")
 endif()

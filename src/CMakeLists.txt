@@ -70,7 +70,9 @@ add_executable(critic2 ${SOURCES} ${SOURCESP}
   $<TARGET_OBJECTS:cubpack>
   $<TARGET_OBJECTS:ciftbx> 
   )
-target_link_libraries(critic2 PRIVATE OpenMP::OpenMP_Fortran)
+if (OPENMP_FOUND)
+  target_link_libraries(critic2 PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 if (LAPACK_FOUND)
   target_link_options(critic2 PRIVATE ${LAPACK_LINKER_FLAGS})
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
@@ -91,7 +93,6 @@ endif()
 
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES})
-  target_link_libraries(lcritic2 PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
