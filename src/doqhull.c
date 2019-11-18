@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <libqhull.h>
+#include "libqhull.h"
 
 static FILE *fidsave_voronoi = NULL;
 static FILE *fidsave_basintri = NULL;
