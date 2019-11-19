@@ -31,32 +31,29 @@ option(USE_EXTERNAL_QHULL "Use external QHULL library, if available." ON)
 option(USE_EXTERNAL_SPGLIB "Use external spglib library, if available." ON)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 
+## option(STATIC "Compile critic2 statically")
+## SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+## SET(BUILD_SHARED_LIBS OFF)
+## SET(CMAKE_EXE_LINKER_FLAGS "-static")
+
 ## openmp
 if (ENABLE_OPENMP)
   find_package(OpenMP MODULE COMPONENTS Fortran)
-else()
-  set(OpenMP_FOUND "")
 endif()
 
 ## lapack
 if (USE_EXTERNAL_LAPACK)
   find_package(LAPACK)
-else()
-  set(LAPACK_FOUND "")
 endif()
 
 ## qhull
 if (USE_EXTERNAL_QHULL)
   find_package(Qhull)
-else()
-  set(QHULL_FOUND "")
 endif()
 
 ## spglib
 if (USE_EXTERNAL_SPGLIB)
   find_package(Spglib)
-else()
-  set(SPGLIB_FOUND "")
 endif()
 
 ## libxc
@@ -110,9 +107,3 @@ if (ENABLE_GUI)
   add_subdirectory(src-gui)
 endif()
 
-#### attic ####
-## get_cmake_property(_variableNames VARIABLES)
-## list (SORT _variableNames)
-## foreach (_variableName ${_variableNames})
-##     message(STATUS "${_variableName}=${${_variableName}}")
-## endforeach()

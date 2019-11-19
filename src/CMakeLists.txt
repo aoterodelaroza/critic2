@@ -1,3 +1,4 @@
+## sources
 set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
   autocp@proc.f90 bader.f90 bader@proc.f90 bisect.f90 bisect@proc.f90
   cfftnd.f90 c_interface_module.f90 config.f90
@@ -34,19 +35,7 @@ set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
   )
 set(SOURCESP critic2.F90)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/cubpack)
-add_subdirectory(cubpack)
-add_subdirectory(ciftbx)
-if (NOT LAPACK_FOUND)
-  add_subdirectory(oldlibs)
-endif()
-if (NOT QHULL_FOUND)
-  add_subdirectory(qhull)
-endif()
-if (NOT SPGLIB_FOUND)
-  add_subdirectory(spglib)
-endif()
-
+## header info
 set(PACKAGE ${CMAKE_PROJECT_NAME})
 set(VERSION 1.0)
 set(F77 ${CMAKE_Fortran_COMPILER})
@@ -66,40 +55,61 @@ set(AC_REVISION "")
 set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
 configure_file(config@proc.F90.in ${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90)
 
-add_executable(critic2 ${SOURCES} ${SOURCESP}
-  $<TARGET_OBJECTS:cubpack>
-  $<TARGET_OBJECTS:ciftbx> 
-  )
+## executable
+add_executable(critic2 ${SOURCES} ${SOURCESP})
+
+## openmp
 if (OPENMP_FOUND)
   target_link_libraries(critic2 PRIVATE OpenMP::OpenMP_Fortran)
 endif()
+
+## cubpack
+add_subdirectory(cubpack)
+target_link_libraries(critic2 PRIVATE cubpack)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/cubpack)
+
+## ciftbx
+add_subdirectory(ciftbx)
+target_link_libraries(critic2 PRIVATE ciftbx)
+
+## lapack
 if (LAPACK_FOUND)
   target_link_options(critic2 PRIVATE ${LAPACK_LINKER_FLAGS})
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
 else()
+  add_subdirectory(oldlibs)
   target_link_libraries(critic2 PRIVATE oldlibs)
 endif()
+
+## qhull
 if (QHULL_FOUND)
   include_directories("${QHULL_INCLUDE_DIRS}/libqhull")
   target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
 else()
+  add_subdirectory(qhull)
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
   target_link_libraries(critic2 PRIVATE qhull)
 endif()
-if (SPGLIB_FOUND)
-  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARIES})
-else()
+
+## spglib
+if (NOT SPGLIB_FOUND)
+  add_subdirectory(spglib)
   target_link_libraries(critic2 PRIVATE spglib)
+else()
+  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
 endif()
+
+## libxc
 if (LIBXC_FOUND)
   include_directories("${LIBXC_INCLUDE_DIRS}")
-  target_link_libraries(critic2 PRIVATE xc)
-  target_link_libraries(critic2 PRIVATE xcf90)
+  target_link_libraries(critic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
   add_definitions("-DHAVE_LIBXC")
 endif()
 
+## The library for the GUI
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES})
 endif()
 
+## install the binary
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
