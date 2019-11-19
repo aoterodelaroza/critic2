@@ -1,12 +1,13 @@
 ## project and version
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-project(critic2 LANGUAGES C CXX Fortran)
+project(critic2 VERSION 1.0 LANGUAGES C CXX Fortran)
 
 ## some project variables
 set(critic2_URL "https://aoterodelaroza.github.io/critic2/")
 set(critic2_EMAIL "aoterodelaroza@gmail.com")
 set(critic2_LICENSE "GNU/GPL version 3")
 set(critic2_DESCRIPTION "Analysis of quantum mechanical calculations in molecules and solids")
+string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
 
 ## global flags for cmake
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -135,8 +136,10 @@ endif()
 
 ## summary
 set(_message
-"\n\n### Summary of build options ###\n"
-"Build type: ${CMAKE_BUILD_TYPE} (crosscompiling? ${CROSSCOMPILE})\n"
+"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION} ###\n"
+"System: ${CMAKE_SYSTEM} (crosscompiling? ${CROSSCOMPILE})\n"
+"Date: ${DATE}\n"
+"Build type: ${CMAKE_BUILD_TYPE}\n"
 "Fortran compiler: ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID}, ${CMAKE_Fortran_COMPILER_VERSION})\n"
 "Fortran flags: ${CMAKE_Fortran_FLAGS_${BT}}\n"
 "C compiler: ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID}, ${CMAKE_C_COMPILER_VERSION})\n"

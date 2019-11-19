@@ -19,26 +19,9 @@ submodule (config) proc
   implicit none
 
   character(len=*), parameter :: package = "@PACKAGE@"
-#ifdef COMMIT
-  character(len=*), parameter :: version = COMMIT
-#else
   character(len=*), parameter :: version = "@VERSION@"
-#endif
-  character(len=*), parameter :: f77 = "@F77@"
-  character(len=*), parameter :: fc = "@FC@"
-  character(len=*), parameter :: cc = "@CC@"
-  character(len=*), parameter :: fflags = "@FFLAGS@"
-  character(len=*), parameter :: fcflags = "@FCFLAGS@"
-  character(len=*), parameter :: cflags = "@CFLAGS@"
-  character(len=*), parameter :: ldflags = "@LDFLAGS@"
   character(len=*), parameter :: atarget = "@TARGET@"
-#ifdef DATE
-  character(len=*), parameter :: adate = DATE
-#else
   character(len=*), parameter :: adate = "@DATE@"
-#endif
-  character(len=*), parameter :: enable_debug = "@DEBUG@"
-  character(len=*), parameter :: revision = "@AC_REVISION@"
 #ifdef DATADIR
   character(len=*), parameter :: datadir = trim(adjustl(DATADIR)) // dirsep // "critic2"
 #else
@@ -57,28 +40,10 @@ contains
        str = package
     case(istring_version)
        str = version
-    case(istring_f77)
-       str = f77
-    case(istring_fc)
-       str = fc
-    case(istring_cc)
-       str = cc
-    case(istring_fflags)
-       str = fflags
-    case(istring_fcflags)
-       str = fcflags
-    case(istring_cflags)
-       str = cflags
-    case(istring_ldflags)
-       str = ldflags
     case(istring_atarget)
        str = atarget
     case(istring_adate)
        str = adate
-    case(istring_enabledebug)
-       str = enable_debug
-    case(istring_revision)
-       str = revision
     case(istring_datadir)
        str = datadir
     end select

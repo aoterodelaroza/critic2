@@ -24,18 +24,9 @@ module config
   ! enum for the strings from the config flag
   integer, parameter :: istring_package = 1
   integer, parameter :: istring_version = 2
-  integer, parameter :: istring_f77 = 3
-  integer, parameter :: istring_fc = 4
-  integer, parameter :: istring_cc = 5
-  integer, parameter :: istring_fflags = 6
-  integer, parameter :: istring_fcflags = 7
-  integer, parameter :: istring_cflags = 8
-  integer, parameter :: istring_ldflags = 9
-  integer, parameter :: istring_atarget = 10
-  integer, parameter :: istring_adate = 11
-  integer, parameter :: istring_enabledebug = 12
-  integer, parameter :: istring_revision = 13
-  integer, parameter :: istring_datadir = 14
+  integer, parameter :: istring_atarget = 3
+  integer, parameter :: istring_adate = 4
+  integer, parameter :: istring_datadir = 5
 
   interface
      module function getstring(id) result(str)

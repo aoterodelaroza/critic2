@@ -203,11 +203,8 @@ contains
 #ifdef HAVE_LIBXC
     use xc_f90_lib_m
 #endif
-    use config, only: getstring, istring_package,&
-       istring_f77, istring_fc, istring_cc, istring_fflags,&
-       istring_fcflags, istring_cflags, istring_ldflags,&
-       istring_atarget, istring_adate, istring_enabledebug,&
-       istring_datadir, istring_version
+    use config, only: getstring, istring_package, istring_atarget,&
+       istring_adate, istring_datadir, istring_version
     use param, only: dirsep
     use tools_io, only: uout, string
 
@@ -215,13 +212,8 @@ contains
     integer :: iver(3)
 
     write (uout,'("+ ",A," (development), commit ",A,"")') getstring(istring_package), getstring(istring_version)
-    write (uout,'(" compile host: ",A)') getstring(istring_atarget)
-    write (uout,'(" compile date: ",A)') getstring(istring_adate)
-    write (uout,'("    using f77: ",A," ",A)') getstring(istring_f77), getstring(istring_fflags)
-    write (uout,'("          f90: ",A," ",A)') getstring(istring_fc), getstring(istring_fcflags)
-    write (uout,'("            c: ",A," ",A)') getstring(istring_cc), getstring(istring_cflags)
-    write (uout,'("      ldflags: ",A)') getstring(istring_ldflags)
-    write (uout,'("       debug?: ",A)') getstring(istring_enabledebug)
+    write (uout,'("         host: ",A)') getstring(istring_atarget)
+    write (uout,'("         date: ",A)') getstring(istring_adate)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
     inquire(file=trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic",exist=lchk)
