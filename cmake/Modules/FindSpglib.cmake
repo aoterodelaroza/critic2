@@ -10,7 +10,6 @@ find_library(SPGLIB_LIBRARIES
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SPGLIB
-  FOUND_VAR SPGLIB_FOUND
   REQUIRED_VARS SPGLIB_LIBRARIES
   )
 

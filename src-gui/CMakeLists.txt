@@ -32,6 +32,10 @@ target_link_libraries(gcritic2 PRIVATE
   ${GL_LIBRARIES}
   ${CMAKE_DL_LIBS}
   )
+
+if (OPENMP_FOUND)
+  target_link_libraries(gcritic2 PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 if (LAPACK_FOUND)
   target_link_libraries(gcritic2 PRIVATE ${LAPACK_LIBRARIES})
 else()
@@ -49,8 +53,8 @@ if (SPGLIB_FOUND)
 else()
   target_link_libraries(gcritic2 PRIVATE spglib)
 endif()
-if (OPENMP_FOUND)
-  target_link_libraries(gcritic2 PRIVATE OpenMP::OpenMP_Fortran)
+if (LIBXC_FOUND)
+  target_link_libraries(gcritic2 PRIVATE xc xcf90)
 endif()
 
 install(TARGETS gcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

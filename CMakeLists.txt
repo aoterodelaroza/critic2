@@ -59,6 +59,9 @@ else()
   set(SPGLIB_FOUND "")
 endif()
 
+## libxc
+find_package(Libxc)
+
 ## compiler flags, fortran
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
