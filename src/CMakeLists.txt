@@ -34,7 +34,7 @@ set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
   )
 set(SOURCESP critic2.F90)
 
-include_directories(cubpack ${CMAKE_CURRENT_BINARY_DIR}/cubpack)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/cubpack)
 add_subdirectory(cubpack)
 add_subdirectory(ciftbx)
 if (NOT LAPACK_FOUND)
