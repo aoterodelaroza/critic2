@@ -992,6 +992,9 @@ contains
   module subroutine read_fchk(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
     use param, only: pi
+#ifdef HAVE_CINT
+    use param, only: sqpi
+#endif
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals

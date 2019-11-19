@@ -8,7 +8,7 @@ set(SOURCES dialog.cpp keybinding.cpp main.cpp menu.cpp message.cpp
 
 ## some compilation optoins
 set(CMAKE_CXX_STANDARD 11)
-add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ## executable
 add_executable(gcritic2 ${SOURCES})
@@ -67,6 +67,11 @@ endif()
 ## libxc
 if (LIBXC_FOUND)
   target_link_libraries(gcritic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
+endif()
+
+## libcint
+if (LIBCINT_FOUND)
+  target_link_libraries(gcritic2 PRIVATE ${LIBCINT_LIBRARY})
 endif()
 
 ## install the binary

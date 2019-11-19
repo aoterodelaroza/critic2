@@ -83,7 +83,7 @@ endif()
 
 ## qhull
 if (QHULL_FOUND)
-  include_directories("${QHULL_INCLUDE_DIRS}/libqhull")
+  include_directories("${QHULL_INCLUDE_DIRS}")
   target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
 else()
   add_subdirectory(qhull)
@@ -104,6 +104,12 @@ if (LIBXC_FOUND)
   include_directories("${LIBXC_INCLUDE_DIRS}")
   target_link_libraries(critic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
   add_definitions("-DHAVE_LIBXC")
+endif()
+
+## libcint
+if (LIBCINT_FOUND)
+  target_link_libraries(critic2 PRIVATE ${LIBCINT_LIBRARY})
+  add_definitions("-DHAVE_CINT")
 endif()
 
 ## The library for the GUI
