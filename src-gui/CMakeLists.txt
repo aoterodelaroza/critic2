@@ -35,7 +35,7 @@ target_link_libraries(gcritic2 PRIVATE
 ## the critic2 libraries
 target_link_libraries(gcritic2 PRIVATE lcritic2 cubpack ciftbx)
 
-## the dynamic loader library
+## the dynamic linking library
 target_link_libraries(gcritic2 PRIVATE ${CMAKE_DL_LIBS})
 
 ## openmp

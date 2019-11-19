@@ -29,12 +29,21 @@ set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
 option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library, if available." ON)
 option(USE_EXTERNAL_QHULL "Use external QHULL library, if available." ON)
 option(USE_EXTERNAL_SPGLIB "Use external spglib library, if available." ON)
+option(USE_LIBXC "Use the libxc library, if available." ON)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
+option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
 
-## option(STATIC "Compile critic2 statically")
-## SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-## SET(BUILD_SHARED_LIBS OFF)
-## SET(CMAKE_EXE_LINKER_FLAGS "-static")
+## perform a static build
+if (BUILD_STATIC)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  set(BUILD_SHARED_LIBS OFF)
+  set(CMAKE_EXE_LINKER_FLAGS "-static")
+  find_library(LIBDL_LIBRARY NAMES dl)
+  if(NOT LIBDL_LIBRARY)
+    error("Dynamic linking static library not found")
+  endif()
+  set(CMAKE_Fortran_LINK_EXECUTABLE "${CMAKE_Fortran_LINK_EXECUTABLE} ${LIBDL_LIBRARY}")
+endif()
 
 ## openmp
 if (ENABLE_OPENMP)
@@ -57,7 +66,9 @@ if (USE_EXTERNAL_SPGLIB)
 endif()
 
 ## libxc
-find_package(Libxc)
+if (USE_LIBXC)
+  find_package(Libxc)
+endif()
 
 ## compiler flags, fortran
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
