@@ -326,8 +326,8 @@ contains
                 INT_spherequad_ntheta,INT_spherequad_nphi,sphereprop(i,:),&
                 abserr,neval,meaneval)
           else
-             call sphereintegrals_lebedev(xx,r_betaint(i), &
-                INT_spherequad_nleb,sphereprop(i,:),abserr,neval,meaneval)
+             call sphereintegrals_lebedev(xx,r_betaint(i),INT_spherequad_nleb,&
+                sphereprop(i,:),abserr,neval,meaneval)
           end if
        end if
        write (uout,'("+ Integrating the beta-sphere for ncp: ",A)') string(i)
@@ -396,9 +396,7 @@ contains
 
     ! integrate recursively each IWST
     ! allocatable arrays in private -> openmp 3.0 specs
-    !$omp parallel do &
-    !$omp private(iv0) firstprivate(acum_atprop,trm,vgr,lapgr,fgr) schedule(dynamic) &
-    !$omp reduction(+:nlocate,nlocate_sloppy,ngrd_term,nterm,ngrd_int)
+    !$omp parallel do private(acum_atprop,iv0) firstprivate(trm,fgr,lapgr,vgr) 
     do tt = 1, nt_orig
 
        !$omp critical (IO)

@@ -1866,7 +1866,7 @@ contains
        vout = 0d0
        dv = s%c%omega / ntot
 
-       !$omp parallel do reduction(+:vout) private(ii,iaux,x,found,idx,dist) schedule(dynamic)
+       !$omp parallel do private(ii,iaux,x,found,idx,dist) firstprivate(vout)
        do i = 0, ntot-1
           ! unpack the index
           ii(1) = modulo(i,n(1))
@@ -1886,7 +1886,9 @@ contains
              end if
           end do
           if (.not.found) then
+             !$omp critical (acumdv)
              vout = vout + dv
+             !$omp end critical (acumdv)
           end if
        end do
        !$omp end parallel do

@@ -384,10 +384,10 @@ contains
     integer, intent(out) :: neval !< Number of evaluations
     real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
 
-    integer :: i, j, v, leval
+    integer :: i, j, v, leval, nneval
     real*8 :: rprop(sy%npropi), pprop(sy%npropi)
     real*8 :: rerr, perr, riaserr(sy%npropi), piaserr(sy%npropi)
-    integer :: realnphi, ierr, err, vidx(ntheta,nphi+1)
+    integer :: realnphi, ierr, err, vidx(ntheta,nphi+1), lerr
     ! Nodes and weights
     real*8, allocatable, dimension(:) :: tpoints
     real*8, allocatable, dimension(:) :: tweights
@@ -417,16 +417,18 @@ contains
           vidx(i,j) = v
        end do
     end do
-
-    !$omp parallel do reduction(+:neval,abserr) reduction(max:err) private(&
-    !$omp realnphi,pprop,rprop,perr,piaserr,leval,ierr,rerr,&
-    !$omp riaserr,v) firstprivate(ppoints,pweights) schedule(guided)
+    
+    !$omp parallel do &
+    !$omp private(realnphi,nneval,pprop,perr,piaserr,lerr,v,rprop,rerr,leval,riaserr,ierr) &
+    !$omp firstprivate(ppoints,pweights)
     do i = 1, ntheta
        realnphi = int(nphi*abs(sin(tpoints(i))))+1
        call gauleg(0d0,2d0*pi,ppoints,pweights,realnphi)
+       nneval = 0
        pprop = 0d0
        perr = 0d0
        piaserr = 0d0
+       lerr = 0
        do j = 1, realnphi
           v = vidx(i,j)
           call int_radialquad(srf%n,srf%th(v),srf%ph(v),rbeta,srf%r(v),&
@@ -434,17 +436,18 @@ contains
           pprop = pprop + rprop * pweights(j)
           perr = perr + rerr * pweights(j)
           piaserr = piaserr + riaserr * pweights(j)
-          neval = neval + leval
-          err = max(err,ierr)
+          nneval = nneval + leval
+          lerr = max(lerr,ierr)
        end do
        !$omp critical (sum_gauleg_mquad)
        lprop = lprop + sin(srf%th(v)) * tweights(i) * pprop
        iaserr = iaserr + sin(srf%th(v)) * tweights(i) * piaserr
-       !$omp end critical (sum_gauleg_mquad)
        abserr = abserr + sin(srf%th(v)) * tweights(i) * perr
+       neval = neval + nneval
+       err = max(err,lerr)
+       !$omp end critical (sum_gauleg_mquad)
     end do
     !$omp end parallel do
-
     deallocate(tpoints,tweights,ppoints,pweights)
 
     if (err /= 0) then
@@ -475,7 +478,7 @@ contains
     integer, intent(out) :: neval !< Number of evaluations
     real*8, intent(out) :: iaserr(sy%npropi) !< Integrated IAS precision error
 
-    integer :: i, v, leval
+    integer :: i, leval
     real*8 :: rprop(sy%npropi)
     real*8 :: rerr, riaserr(sy%npropi)
     integer :: ierr, err
@@ -491,21 +494,19 @@ contains
     lprop = 0d0
     abserr = 0d0
     iaserr = 0d0
-    v = 0
     err = 0
 
-    !$omp parallel do private(rprop,rerr,leval,riaserr,ierr) reduction(+:abserr,neval)&
-    !$omp reduction(max:err) schedule(guided)
+    !$omp parallel do private(rprop,rerr,leval,riaserr,ierr)
     do i = 1, npts
        call int_radialquad(srf%n,srf%th(i),srf%ph(i),rbeta,srf%r(i),&
           rprop,rerr,leval,riaserr,ierr)
        !$omp critical (sum_lebedev_mquad)
        lprop = lprop + rprop * wleb(i)
        iaserr = iaserr + riaserr * wleb(i)
-       !$omp end critical (sum_lebedev_mquad)
        abserr = abserr + rerr  * wleb(i)
        neval = neval + leval
        err = max(err,ierr)
+       !$omp end critical (sum_lebedev_mquad)
     end do
     !$omp end parallel do
 
