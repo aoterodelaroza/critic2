@@ -68,6 +68,12 @@ endif()
 ## libxc
 if (USE_LIBXC)
   find_package(Libxc)
+  set(MINLIBXC_VERSION 4.1)
+  if (${LIBXC_VERSION} VERSION_LESS ${MINLIBXC_VERSION})
+    unset(LIBXC_FOUND)
+    message("!! Libxc version found (${LIBXC_VERSION},${LIBXC_xc_LIBRARY}) too old (requires ${MINLIBXC_VERSION})")
+  endif()
+  unset(MINLIBXC_VERSION)
 endif()
 
 ## compiler flags, fortran
