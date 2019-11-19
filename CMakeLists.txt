@@ -133,3 +133,56 @@ if (ENABLE_GUI)
   add_subdirectory(src-gui)
 endif()
 
+## summary
+set(_message
+"\n\n### Summary of build options ###\n"
+"Build type: ${CMAKE_BUILD_TYPE} (crosscompiling? ${CROSSCOMPILE})\n"
+"Fortran compiler: ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID}, ${CMAKE_Fortran_COMPILER_VERSION})\n"
+"Fortran flags: ${CMAKE_Fortran_FLAGS_${BT}}\n"
+"C compiler: ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID}, ${CMAKE_C_COMPILER_VERSION})\n"
+"C flags: ${CMAKE_C_FLAGS_${BT}}\n"
+"CXX compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID}, ${CMAKE_CXX_COMPILER_VERSION})\n"
+"CXX flags: ${CMAKE_CXX_FLAGS_${BT}}\n"
+"Install directory: ${CMAKE_INSTALL_PREFIX}\n"
+"OpenMP parallelization: ${OPENMP_FOUND}\n"
+)
+if (LAPACK_FOUND)
+  set(_message "${_message}Lapack: lib=${LAPACK_LIBRARIES}\n")
+else()
+  set(_message "${_message}Lapack: <internal>\n")
+endif()
+if (QHULL_FOUND)
+  set(_message "${_message}Qhull: lib=${QHULL_LIBRARIES} | inc=${QHULL_INCLUDE_DIRS}\n")
+else()
+  set(_message "${_message}Qhull: <internal>\n")
+endif()
+if (SPGLIB_FOUND)
+  set(_message "${_message}Spglib: lib=${SPGLIB_LIBRARY}\n")
+else()
+  set(_message "${_message}Spglib: <internal>\n")
+endif()
+if (LIBXC_FOUND)
+  set(_message "${_message}Libxc: ${LIBXC_VERSION} | lib=${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}\n")
+else()
+  set(_message "${_message}Libxc: not used\n")
+endif()
+if (LIBCINT_FOUND)
+  set(_message "${_message}Libcint: ${LIBCINT_VERSION} | lib=${LIBCINT_LIBRARY}\n")
+else()
+  set(_message "${_message}Libcint: not used\n")
+endif()
+
+set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
+
+if (ENABLE_GUI)
+  set(_message 
+    "${_message}gl: lib=${GL_LIBRARIES} | inc=${GL_INCLUDE_DIRS}\n"
+    "glm: lib=${GLM_LIBRARIES} | inc=${GLM_INCLUDE_DIRS}\n"
+    "glfw: lib=${GLFW_LIBRARIES} | inc=${GLFW_INCLUDE_DIRS}\n"
+    "freetype2: lib=${FREETYPE2_LIBRARIES} | inc=${FREETYPE2_INCLUDE_DIRS}\n"
+    "dl: lib=${CMAKE_DL_LIBS}\n")
+endif()
+
+set(_message "${_message}################################\n")
+
+message(STATUS ${_message})

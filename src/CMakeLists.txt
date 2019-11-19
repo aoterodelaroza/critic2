@@ -92,11 +92,11 @@ else()
 endif()
 
 ## spglib
-if (NOT SPGLIB_FOUND)
+if (SPGLIB_FOUND)
+  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
+else()
   add_subdirectory(spglib)
   target_link_libraries(critic2 PRIVATE spglib)
-else()
-  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
 endif()
 
 ## libxc
