@@ -86,15 +86,27 @@ if (USE_LIBCINT)
   find_package(Libcint)
 endif()
 
-## compiler flags, fortran
+## compiler flags, fortran, and check versions
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
   set(FFLAGS_RELEASE "-O3")
+  if (${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 19.0.0)
+    set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
+      "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
+      "for more information.\n")
+    message(FATAL_ERROR ${_message})
+  endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
   set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
   set(FFLAGS_RELEASE "-O3")
   if (NOT ${CMAKE_CROSSCOMPILING})
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-rdynamic")
+  endif()
+  if (${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 6.0.0)
+    set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
+      "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
+      "for more information.\n")
+    message(FATAL_ERROR ${_message})
   endif()
 endif()
 
