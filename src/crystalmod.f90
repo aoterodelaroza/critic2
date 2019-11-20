@@ -171,6 +171,7 @@ module crystalmod
      ! output routines
      procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
+     procedure :: struct_write_json !< Write a json object containing the crystal structure info
 
      ! symmetry
      procedure :: spglib_wrap !< Get the spg from the crystal geometry
@@ -467,6 +468,11 @@ module crystalmod
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
      end subroutine struct_report_symxyz
+     module subroutine struct_write_json(c,lu,prfx)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: lu
+       character*(*), intent(in) :: prfx
+     end subroutine struct_write_json
      module subroutine spglib_wrap(c,spg,usenneq,errmsg)
        class(crystal), intent(in) :: c
        type(SpglibDataset), intent(inout) :: spg

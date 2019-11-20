@@ -101,6 +101,7 @@ module fieldmod
      procedure :: der2ij !< Numerical second derivatives (mixed)
      procedure :: typestring !< Return a string identifying the field type
      procedure :: printinfo !< Print field information to stdout
+     procedure :: write_json !< Write field info in JSON format
      procedure :: init_cplist !< Initialize the CP list
      procedure :: init_cplist_deferred !< Calculate the scalar field for nuclei (deferred)
      procedure :: nearest_cp !< Given a point, find the nearest CP of a certain type
@@ -211,6 +212,11 @@ module fieldmod
        logical, intent(in) :: isload
        logical, intent(in) :: isset
      end subroutine printinfo
+     module subroutine write_json(f,lu,prfx)
+       class(field), intent(in) :: f
+       integer, intent(in) :: lu
+       character*(*), intent(in) :: prfx
+     end subroutine write_json
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist

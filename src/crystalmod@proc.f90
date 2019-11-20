@@ -3093,6 +3093,133 @@ contains
 
   end subroutine struct_report_symxyz
 
+  !> Write the contents of a JSON object with the structure data to
+  !> logical unit LU. Precede each line with a prefix (prfx).
+  module subroutine struct_write_json(c,lu,prfx)
+    use tools_io, only: string
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: lu
+    character*(*), intent(in) :: prfx
+
+    character(len=mlen), allocatable :: strfin(:)
+    integer :: i, j, k
+
+    if (.not.c%isinit) return
+    
+    write (lu,'(A," ""cell_lengths"": [",2(A,","),A,"]",",")') prfx, &
+       (string(c%aa(j),'f',decimal=14),j=1,3)
+    write (lu,'(A," ""cell_angles"": [",2(A,","),A,"]",",")') prfx, &
+       (string(c%bb(j),'f',decimal=14),j=1,3)
+    write (lu,'(A," ""cell_volume"": ",A,",")') prfx, string(c%omega,'f',decimal=14)
+
+    write (lu,'(A," ""crys_to_cart_matrix"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
+       ((string(c%m_x2c(j,k),'f',decimal=14),k=1,3),j=1,3)
+    write (lu,'(A," ""cart_to_crys_matrix"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
+       ((string(c%m_c2x(j,k),'f',decimal=14),k=1,3),j=1,3)
+    
+    if (c%ismolecule) then
+       write (lu,'(A," ""is_molecule"": true,")') prfx
+       write (lu,'(A," ""molecule_centering_vector"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%molx0(j),'f',decimal=14),j=1,3)
+       write (lu,'(A," ""molecular_cell_border"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%molborder(j),'f',decimal=14),j=1,3)
+    else
+       write (lu,'(A," ""is_molecule"": false,")') prfx
+       if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
+          write (lu,'(A," ""periodicity"": ""molecular (0d)"",")') prfx
+       else if (c%nlvac == 2) then
+          write (lu,'(A," ""periodicity"": ""polymer (1d)"",")') prfx
+       else if (c%nlvac == 1) then
+          write (lu,'(A," ""periodicity"": ""slab (2d)"",")') prfx
+       else 
+          write (lu,'(A," ""periodicity"": ""condensed (3d)"",")') prfx
+       end if
+    endif
+    write (lu,'(A," ""number_of_molecular_fragments"": ",A,",")') prfx, string(c%nmol)
+
+    write (lu,'(A," ""number_of_species"": ",A,",")') prfx, string(c%nspc)
+    write (lu,'(A," ""species"": [{")') prfx
+    do i = 1, c%nspc
+       write (lu,'(A,"   ""name"": """,A,""",")') prfx, trim(c%spc(i)%name)
+       write (lu,'(A,"   ""atomic_number"": ",A)') prfx, string(c%spc(i)%z)
+       if (i < c%nspc) &
+          write (lu,'(A,"  },{")') prfx
+    end do
+    write (lu,'(A," }],")') prfx
+
+    write (lu,'(A," ""number_of_nonequivalent_atoms"": ",A,",")') prfx, string(c%nneq)
+    write (lu,'(A," ""nonequivalent_atoms"": [{")') prfx
+    do i = 1, c%nneq
+       write (lu,'(A,"   ""species"": ",A,",")') prfx, string(c%at(i)%is)
+       write (lu,'(A,"   ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
+       write (lu,'(A,"   ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%at(i)%r(j),'f',decimal=14),j=1,3)
+       write (lu,'(A,"   ""multiplicity"": ",A,",")') prfx, string(c%at(i)%mult)
+       write (lu,'(A,"   ""wyckoff_letter"": """,A,""",")') prfx, c%at(i)%wyc
+       write (lu,'(A,"   ""half_nn_distance"": ",A)') prfx, string(c%at(i)%rnn2,'f',decimal=14)
+       if (i < c%nneq) &
+          write (lu,'(A,"  },{")') prfx
+    end do
+    write (lu,'(A," }],")') prfx
+
+    write (lu,'(A," ""number_of_cell_atoms"": ",A,",")') prfx, string(c%ncel)
+    write (lu,'(A," ""cell_atoms"": [{")') prfx
+    do i = 1, c%ncel
+       write (lu,'(A,"   ""species"": ",A,",")') prfx, string(c%atcel(i)%is)
+       write (lu,'(A,"   ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
+       write (lu,'(A,"   ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+          (string(c%atcel(i)%r(j),'f',decimal=14),j=1,3)
+       write (lu,'(A,"   ""nonequivalent_id"": ",A,",")') prfx, string(c%atcel(i)%idx)
+       write (lu,'(A,"   ""symop_to_nneq"": ",A,",")') prfx, string(c%atcel(i)%ir)
+       write (lu,'(A,"   ""centering_vector_to_nneq"": ",A,",")') prfx, string(c%atcel(i)%ic)
+       write (lu,'(A,"   ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
+          (string(c%atcel(i)%lvec(j)),j=1,3)
+       if (i < c%ncel) &
+          write (lu,'(A,"  },{")') prfx
+    end do
+    write (lu,'(A," }],")') prfx
+
+    if (.not.c%ismolecule) then
+       if (c%havesym > 0) then
+          write (lu,'(A," ""have_symmetry"": true,")') prfx
+       else
+          write (lu,'(A," ""have_symmetry"": false,")') prfx
+       endif
+       if (c%spgavail) then
+          write (lu,'(A," ""space_group_hm"": """,A,""",")') prfx, string(c%spg%international_symbol)
+          write (lu,'(A," ""space_group_ita_number"": ",A,",")') prfx, string(c%spg%spacegroup_number)
+       end if
+       write (lu,'(A," ""number_of_symops"": ",A,",")') prfx, string(c%neqv)
+       write (lu,'(A," ""symops"": [{")') prfx
+       allocate(strfin(c%neqv*c%ncv))
+       call c%struct_report_symxyz(strfin)
+       do i = 1, c%neqv
+          write (lu,'(A,"   ""operation"": """,A,""",")') prfx, string(strfin(i))
+          write (lu,'(A,"   ""rotation"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
+             ((string(c%rotm(j,k,i),'f',decimal=14),k=1,3),j=1,3)
+          write (lu,'(A,"   ""translation"": [",2(A,","),A,"]")') prfx, &
+             (string(c%rotm(j,4,i),'f',decimal=14),j=1,3)
+          if (i < c%neqv) &
+             write (lu,'(A,"  },{")') prfx
+       end do
+       write (lu,'(A," }],")') prfx
+
+       write (lu,'(A," ""number_of_centering_vectors"": ",A,",")') prfx, string(c%ncv)
+       write (lu,'(A," ""centering_vectors"": [")') prfx
+       do i = 1, c%ncv
+          if (i < c%ncv) then
+             write (lu,'(A,"   [",2(A,","),A,"]",",")') prfx, (string(c%cen(j,i),'f',decimal=14),j=1,3)
+          else
+             write (lu,'(A,"   [",2(A,","),A,"]")') prfx, (string(c%cen(j,i),'f',decimal=14),j=1,3)
+          end if
+       end do
+       write (lu,'(A," ]")') prfx
+    endif
+
+  end subroutine struct_write_json
+
   !> Use the spg library to find information about the space group,
   !> encapsulated in the spg user-defined type (spg).
   !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:). 

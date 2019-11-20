@@ -48,44 +48,6 @@ if (BUILD_STATIC)
   set(CMAKE_Fortran_LINK_EXECUTABLE "${CMAKE_Fortran_LINK_EXECUTABLE} ${LIBDL_LIBRARY}")
 endif()
 
-## openmp
-if (ENABLE_OPENMP)
-  find_package(OpenMP MODULE COMPONENTS Fortran)
-endif()
-
-## lapack
-if (USE_EXTERNAL_LAPACK)
-  find_package(LAPACK)
-endif()
-
-## qhull
-if (USE_EXTERNAL_QHULL)
-  find_package(Qhull)
-endif()
-
-## spglib
-if (USE_EXTERNAL_SPGLIB)
-  find_package(Spglib)
-endif()
-
-## libxc
-if (USE_LIBXC)
-  find_package(Libxc)
-  if (LIBXC_FOUND)
-    set(MINLIBXC_VERSION 4.1)
-    if (${LIBXC_VERSION} VERSION_LESS ${MINLIBXC_VERSION})
-      unset(LIBXC_FOUND)
-      message("!! Libxc version found (${LIBXC_VERSION},${LIBXC_xc_LIBRARY}) too old (requires ${MINLIBXC_VERSION})")
-    endif()
-    unset(MINLIBXC_VERSION)
-  endif()
-endif()
-
-## libcint
-if (USE_LIBCINT)
-  find_package(Libcint)
-endif()
-
 ## compiler flags, fortran, and check versions
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
@@ -133,6 +95,44 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BT)
 set(CMAKE_Fortran_FLAGS_${BT} "${FFLAGS_${BT}}")
 set(CMAKE_C_FLAGS_${BT} "${CFLAGS_${BT}}")
 set(CMAKE_CXX_FLAGS_${BT} "${CXXFLAGS_${BT}}")
+
+## openmp
+if (ENABLE_OPENMP)
+  find_package(OpenMP MODULE COMPONENTS Fortran)
+endif()
+
+## lapack
+if (USE_EXTERNAL_LAPACK)
+  find_package(LAPACK)
+endif()
+
+## qhull
+if (USE_EXTERNAL_QHULL)
+  find_package(Qhull)
+endif()
+
+## spglib
+if (USE_EXTERNAL_SPGLIB)
+  find_package(Spglib)
+endif()
+
+## libxc
+if (USE_LIBXC)
+  find_package(Libxc)
+  if (LIBXC_FOUND)
+    set(MINLIBXC_VERSION 4.1)
+    if (${LIBXC_VERSION} VERSION_LESS ${MINLIBXC_VERSION})
+      unset(LIBXC_FOUND)
+      message("!! Libxc version found (${LIBXC_VERSION},${LIBXC_xc_LIBRARY}) too old (requires ${MINLIBXC_VERSION})")
+    endif()
+    unset(MINLIBXC_VERSION)
+  endif()
+endif()
+
+## libcint
+if (USE_LIBCINT)
+  find_package(Libcint)
+endif()
 
 ## the syntax.txt target
 add_custom_target(syntax 
