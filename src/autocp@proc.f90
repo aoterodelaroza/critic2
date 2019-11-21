@@ -1823,7 +1823,7 @@ contains
        end if
 
        ! connectivity
-       if (res%s == 1 .or. res%s == -1) then
+       ! if (res%s == 1 .or. res%s == -1) then
   !    ! BCP and RCP ias properties
   !    integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list
   !    integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
@@ -1855,8 +1855,8 @@ contains
           write (lu,'(A,"  },{")') prfx
 
        if (sy%f(sy%iref)%cp(i)%typ /= sign(1,sy%f(sy%iref)%typnuc)) cycle
-       i1 = sy%f(sy%iref)%cp(i)%ipath(1)
-       i2 = sy%f(sy%iref)%cp(i)%ipath(2)
+       ! i1 = sy%f(sy%iref)%cp(i)%ipath(1)
+       ! i2 = sy%f(sy%iref)%cp(i)%ipath(2)
     end do
     write (lu,'(A," }],")') prfx
 
