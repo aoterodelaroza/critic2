@@ -1128,8 +1128,9 @@ contains
   !> point x0 (crystallographic) are calculated, followed by the value
   !> of all other fields at the point if allfields = .true.  Returns
   !> the properties in res and, if verbose is .true., write to the
-  !> standard output.
-  module subroutine propty(s,id,x0,res,verbose,allfields)
+  !> standard output. If resinput is .true., use the information from
+  !> the res variable instead of recalculating it.
+  module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
     use global, only: cp_hdegen
     use tools_math, only: rsindex
     use tools_io, only: uout, string
@@ -1138,7 +1139,8 @@ contains
     class(system), intent(inout) :: s
     integer, intent(in) :: id
     real*8, dimension(:), intent(in) :: x0
-    type(scalar_value), intent(out) :: res
+    type(scalar_value), intent(inout) :: res
+    logical, intent(in) :: resinput
     logical, intent(in) :: verbose
     logical, intent(in) :: allfields
 
@@ -1150,11 +1152,11 @@ contains
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
-    call s%f(id)%grd(xp,2,res)
-
-    ! r and s
-    res%hfevec = res%hf
-    call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
+    if (.not.resinput) then
+       call s%f(id)%grd(xp,2,res)
+       res%hfevec = res%hf
+       call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
+    end if
 
     if (verbose) then
        if (res%isnuc) then

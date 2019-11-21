@@ -205,12 +205,13 @@ module systemmod
        real*8, intent(in), optional :: x0(3)
        real*8 :: system_eval_expression
      end function system_eval_expression
-     module subroutine propty(s,id,x0,res,verbose,allfields)
+     module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s
        integer, intent(in) :: id
        real*8, dimension(:), intent(in) :: x0
-       type(scalar_value), intent(out) :: res
+       type(scalar_value), intent(inout) :: res
+       logical, intent(in) :: resinput
        logical, intent(in) :: verbose
        logical, intent(in) :: allfields
      end subroutine propty

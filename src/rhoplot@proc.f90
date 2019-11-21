@@ -160,7 +160,7 @@ contains
        endif
        if (ifi > -1) then
           write (uout,'("+ Field: ",A)') string(ifi)
-          call sy%propty(ifi,x0,res,.true.,doall)
+          call sy%propty(ifi,x0,res,.false.,.true.,doall)
        else
           rdum = sy%eval(expr,.true.,iok,xx)
           write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)

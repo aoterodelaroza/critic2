@@ -745,10 +745,8 @@ contains
     write (uout,*)
 
     ! Calculate the field at the nuclei, if deferred
-    if (sy%f(sy%iref)%fcp_deferred) then
+    if (sy%f(sy%iref)%fcp_deferred) &
        call sy%f(sy%iref)%init_cplist_deferred()
-       sy%f(sy%iref)%fcp_deferred = .false.
-    end if
 
     ! Short report of non-equivalent cp-list
     call cp_short_report()
@@ -807,10 +805,8 @@ contains
     type(gpathp), allocatable :: xpath(:)
 
     ! Calculate the field at the nuclei, if deferred
-    if (sy%f(sy%iref)%fcp_deferred) then
+    if (sy%f(sy%iref)%fcp_deferred) &
        call sy%f(sy%iref)%init_cplist_deferred()
-       sy%f(sy%iref)%fcp_deferred = .false.
-    end if
 
     lp = 1
     do while (.true.)
@@ -1640,7 +1636,6 @@ contains
     use param, only: bohrtoa
     integer :: i, j
     real*8 :: minden, maxbden, fness, xx(3)
-    type(scalar_value) :: res
 
     write (uout,'("* Additional properties at the critical points")')
     minden = 1d30
@@ -1657,9 +1652,10 @@ contains
           write (uout,'("  Coordinates (",A,"): ",3(A,X))') &
              iunitname0(iunit), (string(xx(j),'f',decimal=10),j=1,3)
        end if
-       call sy%propty(sy%iref,sy%f(sy%iref)%cp(i)%x,res,.true.,.true.)
-       if (res%f < minden) minden = res%f
-       if (res%f > maxbden .and. sy%f(sy%iref)%cp(i)%typ == -1) maxbden = res%f
+       call sy%propty(sy%iref,sy%f(sy%iref)%cp(i)%x,sy%f(sy%iref)%cp(i)%s,.true.,.true.,.true.)
+       if (sy%f(sy%iref)%cp(i)%s%f < minden) minden = sy%f(sy%iref)%cp(i)%s%f
+       if (sy%f(sy%iref)%cp(i)%s%f > maxbden .and. sy%f(sy%iref)%cp(i)%typ == -1) &
+          maxbden = sy%f(sy%iref)%cp(i)%s%f
     enddo
     if (maxbden > 1d-12) then
        fness = minden / maxbden
@@ -1853,10 +1849,6 @@ contains
           (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
        if (i < sy%f(sy%iref)%ncpcel) &
           write (lu,'(A,"  },{")') prfx
-
-       if (sy%f(sy%iref)%cp(i)%typ /= sign(1,sy%f(sy%iref)%typnuc)) cycle
-       ! i1 = sy%f(sy%iref)%cp(i)%ipath(1)
-       ! i2 = sy%f(sy%iref)%cp(i)%ipath(2)
     end do
     write (lu,'(A," }],")') prfx
 

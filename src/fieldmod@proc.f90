@@ -1490,6 +1490,8 @@ contains
   !> deferred from init_cplist to avoid the slow down of field
   !> initalization it causes.
   module subroutine init_cplist_deferred(f)
+    use global, only: CP_hdegen
+    use tools_math, only: rsindex
     class(field), intent(inout) :: f
 
     integer :: i
@@ -1499,6 +1501,8 @@ contains
     
     do i = 1, f%c%nneq
        call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
+       f%cp(i)%s%hfevec = f%cp(i)%s%hf
+       call rsindex(f%cp(i)%s%hfevec,f%cp(i)%s%hfeval,f%cp(i)%s%r,f%cp(i)%s%s,CP_hdegen)
     end do
 
   end subroutine init_cplist_deferred
@@ -1979,8 +1983,12 @@ contains
     f%cp(n)%lvec = 0
 
     ! Type of critical point
+    call rsindex(res%hf,ehess,r,s,CP_hdegen)
+    f%cp(n)%s%hfevec = res%hf
+    f%cp(n)%s%hfeval = ehess
     if (.not.present(itype)) then
-       call rsindex(res%hf,ehess,r,s,CP_hdegen)
+       f%cp(n)%s%r = r
+       f%cp(n)%s%s = s
        f%cp(n)%isdeg = (r /= 3)
        f%cp(n)%typ = s
        f%cp(n)%typind = (s+3)/2
