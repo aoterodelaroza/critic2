@@ -1152,11 +1152,8 @@ contains
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
-    if (.not.resinput) then
+    if (.not.resinput) &
        call s%f(id)%grd(xp,2,res)
-       res%hfevec = res%hf
-       call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
-    end if
 
     if (verbose) then
        if (res%isnuc) then

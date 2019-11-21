@@ -614,6 +614,8 @@ contains
     use wfn_private, only: wfn_uhf
     use arithmetic, only: eval
     use types, only: scalar_value
+    use global, only: CP_hdegen
+    use tools_math, only: rsindex
     use tools_io, only: ferror, faterr
     use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
@@ -686,13 +688,11 @@ contains
              res%hf(3,2) = res%hf(2,3)
           end if
        end if
-       res%gfmod = norm2(res%gf)
-       res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        ! valence quantities
        res%fval = res%f
        res%gfmodval = res%gfmod
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-       return
+       goto 999
     end if
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
@@ -831,6 +831,9 @@ contains
        res%hf = res%hf + h
     end if
 
+    ! if numerical, skip to here
+999 continue
+
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
     nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
@@ -838,6 +841,12 @@ contains
     if (res%isnuc) res%gf = 0d0
     res%gfmod = norm2(res%gf)
     res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+
+    ! diagonalize hessian and calculate rank and signature
+    if (nder > 1) then
+       res%hfevec = res%hf
+       call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
+    end if
 
   end subroutine grd
 
@@ -1490,8 +1499,6 @@ contains
   !> deferred from init_cplist to avoid the slow down of field
   !> initalization it causes.
   module subroutine init_cplist_deferred(f)
-    use global, only: CP_hdegen
-    use tools_math, only: rsindex
     class(field), intent(inout) :: f
 
     integer :: i
@@ -1501,8 +1508,6 @@ contains
     
     do i = 1, f%c%nneq
        call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
-       f%cp(i)%s%hfevec = f%cp(i)%s%hf
-       call rsindex(f%cp(i)%s%hfevec,f%cp(i)%s%hfeval,f%cp(i)%s%r,f%cp(i)%s%s,CP_hdegen)
     end do
 
   end subroutine init_cplist_deferred
@@ -1902,10 +1907,9 @@ contains
   !> (-3,-1,1,3).
   module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
     use arithmetic, only: eval
-    use tools_math, only: rsindex
     use tools_io, only: ferror, string
     use types, only: scalar_value, realloc
-    use global, only: CP_hdegen, rbetadef
+    use global, only: rbetadef
     use types, only: realloc
     use param, only: icrd_crys
     class(field), intent(inout) :: f
@@ -1915,13 +1919,12 @@ contains
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
-    real*8 :: xc(3), ehess(3)
+    real*8 :: xc(3)
     integer :: nid
     real*8 :: dist
     integer :: n, i, num
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
-    integer :: r, s
     integer :: lnuc, lshell
     character*3 :: namecrit(0:3)
     character*(1) :: smallnamecrit(0:3)
@@ -1983,20 +1986,15 @@ contains
     f%cp(n)%lvec = 0
 
     ! Type of critical point
-    call rsindex(res%hf,ehess,r,s,CP_hdegen)
-    f%cp(n)%s%hfevec = res%hf
-    f%cp(n)%s%hfeval = ehess
     if (.not.present(itype)) then
-       f%cp(n)%s%r = r
-       f%cp(n)%s%s = s
-       f%cp(n)%isdeg = (r /= 3)
-       f%cp(n)%typ = s
-       f%cp(n)%typind = (s+3)/2
+       f%cp(n)%isdeg = (f%cp(n)%s%r /= 3)
+       f%cp(n)%typ = f%cp(n)%s%s
+       f%cp(n)%typind = (f%cp(n)%s%s+3)/2
        f%cp(n)%isnuc = .false.
-       f%cp(n)%isnnm = (s == f%typnuc)
+       f%cp(n)%isnnm = (f%cp(n)%s%s == f%typnuc)
     else
-       r = 3
-       s = itype
+       f%cp(n)%s%r = 3
+       f%cp(n)%s%s = itype
        f%cp(n)%isdeg = .false.
        f%cp(n)%typ = itype
        f%cp(n)%typind = (itype+3)/2
@@ -2019,7 +2017,7 @@ contains
     f%cp(n)%brvec = 0d0
 
     ! Name
-    num = count(f%cp(1:n)%typ == s)
+    num = count(f%cp(1:n)%typ == f%cp(n)%s%s)
     f%cp(n)%name = smallnamecrit(f%cp(n)%typind) // string(num)
 
     ! Add positions to the complete CP list

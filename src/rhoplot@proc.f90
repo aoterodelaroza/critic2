@@ -1064,11 +1064,11 @@ contains
     use global, only: fileroot, eval_next, dunit0, iunit
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
-    use tools_math, only: rsindex, plane_scale_extend, assign_ziso, &
+    use tools_math, only: plane_scale_extend, assign_ziso, &
        niso_manual, niso_atan, niso_lin, niso_log, niso_bader
     use types, only: scalar_value, realloc
     character(len=:), allocatable :: line, word, datafile, rootname
-    integer :: lpold, lp, udat, ll, idum, i, j
+    integer :: lpold, lp, udat, ll, i, j
     integer :: updum, dndum, updum1, dndum1
     real*8  :: xp(3), rhopt
     logical :: doagain, ok, autocheck
@@ -1078,7 +1078,7 @@ contains
     integer :: cpid
     integer :: niso_type, nfi, ix, iy
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, rdum
-    real*8 :: ehess(3), x0(3), uu(3), vv(3), fmin, fmax
+    real*8 :: x0(3), uu(3), vv(3), fmin, fmax
     logical :: docontour, dograds, goodplane, fset
     integer :: n1, n2, niso, nder
     type(scalar_value) :: res
@@ -1318,7 +1318,7 @@ contains
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
              q0 = sy%c%x2c(newcriticp(:,newncriticp))
              call sy%f(sy%iref)%grd(q0,2,res,periodic=.not.sy%c%ismolecule)
-             call rsindex(res%hf,ehess,idum,newtypcrit(newncriticp),0d0)
+             newtypcrit(newncriticp) = res%s
              q0 = sy%c%c2x(q0)
 
              ok = ok .and. getline(uin,line,.true.,ucopy)
@@ -2141,7 +2141,7 @@ contains
   subroutine plotvec(r0,r1,r2,autocheck,udat)
     use systemmod, only: sy
     use global, only: dunit0, iunit, iunitname0, prunedist, gcpchange
-    use tools_math, only: cross, matinv, rsindex
+    use tools_math, only: cross, matinv
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
     use types, only: scalar_value, gpathp
@@ -2149,11 +2149,11 @@ contains
     logical, intent(in) :: autocheck
     real*8, dimension(3), intent(in) :: r0, r1, r2
 
-    integer :: nptf, i, j, iorig, up1d, up2d, ntotpts
+    integer :: nptf, i, j, iorig, up1d, up2d, ntotpts, nindex, ntype
     real*8  :: xstart(3), phii, u1, v1, u, v
     real*8  :: r012, v1d(3), v2da(3), v2db(3), xo0(3), xo1(3), xo2(3)
-    real*8  :: xtemp(3), c1coef, c2coef, ehess(3), plen
-    integer :: ier, nindex, ntype
+    real*8  :: xtemp(3), c1coef, c2coef, plen
+    integer :: ier
     type(scalar_value) :: res
     type(gpathp), allocatable :: xpath(:)
 
@@ -2293,36 +2293,35 @@ contains
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
           call sy%f(sy%iref)%grd(xstart,2,res,periodic=.not.sy%c%ismolecule)
-          call rsindex(res%hf,ehess,nindex,ntype,0d0)
-          if (nindex .eq. 3) then
-             if (ntype .eq. -1) then
+          if (res%r .eq. 3) then
+             if (res%s .eq. -1) then
                 up1d = +1
                 up2d = -1
                 if (grpup(iorig)  .eq. 0) up1d = 0
                 if (grpdwn(iorig) .eq. 0) up2d = 0
-                v2da(1) = res%hf(1,1)
-                v2da(2) = res%hf(2,1)
-                v2da(3) = res%hf(3,1)
-                v2db(1) = res%hf(1,2)
-                v2db(2) = res%hf(2,2)
-                v2db(3) = res%hf(3,2)
-                v1d(1)  = res%hf(1,3)
-                v1d(2)  = res%hf(2,3)
-                v1d(3)  = res%hf(3,3)
-             else if (ntype .eq. +1) then
+                v2da(1) = res%hfevec(1,1)
+                v2da(2) = res%hfevec(2,1)
+                v2da(3) = res%hfevec(3,1)
+                v2db(1) = res%hfevec(1,2)
+                v2db(2) = res%hfevec(2,2)
+                v2db(3) = res%hfevec(3,2)
+                v1d(1)  = res%hfevec(1,3)
+                v1d(2)  = res%hfevec(2,3)
+                v1d(3)  = res%hfevec(3,3)
+             else if (res%s .eq. +1) then
                 up1d = -1
                 up2d = +1
                 if (grpup(iorig)  .eq. 0) up2d = 0
                 if (grpdwn(iorig) .eq. 0) up1d = 0
-                v1d(1)  = res%hf(1,1)
-                v1d(2)  = res%hf(2,1)
-                v1d(3)  = res%hf(3,1)
-                v2da(1) = res%hf(1,2)
-                v2da(2) = res%hf(2,2)
-                v2da(3) = res%hf(3,2)
-                v2db(1) = res%hf(1,3)
-                v2db(2) = res%hf(2,3)
-                v2db(3) = res%hf(3,3)
+                v1d(1)  = res%hfevec(1,1)
+                v1d(2)  = res%hfevec(2,1)
+                v1d(3)  = res%hfevec(3,1)
+                v2da(1) = res%hfevec(1,2)
+                v2da(2) = res%hfevec(2,2)
+                v2da(3) = res%hfevec(3,2)
+                v2db(1) = res%hfevec(1,3)
+                v2db(2) = res%hfevec(2,3)
+                v2db(3) = res%hfevec(3,3)
              else
                 up1d = 0
                 up2d = 0
@@ -2381,8 +2380,8 @@ contains
           write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
-             string(nindex,length=3,justify=ioj_right),&
-             string(ntype,length=3,justify=ioj_right),&
+             string(res%r,length=3,justify=ioj_right),&
+             string(res%s,length=3,justify=ioj_right),&
              string(grpup(iorig),length=3,justify=ioj_right),&
              string(grpdwn(iorig),length=3,justify=ioj_right),&
              string(ntotpts,length=5,justify=ioj_right)
@@ -2464,18 +2463,15 @@ contains
   !> equivalents (within the main cell) lie on the plotting plane.
   subroutine autochk(rp0)
     use systemmod, only: sy
-    use global, only: cp_hdegen
     use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
-    use tools_math, only: rsindex
     use param, only: one
     use types, only: scalar_value
     integer :: i, j, k, l, ncopies
     integer :: iorde(2*indmax+1), indcell(3,(2*indmax+1)**3), iii, inum
     real*8  :: xp(3)
     real*8  :: x0(3), x1(3), uu, vv, hh, hmin
-    integer :: nindex
     type(scalar_value) :: res
-    real*8 :: rp0(3), ehess(3)
+    real*8 :: rp0(3)
 
     ! 
     write (uout,'("+ List of candidate in-plane CPs")') 
@@ -2524,12 +2520,10 @@ contains
              string(i), string(res%gfmod,'e',decimal=6)
           cycle
        else
-          if (newtypcrit(i) == 0) then
-             call rsindex(res%hf,ehess,nindex,newtypcrit(i),CP_hdegen)
-          end if
+          newtypcrit(i) = res%s
        endif
 
-       !.Det3ermine the points to be added as gradient path origins:
+       !.Determine the points to be added as gradient path origins:
        ncopies = 0
        hmin = 1d30
        do l = 1, (inum)**3

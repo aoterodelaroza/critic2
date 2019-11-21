@@ -111,22 +111,35 @@ module types
   
   !> Result of the evaluation of a scalar field
   type scalar_value
-     ! basic
+     ! always available
      real*8 :: f = 0d0 ! field
      real*8 :: fval = 0d0 ! field (valence only)
+     logical :: isnuc = .false. ! is it a nuclear position?
+     ! nder == 1
+     logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
      real*8 :: gf(3) = 0d0 ! field gradient
-     real*8 :: hf(3,3) = 0d0 ! field Hessian
      real*8 :: gfmod = 0d0 ! field gradient norm
      real*8 :: gfmodval = 0d0 ! field gradient norm (valence only)
+     ! nder == 2
+     logical :: avail_der2 = .false. ! second derivatives of the scalar field are available
+     real*8 :: hf(3,3) = 0d0 ! field Hessian
      real*8 :: del2f = 0d0 ! field Laplacian
      real*8 :: del2fval = 0d0 ! field Laplacian (valence only)
-     real*8 :: gkin = 0d0 ! kinetic energy density
-     real*8 :: stress(3,3) = 0d0 ! schrodinger stress tensor
-     real*8 :: vir = 0d0 ! electronic potential energy density, virial field
      real*8 :: hfevec(3,3) = 0d0 ! field Hessian eigenvectors
      real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
      integer :: r = 0 ! field Hessian rank
      integer :: s = 0 ! field Hessian signature
+     ! avail_gkin
+     logical :: avail_gkin = .false. ! kinetic energy density is available
+     real*8 :: gkin = 0d0 ! kinetic energy density
+     ! avail_stress
+     logical :: avail_stress = .false. ! stress tensor is available
+     real*8 :: stress(3,3) = 0d0 ! schrodinger stress tensor
+     ! avail_vir
+     logical :: avail_vir = .false. ! virial field is available
+     real*8 :: vir = 0d0 ! electronic potential energy density, virial field
+     ! avail_spin (in combination with other selectors where applicable)
+     logical :: avail_spin = .false. ! spin quantities are available
      logical :: spinpol = .false. ! whether this wavefuntion is spin-polarized
      real*8 :: fspin(2) ! density, spin up/dn
      real*8 :: fspinval(2) ! density, spin up/dn, valence only
@@ -135,14 +148,8 @@ module types
      real*8 :: lapspin(2) ! laplacian, spin up/dn
      real*8 :: lapspinval(2) ! laplacian, spin up/dn, valence only
      real*8 :: gkinspin(2) ! kinetic energy density, spin up/dn
+     ! nder < 0 (specialized return field)
      real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
-     logical :: isnuc = .false. ! is it a nuclear position?
-     logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
-     logical :: avail_der2 = .false. ! second derivatives of the scalar field are available
-     logical :: avail_gkin = .false. ! kinetic energy density is available
-     logical :: avail_stress = .false. ! stress tensor is available
-     logical :: avail_vir = .false. ! virial field is available
-     logical :: avail_spin = .false. ! spin quantities are available
    contains
      procedure :: clear => scalar_value_clear
   end type scalar_value
