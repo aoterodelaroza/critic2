@@ -1422,14 +1422,14 @@ contains
 
     if (.not.f%isinit) return
 
-    write (lu,'(A,"   ""id"": ",A,",")') prfx, string(f%id)
-    write (lu,'(A,"   ""name"": """,A,""",")') prfx, trim(f%name)
+    write (lu,'(A,"  ""id"": ",A,",")') prfx, string(f%id)
+    write (lu,'(A,"  ""name"": """,A,""",")') prfx, trim(f%name)
     if (len_trim(f%file) > 0) then
-       write (lu,'(A,"   ""source"": """,A,""",")') prfx, trim(f%file)
+       write (lu,'(A,"  ""source"": """,A,""",")') prfx, trim(f%file)
     else
-       write (lu,'(A,"   ""source"": """,A,""",")') prfx, "generated"
+       write (lu,'(A,"  ""source"": """,A,""",")') prfx, "generated"
     end if
-    write (lu,'(A,"   ""type"": """,A,"""")') prfx, trim(f%typestring(.false.))
+    write (lu,'(A,"  ""type"": """,A,"""")') prfx, trim(f%typestring(.false.))
 
   end subroutine write_json
 

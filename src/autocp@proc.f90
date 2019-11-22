@@ -1745,90 +1745,106 @@ contains
     real*8 :: xp(3), fres
     
     ! non-equivalent CPs
-    write (lu,'(A," ""number_of_nonequivalent_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
-    write (lu,'(A," ""nonequivalent_cps"": [{")') prfx
+    write (lu,'(A,"  ""number_of_nonequivalent_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
+    write (lu,'(A,"  ""nonequivalent_cps"": [{")') prfx
     do i = 1, sy%f(sy%iref)%ncp
        ! header and position info
-       write (lu,'(A,"   ""name"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%name)
-       write (lu,'(A,"   ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
+       write (lu,'(A,"    ""name"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%name)
+       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cp(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"   ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cp(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"   ""multiplicity"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%mult)
-       write (lu,'(A,"   ""point_group"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%pg)
+       write (lu,'(A,"    ""multiplicity"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%mult)
+       write (lu,'(A,"    ""point_group"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%pg)
 
        ! grab the evaluation at the CP
        res = sy%f(sy%iref)%cp(i)%s
 
        ! rank, signature
-       if (res%isnuc) then
-          write (lu,'(A,"   ""is_nucleus"": true,")') prfx
-       else
-          write (lu,'(A,"   ""is_nucleus"": false,")') prfx
-       end if
-       write (lu,'(A,"   ""rank"": ",A,",")') prfx, string(res%r)
-       write (lu,'(A,"   ""signature"": ",A,",")') prfx, string(res%s)
+       write (lu,'(A,"    ""rank"": ",A,",")') prfx, string(res%r)
+       write (lu,'(A,"    ""signature"": ",A,",")') prfx, string(res%s)
 
        ! field values and derivatives
-       write (lu,'(A,"   ""field"": ",A,",")') prfx, string(res%f,'e',decimal=14)
-       write (lu,'(A,"   ""field_valence"": ",A,",")') prfx, string(res%fval,'e',decimal=14)
-       write (lu,'(A,"   ""gradient"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""field"": ",A,",")') prfx, string(res%f,'e',decimal=14)
+       write (lu,'(A,"    ""field_valence"": ",A,",")') prfx, string(res%fval,'e',decimal=14)
+       write (lu,'(A,"    ""gradient"": [",2(A,","),A,"]",",")') prfx, &
           (string(res%gf(j),'e',decimal=14),j=1,3)
-       write (lu,'(A,"   ""hessian"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
+       write (lu,'(A,"    ""hessian"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
           ((string(res%hf(j,k),'e',decimal=14),k=1,3),j=1,3)
-       write (lu,'(A,"   ""gradient_norm"": ",A,",")') prfx, string(res%gfmod,'e',decimal=14)
-       write (lu,'(A,"   ""gradient_norm_valence"": ",A,",")') prfx, string(res%gfmodval,'e',decimal=14)
+       write (lu,'(A,"    ""gradient_norm"": ",A,",")') prfx, string(res%gfmod,'e',decimal=14)
+       write (lu,'(A,"    ""gradient_norm_valence"": ",A,",")') prfx, string(res%gfmodval,'e',decimal=14)
        if (res%avail_gkin) then
-          write (lu,'(A,"   ""kinetic_energy_density"": ",A,",")') prfx, string(res%gkin,'e',decimal=14)
+          write (lu,'(A,"    ""kinetic_energy_density"": ",A,",")') prfx, string(res%gkin,'e',decimal=14)
        end if
-       write (lu,'(A,"   ""laplacian"": ",A,",")') prfx, string(res%del2f,'e',decimal=14)
-       write (lu,'(A,"   ""laplacian_valence"": ",A,",")') prfx, string(res%del2fval,'e',decimal=14)
-       write (lu,'(A,"   ""hessian_eigenvals"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""laplacian"": ",A,",")') prfx, string(res%del2f,'e',decimal=14)
+       write (lu,'(A,"    ""laplacian_valence"": ",A,",")') prfx, string(res%del2fval,'e',decimal=14)
+       write (lu,'(A,"    ""hessian_eigenvalues"": [",2(A,","),A,"]",",")') prfx, &
           (string(res%hfeval(j),'e',decimal=14),j=1,3)
 
        ! spin polarized quantities
        if (res%avail_spin .and. res%spinpol) then
-          write (lu,'(A,"   ""field_spin_up"": ",A,",")') prfx, string(res%fspin(1),'e',decimal=14)
-          write (lu,'(A,"   ""field_spin_down"": ",A,",")') prfx, string(res%fspin(2),'e',decimal=14)
-          write (lu,'(A,"   ""gradient_norm_spin_up"": ",A,",")') prfx, string(res%gfmodspin(1),'e',decimal=14)
-          write (lu,'(A,"   ""gradient_norm_spin_down"": ",A,",")') prfx, string(res%gfmodspin(2),'e',decimal=14)
-          write (lu,'(A,"   ""laplacian_spin_up"": ",A,",")') prfx, string(res%lapspin(1),'e',decimal=14)
-          write (lu,'(A,"   ""laplacian_spin_down"": ",A,",")') prfx, string(res%lapspin(2),'e',decimal=14)
+          write (lu,'(A,"    ""field_spin_up"": ",A,",")') prfx, string(res%fspin(1),'e',decimal=14)
+          write (lu,'(A,"    ""field_spin_down"": ",A,",")') prfx, string(res%fspin(2),'e',decimal=14)
+          write (lu,'(A,"    ""gradient_norm_spin_up"": ",A,",")') prfx, string(res%gfmodspin(1),'e',decimal=14)
+          write (lu,'(A,"    ""gradient_norm_spin_down"": ",A,",")') prfx, string(res%gfmodspin(2),'e',decimal=14)
+          write (lu,'(A,"    ""laplacian_spin_up"": ",A,",")') prfx, string(res%lapspin(1),'e',decimal=14)
+          write (lu,'(A,"    ""laplacian_spin_down"": ",A,",")') prfx, string(res%lapspin(2),'e',decimal=14)
           if (res%avail_gkin) then
-             write (lu,'(A,"   ""kinetic_energy_density_spin_up"": ",A,",")') prfx, string(res%gkinspin(1),'e',decimal=14)
-             write (lu,'(A,"   ""kinetic_energy_density_spin_down"": ",A,",")') prfx, string(res%gkinspin(2),'e',decimal=14)
+             write (lu,'(A,"    ""kinetic_energy_density_spin_up"": ",A,",")') prfx, string(res%gkinspin(1),'e',decimal=14)
+             write (lu,'(A,"    ""kinetic_energy_density_spin_down"": ",A,",")') prfx, string(res%gkinspin(2),'e',decimal=14)
           end if
        end if
 
        ! properties at points defined by the user
        nprop = count(sy%propp(1:sy%npropp)%ispecial == 0)
        if (nprop > 0) then
-          write (lu,'(A,"   ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
-          write (lu,'(A,"   ""pointprops"": [{")') prfx
+          write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
+          write (lu,'(A,"    ""pointprops"": [{")') prfx
           do ip = 1, sy%npropp
              if (sy%propp(ip)%ispecial == 0) then
                 fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
-                write (lu,'(A,"     ""name"": """,A,""",")') prfx, string(sy%propp(ip)%name)
-                write (lu,'(A,"     ""expression"": """,A,""",")') prfx, string(sy%propp(ip)%expr)
-                write (lu,'(A,"     ""value"": ",A,",")') prfx, string(fres,'e',decimal=14)
+                write (lu,'(A,"      ""id"": ",A,",")') prfx, string(ip)
+                write (lu,'(A,"      ""name"": """,A,""",")') prfx, string(sy%propp(ip)%name)
+                write (lu,'(A,"      ""expression"": """,A,""",")') prfx, string(sy%propp(ip)%expr)
+                write (lu,'(A,"      ""value"": ",A)') prfx, string(fres,'e',decimal=14)
              endif
           end do
-          write (lu,'(A,"   }]")') prfx
+          write (lu,'(A,"    }],")') prfx
        else
-          write (lu,'(A,"   ""number_of_pointprops"": ",A)') prfx, string(nprop)
+          write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
        end if
 
        ! connectivity
-       ! if (res%s == 1 .or. res%s == -1) then
-  !    ! BCP and RCP ias properties
-  !    integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list
-  !    integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
-  !    real*8 :: brdist(2) !< If b or r, distance to attractor/repulsor
-  !    real*8 :: brpathlen(2) !< If b or r, distance to attractor/repulsor
-  !    real*8 :: brang !< If b or r, angle wrt attractors/repulsors
-  !    real*8 :: brvec(3) !< If b or r, the eigenvector along the bond (ring) path
+       if (res%s == 1 .or. res%s == -1) then
+          if (res%s == 1) then
+             write (lu,'(A,"    ""attractor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brang,'e',decimal=14)
+             write (lu,'(A,"    ""attractor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cp(i)%brvec(j),'f',decimal=14),j=1,3)
+             write (lu,'(A,"    ""attractors"": [{")') prfx
+          else
+             write (lu,'(A,"    ""repulsor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brang,'e',decimal=14)
+             write (lu,'(A,"    ""repulsor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cp(i)%brvec(j),'f',decimal=14),j=1,3)
+             write (lu,'(A,"    ""repulsors"": [{")') prfx
+          endif
+          do k = 1, 2
+             write (lu,'(A,"      ""cell_id"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%ipath(k))
+             write (lu,'(A,"      ""lvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cp(i)%ilvec(j,k)),j=1,3)
+             write (lu,'(A,"      ""distance"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brdist(k),'e',decimal=14)
+             write (lu,'(A,"      ""path_length"": ",A)') prfx, string(sy%f(sy%iref)%cp(i)%brpathlen(k),'e',decimal=14)
+             if (k == 1) &
+                write (lu,'(A,"    },{")') prfx
+          end do
+          write (lu,'(A,"    }],")') prfx
+       end if
 
-    
+       if (res%isnuc) then
+          write (lu,'(A,"    ""is_nucleus"": true")') prfx
+       else
+          write (lu,'(A,"    ""is_nucleus"": false")') prfx
+       end if
        if (i < sy%f(sy%iref)%ncp) &
           write (lu,'(A,"  },{")') prfx
     end do
@@ -1838,19 +1854,20 @@ contains
     write (lu,'(A," ""number_of_cell_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
     write (lu,'(A," ""cell_cps"": [{")') prfx
     do i = 1, sy%f(sy%iref)%ncpcel
-       write (lu,'(A,"   ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
+       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"   ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
+       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"   ""nonequivalent_id"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%idx)
-       write (lu,'(A,"   ""symop_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ir)
-       write (lu,'(A,"   ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
-       write (lu,'(A,"   ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
+       write (lu,'(A,"    ""nonequivalent_id"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%idx)
+       write (lu,'(A,"    ""symop_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ir)
+       write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
+       write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
        if (i < sy%f(sy%iref)%ncpcel) &
           write (lu,'(A,"  },{")') prfx
     end do
-    write (lu,'(A," }],")') prfx
+    write (lu,'(A,"  }]")') prfx
 
   end subroutine cp_json_report
 
@@ -2046,15 +2063,15 @@ contains
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("{")')
-    write (lu,'(X,"""structure"": {")') 
-    call sy%c%struct_write_json(lu," ")
-    write (lu,'(X,"},")')
-    write (lu,'(X,"""field"": {")') 
-    call sy%f(sy%iref)%write_json(lu," ")
-    write (lu,'(X"},")')
-    write (lu,'(X,"""critical_points"": {")') 
-    call cp_json_report(lu," ")
-    write (lu,'(X"}")')
+    write (lu,'(2X,"""structure"": {")') 
+    call sy%c%struct_write_json(lu,"  ")
+    write (lu,'(2X,"},")')
+    write (lu,'(2X,"""field"": {")') 
+    call sy%f(sy%iref)%write_json(lu,"  ")
+    write (lu,'(2X"},")')
+    write (lu,'(2X,"""critical_points"": {")') 
+    call cp_json_report(lu,"  ")
+    write (lu,'(2X"}")')
     write (lu,'("}")')
     call fclose(lu)
 
