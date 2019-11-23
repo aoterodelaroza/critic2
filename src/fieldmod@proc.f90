@@ -1508,6 +1508,8 @@ contains
     
     do i = 1, f%c%nneq
        call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
+       f%cp(i)%s%r = 3
+       f%cp(i)%s%s = f%typnuc
     end do
 
   end subroutine init_cplist_deferred
