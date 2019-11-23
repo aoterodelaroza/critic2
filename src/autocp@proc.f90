@@ -1839,10 +1839,6 @@ contains
        write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%r(j),'f',decimal=14),j=1,3)
        write (lu,'(A,"    ""nonequivalent_id"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%idx)
-       write (lu,'(A,"    ""symop_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ir)
-       write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
-       write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
-          (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
 
        ! connectivity
        if (res%s == 1 .or. res%s == -1) then
@@ -1869,6 +1865,10 @@ contains
           write (lu,'(A,"    }],")') prfx
        end if
 
+       write (lu,'(A,"    ""symop_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ir)
+       write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
+       write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
+          (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
        if (i < sy%f(sy%iref)%ncpcel) &
           write (lu,'(A,"  },{")') prfx
     end do
