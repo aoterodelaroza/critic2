@@ -1739,7 +1739,7 @@ contains
     integer, intent(in) :: lu
     character*(*), intent(in) :: prfx
 
-    integer :: i, j, k, ip, nprop
+    integer :: i, j, k, ip, nprop, idx
     type(scalar_value) :: res
     logical :: iok
     real*8 :: xp(3), fres
@@ -1815,31 +1815,6 @@ contains
           write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
        end if
 
-       ! connectivity
-       if (res%s == 1 .or. res%s == -1) then
-          if (res%s == 1) then
-             write (lu,'(A,"    ""attractor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brang,'e',decimal=14)
-             write (lu,'(A,"    ""attractor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cp(i)%brvec(j),'f',decimal=14),j=1,3)
-             write (lu,'(A,"    ""attractors"": [{")') prfx
-          else
-             write (lu,'(A,"    ""repulsor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brang,'e',decimal=14)
-             write (lu,'(A,"    ""repulsor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cp(i)%brvec(j),'f',decimal=14),j=1,3)
-             write (lu,'(A,"    ""repulsors"": [{")') prfx
-          endif
-          do k = 1, 2
-             write (lu,'(A,"      ""cell_id"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%ipath(k))
-             write (lu,'(A,"      ""lvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cp(i)%ilvec(j,k)),j=1,3)
-             write (lu,'(A,"      ""distance"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%brdist(k),'e',decimal=14)
-             write (lu,'(A,"      ""path_length"": ",A)') prfx, string(sy%f(sy%iref)%cp(i)%brpathlen(k),'e',decimal=14)
-             if (k == 1) &
-                write (lu,'(A,"    },{")') prfx
-          end do
-          write (lu,'(A,"    }],")') prfx
-       end if
-
        if (res%isnuc) then
           write (lu,'(A,"    ""is_nucleus"": true")') prfx
        else
@@ -1854,7 +1829,11 @@ contains
     write (lu,'(A," ""number_of_cell_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
     write (lu,'(A," ""cell_cps"": [{")') prfx
     do i = 1, sy%f(sy%iref)%ncpcel
+       idx = sy%f(sy%iref)%cpcel(i)%idx
+       res = sy%f(sy%iref)%cp(idx)%s
        write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
+       write (lu,'(A,"    ""rank"": ",A,",")') prfx, string(res%r)
+       write (lu,'(A,"    ""signature"": ",A,",")') prfx, string(res%s)
        write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%x(j),'f',decimal=14),j=1,3)
        write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
@@ -1864,6 +1843,32 @@ contains
        write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
        write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
           (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
+
+       ! connectivity
+       if (res%s == 1 .or. res%s == -1) then
+          if (res%s == -1) then
+             write (lu,'(A,"    ""attractor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brang,'e',decimal=14)
+             write (lu,'(A,"    ""attractor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cp(idx)%brvec(j),'f',decimal=14),j=1,3)
+             write (lu,'(A,"    ""attractors"": [{")') prfx
+          else
+             write (lu,'(A,"    ""repulsor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brang,'e',decimal=14)
+             write (lu,'(A,"    ""repulsor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cp(idx)%brvec(j),'f',decimal=14),j=1,3)
+             write (lu,'(A,"    ""repulsors"": [{")') prfx
+          endif
+          do k = 1, 2
+             write (lu,'(A,"      ""cell_id"": """,A,""",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ipath(k))
+             write (lu,'(A,"      ""lvec"": [",2(A,","),A,"]",",")') prfx, &
+                (string(sy%f(sy%iref)%cpcel(i)%ilvec(j,k)),j=1,3)
+             write (lu,'(A,"      ""distance"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brdist(k),'e',decimal=14)
+             write (lu,'(A,"      ""path_length"": ",A)') prfx, string(sy%f(sy%iref)%cp(idx)%brpathlen(k),'e',decimal=14)
+             if (k == 1) &
+                write (lu,'(A,"    },{")') prfx
+          end do
+          write (lu,'(A,"    }],")') prfx
+       end if
+
        if (i < sy%f(sy%iref)%ncpcel) &
           write (lu,'(A,"  },{")') prfx
     end do
