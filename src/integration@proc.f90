@@ -34,6 +34,7 @@ submodule (integration) proc
   ! function quadpack_f(x,unit,xnuc) result(res)
   ! subroutine int_output_multipoles(bas,res)
   ! subroutine int_output_deloc_wannier(bas,res)
+  ! subroutine int_output_json(jsonfile,bas,res)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
   ! subroutine int_gridbasins(bas)
   ! subroutine int_cubew(bas)
@@ -55,14 +56,14 @@ contains
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
-       string, fclose, isinteger
+       string, fclose, isinteger, getword
     use types, only: basindat, int_result
 
     character*(*), intent(in) :: line
 
     real*8, parameter :: ratom_def0 = 1d0
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, jsonfile
     integer :: n(3), ntot
     integer :: lp, lp2
     logical :: ok, nonnm, noatoms
@@ -106,6 +107,7 @@ contains
     endif
 
     ! parse the input
+    jsonfile = ""
     ratom_def = ratom_def0
     nonnm = .true.
     noatoms = .false.
@@ -149,6 +151,12 @@ contains
           ok = isexpression_or_word(bas%expr,line,lp)
           if (.not. ok) then
              call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"json")) then
+          jsonfile = getword(line,lp)
+          if (len_trim(jsonfile) == 0) then
+             call ferror("intgrid_driver","Invalid JSON file",faterr,line,syntax=.true.)
              return
           end if
        elseif (len_trim(word) > 0) then
@@ -247,6 +255,11 @@ contains
 
     ! localization and delocalization indices, wannier
     call int_output_deloc_wannier(bas,res)
+
+    ! write the json file
+    if (len(jsonfile) > 0) then
+       call int_output_json(jsonfile,bas,res)
+    end if
 
     ! clean up YT weight file
     if (bas%imtype == imtype_yt) then
@@ -2240,6 +2253,196 @@ contains
     end do
 
   end subroutine int_output_deloc_wannier
+
+  !> Write a JSON file containing the structure, the reference
+  !> field details, and the results of the YT/BADER integration.
+  subroutine int_output_json(file,bas,res)
+    use systemmod, only: sy, itype_v, itype_mpoles, itype_expr, itype_names
+    use tools_io, only: uout, string, fopen_write, fclose
+    use types, only: basindat, int_result, out_field
+    character*(*), intent(in) :: file
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
+    
+    integer :: lu, fid, nprop
+    integer :: i, j, k, l
+    character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    real*8 :: x(3), xcm(3)
+    integer, allocatable :: idxmol(:,:), nacprop(:)
+    real*8, allocatable :: sump(:)
+
+    ! open and write some info about the structure and the reference field
+    write (uout,'("* WRITE JSON file: ",A/)') string(file)
+    lu = fopen_write(file)
+    write (lu,'("{")')
+    write (lu,'(2X,"""structure"": {")') 
+    call sy%c%struct_write_json(lu,"  ")
+    write (lu,'(2X,"},")')
+    write (lu,'(2X,"""field"": {")') 
+    call sy%f(sy%iref)%write_json(lu,"  ")
+    write (lu,'(2X"},")')
+
+    ! the JSON report, beginning
+    write (lu,'(2X,"""integration"": {")') 
+    if (bas%imtype == imtype_yt) then
+       write (lu,'(2X,"  ""type"": ""yt"",")') 
+    elseif (bas%imtype == imtype_bader) then
+       write (lu,'(2X,"  ""type"": ""bader"",")') 
+    endif
+    write (lu,'(2X,"  ""grid_npoints"": [",2(A,","),A,"]",",")') (string(bas%n(j)),j=1,3)
+
+    ! list of properties
+    nprop = count(res(1:sy%npropi)%done .and. res(1:sy%npropi)%outmode == out_field)
+    allocate(nacprop(nprop))
+    write (lu,'(2X,"  ""number_of_properties"": ",A,",")') string(nprop)
+    write (lu,'(2X,"  ""properties"": [{")')
+    l = 0
+    do i = 1, sy%npropi
+       fid = sy%propi(i)%fid
+       if (.not.res(i)%done) cycle
+       if (.not.res(i)%outmode == out_field) cycle
+       l = l + 1
+       nacprop(l) = i
+       write (lu,'(2X,"    ""id"": ",A,",")') string(i)
+       write (lu,'(2X,"    ""label"": """,A,""",")') string(sy%propi(i)%prop_name)
+       if (sy%propi(i)%itype == itype_expr) then
+          write (lu,'(2X,"    ""expression"": """,A,""",")') string(sy%propi(i)%expr)
+       elseif (sy%propi(i)%itype == itype_mpoles) then
+          write (lu,'(2X,"    ""field_id"": ",A,",")') string(fid)
+          write (lu,'(2X,"    ""lmax"": ",A,",")') string(sy%propi(i)%lmax)
+       elseif (sy%propi(i)%itype /= itype_v) then
+          write (lu,'(2X,"    ""field_id"": ",A,",")') string(fid)
+       end if
+       write (lu,'(2X,"    ""field_name"": """,A,"""")') string(itype_names(sy%propi(i)%itype))
+
+       if (i < nprop) &
+          write (lu,'(2X,"  },{")')
+    end do
+    write (lu,'(2X,"  }],")')
+
+    ! list of attractors
+    write (lu,'(2X,"  ""number_of_attractors"": ",A,",")') string(bas%nattr)
+    write (lu,'(2X,"  ""attractors"": [{")')
+    do i = 1, bas%nattr
+       call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+       x = bas%xattr(:,i)
+       write (lu,'(2X,"    ""id"": ",A,",")') string(i)
+       write (lu,'(2X,"    ""cell_cp"": ",A,",")') string(scp)
+       write (lu,'(2X,"    ""nonequivalent_cp"": ",A,",")') string(sncp)
+       write (lu,'(2X,"    ""name"": """,A,""",")') string(sname)
+       write (lu,'(2X,"    ""atomic_number"": ",A,",")') string(sz)
+       write (lu,'(2X,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') &
+          (string(x(j),'f',decimal=14),j=1,3)
+       write (lu,'(2X,"    ""integrals"": [")')
+       do j = 1, nprop
+          if (j < nprop) then
+             write (lu,'(2X,"      ",A,",")') string(res(nacprop(j))%psum(i),'e',15,8,4)
+          else
+             write (lu,'(2X,"      ",A,"]")') string(res(nacprop(j))%psum(i),'e',15,8,4)
+          end if
+       end do
+       if (i < bas%nattr) &
+          write (lu,'(2X,"  },{")')
+    end do
+    write (lu,'(2X,"  }],")')
+    
+    ! list of molecules and positions
+    if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+       allocate(idxmol(2,bas%nattr))
+       ! assign attractors to molecules
+       idxmol = 0
+       do i = 1, bas%nattr
+          jlo: do j = 1, sy%c%nmol
+             do k = 1, sy%c%mol(j)%nat
+                if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
+                   idxmol(1,i) = j
+                   idxmol(2,i) = k
+                   exit jlo
+                end if
+             end do
+          end do jlo
+       end do
+       
+       allocate(sump(nprop))
+       do k = 1, sy%c%nmol
+          do i = 1, bas%nattr
+             if (idxmol(1,i) /= k) cycle
+          end do
+       end do
+
+       ! list of molecules and associated attractors
+       write (lu,'(2X,"  ""number_of_molecules"": ",A,",")') string(sy%c%nmol)
+       write (lu,'(2X,"  ""molecules"": [{")')
+       do i = 1, sy%c%nmol
+          xcm = sy%c%mol(i)%cmass()
+          xcm = sy%c%c2x(xcm)
+
+          write (lu,'(2X,"    ""id"": ",A,",")') string(i)
+          write (lu,'(2X,"    ""center_of_mass"": [",2(A,","),A,"]",",")') &
+             (string(xcm(j),'f',decimal=14),j=1,3)
+          write (lu,'(2X,"    ""number_of_atoms"": ",A,",")') string(sy%c%mol(i)%nat)
+          write (lu,'(2X,"    ""atoms"": [{")')
+          l = 0
+          sump = 0d0
+          do j = 1, bas%nattr
+             if (idxmol(1,j) /= i) cycle
+             l = l + 1
+             call assign_strings(j,bas%icp(j),.false.,scp,sncp,sname,smult,sz)
+             x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
+
+             write (lu,'(2X,"      ""id"": ",A,",")') string(l)
+             write (lu,'(2X,"      ""attractor_id"": ",A,",")') string(j)
+             write (lu,'(2X,"      ""cell_cp"": ",A,",")') string(scp)
+             write (lu,'(2X,"      ""lvec"": [",2(A,","),A,"]",",")') &
+                (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k)),k=1,3)
+             write (lu,'(2X,"      ""nonequivalent_cp"": ",A,",")') string(sncp)
+             write (lu,'(2X,"      ""name"": """,A,""",")') string(sname)
+             write (lu,'(2X,"      ""atomic_number"": ",A,",")') string(sz)
+             write (lu,'(2X,"      ""fractional_coordinates"": [",2(A,","),A,"]")') &
+                (string(x(k),'f',decimal=14),k=1,3)
+             
+             do k = 1, nprop
+                sump(k) = sump(k) + res(nacprop(k))%psum(j)
+             end do
+
+             if (l < sy%c%mol(i)%nat) &
+                write (lu,'(2X,"    },{")')
+          end do
+          write (lu,'(2X,"    }],")')
+          
+          write (lu,'(2X,"    ""integrals"": [")')
+          do k = 1, nprop
+             if (k < nprop) then
+                write (lu,'(2X,"      ",A,",")') string(sump(k),'e',15,8,4)
+             else
+                write (lu,'(2X,"      ",A,"]")') string(sump(k),'e',15,8,4)
+             end if
+          end do
+
+          if (i < sy%c%nmol) &
+             write (lu,'(2X,"  },{")')
+       end do
+       write (lu,'(2X,"  }],")')
+
+       deallocate(nacprop,idxmol,sump)
+    end if
+    
+    ! integration options
+    if (bas%atexist) then
+       write (lu,'(2X,"  ""noatoms"": false,")') 
+    else
+       write (lu,'(2X,"  ""noatoms"": true,")') 
+    end if
+    if (len_trim(bas%expr) > 0) &
+       write (lu,'(2X,"  ""discard"": ",A,",")') string(bas%expr)
+    write (lu,'(2X,"  ""ratom"": ",A)') string(bas%ratom,'e',decimal=14)
+
+    ! wrap up
+    write (lu,'(2X"}")')
+    write (lu,'("}")')
+    call fclose(lu)
+
+  end subroutine int_output_json
 
   !> Assign strings for attractor i. icp is the CP identifier for the
   !> attractor. usesym controls whether the multiplicit will be
