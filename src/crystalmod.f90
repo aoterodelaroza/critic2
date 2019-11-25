@@ -606,7 +606,7 @@ module crystalmod
        character*(*), intent(in) :: file
        integer, intent(in), optional :: lu0
      end subroutine write_dftbp_gen
-     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00)
+     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
@@ -614,18 +614,21 @@ module crystalmod
        logical, intent(in) :: binary
        real*8, intent(in), optional :: xd0(3,3)
        real*8, intent(in), optional :: x00(3)
+       integer, intent(in), optional :: ishift0(3)
      end subroutine writegrid_cube
-     module subroutine writegrid_vasp(c,g,file,onlyheader)
+     module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
+       integer, intent(in), optional :: ishift0(3)
      end subroutine writegrid_vasp
-     module subroutine writegrid_xsf(c,g,file,onlyheader)
+     module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
+       integer, intent(in), optional :: ishift0(3)
      end subroutine writegrid_xsf
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c

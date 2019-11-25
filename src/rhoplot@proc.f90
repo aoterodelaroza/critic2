@@ -395,7 +395,7 @@ contains
     use global, only: eval_next, dunit0, iunit, fileroot
     use arithmetic, only: eval
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
-       isexpression_or_word, uout, string
+       isexpression_or_word, uout, string, isinteger
     use types, only: scalar_value
     use param, only: eye
     use iso_c_binding, only: c_loc
@@ -411,7 +411,7 @@ contains
     integer :: ix, iy, iz, i
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
-    integer :: outform
+    integer :: outform, ishift(3)
     type(grid3) :: faux
 
     integer, parameter :: outform_cube = 1
@@ -488,6 +488,7 @@ contains
     end if
 
     ! read additional options
+    ishift = 0
     nti = 0
     nder = 0
     prop = "f"
@@ -581,6 +582,14 @@ contains
           nti = 11
           prop = word
           nder = 2
+       else if (equal(word,'shift')) then
+          if (.not.dogrid) then
+             call ferror('rhoplot_cube','SHIFT can only be used with the GRID option in CUBE',faterr,line,syntax=.true.)
+             return
+          end if
+          ok = isinteger(ishift(1),line,lp)
+          ok = ok .and. isinteger(ishift(2),line,lp)
+          ok = ok .and. isinteger(ishift(3),line,lp)
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
           return
@@ -630,10 +639,11 @@ contains
        else
           faux = sy%f(id)%grid
        end if
+
        if (outform == outform_bincube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,.true.,xd,x0+sy%c%molx0)
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,.true.,xd0=xd,x00=x0+sy%c%molx0)
        elseif (outform == outform_cube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,.false.,xd,x0+sy%c%molx0)
+          call sy%c%writegrid_cube(faux%f,outfile,.false.,.false.,xd0=xd,x00=x0+sy%c%molx0,ishift0=ishift)
        elseif (outform == outform_vasp) then
           call sy%c%writegrid_vasp(faux%f,outfile,.false.)
        elseif (outform == outform_xsf) then
