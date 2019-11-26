@@ -2068,6 +2068,7 @@ contains
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("{")')
+    write (lu,'(2X,"""units"": ","""bohr"",")') 
     write (lu,'(2X,"""structure"": {")') 
     call sy%c%struct_write_json(lu,"  ")
     write (lu,'(2X,"},")')
