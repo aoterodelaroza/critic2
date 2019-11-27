@@ -73,7 +73,7 @@ src/TAGS
 imgui.ini
 
 # cmake 
-build/
+build*/
 CMakeCache.txt
 CMakeFiles
 cmake_install.cmake
