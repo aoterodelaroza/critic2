@@ -294,6 +294,7 @@ contains
     ! initialize
     n = sy%f(irho)%grid%n
     ntot = n(1)*n(2)*n(3)
+    write (uout,'("+ Grid size: ",3(A,X))') (string(n(i)),i=1,3)
 
     ! allocate the promolecular density
     dopro = .false.
@@ -493,8 +494,7 @@ contains
     avol = 0d0
     ml = 0d0
     write (uout,'("+ Calculating volumes and moments")')
-    !$omp parallel do private(x,ri,rhofree,raux1,raux2,rhot,&
-    !$omp   wei,db,ri2,db2,i,j,k,l,ll,mll,avoll)
+    !$omp parallel do private(x,ri,rhofree,raux1,raux2,rhot,wei,db,ri2,db2,i,j,k,l,ll,mll,avoll)
     do iat = 1, sy%c%nneq
        mll = 0d0
        avoll = 0d0
@@ -1712,6 +1712,7 @@ contains
 
     integer :: igrad
     real*8, allocatable :: g(:,:,:)
+    real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
 
     ! check that the fields are good
     if (.not.sy%f(ielf)%isinit) &
@@ -1738,7 +1739,7 @@ contains
     
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
     g = sqrt(1d0 / max(min(sy%f(ielf)%grid%f,1d0),1d-14) - 1d0)
-    g = g * (3d0/10d0 * (3d0*pi**2)**(2d0/3d0) * max(sy%f(irho)%grid%f,0d0)**(5d0/3d0))
+    g = g * (ctf * max(sy%f(irho)%grid%f,0d0)**(5d0/3d0))
     g = g + 0.125d0 * sy%f(igrad)%grid%f**2 / sy%f(irho)%grid%f
     call move_alloc(g,sy%f(itau)%grid%f)
 
