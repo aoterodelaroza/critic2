@@ -155,9 +155,9 @@ contains
        end do
     end if
 
-    if (cgrid(iz,iq)%isinit .and. cgrid(iz,iq)%z == iz .and. &
-       cgrid(iz,iq)%qat == iq) return
-    
+    if (cgrid(iz,iq)%isinit) then
+       if(cgrid(iz,iq)%z == iz .and. cgrid(iz,iq)%qat == iq) return
+    end if
     call cgrid(iz,iq)%read_db(iz,iq)
 
   end subroutine grid1_register_core

@@ -1256,6 +1256,7 @@ contains
        iz = e%spc(i)%z
        if (iz == 0 .or. iz > maxzat) cycle
        if (iscore) then
+          if (zpsp(iz) <= 0) cycle
           g => cgrid(iz,zpsp(iz))
        else
           g => agrid(iz)
@@ -1299,6 +1300,7 @@ contains
        if (r > cutrad(iz)) cycle
 
        if (iscore) then
+          if (zpsp(iz) <= 0) cycle
           g => cgrid(iz,zpsp(iz))
        else
           g => agrid(iz)
