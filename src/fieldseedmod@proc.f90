@@ -59,6 +59,7 @@ contains
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
+       ifformat_as_resample,&
        ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
        ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
     class(fieldseed), intent(inout) :: f
@@ -364,6 +365,36 @@ contains
                 f%isry = .true.
              else
                 call backtrack()
+             end if
+          end if
+
+       elseif (equal(lword,"resample")) then
+          f%iff = ifformat_as_resample
+          call read_next_as_word()
+          if (len_trim(word) < 1) then
+             call f%end()
+             f%errmsg = "wrong field id in load as resample"
+             return
+          end if
+          f%ids = word
+          call read_next_as_word()
+          if (equal(lword,"sizeof")) then
+             call read_next_as_word()
+             if (len_trim(word) < 1) then
+                call f%end()
+                f%errmsg = "wrong sizeof in load as"
+                return
+             end if
+             f%ids = word
+          else
+             call backtrack()
+             ok = eval_next(f%n(1),line,lp)
+             ok = ok .and. eval_next(f%n(2),line,lp)
+             ok = ok .and. eval_next(f%n(3),line,lp)
+             if (.not.ok) then
+                call f%end()
+                f%errmsg = "wrong size specification in load as"
+                return
              end if
           end if
 

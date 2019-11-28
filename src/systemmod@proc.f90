@@ -433,7 +433,7 @@ contains
     use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
        ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
-       ifformat_as, mlen
+       ifformat_as, ifformat_as_resample, mlen
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
@@ -525,11 +525,12 @@ contains
           return
        end if
     elseif (seed%iff == ifformat_as_lap .or. seed%iff == ifformat_as_grad .or.&
-       seed%iff == ifformat_as_pot) then
-       ! load as lap/grad id.s
+       seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_resample) then
+       ! load as lap/grad/pot id.s
+       ! load as resample id.s n1.i n2.i n3.i
        oid = s%fieldname_to_idx(seed%ids)
        if (.not.s%goodfield(oid)) then
-          errmsg = "wrong source field in LOAD AS LAP/GRAD/POT"
+          errmsg = "wrong source field in LOAD AS LAP/GRAD/POT/RESAMPLE"
           return
        end if
        if (s%f(oid)%type == type_grid) then
@@ -542,7 +543,7 @@ contains
              return
           end if
           id = s%getfieldnum()
-          call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry)
+          call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry,seed%n)
        elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_lap) then
           id = s%getfieldnum()
           s%f(id) = s%f(oid)
@@ -553,9 +554,9 @@ contains
           call s%f(id)%elk%tolap()
        else
           if (seed%iff == ifformat_as_lap) then
-             errmsg = "LOAD AS LAP only with wien2k, elk and grid fields"
+             errmsg = "LOAD AS LAP can only be used with wien2k, elk, and grid fields"
           else
-             errmsg = "LOAD AS GRAD and POT only with grids}"
+             errmsg = "LOAD AS GRAD/POT/RESAMPLE can only be uesd with grid fields"
           end if
           return
        end if

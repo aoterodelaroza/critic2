@@ -156,7 +156,7 @@ module fieldmod
        character*(*), intent(in) :: name
        type(fragment), intent(in), optional :: fr
      end subroutine load_promolecular
-     module subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_)
+     module subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_,n)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
@@ -164,6 +164,7 @@ module fieldmod
        type(grid3), intent(in) :: g
        integer, intent(in) :: ityp
        logical, intent(in), optional :: isry_
+       integer, intent(in), optional :: n(3)
      end subroutine load_as_fftgrid
      recursive module subroutine grd(f,v,nder,res,fder,periodic)
        class(field), intent(inout) :: f

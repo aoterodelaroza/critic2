@@ -219,6 +219,7 @@ contains
   !> structure pointer, the ID of the new field in the system (id)
   !> and the parent system's C pointer (sptr). If an error was 
   !> found, returns a non-zero-length error message (errmsg).
+  !> Some new fields are handled at system level (see load_field_string).
   module subroutine field_new(f,seed,c,id,sptr,errmsg)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
@@ -231,7 +232,8 @@ contains
        ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
-       ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
+       ifformat_as_pot, ifformat_as_resample,&
+       ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
        ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
@@ -467,7 +469,8 @@ contains
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
-       seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub) then
+       seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub .or.&
+       seed%iff == ifformat_as_resample) then
        errmsg = "error in file format for field_new"
        call f%end()
        return
@@ -555,14 +558,20 @@ contains
 
   end subroutine load_promolecular
 
-  !> Load field as a transformation of the 3d grid given in g. ityp:
-  !> type of transformation to perform (uses the ifformat_as_* flags
-  !> in param.F90). 
-  module subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_)
+  !> Load field as a transformation of the 3d grid given in g. The
+  !> transformation is given by ityp (ifformat_as_* flags in param).
+  !> The resulting field is returned in f. The crystal structure (c)
+  !> is used to inform the transformation. id and name are the
+  !> numerical id and name of the new field. If ifformat_as_pot and
+  !> isry_ is present and true, the output potential is in Rydberg. If
+  !> ifformat_as_resample, the optional argument n contains the size
+  !> of the resample grid, and it is mandatory.
+  module subroutine load_as_fftgrid(f,c,id,name,g,ityp,isry_,n)
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
     use param, only: ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
-       ifformat_as_hxx1, ifformat_as_hxx2, ifformat_as_hxx3
+       ifformat_as_hxx1, ifformat_as_hxx2, ifformat_as_hxx3, ifformat_as_resample
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
@@ -570,11 +579,15 @@ contains
     type(grid3), intent(in) :: g
     integer, intent(in) :: ityp
     logical, intent(in), optional :: isry_
+    integer, intent(in), optional :: n(3)
 
     logical :: isry
 
     isry = .false.
     if (present(isry_)) isry = isry_
+
+    if (ityp == ifformat_as_resample .and..not.present(n)) &
+       call ferror("load_as_fftgrid","need size for fft resample",faterr)
 
     if (.not.c%isinit) return
     call f%end()
@@ -594,6 +607,8 @@ contains
        call f%grid%hxx(g,2,c%m_x2c)
     elseif (ityp == ifformat_as_hxx3) then
        call f%grid%hxx(g,3,c%m_x2c)
+    elseif (ityp == ifformat_as_resample) then
+       call f%grid%resample(g,n)
     end if
     f%usecore = .false. 
     f%numerical = .false. 
