@@ -1030,7 +1030,7 @@ contains
                 fint = sy%f(fid)%grid%f
              elseif (sy%propi(k)%itype == itype_lapval .or.&
                 sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
-                call faux%laplacian(sy%f(fid)%grid,sy%c%m_x2c)
+                call faux%laplacian_hxx(sy%f(fid)%grid,sy%c%m_x2c,0)
                 fint = faux%f
              elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
                 call faux%gradrho(sy%f(fid)%grid,sy%c%m_x2c)

@@ -1136,24 +1136,22 @@ contains
 
   end subroutine interp
 
-  !> Given the grid field in frho calculate the laplacian in flap
-  !> using FFT. x2c is the crystallographic to Cartesian matrix for
-  !> this grid.
-  module subroutine laplacian(flap,frho,x2c)
+  !> Given the grid field in frho calculate the laplacian or Hessian
+  !> derivatives of frho with FFT and save them in flap. x2c is the
+  !> crystallographic to Cartesian matrix for this grid. ix can be 
+  !> one of 0 (lap), 1 (hxx), 2 (hyy), 3 (hzz).
+  module subroutine laplacian_hxx(flap,frho,x2c,ix)
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
     use param, only: pi
     class(grid3), intent(inout) :: flap
     type(grid3), intent(in) :: frho
     real*8, intent(in) :: x2c(3,3)
+    integer, intent(in) :: ix
 
-    integer :: n(3), i1, i2, i3
-
+    integer :: n(3), i1, i2, i3, ntot, igfft
     complex*16, allocatable :: zaux(:)
-    real*8 :: bvec(3,3), vol
-    integer :: ig, ntot
-    integer :: j1, j2, j3
-    integer, allocatable :: ivg(:,:), igfft(:)
+    real*8 :: bvec(3,3)
     real*8, allocatable :: vgc(:,:)
 
     call flap%end()
@@ -1166,66 +1164,49 @@ contains
     flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
-    allocate(zaux(ntot))
 
-    ! bvec
+    ! reciprocal lattice vectors
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det3(x2c))
-    bvec = 2d0 * pi / vol * bvec
+    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
 
-    allocate(ivg(3,ntot))
-    ig = 0
+    ! prepare the vectors
+    allocate(vgc(3,ntot))
     do i1 = n(1)/2-n(1)+1, n(1)/2
        do i2 = n(2)/2-n(2)+1, n(2)/2
           do i3 = n(3)/2-n(3)+1, n(3)/2
-             ig = ig + 1
-             ivg(1,ig)=i1
-             ivg(2,ig)=i2
-             ivg(3,ig)=i3
+             igfft = modulo(i3,n(3))*n(2)*n(1)+modulo(i2,n(2))*n(1)+modulo(i1,n(1))+1
+             vgc(:,igfft)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
           end do
        end do
     end do
-    allocate(igfft(ntot),vgc(3,ntot))
-    do ig = 1, ntot
-       i1=ivg(1,ig)
-       i2=ivg(2,ig)
-       i3=ivg(3,ig)
-       if (i1>=0) then
-          j1=i1
-       else
-          j1=n(1)+i1
-       end if
-       if (i2>=0) then
-          j2=i2
-       else
-          j2=n(2)+i2
-       end if
-       if (i3>=0) then
-          j3=i3
-       else
-          j3=n(3)+i3
-       end if
-       igfft(ig)=j3*n(2)*n(1)+j2*n(1)+j1+1
-       vgc(:,ig)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
-    end do
 
+    ! allocate the work array and do the FT
+    allocate(zaux(ntot))
     zaux = 0d0
     zaux = reshape(frho%f,shape(zaux))
     call cfftnd(3,n,-1,zaux)
 
-    do ig = 1, ntot
-       zaux(igfft(ig)) = -dot_product(vgc(:,ig),vgc(:,ig)) * zaux(igfft(ig))
-    end do
+    ! calculate the derivative in reciprocal space
+    if (ix == 0) then
+       do igfft = 1, ntot
+          zaux(igfft) = -dot_product(vgc(:,igfft),vgc(:,igfft)) * zaux(igfft)
+       end do
+    else
+       do igfft = 1, ntot
+          zaux(igfft) = -vgc(ix,igfft) * vgc(ix,igfft) * zaux(igfft)
+       end do
+    end if
+    deallocate(vgc)
 
+    ! FT back to real space
     call cfftnd(3,n,+1,zaux)
     allocate(flap%f(n(1),n(2),n(3)))
     flap%f = real(reshape(real(zaux,8),shape(flap%f)),8)
+    deallocate(zaux)
 
-    deallocate(igfft,vgc,ivg,zaux)
-
-  end subroutine laplacian
+  end subroutine laplacian_hxx
 
   !> Calculate the gradient norm of a scalar field using FFT. x2c is
   !> the crystallographic to Cartesian matrix for this grid.
@@ -1237,12 +1218,10 @@ contains
     type(grid3), intent(in) :: frho
     real*8, intent(in) :: x2c(3,3)
 
-    integer :: n(3), i, i1, i2, i3, nr1, nr2, iq1, iq2, n12
+    integer :: n(3), i, i1, i2, i3, ntot, igfft
     complex*16, allocatable :: zaux(:)
-    real*8 :: bvec(3,3), vol
-    real*8 :: vgc
-    integer :: ig, ntot
-    integer :: j1, j2, j3, igfft
+    real*8 :: bvec(3,3)
+    real*8, allocatable :: vgc(:,:)
 
     call fgrho%end()
     if (.not.frho%isinit) &
@@ -1254,53 +1233,45 @@ contains
     fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
-    allocate(zaux(ntot))
 
-    ! bvec
+    ! reciprocal lattice vectors
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det3(x2c))
-    bvec = 2d0 * pi / vol * bvec
+    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
 
-    n12 = n(1)*n(2)
-    allocate(fgrho%f(n(1),n(2),n(3)))
+    ! prepare the vectors
+    allocate(vgc(3,ntot))
+    do i1 = n(1)/2-n(1)+1, n(1)/2
+       do i2 = n(2)/2-n(2)+1, n(2)/2
+          do i3 = n(3)/2-n(3)+1, n(3)/2
+             igfft = modulo(i3,n(3))*n(2)*n(1)+modulo(i2,n(2))*n(1)+modulo(i1,n(1))+1
+             vgc(:,igfft)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
+          end do
+       end do
+    end do
+
+    ! allocate work space and final grid
+    allocate(zaux(ntot),fgrho%f(n(1),n(2),n(3)))
+    zaux = 0d0
     fgrho%f = 0d0
+
     do i = 1, 3
+       ! FT the source grid to reciprocal space
        zaux = reshape(frho%f,shape(zaux))
        call cfftnd(3,n,-1,zaux)
 
-       do ig = 1, ntot
-          iq1 = (ig-1) / (n(2)*n(3))
-          i1 = iq1 - n(1)/2 + 1
-          nr1 = (ig-1) - n(2)*n(3) * iq1
-          iq2 = nr1 / n(3)
-          i2 = iq2 - n(2)/2 + 1
-          nr2 = nr1 - n(3) * iq2
-          i3 = nr2 - n(3)/2 + 1
-          if (i1>=0) then
-             j1=i1
-          else
-             j1=n(1)+i1
-          end if
-          if (i2>=0) then
-             j2=i2
-          else
-             j2=n(2)+i2
-          end if
-          if (i3>=0) then
-             j3=i3
-          else
-             j3=n(3)+i3
-          end if
-          igfft=j3*n(2)*n(1)+j2*n(1)+j1+1
-          vgc = dble(i1)*bvec(i,1)+dble(i2)*bvec(i,2)+dble(i3)*bvec(i,3)
-          zaux(igfft) = vgc * cmplx(-aimag(zaux(igfft)),dble(zaux(igfft)),8)
+       ! calculate the derivative in reciprocal space
+       do igfft = 1, ntot
+          zaux(igfft) = vgc(i,igfft) * cmplx(-aimag(zaux(igfft)),dble(zaux(igfft)),8)
        end do
 
+       ! FT back to real space and accumulate
        call cfftnd(3,n,+1,zaux)
        fgrho%f = fgrho%f + (real(reshape(real(zaux,8),shape(fgrho%f)),8))**2
     end do
+
+    ! wrap up
     fgrho%f = sqrt(fgrho%f)
     deallocate(zaux)
 
@@ -1321,13 +1292,9 @@ contains
     real*8, intent(in) :: x2c(3,3)
     logical, intent(in) :: isry
 
-    integer :: n(3), i1, i2, i3
-
+    integer :: n(3), i1, i2, i3, ntot, igfft
     complex*16, allocatable :: zaux(:)
-    real*8 :: bvec(3,3), vol, vgc2
-    integer :: ig, ntot
-    integer :: j1, j2, j3
-    integer, allocatable :: ivg(:,:), igfft(:)
+    real*8 :: bvec(3,3), vgc2
     real*8, allocatable :: vgc(:,:)
 
     call fpot%end()
@@ -1340,64 +1307,41 @@ contains
     fpot%isinit = .true.
     fpot%mode = mode_default
     ntot = n(1) * n(2) * n(3)
-    allocate(zaux(ntot))
 
-    ! bvec
+    ! reciprocal lattice vectors
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
     bvec(:,2) = cross(x2c(:,1),x2c(:,3))
     bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det3(x2c))
-    bvec = 2d0 * pi / vol * bvec
+    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
 
-    allocate(ivg(3,ntot))
-    ig = 0
+    ! prepare the vectors
+    allocate(vgc(3,ntot))
     do i1 = n(1)/2-n(1)+1, n(1)/2
        do i2 = n(2)/2-n(2)+1, n(2)/2
           do i3 = n(3)/2-n(3)+1, n(3)/2
-             ig = ig + 1
-             ivg(1,ig)=i1
-             ivg(2,ig)=i2
-             ivg(3,ig)=i3
+             igfft = modulo(i3,n(3))*n(2)*n(1)+modulo(i2,n(2))*n(1)+modulo(i1,n(1))+1
+             vgc(:,igfft)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
           end do
        end do
     end do
-    allocate(igfft(ntot),vgc(3,ntot))
-    do ig = 1, ntot
-       i1=ivg(1,ig)
-       i2=ivg(2,ig)
-       i3=ivg(3,ig)
-       if (i1>=0) then
-          j1=i1
-       else
-          j1=n(1)+i1
-       end if
-       if (i2>=0) then
-          j2=i2
-       else
-          j2=n(2)+i2
-       end if
-       if (i3>=0) then
-          j3=i3
-       else
-          j3=n(3)+i3
-       end if
-       igfft(ig)=j3*n(2)*n(1)+j2*n(1)+j1+1
-       vgc(:,ig)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
-    end do
 
+    ! allocate the work array and do the FT
+    allocate(zaux(ntot))
     zaux = 0d0
     zaux = reshape(frho%f,shape(zaux))
     call cfftnd(3,n,-1,zaux)
 
-    do ig = 1, ntot
-       vgc2 = dot_product(vgc(:,ig),vgc(:,ig))
+    ! calculate the derivative in reciprocal space
+    do igfft = 1, ntot
+       vgc2 = dot_product(vgc(:,igfft),vgc(:,igfft))
        if (vgc2 < 1d-12) then
-          zaux(igfft(ig)) = 0d0
+          zaux(igfft) = 0d0
        else
-          zaux(igfft(ig)) = -zaux(igfft(ig)) / vgc2
+          zaux(igfft) = -zaux(igfft) / vgc2
        end if
     end do
 
+    ! FT back to real space
     call cfftnd(3,n,+1,zaux)
     allocate(fpot%f(n(1),n(2),n(3)))
     if (isry) then
@@ -1406,101 +1350,9 @@ contains
        fpot%f = -4d0 * pi * real(reshape(real(zaux,8),shape(fpot%f)),8)
     end if
 
-    deallocate(igfft,vgc,ivg,zaux)
+    deallocate(vgc,zaux)
 
   end subroutine pot
-
-  !> Given the grid field in frho, calculate the diagonal component ix
-  !> (x=1,y=2,z=3) of the Hessian using FFT in fxx. x2c is the
-  !> crystallographic to Cartesian matrix for this grid.
-  module subroutine hxx(fxx,frho,ix,x2c)
-    use tools_io, only: ferror, faterr
-    use tools_math, only: det3, cross
-    use param, only: pi
-    class(grid3), intent(inout) :: fxx
-    type(grid3), intent(in) :: frho
-    integer, intent(in) :: ix
-    real*8, intent(in) :: x2c(3,3)
-
-    integer :: n(3), i1, i2, i3
-
-    complex*16, allocatable :: zaux(:)
-    real*8 :: bvec(3,3), vol
-    integer :: ig, ntot
-    integer :: j1, j2, j3
-    integer, allocatable :: ivg(:,:), igfft(:)
-    real*8, allocatable :: vgc(:,:)
-
-    call fxx%end()
-    if (.not.frho%isinit) &
-       call ferror('hxx','no density grid',faterr)
-
-    ! allocate slot
-    n = frho%n    
-    fxx%n = n
-    fxx%isinit = .true.
-    fxx%mode = mode_default
-    ntot = n(1) * n(2) * n(3)
-    allocate(zaux(ntot))
-
-    ! bvec
-    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
-    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
-    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    vol = abs(det3(x2c))
-    bvec = 2d0 * pi / vol * bvec
-
-    allocate(ivg(3,ntot))
-    ig = 0
-    do i1 = n(1)/2-n(1)+1, n(1)/2
-       do i2 = n(2)/2-n(2)+1, n(2)/2
-          do i3 = n(3)/2-n(3)+1, n(3)/2
-             ig = ig + 1
-             ivg(1,ig)=i1
-             ivg(2,ig)=i2
-             ivg(3,ig)=i3
-          end do
-       end do
-    end do
-    allocate(igfft(ntot),vgc(3,ntot))
-    do ig = 1, ntot
-       i1=ivg(1,ig)
-       i2=ivg(2,ig)
-       i3=ivg(3,ig)
-       if (i1>=0) then
-          j1=i1
-       else
-          j1=n(1)+i1
-       end if
-       if (i2>=0) then
-          j2=i2
-       else
-          j2=n(2)+i2
-       end if
-       if (i3>=0) then
-          j3=i3
-       else
-          j3=n(3)+i3
-       end if
-       igfft(ig)=j3*n(2)*n(1)+j2*n(1)+j1+1
-       vgc(:,ig)=dble(i1)*bvec(:,1)+dble(i2)*bvec(:,2)+dble(i3)*bvec(:,3)
-    end do
-
-    zaux = 0d0
-    zaux = reshape(frho%f,shape(zaux))
-    call cfftnd(3,n,-1,zaux)
-
-    do ig = 1, ntot
-       zaux(igfft(ig)) = -vgc(ix,ig) * vgc(ix,ig) * zaux(igfft(ig))
-    end do
-
-    call cfftnd(3,n,+1,zaux)
-    allocate(fxx%f(n(1),n(2),n(3)))
-    fxx%f = real(reshape(real(zaux,8),shape(fxx%f)),8)
-
-    deallocate(igfft,vgc,ivg,zaux)
-
-  end subroutine hxx
 
   !> Resample an input grid field (frho) to a new size given by n2
   !> using FFT.

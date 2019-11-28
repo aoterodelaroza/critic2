@@ -596,17 +596,17 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (ityp == ifformat_as_lap) then
-       call f%grid%laplacian(g,c%m_x2c)
+       call f%grid%laplacian_hxx(g,c%m_x2c,0)
     elseif (ityp == ifformat_as_grad) then
        call f%grid%gradrho(g,c%m_x2c)
     elseif (ityp == ifformat_as_pot) then
        call f%grid%pot(g,c%m_x2c,isry)
     elseif (ityp == ifformat_as_hxx1) then
-       call f%grid%hxx(g,1,c%m_x2c)
+       call f%grid%laplacian_hxx(g,c%m_x2c,1)
     elseif (ityp == ifformat_as_hxx2) then
-       call f%grid%hxx(g,2,c%m_x2c)
+       call f%grid%laplacian_hxx(g,c%m_x2c,2)
     elseif (ityp == ifformat_as_hxx3) then
-       call f%grid%hxx(g,3,c%m_x2c)
+       call f%grid%laplacian_hxx(g,c%m_x2c,3)
     elseif (ityp == ifformat_as_resample) then
        call f%grid%resample(g,n)
     end if

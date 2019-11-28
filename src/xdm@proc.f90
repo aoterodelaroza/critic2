@@ -363,7 +363,7 @@ contains
     if (ilap < 0 .and. ib < 0) then
        ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
-       call sy%f(ilap)%grid%laplacian(sy%f(irho)%grid,sy%c%m_x2c)
+       call sy%f(ilap)%grid%laplacian_hxx(sy%f(irho)%grid,sy%c%m_x2c,0)
        sy%f(ilap)%isinit = .true.
        ! write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
        ! call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
@@ -1707,7 +1707,6 @@ contains
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
     use tools_io, only: ferror, faterr, string, fclose
-    use param, only: pi
     integer, intent(in) :: ielf, irho, itau
 
     integer :: igrad
