@@ -27,6 +27,45 @@ submodule (grid3mod) proc
   ! function grid_floor(f,x) result(res)
   ! subroutine init_trispline(f)
 
+  ! Notes about the 3D-FFT order of the array elements.
+  ! - cfftnd accepts a 1D array representing the 3D array in Fortran
+  !   memory order (i.e. reshape can be used).
+  !
+  ! - An element of this array is:
+  !     igfft = j3*n(2)*n(1)+j2*n(1)+j1+1
+  !   where jx: 1 -> nx. 
+  ! 
+  ! - The jx: 1 -> nx are recentered to ix: -nx+nx/2+1 -> nx/2 via
+  !   the operation:
+  !   jx = modulo(ix,n(x))
+  !   i.e. the jx > nx/2 have nx subtracted from them to make ix.
+  !
+  ! - The reciprocal-space lattice vector for a given set of ix is:
+  !     vgc = i1 * (a*) + i2 * (b*) + i3 * (c*)
+  !   where
+  !     a* = 2 * pi * cross(c,b) / vol
+  !     b* = 2 * pi * cross(a,c) / vol
+  !     c* = 2 * pi * cross(b,a) / vol
+  !     with vol = abs(det3(x2c)) = a * cross(b,c)
+  !
+  ! - To run over all ix and jx (ntot = n1 * n2 * n3):
+  !
+  !   do ig = 1, ntot
+  !     i3 = mod(ig-1,n(3)) + n(3)/2 - n(3) + 1
+  !     iaux = (ig-1 - (i3-1 + n(3) - n(3)/2)) / n(3)
+  !     i2 = mod(iaux,n(2)) + n(2)/2 - n(2) + 1
+  !     iaux = (iaux - (i2-1 + n(2) - n(2)/2)) / n(2)
+  !     i1 = iaux + n(1)/2 - n(1) + 1
+  !     j1 = modulo(i1,n(1))
+  !     j2 = modulo(i2,n(2))
+  !     j3 = modulo(i3,n(3))
+  !   end do
+  !
+  ! - To transform the ix back to the ig index:
+  !   ig = i3-1+n(3)-n(3)/2 + (i2-1+n(2)-n(2)/2) * n(3) + (i1-1+n(1)-n(1)/2) * n(3) * n(2) + 1
+  !
+  
+
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
     1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&  ! 1-16, 1
@@ -1462,8 +1501,6 @@ contains
   !> using FFT.
   module subroutine resample(frs,frho,n2)
     use tools_io, only: ferror, faterr
-    ! use tools_math, only: det3, cross
-    ! use param, only: pi
     class(grid3), intent(inout) :: frs
     type(grid3), intent(in) :: frho
     integer, intent(in) :: n2(3)
