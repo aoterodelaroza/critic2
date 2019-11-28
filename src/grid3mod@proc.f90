@@ -1149,7 +1149,7 @@ contains
 
     integer :: n(3), i1, i2, i3
 
-    complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
+    complex*16, allocatable :: zaux(:)
     real*8 :: bvec(3,3), vol
     integer :: ig, ntot
     integer :: j1, j2, j3
@@ -1166,6 +1166,7 @@ contains
     flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
+    allocate(zaux(ntot))
 
     ! bvec
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
@@ -1222,7 +1223,7 @@ contains
     allocate(flap%f(n(1),n(2),n(3)))
     flap%f = real(reshape(real(zaux,8),shape(flap%f)),8)
 
-    deallocate(igfft,vgc,ivg)
+    deallocate(igfft,vgc,ivg,zaux)
 
   end subroutine laplacian
 
@@ -1237,7 +1238,7 @@ contains
     real*8, intent(in) :: x2c(3,3)
 
     integer :: n(3), i, i1, i2, i3, nr1, nr2, iq1, iq2, n12
-    complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
+    complex*16, allocatable :: zaux(:)
     real*8 :: bvec(3,3), vol
     real*8 :: vgc
     integer :: ig, ntot
@@ -1253,6 +1254,7 @@ contains
     fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
+    allocate(zaux(ntot))
 
     ! bvec
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
@@ -1300,6 +1302,7 @@ contains
        fgrho%f = fgrho%f + (real(reshape(real(zaux,8),shape(fgrho%f)),8))**2
     end do
     fgrho%f = sqrt(fgrho%f)
+    deallocate(zaux)
 
   end subroutine gradrho
 
@@ -1320,7 +1323,7 @@ contains
 
     integer :: n(3), i1, i2, i3
 
-    complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
+    complex*16, allocatable :: zaux(:)
     real*8 :: bvec(3,3), vol, vgc2
     integer :: ig, ntot
     integer :: j1, j2, j3
@@ -1337,6 +1340,7 @@ contains
     fpot%isinit = .true.
     fpot%mode = mode_default
     ntot = n(1) * n(2) * n(3)
+    allocate(zaux(ntot))
 
     ! bvec
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
@@ -1402,7 +1406,7 @@ contains
        fpot%f = -4d0 * pi * real(reshape(real(zaux,8),shape(fpot%f)),8)
     end if
 
-    deallocate(igfft,vgc,ivg)
+    deallocate(igfft,vgc,ivg,zaux)
 
   end subroutine pot
 
@@ -1420,7 +1424,7 @@ contains
 
     integer :: n(3), i1, i2, i3
 
-    complex*16 :: zaux(frho%n(1)*frho%n(2)*frho%n(3))
+    complex*16, allocatable :: zaux(:)
     real*8 :: bvec(3,3), vol
     integer :: ig, ntot
     integer :: j1, j2, j3
@@ -1437,6 +1441,7 @@ contains
     fxx%isinit = .true.
     fxx%mode = mode_default
     ntot = n(1) * n(2) * n(3)
+    allocate(zaux(ntot))
 
     ! bvec
     bvec(:,1) = cross(x2c(:,3),x2c(:,2))
@@ -1493,7 +1498,7 @@ contains
     allocate(fxx%f(n(1),n(2),n(3)))
     fxx%f = real(reshape(real(zaux,8),shape(fxx%f)),8)
 
-    deallocate(igfft,vgc,ivg)
+    deallocate(igfft,vgc,ivg,zaux)
 
   end subroutine hxx
 
