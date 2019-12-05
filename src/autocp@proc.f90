@@ -1200,13 +1200,13 @@ contains
        (string(numclass(i)),string(multclass(i)),i=0,3)
     if (sy%c%ismolecule) then
        write (uout,'("  Poincare-Hopf sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
-       write (uout,'("# ncp   type   CPname              position (",A,")"//&
-                     "               name            f             |grad|           lap")') &
+       write (uout,'("# ncp   type   CPname              position (",A,")&
+                     &               name            f             |grad|           lap")') &
           string(iunitname0(iunit))
     else
        write (uout,'("  Morse sum: ",A)') string(multclass(0)-multclass(1)+multclass(2)-multclass(3))
-       write (uout,'("# ncp   pg  type   CPname         position (cryst. coords.)"//&
-                     "       mult  name            f             |grad|           lap")')
+       write (uout,'("# ncp   pg  type   CPname         position (cryst. coords.)&
+                     &       mult  name            f             |grad|           lap")')
     endif
 
     ! report
