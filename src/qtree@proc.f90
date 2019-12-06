@@ -1013,8 +1013,7 @@ contains
     call srf%clean()
     call srf%lebedev_nodes(nleb)
     !$omp parallel do &
-    !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist,plen) &
-    !$omp schedule(dynamic)
+    !$omp private(i,x0,rref,idum,doagain,j,unit,xx,nstep,ier,dist,plen)
     do ii = 1, ndo
        i = ido(ii)
        if (i <= sy%c%nneq) then

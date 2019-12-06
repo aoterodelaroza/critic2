@@ -58,8 +58,7 @@ contains
     qtotal = 0d0
     qerr = 0d0
     qat = 0d0
-    !$omp parallel do private (doagain,ishl,sum,ill,ivec,lvec,x,dist,rrho,rrho1,rrho2)&
-    !$omp schedule(dynamic)
+    !$omp parallel do private (doagain,ishl,sum,ill,ivec,lvec,x,dist,rrho,rrho1,rrho2)
     do iat = 1, sy%c%nneq
        doagain = .true.
        ishl = -1

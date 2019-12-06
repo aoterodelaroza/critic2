@@ -112,7 +112,7 @@ contains
 
   !   ! smooth out the regions inside the spheres
   !   write (*,*) "Calculating the smooth grid"
-  !   !$omp parallel do private(x0,x,d2) schedule(guided)
+  !   !$omp parallel do private(x0,x,d2)
   !   do ix = 1, f(4)%n(1)
   !      x0(1) = real(ix-1,8) / f(4)%n(1)
   !      do iy = 1, f(4)%n(2)
@@ -147,7 +147,7 @@ contains
   !      do j = 1, cr%ncel
   !         ssumf = 0d0
   !         ssums = 0d0
-  !         !$omp parallel do private(unit,rp,rw,rsumf,rsums,x,fs,ff,res,res2) schedule(guided)
+  !         !$omp parallel do private(unit,rp,rw,rsumf,rsums,x,fs,ff,res,res2)
   !         do k = 1, nleb
   !            unit = (/xleb(k),yleb(k),zleb(k)/)
   !            call gauleg(0d0,rsph(j),rp,rw,nr)

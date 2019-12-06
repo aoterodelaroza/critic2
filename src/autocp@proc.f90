@@ -689,7 +689,7 @@ contains
        nss = max(nn / 25,1)
        ndegenr = 0
        nrun = 0
-       !$omp parallel do private(ier,x0) schedule(dynamic)
+       !$omp parallel do private(ier,x0)
        do i = 1, nn
           !$omp critical (progress)
           nrun = nrun + 1
@@ -893,7 +893,7 @@ contains
           if (agraph) then
              if (allocated(xpath)) deallocate(xpath)
              allocate(xpath(1))
-             !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath) schedule(dynamic)
+             !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath)
              do i = sy%c%ncel+1, sy%f(sy%iref)%ncpcel
 
                 if (sy%f(sy%iref)%typnuc == -3 .and. sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
@@ -1908,7 +1908,7 @@ contains
       xplen = 0d0
 
       ! run over known non-equivalent cps  
-      !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen) schedule(dynamic)
+      !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen)
       do i = 1, f%ncp
          ! BCP/RCP paths
          if (abs(f%cp(i)%typ) == 1) then

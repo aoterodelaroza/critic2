@@ -986,7 +986,7 @@ contains
           if (first) call run_first_pass()
 
           ! compute weights and integrate the scalar field properties
-          !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
+          !$omp parallel do private(padd) firstprivate(w)
           do i = 1, bas%nattr
              if (bas%imtype == imtype_yt) then
                 call yt_weights(din=dat,idb=i,w=w)
@@ -1047,7 +1047,7 @@ contains
           if (fillgrd) then
              plmask = .false.
              plmask(k) = .true.
-             !$omp parallel do private(x,x2,lprop) schedule(dynamic)
+             !$omp parallel do private(x,x2,lprop)
              do i1 = 1, bas%n(1)
                 x(1) = real(i1-1,8) / bas%n(1)
                 do i2 = 1, bas%n(2)
@@ -1072,7 +1072,7 @@ contains
              res(k)%psum = 0d0
 
              ! compute weights and integrate the scalar field properties
-             !$omp parallel do private(padd) firstprivate(w) schedule(dynamic)
+             !$omp parallel do private(padd) firstprivate(w)
              do i = 1, bas%nattr
                 if (bas%imtype == imtype_yt) then
                    call yt_weights(din=dat,idb=i,w=w)
@@ -1102,7 +1102,7 @@ contains
 
              if (bas%imtype == imtype_bader) then
                 ! calcualate the multipoles, with bader
-                !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm) schedule(dynamic)
+                !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm)
                 do i1 = 1, bas%n(1)
                    p(1) = real(i1-1,8)
                    do i2 = 1, bas%n(2)
@@ -1124,7 +1124,7 @@ contains
                 !$omp end parallel do
              else
                 w = 0d0
-                !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm) schedule(dynamic)
+                !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm)
                 do m = 1, bas%nattr
                    call yt_weights(din=dat,idb=m,w=w)
                    do i1 = 1, bas%n(1)
@@ -1532,7 +1532,7 @@ contains
        if (allocated(res(l)%fa)) deallocate(res(l)%fa)
        allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
        res(l)%fa = 0d0
-       !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb) schedule(dynamic)
+       !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
        do i = 1, bas%nattr
           do j = 1, bas%nattr
              do is = 1, nspin
@@ -1782,7 +1782,7 @@ contains
              if (imtype == imtype_bader) then
                 ! bader integration
                 psic = 0d0
-                !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic) schedule(dynamic)
+                !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb) firstprivate(psic)
                 do imo = 1, nmo
                    call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
                    if (iba /= ibnd1) cycle
@@ -1816,7 +1816,7 @@ contains
                 w = 0d0
                 wmask = .false.
                 !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb)&
-                !$omp firstprivate(psic,psic2,w,wmask) schedule(dynamic)
+                !$omp firstprivate(psic,psic2,w,wmask)
                 do i = 1, natt1
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
@@ -2572,7 +2572,7 @@ contains
        if (bas%ndrawbasin > 0 .and. bas%ndrawbasin /= i) cycle
 
        nvert = 0
-       !$omp parallel do private(p,q,x,xd,d2) schedule(dynamic)
+       !$omp parallel do private(p,q,x,xd,d2)
        do i1 = 1, n(1)
           do i2 = 1, n(2)
              do i3 = 1, n(3)
@@ -2615,7 +2615,7 @@ contains
           call runqhull_basintriangulate_step2(nf,iface)
 
           ! orient the faces
-          !$omp parallel do private(x1,x2,iaux) schedule(dynamic)
+          !$omp parallel do private(x1,x2,iaux)
           do j = 1, nf
              x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
              x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))

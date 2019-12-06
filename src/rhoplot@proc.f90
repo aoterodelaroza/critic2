@@ -308,7 +308,7 @@ contains
     allocate(rhoout(np),lapout(np))
     lapout = 0d0
 
-    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt) schedule(dynamic)
+    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
@@ -660,7 +660,7 @@ contains
           lf = faux%f
           call faux%end()
        else
-          !$omp parallel do private (xp,res,lappt) schedule(dynamic)
+          !$omp parallel do private (xp,res,lappt)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
                 do ix = 0, nn(1)-1
@@ -976,7 +976,7 @@ contains
        nder = 2
     end if
 
-    !$omp parallel do private (xp,res,rhopt,iok) schedule(dynamic)
+    !$omp parallel do private (xp,res,rhopt,iok)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1502,7 +1502,7 @@ contains
        else
           nder = 2
        end if
-       !$omp parallel do private(xp,res,rhopt) schedule(dynamic)
+       !$omp parallel do private(xp,res,rhopt)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv

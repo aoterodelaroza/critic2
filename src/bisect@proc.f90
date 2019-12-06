@@ -1274,7 +1274,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
-    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(guided)
+    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen)
     do j = 1, srf%nv
        nwarn = 0
        ! skip surfed points
@@ -1498,7 +1498,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,riaprox,ok,xtemp,nstep,ier,&
-    !$omp  xin,xfin,xmed,nwarn,plen) schedule(guided)
+    !$omp  xin,xfin,xmed,nwarn,plen)
     do i = 1, srf%nv
        nwarn = 0
        ! skip surfed points

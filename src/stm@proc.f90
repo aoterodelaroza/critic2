@@ -152,7 +152,7 @@ contains
              trim(string(rcur,'e',9,3))
           write (uout,'("  In-plane points: ",A,", ",A)') &
              string(np1), string(np2)
-          !$omp parallel do private (xx,faux) schedule(dynamic)
+          !$omp parallel do private (xx,faux)
           do i = 1, np1
              do j = 1, np2
                 xx(ip1) = real(i-1,8)/np1
@@ -174,7 +174,7 @@ contains
           ! constant height
           write (uout,'("  Mode: constant height, ",A,"-axis coord. = ",A)') laxis(ix), trim(string(rhei,'f',8,4))
           write (uout,'("  In-plane points: ",A,", ",A)') string(np1), string(np2)
-          !$omp parallel do private (xx,faux) schedule(dynamic)
+          !$omp parallel do private (xx,faux)
           do i = 1, np1
              do j = 1, np2
                 xx(ip1) = real(i-1,8)/np1
@@ -286,7 +286,7 @@ contains
     else
        allocate(fl(nn))
        ! Calculate the STM signal along a line
-       !$omp parallel do private (xx,faux) schedule(dynamic)
+       !$omp parallel do private (xx,faux)
        do i = 1, nn
           xx(ip1) = x0(1) + (x1(1)-x0(1)) * real(i-1,8) / (nn-1)
           xx(ip2) = x0(2) + (x1(2)-x0(2)) * real(i-1,8) / (nn-1)

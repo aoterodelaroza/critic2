@@ -1544,7 +1544,7 @@ contains
 
     ! run over k-points
     ikg = 0
-    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0,xkpt) firstprivate(evc,rseq,raux,raux2) schedule(dynamic)
+    !$omp parallel do private(ik1,ik2,ik3,ilat,ik0,xkpt) firstprivate(evc,rseq,raux,raux2)
     do ik = 1, nk
        rseq = 0d0
        !$omp critical (readio)
