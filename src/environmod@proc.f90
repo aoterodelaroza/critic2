@@ -305,11 +305,13 @@ contains
       integer, intent(in) :: i1, i2, i3
 
       integer :: p(3), px(3)
-      real*8 :: xc(3), dd
+      real*8 :: xc(3), dd, rpx(3)
 
       do i = 1, n
          p = (/i1, i2, i3/)
-         px = nint(e%xr2x(real(p,8)))
+         rpx = real(p,8)
+         rpx = e%xr2x(rpx)
+         px = nint(rpx)
 
          x = e%at(i)%x + p
          xc = e%xr2c(x)
@@ -626,7 +628,7 @@ contains
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: epsmall2 = 1d-20
-    real*8 :: xp(3), x0r(3), x1r(3), d2, d2min, eps2, x(3), d0
+    real*8 :: xp(3), x0r(3), x1r(3), d2, d2min, eps2, x(3), d0, rlvec(3)
     integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
     
@@ -692,7 +694,9 @@ contains
     if (kmin > 0 .and. d2min < eps2) then
        cidx = e%at(kmin)%cidx
        dist = sqrt(d2min)
-       lvec = e%at(kmin)%lvec + nint(e%xr2x(real(lvec,8)))
+       rlvec = real(lvec,8)
+       rlvec = e%xr2x(rlvec)
+       lvec = e%at(kmin)%lvec + nint(rlvec)
        ierr = 0
     else
        cidx = 0
