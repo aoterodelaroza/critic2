@@ -35,6 +35,11 @@ option(USE_LIBCINT "Use the libcint library, if available." ON)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
 
+## the GUI needs -fPIC
+if (ENABLE_GUI)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 ## perform a static build
 if (BUILD_STATIC)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
