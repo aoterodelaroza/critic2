@@ -182,16 +182,16 @@ module tools_math
        logical, intent(in) :: allowr
        integer :: yy(3)
      end function lattice_direction
-     module subroutine eigsym(mat,n,eval)
-       integer, intent(in) :: n
-       real*8, intent(inout) :: mat(n,n)
-       real*8, intent(out), optional :: eval(:)
+     module subroutine eigsym(mat,n0,eval)
+       integer, intent(in) :: n0
+       real*8, intent(inout) :: mat(n0,n0)
+       real*8, intent(out), optional :: eval(n0)
      end subroutine eigsym
-     module subroutine eig(mat,n,eval,evali)
-       integer, intent(in) :: n
-       real*8, intent(inout) :: mat(n,n)
-       real*8, intent(out), optional :: eval(n)
-       real*8, intent(out), optional :: evali(n)
+     module subroutine eig(mat,n0,eval,evali)
+       integer, intent(in) :: n0
+       real*8, intent(inout) :: mat(n0,n0)
+       real*8, intent(out), optional :: eval(n0)
+       real*8, intent(out), optional :: evali(n0)
      end subroutine eig
      module subroutine rsindex(mat,ehess,r,s,eps)
        real*8, intent(inout)  :: mat(3,3)
@@ -226,14 +226,14 @@ module tools_math
        real*8, intent(in) :: m(3,3)
        real*8 :: det3
      end function det3
-     module subroutine matinv(m,n,ier)
-       integer, intent(in) :: n
-       real*8, intent(inout) :: m(n,n)
+     module subroutine matinv(m,n0,ier)
+       integer, intent(in) :: n0
+       real*8, intent(inout) :: m(n0,n0)
        integer, intent(out), optional :: ier
      end subroutine matinv
-     module subroutine matinvsym(m,n,ier)
-       integer, intent(in) :: n
-       real*8, intent(inout) :: m(n,n)
+     module subroutine matinvsym(m,n0,ier)
+       integer, intent(in) :: n0
+       real*8, intent(inout) :: m(n0,n0)
        integer, intent(out), optional :: ier
      end subroutine matinvsym
      module subroutine plane_scale_extend(x0,x1,x2,sxi,syi,zx0i,zx1i,zy0i,zy1i)

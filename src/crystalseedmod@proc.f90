@@ -1553,9 +1553,9 @@ contains
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
-    logical :: ok, iscar, first
+    logical :: ok, iscar
 
-    integer :: i, j, ier, nspcdone
+    integer :: i, j, ier
     real*8 :: scalex, scaley, scalez, scale
     real*8 :: rprim(3,3), gprim(3,3)
     real*8 :: omegaa
@@ -1614,81 +1614,65 @@ contains
     seed%useabr = 2
 
     ! For versions >= 5.2, a line indicating the atom types appears here
-    first = .true.
-    do while (.true.)
-       ok = getline_raw(lu,line,.false.)
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) goto 999
+    lp = 1
+    word = getword(line,lp)
+    if (zatguess(word) >= 0) then
+       ! An atom name has been read -> read the rest of the line
+       seed%nspc = 0
+       if (allocated(seed%spc)) deallocate(seed%spc)
+       allocate(seed%spc(2))
+       do while (zatguess(word) >= 0)
+          seed%nspc = seed%nspc + 1
+          if (seed%nspc > size(seed%spc,1)) &
+             call realloc(seed%spc,2*seed%nspc)
+          seed%spc(seed%nspc)%name = word
+          seed%spc(seed%nspc)%z = zatguess(word)
+          word = getword(line,lp)
+       end do
+       call realloc(seed%spc,seed%nspc)
+       ok = getline_raw(lu,line,.true.)
        if (.not.ok) goto 999
-       lp = 1
-       word = getword(line,lp)
-       if (zatguess(word) >= 0) then
-          ! An atom name has been read -> read the rest of the line
-          if (first) then
-             seed%nspc = 0
-             first = .false.
-             if (allocated(seed%spc)) deallocate(seed%spc)
-             allocate(seed%spc(2))
-          end if
-          do while (zatguess(word) >= 0)
-             seed%nspc = seed%nspc + 1
-             if (seed%nspc > size(seed%spc,1)) &
-                call realloc(seed%spc,2*seed%nspc)
-             seed%spc(seed%nspc)%name = word
-             seed%spc(seed%nspc)%z = zatguess(word)
-             word = getword(line,lp)
-          end do
-       else
-          if (seed%nspc == 0) then
-             errmsg = ""
-             hastypes = .false.
-             goto 999
-          end if
-          exit
+    else
+       if (seed%nspc == 0) then
+          errmsg = ""
+          hastypes = .false.
+          goto 999
        end if
-       hastypes = .true.
-    end do
-    call realloc(seed%spc,seed%nspc)
+    end if
+    hastypes = .true.
 
     ! read number of atoms of each type
-    if (allocated(seed%is)) deallocate(seed%is)
-    allocate(seed%is(10))
+    lp = 1
     seed%nat = 0
-    nspcdone = 0
-    main: do while(.true.)
-       lp = 1
+    allocate(seed%is(10))
+    do i = 1, seed%nspc
        ok = isinteger(nn,line,lp)
-       if (.not.ok) exit
-
-       lp = 1
-       do while(.true.)
-          ok = isinteger(nn,line,lp)
-          if (.not.ok) then
-             if (len_trim(line(lp:)) > 1) then
-                goto 999
-             else
-                exit
-             end if
-          end if
-
-          nspcdone = nspcdone + 1
-          do j = seed%nat+1, seed%nat+nn
-             if (j > size(seed%is)) &
-                call realloc(seed%is,2*(seed%nat+nn))
-             seed%is(j) = nspcdone
-          end do
-          seed%nat = seed%nat + nn
+       if (.not.ok) then
+          errmsg = "Too many atom types"
+          goto 999
+       end if
+       do j = seed%nat+1, seed%nat+nn
+          if (j > size(seed%is)) &
+             call realloc(seed%is,2*(seed%nat+nn))
+          seed%is(j) = i
        end do
-
-       ok = getline_raw(lu,line,.false.)
-       if (.not.ok) goto 999
-    end do main
-    if (nspcdone /= seed%nspc) then
-       errmsg = "read " // string(nspcdone) // " species but expected " // string(seed%nspc) // " species"
-       goto 999
-    end if
+       seed%nat = seed%nat + nn
+    end do
     allocate(seed%x(3,seed%nat))
     call realloc(seed%is,seed%nat)
 
+    ! check there are no more atoms in this line
+    nn = -1 
+    ok = isinteger(nn,line,lp)
+    if (ok .and. nn /= -1) then
+       errmsg = "Too few atom types"
+       goto 999
+    end if
+
     ! Read atomic positions (cryst. coords.)
+    read(lu,*,err=999) line
     line = adjustl(line)
     if (line(1:1) == 's' .or. line(1:1) == 'S') then
        read(lu,*,err=999) line
@@ -4056,7 +4040,7 @@ contains
     character(len=:), allocatable :: line
     character*10 :: sdum, atn
     character*40 :: sene
-    integer :: idum, iz, isz(maxzat0), idx, ier
+    integer :: idum, iz, isz(maxzat0), idx
     real*8 :: rdum, r(3,3), rtrans(3,3), dd
     logical :: ok
     ! interim copy of seed info

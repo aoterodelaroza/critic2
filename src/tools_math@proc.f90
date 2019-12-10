@@ -841,16 +841,17 @@ contains
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric
   !> matrix, mat. The eigenvectors are stored column-wise in mat.
   !> The eigenvalues, in ascending order, are returned in eval.
-  module subroutine eigsym(mat,n,eval)
+  module subroutine eigsym(mat,n0,eval)
     use tools_io, only: ferror, faterr
-    integer, intent(in) :: n
-    real*8, intent(inout) :: mat(n,n)
-    real*8, intent(out), optional :: eval(:)
+    integer, intent(in) :: n0
+    real*8, intent(inout) :: mat(n0,n0)
+    real*8, intent(out), optional :: eval(n0)
 
     real*8 :: onework(1)
-    integer :: lwork, info
+    integer :: lwork, info, n
     real*8, allocatable :: work(:)
 
+    n = n0
     lwork = -1
     call dsyev('V','U',n,mat,n,eval,onework,lwork,info)
     if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
@@ -869,17 +870,18 @@ contains
   !> form a conjugate pair, the eigenvectors are:
   !>   mat(:,j) + i * mat(:,j+1)
   !>   mat(:,j) - i * mat(:,j+1)
-  module subroutine eig(mat,n,eval,evali)
+  module subroutine eig(mat,n0,eval,evali)
     use tools_io, only: ferror, faterr
-    integer, intent(in) :: n
-    real*8, intent(inout) :: mat(n,n)
-    real*8, intent(out), optional :: eval(n)
-    real*8, intent(out), optional :: evali(n)
+    integer, intent(in) :: n0
+    real*8, intent(inout) :: mat(n0,n0)
+    real*8, intent(out), optional :: eval(n0)
+    real*8, intent(out), optional :: evali(n0)
 
     real*8 :: onework(1)
     real*8, allocatable :: ares(:,:), work(:)
     integer :: lwork, info, n
 
+    n = n0
     allocate(ares(n,n))
     lwork = -1
     call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,onework,lwork,info)
@@ -981,16 +983,17 @@ contains
 
   !> Invert an nxn real general matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.
-  module subroutine matinv(m,n,ier)
-    integer, intent(in) :: n
-    real*8, intent(inout) :: m(n,n)
+  module subroutine matinv(m,n0,ier)
+    integer, intent(in) :: n0
+    real*8, intent(inout) :: m(n0,n0)
     integer, intent(out), optional :: ier
     
     integer :: lwork
     real*8 :: onework(1)
     real*8, allocatable :: work(:)
-    integer :: ipiv(n), info
+    integer :: ipiv(n0), info, n
 
+    n = n0
     ! LU factorization
     call dgetrf(n,n,m,n,ipiv,info)
     if (info /= 0) goto 999
@@ -1016,17 +1019,18 @@ contains
 
   !> Invert an nxn real symmetric matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.
-  module subroutine matinvsym(m,n,ier)
-    integer, intent(in) :: n
-    real*8, intent(inout) :: m(n,n)
+  module subroutine matinvsym(m,n0,ier)
+    integer, intent(in) :: n0
+    real*8, intent(inout) :: m(n0,n0)
     integer, intent(out), optional :: ier
     
     integer :: lwork
     real*8, allocatable :: work(:)
     real*8 :: onework(1)
-    integer :: ipiv(n)
+    integer :: ipiv(n0), n
     integer :: i, j, info
 
+    n = n0
     ! allocate work space for LDL^T factorization
     lwork = -1
     call dsytrf('L',n,m,n,ipiv,onework,lwork,info)
