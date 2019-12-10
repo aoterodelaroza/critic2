@@ -986,8 +986,8 @@ contains
     ismore = (len_trim(aux) > 0)
 
     ! check if it is a single-word command
+    isstress = .false.
     if (.not.ismore) then
-       isstress = .false.
        if (equal(lword,'clear')) then
           call s%set_default_pointprop()
           return
