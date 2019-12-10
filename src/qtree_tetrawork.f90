@@ -39,14 +39,14 @@ module qtree_tetrawork
        integer, intent(in) :: iiv(3,4)
        integer, intent(in) :: il
        integer(qtreei), intent(inout) :: trm(:,:)
-       real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:), vgr(:)
+       real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
        real*8, intent(inout) :: acum_atprop(:,:)
      end subroutine tetrah_subdivide
      module function term_rec(base_t,iver,l,trm,fgr,lapgr)
        use qtree_basic, only: qtreei, qtreer
        integer, intent(in) :: base_t, iver(3), l
        integer(qtreei), intent(inout) :: trm(:,:)
-       real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:)
+       real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:)
        integer :: term_rec
      end function term_rec
      module subroutine tetrah_paint(base_t,iv,l,color,trm)
@@ -93,7 +93,7 @@ module qtree_tetrawork
        integer, intent(in) :: iv(3,4)
        integer, intent(in) :: l
        integer, intent(in) :: ts(4)
-       real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:)
+       real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:)
        real*8, intent(inout) :: acum_atprop(:,:)
      end subroutine integ_corner
      module subroutine integ_corner_deferred(base_t,iv,l,ts,vgr)
@@ -102,13 +102,13 @@ module qtree_tetrawork
        integer, intent(in) :: iv(3,4)
        integer, intent(in) :: l
        integer, intent(in) :: ts(4)
-       real(qtreer), intent(inout) :: vgr(:)
+       real(qtreer), intent(inout), allocatable :: vgr(:)
      end subroutine integ_corner_deferred
      module subroutine integ_corner_sum(base_t,trm,vgr,acum_atprop)
        use qtree_basic, only: qtreei, qtreer
        integer, intent(in) :: base_t
        integer(qtreei), intent(inout) :: trm(:,:)
-       real(qtreer), intent(inout) :: vgr(:)
+       real(qtreer), intent(inout), allocatable :: vgr(:)
        real*8, intent(inout) :: acum_atprop(:,:)
      end subroutine integ_corner_sum
      module subroutine paint_inside_spheres(tt,tto,trm)

@@ -37,7 +37,7 @@ contains
     integer, intent(in) :: iiv(3,4)
     integer, intent(in) :: il
     integer(qtreei), intent(inout) :: trm(:,:)
-    real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:), vgr(:)
+    real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, intent(inout) :: acum_atprop(:,:)
     
     integer :: i, j, unk, ats(4)
@@ -251,7 +251,7 @@ contains
 
     integer, intent(in) :: base_t, iver(3), l
     integer(qtreei), intent(inout) :: trm(:,:)
-    real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:)
+    real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:)
     integer :: term_rec
 
     integer :: j, ier
@@ -1295,7 +1295,7 @@ contains
     integer, intent(in) :: iv(3,4)
     integer, intent(in) :: l
     integer, intent(in) :: ts(4)
-    real(qtreer), intent(inout) :: fgr(:,:), lapgr(:,:)
+    real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:)
     real*8, intent(inout) :: acum_atprop(:,:)
 
     integer :: unk
@@ -1394,7 +1394,7 @@ contains
     integer, intent(in) :: iv(3,4)
     integer, intent(in) :: l
     integer, intent(in) :: ts(4)
-    real(qtreer), intent(inout) :: vgr(:)
+    real(qtreer), intent(inout), allocatable :: vgr(:)
 
     integer :: unk, i
     integer(qtreeidx) :: idx
@@ -1423,7 +1423,7 @@ contains
     
     integer, intent(in) :: base_t
     integer(qtreei), intent(inout) :: trm(:,:)
-    real(qtreer), intent(inout) :: vgr(:)
+    real(qtreer), intent(inout), allocatable :: vgr(:)
     real*8, intent(inout) :: acum_atprop(:,:)
     
     integer :: i, j, k, l2, vin(3)
