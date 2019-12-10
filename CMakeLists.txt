@@ -11,9 +11,10 @@ string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
 
 ## global flags for cmake
 set(CMAKE_VERBOSE_MAKEFILE ON)
-include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+include(GNUInstallDirs)
+include(utils)
 
 ## default build type, and type options
 if(NOT CMAKE_BUILD_TYPE)
@@ -57,8 +58,8 @@ endif()
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
   set(FFLAGS_RELEASE "-O3")
-  if (${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 19.0.0)
-    set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
+  if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 19.5.0)
+    set(_message "\nA version of intel fortran >=19.5 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
       "for more information.\n")
     message(FATAL_ERROR ${_message})
@@ -69,7 +70,7 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
   if (NOT ${CMAKE_CROSSCOMPILING})
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-rdynamic")
   endif()
-  if (${CMAKE_Fortran_COMPILER_VERSION} VERSION_LESS 6.0.0)
+  if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 6.0.0)
     set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
       "for more information.\n")
