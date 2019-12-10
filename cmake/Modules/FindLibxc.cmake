@@ -37,6 +37,16 @@ if (NOT LIBXC_FOUND)
   set(LIBXC_DIR "" CACHE STRING "Directory containing the libxc library (>=4.1).")
 endif()
 
+## check whether we can compile against it
+if (LIBXC_FOUND)
+  try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90" 
+    LINK_LIBRARIES ${LIBXC_xc_LIBRARY}  ${LIBXC_xcf90_LIBRARY} 
+    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${LIBXC_INCLUDE_DIRS}")
+  if (NOT LIBXC_FOUND)
+    message(STATUS "Found libxc (lib=${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")
+  endif()
+endif()
+
 ## Get libxc version, from scibuilder, https://github.com/scibuilder/SciBuilder
 if(LIBXC_INCLUDE_DIRS)
   file(READ "${LIBXC_INCLUDE_DIRS}/xc_version.h" _libxc_version_header)
