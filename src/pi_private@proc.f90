@@ -69,6 +69,7 @@ contains
     real*8, parameter :: b = 0.002
     real*8, parameter :: pi_cutdens = 1d-12 
 
+    errmsg = ""
     ! restart and allocate all fields
     if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(env%nspc))
