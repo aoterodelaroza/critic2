@@ -29,10 +29,6 @@ autom4te.cache/
 configure
 .deps/
 
-# tests subdirectory
-*.outcritic
-*.cro
-
 # data in the examples directory
 examples/data/
 
