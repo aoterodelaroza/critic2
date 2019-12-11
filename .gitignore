@@ -31,8 +31,7 @@ configure
 
 # tests subdirectory
 *.outcritic
-tests/*
-!tests/Makefile.am
+*.cro
 
 # data in the examples directory
 examples/data/
