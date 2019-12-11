@@ -15,6 +15,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
 include(utils)
+include(CTest)
 
 ## default build type, and type options
 if(NOT CMAKE_BUILD_TYPE)
@@ -122,6 +123,9 @@ if (USE_EXTERNAL_SPGLIB)
   find_package(Spglib)
 endif()
 
+## numdiff
+find_package(Numdiff)
+
 ## libxc
 if (USE_LIBXC)
   find_package(Libxc)
@@ -150,6 +154,9 @@ add_subdirectory(src)
 add_subdirectory(dat)
 if (ENABLE_GUI)
   add_subdirectory(src-gui)
+endif()
+if (BUILD_TESTING AND NUMDIFF_FOUND)
+  add_subdirectory(tests)
 endif()
 
 ## summary
@@ -191,6 +198,11 @@ if (LIBCINT_FOUND)
   set(_message "${_message}Libcint: ${LIBCINT_VERSION} | lib=${LIBCINT_LIBRARY}\n")
 else()
   set(_message "${_message}Libcint: not used\n")
+endif()
+if (NUMDIFF_FOUND)
+  set(_message "${_message}Numdiff: ${NUMDIFF_EXE}\n")
+else()
+  set(_message "${_message}Numdiff: not found\n")
 endif()
 
 set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
