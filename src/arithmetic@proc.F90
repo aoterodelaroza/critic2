@@ -628,7 +628,7 @@ contains
   !> thread-safe.
   module subroutine listlibxc(doref,doname,doflags)
 #ifdef HAVE_LIBXC
-    use tools_io, only: uout, string, ioj_left, ioj_right, ioj_center
+    use tools_io, only: uout, string, ioj_left
     use xc_f90_lib_m
 #endif
     logical, intent(in) :: doref

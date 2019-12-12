@@ -257,11 +257,14 @@ contains
   end subroutine molcalc_expression
 
   subroutine molcalc_hfenergy(savevar)
+    use tools_io, only: ferror, faterr
+#ifdef HAVE_CINT
+    use tools_io, only: uout, string
     use arithmetic, only: setvariable
-    use tools_io, only: ferror, faterr, uout, string
     use systemmod, only: sy
     use fieldmod, only: type_wfn
     use wfn_private, only: wfn_rhf
+#endif
     character*(*), intent(in) :: savevar
 
 #ifdef HAVE_CINT
