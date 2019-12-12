@@ -642,6 +642,12 @@ contains
        call s%c%write_dftbp_gen(file)
        ok = check_no_extra_word()
        if (.not.ok) return
+    elseif (equal(wext,'pyscf')) then
+       ! pyscf (python script)
+       write (uout,'("* WRITE pyscf file: ",A)') string(file)
+       call s%c%write_pyscf(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     else
        call ferror('struct_write','unrecognized file format',faterr,line,syntax=.true.)
        return

@@ -203,6 +203,7 @@ module crystalmod
      procedure :: write_siesta_in
      procedure :: write_dftbp_hsd
      procedure :: write_dftbp_gen
+     procedure :: write_pyscf
 
      ! grid writers
      procedure :: writegrid_cube
@@ -606,6 +607,10 @@ module crystalmod
        character*(*), intent(in) :: file
        integer, intent(in), optional :: lu0
      end subroutine write_dftbp_gen
+     module subroutine write_pyscf(c,file)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+     end subroutine write_pyscf
      module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: g(:,:,:)

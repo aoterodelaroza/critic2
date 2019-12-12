@@ -5170,6 +5170,56 @@ contains
 
   end subroutine write_dftbp_hsd
 
+  !> Write the crystal structure in pyscf format (python script)
+  module subroutine write_pyscf(c,file)
+    use tools_io, only: fopen_write, fclose, string, nameguess
+    class(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+
+    integer :: lu, i, j
+
+    lu = fopen_write(file)
+    if (c%ismolecule) then
+       write (lu,'("from pyscf import gto")')
+       write (lu,'("")')
+       write (lu,'("mol = gto.Mole()")')
+       write (lu,'("mol.atom = ''''''")')
+       do i = 1, c%ncel
+          write (lu,'(A,3(X,A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
+             (string(c%atcel(i)%r(j),'f',18,10),j=1,3)
+       end do
+       write (lu,'("''''''")')
+       write (lu,'("mol.basis = ''aug-cc-pvtz''")')
+       write (lu,'("mol.verbose = 4")')
+       write (lu,'("mol.spin = 0")')
+       write (lu,'("mol.charge = 0")')
+       write (lu,'("mol.build()")')
+    else
+       write (lu,'("from pyscf.pbc import gto")')
+       write (lu,'("")')
+       write (lu,'("cell = gto.Cell()")')
+       write (lu,'("cell.atom = ''''''")')
+       do i = 1, c%ncel
+          write (lu,'(A,3(X,A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
+             (string(c%atcel(i)%r(j),'f',18,10),j=1,3)
+       end do
+       write (lu,'("''''''")')
+       write (lu,'("cell.a = ''''''")')
+       do i = 1, 3
+          write (lu,'(2X,1p,3(E22.14,X))') c%m_x2c(:,i)
+       end do
+       write (lu,'("''''''")')
+       
+       write (lu,'("cell.unit = ''Bohr''")')
+       write (lu,'("cell.basis = ''gth-szv''")')
+       write (lu,'("cell.pseudo = ''gth-pade''")')
+       write (lu,'("cell.verbose = 4")')
+       write (lu,'("cell.build()")')
+    end if
+    call fclose(lu)
+
+  end subroutine write_pyscf
+
   !> Write a DFTB+ human-friendly gen structure file
   module subroutine write_dftbp_gen(c,file,lu0)
     use tools_io, only: fopen_write, nameguess, string, fclose

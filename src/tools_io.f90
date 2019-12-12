@@ -173,7 +173,7 @@ module tools_io
        integer :: zatguess
        character*(*), intent(in) :: atname
      end function zatguess
-     module function nameguess (zat,nounderscore)
+     module function nameguess(zat,nounderscore)
        use param, only: maxzat0
        integer, intent(in) :: zat
        logical, intent(in), optional :: nounderscore
