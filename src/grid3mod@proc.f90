@@ -806,7 +806,6 @@ contains
     integer :: npwx, ngms, nkstot, nsp, nat
     real*8 :: at(3,3), fspin, alat
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
-    logical :: gamma_only
     
     ! initialize
     call f%end()
@@ -867,7 +866,7 @@ contains
     read (luc) f%qe%ngk
     read (luc) f%qe%igk_k
     read (luc) f%qe%nl
-    if (gamma_only) then
+    if (f%qe%gamma_only) then
        if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
        allocate(f%qe%nlm(ngms))
        read (luc) f%qe%nlm
@@ -895,7 +894,7 @@ contains
              rseq = 0d0
              read (luc) evc(1:f%qe%ngk(ik))
              rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
-             if (gamma_only) &
+             if (f%qe%gamma_only) &
                 rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
              raux = reshape(rseq,shape(raux))
              call cfftnd(3,f%n,+1,raux)
