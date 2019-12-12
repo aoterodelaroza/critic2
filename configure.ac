@@ -107,21 +107,6 @@ AM_CONDITIONAL([GUI], [test "$enable_gui" = yes])
 # libxc
 ACX_LIBXC
 
-# qhull
-AC_ARG_WITH([qhull_inc],
- [AS_HELP_STRING([--with-qhull-inc],[Location of the qhull includes.])])
-AC_ARG_WITH([qhull_lib],
- [AS_HELP_STRING([--with-qhull-lib],[Location of the qhull library.])])
-
-if test "${with_qhull_inc}" != "" && test "${with_qhull_lib}" != ""; then
-  CFLAGS+=" -I${with_qhull_inc}"
-  LDFLAGS+=" -L${with_qhull_lib} -lqhull"   
-else
-  ## use the internal qhull    
-  CFLAGS+=" -Iqhull/"
-  LIBADD+=" \$(top_srcdir)/src/qhull/libqhull_critic.a"
-fi
-
 # libcint
 AC_ARG_WITH([cint-shared],[AS_HELP_STRING([--with-cint-shared],[Location of the cint shared library.])])
 if test "${with_cint_shared}" != ""; then

@@ -69,7 +69,7 @@ critic2_LDADD=$(top_builddir)/src/oldlibs/libmisc.a $(top_builddir)/src/ciftbx/l
 critic2_DEPENDENCIES=$(critic2_LDADD)
 
 # Include the subdirectories with the modules
-AM_FCFLAGS= -I$(top_srcdir)/src/cubpack
+AM_FCFLAGS= -I$(top_builddir)/src/cubpack
 AM_CFLAGS= -I$(top_srcdir)/src/qhull
 
 # Data directory
