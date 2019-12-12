@@ -1,5 +1,7 @@
 set(TESTS
   001_simple_arithmetics
+  002_arithmetic1
+  003_dosinput
   )
 
 get_filename_component(curdir "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
