@@ -2,7 +2,7 @@
 if GUI
   MAYBE_GUI=src-gui
 endif
-SUBDIRS=dat src tools tests $(MAYBE_GUI)
+SUBDIRS=dat src tools $(MAYBE_GUI)
 
 EXTRA_DIST = AUTHORS COPYING INSTALL NEWS README.md THANKS ChangeLog
 
