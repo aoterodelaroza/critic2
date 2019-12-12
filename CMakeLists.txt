@@ -1,13 +1,17 @@
 ## project and version
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-project(critic2 VERSION 1.0 LANGUAGES C CXX Fortran)
 
 ## some project variables
+set(critic2_MAJOR_VERSION 1)
+set(critic2_MINOR_VERSION 0)
 set(critic2_URL "https://aoterodelaroza.github.io/critic2/")
 set(critic2_EMAIL "aoterodelaroza@gmail.com")
 set(critic2_LICENSE "GNU/GPL version 3")
 set(critic2_DESCRIPTION "Analysis of quantum mechanical calculations in molecules and solids")
 string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
+
+## project definition
+project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C CXX Fortran)
 
 ## global flags for cmake
 set(CMAKE_VERBOSE_MAKEFILE ON)
