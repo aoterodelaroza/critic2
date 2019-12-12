@@ -211,7 +211,7 @@ contains
     logical :: lchk
     integer :: iver(3)
 
-    write (uout,'("+ ",A," (development), commit ",A,"")') getstring(istring_package), getstring(istring_version)
+    write (uout,'("+ ",A," (development), version ",A,"")') getstring(istring_package), getstring(istring_version)
     write (uout,'("         host: ",A)') getstring(istring_atarget)
     write (uout,'("         date: ",A)') getstring(istring_adate)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)

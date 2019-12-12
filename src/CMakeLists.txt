@@ -37,7 +37,7 @@ set(SOURCESP critic2.F90)
 
 ## header info
 set(PACKAGE ${CMAKE_PROJECT_NAME})
-set(VERSION ${CMAKE_PROJECT_VERSION})
+set(VERSION "${CMAKE_PROJECT_VERSION} (git:${critic2_GIT_COMMIT})")
 set(TARGET ${CMAKE_SYSTEM})
 set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
 configure_file(config@proc.F90.in ${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90)

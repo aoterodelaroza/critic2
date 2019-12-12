@@ -13,6 +13,19 @@ string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
 ## project definition
 project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C CXX Fortran)
 
+## find git to see if we can have a git commit; n/a otherwise
+find_package(Git QUIET)
+if (GIT_FOUND)
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" describe --always HEAD
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    OUTPUT_VARIABLE critic2_GIT_COMMIT
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+if (NOT critic2_GIT_COMMIT)
+  set(critic2_GIT_COMMIT "n/a")
+endif()
+
 ## global flags for cmake
 set(CMAKE_VERBOSE_MAKEFILE ON)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
@@ -170,7 +183,7 @@ endif()
 
 ## summary
 set(_message
-"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION} ###\n"
+"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION} (git:${critic2_GIT_COMMIT})###\n"
 "System: ${CMAKE_SYSTEM} (crosscompiling? ${CROSSCOMPILE})\n"
 "Date: ${DATE}\n"
 "Build type: ${CMAKE_BUILD_TYPE}\n"
