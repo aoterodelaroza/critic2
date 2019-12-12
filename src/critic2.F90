@@ -48,9 +48,9 @@ program critic
   use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
-  use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, faterr,&
-     ferror, getword, string, nwarns, ncomms, ioinit, stdargs, tictac, &
-     start_clock, print_clock, isinteger, isreal
+  use tools_io, only: uout, ucopy, uin, lgetword, equal, faterr,&
+     ferror, getword, string, nwarns, ncomms, history_init, history_end, stdargs,&
+     tictac, start_clock, print_clock, isinteger, isreal, getline
   use param, only: param_init
   implicit none
 
@@ -62,7 +62,7 @@ program critic
   character(len=:), allocatable :: line, errmsg
   !
   integer :: level, plevel, id, idum
-  integer :: i, nn, ismoli
+  integer :: i, nn, ismoli, ncom
   logical :: ok
   real*8 :: rdum
 #ifdef HAVE_LIBXC
@@ -74,8 +74,8 @@ program critic
   call param_init()
 
   ! input/output, arguments (tools_io)
-  call ioinit()
   call stdargs(optv,ghome,fileroot)
+  call history_init()
 
   ! set default values and initialize the rest of the modules
   call global_init(ghome,getstring(istring_datadir))
@@ -101,7 +101,9 @@ program critic
   endif
 
   ! Start reading
-  main: do while (getline(uin,line,ucopy=ucopy))
+  ncom = 1
+  main: do while (getline(uin,line,ucopy=ucopy,nprompt=ncom))
+     ncom = ncom + 1
      lp=1
      word = lgetword(line,lp)
      subline = line(lp:)
@@ -606,10 +608,10 @@ program critic
   enddo main
 
   call grid1_clean_grids()
-  ! call systemmod_end() ! old ifort compilers have trouble deallocating sy
+  call history_end()
 
   if (.not.quiet) then
-     write (uout,'("CRITIC2 ended succesfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
+     write (uout,'("CRITIC2 ended successfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
         string(nwarns), string(ncomms)
      call print_clock()
      call tictac('CRITIC2')

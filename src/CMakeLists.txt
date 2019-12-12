@@ -99,6 +99,13 @@ if (LIBCINT_FOUND)
   add_definitions("-DHAVE_CINT")
 endif()
 
+## libreadline
+if (READLINE_FOUND)
+  include_directories("${READLINE_INCLUDE_DIRS}")
+  target_link_libraries(critic2 PRIVATE ${READLINE_LIBRARY})
+  add_definitions("-DHAVE_READLINE")
+endif()
+
 ## The library for the GUI
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES})

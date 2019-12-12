@@ -30,13 +30,27 @@ submodule (tools_io) proc
 
 contains
 
-  !> Connect input files to units with standard defaults.
+  !> Initialize the LU array.
+  module subroutine lualloc_init()
+    use iso_fortran_env, only: error_unit, input_unit, output_unit
+    
+    alloc = .false.
+    alloc(error_unit) = .true.
+    alloc(input_unit) = .true.
+    alloc(output_unit) = .true.
+
+  end subroutine lualloc_init
+
+  !> Initialize the LU array, set default I/O values and interpret the
+  !> command-line options. On output, optv contains the dash-options
+  !> passed to critic, ghome is the path passed with -r and uroot is
+  !> the root for the run.
   module subroutine stdargs(optv,ghome,uroot)
     use iso_fortran_env, only: input_unit, output_unit
     use param, only: dirsep
-    character(len=:), allocatable, intent(out) :: optv !< Dash-options passed to the program
-    character(len=:), allocatable, intent(out) :: ghome !< critic_home passed with -r
-    character(len=:), allocatable, intent(out) :: uroot !< file root for the run
+    character(len=:), allocatable, intent(out) :: optv
+    character(len=:), allocatable, intent(out) :: ghome
+    character(len=:), allocatable, intent(out) :: uroot
 
     integer, parameter :: arglen = 1024
 
@@ -44,6 +58,10 @@ contains
     integer :: argc, idx
     character(len=arglen) :: argv, aux
 
+    ! initialize the alloc array
+    call lualloc_init()
+
+    ! default values
     optv=""
     ghome=""
     uin = input_unit
@@ -53,6 +71,7 @@ contains
     uroot = "stdin"
     filepath = "."
 
+    ! process arguments
     argc = command_argument_count()
     if (argc > 0) then
        n=0
@@ -478,11 +497,12 @@ contains
   !> If eofstop is true, raise error on EOF. If ucopy (integer) exists,
   !> write a copy of the output line to that logical unit, preceded
   !> by a prefix.
-  module function getline(u,oline,eofstop,ucopy)
+  module function getline(u,oline,eofstop,ucopy,nprompt)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
     logical, intent(in), optional :: eofstop
     integer, intent(in), optional :: ucopy
+    integer, intent(in), optional :: nprompt
     logical :: getline
 
     integer :: i, lenu
@@ -497,7 +517,7 @@ contains
     notfirst = .false.
     do while (.true.)
        ! read the line
-       ok = getline_raw(u,line)
+       ok = getline_raw(u,line,nprompt=nprompt)
 
        ! remove tabs
        do i = 1, len(line)
@@ -567,19 +587,84 @@ contains
   end function getline
 
   !> Read a line from logical unit u, and return true if read was
-  !> successful. Don't process it to remove comments, etc.  If eofstop
-  !> is true, raise error on EOF.
-  module function getline_raw(u,line,eofstop) result(ok)
+  !> successful. Don't process it to remove comments, etc. If eofstop
+  !> is true, raise error on EOF. If compiled with readline support
+  !> and u is the standard input, use readline to fetch the line. In
+  !> that case, eofstop is ignored.
+  module function getline_raw(u,line,eofstop,nprompt) result(ok)
+    use iso_fortran_env, only: input_unit
+#ifdef HAVE_READLINE
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_associated, c_size_t
+    use c_interface_module, only: f_c_string_dup, c_f_string, c_strlen_safe, c_free
+#endif
     integer, intent(in) :: u
     character(len=:), allocatable, intent(out) :: line
     logical, intent(in), optional :: eofstop
+    integer, intent(in), optional :: nprompt
     logical :: ok
 
-    integer, parameter :: blocksize = 128
-
+#ifdef HAVE_READLINE
+    interface
+       function readline(prompt) bind(c)
+         import c_ptr
+         type(c_ptr), value :: prompt
+         type(c_ptr) :: readline
+       end function readline
+       subroutine add_history(line) bind(c)
+         import c_ptr
+         type(c_ptr), value :: line
+       end subroutine add_history
+    end interface
+    
+    type(c_ptr) :: line_c, prompt_c
+    integer(c_size_t) :: ll
+#endif 
     character(len=:), allocatable :: aux
     integer :: ios, nread, i
 
+    integer, parameter :: blocksize = 128
+
+    ! use readline if stdin and readline is available
+#ifdef HAVE_READLINE
+    if (u == input_unit) then
+       ! use readline to fetch a new line from the user
+       if (present(nprompt)) then
+          prompt_c = f_c_string_dup("critic2:"//string(nprompt)//"> ")
+       else
+          prompt_c = f_c_string_dup("critic2> ")
+       end if
+       line_c = readline(prompt_c)
+       call c_free(prompt_c)
+
+       ok = c_associated(line_c)
+       if (ok) then
+          ! transform to fortran
+          ll = c_strlen_safe(line_c)
+          allocate(character(len=ll) :: line)
+          call c_f_string(line_c,line)
+
+          ! save the line in the history
+          if (ll > 0) call add_history(line_c)
+
+          ! clean up memory and exit
+          call c_free(line_c)
+       else
+          line = ""
+       end if
+       return
+    end if
+#endif
+    
+    ! write the prompt
+    if (u == input_unit) then
+       if (present(nprompt)) then
+          write (*,'(A)',advance='no') "critic2:"//string(nprompt)//"> "
+       else
+          write (*,'(A)',advance='no') "critic2> "
+       end if
+    end if
+
+    ! normal line reading
     allocate(character(len=blocksize)::aux)
     do i = 1,blocksize
        aux(i:i) = " "
@@ -595,6 +680,9 @@ contains
     if (.not.ok.and.present(eofstop)) then
        if (eofstop) call ferror("getline_raw","unexpected end of file",faterr)
     end if
+
+    ! insert a blank line if eof was received in stdin
+    if (u == input_unit .and..not.ok) write (*,*)
 
   end function getline_raw
 
@@ -1104,15 +1192,64 @@ contains
 
   !> Initialize file system and connect standard units. 
   !> Use this before falloc and fdealloc.
-  module subroutine ioinit ()
-    use iso_fortran_env, only: error_unit, input_unit, output_unit
+  module subroutine history_init()
+#ifdef HAVE_READLINE
+    use iso_c_binding, only: c_int, c_ptr
+    use c_interface_module, only: f_c_string_dup, c_free
+    interface
+       function read_history(file) bind(c)
+         import c_int, c_ptr
+         integer(c_int) :: read_history
+         type(c_ptr), value :: file
+       end function read_history
+    end interface
+    
+    character(len=1024) :: home
+    type(c_ptr) :: file_c
+    integer(c_int) :: istat
 
-    alloc = .false.
-    alloc(error_unit) = .true.
-    alloc(input_unit) = .true.
-    alloc(output_unit) = .true.
+    ! This probably works only for linux, but it doesn't crash if the
+    ! read fails
+    if (interactive) then
+       call get_environment_variable("HOME",home,status=istat)
+       if (istat == 0) then
+          file_c = f_c_string_dup(trim(home) // "/.critic2_history")
+          istat = read_history(file_c)
+          call c_free(file_c)
+       end if
+    end if
+#endif
+  end subroutine history_init
 
-  end subroutine ioinit
+  !> If readline is used and the run is interactive, write the history file. 
+  module subroutine history_end()
+#ifdef HAVE_READLINE
+    use iso_c_binding, only: c_int, c_ptr
+    use c_interface_module, only: f_c_string_dup, c_free
+    interface
+       function write_history(file) bind(c)
+         import c_int, c_ptr
+         integer(c_int) :: write_history
+         type(c_ptr), value :: file
+       end function write_history
+    end interface
+
+    character(len=1024) :: home
+    type(c_ptr) :: file_c
+    integer(c_int) :: istat
+
+    ! This probably works only for linux, but it doesn't crash if the
+    ! write fails
+    if (interactive) then
+       call get_environment_variable("HOME",home,status=istat)
+       if (istat == 0) then
+          file_c = f_c_string_dup(trim(home) // "/.critic2_history")
+          istat = write_history(file_c)
+          call c_free(file_c)
+       end if
+    end if
+#endif    
+  end subroutine history_end
 
   !> Open a file for reading. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is

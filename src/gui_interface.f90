@@ -155,7 +155,7 @@ contains
     use systemmod, only: systemmod_init
     use config, only: getstring, istring_datadir
     use global, only: global_init, config_write, initial_banner, critic_home
-    use tools_io, only: ioinit, ucopy, uout, start_clock, &
+    use tools_io, only: ucopy, uout, start_clock, lualloc_init, &
        tictac, interactive, uin, filepath
     use param, only: param_init
 
@@ -164,7 +164,7 @@ contains
     call param_init()
 
     ! input/output, arguments (tools_io)
-    call ioinit()
+    call lualloc_init()
     uin = input_unit
     uout = output_unit
     interactive = .false.

@@ -45,7 +45,8 @@ module tools_io
   public :: isexpression
   public :: isexpression_or_word
   public :: isassignment
-  public :: ioinit
+  public :: history_init
+  public :: history_end
   public :: fopen_read
   public :: fopen_write
   public :: fopen_append
@@ -90,6 +91,8 @@ module tools_io
   integer :: ncomms = 0 !< Number of comments
   
   interface
+     module subroutine lualloc_init()
+     end subroutine lualloc_init
      module subroutine stdargs(optv,ghome,uroot)
        character(len=:), allocatable, intent(out) :: optv
        character(len=:), allocatable, intent(out) :: ghome
@@ -150,17 +153,19 @@ module tools_io
        character*(*), intent(in) :: t
        logical :: equali
      end function equali
-     module function getline(u,oline,eofstop,ucopy)
+     module function getline(u,oline,eofstop,ucopy,nprompt)
        character(len=:), allocatable, intent(out) :: oline
        integer, intent(in) :: u
        logical, intent(in), optional :: eofstop
        integer, intent(in), optional :: ucopy
+       integer, intent(in), optional :: nprompt
        logical :: getline
      end function getline
-     module function getline_raw(u,line,eofstop) result(ok)
+     module function getline_raw(u,line,eofstop,nprompt) result(ok)
        integer, intent(in) :: u
        character(len=:), allocatable, intent(out) :: line
        logical, intent(in), optional :: eofstop
+       integer, intent(in), optional :: nprompt
        logical :: ok
      end function getline_raw
      module function zatguess(atname)
@@ -242,8 +247,10 @@ module tools_io
        character(len=:), allocatable, intent(out) :: expr
        logical :: isassignment
      end function isassignment
-     module subroutine ioinit ()
-     end subroutine ioinit
+     module subroutine history_init()
+     end subroutine history_init
+     module subroutine history_end()
+     end subroutine history_end
      module function fopen_read(file,form,abspath0,errstop) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
