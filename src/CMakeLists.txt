@@ -99,9 +99,8 @@ if (LIBCINT_FOUND)
   add_definitions("-DHAVE_CINT")
 endif()
 
-## libreadline
+## readline
 if (READLINE_FOUND)
-  include_directories("${READLINE_INCLUDE_DIRS}")
   target_link_libraries(critic2 PRIVATE ${READLINE_LIBRARY})
   add_definitions("-DHAVE_READLINE")
 endif()

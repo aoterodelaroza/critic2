@@ -74,5 +74,10 @@ if (LIBCINT_FOUND)
   target_link_libraries(gcritic2 PRIVATE ${LIBCINT_LIBRARY})
 endif()
 
+## readline
+if (READLINE_FOUND)
+  target_link_libraries(gcritic2 PRIVATE ${READLINE_LIBRARY})
+endif()
+
 ## install the binary
 install(TARGETS gcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
