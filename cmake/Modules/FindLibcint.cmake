@@ -28,7 +28,7 @@ find_package_handle_standard_args(LIBCINT
 
 mark_as_advanced(LIBCINT_LIBRARY LIBCINT_INCLUDE_DIRS)
 if (NOT LIBCINT_FOUND)
-  set(LIBCINT_DIR "" CACHE STRING "Directory containing the libcint library.")
+  set(LIBCINT_DIR "${LIBCINT_DIR}" CACHE STRING "Directory containing the libcint library.")
 endif()
 
 ## Get libcint version

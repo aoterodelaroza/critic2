@@ -34,7 +34,7 @@ find_package_handle_standard_args(LIBXC
 
 mark_as_advanced(LIBXC_xc_LIBRARY LIBXC_xcf90_LIBRARY LIBXC_INCLUDE_DIRS)
 if (NOT LIBXC_FOUND)
-  set(LIBXC_DIR "" CACHE STRING "Directory containing the libxc library (>=4.1).")
+  set(LIBXC_DIR "${LIBXC_DIR}" CACHE STRING "Directory containing the libxc library (>=4.1).")
 endif()
 
 ## check whether we can compile against it

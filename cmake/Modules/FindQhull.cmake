@@ -25,6 +25,6 @@ find_package_handle_standard_args(QHULL
 
 mark_as_advanced(QHULL_INCLUDE_DIRS QHULL_LIBRARIES)
 if (NOT QHULL_FOUND)
-  set(QHULL_DIR "" CACHE STRING "Directory containing the qhull library.")
+  set(QHULL_DIR "${QHULL_DIR}" CACHE STRING "Directory containing the qhull library.")
 endif()
 

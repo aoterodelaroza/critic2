@@ -20,5 +20,5 @@ find_package_handle_standard_args(SPGLIB
 
 mark_as_advanced(SPGLIB_LIBRARY)
 if (NOT SPGLIB_FOUND)
-  set(SPGLIB_DIR "" CACHE STRING "Directory containing the spglib library.")
+  set(SPGLIB_DIR "${SPGLIB_DIR}" CACHE STRING "Directory containing the spglib library.")
 endif()

@@ -27,5 +27,5 @@ find_package_handle_standard_args(READLINE
 
 mark_as_advanced(READLINE_LIBRARY READLINE_INCLUDE_DIRS)
 if (NOT READLINE_FOUND)
-  set(READLINE_DIR "" CACHE STRING "Directory containing the readline library.")
+  set(READLINE_DIR "${READLINE_DIR}" CACHE STRING "Directory containing the readline library.")
 endif()

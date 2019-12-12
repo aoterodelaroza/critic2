@@ -23,7 +23,7 @@ mark_as_advanced(NUMDIFF_EXE)
 
 ## check that we have numdiff
 if (NOT NUMDIFF_FOUND)
-  set(NUMDIFF_DIR "" CACHE STRING "Directory containing the numdiff program (for tests).")
+  set(NUMDIFF_DIR "${NUMDIFF_DIR}" CACHE STRING "Directory containing the numdiff program (for tests).")
   return()
 endif()
 
