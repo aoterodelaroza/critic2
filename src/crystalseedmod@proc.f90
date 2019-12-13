@@ -49,7 +49,7 @@ contains
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0, it
     integer :: hnum, ier
-    real*8 :: rmat(3,3), scal, ascal, x(3), xn(3)
+    real*8 :: rmat(3,3), scal, ascal, x(3), xn(3), xdif(3)
     logical :: ok, goodspg
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
     logical :: icodef(3), iok, isset
@@ -330,7 +330,9 @@ contains
              ! check if this atom already exists
              ok = .true.
              do k = 1, seed%nat
-                if (all(abs(x - xn) < 1d-5)) then
+                xdif = x - seed%x(:,k)
+                xdif = xdif - nint(xdif)
+                if (all(abs(xdif) < 1d-5)) then
                    ok = .false.
                    exit
                 endif
