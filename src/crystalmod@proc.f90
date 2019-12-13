@@ -4557,10 +4557,10 @@ contains
     lu = fopen_write(file)
 
     write (lu,'("crystal")')
-    write (lu,'("  cell ",6(A,X))') (string(c%aa(i),'f',20,10),i=1,3),&
-       (string(c%bb(i),'f',20,10),i=1,3)
+    write (lu,'("  cell ",6(A,X))') (string(c%aa(i),'f',decimal=10),i=1,3),&
+       (string(c%bb(i),'f',decimal=6),i=1,3)
     do i = 1, c%ncel
-       write (lu,'("  neq ",3(A," "),A10)') (string(c%atcel(i)%x(j),'f',20,10),j=1,3),&
+       write (lu,'("  neq ",3(A," "),A)') (string(c%atcel(i)%x(j),'f',decimal=10),j=1,3),&
           string(c%spc(c%atcel(i)%is)%name)
     end do
     write (lu,'("endcrystal")')
