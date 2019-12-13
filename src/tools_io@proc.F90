@@ -57,11 +57,13 @@ contains
     integer :: n 
     integer :: argc, idx
     character(len=arglen) :: argv, aux
+    logical :: local
 
     ! initialize the alloc array
     call lualloc_init()
 
     ! default values
+    local = .false.
     optv=""
     ghome=""
     uin = input_unit
@@ -85,6 +87,8 @@ contains
                 n = n + 1
                 call getarg(n,argv)    
                 ghome = trim(adjustl(argv))
+             elseif (trim(argv(2:2)) == "l") then
+                local = .true.
              else
                 optv = trim(optv) // argv(2:2)
              endif
@@ -92,7 +96,7 @@ contains
              uroot = trim(argv)
              if (index(uroot,dirsep) > 0) then
                 filepath = uroot(1:index(uroot,dirsep,.true.)-1)
-                if (len_trim(filepath) == 0) filepath = "."
+                if (len_trim(filepath) == 0 .or. local) filepath = "."
                 ! xx(note1)xx
                 ! gfortran-5 and gfortran-6 have problems with the much simpler:
                 !   uroot = uroot(index(uroot,dirsep,.true.)+1:)

@@ -28,20 +28,28 @@ contains
     character*(*) :: ghome, datadir
     integer :: isenv
     logical :: lchk
-    character(len=:), allocatable :: cifstr, msg1, msg2, msg3
+    character(len=:), allocatable :: cifstr, msgr1, msgr2, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
 
     cifstr = dirsep // "cif" // dirsep // "cif_core.dic"
 
     ! read the -r option
+    msgr1 = ""
+    msgr2 = ""
     if (len_trim(ghome) > 0) then
+       critic_home = string(ghome)
+       inquire(file=trim(critic_home) // cifstr,exist=lchk)
+       if (lchk) goto 99
+       msgr1 = "(!) 0. Not found (-r option): " // trim(critic_home) // cifstr
+
        critic_home = string(ghome) // dirsep // "dat"
        inquire(file=trim(critic_home) // cifstr,exist=lchk)
        if (lchk) goto 99
-       write (uout,'("  File not found: ",A)') trim(critic_home) // cifstr
+       msgr2 = "(!) 0. Not found (-r option): " // trim(critic_home) // cifstr
     endif
 
     ! read env variable CRITIC_HOME
+    if (allocated(critic_home)) deallocate(critic_home)
     allocate(character(len=maxlenpath)::critic_home)
     call get_environment_variable("CRITIC_HOME",critic_home,status=isenv)
     if (isenv ==0) then
@@ -67,6 +75,8 @@ contains
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
+    if (len_trim(msgr1) > 0 .and. len_trim(msgr2) > 0) &
+       write (uout,'(A/A)') msgr1, msgr2
     write (uout,'(A/A/A)') msg1, msg2, msg3
     write (uout,'("(!) The cif dict file, the density files, and the structure library")')
     write (uout,'("(!) will not be available.")')
@@ -185,13 +195,14 @@ contains
     write (uout,'("distributed with the program (https://aoterodelaroza.github.io/critic2/).")')
     write (uout,'("The command-line syntax is:")')
     write (uout,'("")')
-    write (uout,'("     critic2 [-q] [-h] [-r /path/to/critic2] [inputfile [outputfile]] ")')
+    write (uout,'("     critic2 [-q] [-h] [-r /path/to/critic2] [-l] [inputfile [outputfile]] ")')
     write (uout,'("")')
     write (uout,'("If the input or the output file are not present, stdin and stdout are used ")')
     write (uout,'("instead. The additonal options are:")')
     write (uout,'("")')
-    write (uout,'("   -r: tell critic2 that its data is in /path/to/critic2/dat ")')
     write (uout,'("   -h: print this message.")')
+    write (uout,'("   -r: have critic2 find its data in /path/to/critic2 or /path/to/critic2/dat ")')
+    write (uout,'("   -l: critic2 always generates files in the current working directory")')
     write (uout,'("   -q: quiet mode.")')
     write (uout,'("")')
 
