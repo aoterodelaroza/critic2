@@ -127,6 +127,7 @@ endif()
 
 ## lapack
 if (USE_EXTERNAL_LAPACK)
+  set(LAPACK_FIND_QUIETLY "ON")
   find_package(LAPACK)
 endif()
 
