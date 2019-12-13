@@ -1,0 +1,72 @@
+a = 4.213
+b = a / 0.529
+
+crystal
+ spg 523
+ cell a a a 90 90 90 angstrom
+ Na 0 0 0
+ Cl 1/2 1/2 1/2
+endcrystal
+write 003_crystalenv-opts_01.cri
+
+crystal
+ spg 225 hm
+ cell b b b 90 90 90 bohr
+ neq 0 0 0 Na1
+ neq 1/2 1/2 1/2 Cl2
+endcrystal
+write 003_crystalenv-opts_02.cri
+
+crystal
+ spg FM-3M
+ cell b b b 90 90 90 au
+ 11 0 0 0
+ 17 1/2 1/2 1/2
+endcrystal
+write 003_crystalenv-opts_03.cri
+
+crystal
+ cartesian
+   ang
+   a 0 0
+   0 a 0
+   0 0 a 
+ endcartesian
+ Na 0 0 0 ang
+ Cl a/2 a/2 a/2 angstrom
+ symm x+1/2,y+1/2,z
+ symm x+1/2,y,z+1/2
+ symm x,y+1/2,z+1/2
+endcrystal
+write 003_crystalenv-opts_04.cri
+
+crystal
+ cartesian
+   angstrom
+   a 0 0
+   0 a 0
+   0 0 a 
+ endcartesian
+ Na 0 0 0
+ Na a/2 a/2 0 ang
+ Na a/2 0 a/2 angstrom
+ Na 0 a/2 a/2 ang
+ Cl b/2 b/2 b/2 bohr
+ Cl b/2 0 0 au
+ Cl 0 b/2 0 bohr
+ Cl 0 0 b/2 au
+endcrystal
+write 003_crystalenv-opts_05.cri
+
+crystal
+ spg f m -3 m
+ cartesian 2.0
+   au
+   b/2 0 0
+   0 b/2 0
+   0 0 b/2 
+ endcartesian
+ Na 0 0 0
+ Cl 1/2 1/2 1/2
+endcrystal
+write 003_crystalenv-opts_06.cri

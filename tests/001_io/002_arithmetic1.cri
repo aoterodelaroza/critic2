@@ -1,4 +1,3 @@
-root 001_arithmetic
 two = 2
 three = 3
 three + two*pi

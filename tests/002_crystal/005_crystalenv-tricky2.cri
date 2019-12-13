@@ -1,0 +1,5 @@
+crystal
+  cell 500 500 500 90 90 90 ang
+  neq 0.0 0.0 0.0 H
+endcrystal
+write 005_crystalenv-tricky2_gen.cri

@@ -1,7 +1,9 @@
 set(TESTS
-  001_simple_arithmetics
-  002_arithmetic1
-  003_dosinput
+  001_simple_arithmetics ## a simple sum
+  002_arithmetic1        ## more complex arithmetic operations, with no structure
+  003_dosinput           ## same as 002 with CRLF line terminators
+  004_macinput           ## same as 002 with CR line terminators
+  005_root_caps          ## root keyword and keyword capitalization
   )
 
 runtests(${TESTS})
