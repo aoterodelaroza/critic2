@@ -18,12 +18,12 @@ macro (runtests)
 
     ## gen test
     add_test(
-      NAME "${curdir}/${test}-gen" 
+      NAME "GEN:${curdir}/${test}" 
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       CONFIGURATIONS gen
       )
-    set_tests_properties("${curdir}/${test}-gen" PROPERTIES LABELS "gen")
+    set_tests_properties("GEN:${curdir}/${test}" PROPERTIES LABELS "gen")
 
     ## gen_copy test
     set(_check_list "")
@@ -38,14 +38,14 @@ macro (runtests)
       string(REPLACE ";" " " check_string "${_check_list}")
 
       add_test(
-        NAME "${curdir}/${test}-gen_copy" 
+        NAME "GEN-COPY-:${curdir}/${test}" 
         COMMAND sh -c "${CMAKE_COMMAND} -E copy ${check_string} ${CMAKE_CURRENT_SOURCE_DIR}/ref/"
         WORKING_DIRECTORY ""
         CONFIGURATIONS gen
         )
-      set_tests_properties("${curdir}/${test}-gen_copy" PROPERTIES 
+      set_tests_properties("GEN-COPY-:${curdir}/${test}" PROPERTIES 
         LABELS "gen" 
-        DEPENDS "${curdir}/${test}-gen"
+        DEPENDS "GEN:${curdir}/${test}"
         )
     endif()
 
@@ -62,20 +62,20 @@ macro (runtests)
       string(REPLACE ";" " " delete_string "${_delete_list}")
 
       add_test(
-        NAME "${curdir}/${test}-gen_clean" 
+        NAME "GEN-CLEAN-:${curdir}/${test}" 
         COMMAND sh -c "${CMAKE_COMMAND} -E remove ${delete_string}"
         WORKING_DIRECTORY ""
         CONFIGURATIONS gen
         )
-      set_tests_properties("${curdir}/${test}-gen_clean" PROPERTIES 
+      set_tests_properties("GEN-CLEAN-:${curdir}/${test}" PROPERTIES 
         LABELS "gen" 
-        DEPENDS "${curdir}/${test}-gen_copy"
+        DEPENDS "GEN-COPY:${curdir}/${test}"
         )
     endif()
 
     ## run test
     add_test(
-      NAME "${curdir}/${test}-run" 
+      NAME "-RUN-:${curdir}/${test}" 
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
       )
@@ -88,11 +88,11 @@ macro (runtests)
         list(GET llist 0 file)
         list(GET llist 1 numdiff_opts)
         add_test(
-          NAME "${curdir}/${test}-check_${file}" 
+          NAME "CHECK:${curdir}/ref/${file}" 
           COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' -q ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
           WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
           )
-        set_tests_properties("${curdir}/${test}-check_${file}" PROPERTIES DEPENDS "${curdir}/${test}-run")
+        set_tests_properties("CHECK:${curdir}/ref/${file}" PROPERTIES DEPENDS "-RUN-:${curdir}/${test}")
       endforeach()
     endif()
   endforeach()
