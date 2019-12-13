@@ -26,12 +26,16 @@ macro (runtests)
 
     ## gen-clean test
     if (delete_list)
-      set(delete_string "")
+      set(_delete_list "")
       foreach (i IN LISTS delete_list)
         string(REGEX REPLACE "^ *#.*delete *:" "" i "${i}")
-        string(STRIP "${i}" i)
-        string(CONCAT delete_string "${delete_string}" " ${CMAKE_CURRENT_SOURCE_DIR}/${i}")
+        string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+	list(APPEND _delete_list "${llist}")
       endforeach()
+      list(TRANSFORM _delete_list PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+      string(REPLACE ";" " " delete_string "${_delete_list}")
+      message("delete: ${delete_string}")
+
       add_test(
         NAME "${curdir}/${test}-gen_clean" 
         COMMAND sh -c "${CMAKE_COMMAND} -E remove ${delete_string}"
