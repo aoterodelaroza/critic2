@@ -1,3 +1,5 @@
+## check: 002_crystalenv-arithm_gen.cri -a1e-10
+## delete: 002_crystalenv-arithm.cro
 u = 0.385
 crystal
   cartesian 1.0

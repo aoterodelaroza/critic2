@@ -11,6 +11,10 @@ macro (runtests)
   get_filename_component(curdir "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
 
   foreach(test ${ARGN})
+    ## gather info about the test
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" check_list REGEX "^ *#.*check *: ")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" delete_list REGEX "^ *#.*delete *:")
+
     ## gen test
     add_test(
       NAME "${curdir}/${test}-gen" 
@@ -20,6 +24,26 @@ macro (runtests)
       )
     set_tests_properties("${curdir}/${test}-gen" PROPERTIES LABELS "gen")
 
+    ## gen-clean test
+    if (delete_list)
+      set(delete_string "")
+      foreach (i IN LISTS delete_list)
+        string(REGEX REPLACE "^ *#.*delete *:" "" i "${i}")
+        string(STRIP "${i}" i)
+        string(CONCAT delete_string "${delete_string}" " ${CMAKE_CURRENT_SOURCE_DIR}/${i}")
+      endforeach()
+      add_test(
+        NAME "${curdir}/${test}-gen_clean" 
+        COMMAND sh -c "${CMAKE_COMMAND} -E remove ${delete_string}"
+        WORKING_DIRECTORY ""
+        CONFIGURATIONS gen
+        )
+      set_tests_properties("${curdir}/${test}-gen_clean" PROPERTIES 
+        LABELS "gen" 
+        DEPENDS "${curdir}/${test}-gen"
+        )
+    endif()
+
     ## run test
     add_test(
       NAME "${curdir}/${test}-run" 
@@ -27,23 +51,20 @@ macro (runtests)
       WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
       )
 
-    ## result tests
-    if (NUMDIFF_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
-      include("${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
-      list(LENGTH _numdiff_opts _nfile)
-      math(EXPR _nfile "${_nfile} - 1")
-      if (_list_files)
-	foreach(i RANGE "${_nfile}")
-	  list(GET _numdiff_opts ${i} _opts)
-	  list(GET _list_files ${i} _file)
-	  add_test(
-	    NAME "${curdir}/${test}-result" 
-	    COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' -q ${_opts} ${CMAKE_CURRENT_SOURCE_DIR}/${_file} ${CMAKE_CURRENT_BINARY_DIR}/${_file}"
-	    WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
-	    )
-	  set_tests_properties("${curdir}/${test}-result" PROPERTIES DEPENDS "${curdir}/${test}-run")
-	endforeach()
-      endif()
+    ## check tests
+    if (NUMDIFF_FOUND AND check_list)
+      foreach (i IN LISTS check_list)
+        string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
+        string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+        list(GET llist 0 file)
+        list(GET llist 1 numdiff_opts)
+        add_test(
+          NAME "${curdir}/${test}-check_${file}" 
+          COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' -q ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
+          WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
+          )
+        set_tests_properties("${curdir}/${test}-check_${file}" PROPERTIES DEPENDS "${curdir}/${test}-run")
+      endforeach()
     endif()
   endforeach()
 endmacro()

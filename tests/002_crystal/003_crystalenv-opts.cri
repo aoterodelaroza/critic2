@@ -1,3 +1,10 @@
+## check: 003_crystalenv-opts_gen_01.cri -a1e-10
+## check: 003_crystalenv-opts_gen_02.cri -a1e-10
+## check: 003_crystalenv-opts_gen_03.cri -a1e-10
+## check: 003_crystalenv-opts_gen_04.cri -a1e-10
+## check: 003_crystalenv-opts_gen_05.cri -a1e-10
+## check: 003_crystalenv-opts_gen_06.cri -a1e-10
+## delete: 003_crystalenv-opts.cro
 a = 4.213
 b = a / 0.529
 
@@ -7,7 +14,7 @@ crystal
  Na 0 0 0
  Cl 1/2 1/2 1/2
 endcrystal
-write 003_crystalenv-opts_01.cri
+write 003_crystalenv-opts_gen_01.cri
 
 crystal
  spg 225 hm
@@ -15,7 +22,7 @@ crystal
  neq 0 0 0 Na1
  neq 1/2 1/2 1/2 Cl2
 endcrystal
-write 003_crystalenv-opts_02.cri
+write 003_crystalenv-opts_gen_02.cri
 
 crystal
  spg FM-3M
@@ -23,7 +30,7 @@ crystal
  11 0 0 0
  17 1/2 1/2 1/2
 endcrystal
-write 003_crystalenv-opts_03.cri
+write 003_crystalenv-opts_gen_03.cri
 
 crystal
  cartesian
@@ -38,7 +45,7 @@ crystal
  symm x+1/2,y,z+1/2
  symm x,y+1/2,z+1/2
 endcrystal
-write 003_crystalenv-opts_04.cri
+write 003_crystalenv-opts_gen_04.cri
 
 crystal
  cartesian
@@ -56,7 +63,7 @@ crystal
  Cl 0 b/2 0 bohr
  Cl 0 0 b/2 au
 endcrystal
-write 003_crystalenv-opts_05.cri
+write 003_crystalenv-opts_gen_05.cri
 
 crystal
  spg f m -3 m
@@ -69,4 +76,4 @@ crystal
  Na 0 0 0
  Cl 1/2 1/2 1/2
 endcrystal
-write 003_crystalenv-opts_06.cri
+write 003_crystalenv-opts_gen_06.cri
