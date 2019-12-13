@@ -89,7 +89,7 @@ macro (runtests)
         list(GET llist 1 numdiff_opts)
         add_test(
           NAME "CHECK:${curdir}/ref/${file}" 
-          COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' -q ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
+          COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
           WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
           )
         set_tests_properties("CHECK:${curdir}/ref/${file}" PROPERTIES DEPENDS "-RUN-:${curdir}/${test}")
