@@ -168,7 +168,8 @@ contains
           equal(extdot,'VHXC').or.equal(extund,'VHXC').or.equal(extdot,'VXC').or.equal(extund,'VXC').or.&
           equal(extdot,'GDEN1').or.equal(extund,'GDEN1').or.equal(extdot,'GDEN2').or.equal(extund,'GDEN2').or.&
           equal(extdot,'GDEN3').or.equal(extund,'GDEN3').or.equal(extdot,'LDEN').or.equal(extund,'LDEN').or.&
-          equal(extdot,'KDEN').or.equal(extund,'KDEN').or.equal(extdot,'PAWDEN').or.equal(extund,'PAWDEN')) then
+          equal(extdot,'KDEN').or.equal(extund,'KDEN').or.equal(extdot,'PAWDEN').or.equal(extund,'PAWDEN').or.&
+          equal(extdot,'VCLMB').or.equal(extund,'VCLMB').or.equal(extdot,'VPSP').or.equal(extund,'VPSP')) then
           f%iff = ifformat_abinit
        else if (equal(extdot,'RHO') .or. equal(extdot,'BADER') .or.&
           equal(extdot,'DRHO') .or. equal(extdot,'LDOS') .or.&
