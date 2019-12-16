@@ -5,6 +5,7 @@ set(TESTS
   004_crystalenv-tricky1
   005_crystalenv-tricky2
   006_crystalenv-tricky3
+  007_crystal_abinit
   )
 
 runtests(${TESTS})

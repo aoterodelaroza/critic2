@@ -1,0 +1,4 @@
+## check: 007_crystal_abinit_gen.cri -a1e-10
+## delete: 007_crystal_abinit.cro
+crystal ../zz_source/abinit/quartz_o_DEN
+write 007_crystal_abinit_gen.cri

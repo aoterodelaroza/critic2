@@ -6,6 +6,13 @@ set(TESTDIRS
   002_crystal ## reading a crystal structure (CRYSTAL)
   )
 
+## copy over the data for the tests
+if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/zz_source.tar.xz" "${CMAKE_CURRENT_BINARY_DIR}/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "zz_source.tar.xz" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_CURRENT_BINARY_DIR}/zz_source.tar.xz")
+endif()
+
 ## define the macro that will run the tests
 macro (runtests)
   get_filename_component(curdir "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
@@ -77,7 +84,7 @@ macro (runtests)
     add_test(
       NAME "-RUN-:${curdir}/${test}" 
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
-      WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       )
 
     ## check tests
@@ -90,7 +97,7 @@ macro (runtests)
         add_test(
           NAME "CHECK:${curdir}/ref/${file}" 
           COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
-          WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
+          WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
           )
         set_tests_properties("CHECK:${curdir}/ref/${file}" PROPERTIES DEPENDS "-RUN-:${curdir}/${test}")
       endforeach()
