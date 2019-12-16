@@ -1,0 +1,23 @@
+* WRITE critic2 input file: 008_crystal_crystal_gen.cri
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/crystal/06/oxacb.out
+  Crystal 2 : <current>
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 5.551115E-16
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/crystal/14/oxacb.out
+  Crystal 2 : <current>
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 5.551115E-16
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/crystal/17/oxacb.out
+  Crystal 2 : <current>
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 5.551115E-16
+
