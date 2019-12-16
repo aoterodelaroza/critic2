@@ -1,0 +1,86 @@
+* WRITE critic2 input file: 007_crystal_abinit_gen.cri
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_GDEN1
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_GDEN2
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_GDEN3
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_LDEN
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_POT
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_VCLMB
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_VHA
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_VHXC
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_VPSP
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/nc/quartz_o_VXC
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/paw/quartz_o_DEN
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : ../zz_source/abinit/nc/quartz_o_DEN
+  Crystal 2 : ../zz_source/abinit/paw/quartz_o_PAWDEN
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+

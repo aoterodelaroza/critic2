@@ -1,4 +1,18 @@
 ## check: 007_crystal_abinit_gen.cri -a1e-10
-## delete: 007_crystal_abinit.cro
-crystal ../zz_source/abinit/quartz_o_DEN
+## check: 007_crystal_abinit.cro -a1e-10
+crystal ../zz_source/abinit/nc/quartz_o_DEN
 write 007_crystal_abinit_gen.cri
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_GDEN1
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_GDEN2
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_GDEN3
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_LDEN
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_POT
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_VCLMB
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_VHA
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_VHXC
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_VPSP
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/nc/quartz_o_VXC
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/paw/quartz_o_DEN
+compare ../zz_source/abinit/nc/quartz_o_DEN ../zz_source/abinit/paw/quartz_o_PAWDEN
+
+
