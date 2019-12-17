@@ -6,11 +6,16 @@ set(TESTDIRS
   002_crystal ## reading a crystal structure (CRYSTAL)
   )
 
-## copy over the data for the tests
+## unpack data for the tests (source)
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/")
+  message(STATUS "Unpacking the data for tests in ${CMAKE_CURRENT_SOURCE_DIR}/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "zz_source.tar.xz" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
+## create symlink for the test data (build)
 if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/zz_source.tar.xz" "${CMAKE_CURRENT_BINARY_DIR}/")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "zz_source.tar.xz" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_CURRENT_BINARY_DIR}/zz_source.tar.xz")
+  message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
 endif()
 
 ## define the macro that will run the tests
