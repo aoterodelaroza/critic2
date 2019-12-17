@@ -1,0 +1,5 @@
+## check: 018_crystal_cube_gen.cri -a1e-10
+## delete: 018_crystal_cube.cro
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+write 018_crystal_cube_gen.cri

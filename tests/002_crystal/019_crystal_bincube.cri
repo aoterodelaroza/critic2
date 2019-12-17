@@ -1,0 +1,5 @@
+## check: 019_crystal_bincube_gen.cri -a1e-10
+## delete: 019_crystal_bincube.cro
+## labels: regression quick
+crystal ../zz_source/critic2/graphite_qe.rho.bincube
+write 019_crystal_bincube_gen.cri
