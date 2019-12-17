@@ -61,4 +61,5 @@ CMakeFiles
 cmake_install.cmake
 
 # tests (source tree)
+tests/zz_source.tar.xz
 tests/zz_source/
