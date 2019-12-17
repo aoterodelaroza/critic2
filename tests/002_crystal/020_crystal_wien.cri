@@ -1,0 +1,8 @@
+## check: 020_crystal_wien_gen_01.cri -a1e-10
+## check: 020_crystal_wien_gen_02.cri -a1e-10
+## delete: 020_crystal_wien.cro
+## labels: regression quick
+crystal ../zz_source/wien14.2/bp/bp.struct
+write 020_crystal_wien_gen_01.cri
+crystal ../zz_source/wien14.2/zno/zno.struct
+write 020_crystal_wien_gen_02.cri
