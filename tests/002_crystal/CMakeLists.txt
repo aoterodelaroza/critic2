@@ -12,6 +12,8 @@ set(TESTS
   011_crystal_cifone
   012_crystal_cifallblock
   013_crystal_cifoneblock
+  014_crystal_xsf
+  015_crystal_axsf
   )
 
 runtests(${TESTS})

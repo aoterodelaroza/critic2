@@ -1,4 +1,5 @@
 ## check: 013_crystal_cifoneblock_gen.cri -a1e-10
+## delete: 013_crystal_cifoneblock.cro
 ## labels: regression quick
 crystal ../zz_source/cif-multidata/bt6-xxiii-price.cif XXIII_List1_50_Price_A1827
 write 013_crystal_cifoneblock_gen.cri

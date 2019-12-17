@@ -1,0 +1,5 @@
+## check: 014_crystal_xsf_gen.cri -a1e-10
+## delete: 014_crystal_xsf.cro
+## labels: regression quick
+crystal ../zz_source/xcrysden-1.5.60/graph.xsf
+write 014_crystal_xsf_gen.cri
