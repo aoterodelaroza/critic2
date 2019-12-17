@@ -31,7 +31,6 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
 include(utils)
-include(CTest)
 
 ## default build type, and type options
 if(NOT CMAKE_BUILD_TYPE)
@@ -53,6 +52,10 @@ option(USE_LIBCINT "Use the libcint library (calculation of molecular integrals 
 option(USE_READLINE "Use the readline library (improved command-line interface)." ON)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
+
+## testing
+option(BUILD_TESTING "Enable the regression tests for the critic2 build." OFF)
+include(CTest)
 
 ## the GUI needs -fPIC
 if (ENABLE_GUI)
