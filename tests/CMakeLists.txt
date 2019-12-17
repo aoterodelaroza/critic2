@@ -1,22 +1,18 @@
 ## enable testing
 
+## test data package info
+set(TEST_PACKAGE_NAME "zz_source.tar.xz")
+set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
+set(TEST_URL 
+  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
+  )
+set(TEST_SHA1_HASH bde5e59b5e2438fb85e40b802e87ffc14a37adaa)
+
 ## list of test bundles
 set(TESTDIRS 
   001_io      ## input and output; arithmetics
   002_crystal ## reading a crystal structure (CRYSTAL)
   )
-
-## unpack data for the tests (source)
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/")
-  message(STATUS "Unpacking the data for tests in ${CMAKE_CURRENT_SOURCE_DIR}/")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "zz_source.tar.xz" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
-
-## create symlink for the test data (build)
-if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
-  message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
-  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
-endif()
 
 ## define the macro that will run the tests
 macro (runtests)
@@ -110,7 +106,54 @@ macro (runtests)
   endforeach()
 endmacro()
 
-## process all subdirectories
-foreach(dir ${TESTDIRS})
-  add_subdirectory(${dir})
-endforeach()
+## if the file exists, calculate the hash and verify
+if (EXISTS "${TEST_PACKAGE_TARGET}")
+  file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
+  if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
+    set(TEST_PACKAGE_FOUND "YES")
+  endif()
+endif()
+
+## fetch the test data package, if necessary - verify the hash
+if(NOT "${TEST_PACKAGE_FOUND}")
+  foreach(url ${TEST_URL})
+    if (EXISTS "${TEST_PACKAGE_TARGET}")
+      file(REMOVE "${TEST_PACKAGE_TARGET}")
+    endif()
+    file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
+      TIMEOUT 60 
+      TLS_VERIFY ON
+      SHOW_PROGRESS
+      STATUS status
+      )
+    list(GET status 0 error_code)
+    if(NOT "${error_code}")
+      file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
+      if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
+	set(TEST_PACKAGE_FOUND "YES")
+	break()
+      endif()
+    endif()
+  endforeach()
+endif()
+
+## unpack data for the tests (source)
+if ("${TEST_PACKAGE_FOUND}")
+  if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/")
+    message(STATUS "Unpacking the data for tests in ${CMAKE_CURRENT_SOURCE_DIR}/")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "${TEST_PACKAGE_TARGET}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  endif()
+
+  ## create symlink for the test data (build)
+  if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
+    message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
+  endif()
+
+  ## process all subdirectories
+  foreach(dir ${TESTDIRS})
+    add_subdirectory(${dir})
+  endforeach()
+else()
+  message(STATUS "Skipping tests because test data package could not be found or downloaded.")
+endif()
