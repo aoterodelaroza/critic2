@@ -1,8 +1,8 @@
 ## check: 008_crystal_crystal.cro -a1e-10
 ## check: 008_crystal_crystal_gen.cri -a1e-10
-crystal ../zz_source/crystal/06/oxacb.out
+crystal ../zz_source/crystal06/oxacb.out
 write 008_crystal_crystal_gen.cri
 crystal library oxalic_acid_beta
-compare ../zz_source/crystal/06/oxacb.out .
-compare ../zz_source/crystal/14/oxacb.out .
-compare ../zz_source/crystal/17/oxacb.out .
+compare ../zz_source/crystal06/oxacb.out .
+compare ../zz_source/crystal14/oxacb.out .
+compare ../zz_source/crystal17/oxacb.out .
