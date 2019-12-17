@@ -1,1 +1,1 @@
-## check: 004_macinput.cro -a1e-10 two = 2three = 3three + two*pi20 * atan(1/7) + 8 * atan(3/79)two^-threetwo^two^three-two^three3%2-3%23%-22 >= 3(eps > 0) && (-eps < 0)abs(exp(2*pi) - e^(2*pi))2**3**4(2**3)**4
+two = 2three = 3three + two*pi20 * atan(1/7) + 8 * atan(3/79)two^-threetwo^two^three-two^three3%2-3%23%-22 >= 3(eps > 0) && (-eps < 0)abs(exp(2*pi) - e^(2*pi))2**3**4(2**3)**4

@@ -1,5 +1,6 @@
 ## check: 004_crystalenv-tricky1_gen.cri -a1e-10
 ## delete: 004_crystalenv-tricky1.cro
+## labels: regression quick
 crystal
   cell   8.26910662485   8.26912740067  47.02236820686  89.99994  90.00015 119.99954
   neq   0.00000952   0.00000256   0.99999601         SE

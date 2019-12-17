@@ -1,2 +1,3 @@
 ## check: 001_simple_arithmetics.cro -a1e-10
+## labels: regression quick
 2 + 3

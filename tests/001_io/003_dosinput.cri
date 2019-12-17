@@ -1,4 +1,5 @@
 ## check: 003_dosinput.cro -a1e-10
+## labels: regression quick
 two = 2
 three = 3
 three + two*pi

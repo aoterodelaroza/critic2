@@ -1,4 +1,5 @@
 ## check: 012_crystal_cifallblock.cro -a1e-10
+## labels: regression
 crystal ../zz_source/cif-multidata/bt6-xxiii-price.cif XXIII_List1_1_Price_A70
 sym recalc
 crystal ../zz_source/cif-multidata/bt6-xxiii-price.cif XXIII_List1_2_Price_A1361

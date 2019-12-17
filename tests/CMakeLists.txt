@@ -21,8 +21,14 @@ macro (runtests)
 
   foreach(test ${ARGN})
     ## gather info about the test
-    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" check_list REGEX "^ *#.*check *: ")
-    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" delete_list REGEX "^ *#.*delete *:")
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
+      include("${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
+    else()
+      file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" check_list REGEX "^ *#.*check *: ")
+      file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" delete_list REGEX "^ *#.*delete *: ")
+      file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" label_list REGEX "^ *#.*labels *: ")
+    endif()
+    string(REGEX REPLACE "^ *#.*labels *:" "" label_list "${label_list}")
 
     ## gen test
     add_test(
@@ -31,7 +37,7 @@ macro (runtests)
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       CONFIGURATIONS gen
       )
-    set_tests_properties("GEN:${curdir}/${test}" PROPERTIES LABELS "gen")
+    set_property(TEST "GEN:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
 
     ## gen_copy test
     set(_check_list "")
@@ -51,10 +57,8 @@ macro (runtests)
         WORKING_DIRECTORY ""
         CONFIGURATIONS gen
         )
-      set_tests_properties("GEN-COPY-:${curdir}/${test}" PROPERTIES 
-        LABELS "gen" 
-        DEPENDS "GEN:${curdir}/${test}"
-        )
+      set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
+      set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY DEPENDS "GEN:${curdir}/${test}")
     endif()
 
     ## gen_clean test
@@ -75,10 +79,8 @@ macro (runtests)
         WORKING_DIRECTORY ""
         CONFIGURATIONS gen
         )
-      set_tests_properties("GEN-CLEAN-:${curdir}/${test}" PROPERTIES 
-        LABELS "gen" 
-        DEPENDS "GEN-COPY:${curdir}/${test}"
-        )
+      set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
+      set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY DEPENDS "GEN-COPY:${curdir}/${test}")
     endif()
 
     ## run test
@@ -87,6 +89,7 @@ macro (runtests)
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       )
+    set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY LABELS "${label_list}")
 
     ## check tests
     if (NUMDIFF_FOUND AND check_list)
@@ -100,7 +103,8 @@ macro (runtests)
           COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
           WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
           )
-        set_tests_properties("CHECK:${curdir}/ref/${file}" PROPERTIES DEPENDS "-RUN-:${curdir}/${test}")
+	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY LABELS "${label_list}")
+	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY DEPENDS "-RUN-:${curdir}/${test}")
       endforeach()
     endif()
   endforeach()

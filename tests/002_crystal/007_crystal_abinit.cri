@@ -1,5 +1,6 @@
 ## check: 007_crystal_abinit_gen.cri -a1e-10
 ## check: 007_crystal_abinit.cro -a1e-10
+## labels: regression quick
 crystal ../zz_source/abinit-8.10.3/nc/quartz_o_DEN
 write 007_crystal_abinit_gen.cri
 compare ../zz_source/abinit-8.10.3/nc/quartz_o_DEN ../zz_source/abinit-8.10.3/nc/quartz_o_GDEN1

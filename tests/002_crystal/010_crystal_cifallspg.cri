@@ -1,4 +1,5 @@
 ## check: 010_crystal_cifallspg.cro -a1e-10
+## labels: regression 
 crystal ../zz_source/cif-allspg/001_tetrazole.cif
 sym recalc
 crystal ../zz_source/cif-allspg/002_kyanite.cif
