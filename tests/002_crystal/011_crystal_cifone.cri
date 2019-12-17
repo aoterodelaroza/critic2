@@ -1,0 +1,4 @@
+## delete: 011_crystal_cifone.cro
+## check: 011_crystal_cifone_gen.cri -a1e-10
+crystal ../zz_source/cif-allspg/186_wurtzite.cif
+write 011_crystal_cifone_gen.cri

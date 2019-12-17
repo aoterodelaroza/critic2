@@ -1,0 +1,4 @@
+ ciftbx warning: ../zz_source/cif-multidata/bt6-xxiii-price.cif data_XXIII_List1_50_Price_A1827 line:   3572
+  Category key _atom_site_aniso_label not given for atom_site
+* WRITE critic2 input file: 013_crystal_cifoneblock_gen.cri
+
