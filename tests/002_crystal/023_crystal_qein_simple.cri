@@ -1,0 +1,5 @@
+## delete: 023_crystal_qein_simple.cro
+## check: 023_crystal_qein_simple_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/graph.scf.in
+write 023_crystal_qein_simple_gen.cri

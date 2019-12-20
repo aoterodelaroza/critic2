@@ -1,0 +1,20 @@
+## delete: 024_crystal_qeout_simple.cro
+## check: 024_crystal_qeout_simple_gen_01.cri -a1e-10
+## check: 024_crystal_qeout_simple_gen_02.cri -a1e-10
+## check: 024_crystal_qeout_simple_gen_03.cri -a1e-10
+## check: 024_crystal_qeout_simple_gen_04.cri -a1e-10
+## check: 024_crystal_qeout_simple_gen_05.cri -a1e-10
+## check: 024_crystal_qeout_simple_gen_06.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/graph.scf.out
+write 024_crystal_qeout_simple_gen_01.cri
+crystal ../zz_source/qe-6.1/graphite/graph_opt.scf.out
+write 024_crystal_qeout_simple_gen_02.cri
+crystal ../zz_source/qe-6.1/graphite/graph_opt.scf.out 1
+write 024_crystal_qeout_simple_gen_03.cri
+crystal ../zz_source/qe-6.1/graphite/graph_opt.scf.out 5
+write 024_crystal_qeout_simple_gen_04.cri
+crystal ../zz_source/qe-6.1/graphite/graph_opt.scf.out 10
+write 024_crystal_qeout_simple_gen_05.cri
+crystal ../zz_source/qe-6.1/graphite/graph_opt-interrupted2.scf.out
+write 024_crystal_qeout_simple_gen_06.cri

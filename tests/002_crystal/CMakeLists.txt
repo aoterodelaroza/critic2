@@ -21,6 +21,8 @@ set(TESTS
   020_crystal_wien
   021_crystal_vasp
   022_crystal_dftb+
+  023_crystal_qein_simple
+  024_crystal_qeout_simple
   )
 
 runtests(${TESTS})
