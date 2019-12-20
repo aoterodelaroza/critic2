@@ -1,0 +1,8 @@
+## delete: 022_crystal_dftb+.cro
+## check: 022_crystal_dftb+_gen_01.cri -a1e-10
+## check: 022_crystal_dftb+_gen_02.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/dftb+-18.1/graphite/graphite.gen
+write 022_crystal_dftb+_gen_01.cri
+crystal ../zz_source/dftb+-18.1/graphite/graphite_out.gen
+write 022_crystal_dftb+_gen_02.cri

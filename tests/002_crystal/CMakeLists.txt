@@ -19,6 +19,8 @@ set(TESTS
   018_crystal_cube
   019_crystal_bincube
   020_crystal_wien
+  021_crystal_vasp
+  022_crystal_dftb+
   )
 
 runtests(${TESTS})

@@ -1,0 +1,26 @@
+## delete: 021_crystal_vasp.cro
+## check: 021_crystal_vasp_gen_01.cri -a1e-10
+## check: 021_crystal_vasp_gen_02.cri -a1e-10
+## check: 021_crystal_vasp_gen_03.cri -a1e-10
+## check: 021_crystal_vasp_gen_04.cri -a1e-10
+## check: 021_crystal_vasp_gen_05.cri -a1e-10
+## check: 021_crystal_vasp_gen_06.cri -a1e-10
+## check: 021_crystal_vasp_gen_07.cri -a1e-10
+## check: 021_crystal_vasp_gen_08.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/vasp-5.3.3/agtao3/POSCAR ../zz_source/vasp-5.3.3/agtao3/POTCAR
+write 021_crystal_vasp_gen_01.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/POSCAR Ag Ta O
+write 021_crystal_vasp_gen_02.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/CONTCAR
+write 021_crystal_vasp_gen_03.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/CHGCAR
+write 021_crystal_vasp_gen_04.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/CHG
+write 021_crystal_vasp_gen_05.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/AECCAR0
+write 021_crystal_vasp_gen_06.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/AECCAR2
+write 021_crystal_vasp_gen_07.cri
+crystal ../zz_source/vasp-5.3.3/agtao3/ELFCAR
+write 021_crystal_vasp_gen_08.cri
