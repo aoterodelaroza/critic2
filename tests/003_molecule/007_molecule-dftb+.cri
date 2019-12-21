@@ -1,0 +1,8 @@
+## delete: 007_molecule-dftb+.cro
+## check: 007_molecule-dftb+_gen_01.cri -a1e-10
+## check: 007_molecule-dftb+_gen_02.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/dftb+-18.1/benzene/benzene.gen
+write 007_molecule-dftb+_gen_01.cri
+molecule ../zz_source/dftb+-18.1/benzene/benzene_out.gen
+write 007_molecule-dftb+_gen_02.cri

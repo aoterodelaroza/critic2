@@ -1,0 +1,5 @@
+## delete: 004_molecule-bincube.cro
+## check: 004_molecule-bincube_gen.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/critic2/benzene/rho.bincube
+write 004_molecule-bincube_gen.cri

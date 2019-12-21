@@ -1,0 +1,5 @@
+## delete: 006_molecule-adf.cro
+## check: 006_molecule-adf_gen.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/adf/h2o_sto/h2o_sto.molden
+write 006_molecule-adf_gen.cri

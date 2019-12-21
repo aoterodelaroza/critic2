@@ -1,0 +1,14 @@
+## delete: 002_molecule-gaussian.cro
+## check: 002_molecule-gaussian_gen_01.cri -a1e-10
+## check: 002_molecule-gaussian_gen_02.cri -a1e-10
+## check: 002_molecule-gaussian_gen_03.cri -a1e-10
+## check: 002_molecule-gaussian_gen_04.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/gaussian-16/benzene/benzene.log
+write 002_molecule-gaussian_gen_01.cri
+molecule ../zz_source/gaussian-16/benzene/benzene.wfn
+write 002_molecule-gaussian_gen_02.cri
+molecule ../zz_source/gaussian-16/benzene/benzene.wfx
+write 002_molecule-gaussian_gen_03.cri
+molecule ../zz_source/gaussian-16/benzene/benzene.fchk
+write 002_molecule-gaussian_gen_04.cri

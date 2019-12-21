@@ -6,12 +6,13 @@ set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
 set(TEST_URL 
   http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
   )
-set(TEST_SHA1_HASH c8747bbae2f8cc2f9a8ad0721fe293be428c7f2f)
+set(TEST_SHA1_HASH d2223d5336a176de4c5f93b079775cf4dc6304f3)
 
 ## list of test bundles
 set(TESTDIRS 
-  001_io      ## input and output; arithmetics
-  002_crystal ## reading a crystal structure (CRYSTAL)
+  001_io       ## input and output; arithmetics
+  002_crystal  ## reading a crystal structure (CRYSTAL)
+  003_molecule ## reading a molecular structure (MOLECULE)
   )
 
 ## define the macro that will run the tests

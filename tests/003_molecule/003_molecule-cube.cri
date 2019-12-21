@@ -1,0 +1,5 @@
+## delete: 003_molecule-cube.cro
+## check: 003_molecule-cube_gen.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/gaussian-16/benzene/benzene.cube
+write 003_molecule-cube_gen.cri

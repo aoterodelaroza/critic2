@@ -1,0 +1,11 @@
+## delete: 005_molecule-psi4.cro
+## check: 005_molecule-psi4_gen_01.cri -a1e-10
+## check: 005_molecule-psi4_gen_02.cri -a1e-10
+## check: 005_molecule-psi4_gen_03.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/psi4-1.4/benzene/benzene.dat
+write 005_molecule-psi4_gen_01.cri
+molecule ../zz_source/psi4-1.4/benzene/benzene_all.molden
+write 005_molecule-psi4_gen_02.cri
+molecule ../zz_source/psi4-1.4/benzene/benzene_occ.molden
+write 005_molecule-psi4_gen_03.cri
