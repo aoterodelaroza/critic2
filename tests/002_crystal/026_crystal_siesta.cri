@@ -1,0 +1,8 @@
+## delete: 026_crystal_siesta.cro
+## check: 026_crystal_siesta_gen_01.cri -a1e-10
+## check: 026_crystal_siesta_gen_02.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/siesta-4.1/graphite/crystal.STRUCT_IN
+write 026_crystal_siesta_gen_01.cri
+crystal ../zz_source/siesta-4.1/graphite/crystal.STRUCT_OUT
+write 026_crystal_siesta_gen_02.cri

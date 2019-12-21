@@ -1,0 +1,5 @@
+## delete: 025_crystal_pwc.cro
+## check: 025_crystal_pwc_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.5/graphite/graph.pwc
+write 025_crystal_pwc_gen.cri

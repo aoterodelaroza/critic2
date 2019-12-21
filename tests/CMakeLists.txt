@@ -6,7 +6,7 @@ set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
 set(TEST_URL 
   http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
   )
-set(TEST_SHA1_HASH 52de5ab0254b7ff2469f1d264ec370bccca263a4)
+set(TEST_SHA1_HASH c8747bbae2f8cc2f9a8ad0721fe293be428c7f2f)
 
 ## list of test bundles
 set(TESTDIRS 
@@ -17,7 +17,6 @@ set(TESTDIRS
 ## define the macro that will run the tests
 macro (runtests)
   get_filename_component(curdir "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
-  file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ref")
 
   foreach(test ${ARGN})
     ## gather info about the test
@@ -96,8 +95,11 @@ macro (runtests)
       foreach (i IN LISTS check_list)
         string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
         string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+	list(LENGTH llist nn)
         list(GET llist 0 file)
-        list(GET llist 1 numdiff_opts)
+	if ("${nn}" GREATER 1)
+          list(GET llist 1 numdiff_opts)
+	endif()
         add_test(
           NAME "CHECK:${curdir}/ref/${file}" 
           COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
