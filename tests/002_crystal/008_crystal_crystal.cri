@@ -1,9 +1,9 @@
 ## check: 008_crystal_crystal.cro -a1e-10
 ## check: 008_crystal_crystal_gen.cri -a1e-10
 ## labels: regression quick
-crystal ../zz_source/crystal06/oxacb.out
+crystal ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
 write 008_crystal_crystal_gen.cri
 crystal library oxalic_acid_beta
-compare ../zz_source/crystal06/oxacb.out .
-compare ../zz_source/crystal14/oxacb.out .
-compare ../zz_source/crystal17/oxacb.out .
+compare ../zz_source/crystal06/oxalic_acid_beta/oxacb.out .
+compare ../zz_source/crystal14/oxalic_acid_beta/oxacb.out .
+compare ../zz_source/crystal17/oxalic_acid_beta/oxacb.out .

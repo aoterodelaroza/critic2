@@ -1,7 +1,7 @@
 ## check: 009_crystal_elk_gen.cri -a1e-10
 ## delete: 009_crystal_elk.cro
 ## labels: regression quick
-crystal ../zz_source/elk-6.3.02/GEOMETRY.OUT
+crystal ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
 write 009_crystal_elk_gen.cri
 
 

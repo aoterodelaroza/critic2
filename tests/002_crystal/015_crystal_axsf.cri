@@ -1,60 +1,20 @@
-## check: 015_crystal_axsf.cro -a1e-10
+## delete: 015_crystal_axsf.cro
+## check: 015_crystal_axsf_gen_01.cri -a1e-10
+## check: 015_crystal_axsf_gen_02.cri -a1e-10
+## check: 015_crystal_axsf_gen_03.cri -a1e-10
+## check: 015_crystal_axsf_gen_04.cri -a1e-10
+## check: 015_crystal_axsf_gen_05.cri -a1e-10
+## check: 015_crystal_axsf_gen_06.cri -a1e-10
 ## labels: regression quick
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 1 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 2 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 3 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 5 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 6 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 7 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 8 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 9 0.0
-sym recalc
+write 015_crystal_axsf_gen_01.cri
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 10 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 11 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 12 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 13 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 14 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 15 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 16 0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 17 0.0
-sym recalc
+write 015_crystal_axsf_gen_02.cri
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 18 0.0
-sym recalc
+write 015_crystal_axsf_gen_03.cri
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 -10.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 -8.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 -6.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 -4.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 -2.0
-sym recalc
+write 015_crystal_axsf_gen_04.cri
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4  0.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4  2.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4  4.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4  6.0
-sym recalc
-crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4  8.0
-sym recalc
+write 015_crystal_axsf_gen_05.cri
 crystal ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 4 10.0
-sym recalc
+write 015_crystal_axsf_gen_06.cri

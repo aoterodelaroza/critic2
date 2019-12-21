@@ -2,7 +2,7 @@
 ## check: 014_crystal_xsf_gen_02.cri -a1e-10
 ## delete: 014_crystal_xsf.cro
 ## labels: regression quick
-crystal ../zz_source/xcrysden-1.5.60/graph.xsf
+crystal ../zz_source/xcrysden-1.5.60/graphite/graph.xsf
 write 014_crystal_xsf_gen_01.cri
 crystal ../zz_source/qe-6.1/graphite/rho.xsf
 write 014_crystal_xsf_gen_02.cri
