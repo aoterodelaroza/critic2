@@ -1,0 +1,21 @@
+## delete: 008_moleculeenv-simple.cro
+## check: 008_moleculeenv-simple_gen.cri -a1e-10
+## labels: regression quick
+aa = 0.529177
+molecule
+neq 0.000000 1.393557 0.000000 C
+C 1.206855 0.696778 0.000000
+6 1.206855 -0.696778 0.000000
+C 0.000000 -1.393557 0.000000 ang
+C -1.206855 -0.696778 0.000000 angstrom
+C -1.206855/aa 0.696778/aa 0.000000 bohr
+H 0.000000 2.478749/aa 0.000000 au
+H 2.146660 1.239375 0.000000
+H 2.146660 -1.239375 0.000000
+H 0.000000 -2.478749 0.000000
+H -2.146660 -1.239375 0.000000
+H -2.146660 1.239375 0.000000
+cubic
+border 20
+end
+write 008_moleculeenv-simple_gen.cri

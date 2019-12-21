@@ -6,6 +6,8 @@ set(TESTS
   005_molecule-psi4
   006_molecule-adf
   007_molecule-dftb+
+  008_moleculeenv-simple
+  009_molecule-library
   )
 
 runtests(${TESTS})
