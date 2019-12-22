@@ -1,0 +1,21 @@
+## delete: 004_load-cubeopts.cro
+## check: 004_load-cubeopts_01.line -a1e-10
+## check: 004_load-cubeopts_02.line -a1e-10
+## check: 004_load-cubeopts_03.line -a1e-10
+## check: 004_load-cubeopts_04.line -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube nearest
+line 0 0 0 1 1 1 101 file 004_load-cubeopts_01.line field 1
+
+load ../zz_source/qe-6.1/graphite/rho.cube trilinear
+line 0 0 0 1 1 1 101 file 004_load-cubeopts_02.line field 2
+
+load ../zz_source/qe-6.1/graphite/rho.cube trispline
+line 0 0 0 1 1 1 101 file 004_load-cubeopts_03.line field 3
+
+load ../zz_source/qe-6.1/graphite/rho.cube tricubic
+line 0 0 0 1 1 1 101 file 004_load-cubeopts_04.line field 4
+
+
+

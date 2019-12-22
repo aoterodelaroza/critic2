@@ -1,0 +1,12 @@
+## check: 003_load-cube.cro -a1e-10
+## check: 003_load-cube_01.line -a1e-10
+## check: 003_load-cube_02.line -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+line 0 0 0 1 1 1 101 file 003_load-cube_01.line
+
+molecule ../zz_source/gaussian-16/benzene/benzene.cube
+load ../zz_source/gaussian-16/benzene/benzene.cube
+line 0 -4 0 0 4 0 101 file 003_load-cube_02.line
+

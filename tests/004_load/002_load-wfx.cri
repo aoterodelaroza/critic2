@@ -1,0 +1,7 @@
+## check: 002_load-wfx.cro -a1e-10
+## check: 002_load-wfx.line -a1e-10
+## labels: regression quick
+molecule ../zz_source/gaussian-16/benzene/benzene.wfx
+load ../zz_source/gaussian-16/benzene/benzene.wfx
+line 0 -4 0 0 4 0 101 file 002_load-wfx.line
+molcalc "$1"

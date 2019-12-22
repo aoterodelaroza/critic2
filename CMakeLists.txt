@@ -79,7 +79,7 @@ endif()
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
   set(FFLAGS_RELEASE "-O3")
-  if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 19.5.0)
+  if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 19.0)
     set(_message "\nA version of intel fortran >=19.5 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
       "for more information.\n")

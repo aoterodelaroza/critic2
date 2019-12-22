@@ -1,0 +1,28 @@
++ Field number 1
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* LINE written to file: 002_load-wfx.line
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $1
+  Mesh size      219252
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($1) = 42.00000337   
+

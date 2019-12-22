@@ -1,0 +1,9 @@
+## delete: 005_load-cubezpsp.cro
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube zpsp C 4 core
+line 0 0 3/4 1 1 3/4 101 file 005_load-cubezpsp_01.line field 1
+
+load ../zz_source/qe-6.1/graphite/rho.cube nocore
+line 0 0 3/4 1 1 3/4 101 file 005_load-cubezpsp_02.line field 2
+
