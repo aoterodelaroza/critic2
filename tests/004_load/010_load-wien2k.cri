@@ -1,0 +1,7 @@
+## check: 010_load-wien2k.cro -a1e-10
+## check: 010_load-wien2k.line -a1e-10
+## labels: regression quick
+crystal ../zz_source/wien14.2/zno/zno.struct
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct
+line 0 0 0 1 1 1 101 file 010_load-wien2k.line
+

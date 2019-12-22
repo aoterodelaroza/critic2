@@ -4,6 +4,12 @@ set(TESTS
   003_load-cube
   004_load-cubeopts
   005_load-cubezpsp
+  006_load-bincube
+  007_load-abinit
+  008_load-vasp
+  009_load-xsf
+  010_load-wien2k
+  011_load-elk
   )
 
 runtests(${TESTS})

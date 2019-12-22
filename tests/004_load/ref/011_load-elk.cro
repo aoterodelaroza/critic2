@@ -1,0 +1,28 @@
++ Field number 1
+  Source: ../zz_source/elk-6.3.02/sbpo4/STATE.OUT
+  Type: elk
+  Number of LM pairs: 49
+  Max. points in radial grid: 997
+  Total number of plane waves: 442368
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000977  -0.000578  -0.001170
+  Atom: 2 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000952  -0.000529  -0.001187
+  Atom: 3 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000980  -0.000563  -0.001243
+  Atom: 4 delta_m = 0.001000 delta_p = 0.001000
+
+  Atom: 4 rmt= 1.5690148 RMS/max/min(fout-fin) = 0.005823  0.012898  -0.016768
+  Atom: 5 rmt= 2.5266197 RMS/max/min(fout-fin) = 0.002593  0.007751  -0.006189
++ Assert - no spurious CPs on the muffin tin surface: F
+
+WARNING(testrmt): Spurious CPs on the muffin tin surface!
+* LINE written to file: 011_load-elk.line
+

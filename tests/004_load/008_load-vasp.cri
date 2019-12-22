@@ -1,0 +1,8 @@
+## check: 008_load-vasp.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/vasp-5.3.3/agtao3/CHGCAR
+load ../zz_source/vasp-5.3.3/agtao3/AECCAR0
+load ../zz_source/vasp-5.3.3/agtao3/AECCAR2
+load ../zz_source/vasp-5.3.3/agtao3/CHG
+load ../zz_source/vasp-5.3.3/agtao3/CHGCAR
+load ../zz_source/vasp-5.3.3/agtao3/ELFCAR

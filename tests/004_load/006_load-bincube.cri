@@ -1,0 +1,4 @@
+## check: 006_load-bincube.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/critic2/graphite/rho.bincube
+load ../zz_source/critic2/graphite/rho.bincube
