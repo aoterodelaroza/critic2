@@ -1,0 +1,6 @@
+## check: 015_load-elkgrid.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
+load ../zz_source/elk-6.3.02/sbpo4/RHO3D.OUT
+load ../zz_source/elk-6.3.02/sbpo4/ELF3D.OUT
+

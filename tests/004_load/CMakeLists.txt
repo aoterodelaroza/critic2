@@ -12,6 +12,8 @@ set(TESTS
   011_load-elk
   012_load-pi
   013_load-dftb+
+  014_load-siesta
+  015_load-elkgrid
   )
 
 runtests(${TESTS})

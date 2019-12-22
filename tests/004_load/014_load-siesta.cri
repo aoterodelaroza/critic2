@@ -1,0 +1,23 @@
+## check: 014_load-siesta.cro -a1e-10
+## check: 014_load-siesta.line1 -a1e-10
+## check: 014_load-siesta.line2 -a1e-10
+## check: 014_load-siesta.line3 -a1e-10
+## check: 014_load-siesta.line4 -a1e-10
+## check: 014_load-siesta.line5 -a1e-10
+## check: 014_load-siesta.line6 -a1e-10
+## labels: regression quick
+crystal ../zz_source/siesta-4.1/graphite/crystal.STRUCT_OUT
+load ../zz_source/siesta-4.1/graphite/crystal.RHO
+load ../zz_source/siesta-4.1/graphite/crystal.BADER
+load ../zz_source/siesta-4.1/graphite/crystal.DRHO
+load ../zz_source/siesta-4.1/graphite/crystal.LDOS
+load ../zz_source/siesta-4.1/graphite/crystal.VT
+load ../zz_source/siesta-4.1/graphite/crystal.VH
+
+line 0 0 0 1 1 1 101 file 014_load-siesta.line1 field 1
+line 0 0 0 1 1 1 101 file 014_load-siesta.line2 field 2
+line 0 0 0 1 1 1 101 file 014_load-siesta.line3 field 3
+line 0 0 0 1 1 1 101 file 014_load-siesta.line4 field 4
+line 0 0 0 1 1 1 101 file 014_load-siesta.line5 field 5
+line 0 0 0 1 1 1 101 file 014_load-siesta.line6 field 6
+
