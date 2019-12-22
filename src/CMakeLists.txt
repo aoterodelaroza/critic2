@@ -36,6 +36,10 @@ set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
 
+## C standards
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 ## header info
 set(PACKAGE ${CMAKE_PROJECT_NAME})
 set(VERSION "${CMAKE_PROJECT_VERSION} (git:${critic2_GIT_COMMIT})")
