@@ -853,12 +853,16 @@ contains
     ! grid fields, for instance)
     nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
     res%isnuc = (nid > 0)
-    if (res%isnuc) res%gf = 0d0
-    res%gfmod = norm2(res%gf)
-    res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
 
-    ! diagonalize hessian and calculate rank and signature
+    ! gradient
+    if (nder > 0) then
+       if (res%isnuc) res%gf = 0d0
+       res%gfmod = norm2(res%gf)
+    end if
+
+    ! hessian
     if (nder > 1) then
+       res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        res%hfevec = res%hf
        call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
     end if
