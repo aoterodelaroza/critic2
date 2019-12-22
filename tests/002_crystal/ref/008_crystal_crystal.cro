@@ -5,19 +5,19 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 5.551115E-16
++ DIFF = 4.440892E-16
 
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal14/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 5.551115E-16
++ DIFF = 4.440892E-16
 
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal17/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 5.551115E-16
++ DIFF = 4.440892E-16
 
