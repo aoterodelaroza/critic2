@@ -135,6 +135,8 @@ contains
        end do
 
        ! fill some grid info
+       f%bas(i)%pgrid%z = env%spc(i)%z
+       f%bas(i)%pgrid%qat = 0
        f%bas(i)%pgrid%isinit = .true.
        f%bas(i)%pgrid%a = az / real(env%spc(i)%z,8)
        f%bas(i)%pgrid%b = b
