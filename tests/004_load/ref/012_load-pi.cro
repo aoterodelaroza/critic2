@@ -1,0 +1,38 @@
++ Field number 1
+  Source: <pi ion files>
+  Type: pi
+  Exact calculation? T
+  List of species and associated ion files
+# spc  name    Z  ion file
+    1   Ca    20  ../zz_source/pi7r16/
+    2   Ti    22  ../zz_source/pi7r16/
+    3    O     8  ../zz_source/pi7r16/
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: <pi ion files>
+  Type: pi
+  Exact calculation? F
+  List of species and associated ion files
+# spc  name    Z  ion file
+    1   Ca    20  ../zz_source/pi7r16/
+    2   Ti    22  ../zz_source/pi7r16/
+    3    O     8  ../zz_source/pi7r16/
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (1): $2
+
+* LINE written to file: 012_load-pi.line1
+
+* LINE written to file: 012_load-pi.line2
+

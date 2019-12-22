@@ -1,0 +1,19 @@
+## check: 012_load-pi.cro -a1e-10
+## check: 012_load-pi.line1 -a1e-10
+## check: 012_load-pi.line2 -a1e-10
+## labels: regression quick
+crystal
+  cell 7.25655 7.25655 7.25655 90 90 90
+  spg p m -3 m
+  neq 0.50 0.50 0.50 Ca
+  neq 0.00 0.00 0.00 Ti
+  neq 0.50 0.00 0.00 O
+endcrystal
+load ../zz_source/pi7r16/catio3/ca.ion Ca \
+     ../zz_source/pi7r16/catio3/ti.ion Ti \
+     ../zz_source/pi7r16/catio3/o.ion O exact
+load ../zz_source/pi7r16/catio3/ca.ion Ca \
+     ../zz_source/pi7r16/catio3/ti.ion Ti \
+     ../zz_source/pi7r16/catio3/o.ion O approximate
+line 0 0 0 1 1 1 101 file 012_load-pi.line1 field 1
+line 0 0 0 1 1 1 101 file 012_load-pi.line2 field 2

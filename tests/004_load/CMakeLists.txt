@@ -10,6 +10,8 @@ set(TESTS
   009_load-xsf
   010_load-wien2k
   011_load-elk
+  012_load-pi
+  013_load-dftb+
   )
 
 runtests(${TESTS})
