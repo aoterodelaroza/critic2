@@ -126,6 +126,9 @@ set(CMAKE_CXX_FLAGS_${BT} "${CXXFLAGS_${BT}}")
 ## openmp
 if (ENABLE_OPENMP)
   find_package(OpenMP MODULE COMPONENTS Fortran)
+  if (OPENMP_FOUND)
+    set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} ${OpenMP_Fortran_FLAGS}")
+  endif()
 endif()
 
 ## lapack

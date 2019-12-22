@@ -1,5 +1,5 @@
 ## sources
-set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
+set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   autocp@proc.f90 bader.f90 bader@proc.f90 bisect.f90 bisect@proc.f90
   cfftnd.f90 c_interface_module.f90 config.f90
   crystalmod.f90 crystalmod@proc.f90 crystalseedmod.f90
@@ -28,12 +28,13 @@ set(SOURCES abinit_private.f90 abinit_private@proc.f90 autocp.f90
   tricks.f90 types.f90 types@proc.f90 wfn_private.f90
   wien_private.f90 wien_private@proc.f90 xdm.f90
   xdm@proc.f90 yt.f90 yt@proc.f90
-  doqhull.c
   arithmetic.F90 arithmetic@proc.F90 config@proc.F90
   molcalc@proc.F90 param.F90
   tools_io@proc.F90 wfn_private@proc.F90
   )
-set(SOURCESP critic2.F90)
+set(SOURCES_C doqhull.c)
+set(SOURCES_Fortran_Main critic2.F90)
+set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
 
 ## header info
 set(PACKAGE ${CMAKE_PROJECT_NAME})
@@ -43,29 +44,29 @@ set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"
 configure_file(config@proc.F90.in "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
 
 ## executable
-add_executable(critic2 ${SOURCES} ${SOURCESP})
-
-## openmp
-if (OPENMP_FOUND)
-  target_link_libraries(critic2 PRIVATE OpenMP::OpenMP_Fortran)
-endif()
+add_executable(critic2 ${SOURCES})
 
 ## cubpack
 add_subdirectory(cubpack)
-target_link_libraries(critic2 PRIVATE cubpack)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/cubpack)
+include_directories("${CMAKE_BINARY_DIR}/src/cubpack")
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
 
 ## ciftbx
 add_subdirectory(ciftbx)
-target_link_libraries(critic2 PRIVATE ciftbx)
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:ciftbx>)
+
+## openmp
+if (OPENMP_FOUND)
+  target_link_libraries(critic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
+endif()
 
 ## lapack
 if (LAPACK_FOUND)
-  target_link_options(critic2 PRIVATE ${LAPACK_LINKER_FLAGS})
+  set_property(TARGET critic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
 else()
   add_subdirectory(oldlibs)
-  target_link_libraries(critic2 PRIVATE oldlibs)
+  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
 endif()
 
 ## qhull
@@ -75,7 +76,7 @@ if (QHULL_FOUND)
 else()
   add_subdirectory(qhull)
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
-  target_link_libraries(critic2 PRIVATE qhull)
+  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
 endif()
 
 ## spglib
@@ -83,7 +84,7 @@ if (SPGLIB_FOUND)
   target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
 else()
   add_subdirectory(spglib)
-  target_link_libraries(critic2 PRIVATE spglib)
+  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
 endif()
 
 ## libxc
@@ -107,7 +108,7 @@ endif()
 
 ## The library for the GUI
 if (ENABLE_GUI)
-  add_library(lcritic2 OBJECT ${SOURCES})
+  add_library(lcritic2 OBJECT ${SOURCES_Fortran} ${SOURCES_C})
 endif()
 
 ## install the binary
