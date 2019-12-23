@@ -193,7 +193,7 @@ contains
           f%iff = ifformat_fchk
        else if (equal(extdot,'molden')) then
           f%iff = ifformat_molden
-       else if (equal(extdot,'clmsum')) then
+       else if (equal(extdot,'clmsum').or.equal(extdot,'clmup').or.equal(extdot,'clmdn')) then
           f%iff = ifformat_wien
        else if (equal(extdot,'grid')) then
           f%iff = ifformat_elkgrid
