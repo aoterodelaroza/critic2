@@ -671,6 +671,7 @@ contains
     ! numerical derivatives
     res%isnuc = .false.
     if (f%numerical .and. nder >= 0) then
+       wc = v
        fzero = grd0(f,v,periodic)
        res%f = fzero
        res%gf = 0d0
