@@ -25,6 +25,18 @@ set(TESTS
   024_load-molden_virtuals
   025_load-pwc
   026_load-vaspspin
+  027_load-promolecular
+  028_load-copy
+  029_load-force
+  030_load-newgrid
+  031_load-promolecular2
+  032_load-core
+  033_load-gridcalc
+  034_load-wiencalc
+  035_load-normalize
+  036_load-typnuc
+  037_load-wiennorm
+  038_load-numericalderivs
   )
 
 runtests(${TESTS})

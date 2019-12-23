@@ -1,0 +1,79 @@
+* WRITE xyz files: 027_load-promolecular_*.xyz
++ Written 2 1-mers
+
++ Field number 1
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $1, $pro
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: 027_load-promolecular_1.xyz
+  Source: <generated>
+  Type: promolecular fragment
+  Number of atoms in fragment: 8
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $2, $pro1
+
++ Field number 3
+  Name: 027_load-promolecular_2.xyz
+  Source: <generated>
+  Type: promolecular fragment
+  Number of atoms in fragment: 8
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $3, $pro2
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $2+$3
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $4, $prosum
+
+* LINE written to file: 027_load-promolecular.line1
+
+* LINE written to file: 027_load-promolecular.line2
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 1.0516326  2.1032652  2.6554432
+  Coordinates (ang): 0.5565000  1.1130000  1.4052000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 4.858624620E-03
+  Field value, valence (fval): 4.858624620E-03
+  Gradient (grad f): -3.693349406E-03  5.412238297E-03  -1.065714836E-03
+  Gradient norm (|grad f|): 6.638441182E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.356567873E-02
+  Laplacian, valence (del2 fval): 1.356567873E-02
+  Hessian:
+     5.640085167E-03  -6.426496124E-03   1.803026060E-03
+    -6.426496124E-03   7.886717306E-03  -5.828388537E-04
+     1.803026060E-03  -5.828388537E-04   3.887625940E-05
+  Hessian eigenvalues: -9.745699160E-04  1.059887086E-03  1.348036156E-02
+  Field 0 (f,|grad|,lap): 4.858624620E-03  6.638441182E-03  1.356567873E-02
+  Field 2 (f,|grad|,lap): 4.166212080E-03  7.149746075E-03  1.203482133E-02
+  Field 3 (f,|grad|,lap): 6.924125394E-04  7.563253320E-04  1.530857406E-03
+  Field 4 (f,|grad|,lap): 4.858624620E-03  6.638439644E-03  1.356512420E-02
+

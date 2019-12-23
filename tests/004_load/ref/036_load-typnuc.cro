@@ -1,0 +1,24 @@
++ Field number 1
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: -$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: 3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Critical point list, final report (non-equivalent cps)
+  Topological class (n|b|r|c): 0(0) 0(0) 0(0) 5(16) 
+  Morse sum: -16
+# ncp   pg  type   CPname         position (cryst. coords.)       mult  name            f             |grad|           lap
+  1    C2v (3,3 )   cage    0.00000000   0.50000000   0.32600000    2     C      -1.28688667E+02  0.00000000E+00  3.41537656E+06
+  2    C2v (3,3 )   cage    0.00000000   0.50000000   0.59530000    2     O      -3.17034357E+02  0.00000000E+00  2.79476101E+07
+  3    Cs  (3,3 )   cage    0.14590000   0.64590000   0.17660000    4     N      -2.08727376E+02  0.00000000E+00  1.13262751E+07
+  4    Cs  (3,3 )   cage    0.25750000   0.75750000   0.28270000    4     H      -3.25745666E-01  0.00000000E+00 -1.16024058E-01
+  5    Cs  (3,3 )   cage    0.14410000   0.64410000   0.96200000    4     H      -3.26338314E-01  0.00000000E+00 -1.17538712E-01
+

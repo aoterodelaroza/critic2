@@ -1,0 +1,14 @@
+## check: 030_load-newgrid.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+
+load ../zz_source/qe-6.1/graphite/rho.cube id rho  # 1
+load as promolecular 10 10 10 name small # 2
+load as promolecular sizeof rho name large # 3
+
+load as "$1-$0" sizeof rho id diff # 4
+load as "$1-$0" ghost id ghost # 5
+
+load as "$0-$small" 10 10 10 # 6
+load as "$0-$large" sizeof large # 7
+

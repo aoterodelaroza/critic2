@@ -1,0 +1,11 @@
+## delete: 032_load-core.cro
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+
+zpsp C 4
+load ../zz_source/qe-6.1/graphite/rho.cube core
+load ../zz_source/qe-6.1/graphite/rho.cube nocore
+load as core 10 10 10
+load as core sizeof 3
+load as "$1-$2-$4" sizeof 3
+

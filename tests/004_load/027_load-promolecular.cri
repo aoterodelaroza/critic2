@@ -1,0 +1,14 @@
+## delete: 027_load-promolecular_1.xyz 027_load-promolecular_2.xyz
+## check: 027_load-promolecular.cro -a1e-10
+## check: 027_load-promolecular.line1 -a1e-10
+## check: 027_load-promolecular.line2 -a1e-10
+## labels: regression quick
+crystal library urea
+write 027_load-promolecular.xyz onemotif nmer 1
+load promolecular name pro
+load promolecular fragment 027_load-promolecular_1.xyz name pro1
+load promolecular fragment 027_load-promolecular_2.xyz name pro2
+load as "$2+$3" name prosum
+line 0 0 0 1 1 1 101 file 027_load-promolecular.line1 field "$0-$1"
+line 0 0 0 1 1 1 101 file 027_load-promolecular.line2 field "$0-$4"
+point 0.1 0.2 0.3 all

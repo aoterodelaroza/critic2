@@ -1,0 +1,9 @@
+## check: 028_load-copy.cro -a1e-10
+## labels: regression quick
+crystal library urea
+load copy 0 name f1
+load as "$1+$0" name fsum
+load as "$1+2*$0" name fsum2
+load copy fsum to 5 name blah
+load copy blah to 10
+list

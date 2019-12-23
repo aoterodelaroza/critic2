@@ -1,0 +1,11 @@
+## check: 037_load-wiennorm.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/wien14.2/zno/zno.struct
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct rhonorm
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct vnorm
+
+meshtype franchini small
+molcalc "$1"
+molcalc "$2"
+
+point 0.1 0.2 0.3 all

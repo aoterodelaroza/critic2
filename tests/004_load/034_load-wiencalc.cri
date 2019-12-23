@@ -1,0 +1,13 @@
+## check: 034_load-wiencalc.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/wien14.2/zno/zno.struct
+
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct id tot
+load ../zz_source/wien14.2/zno/zno.clmup ../zz_source/wien14.2/zno/zno.struct id up
+load ../zz_source/wien14.2/zno/zno.clmdn ../zz_source/wien14.2/zno/zno.struct id dn
+
+load as clm add up dn id sum
+load as clm sub sum tot
+
+molcalc "$5"
+

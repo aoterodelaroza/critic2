@@ -1,0 +1,1534 @@
++ Field number 1
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.0000000  0.8038740  3.7960731
+  Coordinates (ang): -0.0000000  0.4253918  2.0087954
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.865804650E-01
+  Field value, valence (fval): 1.865804650E-01
+  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01
+  Gradient norm (|grad f|): 2.287568963E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): -3.633681496E-01
+  Laplacian, valence (del2 fval): -3.633681496E-01
+  Hessian:
+     1.373298386E-01   1.474446438E-02   2.462889281E-17
+     1.474446438E-02  -3.356004183E-01   9.290940370E-02
+     2.462889281E-17   9.290940370E-02  -1.650975698E-01
+  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01
+  Ellipticity (l_1/l_2 - 1): 2.029216709E+00
+  Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01
+  Field 2 (f,|grad|,lap): 1.865804650E-01  2.287702817E-01  -2.310209646E-01
+  Field 3 (f,|grad|,lap): 7.578808235E-14  1.419724238E-09  1.584923113E-02
+  Field 4 (f,|grad|,lap): 1.969506090E-05  3.732907369E-05  -1.826770270E+02
+  Field 5 (f,|grad|,lap): 2.471078897E-13  2.435749313E-10  -1.989385523E-06
+  Field 6 (f,|grad|,lap): 3.475345437E-06  7.268911663E-05  7.402537326E+01
+  Field 7 (f,|grad|,lap): 5.405873878E-06  2.538162684E-05  1.141349941E+02
+  Field 8 (f,|grad|,lap): 3.499520418E-11  2.569029421E-07  2.271282772E-03
+  Field 9 (f,|grad|,lap): 1.323506451E-01  2.509475864E-01  -7.835027016E+05
+  Field 10 (f,|grad|,lap): 2.573925705E-06  9.031111762E-06  -1.520973889E+01
+  Field 11 (f,|grad|,lap): 4.540899323E-10  3.331107635E-07  -4.664760689E-03
+
++ Field number 1
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.0000000  1.0635944  2.9518845
+  Coordinates (ang): 0.0000000  0.5628299  1.5620700
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.225930163E-02
+  Field value, valence (fval): 1.225930163E-02
+  Gradient (grad f): -2.585821184E-17  2.137056583E-02  4.890623640E-03
+  Gradient norm (|grad f|): 2.192303089E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 4.339206219E-02
+  Laplacian, valence (del2 fval): 4.339206219E-02
+  Hessian:
+    -2.342036629E-03  -1.726546149E-19  -2.464709033E-18
+     2.620966820E-18   4.812223404E-02   9.697062769E-03
+    -2.288991172E-18   9.697062769E-03  -2.388135225E-03
+  Hessian eigenvalues: -4.185813235E-03  -2.342036629E-03  4.991991205E-02
+  Ellipticity (l_1/l_2 - 1): 7.872535311E-01
+  Field 0 (f,|grad|,lap): 1.308715168E-02  1.714205239E-02  3.951602082E-02
+  Field 2 (f,|grad|,lap): 1.225930163E-02  2.192303089E-02  4.339206194E-02
+  Field 3 (f,|grad|,lap): 7.320805925E-14  7.397645674E-11  -5.686188202E-07
+  Field 4 (f,|grad|,lap): 4.621303340E-14  6.705222595E-11  -3.095599265E-07
+  Field 5 (f,|grad|,lap): 8.732597978E-15  1.909565572E-10  -1.934873286E-08
+  Field 6 (f,|grad|,lap): 1.601520288E-10  3.561268899E-07  5.424240759E-04
+  Field 7 (f,|grad|,lap): 3.290192210E-11  5.385681941E-08  -1.755767366E-04
+  Field 8 (f,|grad|,lap): 1.388356775E-11  9.789585537E-08  3.252959187E-04
+  Field 9 (f,|grad|,lap): 2.943844474E-10  6.749139025E-07  2.677281820E-04
+  Field 10 (f,|grad|,lap): 2.666186542E-11  5.407901331E-08  -7.161952076E-05
+  Field 11 (f,|grad|,lap): 1.081102933E-10  1.766979965E-07  -7.051144528E-04
+
++ Field number 1
+  Source: ../zz_source/elk-6.3.02/sbpo4/STATE.OUT
+  Type: elk
+  Number of LM pairs: 49
+  Max. points in radial grid: 997
+  Total number of plane waves: 442368
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/elk-6.3.02/sbpo4/STATE.OUT
+  Type: elk
+  Number of LM pairs: 49
+  Max. points in radial grid: 997
+  Total number of plane waves: 442368
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.6813415  2.5786584  2.6522272
+  Coordinates (ang): 0.3605504  1.3645672  1.4034982
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 2.207543460E-01
+  Field value, valence (fval): 2.207543460E-01
+  Gradient (grad f): 2.043390119E-01  5.742808455E-01  -6.865040681E-01
+  Gradient norm (|grad f|): 9.180635909E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 5.502151989E+00
+  Laplacian, valence (del2 fval): 5.502151989E+00
+  Hessian:
+    -5.261430743E-01   7.974107269E-01  -1.051309346E+00
+     7.974107269E-01   2.691444640E+00  -3.961664101E+00
+    -1.051309346E+00  -3.961664101E+00   3.336850424E+00
+  Hessian eigenvalues: -1.018270497E+00  -6.915122636E-01  7.211934750E+00
+  Ellipticity (l_1/l_2 - 1): 4.725270257E-01
+  Field 0 (f,|grad|,lap): 2.384306159E-01  8.865602224E-01  5.280982592E+00
+  Field 2 (f,|grad|,lap): 2.207543460E-01  9.182509312E-01  5.530271780E+00
+  Field 3 (f,|grad|,lap): 3.292068050E-05  1.396209619E-03  -6.612270311E-01
+  Field 4 (f,|grad|,lap): 1.239219828E-04  5.209680399E-03  -2.488970671E+00
+  Field 5 (f,|grad|,lap): 1.370672330E-04  5.761507557E-03  -2.752986435E+00
+  Field 6 (f,|grad|,lap): 6.922700972E-04  1.100764716E-02  -2.022022600E+01
+  Field 7 (f,|grad|,lap): 3.325962798E-03  5.078138002E-02  -9.084040430E+01
+  Field 8 (f,|grad|,lap): 3.679358202E-03  5.608163945E-02  -1.004848960E+02
+  Field 9 (f,|grad|,lap): 1.231429413E-02  1.724067126E-01  -3.377748096E+02
+  Field 10 (f,|grad|,lap): 1.383538501E-02  1.970595579E-01  -3.779715487E+02
+  Field 11 (f,|grad|,lap): 1.511321740E-02  2.115055207E-01  -4.142014379E+02
+
++ Field number 1
+  Source: <pi ion files>
+  Type: pi
+  Exact calculation? T
+  List of species and associated ion files
+# spc  name    Z  ion file
+    1   Ca    20  ../zz_source/pi7r16/
+    2   Ti    22  ../zz_source/pi7r16/
+    3    O     8  ../zz_source/pi7r16/
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: <pi ion files>
+  Type: pi
+  Exact calculation? T
+  List of species and associated ion files
+# spc  name    Z  ion file
+    1   Ca    20  ../zz_source/pi7r16/
+    2   Ti    22  ../zz_source/pi7r16/
+    3    O     8  ../zz_source/pi7r16/
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.7256550  1.4513100  2.1769650
+  Coordinates (ang): 0.3840001  0.7680002  1.1520003
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 2.688903307E-02
+  Field value, valence (fval): 2.688903307E-02
+  Gradient (grad f): -2.273225087E-02  -4.125261662E-02  3.821594343E-02
+  Gradient norm (|grad f|): 6.065469430E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.271071534E-01
+  Laplacian, valence (del2 fval): 1.271071534E-01
+  Hessian:
+    -7.529109347E-03   4.265587449E-02  -3.995625053E-02
+     4.265587449E-02   6.542249983E-02  -8.959092937E-02
+    -3.995625053E-02  -8.959092937E-02   6.921376289E-02
+  Hessian eigenvalues: -2.730867749E-02  -2.113985548E-02  1.755556863E-01
+  Ellipticity (l_1/l_2 - 1): 2.918100374E-01
+  Field 0 (f,|grad|,lap): 3.301165846E-02  3.551085944E-02  8.830545972E-02
+  Field 2 (f,|grad|,lap): 2.688903307E-02  6.065469430E-02  1.271071534E-01
+  Field 3 (f,|grad|,lap): 4.093253514E-14  1.260566359E-10  5.028327292E-09
+  Field 4 (f,|grad|,lap): 5.072331444E-15  7.431865968E-11  3.713804318E-07
+  Field 5 (f,|grad|,lap): 3.051725539E-14  4.855699876E-11  3.410151989E-07
+  Field 6 (f,|grad|,lap): 9.748028166E-11  3.195258075E-07  3.366126411E-04
+  Field 7 (f,|grad|,lap): 1.392420207E-11  1.249051492E-07  3.568010668E-04
+  Field 8 (f,|grad|,lap): 3.533588006E-11  1.233454032E-07  3.073097204E-04
+  Field 9 (f,|grad|,lap): 7.277627112E-11  5.579615955E-07  2.748946992E-03
+  Field 10 (f,|grad|,lap): 1.019997281E-10  2.887046760E-07  1.243155452E-03
+  Field 11 (f,|grad|,lap): 1.583029680E-10  5.281072419E-07  8.591981451E-04
+
++ Field number 1
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 2.746563900E-02
+  Field value, valence (fval): 2.746563900E-02
+  Gradient (grad f): 1.504989932E-02  3.006885902E-02  -1.139583857E-02
+  Gradient norm (|grad f|): 3.550353348E-02
+  Gradient norm, valence: 3.550353348E-02
+  Kinetic energy density (G,tau): 3.596195684E-02
+  Laplacian (del2 f): 1.538442817E-01
+  Laplacian, valence (del2 fval): 1.538442817E-01
+  Hessian:
+     8.141171126E-02   4.563562458E-03  -8.278821597E-03
+     4.563562458E-03   8.787083136E-02  -1.652991675E-02
+    -8.278821597E-03  -1.652991675E-02  -1.543826090E-02
+  Hessian eigenvalues: -1.857932928E-02  7.905102280E-02  9.337258819E-02
+  Field 0 (f,|grad|,lap): 4.645248138E-02  3.592372603E-02  1.208349491E-01
+  Field 2 (f,|grad|,lap): 2.746563900E-02  3.550353348E-02  1.538442848E-01
+  Field 3 (f,|grad|,lap): 3.151819084E-14  1.224720761E-10  5.988144025E-07
+  Field 4 (f,|grad|,lap): 5.270436865E-14  2.694766040E-10  1.952636488E-07
+  Field 5 (f,|grad|,lap): 6.454385637E-14  1.341720750E-10  -8.156238061E-07
+  Field 6 (f,|grad|,lap): 1.350066725E-10  6.389642644E-07  5.235444385E-03
+  Field 7 (f,|grad|,lap): 3.811441267E-11  4.889588271E-08  3.859397395E-05
+  Field 8 (f,|grad|,lap): 1.235090849E-11  2.863686806E-08  2.656423440E-04
+  Field 9 (f,|grad|,lap): 2.549512587E-09  6.478434016E-07  -1.241945141E-02
+  Field 10 (f,|grad|,lap): 3.765685680E-12  2.650972228E-08  2.272920241E-04
+  Field 11 (f,|grad|,lap): 3.496737500E-10  7.465974108E-08  -2.965233190E-03
+
++ Field number 1
+  Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
+  Type: dftb+
+  Number of states: 16
+  Number of spin channels: 1
+  Number of orbitals: 16
+  Number of kpoints: 32
+  Real wavefunction? F
+  Exact calculation? F
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
+  Type: dftb+
+  Number of states: 16
+  Number of spin channels: 1
+  Number of orbitals: 16
+  Number of kpoints: 32
+  Real wavefunction? F
+  Exact calculation? F
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.0000000  0.8038738  3.7960819
+  Coordinates (ang): -0.0000000  0.4253917  2.0088000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 2.118996960E-01
+  Field value, valence (fval): 2.118996960E-01
+  Gradient (grad f): -1.352621832E-02  -9.114559571E-02  -1.873632122E-01
+  Gradient norm (|grad f|): 2.087952382E-01
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 1.408621052E-01
+  Laplacian (del2 f): -5.954515853E-01
+  Laplacian, valence (del2 fval): -5.954515853E-01
+  Hessian:
+    -4.090433865E-01   2.803068513E-02   2.639420769E-02
+     2.803068513E-02  -2.433344652E-02   7.128796442E-02
+     2.639420769E-02   7.128796442E-02  -1.620747523E-01
+  Hessian eigenvalues: -4.129643975E-01  -1.915310515E-01  9.043863675E-03
+  Ellipticity (l_1/l_2 - 1): 1.156122436E+00
+  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188039E-01
+  Field 2 (f,|grad|,lap): 2.118996960E-01  2.087951368E-01  -5.955200269E-01
+  Field 3 (f,|grad|,lap): 2.313899685E-08  4.432108514E-07  -8.600288437E-05
+  Field 4 (f,|grad|,lap): 1.120941722E-07  5.286320928E-05  -7.467624728E-03
+  Field 5 (f,|grad|,lap): 6.006370640E-08  3.989795289E-05  -5.277288094E-03
+  Field 6 (f,|grad|,lap): 7.364301791E-08  1.060741087E-04  -1.377577711E-01
+  Field 7 (f,|grad|,lap): 4.347045136E-07  4.499624903E-05  2.399316813E-02
+  Field 8 (f,|grad|,lap): 2.918744775E-08  4.115155719E-05  1.105066547E-03
+  Field 9 (f,|grad|,lap): 4.305997523E-05  5.552207781E-03  -3.311633719E+00
+  Field 10 (f,|grad|,lap): 3.114380425E-05  3.948038282E-03  -2.611646904E+00
+  Field 11 (f,|grad|,lap): 2.545522023E-05  3.297661384E-03  -1.993915122E+00
+
++ Field number 1
+  Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
+  Type: dftb+
+  Number of states: 16
+  Number of spin channels: 1
+  Number of orbitals: 16
+  Number of kpoints: 32
+  Real wavefunction? F
+  Exact calculation? F
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
+  Type: dftb+
+  Number of states: 16
+  Number of spin channels: 1
+  Number of orbitals: 16
+  Number of kpoints: 32
+  Real wavefunction? F
+  Exact calculation? F
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.0000000  0.8038738  3.7960819
+  Coordinates (ang): -0.0000000  0.4253917  2.0088000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 2.118996960E-01
+  Field value, valence (fval): 2.118996960E-01
+  Gradient (grad f): -1.352621832E-02  -9.114559571E-02  -1.873632122E-01
+  Gradient norm (|grad f|): 2.087952382E-01
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 1.408621052E-01
+  Laplacian (del2 f): -5.954515853E-01
+  Laplacian, valence (del2 fval): -5.954515853E-01
+  Hessian:
+    -4.090433865E-01   2.803068513E-02   2.639420769E-02
+     2.803068513E-02  -2.433344652E-02   7.128796442E-02
+     2.639420769E-02   7.128796442E-02  -1.620747523E-01
+  Hessian eigenvalues: -4.129643975E-01  -1.915310515E-01  9.043863675E-03
+  Ellipticity (l_1/l_2 - 1): 1.156122436E+00
+  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188039E-01
+  Field 2 (f,|grad|,lap): 2.118996960E-01  2.087951368E-01  -5.955200269E-01
+  Field 3 (f,|grad|,lap): 2.313899685E-08  4.432108514E-07  -8.600288437E-05
+  Field 4 (f,|grad|,lap): 1.120941722E-07  5.286320928E-05  -7.467624728E-03
+  Field 5 (f,|grad|,lap): 6.006370640E-08  3.989795289E-05  -5.277288094E-03
+  Field 6 (f,|grad|,lap): 7.364301791E-08  1.060741087E-04  -1.377577711E-01
+  Field 7 (f,|grad|,lap): 4.347045136E-07  4.499624903E-05  2.399316813E-02
+  Field 8 (f,|grad|,lap): 2.918744775E-08  4.115155719E-05  1.105066547E-03
+  Field 9 (f,|grad|,lap): 4.305997523E-05  5.552207781E-03  -3.311633719E+00
+  Field 10 (f,|grad|,lap): 3.114380425E-05  3.948038282E-03  -2.611646904E+00
+  Field 11 (f,|grad|,lap): 2.545522023E-05  3.297661384E-03  -1.993915122E+00
+
++ Field number 1
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 1.0516326  2.1032652  2.6554432
+  Coordinates (ang): 0.5565000  1.1130000  1.4052000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 4.858624620E-03
+  Field value, valence (fval): 4.858624620E-03
+  Gradient (grad f): -3.693349406E-03  5.412238297E-03  -1.065714836E-03
+  Gradient norm (|grad f|): 6.638441182E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.356567873E-02
+  Laplacian, valence (del2 fval): 1.356567873E-02
+  Hessian:
+     5.640085167E-03  -6.426496124E-03   1.803026060E-03
+    -6.426496124E-03   7.886717306E-03  -5.828388537E-04
+     1.803026060E-03  -5.828388537E-04   3.887625940E-05
+  Hessian eigenvalues: -9.745699160E-04  1.059887086E-03  1.348036156E-02
+  Field 0 (f,|grad|,lap): 4.858624620E-03  6.638441182E-03  1.356567873E-02
+  Field 2 (f,|grad|,lap): 4.858624620E-03  6.638439644E-03  1.356512426E-02
+  Field 3 (f,|grad|,lap): 9.025000964E-10  1.312351743E-06  -4.923220904E-03
+  Field 4 (f,|grad|,lap): 1.219247747E-09  9.547968021E-07  -9.867393676E-03
+  Field 5 (f,|grad|,lap): 2.625538903E-10  2.103492035E-07  -9.592677138E-04
+  Field 6 (f,|grad|,lap): 9.095353638E-07  7.630683010E-03  3.269702523E+01
+  Field 7 (f,|grad|,lap): 6.382070351E-07  1.135565302E-03  -1.111279963E+00
+  Field 8 (f,|grad|,lap): 5.200962309E-07  7.725553677E-04  -2.502110399E+00
+  Field 9 (f,|grad|,lap): 2.672259900E-07  5.933605585E-04  8.739275920E+00
+  Field 10 (f,|grad|,lap): 1.844791803E-07  3.388041326E-04  -6.262681863E-01
+  Field 11 (f,|grad|,lap): 8.784143724E-08  1.646366483E-03  6.120765544E+00
+
+* WRITE xyz files: 038_load-numericalderivs_*.xyz
++ Written 2 1-mers
+
++ Field number 1
+  Name: 038_load-numericalderivs_1.xyz
+  Source: <generated>
+  Type: promolecular fragment
+  Number of atoms in fragment: 8
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: 038_load-numericalderivs_1.xyz
+  Source: <generated>
+  Type: promolecular fragment
+  Number of atoms in fragment: 8
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $3, $x
+
++ Field number 4
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $4, $y
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $5, $z
+
++ Field number 6
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $6, $xx
+
++ Field number 7
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $7, $xy
+
++ Field number 8
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $8, $xz
+
++ Field number 9
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $9, $yy
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $10, $yz
+
++ Field number 11
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $11, $zz
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 1.0516326  2.1032652  2.6554432
+  Coordinates (ang): 0.5565000  1.1130000  1.4052000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 4.166212080E-03
+  Field value, valence (fval): 4.166212080E-03
+  Gradient (grad f): -4.424025954E-03  5.540987414E-03  -9.188698343E-04
+  Gradient norm (|grad f|): 7.149746075E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.203482133E-02
+  Laplacian, valence (del2 fval): 1.203482133E-02
+  Hessian:
+     4.891577123E-03  -6.205582464E-03   2.186963896E-03
+    -6.205582464E-03   8.077923041E-03  -7.587300542E-04
+     2.186963896E-03  -7.587300542E-04  -9.346788373E-04
+  Hessian eigenvalues: -1.967718496E-03  8.416438148E-04  1.316089601E-02
+  Field 0 (f,|grad|,lap): 4.858624620E-03  6.638441182E-03  1.356567873E-02
+  Field 2 (f,|grad|,lap): 4.166212080E-03  7.149744578E-03  1.203418613E-02
+  Field 3 (f,|grad|,lap): 8.531181013E-10  1.418644376E-06  -4.477028566E-03
+  Field 4 (f,|grad|,lap): 1.218606533E-09  9.652643453E-07  -9.867302088E-03
+  Field 5 (f,|grad|,lap): 1.961317923E-10  3.321370489E-07  1.975446242E-04
+  Field 6 (f,|grad|,lap): 9.474949150E-07  7.716770217E-03  3.214782203E+01
+  Field 7 (f,|grad|,lap): 6.480136877E-07  1.150154039E-03  -1.269855574E+00
+  Field 8 (f,|grad|,lap): 5.194537255E-07  8.881904463E-04  -3.861889940E+00
+  Field 9 (f,|grad|,lap): 2.671079714E-07  5.964789518E-04  8.728484352E+00
+  Field 10 (f,|grad|,lap): 1.823268699E-07  3.566077883E-04  -5.451248099E-01
+  Field 11 (f,|grad|,lap): 4.518749813E-08  1.868466184E-03  2.568631860E+00
+

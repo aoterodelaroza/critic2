@@ -1,0 +1,149 @@
++ Field number 1
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $1, $f1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $2, $fsum
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+2*$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $3, $fsum2
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $5, $blah
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $10
+
+* LIST of variables (3)
+  1. eps = 0.2220446E-15
+  2. pi = 3.141593
+  3. e = 2.718282
+
+* List of scalar fields
++ Field number 0
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $0, $rho0
+
++ Field number 1
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $1, $f1
+  This is the REFERENCE field.
+
++ Field number 2
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $2, $fsum
+
++ Field number 3
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+2*$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $3, $fsum2
+
++ Field number 5
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $5, $blah
+
++ Field number 10
+  Name: <ghost>
+  Source: <generated>
+  Type: ghost field
+  Expression: $1+$0
+  Use core densities? F
+  Numerical derivatives? T
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $10
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+
+* List of additional properties at critical points (0)
+

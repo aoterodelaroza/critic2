@@ -1,0 +1,733 @@
++ Field number 1
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $2
+
++ Field number 3
+  Source: ../zz_source/gaussian-16/benzene/benzene.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $3
+
++ Field number 1
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/critic2/graphite/rho.bincube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+  Type: grid
+  Grid dimensions : 80  80  90
+  First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03
+  Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03
+  Sum of elements... 3.624016252190E+04
+  Sum of squares of elements... 1.236641471262E+04
+  Cell integral (grid SUM) = 48.00000000
+  Min: 1.11426372E-03
+  Average: 6.29169488E-02
+  Max: 9.31744835E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 9
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/vasp-5.3.3/agtao3/CHGCAR
+  Type: grid
+  Grid dimensions : 56  56  56
+  First elements... 6.397182317721E-01  6.342675940596E-01  6.158500568381E-01
+  Last elements... 5.018819587540E-01  5.621374430088E-01  6.012700890586E-01
+  Sum of elements... 1.670963778790E+04
+  Sum of squares of elements... 5.859434364966E+03
+  Cell integral (grid SUM) = 79.99998748
+  Min: 6.48112991E-03
+  Average: 9.51487210E-02
+  Max: 1.18857634E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 10
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/vasp-5.3.3/agtao3/ELFCAR
+  Type: grid
+  Grid dimensions : 28  28  28
+  First elements... 3.101200000000E-11  2.984300000000E-03  1.261800000000E-01
+  Last elements... 3.437300000000E-01  4.073800000000E-01  2.495100000000E-01
+  Sum of elements... 5.900819949140E+03
+  Sum of squares of elements... 2.928589351186E+03
+  Cell integral (grid SUM) = 226.00873965
+  Min: 3.10120000E-11
+  Average: 2.68805573E-01
+  Max: 8.42470000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 10
+  Alias for this field (1): $2
+
++ Field number 1
+  Source: ../zz_source/qe-6.1/graphite/rho.xsf
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887910000000E-03  6.155050000000E-03  6.978490000000E-03
+  Last elements... 8.402300000000E-03  6.951040000000E-03  6.134830000000E-03
+  Sum of elements... 4.941379332210E+03
+  Sum of squares of elements... 7.857584921287E+02
+  Cell integral (grid SUM) = 16.00000051
+  Min: 3.40531000E-03
+  Average: 6.77829812E-02
+  Max: 3.25198000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/elk-6.3.02/sbpo4/STATE.OUT
+  Type: elk
+  Number of LM pairs: 49
+  Max. points in radial grid: 997
+  Total number of plane waves: 442368
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: <pi ion files>
+  Type: pi
+  Exact calculation? F
+  List of species and associated ion files
+# spc  name    Z  ion file
+    1   Ca    20  ../zz_source/pi7r16/
+    2   Ti    22  ../zz_source/pi7r16/
+    3    O     8  ../zz_source/pi7r16/
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 5
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
+  Type: dftb+
+  Number of states: 16
+  Number of spin channels: 1
+  Number of orbitals: 16
+  Number of kpoints: 32
+  Real wavefunction? F
+  Exact calculation? F
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/siesta-4.1/graphite/crystal.RHO
+  Type: grid
+  Grid dimensions : 16  16  48
+  First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03
+  Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03
+  Sum of elements... 8.329161614450E+02
+  Sum of squares of elements... 1.319324056544E+02
+  Cell integral (grid SUM) = 15.99998203
+  Min: 3.09806108E-03
+  Average: 6.77828907E-02
+  Max: 3.15494269E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/elk-6.3.02/sbpo4/RHO3D.OUT
+  Type: grid
+  Grid dimensions : 50  50  50
+  First elements... 4.475214519000E-03  4.504281816000E-03  4.592648550000E-03
+  Last elements... 5.563064109000E-03  5.272461826000E-03  5.111779283000E-03
+  Sum of elements... 2.030602211129E+04
+  Sum of squares of elements... 5.355539599232E+05
+  Cell integral (grid SUM) = 177.58976486
+  Min: 1.35665118E-03
+  Average: 1.62448177E-01
+  Max: 2.17740735E+02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/psi4-1.4/benzene/benzene_occ.molden
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 1
+  Source: ../zz_source/qe-6.5/graphite/graph.pwc
+  Type: grid
+  Grid dimensions : 27  27  80
+  First elements... 5.863527487728E-03  6.135024538085E-03  6.980428092815E-03
+  Last elements... 8.447964109769E-03  6.945933678349E-03  6.105829950960E-03
+  Sum of elements... 3.953102629449E+03
+  Sum of squares of elements... 6.326270482264E+02
+  Cell integral (grid SUM) = 16.00000000
+  Min: 3.37110488E-03
+  Average: 6.77829669E-02
+  Max: 3.26638252E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+
++ Plane-wave Kohn-Sham states for this field
+  Spin: 1 K-points: 128 Bands: 8
+# kpt  1 (0.0000 0.0000 0.0000)
+  Ek: -12.65 -12.35  -1.50   0.47   4.06   4.06   4.08   4.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  2 (0.0000 0.0000 -0.5000)
+  Ek: -12.50 -12.50  -0.61  -0.61   4.07   4.07   4.07   4.07
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  3 (0.0000 0.1250 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  4 (0.0000 0.1250 -0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  5 (0.0000 0.2500 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  6 (0.0000 0.2500 -0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  7 (0.0000 0.3750 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  8 (0.0000 0.3750 -0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt  9 (0.0000 -0.5000 0.0000)
+  Ek:  -7.26  -7.15  -6.24  -6.16   0.59   0.64   4.31   5.00
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 10 (0.0000 -0.5000 -0.5000)
+  Ek:  -7.20  -7.20  -6.21  -6.21   0.61   0.61   4.72   4.72
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 11 (0.0000 -0.3750 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 12 (0.0000 -0.3750 0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 13 (0.0000 -0.2500 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 14 (0.0000 -0.2500 0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 15 (0.0000 -0.1250 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 16 (0.0000 -0.1250 0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 17 (0.1250 -0.0000 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 18 (0.1250 -0.0000 -0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 19 (0.1250 0.1250 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 20 (0.1250 0.1250 -0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 21 (0.1250 0.2500 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 22 (0.1250 0.2500 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 23 (0.1250 0.3750 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 24 (0.1250 0.3750 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 25 (0.1250 -0.5000 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 26 (0.1250 -0.5000 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 27 (0.1250 -0.3750 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 28 (0.1250 -0.3750 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 29 (0.1250 -0.2500 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 30 (0.1250 -0.2500 -0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 31 (0.1250 -0.1250 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 32 (0.1250 -0.1250 0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 33 (0.2500 -0.0000 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 34 (0.2500 -0.0000 -0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 35 (0.2500 0.1250 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 36 (0.2500 0.1250 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 37 (0.2500 0.2500 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 38 (0.2500 0.2500 -0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 39 (0.2500 0.3750 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 40 (0.2500 0.3750 -0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 41 (0.2500 -0.5000 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 42 (0.2500 -0.5000 -0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 43 (0.2500 -0.3750 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 44 (0.2500 -0.3750 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 45 (0.2500 -0.2500 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 46 (0.2500 -0.2500 0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 47 (0.2500 -0.1250 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 48 (0.2500 -0.1250 -0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 49 (0.3750 -0.0000 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 50 (0.3750 -0.0000 -0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 51 (0.3750 0.1250 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 52 (0.3750 0.1250 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 53 (-0.6250 0.2500 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 54 (-0.6250 0.2500 0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 55 (0.3750 -0.6250 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 56 (0.3750 -0.6250 0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 57 (0.3750 -0.5000 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 58 (0.3750 -0.5000 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 59 (0.3750 -0.3750 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 60 (0.3750 -0.3750 0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 61 (0.3750 -0.2500 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 62 (0.3750 -0.2500 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 63 (0.3750 -0.1250 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 64 (0.3750 -0.1250 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 65 (-0.5000 0.0000 0.0000)
+  Ek:  -7.26  -7.15  -6.24  -6.16   0.59   0.64   4.31   5.00
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 66 (-0.5000 0.0000 -0.5000)
+  Ek:  -7.20  -7.20  -6.21  -6.21   0.61   0.61   4.72   4.72
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 67 (-0.5000 0.1250 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 68 (-0.5000 0.1250 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 69 (-0.5000 0.2500 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 70 (-0.5000 0.2500 0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 71 (-0.5000 0.3750 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 72 (-0.5000 0.3750 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 73 (0.5000 -0.5000 0.0000)
+  Ek:  -7.26  -7.15  -6.24  -6.16   0.59   0.64   4.31   5.00
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 74 (0.5000 -0.5000 -0.5000)
+  Ek:  -7.20  -7.20  -6.21  -6.21   0.61   0.61   4.72   4.72
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 75 (0.5000 -0.3750 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 76 (0.5000 -0.3750 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 77 (0.5000 -0.2500 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 78 (0.5000 -0.2500 -0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 79 (0.5000 -0.1250 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 80 (0.5000 -0.1250 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 81 (-0.3750 0.0000 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 82 (-0.3750 0.0000 0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 83 (-0.3750 0.1250 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 84 (-0.3750 0.1250 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 85 (-0.3750 0.2500 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 86 (-0.3750 0.2500 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 87 (-0.3750 0.3750 0.0000)
+  Ek:  -9.35  -9.10  -3.71  -3.56   0.96   1.01   2.42   3.98
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 88 (-0.3750 0.3750 -0.5000)
+  Ek:  -9.23  -9.23  -3.64  -3.64   0.98   0.98   3.15   3.15
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 89 (-0.3750 0.5000 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 90 (-0.3750 0.5000 -0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 91 (-0.3750 0.6250 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 92 (-0.3750 0.6250 -0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 93 (0.6250 -0.2500 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 94 (0.6250 -0.2500 -0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 95 (-0.3750 -0.1250 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 96 (-0.3750 -0.1250 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 97 (-0.2500 0.0000 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 98 (-0.2500 0.0000 0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 99 (-0.2500 0.1250 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 100 (-0.2500 0.1250 0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 101 (-0.2500 0.2500 0.0000)
+  Ek: -11.16 -10.89  -0.39  -0.29   0.31   1.99   2.04   2.14
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 102 (-0.2500 0.2500 -0.5000)
+  Ek: -11.03 -11.03  -0.34  -0.34   1.14   1.14   2.01   2.01
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 103 (-0.2500 0.3750 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 104 (-0.2500 0.3750 -0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 105 (-0.2500 0.5000 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 106 (-0.2500 0.5000 0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 107 (-0.2500 -0.3750 0.0000)
+  Ek:  -6.31  -6.21  -5.42  -5.37  -2.76  -2.66   5.66   6.31
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 108 (-0.2500 -0.3750 0.5000)
+  Ek:  -6.25  -6.25  -5.40  -5.40  -2.71  -2.71   6.08   6.08
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 109 (-0.2500 -0.2500 0.0000)
+  Ek:  -8.30  -8.07  -3.49  -3.41  -1.95  -1.90   3.66   5.10
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 110 (-0.2500 -0.2500 0.5000)
+  Ek:  -8.19  -8.19  -3.45  -3.45  -1.93  -1.93   4.34   4.34
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 111 (-0.2500 -0.1250 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 112 (-0.2500 -0.1250 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 113 (-0.1250 0.0000 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 114 (-0.1250 0.0000 0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 115 (-0.1250 0.1250 0.0000)
+  Ek: -12.28 -11.98  -1.04   0.90   2.66   2.71   3.33   3.37
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 116 (-0.1250 0.1250 -0.5000)
+  Ek: -12.13 -12.13  -0.16  -0.16   2.68   2.68   3.35   3.35
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 117 (-0.1250 0.2500 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 118 (-0.1250 0.2500 0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 119 (-0.1250 0.3750 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 120 (-0.1250 0.3750 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 121 (-0.1250 0.5000 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 122 (-0.1250 0.5000 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 123 (-0.1250 -0.3750 0.0000)
+  Ek:  -7.96  -7.75  -5.04  -4.88  -0.43  -0.35   3.92   5.12
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 124 (-0.1250 -0.3750 0.5000)
+  Ek:  -7.85  -7.85  -4.96  -4.96  -0.39  -0.39   4.51   4.51
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 125 (-0.1250 -0.2500 0.0000)
+  Ek: -10.07  -9.81  -1.99  -1.88   0.36   0.42   1.61   3.32
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 126 (-0.1250 -0.2500 0.5000)
+  Ek:  -9.94  -9.94  -1.94  -1.94   0.39   0.39   2.39   2.39
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 127 (-0.1250 -0.1250 0.0000)
+  Ek: -11.53 -11.25  -0.14   0.85   0.89   1.74   1.91   1.94
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+# kpt 128 (-0.1250 -0.1250 0.5000)
+  Ek: -11.40 -11.40   0.71   0.71   0.87   0.87   1.93   1.93
+ Occ:   2.00   2.00   2.00   2.00   2.00   2.00   2.00   2.00
+
++ Wannier functions information for this field
+  Real-space lattice vectors: 8 8 2
+  Spin: 1 Bands: 8
+  Wannier function centers (cryst. coords.) and spreads: 
+# bnd spin        ----  center  ----        spread(bohr)
+   1   1    0.784821   0.570425   1.782265   2.21940840  
+   2   1    0.168183   0.833693   0.249994   1.47363038  
+   3   1    0.665509   0.833693   0.249994   1.47362809  
+   4   1    0.721529   0.441418   0.684321   3.85233540  
+   5   1    0.831411   1.166265   0.752097   1.48276072  
+   6   1    0.246531   0.493055   0.287032   2.48529498  
+   7   1    0.246427   0.492853   0.212982   2.48455501  
+   8   1    0.334627   0.166207   0.733820   2.46170293  
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+

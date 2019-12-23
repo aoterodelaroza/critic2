@@ -1,0 +1,82 @@
++ Field number 1
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
++ Assert - no spurious CPs on the muffin tin surface: T
+
++ Field number 2
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? F
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
+* Muffin-tin discontinuity test
+  Atom: 1 delta_m = 0.001000 delta_p = 0.001000
+
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.153428  -0.143982  -0.156151
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.308035  -0.306780  -0.308394
++ Assert - no spurious CPs on the muffin tin surface: F
+
+WARNING(testrmt): Spurious CPs on the muffin tin surface!
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $1
+  Mesh size      28820
+  Mesh type      Franchini
+  Mesh level     small
++ Integral($1) = 75.99862547   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $2
+  Mesh size      28820
+  Mesh type      Franchini
+  Mesh level     small
++ Integral($2) = 249.92420224  
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.0000000  1.0635944  2.9518845
+  Coordinates (ang): 0.0000000  0.5628299  1.5620700
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.225930163E-02
+  Field value, valence (fval): 1.225930163E-02
+  Gradient (grad f): -2.585821184E-17  2.137056583E-02  4.890623640E-03
+  Gradient norm (|grad f|): 2.192303089E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 4.339206219E-02
+  Laplacian, valence (del2 fval): 4.339206219E-02
+  Hessian:
+    -2.342036629E-03  -1.726546149E-19  -2.464709033E-18
+     2.620966820E-18   4.812223404E-02   9.697062769E-03
+    -2.288991172E-18   9.697062769E-03  -2.388135225E-03
+  Hessian eigenvalues: -4.185813235E-03  -2.342036629E-03  4.991991205E-02
+  Ellipticity (l_1/l_2 - 1): 7.872535311E-01
+  Field 0 (f,|grad|,lap): 1.308715168E-02  1.714205239E-02  3.951602082E-02
+  Field 2 (f,|grad|,lap): 1.225930163E-02  2.192303089E-02  4.339206219E-02
+

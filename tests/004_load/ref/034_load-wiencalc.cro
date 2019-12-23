@@ -1,0 +1,120 @@
++ Field number 1
+  Name: tot
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $1, $tot
+
+* Field number 1 is now REFERENCE.
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
++ Assert - no spurious CPs on the muffin tin surface: T
+
++ Field number 2
+  Name: up
+  Source: ../zz_source/wien14.2/zno/zno.clmup
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $2, $up
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004612  -0.001473
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439
++ Assert - no spurious CPs on the muffin tin surface: T
+
++ Field number 3
+  Name: dn
+  Source: ../zz_source/wien14.2/zno/zno.clmdn
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $3, $dn
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004611  -0.001473
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439
++ Assert - no spurious CPs on the muffin tin surface: T
+
++ Field number 4
+  Name: up
+  Source: ../zz_source/wien14.2/zno/zno.clmup
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $4, $sum
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
++ Assert - no spurious CPs on the muffin tin surface: T
+
++ Field number 5
+  Name: up
+  Source: ../zz_source/wien14.2/zno/zno.clmup
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $5
+
+* Muffin-tin discontinuity test
+  Atom: 1 delta_m = 0.001000 delta_p = 0.001000
+
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000
+  Atom: 2 delta_m = 0.001000 delta_p = 0.001000
+
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000
++ Assert - no spurious CPs on the muffin tin surface: F
+
+WARNING(testrmt): Spurious CPs on the muffin tin surface!
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $5
+  Mesh size      114156
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($5) = -0.00000000   
+

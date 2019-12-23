@@ -1,0 +1,10 @@
+## check: 033_load-gridcalc.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+
+load as lap 1
+load as grad 1
+load as pot 1
+load as resample 1 60 60 162
+point 0.1 0.2 0.3 all

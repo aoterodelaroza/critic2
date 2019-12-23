@@ -1,0 +1,10 @@
+## delete: 031_load-promolecular2_1.xyz 031_load-promolecular2_2.xyz
+## check: 031_load-promolecular2.cro -a1e-10
+## labels: regression quick
+crystal library urea
+write 031_load-promolecular2.xyz onemotif nmer 1
+
+load as promolecular 10 10 10
+load as promolecular sizeof 1 fragment 031_load-promolecular2_1.xyz
+load as promolecular sizeof 1 fragment 031_load-promolecular2_2.xyz
+load as "$2 + $3 - $1"

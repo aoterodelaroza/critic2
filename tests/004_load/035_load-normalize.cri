@@ -1,0 +1,6 @@
+## check: 035_load-normalize.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube normalize 16
+load ../zz_source/qe-6.1/graphite/rho.cube normalize 8
+load as "2*$2-$1"
