@@ -138,7 +138,7 @@ module param
   integer, parameter, public :: ifformat_bincube = 5
   integer, parameter, public :: ifformat_abinit = 6
   integer, parameter, public :: ifformat_vasp = 7
-  integer, parameter, public :: ifformat_vaspchg = 8
+  integer, parameter, public :: ifformat_vaspnov = 8
   integer, parameter, public :: ifformat_qub = 9
   integer, parameter, public :: ifformat_xsf = 10
   integer, parameter, public :: ifformat_elkgrid = 11

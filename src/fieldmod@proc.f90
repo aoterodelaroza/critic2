@@ -227,7 +227,7 @@ contains
     use tools_io, only: equal, isinteger
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
-       ifformat_vaspchg, ifformat_qub,&
+       ifformat_vaspnov, ifformat_qub,&
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb,&
        ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
@@ -329,7 +329,7 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
 
-    elseif (seed%iff == ifformat_vaspchg) then
+    elseif (seed%iff == ifformat_vaspnov) then
        call f%grid%end()
        call f%grid%read_vasp(seed%file(1),1d0,seed%vaspblk)
        f%type = type_grid
