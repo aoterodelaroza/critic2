@@ -2450,6 +2450,7 @@ contains
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
              if (len_trim(line) < 1) exit
+             if (index(line,"ERROR") > 0) exit
              seed%nat = seed%nat + 1
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
