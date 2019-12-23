@@ -23,6 +23,8 @@ set(TESTS
   022_load-psi4_uhf
   023_load-fchk_virtuals
   024_load-molden_virtuals
+  025_load-pwc
+  026_load-vaspspin
   )
 
 runtests(${TESTS})

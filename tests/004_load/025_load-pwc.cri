@@ -1,0 +1,4 @@
+## check: 025_load-pwc.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.5/graphite/graph.pwc
+load ../zz_source/qe-6.5/graphite/graph.pwc ../zz_source/qe-6.5/graphite/graph.chk

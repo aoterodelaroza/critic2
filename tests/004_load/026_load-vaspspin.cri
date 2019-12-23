@@ -1,0 +1,8 @@
+## check: 026_load-vaspspin.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/vasp-5.3.3/cuo/POSCAR
+load ../zz_source/vasp-5.3.3/cuo/CHGCAR
+load ../zz_source/vasp-5.3.3/cuo/CHGCAR rho
+load ../zz_source/vasp-5.3.3/cuo/CHGCAR spin
+load VASP ../zz_source/vasp-5.3.3/cuo/CHG 1
+load VASP ../zz_source/vasp-5.3.3/cuo/CHG 2
