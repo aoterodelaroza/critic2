@@ -4,5 +4,5 @@ crystal ../zz_source/vasp-5.3.3/cuo/POSCAR
 load ../zz_source/vasp-5.3.3/cuo/CHGCAR
 load ../zz_source/vasp-5.3.3/cuo/CHGCAR rho
 load ../zz_source/vasp-5.3.3/cuo/CHGCAR spin
-load VASP ../zz_source/vasp-5.3.3/cuo/CHG 1
-load VASP ../zz_source/vasp-5.3.3/cuo/CHG 2
+load ../zz_source/vasp-5.3.3/cuo/CHG 1
+load ../zz_source/vasp-5.3.3/cuo/CHG 2

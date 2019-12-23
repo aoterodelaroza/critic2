@@ -7,6 +7,7 @@
 ## check: 021_crystal_vasp_gen_06.cri -a1e-10
 ## check: 021_crystal_vasp_gen_07.cri -a1e-10
 ## check: 021_crystal_vasp_gen_08.cri -a1e-10
+## check: 021_crystal_vasp_gen_09.cri -a1e-10
 ## labels: regression quick
 crystal ../zz_source/vasp-5.3.3/agtao3/POSCAR ../zz_source/vasp-5.3.3/agtao3/POTCAR
 write 021_crystal_vasp_gen_01.cri
@@ -24,3 +25,5 @@ crystal ../zz_source/vasp-5.3.3/agtao3/AECCAR2
 write 021_crystal_vasp_gen_07.cri
 crystal ../zz_source/vasp-5.3.3/agtao3/ELFCAR
 write 021_crystal_vasp_gen_08.cri
+crystal ../zz_source/vasp-4.6/agtao3/CONTCAR ../zz_source/vasp-4.6/agtao3/POTCAR
+write 021_crystal_vasp_gen_09.cri

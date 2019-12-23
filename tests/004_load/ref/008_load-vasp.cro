@@ -44,14 +44,14 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/CHG
   Type: grid
   Grid dimensions : 56  56  56
-  First elements... 5.378700000000E+02  5.332900000000E+02  5.178000000000E+02
-  Last elements... 4.219800000000E+02  4.726400000000E+02  5.055400000000E+02
-  Sum of elements... 1.404927858020E+07
-  Sum of squares of elements... 4.142186692580E+09
-  Cell integral (grid SUM) = 67263.10437192
-  Min: 5.44930000E+00
-  Average: 7.99999919E+01
-  Max: 9.99340000E+02
+  First elements... 6.397206321844E-01  6.342733670546E-01  6.158501930673E-01
+  Last elements... 5.018857946515E-01  5.621387316557E-01  6.012686492917E-01
+  Sum of elements... 1.670963871393E+04
+  Sum of squares of elements... 5.859434997571E+03
+  Cell integral (grid SUM) = 79.99999192
+  Min: 6.48117508E-03
+  Average: 9.51487263E-02
+  Max: 1.18857422E+00
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
   Numerical derivatives? F
