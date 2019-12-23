@@ -12,7 +12,9 @@ load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHA
 load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHXC
 load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VPSP
 load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VXC
+point 0.1 0.2 0.3 all
 
 crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
 load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
 load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
+point 0.1 0.2 0.3 all

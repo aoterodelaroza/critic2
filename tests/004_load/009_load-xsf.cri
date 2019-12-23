@@ -2,3 +2,4 @@
 ## labels: regression quick
 crystal ../zz_source/qe-6.1/graphite/rho.xsf
 load ../zz_source/qe-6.1/graphite/rho.xsf
+point 0.1 0.2 0.3 all

@@ -5,3 +5,4 @@ molecule ../zz_source/gaussian-16/benzene/benzene.wfn
 load ../zz_source/gaussian-16/benzene/benzene.wfn
 line 0 -4 0 0 4 0 101 file 001_load-wfn.line
 molcalc "$1"
+point 0.1 0.2 0.3 all

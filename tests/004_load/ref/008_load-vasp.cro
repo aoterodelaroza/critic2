@@ -100,3 +100,27 @@
   Number of critical points in the unit cell: 10
   Alias for this field (1): $5
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.5260342  -0.9111180  5.2628332
+  Coordinates (ang): -0.2783653  -0.4821429  2.7849714
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 3.490252726E-02
+  Field value, valence (fval): 3.490252726E-02
+  Gradient (grad f): 4.781179065E-02  8.953012147E-02  1.308195897E-01
+  Gradient norm (|grad f|): 1.655758890E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 8.503710131E-01
+  Laplacian, valence (del2 fval): 8.503710131E-01
+  Hessian:
+     1.943696319E-01   3.186083848E-01   3.255681828E-01
+     3.186083848E-01   1.782176538E-01   4.421167287E-01
+     3.255681828E-01   4.421167287E-01   4.777837275E-01
+  Hessian eigenvalues: -1.698796560E-01  -1.639620220E-02  1.036646871E+00
+  Ellipticity (l_1/l_2 - 1): 9.360914923E+00
+  Field 0 (f,|grad|,lap): 1.617426494E-01  4.764841138E-01  1.073122485E+00
+  Field 2 (f,|grad|,lap): 1.230878741E-01  3.070499737E-01  5.207178388E-01
+  Field 3 (f,|grad|,lap): 1.273009155E-01  3.368226171E-01  3.509932944E-01
+  Field 4 (f,|grad|,lap): 1.273009024E-01  3.368251718E-01  3.518567834E-01
+  Field 5 (f,|grad|,lap): 2.540279926E-01  4.138535746E-02  -1.380058109E+00
+

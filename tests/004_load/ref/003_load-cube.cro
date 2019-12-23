@@ -22,6 +22,26 @@
 
 * LINE written to file: 003_load-cube_01.line
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.0000000  0.8038740  3.7960731
+  Coordinates (ang): -0.0000000  0.4253918  2.0087954
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.865804650E-01
+  Field value, valence (fval): 1.865804650E-01
+  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01
+  Gradient norm (|grad f|): 2.287568963E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): -3.633681496E-01
+  Laplacian, valence (del2 fval): -3.633681496E-01
+  Hessian:
+     1.373298386E-01   1.474446438E-02   2.462889281E-17
+     1.474446438E-02  -3.356004183E-01   9.290940370E-02
+     2.462889281E-17   9.290940370E-02  -1.650975698E-01
+  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01
+  Ellipticity (l_1/l_2 - 1): 2.029216709E+00
+  Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01
+
 + Field number 1
   Source: ../zz_source/gaussian-16/benzene/benzene.cube
   Type: grid
@@ -45,4 +65,22 @@
 * Field number 1 is now REFERENCE.
 
 * LINE written to file: 003_load-cube_02.line
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 2.739981183E-02
+  Field value, valence (fval): 2.739981183E-02
+  Gradient (grad f): 1.561117643E-02  2.965104388E-02  -1.135303124E-02
+  Gradient norm (|grad f|): 3.538056742E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.617035719E-01
+  Laplacian, valence (del2 fval): 1.617035719E-01
+  Hessian:
+     8.549183277E-02   4.187953484E-03  -9.091814216E-03
+     4.187953484E-03   9.524033537E-02  -1.596597258E-02
+    -9.091814216E-03  -1.596597258E-02  -1.902859628E-02
+  Hessian eigenvalues: -2.188219626E-02  8.400862337E-02  9.957714475E-02
+  Field 0 (f,|grad|,lap): 4.645246479E-02  3.592372070E-02  1.208349080E-01
 

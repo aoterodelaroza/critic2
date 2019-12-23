@@ -7,4 +7,4 @@ load ../zz_source/gaussian-16/oh/oh_uhf.fchk id fchk
 molcalc "$wfn"
 molcalc "$wfx"
 molcalc "$fchk"
-
+point 0.1 0.2 0.3 all

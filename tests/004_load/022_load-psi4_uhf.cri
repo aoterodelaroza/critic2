@@ -3,4 +3,4 @@
 molecule ../zz_source/psi4-1.4/oh/oh_uhf.molden
 load ../zz_source/psi4-1.4/oh/oh_uhf.molden id molden
 molcalc "$molden"
-
+point 0.1 0.2 0.3 all

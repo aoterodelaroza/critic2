@@ -220,6 +220,36 @@
   Number of critical points in the unit cell: 9
   Alias for this field (1): $11
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.0000000  1.6084022  3.0647578
+  Coordinates (ang): 0.0000000  0.8511298  1.6218000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 5.419439209E-03
+  Field value, valence (fval): 5.419439209E-03
+  Gradient (grad f): 9.338681099E-03  2.196721536E-03  -2.794883808E-03
+  Gradient norm (|grad f|): 9.992393391E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.466562156E-03
+  Laplacian, valence (del2 fval): 1.466562156E-03
+  Hessian:
+     7.935571634E-03   8.294565880E-04  -6.276862997E-03
+     8.294565880E-04  -5.042091709E-03  -1.468501054E-03
+    -6.276862997E-03  -1.468501054E-03  -1.426917768E-03
+  Hessian eigenvalues: -5.851471037E-03  -3.887590833E-03  1.120562403E-02
+  Ellipticity (l_1/l_2 - 1): 5.051663839E-01
+  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02
+  Field 2 (f,|grad|,lap): 9.386319404E-03  1.359646482E-02  -1.291539686E-02
+  Field 3 (f,|grad|,lap): 2.213996362E-03  4.505966357E-03  -1.968289287E-03
+  Field 4 (f,|grad|,lap): -2.803732450E-03  6.530378925E-03  5.243537553E-03
+  Field 5 (f,|grad|,lap): 6.940001017E-03  2.515814916E-02  1.040227218E+00
+  Field 6 (f,|grad|,lap): 1.646746424E-01  9.080335937E-02  -9.172442274E-01
+  Field 7 (f,|grad|,lap): 3.774584383E-01  2.968377179E-02  -1.080891353E+00
+  Field 8 (f,|grad|,lap): -9.808762954E-01  4.500486294E-01  7.183992859E-01
+  Field 9 (f,|grad|,lap): -1.193660091E+00  3.342748123E-01  8.820464110E-01
+  Field 10 (f,|grad|,lap): 1.358334734E+00  4.248334727E-01  -1.799290638E+00
+  Field 11 (f,|grad|,lap): -2.127837959E-01  1.175860425E-01  1.636471252E-01
+
 + Field number 1
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
   Type: grid
@@ -261,4 +291,25 @@
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 9
   Alias for this field (1): $2
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.0000000  1.6084022  3.0647578
+  Coordinates (ang): 0.0000000  0.8511298  1.6218000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 4.836104071E-03
+  Field value, valence (fval): 4.836104071E-03
+  Gradient (grad f): 8.600798506E-03  2.037864724E-03  -2.661358424E-03
+  Gradient norm (|grad f|): 9.230896827E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 2.238369202E-02
+  Laplacian, valence (del2 fval): 2.238369202E-02
+  Hessian:
+     2.466745587E-02   7.539158770E-03  -8.396514135E-03
+     7.539158770E-03  -1.444943166E-03  -1.705073736E-03
+    -8.396514135E-03  -1.705073736E-03  -8.388206825E-04
+  Hessian eigenvalues: -3.887401192E-03  -2.857781450E-03  2.912887466E-02
+  Ellipticity (l_1/l_2 - 1): 3.602863828E-01
+  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02
+  Field 2 (f,|grad|,lap): 4.836104071E-03  9.230896827E-03  2.238369202E-02
 

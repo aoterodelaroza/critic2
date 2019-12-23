@@ -20,3 +20,23 @@
 
 * Field number 1 is now REFERENCE.
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): -0.0000000  0.8038740  3.7960731
+  Coordinates (ang): -0.0000000  0.4253918  2.0087954
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.865804650E-01
+  Field value, valence (fval): 1.865804650E-01
+  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01
+  Gradient norm (|grad f|): 2.287568963E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): -3.633681496E-01
+  Laplacian, valence (del2 fval): -3.633681496E-01
+  Hessian:
+     1.373298386E-01   1.474446438E-02   2.462889281E-17
+     1.474446438E-02  -3.356004183E-01   9.290940370E-02
+     2.462889281E-17   9.290940370E-02  -1.650975698E-01
+  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01
+  Ellipticity (l_1/l_2 - 1): 2.029216709E+00
+  Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01
+

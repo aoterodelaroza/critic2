@@ -2,3 +2,4 @@
 ## labels: regression quick
 crystal ../zz_source/critic2/graphite/rho.bincube
 load ../zz_source/critic2/graphite/rho.bincube
+point 0.1 0.2 0.3 all

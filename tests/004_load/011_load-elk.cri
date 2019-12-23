@@ -4,3 +4,4 @@
 crystal ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
 load ../zz_source/elk-6.3.02/sbpo4/STATE.OUT ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
 line 0 0 0 1 1 1 101 file 011_load-elk.line
+point 0.1 0.2 0.3 all

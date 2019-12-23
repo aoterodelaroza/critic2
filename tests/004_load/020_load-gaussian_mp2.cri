@@ -7,3 +7,4 @@ load ../zz_source/gaussian-16/h2o/h2o_mp2.fchk id fchk
 molcalc "$wfn"
 molcalc "$wfx"
 molcalc "$fchk"
+point 0.1 0.2 0.3 all

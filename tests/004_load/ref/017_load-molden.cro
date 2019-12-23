@@ -52,3 +52,23 @@
   Mesh level     good
 + Integral($2) = 42.00000443   
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 2.803468210E-02
+  Field value, valence (fval): 2.803468210E-02
+  Gradient (grad f): 1.456553496E-02  2.911860965E-02  -1.251563443E-02
+  Gradient norm (|grad f|): 3.488107427E-02
+  Gradient norm, valence: 3.488107427E-02
+  Kinetic energy density (G,tau): 3.453518884E-02
+  Laplacian (del2 f): 1.480502883E-01
+  Laplacian, valence (del2 fval): 1.480502883E-01
+  Hessian:
+     7.896941304E-02   4.219069536E-03  -8.494934639E-03
+     4.219069536E-03   8.515070700E-02  -1.698667408E-02
+    -8.494934639E-03  -1.698667408E-02  -1.606983171E-02
+  Hessian eigenvalues: -1.944920938E-02  7.683017173E-02  9.066932597E-02
+  Field 0 (f,|grad|,lap): 4.645257833E-02  3.592378314E-02  1.208351858E-01
+  Field 2 (f,|grad|,lap): 2.803468210E-02  3.488107427E-02  1.480502883E-01
+

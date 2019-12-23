@@ -4,4 +4,4 @@
 crystal ../zz_source/wien14.2/zno/zno.struct
 load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct
 line 0 0 0 1 1 1 101 file 010_load-wien2k.line
-
+point 0.1 0.2 0.3 all

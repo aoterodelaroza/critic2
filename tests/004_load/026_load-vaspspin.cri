@@ -6,3 +6,4 @@ load ../zz_source/vasp-5.3.3/cuo/CHGCAR rho
 load ../zz_source/vasp-5.3.3/cuo/CHGCAR spin
 load ../zz_source/vasp-5.3.3/cuo/CHG 1
 load ../zz_source/vasp-5.3.3/cuo/CHG 2
+point 0.1 0.2 0.3 all

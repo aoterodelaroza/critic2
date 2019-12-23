@@ -3,4 +3,4 @@
 crystal ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
 load ../zz_source/elk-6.3.02/sbpo4/RHO3D.OUT
 load ../zz_source/elk-6.3.02/sbpo4/ELF3D.OUT
-
+point 0.1 0.2 0.3 all

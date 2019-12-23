@@ -20,4 +20,4 @@ line 0 0 0 1 1 1 101 file 014_load-siesta.line3 field 3
 line 0 0 0 1 1 1 101 file 014_load-siesta.line4 field 4
 line 0 0 0 1 1 1 101 file 014_load-siesta.line5 field 5
 line 0 0 0 1 1 1 101 file 014_load-siesta.line6 field 6
-
+point 0.1 0.2 0.3 all

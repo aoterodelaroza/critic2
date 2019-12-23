@@ -17,3 +17,4 @@ load ../zz_source/pi7r16/catio3/ca.ion Ca \
      ../zz_source/pi7r16/catio3/o.ion O approximate
 line 0 0 0 1 1 1 101 file 012_load-pi.line1 field 1
 line 0 0 0 1 1 1 101 file 012_load-pi.line2 field 2
+point 0.1 0.2 0.3 all

@@ -2,3 +2,4 @@
 ## labels: regression quick
 crystal ../zz_source/qe-6.5/graphite/graph.pwc
 load ../zz_source/qe-6.5/graphite/graph.pwc ../zz_source/qe-6.5/graphite/graph.chk
+point 0.1 0.2 0.3 all

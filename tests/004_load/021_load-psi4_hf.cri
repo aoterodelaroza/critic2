@@ -3,3 +3,4 @@
 molecule ../zz_source/psi4-1.4/h2o/h2o_hf.molden
 load ../zz_source/psi4-1.4/h2o/h2o_hf.molden name molden
 molcalc "$molden"
+point 0.1 0.2 0.3 all

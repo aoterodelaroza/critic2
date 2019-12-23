@@ -17,5 +17,3 @@ line 0 0 0 1 1 1 101 file 004_load-cubeopts_03.line field 3
 load ../zz_source/qe-6.1/graphite/rho.cube tricubic
 line 0 0 0 1 1 1 101 file 004_load-cubeopts_04.line field 4
 
-
-

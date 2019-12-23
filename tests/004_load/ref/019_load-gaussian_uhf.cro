@@ -75,3 +75,29 @@
   Mesh level     good
 + Integral($fchk) = 9.00000069    
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.072126053E+00
+  Field value, valence (fval): 1.072126053E+00
+  Gradient (grad f): -9.439643844E-01  -9.709680101E-01  -1.337886656E+00
+  Gradient norm (|grad f|): 1.903625053E+00
+  Gradient norm, valence: 1.903625053E+00
+  Kinetic energy density (G,tau): 3.790531289E+00
+  Laplacian (del2 f): -2.113638516E+00
+  Laplacian, valence (del2 fval): -2.113638516E+00
+  Hessian:
+    -2.858007286E+00   2.688390971E+00   3.473402415E+00
+     2.688390971E+00  -3.624789182E-01   3.857442707E+00
+     3.473402415E+00   3.857442707E+00   1.106847689E+00
+  Hessian eigenvalues: -4.955134603E+00  -3.543019107E+00  6.384515194E+00
+  Ellipticity (l_1/l_2 - 1): 3.985627664E-01
+  Spin up   field/gradient_norm/laplacian: 5.719760818E-01  1.008915087E+00  -4.638865123E-01
+  Spin up   kinetic energy density (G): 2.248388467E+00
+  Spin down field/gradient_norm/laplacian: 5.001499714E-01  9.644991986E-01  -1.649752003E+00
+  Spin down kinetic energy density (G): 1.542142821E+00
+  Field 0 (f,|grad|,lap): 9.599057258E-01  1.869147103E+00  9.285256485E-01
+  Field 2 (f,|grad|,lap): 9.421856996E-01  1.716690873E+00  1.376761577E+00
+  Field 3 (f,|grad|,lap): 9.421857012E-01  1.716690878E+00  1.376761563E+00
+

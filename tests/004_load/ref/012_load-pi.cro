@@ -36,3 +36,24 @@
 
 * LINE written to file: 012_load-pi.line2
 
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.7256550  1.4513100  2.1769650
+  Coordinates (ang): 0.3840001  0.7680002  1.1520003
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 2.688903307E-02
+  Field value, valence (fval): 2.688903307E-02
+  Gradient (grad f): -2.273225087E-02  -4.125261662E-02  3.821594343E-02
+  Gradient norm (|grad f|): 6.065469430E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.271071534E-01
+  Laplacian, valence (del2 fval): 1.271071534E-01
+  Hessian:
+    -7.529109347E-03   4.265587449E-02  -3.995625053E-02
+     4.265587449E-02   6.542249983E-02  -8.959092937E-02
+    -3.995625053E-02  -8.959092937E-02   6.921376289E-02
+  Hessian eigenvalues: -2.730867749E-02  -2.113985548E-02  1.755556863E-01
+  Ellipticity (l_1/l_2 - 1): 2.918100374E-01
+  Field 0 (f,|grad|,lap): 3.301165846E-02  3.551085944E-02  8.830545972E-02
+  Field 2 (f,|grad|,lap): 2.688903306E-02  6.065469429E-02  1.271071533E-01
+

@@ -10,3 +10,5 @@ molcalc "$1"
 load ../zz_source/psi4-1.4/benzene/benzene_all.molden
 line 0 -4 0 0 4 0 101 file 017_load-molden.line2 field 2
 molcalc "$2"
+
+point 0.1 0.2 0.3 all

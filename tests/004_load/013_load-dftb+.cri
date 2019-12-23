@@ -11,5 +11,4 @@ load ../zz_source/dftb+-18.1/graphite/detailed.xml \
      ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd approximate
 line 0 0 0 1 1 1 101 file 013_load-dftb+.line1 field 1
 line 0 0 0 1 1 1 101 file 013_load-dftb+.line2 field 2
-
-
+point 0.1 0.2 0.3 all
