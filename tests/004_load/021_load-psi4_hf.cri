@@ -1,0 +1,5 @@
+## check: 021_load-psi4_hf.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/psi4-1.4/h2o/h2o_hf.molden
+load ../zz_source/psi4-1.4/h2o/h2o_hf.molden name molden
+molcalc "$molden"

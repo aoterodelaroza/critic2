@@ -1,0 +1,27 @@
++ Field number 1
+  Name: molden
+  Source: ../zz_source/psi4-1.4/oh/oh_uhf.molden
+  Type: molecular wavefunction
+  Wavefunction type: unrestricted
+  Number of MOs (total): 9 (alpha=5,beta=4)
+  Number of MOs (occupied): 9 (alpha=5,beta=4)
+  Number of primitives (GTO): 94
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (2): $1, $molden
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $molden
+  Mesh size      36542
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($molden) = 9.00000113    
+

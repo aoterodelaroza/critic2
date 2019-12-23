@@ -1,0 +1,34 @@
++ Field number 1
+  Source: ../zz_source/gaussian-16/h2o/h2o_hf.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 92
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: 2 * ($1:1)^2 + 2 * ($1:2)^2 + 2 * ($1:3)^2 + 2 * ($1:4)^2 + 2 * ($1:5)^2 - $1
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(2 * ($1:1)^2 + 2 * ($1:2)^2 + 2 * ($1:3)^2 + 2 * ($1:4)^2 + 2 * ($1:5)^2 - $1) = 0.00000000    
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+  Expression ($1:homo): 2.175139883E-01
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+  Expression ($1:lumo): 1.825147400E-03
+

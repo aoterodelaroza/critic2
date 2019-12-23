@@ -1,0 +1,54 @@
++ Field number 1
+  Source: ../zz_source/psi4-1.4/benzene/benzene_occ.molden
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* LINE written to file: 017_load-molden.line1
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $1
+  Mesh size      219252
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($1) = 42.00000443   
+
++ Field number 2
+  Source: ../zz_source/psi4-1.4/benzene/benzene_all.molden
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $2
+
+* LINE written to file: 017_load-molden.line2
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $2
+  Mesh size      219252
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($2) = 42.00000443   
+

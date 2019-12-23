@@ -1,0 +1,9 @@
+## check: 024_load-molden_virtuals.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/psi4-1.4/benzene/benzene_all.molden
+load ../zz_source/psi4-1.4/benzene/benzene_all.molden readvirtual
+molcalc "($1:1)^2"
+molcalc "($1:homo)^2"
+molcalc "($1:lumo)^2"
+point 0.1 0.2 0.3 field "$1:homo"
+point 0.1 0.2 0.3 field "$1:lumo"

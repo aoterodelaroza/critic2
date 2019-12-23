@@ -1,0 +1,77 @@
++ Field number 1
+  Name: wfn
+  Source: ../zz_source/gaussian-16/h2o/h2o_mp2.wfn
+  Type: molecular wavefunction
+  Wavefunction type: fractional occupation
+  Number of MOs: 92
+  Number of electrons: 10
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $wfn
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: wfx
+  Source: ../zz_source/gaussian-16/h2o/h2o_mp2.wfx
+  Type: molecular wavefunction
+  Wavefunction type: fractional occupation
+  Number of MOs: 92
+  Number of electrons: 10
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $wfx
+
++ Field number 3
+  Name: fchk
+  Source: ../zz_source/gaussian-16/h2o/h2o_mp2.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $fchk
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn) = 9.99999471    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx) = 9.99999431    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk) = 9.99999425    
+

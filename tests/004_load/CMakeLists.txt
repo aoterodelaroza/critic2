@@ -14,6 +14,15 @@ set(TESTS
   013_load-dftb+
   014_load-siesta
   015_load-elkgrid
+  016_load-fchk
+  017_load-molden
+  018_load-gaussian_hf
+  019_load-gaussian_uhf
+  020_load-gaussian_mp2
+  021_load-psi4_hf
+  022_load-psi4_uhf
+  023_load-fchk_virtuals
+  024_load-molden_virtuals
   )
 
 runtests(${TESTS})

@@ -1,0 +1,6 @@
+## check: 022_load-psi4_uhf.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/psi4-1.4/oh/oh_uhf.molden
+load ../zz_source/psi4-1.4/oh/oh_uhf.molden id molden
+molcalc "$molden"
+
