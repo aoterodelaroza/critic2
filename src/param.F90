@@ -159,12 +159,13 @@ module param
   integer, parameter, public :: ifformat_as_clm = 26
   integer, parameter, public :: ifformat_as_clm_sub = 27
   integer, parameter, public :: ifformat_as_ghost = 28
-  integer, parameter, public :: ifformat_copy = 29
-  integer, parameter, public :: ifformat_promolecular = 30
-  integer, parameter, public :: ifformat_promolecular_fragment = 31
-  integer, parameter, public :: ifformat_as_hxx1 = 32
-  integer, parameter, public :: ifformat_as_hxx2 = 33
-  integer, parameter, public :: ifformat_as_hxx3 = 34
+  integer, parameter, public :: ifformat_as_ghost_explicit = 29
+  integer, parameter, public :: ifformat_copy = 30
+  integer, parameter, public :: ifformat_promolecular = 31
+  integer, parameter, public :: ifformat_promolecular_fragment = 32
+  integer, parameter, public :: ifformat_as_hxx1 = 33
+  integer, parameter, public :: ifformat_as_hxx2 = 34
+  integer, parameter, public :: ifformat_as_hxx3 = 35
 
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat0) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4

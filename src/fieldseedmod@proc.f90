@@ -61,7 +61,7 @@ contains
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
        ifformat_as_resample,&
        ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
-       ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
+       ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost, ifformat_as_ghost_explicit
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     logical, intent(in) :: withoptions
@@ -441,7 +441,7 @@ contains
              end if
              f%ids = word
           elseif (equal(lword,"ghost")) then
-             f%iff = ifformat_as_ghost
+             f%iff = ifformat_as_ghost_explicit
           else
              call backtrack()
              ok = eval_next(f%n(1),line,lp)
