@@ -1,0 +1,6 @@
+## check: 005_point_mol.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/gaussian-16/benzene/benzene.wfx
+load ../zz_source/gaussian-16/benzene/benzene.wfx
+point 0.1 0.2 0.3
+point ../zz_source/gaussian-16/benzene/005_point_mol.list

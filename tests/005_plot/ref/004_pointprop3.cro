@@ -1,0 +1,232 @@
++ Field number 1
+  Source: ../zz_source/gaussian-16/benzene/benzene.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 21
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 564
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* List of additional properties at critical points (1)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+
+* List of additional properties at critical points (2)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+
+* List of additional properties at critical points (3)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+
+* List of additional properties at critical points (4)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+
+* List of additional properties at critical points (5)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+
+* List of additional properties at critical points (6)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+
+* List of additional properties at critical points (7)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+
+* List of additional properties at critical points (8)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+
+* List of additional properties at critical points (9)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+
+* List of additional properties at critical points (10)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+
+* List of additional properties at critical points (11)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+   11     vir        "vir(1)"
+
+* List of additional properties at critical points (12)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+   11     vir        "vir(1)"
+   12    stress      "stress(1)"
+
+* List of additional properties at critical points (13)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+   11     vir        "vir(1)"
+   12    stress      "stress(1)"
+   13      he        "he(1)"
+
+* List of additional properties at critical points (14)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+   11     vir        "vir(1)"
+   12    stress      "stress(1)"
+   13      he        "he(1)"
+   14     lol        "lol(1)"
+
+* List of additional properties at critical points (15)
+# Id      Name       Expression
+    1     gtf        "gtf(1)"
+    2     vtf        "vtf(1)"
+    3     htf        "htf(1)"
+    4   gtf_kir      "gtf_kir(1)"
+    5   vtf_kir      "vtf_kir(1)"
+    6   htf_kir      "htf_kir(1)"
+    7     gkin       "gkin(1)"
+    8     kkin       "kkin(1)"
+    9     lag        "lag(1)"
+   10     elf        "elf(1)"
+   11     vir        "vir(1)"
+   12    stress      "stress(1)"
+   13      he        "he(1)"
+   14     lol        "lol(1)"
+   15   lol_kir      "lol_kir(1)"
+
+* POINT 0.0000000  0.0000000  0.0000000
+  Coordinates (ang): 0.0000000  0.0000000  0.0000000
++ Field: 1
+  Type : (3,1)
+  Field value (f): 2.290798497E-02
+  Field value, valence (fval): 2.290798497E-02
+  Gradient (grad f): -4.774905908E-16  -7.268590704E-17  0.000000000E+00
+  Gradient norm (|grad f|): 4.829912063E-16
+  Gradient norm, valence: 4.829912063E-16
+  Kinetic energy density (G,tau): 3.480859011E-02
+  Laplacian (del2 f): 1.565099571E-01
+  Laplacian, valence (del2 fval): 1.565099571E-01
+  Hessian:
+     8.578851439E-02  -3.767121863E-19   0.000000000E+00
+    -3.767121863E-19   8.578851439E-02   0.000000000E+00
+     0.000000000E+00   0.000000000E+00  -1.506707169E-02
+  Hessian eigenvalues: -1.506707169E-02  8.578851439E-02  8.578851439E-02
+  gtf (gtf(1)): 5.305342230E-03
+  vtf (vtf(1)): 2.851680481E-02
+  htf (htf(1)): 3.382214704E-02
+  gtf_kir (gtf_kir(1)): 3.139033508E-02
+  vtf_kir (vtf_kir(1)): -2.365318089E-02
+  htf_kir (htf_kir(1)): 7.737154194E-03
+  gkin (gkin(1)): 3.480859011E-02
+  kkin (kkin(1)): -4.318899168E-03
+  lag (lag(1)): -3.912748927E-02
+  elf (elf(1)): 2.270285996E-02
+  vir (vir(1)): -3.048969094E-02
+  Stress tensor:
+    -9.598655933E-03   2.685516158E-19   0.000000000E+00
+     2.685516158E-19  -9.598655933E-03   0.000000000E+00
+     0.000000000E+00   0.000000000E+00  -1.129237907E-02
+  Stress tensor eigenvalues: -1.129237907E-02  -9.598655933E-03  -9.598655933E-03
+  he (he(1)): 4.318899168E-03
+  lol (lol(1)): 1.322568475E-01
+  lol_kir (lol_kir(1)): 1.445767627E-01
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+  Expression ($1:homo): 6.900805983E-03
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+  Expression ($1:1): 1.238865810E-04
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+  Expression ($1:2): 9.462730250E-06
+

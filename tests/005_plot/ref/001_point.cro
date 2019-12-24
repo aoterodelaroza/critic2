@@ -1,0 +1,145 @@
++ Field number 1
+  Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
+  Type: grid
+  Grid dimensions : 50  40  56
+  First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
+  Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
+  Sum of elements... 1.359728581679E+04
+  Sum of squares of elements... 8.996573645613E+03
+  Cell integral (grid SUM) = 67.99999850
+  Min: 7.63007086E-03
+  Average: 1.21404338E-01
+  Max: 2.58734409E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 8
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/vasp-5.3.3/cuo/AECCAR0
+  Type: grid
+  Grid dimensions : 50  40  56
+  First elements... 1.595508124138E-02  6.195198485722E-02  2.077190056623E-02
+  Last elements... -9.110871462197E-03  -4.539323991752E-03  -9.840727885136E-03
+  Sum of elements... 2.496936089393E+04
+  Sum of squares of elements... 3.717981967565E+07
+  Cell integral (grid SUM) = 124.87172265
+  Min: -5.59194194E+02
+  Average: 2.22940722E-01
+  Max: 1.97401355E+03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 8
+  Alias for this field (1): $2
+
++ Field number 3
+  Source: ../zz_source/vasp-5.3.3/cuo/AECCAR2
+  Type: grid
+  Grid dimensions : 50  40  56
+  First elements... 1.518608752486E-02  1.718506126767E-02  1.472297154444E-02
+  Last elements... 1.374989824355E-02  1.450446890663E-02  1.478894017704E-02
+  Sum of elements... 1.359785367697E+04
+  Sum of squares of elements... 1.230154185474E+04
+  Cell integral (grid SUM) = 68.00283836
+  Min: -2.24337678E-02
+  Average: 1.21409408E-01
+  Max: 4.09711551E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 8
+  Alias for this field (1): $3
+
+* POINT 0.2500000  0.2500000  0.1250000
+  Coordinates (bohr): 2.0082944  1.6557507  1.2338839
+  Coordinates (ang): 1.0627436  0.8761855  0.6529432
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 3.403549527E-01
+  Field value, valence (fval): 3.403549527E-01
+  Gradient (grad f): 2.311575822E-01  -2.584809910E-02  -1.206972290E+00
+  Gradient norm (|grad f|): 1.229180239E+00
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.111559523E+00
+  Laplacian, valence (del2 fval): 1.111559523E+00
+  Hessian:
+    -1.014020444E+00   1.685394803E-01  -7.908274476E-01
+     1.685394803E-01  -1.300657168E+00   9.947029974E-02
+    -7.908274476E-01   9.947029974E-02   3.426237135E+00
+  Hessian eigenvalues: -1.424110782E+00  -1.028200547E+00  3.563870852E+00
+  Ellipticity (l_1/l_2 - 1): 3.850515710E-01
+
+* POINT 0.3250000  0.3250000  0.4250000
+  Coordinates (bohr): 2.2302605  2.1524759  4.1337727
+  Coordinates (ang): 1.1802030  1.1390412  2.1874983
++ Field: 1
+  Type : (3,1)
+  Field value (f): 8.541762181E-03
+  Field value, valence (fval): 8.541762181E-03
+  Gradient (grad f): -2.396941538E-03  4.474121977E-03  -8.000247162E-04
+  Gradient norm (|grad f|): 5.138398169E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 2.028626115E-02
+  Laplacian, valence (del2 fval): 2.028626115E-02
+  Hessian:
+     7.532989466E-03  -7.744881182E-03   5.420271089E-03
+    -7.744881182E-03   9.289807205E-03   2.081404293E-03
+     5.420271089E-03   2.081404293E-03   3.463464474E-03
+  Hessian eigenvalues: -3.653105622E-03  7.357756067E-03  1.658161070E-02
+
+* POINT 0.2500000  0.2500000  0.1250000
+  Coordinates (bohr): 2.0082944  1.6557507  1.2338839
+  Coordinates (ang): 1.0627436  0.8761855  0.6529432
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 3.403549527E-01
+  Field value, valence (fval): 3.403549527E-01
+  Gradient (grad f): 2.311575822E-01  -2.584809910E-02  -1.206972290E+00
+  Gradient norm (|grad f|): 1.229180239E+00
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.111559523E+00
+  Laplacian, valence (del2 fval): 1.111559523E+00
+  Hessian:
+    -1.014020444E+00   1.685394803E-01  -7.908274476E-01
+     1.685394803E-01  -1.300657168E+00   9.947029974E-02
+    -7.908274476E-01   9.947029974E-02   3.426237135E+00
+  Hessian eigenvalues: -1.424110782E+00  -1.028200547E+00  3.563870852E+00
+  Ellipticity (l_1/l_2 - 1): 3.850515710E-01
+  Field 0 (f,|grad|,lap): 3.809856156E-01  1.498057883E+00  4.438222782E+00
+  Field 2 (f,|grad|,lap): 5.928343087E-01  9.144297839E+01  -2.553748844E+02
+  Field 3 (f,|grad|,lap): 2.433020750E-01  8.635676796E-01  5.530947493E+00
+
+* POINT 0.2500000  0.2500000  0.1250000
+  Coordinates (bohr): 2.0082944  1.6557507  1.2338839
+  Coordinates (ang): 1.0627436  0.8761855  0.6529432
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 3.403549527E-01
+  Field value, valence (fval): 3.403549527E-01
+  Gradient (grad f): 2.311575822E-01  -2.584809910E-02  -1.206972290E+00
+  Gradient norm (|grad f|): 1.229180239E+00
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.111559523E+00
+  Laplacian, valence (del2 fval): 1.111559523E+00
+  Hessian:
+    -1.014020444E+00   1.685394803E-01  -7.908274476E-01
+     1.685394803E-01  -1.300657168E+00   9.947029974E-02
+    -7.908274476E-01   9.947029974E-02   3.426237135E+00
+  Hessian eigenvalues: -1.424110782E+00  -1.028200547E+00  3.563870852E+00
+  Ellipticity (l_1/l_2 - 1): 3.850515710E-01
+
+* POINT 0.2500000  0.2500000  0.1250000
+  Coordinates (bohr): 2.0082944  1.6557507  1.2338839
+  Coordinates (ang): 1.0627436  0.8761855  0.6529432
+  Expression ($2+$3): 8.361363837E-01
+

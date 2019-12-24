@@ -1,0 +1,92 @@
++ Field number 1
+  Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+  Type: grid
+  Grid dimensions : 80  80  90
+  First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03
+  Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03
+  Sum of elements... 3.624016252190E+04
+  Sum of squares of elements... 1.236641471262E+04
+  Cell integral (grid SUM) = 48.00000000
+  Min: 1.11426372E-03
+  Average: 6.29169488E-02
+  Max: 9.31744835E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 9
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* List of additional properties at critical points (1)
+# Id      Name       Expression
+    1      a         "$1^2"
+
+* List of additional properties at critical points (2)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+
+* List of additional properties at critical points (3)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+    3      b         "gtf(1)"
+
+* List of additional properties at critical points (4)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+    3      b         "gtf(1)"
+    4      c         "gtf_kir(1)+vtf_kir(1)+htf_kir(1)"
+
+* List of additional properties at critical points (5)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+    3      b         "gtf(1)"
+    4      c         "gtf_kir(1)+vtf_kir(1)+htf_kir(1)"
+    5      d         "gtf(1)+vtf(1)+htf(1)"
+
+* List of additional properties at critical points (5)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+    3      b         "gtf(1)"
+    4      c         "gtf_kir(1)+vtf_kir(1)+htf_kir(1)"
+    5      d         "gtf(1)+vtf(1)+htf(1)"
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (bohr): 0.0000000  1.6084022  3.0647578
+  Coordinates (ang): 0.0000000  0.8511298  1.6218000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 5.419439209E-03
+  Field value, valence (fval): 5.419439209E-03
+  Gradient (grad f): 9.338681099E-03  2.196721536E-03  -2.794883808E-03
+  Gradient norm (|grad f|): 9.992393391E-03
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): 1.466562156E-03
+  Laplacian, valence (del2 fval): 1.466562156E-03
+  Hessian:
+     7.935571634E-03   8.294565880E-04  -6.276862997E-03
+     8.294565880E-04  -5.042091709E-03  -1.468501054E-03
+    -6.276862997E-03  -1.468501054E-03  -1.426917768E-03
+  Hessian eigenvalues: -5.851471037E-03  -3.887590833E-03  1.120562403E-02
+  Ellipticity (l_1/l_2 - 1): 5.051663839E-01
+  a ($1^2): 2.937032134E-05
+  vtf (vtf(1)): -5.935464843E-04
+  b (gtf(1)): 4.800935117E-04
+  c (gtf_kir(1)+vtf_kir(1)+htf_kir(1)): -1.227538686E-03
+  d (gtf(1)+vtf(1)+htf(1)): -2.269059453E-04
+
+* List of additional properties at critical points (5)
+# Id      Name       Expression
+    1      a         "$1^2"
+    2     vtf        "vtf(1)"
+    3      b         "gtf(1)"
+    4      c         "gtf_kir(1)+vtf_kir(1)+htf_kir(1)"
+    5      d         "gtf(1)+vtf(1)+htf(1)"
+

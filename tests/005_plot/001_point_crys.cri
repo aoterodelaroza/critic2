@@ -1,0 +1,12 @@
+## check: 001_point_crys.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/vasp-5.3.3/cuo/POSCAR
+load ../zz_source/vasp-5.3.3/cuo/CHGCAR
+load ../zz_source/vasp-5.3.3/cuo/AECCAR0
+load ../zz_source/vasp-5.3.3/cuo/AECCAR2
+point 1/4 1/4 1/8
+x = 0.325
+point x x x+0.1 
+point 1/4 1/4 1/8 all
+point 1/4 1/4 1/8 field 1
+point 1/4 1/4 1/8 field $2+$3

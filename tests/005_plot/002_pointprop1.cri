@@ -1,0 +1,12 @@
+## check: 002_pointprop1.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+pointprop a "$1^2"
+pointprop vtf
+pointprop b "gtf(1)"
+pointprop c "gtf_kir(1)+vtf_kir(1)+htf_kir(1)"
+pointprop d "gtf(1)+vtf(1)+htf(1)"
+pointprop
+point 0.1 0.2 0.3
+pointprop clear
