@@ -4267,8 +4267,6 @@ contains
     write (lu,'(" ecutwfc=60.0,")')
     write (lu,'(" ecutrho=600.0,")')
     write (lu,'(" xdm=.true.,")')
-    write (lu,'(" xdm_a1=0.4073,")')
-    write (lu,'(" xdm_a2=2.4150,")')
     write (lu,'("/")')
     write (lu,'("&electrons"/" conv_thr = 1d-8,"/"/")')
     write (lu,'("&ions"/"/")')
