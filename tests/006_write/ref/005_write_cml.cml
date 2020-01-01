@@ -1,0 +1,31 @@
+<molecule>
+ <crystal>
+  <scalar title="a" units="units:angstrom">5.56500000</scalar>
+  <scalar title="b" units="units:angstrom">5.56500000</scalar>
+  <scalar title="c" units="units:angstrom">4.68400000</scalar>
+  <scalar title="alpha" units="units:degree">90.0000</scalar>
+  <scalar title="beta" units="units:degree">90.0000</scalar>
+  <scalar title="gamma" units="units:degree">90.0000</scalar>
+  <symmetry spaceGroup="P 1">
+   <transform3>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</transform3>
+  </symmetry>
+ </crystal>
+ <atomArray>
+<atom id="a1" elementType="C" xFract="1.0000000000" yFract="0.5000000000" zFract="0.3260000000"/>
+<atom id="a2" elementType="N" xFract="0.8541000000" yFract="0.3541000000" zFract="0.1766000000"/>
+<atom id="a3" elementType="O" xFract="1.0000000000" yFract="0.5000000000" zFract="0.5953000000"/>
+<atom id="a4" elementType="N" xFract="1.1459000000" yFract="0.6459000000" zFract="0.1766000000"/>
+<atom id="a5" elementType="H" xFract="0.8559000000" yFract="0.3559000000" zFract="-0.0380000000"/>
+<atom id="a6" elementType="H" xFract="0.7425000000" yFract="0.2425000000" zFract="0.2827000000"/>
+<atom id="a7" elementType="H" xFract="1.1441000000" yFract="0.6441000000" zFract="-0.0380000000"/>
+<atom id="a8" elementType="H" xFract="1.2575000000" yFract="0.7575000000" zFract="0.2827000000"/>
+<atom id="a9" elementType="C" xFract="0.5000000000" yFract="1.0000000000" zFract="0.6740000000"/>
+<atom id="a10" elementType="N" xFract="0.3541000000" yFract="1.1459000000" zFract="0.8234000000"/>
+<atom id="a11" elementType="N" xFract="0.6459000000" yFract="0.8541000000" zFract="0.8234000000"/>
+<atom id="a12" elementType="O" xFract="0.5000000000" yFract="1.0000000000" zFract="0.4047000000"/>
+<atom id="a13" elementType="H" xFract="0.3559000000" yFract="1.1441000000" zFract="1.0380000000"/>
+<atom id="a14" elementType="H" xFract="0.2425000000" yFract="1.2575000000" zFract="0.7173000000"/>
+<atom id="a15" elementType="H" xFract="0.7575000000" yFract="0.7425000000" zFract="0.7173000000"/>
+<atom id="a16" elementType="H" xFract="0.6441000000" yFract="0.8559000000" zFract="1.0380000000"/>
+ </atomArray>
+</molecule>

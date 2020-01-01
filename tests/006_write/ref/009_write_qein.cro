@@ -1,0 +1,9 @@
+* WRITE espresso file: 009_write_qein.scf.in
+
+* COMPARE: compare structures
+  Crystal 1 : 009_write_qein.scf.in
+  Crystal 2 : <current>
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+

@@ -1,0 +1,5 @@
+## delete: 005_write_cml.cro
+## check: 005_write_cml.cml -a1e-10
+## labels: regression quick
+crystal library urea
+write 005_write_cml.cml onemotif

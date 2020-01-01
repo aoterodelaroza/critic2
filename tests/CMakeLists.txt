@@ -15,6 +15,7 @@ set(TESTDIRS
   003_molecule ## reading a molecular structure (MOLECULE)
   004_load     ## loading a scalar field (LOAD)
   005_plot     ## plotting keywords (POINT,LINE,PLANE,CUBE)
+  006_write    ## structure writers (WRITE)
   )
 
 ## define the macro that will run the tests

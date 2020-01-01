@@ -1,0 +1,5 @@
+## delete: 010_write_tess.cro
+## check: 010_write_tess.tess -a1e-10
+## labels: regression quick
+crystal library urea
+write 010_write_tess.tess
