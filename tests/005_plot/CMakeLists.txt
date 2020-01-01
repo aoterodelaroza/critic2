@@ -11,6 +11,11 @@ set(TESTS
   010_plane_colormap
   011_plane_relief
   012_plane_mols
+  013_cube_simple
+  014_cube_header
+  015_cube_cell
+  016_cube_grid
+  017_cube_files
   )
 
 runtests(${TESTS})

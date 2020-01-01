@@ -1,0 +1,8 @@
+## delete: 015_cube_cell.cro
+## check: 015_cube_cell_01.cube -a1e-10
+## check: 015_cube_cell_02.cube -a1e-10
+## labels: regression quick
+crystal library urea
+
+cube cell 10 10 10 file 015_cube_cell_01.cube
+cube cell 0.5 file 015_cube_cell_02.cube

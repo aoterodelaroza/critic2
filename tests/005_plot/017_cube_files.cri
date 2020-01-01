@@ -1,0 +1,13 @@
+## delete: 017_cube_files.cro 017_cube_files.bincube
+## check: 017_cube_files.cube -a1e-10
+## check: 017_cube_files.CHGCAR -a1e-10
+## check: 017_cube_files.xsf -a1e-10
+## labels: regression quick
+crystal library urea
+
+load as "$0" 10 10 10
+
+cube grid file 017_cube_files.cube
+cube grid file 017_cube_files.bincube
+cube grid file 017_cube_files.CHGCAR
+cube grid file 017_cube_files.xsf

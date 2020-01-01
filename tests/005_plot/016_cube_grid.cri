@@ -1,0 +1,11 @@
+## delete: 016_cube_grid.cro
+## check: 016_cube_grid_01.cube -a1e-10
+## check: 016_cube_grid_02.cube -a1e-10
+## labels: regression quick
+crystal library urea
+
+load as "$0" 10 10 10
+
+cube grid file 016_cube_grid_01.cube
+cube grid file 016_cube_grid_02.cube shift 4 4 4
+

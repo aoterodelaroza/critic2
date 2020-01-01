@@ -1,0 +1,32 @@
+## delete: 013_cube_simple.cro
+## check: 013_cube_simple_01.cube -a1e-10
+## check: 013_cube_simple_02.cube -a1e-10
+## check: 013_cube_simple_03.cube -a1e-10
+## check: 013_cube_simple_04.cube -a1e-10
+## check: 013_cube_simple_05.cube -a1e-10
+## check: 013_cube_simple_06.cube -a1e-10
+## check: 013_cube_simple_07.cube -a1e-10
+## check: 013_cube_simple_08.cube -a1e-10
+## check: 013_cube_simple_09.cube -a1e-10
+## check: 013_cube_simple_10.cube -a1e-10
+## check: 013_cube_simple_11.cube -a1e-10
+## check: 013_cube_simple_12.cube -a1e-10
+## check: 013_cube_simple_13.cube -a1e-10
+## check: 013_cube_simple_14.cube -a1e-10
+## labels: regression quick
+crystal library urea
+
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 file 013_cube_simple_01.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 0.5 file 013_cube_simple_02.cube field "$0^2"
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 f file 013_cube_simple_03.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 gx file 013_cube_simple_04.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 gy file 013_cube_simple_05.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 gz file 013_cube_simple_06.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 gmod file 013_cube_simple_07.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hxx file 013_cube_simple_08.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hxy file 013_cube_simple_09.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hxz file 013_cube_simple_10.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hyy file 013_cube_simple_11.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hyz file 013_cube_simple_12.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 hzz file 013_cube_simple_13.cube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 lap file 013_cube_simple_14.cube
