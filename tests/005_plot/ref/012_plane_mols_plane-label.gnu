@@ -1,0 +1,12 @@
+set label "C" at     3.000000,    4.393557 center front
+set label "C" at     4.206855,    3.696778 center front
+set label "C" at     4.206855,    2.303222 center front
+set label "C" at     3.000000,    1.606443 center front
+set label "C" at     1.793145,    2.303222 center front
+set label "C" at     1.793145,    3.696778 center front
+set label "H" at     3.000000,    5.478749 center front
+set label "H" at     5.146660,    4.239375 center front
+set label "H" at     5.146660,    1.760625 center front
+set label "H" at     3.000000,    0.521251 center front
+set label "H" at     0.853340,    1.760625 center front
+set label "H" at     0.853340,    4.239375 center front

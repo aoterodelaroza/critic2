@@ -1,0 +1,8 @@
+## delete: 011_plane_relief.cro
+## check: 011_plane_relief_plane-relief.gnu -a1e-10
+## check: 011_plane_relief_plane.dat -a1e-10
+## labels: regression quick
+crystal library mgo
+
+plane 0 0 0 1 0 0 0 1 0 101 101 relief 0.0 2.0
+

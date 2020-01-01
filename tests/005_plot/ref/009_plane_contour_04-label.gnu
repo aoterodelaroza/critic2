@@ -1,0 +1,9 @@
+set label "Mg" at     0.000000,    0.000000 center front
+set label "Mg" at     0.000000,    7.957637 center front
+set label "Mg" at     7.957637,    0.000000 center front
+set label "Mg" at     7.957637,    7.957637 center front
+set label "Mg" at     3.978818,    3.978818 center front
+set label "O" at     3.978818,    0.000000 center front
+set label "O" at     3.978818,    7.957637 center front
+set label "O" at     0.000000,    3.978818 center front
+set label "O" at     7.957637,    3.978818 center front

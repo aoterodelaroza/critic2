@@ -6,6 +6,11 @@ set(TESTS
   005_point_mol
   006_line_crys
   007_line_mol
+  008_plane_crys
+  009_plane_contour
+  010_plane_colormap
+  011_plane_relief
+  012_plane_mols
   )
 
 runtests(${TESTS})

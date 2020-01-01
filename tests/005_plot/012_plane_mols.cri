@@ -1,0 +1,11 @@
+## delete: 012_plane_mols.cro
+## check: 012_plane_mols_plane.iso -a1e-10
+## check: 012_plane_mols_plane.neg.iso -a1e-10
+## check: 012_plane_mols_plane-label.gnu -a1e-10
+## check: 012_plane_mols_plane.gnu -a1e-10
+## check: 012_plane_mols_plane.dat -a1e-10
+## labels: regression quick
+molecule library benzene
+
+plane -3.0 -3.0 0.2 3.0 -3.0 0.2 -3.0 3.0 0.2 101 101 labelz 0.5 contour log 21
+

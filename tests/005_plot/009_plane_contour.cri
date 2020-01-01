@@ -1,0 +1,46 @@
+## delete: 009_plane_contour.cro
+## check: 009_plane_contour_01 -a1e-10
+## check: 009_plane_contour_01.gnu -a1e-10
+## check: 009_plane_contour_01-label.gnu -a1e-10
+## check: 009_plane_contour_01.neg.iso -a1e-10
+## check: 009_plane_contour_01.iso -a1e-10
+## check: 009_plane_contour_02 -a1e-10
+## check: 009_plane_contour_02.gnu -a1e-10
+## check: 009_plane_contour_02-label.gnu -a1e-10
+## check: 009_plane_contour_02.neg.iso -a1e-10
+## check: 009_plane_contour_02.iso -a1e-10
+## check: 009_plane_contour_03 -a1e-10
+## check: 009_plane_contour_03.gnu -a1e-10
+## check: 009_plane_contour_03-label.gnu -a1e-10
+## check: 009_plane_contour_03.neg.iso -a1e-10
+## check: 009_plane_contour_03.iso -a1e-10
+## check: 009_plane_contour_04 -a1e-10
+## check: 009_plane_contour_04.gnu -a1e-10
+## check: 009_plane_contour_04-label.gnu -a1e-10
+## check: 009_plane_contour_04.neg.iso -a1e-10
+## check: 009_plane_contour_04.iso -a1e-10
+## check: 009_plane_contour_05 -a1e-10
+## check: 009_plane_contour_05.gnu -a1e-10
+## check: 009_plane_contour_05-label.gnu -a1e-10
+## check: 009_plane_contour_05.neg.iso -a1e-10
+## check: 009_plane_contour_05.iso -a1e-10
+## labels: regression quick
+crystal library mgo
+
+plane 0 0 0 1 0 0 0 1 0 101 101 field "$0:l" \
+      extendx 1.0 1.0 extendy 1.0 1.0 scale 1.2 1.2 \
+      contour atan 21 -3.0 3.0 file 009_plane_contour_01
+
+plane 0 0 0 1 0 0 0 1 0 101 101 gmod \
+      contour log 41 0 2 file 009_plane_contour_02
+
+plane 0 0 0 1 0 0 0 1 0 101 101 \
+      contour bader file 009_plane_contour_03
+
+plane 0 0 0 1 0 0 0 1 0 101 101 \
+      contour lin 41 0 2.0 file 009_plane_contour_04
+
+plane 0 0 0 1 0 0 0 1 0 101 101 \
+      contour 0.0 0.1 0.2 1.0 2.0 3.0 40.0 file 009_plane_contour_05
+
+
