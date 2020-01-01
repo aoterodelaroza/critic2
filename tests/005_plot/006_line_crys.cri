@@ -1,0 +1,22 @@
+## check: 006_line_crys.cro -a1e-10
+## check: 006_line_crys.line1 -a1e-10
+## check: 006_line_crys.line2 -a1e-10
+## labels: regression quick
+crystal library mgo
+newcell primitive
+line 0 0 0 1 1 1 101 
+line 0 0 0 1 1 1 101 gx
+line 0 0 0 1 1 1 101 gy
+line 0 0 0 1 1 1 101 gz
+line 0 0 0 1 1 1 101 gmod
+line 0 0 0 1 1 1 101 hxx
+line 0 0 0 1 1 1 101 hxy
+line 0 0 0 1 1 1 101 hxz
+line 0 0 0 1 1 1 101 hyy
+line 0 0 0 1 1 1 101 hyz
+line 0 0 0 1 1 1 101 hzz
+line 0 0 0 1 1 1 101 lap
+
+load as "$0/2" 10 10 10
+line 0 0 0 1 1 1 101 field "$0^2" file 006_line_crys.line1
+line 0 0 0 1 1 1 101 field 1 file 006_line_crys.line2

@@ -1,0 +1,6 @@
+## check: 007_line_mol.line -a1e-10
+## delete: 007_line_mol.cro
+## labels: regression quick
+molecule library benzene
+
+line 0 -2.4 0 0 2.4 0 1001 file 007_line_mol.line
