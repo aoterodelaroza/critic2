@@ -1,0 +1,5 @@
+## delete: 014_write_elk.cro
+## check: 014_write_elk.elk -a1e-10
+## labels: regression quick
+crystal library graphite
+write 014_write_elk.elk

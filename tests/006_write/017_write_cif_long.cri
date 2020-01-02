@@ -1,0 +1,1638 @@
+## delete: 001_tetrazole.cif 002_kyanite.cif 003a_b-kyb2f7.cif 003b_b-kyb2f7.cif 003c_b-kyb2f7.cif 004a_alloclasite.cif 004b_alloclasite.cif 004c_alloclasite.cif 005a_taikanite.cif
+## delete: 005b_taikanite.cif 005c_taikanite.cif 005d_taikanite.cif 005e_taikanite.cif 005f_taikanite.cif 005g_taikanite.cif 005h_taikanite.cif 005i_taikanite.cif 006a_li3na3n2.cif
+## delete: 006b_li3na3n2.cif 006c_li3na3n2.cif 007a_dervillite.cif 007b_dervillite.cif 007c_dervillite.cif 007d_dervillite.cif 007e_dervillite.cif 007f_dervillite.cif 007g_dervillite.cif
+## delete: 007h_dervillite.cif 007i_dervillite.cif 008a_up4o12.cif 008b_up4o12.cif 008c_up4o12.cif 008d_up4o12.cif 008e_up4o12.cif 008f_up4o12.cif 008g_up4o12.cif
+## delete: 008h_up4o12.cif 008i_up4o12.cif 009a_tilasite.cif 009b_tilasite.cif 009c_tilasite.cif 009d_tilasite.cif 009e_tilasite.cif 009f_tilasite.cif 009g_tilasite.cif
+## delete: 009h_tilasite.cif 009i_tilasite.cif 009j_tilasite.cif 009k_tilasite.cif 009l_tilasite.cif 009m_tilasite.cif 009n_tilasite.cif 009o_tilasite.cif 009p_tilasite.cif
+## delete: 009q_tilasite.cif 009r_tilasite.cif 010a_muthmannite.cif 010b_muthmannite.cif 010c_muthmannite.cif 011a_kinoite.cif 011b_kinoite.cif 011c_kinoite.cif 012a_calaverite.cif
+## delete: 012b_calaverite.cif 012c_calaverite.cif 012d_calaverite.cif 012e_calaverite.cif 012f_calaverite.cif 012g_calaverite.cif 012h_calaverite.cif 012i_calaverite.cif 013a_petalite.cif
+## delete: 013b_petalite.cif 013c_petalite.cif 013d_petalite.cif 013e_petalite.cif 013f_petalite.cif 013g_petalite.cif 013h_petalite.cif 013i_petalite.cif 014a_baddeleyite.cif
+## delete: 014b_baddeleyite.cif 014c_baddeleyite.cif 014d_baddeleyite.cif 014e_baddeleyite.cif 014f_baddeleyite.cif 014g_baddeleyite.cif 014h_baddeleyite.cif 014i_baddeleyite.cif 015a_coesite.cif
+## delete: 015b_coesite.cif 015c_coesite.cif 015d_coesite.cif 015e_coesite.cif 015f_coesite.cif 015g_coesite.cif 015h_coesite.cif 015i_coesite.cif 015j_coesite.cif
+## delete: 015k_coesite.cif 015l_coesite.cif 015m_coesite.cif 015n_coesite.cif 015o_coesite.cif 015p_coesite.cif 015q_coesite.cif 015r_coesite.cif 016_alps4.cif
+## delete: 017a_lueshite.cif 017b_lueshite.cif 017c_lueshite.cif 018a_bas3.cif 018b_bas3.cif 018c_bas3.cif 019_baalf5.cif 020a_bas3v.cif 020b_bas3v.cif
+## delete: 020c_bas3v.cif 021a_anhydrite.cif 021b_anhydrite.cif 021c_anhydrite.cif 022_ru2ceb2.cif 023_nd2so6.cif 024_c4h6br2cdn6o.cif 025a_dyscrasite.cif 025b_dyscrasite.cif
+## delete: 025c_dyscrasite.cif 026a_krupkaite.cif 026b_krupkaite.cif 026c_krupkaite.cif 026d_krupkaite.cif 026e_krupkaite.cif 026f_krupkaite.cif 027a_c8h6bri.cif 027b_c8h6bri.cif
+## delete: 027c_c8h6bri.cif 028a_krennerite.cif 028b_krennerite.cif 028c_krennerite.cif 028d_krennerite.cif 028e_krennerite.cif 028f_krennerite.cif 029a_cobaltite.cif 029b_cobaltite.cif
+## delete: 029c_cobaltite.cif 029d_cobaltite.cif 029e_cobaltite.cif 029f_cobaltite.cif 030a_kcuta3o9.cif 030b_kcuta3o9.cif 030c_kcuta3o9.cif 030d_kcuta3o9.cif 030e_kcuta3o9.cif
+## delete: 030f_kcuta3o9.cif 031a_enargite.cif 031b_enargite.cif 031c_enargite.cif 031d_enargite.cif 031e_enargite.cif 031f_enargite.cif 032a_minyulite.cif 032b_minyulite.cif
+## delete: 032c_minyulite.cif 033a_lautite.cif 033b_lautite.cif 033c_lautite.cif 033d_lautite.cif 033e_lautite.cif 033f_lautite.cif 034a_seinajokite.cif 034b_seinajokite.cif
+## delete: 034c_seinajokite.cif 035a_seeligerite.cif 035b_seeligerite.cif 035c_seeligerite.cif 036a_polarite.cif 036b_polarite.cif 036c_polarite.cif 036d_polarite.cif 036e_polarite.cif
+## delete: 036f_polarite.cif 037a_cagabo4.cif 037b_cagabo4.cif 037c_cagabo4.cif 038a_weeksite.cif 038b_weeksite.cif 038c_weeksite.cif 038d_weeksite.cif 038e_weeksite.cif
+## delete: 038f_weeksite.cif 039a_smirnite.cif 039b_smirnite.cif 039c_smirnite.cif 039d_smirnite.cif 039e_smirnite.cif 039f_smirnite.cif 040a_vaterite.cif 040b_vaterite.cif
+## delete: 040c_vaterite.cif 040d_vaterite.cif 040e_vaterite.cif 040f_vaterite.cif 041a_so2.cif 041b_so2.cif 041c_so2.cif 041d_so2.cif 041e_so2.cif
+## delete: 041f_so2.cif 042a_libgeo4.cif 042b_libgeo4.cif 042c_libgeo4.cif 043a_blossite.cif 043b_blossite.cif 043c_blossite.cif 044a_cr2p.cif 044b_cr2p.cif
+## delete: 044c_cr2p.cif 045a_banalsite.cif 045b_banalsite.cif 045c_banalsite.cif 046a_fesiti.cif 046b_fesiti.cif 046c_fesiti.cif 046d_fesiti.cif 046e_fesiti.cif
+## delete: 046f_fesiti.cif 047_ba2ycu3o7.cif 048a_znc48h84n4o4li.cif 048b_znc48h84n4o4li.cif 049a_beta-ta2o5.cif 049b_beta-ta2o5.cif 049c_beta-ta2o5.cif 050a_ru8c208h328n8o8f60p18.cif 050b_ru8c208h328n8o8f60p18.cif
+## delete: 050c_ru8c208h328n8o8f60p18.cif 050d_ru8c208h328n8o8f60p18.cif 050e_ru8c208h328n8o8f60p18.cif 050f_ru8c208h328n8o8f60p18.cif 051a_valleriite.cif 051b_valleriite.cif 051c_valleriite.cif 051d_valleriite.cif 051e_valleriite.cif 051f_valleriite.cif 052a_ba3ga2n4.cif 052b_ba3ga2n4.cif 052c_ba3ga2n4.cif 052d_ba3ga2n4.cif 052e_ba3ga2n4.cif 052f_ba3ga2n4.cif 053a_fenbte2.cif
+## delete: 053b_fenbte2.cif 053c_fenbte2.cif 053d_fenbte2.cif 053e_fenbte2.cif 053f_fenbte2.cif 054a_agclo2.cif 054b_agclo2.cif 054c_agclo2.cif 054d_agclo2.cif
+## delete: 054e_agclo2.cif 054f_agclo2.cif 055a_reinerite.cif 055b_reinerite.cif 055c_reinerite.cif 056a_sophiite.cif 056b_sophiite.cif 056c_sophiite.cif 057a_massicot.cif
+## delete: 057b_massicot.cif 057c_massicot.cif 057d_massicot.cif 057e_massicot.cif 057f_massicot.cif 058a_cacl2.cif 058b_cacl2.cif 058c_cacl2.cif 059a_pasavaite.cif
+## delete: 059b_pasavaite.cif 059c_pasavaite.cif 059d_pasavaite.cif 059e_pasavaite.cif 059f_pasavaite.cif 060a_fersmite.cif 060b_fersmite.cif 060c_fersmite.cif 060d_fersmite.cif
+## delete: 060e_fersmite.cif 060f_fersmite.cif 061a_brookite.cif 061b_brookite.cif 062a_chrysoberyl.cif 062b_chrysoberyl.cif 062c_chrysoberyl.cif 062d_chrysoberyl.cif 062e_chrysoberyl.cif
+## delete: 062f_chrysoberyl.cif 063a_rasvumite.cif 063b_rasvumite.cif 063c_rasvumite.cif 063d_rasvumite.cif 063e_rasvumite.cif 063f_rasvumite.cif 064a_gallium.cif 064b_gallium.cif
+## delete: 064c_gallium.cif 064d_gallium.cif 064e_gallium.cif 064f_gallium.cif 065a_naio3.cif 065b_naio3.cif 065c_naio3.cif 066a_thi3.cif 066b_thi3.cif
+## delete: 066c_thi3.cif 067a_litharge.cif 067b_litharge.cif 067c_litharge.cif 067d_litharge.cif 067e_litharge.cif 067f_litharge.cif 068a_pbcl2o4.cif 068b_pbcl2o4.cif
+## delete: 068c_pbcl2o4.cif 068d_pbcl2o4.cif 068e_pbcl2o4.cif 068f_pbcl2o4.cif 068g_pbcl2o4.cif 068h_pbcl2o4.cif 068i_pbcl2o4.cif 068j_pbcl2o4.cif 068k_pbcl2o4.cif
+## delete: 068l_pbcl2o4.cif 069_tlf.cif 070a_a-sulfur.cif 070b_a-sulfur.cif 071_beyerite.cif 072a_pinchite.cif 072b_pinchite.cif 072c_pinchite.cif 073a_chesnokovite.cif
+## delete: 073b_chesnokovite.cif 074a_wadsleyite.cif 074b_wadsleyite.cif 074c_wadsleyite.cif 074d_wadsleyite.cif 074e_wadsleyite.cif 074f_wadsleyite.cif 075_ni8bi8si.cif 076_b-ca2p2o7.cif
+## delete: 077_pinnoite.cif 078_cerhc2.cif 079_wocl4.cif 080_c12h10br2te.cif 081_cu2te2o5cl2.cif 082_tugtupite.cif 083_ga3ti2.cif 084_vysotskite.cif 085a_bki4o12.cif
+## delete: 085b_bki4o12.cif 086a_n4p4cl8.cif 086b_n4p4cl8.cif 087_a-mno2.cif 088a_scheelite.cif 088b_scheelite.cif 089_c136h136o32fe8pt8.cif 090_cu4o17p4srti.cif 091_mgfe2o4.cif
+## delete: 092_a-cristobalite.cif 093_c864h90n96o72cl4cd24.cif 094_li2mof6.cif 095_mn2tio4.cif 096_retgersite.cif 097_ekanite.cif 098_c8h8cl2con4.cif 099_macedonite.cif 100_fresnoite.cif
+## delete: 101_c7h12cu2n4s3.cif 102_beta-uranium.cif 103_se2vo6.cif 104_hgtl4i6.cif 105_bage2p2.cif 106_2-methylfuran.cif 107_lipdsi3.cif 108_bi2pdo4.cif 109_diethylzinc.cif
+## delete: 110_diomignite.cif 111_ag2hgi4.cif 112_eskebornite.cif 113_urea.cif 114_adamantane.cif 115_mawsonite.cif 116_si3os2.cif 117_bi2o3.cif 118_mnb2h8.cif
+## delete: 119_jasmundite.cif 120_rbalf4.cif 121_stannite.cif 122_chalcopyrite.cif 123_tetrataenite.cif 124_conb4p.cif 125a_c44h56cl8la4n8na20o48.cif 125b_c44h56cl8la4n8na20o48.cif 126a_torbernite.cif
+## delete: 126b_torbernite.cif 127_phosgenite.cif 128_apophyllite.cif 129a_matlockite.cif 129b_matlockite.cif 130a_gillespite.cif 130b_gillespite.cif 131_cooperite.cif 132_agtaf6.cif
+## delete: 133a_denningite.cif 133b_denningite.cif 134a_a-boron.cif 134b_a-boron.cif 135_minium.cif 136_rutile.cif 137a_coccinite.cif 137b_coccinite.cif 138a_aui.cif
+## delete: 138b_aui.cif 139_indium.cif 140_anyuiite.cif 141a_zircon.cif 141b_zircon.cif 142a_braunite.cif 142b_braunite.cif 143_basi4o9.cif 144_stillwellite.cif
+## delete: 145_boricacid.cif 146a_a-eucryptite.cif 146b_a-eucryptite.cif 147_na2so3.cif 148a_ilmenite.cif 148b_ilmenite.cif 149_srgeteo6.cif 150_malladrite.cif 151_ganasn5.cif
+## delete: 152_selenium.cif 153_crcl3.cif 154_quartz.cif 155a_alf3.cif 155b_alf3.cif 156_pbi2.cif 157_pbtegeo6.cif 158_mn2nb2o9zn2.cif 159_nierite.cif
+## delete: 160a_millerite.cif 160b_millerite.cif 161a_proustite.cif 161b_proustite.cif 162_rosiaite.cif 163_murchisite.cif 164_melonite.cif 165_cu3p.cif 166a_cdcl2.cif
+## delete: 166b_cdcl2.cif 167a_corundum.cif 167b_corundum.cif 168_c18h12con3o6.cif 169_trinepheline.cif 170_c15h20o4.cif 171_c23h19cl2cun7.cif 172_c8h4f6n4zn.cif 173_nepheline.cif
+## delete: 174_gdis.cif 175_hmgn.cif 176_fluorapatite.cif 177_c36h26cofen6o13.cif 178_cscucl3.cif 179_c20h22ag2cl2n4o8s2.cif 180_b-quartz.cif 181_b-eucryptite.cif 182_edgarite.cif
+## delete: 183_ta21te13.cif 184_kmn2zn3si12o30.cif 185_iceih.cif 186_wurtzite.cif 187_wc.cif 188_benitoite.cif 189_monipite.cif 190_troilite.cif 191_mnb2.cif
+## delete: 192_beryl.cif 193_xifengite.cif 194_graphite.cif 195_c80h276cl10gd18n8o188.cif 196_c32h35cdn9o6.cif 197_sillenite.cif 198_brownleeite.cif 199_corderoite.cif 200_na2cd11.cif
+## delete: 201a_ksbo3.cif 201b_ksbo3.cif 202_buckminsterfullerene.cif 203a_tychite.cif 203b_tychite.cif 204_kieftite.cif 205_pyrite.cif 206_mcalpineite.cif 207_palladseite.cif
+## delete: 208_na11u5o16.cif 209_mof-boracite.cif 210_mg-dodecaborate.cif 211_mof-c48h82k2o42.cif 212_ga5lio8.cif 213_uytenbogaardtite.cif 214_petzite.cif 215_sulvanite.cif 216_sphalerite.cif
+## delete: 217_manganese.cif 218_ag3po4.cif 219_high-boracite.cif 220_domeykite.cif 221_cscl.cif 222a_fec4o6h4.cif 222b_fec4o6h4.cif 223_pt3o4.cif 224a_cuprite.cif
+## delete: 224b_cuprite.cif 225_mgo.cif 226_ube13.cif 227a_diamond.cif 227b_diamond.cif 228a_telluricacid.cif 228b_telluricacid.cif 229_li.cif 230_pyrope.cif
+## check: 017_write_cif_long.cro -a1e-10
+## labels: regression
+crystal ../zz_source/cif/allspg/001_tetrazole.cif
+write 001_tetrazole.cif
+compare 001_tetrazole.cif .
+crystal ../zz_source/cif/allspg/002_kyanite.cif
+write 002_kyanite.cif
+compare 002_kyanite.cif .
+crystal ../zz_source/cif/allspg/003a_b-kyb2f7.cif
+write 003a_b-kyb2f7.cif
+compare 003a_b-kyb2f7.cif .
+crystal ../zz_source/cif/allspg/003b_b-kyb2f7.cif
+write 003b_b-kyb2f7.cif
+compare 003b_b-kyb2f7.cif .
+crystal ../zz_source/cif/allspg/003c_b-kyb2f7.cif
+write 003c_b-kyb2f7.cif
+compare 003c_b-kyb2f7.cif .
+crystal ../zz_source/cif/allspg/004a_alloclasite.cif
+write 004a_alloclasite.cif
+compare 004a_alloclasite.cif .
+crystal ../zz_source/cif/allspg/004b_alloclasite.cif
+write 004b_alloclasite.cif
+compare 004b_alloclasite.cif .
+crystal ../zz_source/cif/allspg/004c_alloclasite.cif
+write 004c_alloclasite.cif
+compare 004c_alloclasite.cif .
+crystal ../zz_source/cif/allspg/005a_taikanite.cif
+write 005a_taikanite.cif
+compare 005a_taikanite.cif .
+crystal ../zz_source/cif/allspg/005b_taikanite.cif
+write 005b_taikanite.cif
+compare 005b_taikanite.cif .
+crystal ../zz_source/cif/allspg/005c_taikanite.cif
+write 005c_taikanite.cif
+compare 005c_taikanite.cif .
+crystal ../zz_source/cif/allspg/005d_taikanite.cif
+write 005d_taikanite.cif
+compare 005d_taikanite.cif .
+crystal ../zz_source/cif/allspg/005e_taikanite.cif
+write 005e_taikanite.cif
+compare 005e_taikanite.cif .
+crystal ../zz_source/cif/allspg/005f_taikanite.cif
+write 005f_taikanite.cif
+compare 005f_taikanite.cif .
+crystal ../zz_source/cif/allspg/005g_taikanite.cif
+write 005g_taikanite.cif
+compare 005g_taikanite.cif .
+crystal ../zz_source/cif/allspg/005h_taikanite.cif
+write 005h_taikanite.cif
+compare 005h_taikanite.cif .
+crystal ../zz_source/cif/allspg/005i_taikanite.cif
+write 005i_taikanite.cif
+compare 005i_taikanite.cif .
+crystal ../zz_source/cif/allspg/006a_li3na3n2.cif
+write 006a_li3na3n2.cif
+compare 006a_li3na3n2.cif .
+crystal ../zz_source/cif/allspg/006b_li3na3n2.cif
+write 006b_li3na3n2.cif
+compare 006b_li3na3n2.cif .
+crystal ../zz_source/cif/allspg/006c_li3na3n2.cif
+write 006c_li3na3n2.cif
+compare 006c_li3na3n2.cif .
+crystal ../zz_source/cif/allspg/007a_dervillite.cif
+write 007a_dervillite.cif
+compare 007a_dervillite.cif .
+crystal ../zz_source/cif/allspg/007b_dervillite.cif
+write 007b_dervillite.cif
+compare 007b_dervillite.cif .
+crystal ../zz_source/cif/allspg/007c_dervillite.cif
+write 007c_dervillite.cif
+compare 007c_dervillite.cif .
+crystal ../zz_source/cif/allspg/007d_dervillite.cif
+write 007d_dervillite.cif
+compare 007d_dervillite.cif .
+crystal ../zz_source/cif/allspg/007e_dervillite.cif
+write 007e_dervillite.cif
+compare 007e_dervillite.cif .
+crystal ../zz_source/cif/allspg/007f_dervillite.cif
+write 007f_dervillite.cif
+compare 007f_dervillite.cif .
+crystal ../zz_source/cif/allspg/007g_dervillite.cif
+write 007g_dervillite.cif
+compare 007g_dervillite.cif .
+crystal ../zz_source/cif/allspg/007h_dervillite.cif
+write 007h_dervillite.cif
+compare 007h_dervillite.cif .
+crystal ../zz_source/cif/allspg/007i_dervillite.cif
+write 007i_dervillite.cif
+compare 007i_dervillite.cif .
+crystal ../zz_source/cif/allspg/008a_up4o12.cif
+write 008a_up4o12.cif
+compare 008a_up4o12.cif .
+crystal ../zz_source/cif/allspg/008b_up4o12.cif
+write 008b_up4o12.cif
+compare 008b_up4o12.cif .
+crystal ../zz_source/cif/allspg/008c_up4o12.cif
+write 008c_up4o12.cif
+compare 008c_up4o12.cif .
+crystal ../zz_source/cif/allspg/008d_up4o12.cif
+write 008d_up4o12.cif
+compare 008d_up4o12.cif .
+crystal ../zz_source/cif/allspg/008e_up4o12.cif
+write 008e_up4o12.cif
+compare 008e_up4o12.cif .
+crystal ../zz_source/cif/allspg/008f_up4o12.cif
+write 008f_up4o12.cif
+compare 008f_up4o12.cif .
+crystal ../zz_source/cif/allspg/008g_up4o12.cif
+write 008g_up4o12.cif
+compare 008g_up4o12.cif .
+crystal ../zz_source/cif/allspg/008h_up4o12.cif
+write 008h_up4o12.cif
+compare 008h_up4o12.cif .
+crystal ../zz_source/cif/allspg/008i_up4o12.cif
+write 008i_up4o12.cif
+compare 008i_up4o12.cif .
+crystal ../zz_source/cif/allspg/009a_tilasite.cif
+write 009a_tilasite.cif
+compare 009a_tilasite.cif .
+crystal ../zz_source/cif/allspg/009b_tilasite.cif
+write 009b_tilasite.cif
+compare 009b_tilasite.cif .
+crystal ../zz_source/cif/allspg/009c_tilasite.cif
+write 009c_tilasite.cif
+compare 009c_tilasite.cif .
+crystal ../zz_source/cif/allspg/009d_tilasite.cif
+write 009d_tilasite.cif
+compare 009d_tilasite.cif .
+crystal ../zz_source/cif/allspg/009e_tilasite.cif
+write 009e_tilasite.cif
+compare 009e_tilasite.cif .
+crystal ../zz_source/cif/allspg/009f_tilasite.cif
+write 009f_tilasite.cif
+compare 009f_tilasite.cif .
+crystal ../zz_source/cif/allspg/009g_tilasite.cif
+write 009g_tilasite.cif
+compare 009g_tilasite.cif .
+crystal ../zz_source/cif/allspg/009h_tilasite.cif
+write 009h_tilasite.cif
+compare 009h_tilasite.cif .
+crystal ../zz_source/cif/allspg/009i_tilasite.cif
+write 009i_tilasite.cif
+compare 009i_tilasite.cif .
+crystal ../zz_source/cif/allspg/009j_tilasite.cif
+write 009j_tilasite.cif
+compare 009j_tilasite.cif .
+crystal ../zz_source/cif/allspg/009k_tilasite.cif
+write 009k_tilasite.cif
+compare 009k_tilasite.cif .
+crystal ../zz_source/cif/allspg/009l_tilasite.cif
+write 009l_tilasite.cif
+compare 009l_tilasite.cif .
+crystal ../zz_source/cif/allspg/009m_tilasite.cif
+write 009m_tilasite.cif
+compare 009m_tilasite.cif .
+crystal ../zz_source/cif/allspg/009n_tilasite.cif
+write 009n_tilasite.cif
+compare 009n_tilasite.cif .
+crystal ../zz_source/cif/allspg/009o_tilasite.cif
+write 009o_tilasite.cif
+compare 009o_tilasite.cif .
+crystal ../zz_source/cif/allspg/009p_tilasite.cif
+write 009p_tilasite.cif
+compare 009p_tilasite.cif .
+crystal ../zz_source/cif/allspg/009q_tilasite.cif
+write 009q_tilasite.cif
+compare 009q_tilasite.cif .
+crystal ../zz_source/cif/allspg/009r_tilasite.cif
+write 009r_tilasite.cif
+compare 009r_tilasite.cif .
+crystal ../zz_source/cif/allspg/010a_muthmannite.cif
+write 010a_muthmannite.cif
+compare 010a_muthmannite.cif .
+crystal ../zz_source/cif/allspg/010b_muthmannite.cif
+write 010b_muthmannite.cif
+compare 010b_muthmannite.cif .
+crystal ../zz_source/cif/allspg/010c_muthmannite.cif
+write 010c_muthmannite.cif
+compare 010c_muthmannite.cif .
+crystal ../zz_source/cif/allspg/011a_kinoite.cif
+write 011a_kinoite.cif
+compare 011a_kinoite.cif .
+crystal ../zz_source/cif/allspg/011b_kinoite.cif
+write 011b_kinoite.cif
+compare 011b_kinoite.cif .
+crystal ../zz_source/cif/allspg/011c_kinoite.cif
+write 011c_kinoite.cif
+compare 011c_kinoite.cif .
+crystal ../zz_source/cif/allspg/012a_calaverite.cif
+write 012a_calaverite.cif
+compare 012a_calaverite.cif .
+crystal ../zz_source/cif/allspg/012b_calaverite.cif
+write 012b_calaverite.cif
+compare 012b_calaverite.cif .
+crystal ../zz_source/cif/allspg/012c_calaverite.cif
+write 012c_calaverite.cif
+compare 012c_calaverite.cif .
+crystal ../zz_source/cif/allspg/012d_calaverite.cif
+write 012d_calaverite.cif
+compare 012d_calaverite.cif .
+crystal ../zz_source/cif/allspg/012e_calaverite.cif
+write 012e_calaverite.cif
+compare 012e_calaverite.cif .
+crystal ../zz_source/cif/allspg/012f_calaverite.cif
+write 012f_calaverite.cif
+compare 012f_calaverite.cif .
+crystal ../zz_source/cif/allspg/012g_calaverite.cif
+write 012g_calaverite.cif
+compare 012g_calaverite.cif .
+crystal ../zz_source/cif/allspg/012h_calaverite.cif
+write 012h_calaverite.cif
+compare 012h_calaverite.cif .
+crystal ../zz_source/cif/allspg/012i_calaverite.cif
+write 012i_calaverite.cif
+compare 012i_calaverite.cif .
+crystal ../zz_source/cif/allspg/013a_petalite.cif
+write 013a_petalite.cif
+compare 013a_petalite.cif .
+crystal ../zz_source/cif/allspg/013b_petalite.cif
+write 013b_petalite.cif
+compare 013b_petalite.cif .
+crystal ../zz_source/cif/allspg/013c_petalite.cif
+write 013c_petalite.cif
+compare 013c_petalite.cif .
+crystal ../zz_source/cif/allspg/013d_petalite.cif
+write 013d_petalite.cif
+compare 013d_petalite.cif .
+crystal ../zz_source/cif/allspg/013e_petalite.cif
+write 013e_petalite.cif
+compare 013e_petalite.cif .
+crystal ../zz_source/cif/allspg/013f_petalite.cif
+write 013f_petalite.cif
+compare 013f_petalite.cif .
+crystal ../zz_source/cif/allspg/013g_petalite.cif
+write 013g_petalite.cif
+compare 013g_petalite.cif .
+crystal ../zz_source/cif/allspg/013h_petalite.cif
+write 013h_petalite.cif
+compare 013h_petalite.cif .
+crystal ../zz_source/cif/allspg/013i_petalite.cif
+write 013i_petalite.cif
+compare 013i_petalite.cif .
+crystal ../zz_source/cif/allspg/014a_baddeleyite.cif
+write 014a_baddeleyite.cif
+compare 014a_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014b_baddeleyite.cif
+write 014b_baddeleyite.cif
+compare 014b_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014c_baddeleyite.cif
+write 014c_baddeleyite.cif
+compare 014c_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014d_baddeleyite.cif
+write 014d_baddeleyite.cif
+compare 014d_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014e_baddeleyite.cif
+write 014e_baddeleyite.cif
+compare 014e_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014f_baddeleyite.cif
+write 014f_baddeleyite.cif
+compare 014f_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014g_baddeleyite.cif
+write 014g_baddeleyite.cif
+compare 014g_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014h_baddeleyite.cif
+write 014h_baddeleyite.cif
+compare 014h_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/014i_baddeleyite.cif
+write 014i_baddeleyite.cif
+compare 014i_baddeleyite.cif .
+crystal ../zz_source/cif/allspg/015a_coesite.cif
+write 015a_coesite.cif
+compare 015a_coesite.cif .
+crystal ../zz_source/cif/allspg/015b_coesite.cif
+write 015b_coesite.cif
+compare 015b_coesite.cif .
+crystal ../zz_source/cif/allspg/015c_coesite.cif
+write 015c_coesite.cif
+compare 015c_coesite.cif .
+crystal ../zz_source/cif/allspg/015d_coesite.cif
+write 015d_coesite.cif
+compare 015d_coesite.cif .
+crystal ../zz_source/cif/allspg/015e_coesite.cif
+write 015e_coesite.cif
+compare 015e_coesite.cif .
+crystal ../zz_source/cif/allspg/015f_coesite.cif
+write 015f_coesite.cif
+compare 015f_coesite.cif .
+crystal ../zz_source/cif/allspg/015g_coesite.cif
+write 015g_coesite.cif
+compare 015g_coesite.cif .
+crystal ../zz_source/cif/allspg/015h_coesite.cif
+write 015h_coesite.cif
+compare 015h_coesite.cif .
+crystal ../zz_source/cif/allspg/015i_coesite.cif
+write 015i_coesite.cif
+compare 015i_coesite.cif .
+crystal ../zz_source/cif/allspg/015j_coesite.cif
+write 015j_coesite.cif
+compare 015j_coesite.cif .
+crystal ../zz_source/cif/allspg/015k_coesite.cif
+write 015k_coesite.cif
+compare 015k_coesite.cif .
+crystal ../zz_source/cif/allspg/015l_coesite.cif
+write 015l_coesite.cif
+compare 015l_coesite.cif .
+crystal ../zz_source/cif/allspg/015m_coesite.cif
+write 015m_coesite.cif
+compare 015m_coesite.cif .
+crystal ../zz_source/cif/allspg/015n_coesite.cif
+write 015n_coesite.cif
+compare 015n_coesite.cif .
+crystal ../zz_source/cif/allspg/015o_coesite.cif
+write 015o_coesite.cif
+compare 015o_coesite.cif .
+crystal ../zz_source/cif/allspg/015p_coesite.cif
+write 015p_coesite.cif
+compare 015p_coesite.cif .
+crystal ../zz_source/cif/allspg/015q_coesite.cif
+write 015q_coesite.cif
+compare 015q_coesite.cif .
+crystal ../zz_source/cif/allspg/015r_coesite.cif
+write 015r_coesite.cif
+compare 015r_coesite.cif .
+crystal ../zz_source/cif/allspg/016_alps4.cif
+write 016_alps4.cif
+compare 016_alps4.cif .
+crystal ../zz_source/cif/allspg/017a_lueshite.cif
+write 017a_lueshite.cif
+compare 017a_lueshite.cif .
+crystal ../zz_source/cif/allspg/017b_lueshite.cif
+write 017b_lueshite.cif
+compare 017b_lueshite.cif .
+crystal ../zz_source/cif/allspg/017c_lueshite.cif
+write 017c_lueshite.cif
+compare 017c_lueshite.cif .
+crystal ../zz_source/cif/allspg/018a_bas3.cif
+write 018a_bas3.cif
+compare 018a_bas3.cif .
+crystal ../zz_source/cif/allspg/018b_bas3.cif
+write 018b_bas3.cif
+compare 018b_bas3.cif .
+crystal ../zz_source/cif/allspg/018c_bas3.cif
+write 018c_bas3.cif
+compare 018c_bas3.cif .
+crystal ../zz_source/cif/allspg/019_baalf5.cif
+write 019_baalf5.cif
+compare 019_baalf5.cif .
+crystal ../zz_source/cif/allspg/020a_bas3v.cif
+write 020a_bas3v.cif
+compare 020a_bas3v.cif .
+crystal ../zz_source/cif/allspg/020b_bas3v.cif
+write 020b_bas3v.cif
+compare 020b_bas3v.cif .
+crystal ../zz_source/cif/allspg/020c_bas3v.cif
+write 020c_bas3v.cif
+compare 020c_bas3v.cif .
+crystal ../zz_source/cif/allspg/021a_anhydrite.cif
+write 021a_anhydrite.cif
+compare 021a_anhydrite.cif .
+crystal ../zz_source/cif/allspg/021b_anhydrite.cif
+write 021b_anhydrite.cif
+compare 021b_anhydrite.cif .
+crystal ../zz_source/cif/allspg/021c_anhydrite.cif
+write 021c_anhydrite.cif
+compare 021c_anhydrite.cif .
+crystal ../zz_source/cif/allspg/022_ru2ceb2.cif
+write 022_ru2ceb2.cif
+compare 022_ru2ceb2.cif .
+crystal ../zz_source/cif/allspg/023_nd2so6.cif
+write 023_nd2so6.cif
+compare 023_nd2so6.cif .
+crystal ../zz_source/cif/allspg/024_c4h6br2cdn6o.cif
+write 024_c4h6br2cdn6o.cif
+compare 024_c4h6br2cdn6o.cif .
+crystal ../zz_source/cif/allspg/025a_dyscrasite.cif
+write 025a_dyscrasite.cif
+compare 025a_dyscrasite.cif .
+crystal ../zz_source/cif/allspg/025b_dyscrasite.cif
+write 025b_dyscrasite.cif
+compare 025b_dyscrasite.cif .
+crystal ../zz_source/cif/allspg/025c_dyscrasite.cif
+write 025c_dyscrasite.cif
+compare 025c_dyscrasite.cif .
+crystal ../zz_source/cif/allspg/026a_krupkaite.cif
+write 026a_krupkaite.cif
+compare 026a_krupkaite.cif .
+crystal ../zz_source/cif/allspg/026b_krupkaite.cif
+write 026b_krupkaite.cif
+compare 026b_krupkaite.cif .
+crystal ../zz_source/cif/allspg/026c_krupkaite.cif
+write 026c_krupkaite.cif
+compare 026c_krupkaite.cif .
+crystal ../zz_source/cif/allspg/026d_krupkaite.cif
+write 026d_krupkaite.cif
+compare 026d_krupkaite.cif .
+crystal ../zz_source/cif/allspg/026e_krupkaite.cif
+write 026e_krupkaite.cif
+compare 026e_krupkaite.cif .
+crystal ../zz_source/cif/allspg/026f_krupkaite.cif
+write 026f_krupkaite.cif
+compare 026f_krupkaite.cif .
+crystal ../zz_source/cif/allspg/027a_c8h6bri.cif
+write 027a_c8h6bri.cif
+compare 027a_c8h6bri.cif .
+crystal ../zz_source/cif/allspg/027b_c8h6bri.cif
+write 027b_c8h6bri.cif
+compare 027b_c8h6bri.cif .
+crystal ../zz_source/cif/allspg/027c_c8h6bri.cif
+write 027c_c8h6bri.cif
+compare 027c_c8h6bri.cif .
+crystal ../zz_source/cif/allspg/028a_krennerite.cif
+write 028a_krennerite.cif
+compare 028a_krennerite.cif .
+crystal ../zz_source/cif/allspg/028b_krennerite.cif
+write 028b_krennerite.cif
+compare 028b_krennerite.cif .
+crystal ../zz_source/cif/allspg/028c_krennerite.cif
+write 028c_krennerite.cif
+compare 028c_krennerite.cif .
+crystal ../zz_source/cif/allspg/028d_krennerite.cif
+write 028d_krennerite.cif
+compare 028d_krennerite.cif .
+crystal ../zz_source/cif/allspg/028e_krennerite.cif
+write 028e_krennerite.cif
+compare 028e_krennerite.cif .
+crystal ../zz_source/cif/allspg/028f_krennerite.cif
+write 028f_krennerite.cif
+compare 028f_krennerite.cif .
+crystal ../zz_source/cif/allspg/029a_cobaltite.cif
+write 029a_cobaltite.cif
+compare 029a_cobaltite.cif .
+crystal ../zz_source/cif/allspg/029b_cobaltite.cif
+write 029b_cobaltite.cif
+compare 029b_cobaltite.cif .
+crystal ../zz_source/cif/allspg/029c_cobaltite.cif
+write 029c_cobaltite.cif
+compare 029c_cobaltite.cif .
+crystal ../zz_source/cif/allspg/029d_cobaltite.cif
+write 029d_cobaltite.cif
+compare 029d_cobaltite.cif .
+crystal ../zz_source/cif/allspg/029e_cobaltite.cif
+write 029e_cobaltite.cif
+compare 029e_cobaltite.cif .
+crystal ../zz_source/cif/allspg/029f_cobaltite.cif
+write 029f_cobaltite.cif
+compare 029f_cobaltite.cif .
+crystal ../zz_source/cif/allspg/030a_kcuta3o9.cif
+write 030a_kcuta3o9.cif
+compare 030a_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/030b_kcuta3o9.cif
+write 030b_kcuta3o9.cif
+compare 030b_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/030c_kcuta3o9.cif
+write 030c_kcuta3o9.cif
+compare 030c_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/030d_kcuta3o9.cif
+write 030d_kcuta3o9.cif
+compare 030d_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/030e_kcuta3o9.cif
+write 030e_kcuta3o9.cif
+compare 030e_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/030f_kcuta3o9.cif
+write 030f_kcuta3o9.cif
+compare 030f_kcuta3o9.cif .
+crystal ../zz_source/cif/allspg/031a_enargite.cif
+write 031a_enargite.cif
+compare 031a_enargite.cif .
+crystal ../zz_source/cif/allspg/031b_enargite.cif
+write 031b_enargite.cif
+compare 031b_enargite.cif .
+crystal ../zz_source/cif/allspg/031c_enargite.cif
+write 031c_enargite.cif
+compare 031c_enargite.cif .
+crystal ../zz_source/cif/allspg/031d_enargite.cif
+write 031d_enargite.cif
+compare 031d_enargite.cif .
+crystal ../zz_source/cif/allspg/031e_enargite.cif
+write 031e_enargite.cif
+compare 031e_enargite.cif .
+crystal ../zz_source/cif/allspg/031f_enargite.cif
+write 031f_enargite.cif
+compare 031f_enargite.cif .
+crystal ../zz_source/cif/allspg/032a_minyulite.cif
+write 032a_minyulite.cif
+compare 032a_minyulite.cif .
+crystal ../zz_source/cif/allspg/032b_minyulite.cif
+write 032b_minyulite.cif
+compare 032b_minyulite.cif .
+crystal ../zz_source/cif/allspg/032c_minyulite.cif
+write 032c_minyulite.cif
+compare 032c_minyulite.cif .
+crystal ../zz_source/cif/allspg/033a_lautite.cif
+write 033a_lautite.cif
+compare 033a_lautite.cif .
+crystal ../zz_source/cif/allspg/033b_lautite.cif
+write 033b_lautite.cif
+compare 033b_lautite.cif .
+crystal ../zz_source/cif/allspg/033c_lautite.cif
+write 033c_lautite.cif
+compare 033c_lautite.cif .
+crystal ../zz_source/cif/allspg/033d_lautite.cif
+write 033d_lautite.cif
+compare 033d_lautite.cif .
+crystal ../zz_source/cif/allspg/033e_lautite.cif
+write 033e_lautite.cif
+compare 033e_lautite.cif .
+crystal ../zz_source/cif/allspg/033f_lautite.cif
+write 033f_lautite.cif
+compare 033f_lautite.cif .
+crystal ../zz_source/cif/allspg/034a_seinajokite.cif
+write 034a_seinajokite.cif
+compare 034a_seinajokite.cif .
+crystal ../zz_source/cif/allspg/034b_seinajokite.cif
+write 034b_seinajokite.cif
+compare 034b_seinajokite.cif .
+crystal ../zz_source/cif/allspg/034c_seinajokite.cif
+write 034c_seinajokite.cif
+compare 034c_seinajokite.cif .
+crystal ../zz_source/cif/allspg/035a_seeligerite.cif
+write 035a_seeligerite.cif
+compare 035a_seeligerite.cif .
+crystal ../zz_source/cif/allspg/035b_seeligerite.cif
+write 035b_seeligerite.cif
+compare 035b_seeligerite.cif .
+crystal ../zz_source/cif/allspg/035c_seeligerite.cif
+write 035c_seeligerite.cif
+compare 035c_seeligerite.cif .
+crystal ../zz_source/cif/allspg/036a_polarite.cif
+write 036a_polarite.cif
+compare 036a_polarite.cif .
+crystal ../zz_source/cif/allspg/036b_polarite.cif
+write 036b_polarite.cif
+compare 036b_polarite.cif .
+crystal ../zz_source/cif/allspg/036c_polarite.cif
+write 036c_polarite.cif
+compare 036c_polarite.cif .
+crystal ../zz_source/cif/allspg/036d_polarite.cif
+write 036d_polarite.cif
+compare 036d_polarite.cif .
+crystal ../zz_source/cif/allspg/036e_polarite.cif
+write 036e_polarite.cif
+compare 036e_polarite.cif .
+crystal ../zz_source/cif/allspg/036f_polarite.cif
+write 036f_polarite.cif
+compare 036f_polarite.cif .
+crystal ../zz_source/cif/allspg/037a_cagabo4.cif
+write 037a_cagabo4.cif
+compare 037a_cagabo4.cif .
+crystal ../zz_source/cif/allspg/037b_cagabo4.cif
+write 037b_cagabo4.cif
+compare 037b_cagabo4.cif .
+crystal ../zz_source/cif/allspg/037c_cagabo4.cif
+write 037c_cagabo4.cif
+compare 037c_cagabo4.cif .
+crystal ../zz_source/cif/allspg/038a_weeksite.cif
+write 038a_weeksite.cif
+compare 038a_weeksite.cif .
+crystal ../zz_source/cif/allspg/038b_weeksite.cif
+write 038b_weeksite.cif
+compare 038b_weeksite.cif .
+crystal ../zz_source/cif/allspg/038c_weeksite.cif
+write 038c_weeksite.cif
+compare 038c_weeksite.cif .
+crystal ../zz_source/cif/allspg/038d_weeksite.cif
+write 038d_weeksite.cif
+compare 038d_weeksite.cif .
+crystal ../zz_source/cif/allspg/038e_weeksite.cif
+write 038e_weeksite.cif
+compare 038e_weeksite.cif .
+crystal ../zz_source/cif/allspg/038f_weeksite.cif
+write 038f_weeksite.cif
+compare 038f_weeksite.cif .
+crystal ../zz_source/cif/allspg/039a_smirnite.cif
+write 039a_smirnite.cif
+compare 039a_smirnite.cif .
+crystal ../zz_source/cif/allspg/039b_smirnite.cif
+write 039b_smirnite.cif
+compare 039b_smirnite.cif .
+crystal ../zz_source/cif/allspg/039c_smirnite.cif
+write 039c_smirnite.cif
+compare 039c_smirnite.cif .
+crystal ../zz_source/cif/allspg/039d_smirnite.cif
+write 039d_smirnite.cif
+compare 039d_smirnite.cif .
+crystal ../zz_source/cif/allspg/039e_smirnite.cif
+write 039e_smirnite.cif
+compare 039e_smirnite.cif .
+crystal ../zz_source/cif/allspg/039f_smirnite.cif
+write 039f_smirnite.cif
+compare 039f_smirnite.cif .
+crystal ../zz_source/cif/allspg/040a_vaterite.cif
+write 040a_vaterite.cif
+compare 040a_vaterite.cif .
+crystal ../zz_source/cif/allspg/040b_vaterite.cif
+write 040b_vaterite.cif
+compare 040b_vaterite.cif .
+crystal ../zz_source/cif/allspg/040c_vaterite.cif
+write 040c_vaterite.cif
+compare 040c_vaterite.cif .
+crystal ../zz_source/cif/allspg/040d_vaterite.cif
+write 040d_vaterite.cif
+compare 040d_vaterite.cif .
+crystal ../zz_source/cif/allspg/040e_vaterite.cif
+write 040e_vaterite.cif
+compare 040e_vaterite.cif .
+crystal ../zz_source/cif/allspg/040f_vaterite.cif
+write 040f_vaterite.cif
+compare 040f_vaterite.cif .
+crystal ../zz_source/cif/allspg/041a_so2.cif
+write 041a_so2.cif
+compare 041a_so2.cif .
+crystal ../zz_source/cif/allspg/041b_so2.cif
+write 041b_so2.cif
+compare 041b_so2.cif .
+crystal ../zz_source/cif/allspg/041c_so2.cif
+write 041c_so2.cif
+compare 041c_so2.cif .
+crystal ../zz_source/cif/allspg/041d_so2.cif
+write 041d_so2.cif
+compare 041d_so2.cif .
+crystal ../zz_source/cif/allspg/041e_so2.cif
+write 041e_so2.cif
+compare 041e_so2.cif .
+crystal ../zz_source/cif/allspg/041f_so2.cif
+write 041f_so2.cif
+compare 041f_so2.cif .
+crystal ../zz_source/cif/allspg/042a_libgeo4.cif
+write 042a_libgeo4.cif
+compare 042a_libgeo4.cif .
+crystal ../zz_source/cif/allspg/042b_libgeo4.cif
+write 042b_libgeo4.cif
+compare 042b_libgeo4.cif .
+crystal ../zz_source/cif/allspg/042c_libgeo4.cif
+write 042c_libgeo4.cif
+compare 042c_libgeo4.cif .
+crystal ../zz_source/cif/allspg/043a_blossite.cif
+write 043a_blossite.cif
+compare 043a_blossite.cif .
+crystal ../zz_source/cif/allspg/043b_blossite.cif
+write 043b_blossite.cif
+compare 043b_blossite.cif .
+crystal ../zz_source/cif/allspg/043c_blossite.cif
+write 043c_blossite.cif
+compare 043c_blossite.cif .
+crystal ../zz_source/cif/allspg/044a_cr2p.cif
+write 044a_cr2p.cif
+compare 044a_cr2p.cif .
+crystal ../zz_source/cif/allspg/044b_cr2p.cif
+write 044b_cr2p.cif
+compare 044b_cr2p.cif .
+crystal ../zz_source/cif/allspg/044c_cr2p.cif
+write 044c_cr2p.cif
+compare 044c_cr2p.cif .
+crystal ../zz_source/cif/allspg/045a_banalsite.cif
+write 045a_banalsite.cif
+compare 045a_banalsite.cif .
+crystal ../zz_source/cif/allspg/045b_banalsite.cif
+write 045b_banalsite.cif
+compare 045b_banalsite.cif .
+crystal ../zz_source/cif/allspg/045c_banalsite.cif
+write 045c_banalsite.cif
+compare 045c_banalsite.cif .
+crystal ../zz_source/cif/allspg/046a_fesiti.cif
+write 046a_fesiti.cif
+compare 046a_fesiti.cif .
+crystal ../zz_source/cif/allspg/046b_fesiti.cif
+write 046b_fesiti.cif
+compare 046b_fesiti.cif .
+crystal ../zz_source/cif/allspg/046c_fesiti.cif
+write 046c_fesiti.cif
+compare 046c_fesiti.cif .
+crystal ../zz_source/cif/allspg/046d_fesiti.cif
+write 046d_fesiti.cif
+compare 046d_fesiti.cif .
+crystal ../zz_source/cif/allspg/046e_fesiti.cif
+write 046e_fesiti.cif
+compare 046e_fesiti.cif .
+crystal ../zz_source/cif/allspg/046f_fesiti.cif
+write 046f_fesiti.cif
+compare 046f_fesiti.cif .
+crystal ../zz_source/cif/allspg/047_ba2ycu3o7.cif
+write 047_ba2ycu3o7.cif
+compare 047_ba2ycu3o7.cif .
+crystal ../zz_source/cif/allspg/048a_znc48h84n4o4li.cif
+write 048a_znc48h84n4o4li.cif
+compare 048a_znc48h84n4o4li.cif .
+crystal ../zz_source/cif/allspg/048b_znc48h84n4o4li.cif
+write 048b_znc48h84n4o4li.cif
+compare 048b_znc48h84n4o4li.cif .
+crystal ../zz_source/cif/allspg/049a_beta-ta2o5.cif
+write 049a_beta-ta2o5.cif
+compare 049a_beta-ta2o5.cif .
+crystal ../zz_source/cif/allspg/049b_beta-ta2o5.cif
+write 049b_beta-ta2o5.cif
+compare 049b_beta-ta2o5.cif .
+crystal ../zz_source/cif/allspg/049c_beta-ta2o5.cif
+write 049c_beta-ta2o5.cif
+compare 049c_beta-ta2o5.cif .
+crystal ../zz_source/cif/allspg/050a_ru8c208h328n8o8f60p18.cif
+write 050a_ru8c208h328n8o8f60p18.cif
+compare 050a_ru8c208h328n8o8f60p18.cif .
+crystal ../zz_source/cif/allspg/050c_ru8c208h328n8o8f60p18.cif
+write 050c_ru8c208h328n8o8f60p18.cif
+compare 050c_ru8c208h328n8o8f60p18.cif .
+crystal ../zz_source/cif/allspg/050d_ru8c208h328n8o8f60p18.cif
+write 050d_ru8c208h328n8o8f60p18.cif
+compare 050d_ru8c208h328n8o8f60p18.cif .
+crystal ../zz_source/cif/allspg/050e_ru8c208h328n8o8f60p18.cif
+write 050e_ru8c208h328n8o8f60p18.cif
+compare 050e_ru8c208h328n8o8f60p18.cif .
+crystal ../zz_source/cif/allspg/050f_ru8c208h328n8o8f60p18.cif
+write 050f_ru8c208h328n8o8f60p18.cif
+compare 050f_ru8c208h328n8o8f60p18.cif .
+crystal ../zz_source/cif/allspg/051a_valleriite.cif
+write 051a_valleriite.cif
+compare 051a_valleriite.cif .
+crystal ../zz_source/cif/allspg/051b_valleriite.cif
+write 051b_valleriite.cif
+compare 051b_valleriite.cif .
+crystal ../zz_source/cif/allspg/051c_valleriite.cif
+write 051c_valleriite.cif
+compare 051c_valleriite.cif .
+crystal ../zz_source/cif/allspg/051d_valleriite.cif
+write 051d_valleriite.cif
+compare 051d_valleriite.cif .
+crystal ../zz_source/cif/allspg/051e_valleriite.cif
+write 051e_valleriite.cif
+compare 051e_valleriite.cif .
+crystal ../zz_source/cif/allspg/051f_valleriite.cif
+write 051f_valleriite.cif
+compare 051f_valleriite.cif .
+crystal ../zz_source/cif/allspg/052a_ba3ga2n4.cif
+write 052a_ba3ga2n4.cif
+compare 052a_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/052b_ba3ga2n4.cif
+write 052b_ba3ga2n4.cif
+compare 052b_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/052c_ba3ga2n4.cif
+write 052c_ba3ga2n4.cif
+compare 052c_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/052d_ba3ga2n4.cif
+write 052d_ba3ga2n4.cif
+compare 052d_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/052e_ba3ga2n4.cif
+write 052e_ba3ga2n4.cif
+compare 052e_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/052f_ba3ga2n4.cif
+write 052f_ba3ga2n4.cif
+compare 052f_ba3ga2n4.cif .
+crystal ../zz_source/cif/allspg/053a_fenbte2.cif
+write 053a_fenbte2.cif
+compare 053a_fenbte2.cif .
+crystal ../zz_source/cif/allspg/053b_fenbte2.cif
+write 053b_fenbte2.cif
+compare 053b_fenbte2.cif .
+crystal ../zz_source/cif/allspg/053c_fenbte2.cif
+write 053c_fenbte2.cif
+compare 053c_fenbte2.cif .
+crystal ../zz_source/cif/allspg/053d_fenbte2.cif
+write 053d_fenbte2.cif
+compare 053d_fenbte2.cif .
+crystal ../zz_source/cif/allspg/053e_fenbte2.cif
+write 053e_fenbte2.cif
+compare 053e_fenbte2.cif .
+crystal ../zz_source/cif/allspg/053f_fenbte2.cif
+write 053f_fenbte2.cif
+compare 053f_fenbte2.cif .
+crystal ../zz_source/cif/allspg/054a_agclo2.cif
+write 054a_agclo2.cif
+compare 054a_agclo2.cif .
+crystal ../zz_source/cif/allspg/054b_agclo2.cif
+write 054b_agclo2.cif
+compare 054b_agclo2.cif .
+crystal ../zz_source/cif/allspg/054c_agclo2.cif
+write 054c_agclo2.cif
+compare 054c_agclo2.cif .
+crystal ../zz_source/cif/allspg/054d_agclo2.cif
+write 054d_agclo2.cif
+compare 054d_agclo2.cif .
+crystal ../zz_source/cif/allspg/054e_agclo2.cif
+write 054e_agclo2.cif
+compare 054e_agclo2.cif .
+crystal ../zz_source/cif/allspg/054f_agclo2.cif
+write 054f_agclo2.cif
+compare 054f_agclo2.cif .
+crystal ../zz_source/cif/allspg/055a_reinerite.cif
+write 055a_reinerite.cif
+compare 055a_reinerite.cif .
+crystal ../zz_source/cif/allspg/055b_reinerite.cif
+write 055b_reinerite.cif
+compare 055b_reinerite.cif .
+crystal ../zz_source/cif/allspg/055c_reinerite.cif
+write 055c_reinerite.cif
+compare 055c_reinerite.cif .
+crystal ../zz_source/cif/allspg/056a_sophiite.cif
+write 056a_sophiite.cif
+compare 056a_sophiite.cif .
+crystal ../zz_source/cif/allspg/056b_sophiite.cif
+write 056b_sophiite.cif
+compare 056b_sophiite.cif .
+crystal ../zz_source/cif/allspg/056c_sophiite.cif
+write 056c_sophiite.cif
+compare 056c_sophiite.cif .
+crystal ../zz_source/cif/allspg/057a_massicot.cif
+write 057a_massicot.cif
+compare 057a_massicot.cif .
+crystal ../zz_source/cif/allspg/057b_massicot.cif
+write 057b_massicot.cif
+compare 057b_massicot.cif .
+crystal ../zz_source/cif/allspg/057c_massicot.cif
+write 057c_massicot.cif
+compare 057c_massicot.cif .
+crystal ../zz_source/cif/allspg/057d_massicot.cif
+write 057d_massicot.cif
+compare 057d_massicot.cif .
+crystal ../zz_source/cif/allspg/057e_massicot.cif
+write 057e_massicot.cif
+compare 057e_massicot.cif .
+crystal ../zz_source/cif/allspg/057f_massicot.cif
+write 057f_massicot.cif
+compare 057f_massicot.cif .
+crystal ../zz_source/cif/allspg/058a_cacl2.cif
+write 058a_cacl2.cif
+compare 058a_cacl2.cif .
+crystal ../zz_source/cif/allspg/058b_cacl2.cif
+write 058b_cacl2.cif
+compare 058b_cacl2.cif .
+crystal ../zz_source/cif/allspg/058c_cacl2.cif
+write 058c_cacl2.cif
+compare 058c_cacl2.cif .
+crystal ../zz_source/cif/allspg/059a_pasavaite.cif
+write 059a_pasavaite.cif
+compare 059a_pasavaite.cif .
+crystal ../zz_source/cif/allspg/059b_pasavaite.cif
+write 059b_pasavaite.cif
+compare 059b_pasavaite.cif .
+crystal ../zz_source/cif/allspg/059c_pasavaite.cif
+write 059c_pasavaite.cif
+compare 059c_pasavaite.cif .
+crystal ../zz_source/cif/allspg/059d_pasavaite.cif
+write 059d_pasavaite.cif
+compare 059d_pasavaite.cif .
+crystal ../zz_source/cif/allspg/059e_pasavaite.cif
+write 059e_pasavaite.cif
+compare 059e_pasavaite.cif .
+crystal ../zz_source/cif/allspg/059f_pasavaite.cif
+write 059f_pasavaite.cif
+compare 059f_pasavaite.cif .
+crystal ../zz_source/cif/allspg/060a_fersmite.cif
+write 060a_fersmite.cif
+compare 060a_fersmite.cif .
+crystal ../zz_source/cif/allspg/060b_fersmite.cif
+write 060b_fersmite.cif
+compare 060b_fersmite.cif .
+crystal ../zz_source/cif/allspg/060c_fersmite.cif
+write 060c_fersmite.cif
+compare 060c_fersmite.cif .
+crystal ../zz_source/cif/allspg/060d_fersmite.cif
+write 060d_fersmite.cif
+compare 060d_fersmite.cif .
+crystal ../zz_source/cif/allspg/060e_fersmite.cif
+write 060e_fersmite.cif
+compare 060e_fersmite.cif .
+crystal ../zz_source/cif/allspg/060f_fersmite.cif
+write 060f_fersmite.cif
+compare 060f_fersmite.cif .
+crystal ../zz_source/cif/allspg/061a_brookite.cif
+write 061a_brookite.cif
+compare 061a_brookite.cif .
+crystal ../zz_source/cif/allspg/061b_brookite.cif
+write 061b_brookite.cif
+compare 061b_brookite.cif .
+crystal ../zz_source/cif/allspg/062a_chrysoberyl.cif
+write 062a_chrysoberyl.cif
+compare 062a_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/062b_chrysoberyl.cif
+write 062b_chrysoberyl.cif
+compare 062b_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/062c_chrysoberyl.cif
+write 062c_chrysoberyl.cif
+compare 062c_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/062d_chrysoberyl.cif
+write 062d_chrysoberyl.cif
+compare 062d_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/062e_chrysoberyl.cif
+write 062e_chrysoberyl.cif
+compare 062e_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/062f_chrysoberyl.cif
+write 062f_chrysoberyl.cif
+compare 062f_chrysoberyl.cif .
+crystal ../zz_source/cif/allspg/063a_rasvumite.cif
+write 063a_rasvumite.cif
+compare 063a_rasvumite.cif .
+crystal ../zz_source/cif/allspg/063b_rasvumite.cif
+write 063b_rasvumite.cif
+compare 063b_rasvumite.cif .
+crystal ../zz_source/cif/allspg/063c_rasvumite.cif
+write 063c_rasvumite.cif
+compare 063c_rasvumite.cif .
+crystal ../zz_source/cif/allspg/063d_rasvumite.cif
+write 063d_rasvumite.cif
+compare 063d_rasvumite.cif .
+crystal ../zz_source/cif/allspg/063e_rasvumite.cif
+write 063e_rasvumite.cif
+compare 063e_rasvumite.cif .
+crystal ../zz_source/cif/allspg/063f_rasvumite.cif
+write 063f_rasvumite.cif
+compare 063f_rasvumite.cif .
+crystal ../zz_source/cif/allspg/064a_gallium.cif
+write 064a_gallium.cif
+compare 064a_gallium.cif .
+crystal ../zz_source/cif/allspg/064b_gallium.cif
+write 064b_gallium.cif
+compare 064b_gallium.cif .
+crystal ../zz_source/cif/allspg/064c_gallium.cif
+write 064c_gallium.cif
+compare 064c_gallium.cif .
+crystal ../zz_source/cif/allspg/064d_gallium.cif
+write 064d_gallium.cif
+compare 064d_gallium.cif .
+crystal ../zz_source/cif/allspg/064e_gallium.cif
+write 064e_gallium.cif
+compare 064e_gallium.cif .
+crystal ../zz_source/cif/allspg/064f_gallium.cif
+write 064f_gallium.cif
+compare 064f_gallium.cif .
+crystal ../zz_source/cif/allspg/065a_naio3.cif
+write 065a_naio3.cif
+compare 065a_naio3.cif .
+crystal ../zz_source/cif/allspg/065b_naio3.cif
+write 065b_naio3.cif
+compare 065b_naio3.cif .
+crystal ../zz_source/cif/allspg/065c_naio3.cif
+write 065c_naio3.cif
+compare 065c_naio3.cif .
+crystal ../zz_source/cif/allspg/066a_thi3.cif
+write 066a_thi3.cif
+compare 066a_thi3.cif .
+crystal ../zz_source/cif/allspg/066b_thi3.cif
+write 066b_thi3.cif
+compare 066b_thi3.cif .
+crystal ../zz_source/cif/allspg/066c_thi3.cif
+write 066c_thi3.cif
+compare 066c_thi3.cif .
+crystal ../zz_source/cif/allspg/067a_litharge.cif
+write 067a_litharge.cif
+compare 067a_litharge.cif .
+crystal ../zz_source/cif/allspg/067b_litharge.cif
+write 067b_litharge.cif
+compare 067b_litharge.cif .
+crystal ../zz_source/cif/allspg/067c_litharge.cif
+write 067c_litharge.cif
+compare 067c_litharge.cif .
+crystal ../zz_source/cif/allspg/067d_litharge.cif
+write 067d_litharge.cif
+compare 067d_litharge.cif .
+crystal ../zz_source/cif/allspg/067e_litharge.cif
+write 067e_litharge.cif
+compare 067e_litharge.cif .
+crystal ../zz_source/cif/allspg/067f_litharge.cif
+write 067f_litharge.cif
+compare 067f_litharge.cif .
+crystal ../zz_source/cif/allspg/068a_pbcl2o4.cif
+write 068a_pbcl2o4.cif
+compare 068a_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068b_pbcl2o4.cif
+write 068b_pbcl2o4.cif
+compare 068b_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068c_pbcl2o4.cif
+write 068c_pbcl2o4.cif
+compare 068c_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068d_pbcl2o4.cif
+write 068d_pbcl2o4.cif
+compare 068d_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068e_pbcl2o4.cif
+write 068e_pbcl2o4.cif
+compare 068e_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068f_pbcl2o4.cif
+write 068f_pbcl2o4.cif
+compare 068f_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068g_pbcl2o4.cif
+write 068g_pbcl2o4.cif
+compare 068g_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068h_pbcl2o4.cif
+write 068h_pbcl2o4.cif
+compare 068h_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068i_pbcl2o4.cif
+write 068i_pbcl2o4.cif
+compare 068i_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068j_pbcl2o4.cif
+write 068j_pbcl2o4.cif
+compare 068j_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068k_pbcl2o4.cif
+write 068k_pbcl2o4.cif
+compare 068k_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/068l_pbcl2o4.cif
+write 068l_pbcl2o4.cif
+compare 068l_pbcl2o4.cif .
+crystal ../zz_source/cif/allspg/069_tlf.cif
+write 069_tlf.cif
+compare 069_tlf.cif .
+crystal ../zz_source/cif/allspg/070a_a-sulfur.cif
+write 070a_a-sulfur.cif
+compare 070a_a-sulfur.cif .
+crystal ../zz_source/cif/allspg/070b_a-sulfur.cif
+write 070b_a-sulfur.cif
+compare 070b_a-sulfur.cif .
+crystal ../zz_source/cif/allspg/071_beyerite.cif
+write 071_beyerite.cif
+compare 071_beyerite.cif .
+crystal ../zz_source/cif/allspg/072a_pinchite.cif
+write 072a_pinchite.cif
+compare 072a_pinchite.cif .
+crystal ../zz_source/cif/allspg/072b_pinchite.cif
+write 072b_pinchite.cif
+compare 072b_pinchite.cif .
+crystal ../zz_source/cif/allspg/072c_pinchite.cif
+write 072c_pinchite.cif
+compare 072c_pinchite.cif .
+crystal ../zz_source/cif/allspg/073a_chesnokovite.cif
+write 073a_chesnokovite.cif
+compare 073a_chesnokovite.cif .
+crystal ../zz_source/cif/allspg/073b_chesnokovite.cif
+write 073b_chesnokovite.cif
+compare 073b_chesnokovite.cif .
+crystal ../zz_source/cif/allspg/074a_wadsleyite.cif
+write 074a_wadsleyite.cif
+compare 074a_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/074b_wadsleyite.cif
+write 074b_wadsleyite.cif
+compare 074b_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/074c_wadsleyite.cif
+write 074c_wadsleyite.cif
+compare 074c_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/074d_wadsleyite.cif
+write 074d_wadsleyite.cif
+compare 074d_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/074e_wadsleyite.cif
+write 074e_wadsleyite.cif
+compare 074e_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/074f_wadsleyite.cif
+write 074f_wadsleyite.cif
+compare 074f_wadsleyite.cif .
+crystal ../zz_source/cif/allspg/075_ni8bi8si.cif
+write 075_ni8bi8si.cif
+compare 075_ni8bi8si.cif .
+crystal ../zz_source/cif/allspg/076_b-ca2p2o7.cif
+write 076_b-ca2p2o7.cif
+compare 076_b-ca2p2o7.cif .
+crystal ../zz_source/cif/allspg/077_pinnoite.cif
+write 077_pinnoite.cif
+compare 077_pinnoite.cif .
+crystal ../zz_source/cif/allspg/078_cerhc2.cif
+write 078_cerhc2.cif
+compare 078_cerhc2.cif .
+crystal ../zz_source/cif/allspg/079_wocl4.cif
+write 079_wocl4.cif
+compare 079_wocl4.cif .
+crystal ../zz_source/cif/allspg/080_c12h10br2te.cif
+write 080_c12h10br2te.cif
+compare 080_c12h10br2te.cif .
+crystal ../zz_source/cif/allspg/081_cu2te2o5cl2.cif
+write 081_cu2te2o5cl2.cif
+compare 081_cu2te2o5cl2.cif .
+crystal ../zz_source/cif/allspg/082_tugtupite.cif
+write 082_tugtupite.cif
+compare 082_tugtupite.cif .
+crystal ../zz_source/cif/allspg/083_ga3ti2.cif
+write 083_ga3ti2.cif
+compare 083_ga3ti2.cif .
+crystal ../zz_source/cif/allspg/084_vysotskite.cif
+write 084_vysotskite.cif
+compare 084_vysotskite.cif .
+crystal ../zz_source/cif/allspg/085a_bki4o12.cif
+write 085a_bki4o12.cif
+compare 085a_bki4o12.cif . rdf
+crystal ../zz_source/cif/allspg/085b_bki4o12.cif
+write 085b_bki4o12.cif
+compare 085b_bki4o12.cif . rdf
+crystal ../zz_source/cif/allspg/086a_n4p4cl8.cif
+write 086a_n4p4cl8.cif
+compare 086a_n4p4cl8.cif .
+crystal ../zz_source/cif/allspg/086b_n4p4cl8.cif
+write 086b_n4p4cl8.cif
+compare 086b_n4p4cl8.cif .
+crystal ../zz_source/cif/allspg/087_a-mno2.cif
+write 087_a-mno2.cif
+compare 087_a-mno2.cif .
+crystal ../zz_source/cif/allspg/088a_scheelite.cif
+write 088a_scheelite.cif
+compare 088a_scheelite.cif .
+crystal ../zz_source/cif/allspg/088b_scheelite.cif
+write 088b_scheelite.cif
+compare 088b_scheelite.cif .
+crystal ../zz_source/cif/allspg/089_c136h136o32fe8pt8.cif
+write 089_c136h136o32fe8pt8.cif
+compare 089_c136h136o32fe8pt8.cif .
+crystal ../zz_source/cif/allspg/090_cu4o17p4srti.cif
+write 090_cu4o17p4srti.cif
+compare 090_cu4o17p4srti.cif .
+crystal ../zz_source/cif/allspg/091_mgfe2o4.cif
+write 091_mgfe2o4.cif
+compare 091_mgfe2o4.cif .
+crystal ../zz_source/cif/allspg/092_a-cristobalite.cif
+write 092_a-cristobalite.cif
+compare 092_a-cristobalite.cif .
+crystal ../zz_source/cif/allspg/093_c864h90n96o72cl4cd24.cif
+write 093_c864h90n96o72cl4cd24.cif
+compare 093_c864h90n96o72cl4cd24.cif .
+crystal ../zz_source/cif/allspg/094_li2mof6.cif
+write 094_li2mof6.cif
+compare 094_li2mof6.cif .
+crystal ../zz_source/cif/allspg/095_mn2tio4.cif
+write 095_mn2tio4.cif
+compare 095_mn2tio4.cif .
+crystal ../zz_source/cif/allspg/096_retgersite.cif
+write 096_retgersite.cif
+compare 096_retgersite.cif .
+crystal ../zz_source/cif/allspg/097_ekanite.cif
+write 097_ekanite.cif
+compare 097_ekanite.cif .
+crystal ../zz_source/cif/allspg/098_c8h8cl2con4.cif
+write 098_c8h8cl2con4.cif
+compare 098_c8h8cl2con4.cif .
+crystal ../zz_source/cif/allspg/099_macedonite.cif
+write 099_macedonite.cif
+compare 099_macedonite.cif .
+crystal ../zz_source/cif/allspg/100_fresnoite.cif
+write 100_fresnoite.cif
+compare 100_fresnoite.cif .
+crystal ../zz_source/cif/allspg/102_beta-uranium.cif
+write 102_beta-uranium.cif
+compare 102_beta-uranium.cif .
+crystal ../zz_source/cif/allspg/103_se2vo6.cif
+write 103_se2vo6.cif
+compare 103_se2vo6.cif .
+crystal ../zz_source/cif/allspg/104_hgtl4i6.cif
+write 104_hgtl4i6.cif
+compare 104_hgtl4i6.cif .
+crystal ../zz_source/cif/allspg/105_bage2p2.cif
+write 105_bage2p2.cif
+compare 105_bage2p2.cif .
+crystal ../zz_source/cif/allspg/106_2-methylfuran.cif
+write 106_2-methylfuran.cif
+compare 106_2-methylfuran.cif .
+crystal ../zz_source/cif/allspg/107_lipdsi3.cif
+write 107_lipdsi3.cif
+compare 107_lipdsi3.cif .
+crystal ../zz_source/cif/allspg/108_bi2pdo4.cif
+write 108_bi2pdo4.cif
+compare 108_bi2pdo4.cif .
+crystal ../zz_source/cif/allspg/109_diethylzinc.cif
+write 109_diethylzinc.cif
+compare 109_diethylzinc.cif .
+crystal ../zz_source/cif/allspg/110_diomignite.cif
+write 110_diomignite.cif
+compare 110_diomignite.cif .
+crystal ../zz_source/cif/allspg/111_ag2hgi4.cif
+write 111_ag2hgi4.cif
+compare 111_ag2hgi4.cif .
+crystal ../zz_source/cif/allspg/112_eskebornite.cif
+write 112_eskebornite.cif
+compare 112_eskebornite.cif .
+crystal ../zz_source/cif/allspg/113_urea.cif
+write 113_urea.cif
+compare 113_urea.cif .
+crystal ../zz_source/cif/allspg/114_adamantane.cif
+write 114_adamantane.cif
+compare 114_adamantane.cif .
+crystal ../zz_source/cif/allspg/115_mawsonite.cif
+write 115_mawsonite.cif
+compare 115_mawsonite.cif .
+crystal ../zz_source/cif/allspg/116_si3os2.cif
+write 116_si3os2.cif
+compare 116_si3os2.cif .
+crystal ../zz_source/cif/allspg/117_bi2o3.cif
+write 117_bi2o3.cif
+compare 117_bi2o3.cif .
+crystal ../zz_source/cif/allspg/118_mnb2h8.cif
+write 118_mnb2h8.cif
+compare 118_mnb2h8.cif .
+crystal ../zz_source/cif/allspg/119_jasmundite.cif
+write 119_jasmundite.cif
+compare 119_jasmundite.cif .
+crystal ../zz_source/cif/allspg/120_rbalf4.cif
+write 120_rbalf4.cif
+compare 120_rbalf4.cif .
+crystal ../zz_source/cif/allspg/121_stannite.cif
+write 121_stannite.cif
+compare 121_stannite.cif .
+crystal ../zz_source/cif/allspg/122_chalcopyrite.cif
+write 122_chalcopyrite.cif
+compare 122_chalcopyrite.cif .
+crystal ../zz_source/cif/allspg/123_tetrataenite.cif
+write 123_tetrataenite.cif
+compare 123_tetrataenite.cif .
+crystal ../zz_source/cif/allspg/124_conb4p.cif
+write 124_conb4p.cif
+compare 124_conb4p.cif .
+crystal ../zz_source/cif/allspg/125a_c44h56cl8la4n8na20o48.cif
+write 125a_c44h56cl8la4n8na20o48.cif
+compare 125a_c44h56cl8la4n8na20o48.cif .
+crystal ../zz_source/cif/allspg/125b_c44h56cl8la4n8na20o48.cif
+write 125b_c44h56cl8la4n8na20o48.cif
+compare 125b_c44h56cl8la4n8na20o48.cif .
+crystal ../zz_source/cif/allspg/126a_torbernite.cif
+write 126a_torbernite.cif
+compare 126a_torbernite.cif .
+crystal ../zz_source/cif/allspg/126b_torbernite.cif
+write 126b_torbernite.cif
+compare 126b_torbernite.cif .
+crystal ../zz_source/cif/allspg/127_phosgenite.cif
+write 127_phosgenite.cif
+compare 127_phosgenite.cif .
+crystal ../zz_source/cif/allspg/128_apophyllite.cif
+write 128_apophyllite.cif
+compare 128_apophyllite.cif .
+crystal ../zz_source/cif/allspg/129a_matlockite.cif
+write 129a_matlockite.cif
+compare 129a_matlockite.cif .
+crystal ../zz_source/cif/allspg/129b_matlockite.cif
+write 129b_matlockite.cif
+compare 129b_matlockite.cif .
+crystal ../zz_source/cif/allspg/130a_gillespite.cif
+write 130a_gillespite.cif
+compare 130a_gillespite.cif .
+crystal ../zz_source/cif/allspg/130b_gillespite.cif
+write 130b_gillespite.cif
+compare 130b_gillespite.cif .
+crystal ../zz_source/cif/allspg/131_cooperite.cif
+write 131_cooperite.cif
+compare 131_cooperite.cif .
+crystal ../zz_source/cif/allspg/132_agtaf6.cif
+write 132_agtaf6.cif
+compare 132_agtaf6.cif .
+crystal ../zz_source/cif/allspg/133a_denningite.cif
+write 133a_denningite.cif
+compare 133a_denningite.cif .
+crystal ../zz_source/cif/allspg/133b_denningite.cif
+write 133b_denningite.cif
+compare 133b_denningite.cif .
+crystal ../zz_source/cif/allspg/134a_a-boron.cif
+write 134a_a-boron.cif
+compare 134a_a-boron.cif .
+crystal ../zz_source/cif/allspg/134b_a-boron.cif
+write 134b_a-boron.cif
+compare 134b_a-boron.cif .
+crystal ../zz_source/cif/allspg/135_minium.cif
+write 135_minium.cif
+compare 135_minium.cif .
+crystal ../zz_source/cif/allspg/136_rutile.cif
+write 136_rutile.cif
+compare 136_rutile.cif .
+crystal ../zz_source/cif/allspg/137a_coccinite.cif
+write 137a_coccinite.cif
+compare 137a_coccinite.cif .
+crystal ../zz_source/cif/allspg/137b_coccinite.cif
+write 137b_coccinite.cif
+compare 137b_coccinite.cif .
+crystal ../zz_source/cif/allspg/138a_aui.cif
+write 138a_aui.cif
+compare 138a_aui.cif .
+crystal ../zz_source/cif/allspg/138b_aui.cif
+write 138b_aui.cif
+compare 138b_aui.cif .
+crystal ../zz_source/cif/allspg/139_indium.cif
+write 139_indium.cif
+compare 139_indium.cif .
+crystal ../zz_source/cif/allspg/140_anyuiite.cif
+write 140_anyuiite.cif
+compare 140_anyuiite.cif .
+crystal ../zz_source/cif/allspg/141a_zircon.cif
+write 141a_zircon.cif
+compare 141a_zircon.cif .
+crystal ../zz_source/cif/allspg/141b_zircon.cif
+write 141b_zircon.cif
+compare 141b_zircon.cif .
+crystal ../zz_source/cif/allspg/142a_braunite.cif
+write 142a_braunite.cif
+compare 142a_braunite.cif .
+crystal ../zz_source/cif/allspg/142b_braunite.cif
+write 142b_braunite.cif
+compare 142b_braunite.cif .
+crystal ../zz_source/cif/allspg/143_basi4o9.cif
+write 143_basi4o9.cif
+compare 143_basi4o9.cif .
+crystal ../zz_source/cif/allspg/144_stillwellite.cif
+write 144_stillwellite.cif
+compare 144_stillwellite.cif .
+crystal ../zz_source/cif/allspg/145_boricacid.cif
+write 145_boricacid.cif
+compare 145_boricacid.cif .
+crystal ../zz_source/cif/allspg/146a_a-eucryptite.cif
+write 146a_a-eucryptite.cif
+compare 146a_a-eucryptite.cif .
+crystal ../zz_source/cif/allspg/146b_a-eucryptite.cif
+write 146b_a-eucryptite.cif
+compare 146b_a-eucryptite.cif .
+crystal ../zz_source/cif/allspg/147_na2so3.cif
+write 147_na2so3.cif
+compare 147_na2so3.cif .
+crystal ../zz_source/cif/allspg/148a_ilmenite.cif
+write 148a_ilmenite.cif
+compare 148a_ilmenite.cif .
+crystal ../zz_source/cif/allspg/148b_ilmenite.cif
+write 148b_ilmenite.cif
+compare 148b_ilmenite.cif .
+crystal ../zz_source/cif/allspg/149_srgeteo6.cif
+write 149_srgeteo6.cif
+compare 149_srgeteo6.cif .
+crystal ../zz_source/cif/allspg/150_malladrite.cif
+write 150_malladrite.cif
+compare 150_malladrite.cif .
+crystal ../zz_source/cif/allspg/152_selenium.cif
+write 152_selenium.cif
+compare 152_selenium.cif .
+crystal ../zz_source/cif/allspg/153_crcl3.cif
+write 153_crcl3.cif
+compare 153_crcl3.cif .
+crystal ../zz_source/cif/allspg/154_quartz.cif
+write 154_quartz.cif
+compare 154_quartz.cif .
+crystal ../zz_source/cif/allspg/155a_alf3.cif
+write 155a_alf3.cif
+compare 155a_alf3.cif .
+crystal ../zz_source/cif/allspg/155b_alf3.cif
+write 155b_alf3.cif
+compare 155b_alf3.cif .
+crystal ../zz_source/cif/allspg/156_pbi2.cif
+write 156_pbi2.cif
+compare 156_pbi2.cif .
+crystal ../zz_source/cif/allspg/157_pbtegeo6.cif
+write 157_pbtegeo6.cif
+compare 157_pbtegeo6.cif .
+crystal ../zz_source/cif/allspg/158_mn2nb2o9zn2.cif
+write 158_mn2nb2o9zn2.cif
+compare 158_mn2nb2o9zn2.cif .
+crystal ../zz_source/cif/allspg/159_nierite.cif
+write 159_nierite.cif
+compare 159_nierite.cif .
+crystal ../zz_source/cif/allspg/160a_millerite.cif
+write 160a_millerite.cif
+compare 160a_millerite.cif .
+crystal ../zz_source/cif/allspg/160b_millerite.cif
+write 160b_millerite.cif
+compare 160b_millerite.cif .
+crystal ../zz_source/cif/allspg/161a_proustite.cif
+write 161a_proustite.cif
+compare 161a_proustite.cif .
+crystal ../zz_source/cif/allspg/161b_proustite.cif
+write 161b_proustite.cif
+compare 161b_proustite.cif .
+crystal ../zz_source/cif/allspg/162_rosiaite.cif
+write 162_rosiaite.cif
+compare 162_rosiaite.cif .
+crystal ../zz_source/cif/allspg/163_murchisite.cif
+write 163_murchisite.cif
+compare 163_murchisite.cif .
+crystal ../zz_source/cif/allspg/164_melonite.cif
+write 164_melonite.cif
+compare 164_melonite.cif .
+crystal ../zz_source/cif/allspg/165_cu3p.cif
+write 165_cu3p.cif
+compare 165_cu3p.cif .
+crystal ../zz_source/cif/allspg/166a_cdcl2.cif
+write 166a_cdcl2.cif
+compare 166a_cdcl2.cif .
+crystal ../zz_source/cif/allspg/166b_cdcl2.cif
+write 166b_cdcl2.cif
+compare 166b_cdcl2.cif .
+crystal ../zz_source/cif/allspg/167a_corundum.cif
+write 167a_corundum.cif
+compare 167a_corundum.cif .
+crystal ../zz_source/cif/allspg/167b_corundum.cif
+write 167b_corundum.cif
+compare 167b_corundum.cif .
+crystal ../zz_source/cif/allspg/168_c18h12con3o6.cif
+write 168_c18h12con3o6.cif
+compare 168_c18h12con3o6.cif .
+crystal ../zz_source/cif/allspg/169_trinepheline.cif
+write 169_trinepheline.cif
+compare 169_trinepheline.cif .
+crystal ../zz_source/cif/allspg/170_c15h20o4.cif
+write 170_c15h20o4.cif
+compare 170_c15h20o4.cif .
+crystal ../zz_source/cif/allspg/171_c23h19cl2cun7.cif
+write 171_c23h19cl2cun7.cif
+compare 171_c23h19cl2cun7.cif .
+crystal ../zz_source/cif/allspg/172_c8h4f6n4zn.cif
+write 172_c8h4f6n4zn.cif
+compare 172_c8h4f6n4zn.cif .
+crystal ../zz_source/cif/allspg/173_nepheline.cif
+write 173_nepheline.cif
+compare 173_nepheline.cif .
+crystal ../zz_source/cif/allspg/174_gdis.cif
+write 174_gdis.cif
+compare 174_gdis.cif .
+crystal ../zz_source/cif/allspg/175_hmgn.cif
+write 175_hmgn.cif
+compare 175_hmgn.cif .
+crystal ../zz_source/cif/allspg/176_fluorapatite.cif
+write 176_fluorapatite.cif
+compare 176_fluorapatite.cif .
+crystal ../zz_source/cif/allspg/177_c36h26cofen6o13.cif
+write 177_c36h26cofen6o13.cif
+compare 177_c36h26cofen6o13.cif .
+crystal ../zz_source/cif/allspg/178_cscucl3.cif
+write 178_cscucl3.cif
+compare 178_cscucl3.cif .
+crystal ../zz_source/cif/allspg/179_c20h22ag2cl2n4o8s2.cif
+write 179_c20h22ag2cl2n4o8s2.cif
+compare 179_c20h22ag2cl2n4o8s2.cif .
+crystal ../zz_source/cif/allspg/180_b-quartz.cif
+write 180_b-quartz.cif
+compare 180_b-quartz.cif .
+crystal ../zz_source/cif/allspg/181_b-eucryptite.cif
+write 181_b-eucryptite.cif
+compare 181_b-eucryptite.cif .
+crystal ../zz_source/cif/allspg/182_edgarite.cif
+write 182_edgarite.cif
+compare 182_edgarite.cif .
+crystal ../zz_source/cif/allspg/183_ta21te13.cif
+write 183_ta21te13.cif
+compare 183_ta21te13.cif .
+crystal ../zz_source/cif/allspg/184_kmn2zn3si12o30.cif
+write 184_kmn2zn3si12o30.cif
+compare 184_kmn2zn3si12o30.cif .
+crystal ../zz_source/cif/allspg/185_iceih.cif
+write 185_iceih.cif
+compare 185_iceih.cif .
+crystal ../zz_source/cif/allspg/186_wurtzite.cif
+write 186_wurtzite.cif
+compare 186_wurtzite.cif .
+crystal ../zz_source/cif/allspg/187_wc.cif
+write 187_wc.cif
+compare 187_wc.cif .
+crystal ../zz_source/cif/allspg/188_benitoite.cif
+write 188_benitoite.cif
+compare 188_benitoite.cif .
+crystal ../zz_source/cif/allspg/189_monipite.cif
+write 189_monipite.cif
+compare 189_monipite.cif .
+crystal ../zz_source/cif/allspg/190_troilite.cif
+write 190_troilite.cif
+compare 190_troilite.cif .
+crystal ../zz_source/cif/allspg/191_mnb2.cif
+write 191_mnb2.cif
+compare 191_mnb2.cif .
+crystal ../zz_source/cif/allspg/192_beryl.cif
+write 192_beryl.cif
+compare 192_beryl.cif .
+crystal ../zz_source/cif/allspg/193_xifengite.cif
+write 193_xifengite.cif
+compare 193_xifengite.cif .
+crystal ../zz_source/cif/allspg/194_graphite.cif
+write 194_graphite.cif
+compare 194_graphite.cif .
+crystal ../zz_source/cif/allspg/195_c80h276cl10gd18n8o188.cif
+write 195_c80h276cl10gd18n8o188.cif
+compare 195_c80h276cl10gd18n8o188.cif .
+crystal ../zz_source/cif/allspg/196_c32h35cdn9o6.cif
+write 196_c32h35cdn9o6.cif
+compare 196_c32h35cdn9o6.cif .
+crystal ../zz_source/cif/allspg/197_sillenite.cif
+write 197_sillenite.cif
+compare 197_sillenite.cif .
+crystal ../zz_source/cif/allspg/198_brownleeite.cif
+write 198_brownleeite.cif
+compare 198_brownleeite.cif .
+crystal ../zz_source/cif/allspg/199_corderoite.cif
+write 199_corderoite.cif
+compare 199_corderoite.cif .
+crystal ../zz_source/cif/allspg/200_na2cd11.cif
+write 200_na2cd11.cif
+compare 200_na2cd11.cif .
+crystal ../zz_source/cif/allspg/201b_ksbo3.cif
+write 201b_ksbo3.cif
+compare 201b_ksbo3.cif .
+crystal ../zz_source/cif/allspg/202_buckminsterfullerene.cif
+write 202_buckminsterfullerene.cif
+compare 202_buckminsterfullerene.cif .
+crystal ../zz_source/cif/allspg/203a_tychite.cif
+write 203a_tychite.cif
+compare 203a_tychite.cif .
+crystal ../zz_source/cif/allspg/203b_tychite.cif
+write 203b_tychite.cif
+compare 203b_tychite.cif .
+crystal ../zz_source/cif/allspg/204_kieftite.cif
+write 204_kieftite.cif
+compare 204_kieftite.cif .
+crystal ../zz_source/cif/allspg/205_pyrite.cif
+write 205_pyrite.cif
+compare 205_pyrite.cif .
+crystal ../zz_source/cif/allspg/206_mcalpineite.cif
+write 206_mcalpineite.cif
+compare 206_mcalpineite.cif .
+crystal ../zz_source/cif/allspg/207_palladseite.cif
+write 207_palladseite.cif
+compare 207_palladseite.cif .
+crystal ../zz_source/cif/allspg/208_na11u5o16.cif
+write 208_na11u5o16.cif
+compare 208_na11u5o16.cif .
+crystal ../zz_source/cif/allspg/209_mof-boracite.cif
+write 209_mof-boracite.cif
+compare 209_mof-boracite.cif .
+crystal ../zz_source/cif/allspg/210_mg-dodecaborate.cif
+write 210_mg-dodecaborate.cif
+compare 210_mg-dodecaborate.cif .
+crystal ../zz_source/cif/allspg/211_mof-c48h82k2o42.cif
+write 211_mof-c48h82k2o42.cif
+compare 211_mof-c48h82k2o42.cif .
+crystal ../zz_source/cif/allspg/212_ga5lio8.cif
+write 212_ga5lio8.cif
+compare 212_ga5lio8.cif .
+crystal ../zz_source/cif/allspg/213_uytenbogaardtite.cif
+write 213_uytenbogaardtite.cif
+compare 213_uytenbogaardtite.cif .
+crystal ../zz_source/cif/allspg/214_petzite.cif
+write 214_petzite.cif
+compare 214_petzite.cif .
+crystal ../zz_source/cif/allspg/215_sulvanite.cif
+write 215_sulvanite.cif
+compare 215_sulvanite.cif .
+crystal ../zz_source/cif/allspg/216_sphalerite.cif
+write 216_sphalerite.cif
+compare 216_sphalerite.cif .
+crystal ../zz_source/cif/allspg/217_manganese.cif
+write 217_manganese.cif
+compare 217_manganese.cif .
+crystal ../zz_source/cif/allspg/218_ag3po4.cif
+write 218_ag3po4.cif
+compare 218_ag3po4.cif .
+crystal ../zz_source/cif/allspg/219_high-boracite.cif
+write 219_high-boracite.cif
+compare 219_high-boracite.cif .
+crystal ../zz_source/cif/allspg/220_domeykite.cif
+write 220_domeykite.cif
+compare 220_domeykite.cif .
+crystal ../zz_source/cif/allspg/221_cscl.cif
+write 221_cscl.cif
+compare 221_cscl.cif .
+crystal ../zz_source/cif/allspg/222a_fec4o6h4.cif
+write 222a_fec4o6h4.cif
+compare 222a_fec4o6h4.cif .
+crystal ../zz_source/cif/allspg/222b_fec4o6h4.cif
+write 222b_fec4o6h4.cif
+compare 222b_fec4o6h4.cif .
+crystal ../zz_source/cif/allspg/223_pt3o4.cif
+write 223_pt3o4.cif
+compare 223_pt3o4.cif .
+crystal ../zz_source/cif/allspg/224a_cuprite.cif
+write 224a_cuprite.cif
+compare 224a_cuprite.cif .
+crystal ../zz_source/cif/allspg/224b_cuprite.cif
+write 224b_cuprite.cif
+compare 224b_cuprite.cif .
+crystal ../zz_source/cif/allspg/225_mgo.cif
+write 225_mgo.cif
+compare 225_mgo.cif .
+crystal ../zz_source/cif/allspg/226_ube13.cif
+write 226_ube13.cif
+compare 226_ube13.cif .
+crystal ../zz_source/cif/allspg/227a_diamond.cif
+write 227a_diamond.cif
+compare 227a_diamond.cif .
+crystal ../zz_source/cif/allspg/227b_diamond.cif
+write 227b_diamond.cif
+compare 227b_diamond.cif .
+crystal ../zz_source/cif/allspg/228a_telluricacid.cif
+write 228a_telluricacid.cif
+compare 228a_telluricacid.cif .
+crystal ../zz_source/cif/allspg/228b_telluricacid.cif
+write 228b_telluricacid.cif
+compare 228b_telluricacid.cif .
+crystal ../zz_source/cif/allspg/229_li.cif
+write 229_li.cif
+compare 229_li.cif .
+crystal ../zz_source/cif/allspg/230_pyrope.cif
+write 230_pyrope.cif
+compare 230_pyrope.cif .

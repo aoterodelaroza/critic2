@@ -1,0 +1,7 @@
+## delete: 016_write_cif.cro
+## check: 016_write_cif_01.cif -a1e-10
+## check: 016_write_cif_02.cif -a1e-10
+## labels: regression quick
+crystal library graphite
+write 016_write_cif_01.cif
+write 016_write_cif_02.cif nosym

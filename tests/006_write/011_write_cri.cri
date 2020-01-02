@@ -1,0 +1,7 @@
+## delete: 011_write_cri.cro
+## check: 011_write_cri_.incritic -a1e-10
+## check: 011_write_cri_.cri -a1e-10
+## labels: regression quick
+crystal library graphite
+write 011_write_cri_.incritic
+write 011_write_cri_.cri

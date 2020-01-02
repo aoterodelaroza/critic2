@@ -1,0 +1,28 @@
+acell   4.6411673824   4.6411673824  12.6536061858
+angdeg  90.0000000000  90.0000000000 120.0000000000
+ntypat   1
+znucl  6
+natom     4
+typat  4*1
+xred 
+    0.0000000000    0.0000000000    0.2500000000
+    0.0000000000    0.0000000000    0.7500000000
+    0.3333333300    0.6666666670    0.2500000000
+    0.6666666700    0.3333333330    0.7500000000
+
+#Definition of the planewave basis set
+ecut 15
+
+# k-grid
+kptopt 1
+nshiftk 4
+shiftk  0.5 0.5 0.5  
+        0.5 0.0 0.0
+        0.0 0.5 0.0
+        0.0 0.0 0.5
+ngkpt   1 1 1
+
+#Definition of the SCF procedure
+nstep  20      
+toldfe 1.0d-10
+diemac 12.0   

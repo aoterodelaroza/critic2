@@ -9,6 +9,13 @@ set(TESTS
   008_write_off
   009_write_qein
   010_write_tess
+  011_write_cri
+  012_write_vasp
+  013_write_abin
+  014_write_elk
+  015_write_gau
+  016_write_cif
+  017_write_cif_long
   )
 
 runtests(${TESTS})
