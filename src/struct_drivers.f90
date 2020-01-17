@@ -35,6 +35,7 @@ module struct_drivers
   public :: struct_rdf
   public :: struct_compare
   public :: struct_environ
+  public :: struct_econ
   public :: struct_coord
   public :: struct_packing
   public :: struct_newcell
@@ -84,6 +85,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_environ
+     module subroutine struct_econ(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line 
+     end subroutine struct_econ 
      module subroutine struct_coord(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line

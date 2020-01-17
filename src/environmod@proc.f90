@@ -902,7 +902,7 @@ contains
   !> condition ierr is 0 if the search was successful or non-zero if
   !> the input search conditions could not be met by this environment.
   module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,&
-     up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,nozero)
+     up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
     use tools, only: mergesort
@@ -926,6 +926,7 @@ contains
     integer, intent(in), optional :: nid0
     integer, intent(in), optional :: id0
     integer, intent(in), optional :: iz0
+    integer, intent(in), optional :: ispc0
     logical, intent(in), optional :: nozero
 
     real*8, parameter :: eps = 1d-10
@@ -986,6 +987,9 @@ contains
              ! apply nid0 and id0 conditions
              if (present(nid0)) then
                 if (e%at(k)%idx /= nid0) cycle
+             end if
+             if (present(ispc0)) then
+                if (e%at(k)%is /= ispc0) cycle
              end if
              if (present(id0)) then
                 if (e%at(k)%cidx /= id0) cycle
