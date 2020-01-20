@@ -793,6 +793,93 @@ contains
 
   end subroutine read_xsf
 
+  !> Read a grid in BAND's ascii format (txt).
+  module subroutine read_txt(f,file)
+    use tools_io, only: fopen_read, fclose, ferror, faterr, getline_raw, isinteger
+    ! use types, only: realloc
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: file !< Input file
+
+    integer :: luc
+    character(len=:), allocatable :: line
+    integer :: istat, i, j, k, n(3)
+    real*8, allocatable :: ggloc(:,:,:)
+    logical :: ok
+    integer :: idx, nc
+
+    call f%end()
+
+    ! open file for reading
+    luc = fopen_read(file)
+
+    ! read the number of points in each direction
+    n = 0
+    do while (getline_raw(luc,line))
+       line = trim(adjustl(line))
+       if (len(line) == 0) cycle
+       if (line(1:1) == "!") cycle
+       if (line == "Grid") then
+          ok = getline_raw(luc,line)          
+          if (.not.ok) exit
+          line = trim(adjustl(line))
+          if (line(1:12) == "nr of points") then
+             if (line(14:14) == "x") then
+                idx = 1
+             elseif (line(14:14) == "y") then
+                idx = 2
+             elseif (line(14:14) == "z") then
+                idx = 3
+             else
+                cycle
+             end if
+             ok = getline_raw(luc,line)          
+             ok = ok .and. getline_raw(luc,line)          
+             ok = ok .and. isinteger(n(idx),line)
+             if (.not.ok) exit
+          end if
+       end if
+       if (all(n /= 0)) exit
+    end do
+    if (any(n == 0)) &
+       call ferror('read_txt','Error reading grid',faterr,file)
+
+    ! allocate the grid
+    allocate(ggloc(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) &
+       call ferror('read_txt','Error allocating grid',faterr,file)
+
+    ! second pass to get the grid
+    nc = -1
+    do while (getline_raw(luc,line))
+       line = trim(adjustl(line))
+       if (len(line) == 0) cycle
+       if (line(1:1) == "!") cycle
+       if (line == "rho") then
+          read(luc,*)
+          read(luc,*,iostat=istat) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+          if (istat /= 0) &
+             call ferror('read_txt','Error reading grid',faterr,file)
+          exit
+       end if
+    end do
+
+    ! copy the grid and trim the extra points at the end
+    f%n = n - 1
+    allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
+    if (istat /= 0) &
+       call ferror('read_txt','Error allocating grid',faterr,file)
+    f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
+    deallocate(ggloc)
+
+    ! wrap up
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+    call fclose(luc)
+
+  end subroutine read_txt
+
   !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
   !> the Bloch states, k-points, and structural info.
   module subroutine read_pwc(f,fpwc)

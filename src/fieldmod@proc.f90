@@ -229,7 +229,7 @@ contains
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspnov, ifformat_qub,&
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_dftb,&
-       ifformat_pwc,&
+       ifformat_pwc, ifformat_txt,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
        ifformat_as_pot, ifformat_as_resample,&
@@ -376,6 +376,12 @@ contains
        elseif (seed%nfile == 3) then
           call f%grid%read_wannier_chk(seed%file(2),seed%file(3))
        end if
+
+    elseif (seed%iff == ifformat_txt) then
+       call f%grid%end()
+       call f%grid%read_txt(seed%file(1))
+       f%type = type_grid
+       f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()

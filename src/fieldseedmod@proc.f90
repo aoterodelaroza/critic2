@@ -54,7 +54,7 @@ contains
        isexpression
     use param, only: dirsep,&
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
-       ifformat_bincube, ifformat_abinit,&
+       ifformat_bincube, ifformat_abinit, ifformat_txt, &
        ifformat_vasp, ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
@@ -121,6 +121,9 @@ contains
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
        call read_next_as_file()
+    elseif (equal(lfile,"txt")) then
+       f%iff = ifformat_txt
+       call read_next_as_file()
     elseif (equal(lfile,"wfn")) then
        f%iff = ifformat_wfn
        call read_next_as_file()
@@ -132,9 +135,6 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"molden")) then
        f%iff = ifformat_molden
-       call read_next_as_file()
-    elseif (equal(lfile,"pwc")) then
-       f%iff = ifformat_pwc
        call read_next_as_file()
     elseif (equal(lfile,"as")) then
        f%iff = ifformat_as
@@ -203,6 +203,8 @@ contains
           f%iff = ifformat_pi
        else if (equal(extdot,'pwc')) then
           f%iff = ifformat_pwc
+       else if (equal(extdot,'txt')) then
+          f%iff = ifformat_txt
        end if
     end if
 
@@ -223,7 +225,8 @@ contains
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspnov .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
-       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
+       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment .or.&
+       f%iff == ifformat_txt) then
        ! formats for which only one file is needed
        nfile = 1
     elseif (f%iff == ifformat_wien) then

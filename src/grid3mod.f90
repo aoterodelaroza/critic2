@@ -67,6 +67,7 @@ module grid3mod
      procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
      procedure :: read_qub !< grid3 from aimpac qub format
      procedure :: read_xsf !< grid3 from xsf (xcrysden) file
+     procedure :: read_txt !< grid3 from txt (ACM's BAND) file
      procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
@@ -140,6 +141,10 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_xsf
+     module subroutine read_txt(f,file)
+       class(grid3), intent(inout) :: f
+       character*(*), intent(in) :: file !< Input file
+     end subroutine read_txt
      module subroutine read_pwc(f,fpwc)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)
