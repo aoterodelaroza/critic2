@@ -2177,10 +2177,11 @@ contains
                 
                 econij(i,j) = econ
                 ndij(i,j) = dist0
-                ndi(i) = ndi(i) + numer 
+               ! ndi(i) = ndi(i) + numer 
                 
 
            end do
+           ndi(i) = ndi(i) + numer 
 
         end do
            econi(i) = sum(econij(i,:))
