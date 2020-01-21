@@ -932,7 +932,7 @@ contains
 
     real*8, parameter :: eps = 1d-10
 
-    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, dmaxenv
+    real*8 :: x0(3), dist0, rcutshel, rcutn, up2rmax, dmaxenv, xx(3)
     integer :: ireg0(3), ireg(3), idxreg, nats
     integer :: i, j, k
     integer, allocatable :: iord(:), iiord(:), ishell(:), iaux(:,:)
@@ -950,7 +950,9 @@ contains
     x0 = xp
     call e%y2z_center(x0,icrd,icrd_cart,lvec)
     ireg0 = e%c2p(x0)
-    lvec = nint(e%xr2x(real(lvec,8)))
+    xx = real(lvec,8)
+    xx = e%xr2x(xx)
+    lvec = nint(xx)
 
     ! calculate the maximum distance for which we guarantee we will
     ! get all the atoms

@@ -2112,133 +2112,131 @@ contains
     use systemmod, only: system
     use crystalmod, only: crystal
     use environmod, only: environ
+    use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: icrd_crys, bohrtoa
-
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
+    logical :: ok
     integer :: i, j, k, n
     integer :: nat, lvec(3), ierr
     integer, allocatable :: eid(:), ishell(:)
     real*8 :: dist0, econ, up2d  
-    real*8 :: wi, numer, denom, factor, econprev 
-    type(environ), pointer :: eptr
+    real*8 :: wi, numer, econprev
+    real*8, allocatable :: econij(:,:), ndij(:,:), dist(:)
+    real*8, allocatable :: econij_noit(:,:), ndij_noit(:,:), mindist(:)
+    character(len=:), allocatable :: str, namestr
+
     real*8, parameter :: up2dmax = 15d0 / bohrtoa  
-    real*8, parameter :: wthresh = 0.0001d0
-    real*8, allocatable :: econij(:,:), econi(:), ndij(:,:), ndi(:), dist(:)
-    real*8, allocatable :: econij_noit(:,:)
+    real*8, parameter :: wthresh = 1d-10
+    real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
 
-    allocate(econij(s%c%nneq,s%c%nspc), econi(s%c%nneq), econij_noit(s%c%nneq,s%c%nspc))
-    allocate(ndij(s%c%nneq, s%c%nspc), ndi(s%c%nneq))
+    allocate(econij(0:s%c%nspc,s%c%nneq),econij_noit(0:s%c%nspc,s%c%nneq))
+    allocate(ndij(0:s%c%nspc,s%c%nneq),ndij_noit(0:s%c%nspc,s%c%nneq),mindist(0:s%c%nspc))
+    econij = 0d0
+    econij_noit = 0d0
+    ndij = 0d0
+    ndij_noit = 0d0
 
-    !anchor for repeating with a larger up2d
-    factor=1d0
-10  continue 
+    ! initialize
+    up2d = up2dmax  
 
-    up2d = factor * up2dmax  
-    eptr  => s%c%env
+    main: do while(.true.)
+       ! loop over non-equivalent atoms
+       do i = 1, s%c%nneq
+          ! skip if this is a single atom in a box
+          if (s%c%ismolecule .AND. s%c%ncel == 1) cycle
 
-    do i=1, s%c%nneq !loop over non-equivalent atoms
+          ! grab the environment for this atom
+          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
 
-       if (s%c%ismolecule .AND. s%c%ncel == 1)  then ! Check if atom in box, and skip calculation if true
-          econi(i)=0d0
-          goto 11 
-       end if
-
-       ndi(i)=0
-       do j=1, s%c%nspc !loop over number of species
-
-          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,ispc0=j,nozero=.true.)
-          !list the near atoms of non-equivalent atom i, that are species j
-
-          econprev = -1d0
-          econ = 0d0
-          dist0 = dist(1)
-          n=0
-          do while ( abs(econ-econprev) > wthresh ) 
-             n=n+1
-             econprev = econ
-             numer = 0d0
-             denom = 0d0
-             do k=1, nat !loop over the nat from list_near_atoms
-                wi = exp( 1 - (dist(k)/dist0)**6)
-                numer = numer + dist(k) * wi
-                denom = denom + wi
-             end do
-             dist0 = numer / denom
-             econ = denom
-
-             if (dist0 > up2d / (1d0 + 14d0 * log(10d0))**(1d0/6d0)) then !Is up2d too small? Then increase it by factor do again 
-                factor = 1.5d0 * factor
-                print *, "up2d value too small, increasing..."
-                goto 10
-             end if
-
-             !Save the econ that corresponds to no iterations.
-             if (n == 2) then
-                econij_noit(i,j)=econ
-             end if
-
-             econij(i,j) = econ
-             ndij(i,j) = dist0
-
-
+          ! get the minimum distance for all the species
+          mindist = -1d0
+          mindist(0) = dist(1)
+          do k = 1, nat 
+             if (mindist(s%c%env%at(eid(k))%is) < 0d0) mindist(s%c%env%at(eid(k))%is) = dist(k)
+             if (all(mindist >= 0d0)) exit
           end do
-          ndi(i) = ndi(i) + numer 
 
-       end do
-       econi(i) = sum(econij(i,:))
-       ndi(i) = ndi(i) / econi(i)
+          ! loop over species
+          do j = 0, s%c%nspc
+             econprev = -1d0
+             econ = 0d0
+             dist0 = mindist(j)
+             n = 0
+             do while (abs(econ-econprev) > wthresh .or. n <= 2)
+                n = n + 1
+                econprev = econ
 
+                ! loop over the environment atoms and consider only species j
+                numer = 0d0
+                econ = 0d0
+                do k = 1, nat 
+                   if (j /= 0 .and. s%c%env%at(eid(k))%is /= j) cycle
+                   wi = exp(1 - (dist(k)/dist0)**6)
+                   numer = numer + dist(k) * wi
+                   econ = econ + wi
+                end do
+                ok = (econ > 0d0)
+                if (ok) dist0 = numer / econ
 
-    end do
+                ! if dist0 is dangerously close to the up2d, increase by a factor and try again
+                if (.not.ok .or. dist0 > up2d / epsfac) then 
+                   up2d = 1.5d0 * up2d
+                   cycle main
+                end if
 
-11  continue
+                ! save the non-iterative econ and average bond length values
+                if (n == 1) then
+                   ndij_noit(j,i) = dist0
+                elseif (n == 2) then
+                   econij_noit(j,i) = econ
+                end if
+             end do ! while (abs(econ-econprev) > wthresh)
+             econij(j,i) = econ
+             ndij(j,i) = dist0
+          end do ! j = 0, s%c%nspc 
+       end do ! i = 1, s%c%nneq
+       exit
+    end do main
 
-    !>Print the output. Two sections: "Local" and "Global". 
-    !>Local is the quantity (ECON/nd) to a given species j, global is 
-    !>the same quantity summed over all species
-
+    ! write the output
     write (uout, '("* ECON")')
-    write (uout, '("+ Effective Coordination Number (ECoN) for Crystal Structures")')
-    write (uout, '("# Please cite : doi.org/10.1107/S2052520615019472 (1) for the implementation details")')
-    write (uout, '("# And doi.org/10.1524/zkri.1979.150.14.23 (2) for the original article")')
-    write (uout, '("# nid = non-equivalent atom list atomic ID")')
-    write (uout, '("# spc = atomic species")')
-    write (uout, '("# name = atomic name (symbol)")')
-    write (uout, '("# econ = effective coordination number for a given non-equivalent atom &
-       and atomic species")')
-    write (uout, '("# nd = mean weighted distance (bohr) Eq. 3 in (2) ")')
-    write (uout, '("# nid->spc   name(nid)->name(spc)     econ    econ_noit     nd")')  
+    write (uout, '("+ Effective Coordination Number (ECoN), per-species")')
+    write (uout, '("# Please cite:")')
+    write (uout, '("#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi.org/10.1107/S2052520615019472)")')
+    write (uout, '("#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi.org/10.1524/zkri.1979.150.14.23)")')
+    write (uout, '("# nid = non-equivalent atom ID. name = atomic name (symbol)")')
+    write (uout, '("# spc = atomic species (* means all species)")')
+    write (uout, '("# econ = effective coordination number species spc around non-equivalent")')
+    write (uout, '("#        atom nid (iterative variant)")')
+    write (uout, '("# 1econ = effective coordination number species spc around non-equivalent")')
+    write (uout, '("#         atom nid (non-iterative variant using the shortest bond length))")')
+    write (uout, '("# nd = mean weighted distance (",A,"), Eq. 3 in Nespolo, iterative variant. ")') iunitname0(iunit)
+    write (uout, '("# 1nd = mean weighted distance (",A,"), non-iterative variant. ")') iunitname0(iunit)
+    write (uout, '("# nid->spc   name(nid)->name(spc)     econ      1econ       nd         1nd")')
+    do i = 1, s%c%nneq
+       do j = 0, s%c%nspc
+          if (j == 0) then
+             str = "*   "
+             namestr = "*      "
+          else
+             str = string(j,length=4,justify=ioj_left)
+             namestr = string(s%c%spc(j)%name,length=7,justify=ioj_left)
+          end if
 
-    do i=1, s%c%nneq
-       do j=1, s%c%nspc
-          write (uout, '(A," -> ",A,A," -> ",A,X,A,A,A)') string(i,length=4,justify=ioj_right),&
-             string(j,length=4,justify=ioj_left), &
-             string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), &
-             string(s%c%spc(j)%name,length=7, justify=ioj_left), &
-             string(econij(i,j), 'f',length=10,decimal=4,justify=ioj_right),&
-             string(econij_noit(i,j), 'f', length=10, decimal=4,justify=ioj_right),&
-             string(ndij(i,j), 'f', length=10, decimal=4, justify=ioj_right)
-
+          write (uout,'(A," -> ",A,A," -> ",99(A,X))') string(i,length=4,justify=ioj_right), str,&
+             string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), namestr,&
+             string(econij(j,i),'f',length=10,decimal=4,justify=ioj_right),&
+             string(econij_noit(j,i),'f',length=10,decimal=4,justify=ioj_right),&
+             string(ndij(j,i)*dunit0(iunit),'f',length=10,decimal=4,justify=ioj_right),&
+             string(ndij_noit(j,i)*dunit0(iunit),'f',length=10,decimal=4,justify=ioj_right)
        end do
     end do
+    write (uout,*)
 
-    write (uout, '("+ Global Effective Coordination Number")')
-    write (uout, '("# nid = non-equivalent atom list atomic ID")')
-    write (uout, '("# econ = effective coordination number for a given non-equivalent atom (summed over species)")')
-    write (uout, '("# nd = weighted distance (summed over species, bohr)")')
-    write (uout, '("# name = atomic name (symbol)")')
-    write (uout, '("# nid  name   econ      nd")') 
-
-    do i=1, s%c%nneq
-       write (uout, '(A,A,A,A)') string(i,length=4, justify=ioj_right), &
-          string(s%c%spc(s%c%at(i)%is)%name,length=5,justify=ioj_right), &
-          string(econi(i), 'f', length=10, decimal=4, justify=ioj_right), &
-          string(ndi(i), 'f', length=10, decimal=4, justify=ioj_right)
-    end do
-    deallocate(econij,econi,ndij,ndi,econij_noit)
+    deallocate(econij,ndij,econij_noit,ndij_noit,mindist)
 
   end subroutine struct_econ
 
