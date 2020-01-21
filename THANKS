@@ -1,5 +1,8 @@
 Contributors to the critic2 code:
 
+* Joseph Weatherby at Dalhousie University <Joseph.Weatherby@dal.ca>:
+  Effective coordination number (ECON) calculation.
+
 * Jose Luis Casals Sainz at the University of Oviedo
   <joseluiscasalssainz@gmail.com>:
   Merge-sort routine in tools.f90
