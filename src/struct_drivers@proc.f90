@@ -2121,7 +2121,7 @@ contains
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    integer :: i, j, k
+    integer :: i, j, k, n
     integer :: nat, lvec(3), ierr
     integer, allocatable :: eid(:), ishell(:)
     real*8 :: dist0, econ, up2d  
@@ -2130,8 +2130,9 @@ contains
     real*8, parameter :: up2dmax = 15d0 / bohrtoa  
     real*8, parameter :: wthresh = 0.0001d0
     real*8, allocatable :: econij(:,:), econi(:), ndij(:,:), ndi(:), dist(:)
+    real*8, allocatable :: econij_noit(:,:)
 
-    allocate(econij(s%c%nneq,s%c%nspc), econi(s%c%nneq))
+    allocate(econij(s%c%nneq,s%c%nspc), econi(s%c%nneq), econij_noit(s%c%nneq,s%c%nspc))
     allocate(ndij(s%c%nneq, s%c%nspc), ndi(s%c%nneq))
 
     !anchor for repeating with a larger up2d
@@ -2157,7 +2158,9 @@ contains
            econprev = -1d0
            econ = 0d0
            dist0 = dist(1)
+           n=0
            do while ( abs(econ-econprev) > wthresh ) 
+             n=n+1
              econprev = econ
              numer = 0d0
              denom = 0d0
@@ -2174,10 +2177,14 @@ contains
                         print *, "up2d value too small, increasing..."
                         goto 10
                 end if
+
+                !Save the econ that corresponds to no iterations.
+                if (n == 2) then
+                        econij_noit(i,j)=econ
+                end if
                 
                 econij(i,j) = econ
                 ndij(i,j) = dist0
-               ! ndi(i) = ndi(i) + numer 
                 
 
            end do
@@ -2206,7 +2213,7 @@ contains
     write (uout, '("# econ = effective coordination number for a given non-equivalent atom &
             and atomic species")')
     write (uout, '("# nd = mean weighted distance (bohr) Eq. 3 in (2) ")')
-    write (uout, '("# nid->spc   name(nid)->name(spc)     econ      &
+    write (uout, '("# nid->spc   name(nid)->name(spc)     econ    econ_noit     &
                             nd")')  
 
     do i=1, s%c%nneq
@@ -2215,6 +2222,7 @@ contains
                  string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), &
                    string(s%c%spc(j)%name,length=7, justify=ioj_left), &
                    string(econij(i,j), 'f',length=10,decimal=4,justify=ioj_right),&
+                   string(econij_noit(i,j), 'f', length=10, decimal=4,justify=ioj_right),&
                    string(ndij(i,j), 'f', length=10, decimal=4, justify=ioj_right)
 
        end do
@@ -2234,7 +2242,7 @@ contains
                string(ndi(i), 'f', length=10, decimal=4, justify=ioj_right)
     end do 
 
-    deallocate(econij,econi,ndij,ndi)
+    deallocate(econij,econi,ndij,ndi,econij_noit)
   
   end subroutine struct_econ !JW
 
