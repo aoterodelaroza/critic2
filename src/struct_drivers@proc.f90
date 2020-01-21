@@ -2107,17 +2107,14 @@ contains
 
   end subroutine struct_molcell
 
-  !> Calculate the Effective Coordination Number
-  !> For each non-equivalent atom in the cell
-  !> Implementation follows :
-  !> Original Paper
-  module subroutine struct_econ(s,line) !JW
+  !> Calculate the Effective Coordination Number (ECON).
+  module subroutine struct_econ(s,line)
     use systemmod, only: system
     use crystalmod, only: crystal
     use environmod, only: environ
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: icrd_crys, bohrtoa
-    
+
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -2143,61 +2140,61 @@ contains
     eptr  => s%c%env
 
     do i=1, s%c%nneq !loop over non-equivalent atoms
-        
-        if (s%c%ismolecule .AND. s%c%ncel == 1)  then ! Check if atom in box, and skip calculation if true
-                econi(i)=0d0
-                goto 11 
-        end if
 
-        ndi(i)=0
-        do j=1, s%c%nspc !loop over number of species
+       if (s%c%ismolecule .AND. s%c%ncel == 1)  then ! Check if atom in box, and skip calculation if true
+          econi(i)=0d0
+          goto 11 
+       end if
 
-           call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,ispc0=j,nozero=.true.)
-           !list the near atoms of non-equivalent atom i, that are species j
-     
-           econprev = -1d0
-           econ = 0d0
-           dist0 = dist(1)
-           n=0
-           do while ( abs(econ-econprev) > wthresh ) 
+       ndi(i)=0
+       do j=1, s%c%nspc !loop over number of species
+
+          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,ispc0=j,nozero=.true.)
+          !list the near atoms of non-equivalent atom i, that are species j
+
+          econprev = -1d0
+          econ = 0d0
+          dist0 = dist(1)
+          n=0
+          do while ( abs(econ-econprev) > wthresh ) 
              n=n+1
              econprev = econ
              numer = 0d0
              denom = 0d0
-                do k=1, nat !loop over the nat from list_near_atoms
-                   wi = exp( 1 - (dist(k)/dist0)**6)
-                   numer = numer + dist(k) * wi
-                   denom = denom + wi
-                end do
-                dist0 = numer / denom
-                econ = denom
-                
-                if (dist0 > up2d / (1d0 + 14d0 * log(10d0))**(1d0/6d0)) then !Is up2d too small? Then increase it by factor do again 
-                        factor = 1.5d0 * factor
-                        print *, "up2d value too small, increasing..."
-                        goto 10
-                end if
+             do k=1, nat !loop over the nat from list_near_atoms
+                wi = exp( 1 - (dist(k)/dist0)**6)
+                numer = numer + dist(k) * wi
+                denom = denom + wi
+             end do
+             dist0 = numer / denom
+             econ = denom
 
-                !Save the econ that corresponds to no iterations.
-                if (n == 2) then
-                        econij_noit(i,j)=econ
-                end if
-                
-                econij(i,j) = econ
-                ndij(i,j) = dist0
-                
+             if (dist0 > up2d / (1d0 + 14d0 * log(10d0))**(1d0/6d0)) then !Is up2d too small? Then increase it by factor do again 
+                factor = 1.5d0 * factor
+                print *, "up2d value too small, increasing..."
+                goto 10
+             end if
 
-           end do
-           ndi(i) = ndi(i) + numer 
+             !Save the econ that corresponds to no iterations.
+             if (n == 2) then
+                econij_noit(i,j)=econ
+             end if
 
-        end do
-           econi(i) = sum(econij(i,:))
-           ndi(i) = ndi(i) / econi(i)
-           
+             econij(i,j) = econ
+             ndij(i,j) = dist0
+
+
+          end do
+          ndi(i) = ndi(i) + numer 
+
+       end do
+       econi(i) = sum(econij(i,:))
+       ndi(i) = ndi(i) / econi(i)
+
 
     end do
 
-11 continue
+11  continue
 
     !>Print the output. Two sections: "Local" and "Global". 
     !>Local is the quantity (ECON/nd) to a given species j, global is 
@@ -2211,19 +2208,19 @@ contains
     write (uout, '("# spc = atomic species")')
     write (uout, '("# name = atomic name (symbol)")')
     write (uout, '("# econ = effective coordination number for a given non-equivalent atom &
-            and atomic species")')
+       and atomic species")')
     write (uout, '("# nd = mean weighted distance (bohr) Eq. 3 in (2) ")')
-    write (uout, '("# nid->spc   name(nid)->name(spc)     econ    econ_noit     &
-                            nd")')  
+    write (uout, '("# nid->spc   name(nid)->name(spc)     econ    econ_noit     nd")')  
 
     do i=1, s%c%nneq
        do j=1, s%c%nspc
-          write (uout, '(A," -> ",A,A," -> ",A,X,A,A,A)') string(i,length=4,justify=ioj_right), string(j,length=4,justify=ioj_left), &
-                 string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), &
-                   string(s%c%spc(j)%name,length=7, justify=ioj_left), &
-                   string(econij(i,j), 'f',length=10,decimal=4,justify=ioj_right),&
-                   string(econij_noit(i,j), 'f', length=10, decimal=4,justify=ioj_right),&
-                   string(ndij(i,j), 'f', length=10, decimal=4, justify=ioj_right)
+          write (uout, '(A," -> ",A,A," -> ",A,X,A,A,A)') string(i,length=4,justify=ioj_right),&
+             string(j,length=4,justify=ioj_left), &
+             string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), &
+             string(s%c%spc(j)%name,length=7, justify=ioj_left), &
+             string(econij(i,j), 'f',length=10,decimal=4,justify=ioj_right),&
+             string(econij_noit(i,j), 'f', length=10, decimal=4,justify=ioj_right),&
+             string(ndij(i,j), 'f', length=10, decimal=4, justify=ioj_right)
 
        end do
     end do
@@ -2237,14 +2234,13 @@ contains
 
     do i=1, s%c%nneq
        write (uout, '(A,A,A,A)') string(i,length=4, justify=ioj_right), &
-               string(s%c%spc(s%c%at(i)%is)%name,length=5,justify=ioj_right), &
-               string(econi(i), 'f', length=10, decimal=4, justify=ioj_right), &
-               string(ndi(i), 'f', length=10, decimal=4, justify=ioj_right)
-    end do 
-
+          string(s%c%spc(s%c%at(i)%is)%name,length=5,justify=ioj_right), &
+          string(econi(i), 'f', length=10, decimal=4, justify=ioj_right), &
+          string(ndi(i), 'f', length=10, decimal=4, justify=ioj_right)
+    end do
     deallocate(econij,econi,ndij,ndi,econij_noit)
-  
-  end subroutine struct_econ !JW
+
+  end subroutine struct_econ
 
   !> Identify atoms by their coordinates
   module subroutine struct_identify(s,line0,lp)

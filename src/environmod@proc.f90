@@ -889,16 +889,17 @@ contains
   !> eid(1:nat) from the environment, distances to the input point
   !> equal to dist(1:nat) and lattice vector lvec in
   !> cryst. coords. The position of atom i in cryst. coords. is
-  !> xr2x(e%at(eid(i))%x) + lvec. Optionally, ishell0(i) contains the shell
-  !> ID for atom i in the output list. One or more of four cutoff
-  !> criteria must be chosen: list up to a distance up2d, between a
-  !> minimum and a maximum species-dependent distance (up2dsp), up
-  !> to a distance to each atom in the complete list (up2dcidx), up to
-  !> a number of shells up2sh or up to a number of atoms up2n. If
-  !> nid0, consider only atoms with index nid0 from the non-equivalent
-  !> list. If id0, consider only atoms with index id0 from the
-  !> complete list. If iz0, consider only atoms with atomic number
-  !> iz0.  If nozero, disregard zero-distance atoms. The output error
+  !> xr2x(e%at(eid(i))%x) + lvec. Optionally, ishell0(i) contains the
+  !> shell ID for atom i in the output list. One or more of four
+  !> cutoff criteria must be chosen: list up to a distance up2d,
+  !> between a minimum and a maximum species-dependent distance
+  !> (up2dsp), up to a distance to each atom in the complete list
+  !> (up2dcidx), up to a number of shells up2sh or up to a number of
+  !> atoms up2n. If nid0, consider only atoms with index nid0 from the
+  !> non-equivalent list. If id0, consider only atoms with index id0
+  !> from the complete list. If iz0, consider only atoms with atomic
+  !> number iz0. If ispc0, consider only species with species ID
+  !> ispc0. If nozero, disregard zero-distance atoms. The output error
   !> condition ierr is 0 if the search was successful or non-zero if
   !> the input search conditions could not be met by this environment.
   module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,&
