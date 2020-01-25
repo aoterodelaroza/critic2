@@ -2370,7 +2370,7 @@ contains
              if (idxmol(1,i) /= k) cycle
           end do
        end do
-
+       
        ! list of molecules and associated attractors
        write (lu,'(2X,"  ""number_of_molecules"": ",A,",")') string(sy%c%nmol)
        write (lu,'(2X,"  ""molecules"": [{")')
@@ -2551,6 +2551,7 @@ contains
 
     ! prepare the idg array
     allocate(idg0(n(1),n(2),n(3)))
+    idg0 = 0
     if (bas%imtype == imtype_bader) then
        idg0 = bas%idg
     elseif (bas%imtype == imtype_yt) then
@@ -2605,7 +2606,6 @@ contains
           end do
        end do
        !$omp end parallel do
-       deallocate(idg0)
 
        if (nvert > 0) then
           ! run qhull
@@ -2640,7 +2640,7 @@ contains
           call ferror("int_gridbasins","Basin " // string(i) // " has zero volume.",noerr)
        end if
     end do
-    deallocate(xvert,xrho)
+    deallocate(idg0,xvert,xrho)
 
   end subroutine int_gridbasins
 
