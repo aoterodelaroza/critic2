@@ -4572,7 +4572,6 @@ contains
   !> use P1.
   module subroutine write_cif(c,file,usesym0)
     use global, only: fileroot
-    use config, only: getstring, istring_version
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
@@ -4582,7 +4581,6 @@ contains
     integer :: i, iz, lu
     character(len=mlen), allocatable :: strfin(:)
     character(len=3) :: schpg
-    character(len=:), allocatable :: sver
     integer :: holo, laue
     logical :: usesym
 
@@ -4593,9 +4591,8 @@ contains
     lu = fopen_write(file)
 
     ! header
-    sver = getstring(istring_version)
     write (lu,'("data_",A)') string(deblank(fileroot))
-    write (lu,'("_audit_creation_method ''critic2-",A,"''")') string(sver)
+    write (lu,'("_audit_creation_method ''critic2''")') 
 
     ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa

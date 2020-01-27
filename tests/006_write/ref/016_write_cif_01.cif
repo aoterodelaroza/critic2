@@ -1,5 +1,5 @@
 data_016_write_cif
-_audit_creation_method 'critic2-1.0 (git:65cc368)'
+_audit_creation_method 'critic2'
 _cell_length_a         2.4560000000
 _cell_length_b         2.4560000000
 _cell_length_c         6.6960000000
