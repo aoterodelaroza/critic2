@@ -601,6 +601,7 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
+        call sy%c%checkgroup()
 
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)

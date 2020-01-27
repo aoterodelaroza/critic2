@@ -178,6 +178,7 @@ module crystalmod
      procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: clearsym !< Clear symmetry info and transform to a P1
+     procedure :: checkgroup !< Check that the space group operations are consistent
 
      ! WS cell
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
@@ -494,6 +495,9 @@ module crystalmod
        logical, intent(in), optional :: cel2neq
        logical, intent(in), optional :: neq2cel
      end subroutine clearsym
+     module subroutine checkgroup(c)
+       class(crystal), intent(inout) :: c
+     end subroutine checkgroup
      module subroutine wigner(c,area)
        class(crystal), intent(inout) :: c
        real*8, intent(out), optional :: area(14)

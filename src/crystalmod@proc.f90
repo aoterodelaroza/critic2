@@ -3532,6 +3532,116 @@ contains
 
   end subroutine clearsym
 
+  module subroutine checkgroup(c)
+    use tools_math, only: matinv
+    use tools_io, only: uout, string
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, i1, j1, ifound(2)
+    real*8 :: op(4,4), op1(4,4)
+    logical :: found
+    real*8, parameter :: eye4(4,4) = reshape((/1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0/),shape(eye4))
+
+    write (uout,'("* Checking the consistency of the space group")')
+    
+    ! list of operations
+    write (uout,'("+ List of operations")')
+    do i = 1, c%neqv
+       do  j = 1, c%ncv
+          call assignop(i,j,op)
+          write (uout,'("  Operation ",A,"/",A)') string(i), string(j)
+          op(1:3,4) = c%x2c(op(1:3,4)) * 0.52917720859d0
+          write (uout,'(3(4X,4(A,X)/),4X,4(A,X))') ((string(op(i1,j1),'f',length=9,decimal=6,justify=3), j1=1,4), i1=1,4)
+       enddo
+    end do
+
+    ! identity
+    call checkexists(eye4,ifound)
+    if (all(ifound > 0)) then
+       write (uout,'("+ Is there an identity operation? ... yes")')
+    else
+       write (uout,'("+ Is there an identity operation? ... no")')
+       goto 999
+    end if
+
+    ! inverse
+    write (uout,'("+ Inverse operations")')
+    do i = 1, c%neqv
+       do  j = 1, c%ncv
+          call assignop(i,j,op)
+          call matinv(op,4)
+          call checkexists(op,ifound)
+          if (all(ifound > 0)) then
+             write (uout,'("  Op. ",A,"/",A," has inverse: ",A,"/",A)') string(i), string(j),&
+                string(ifound(1)), string(ifound(2))
+          else
+             write (uout,'("  Op. ",A,"/",A," has inverse: not found!")') string(i), string(j)
+             goto 999
+          end if
+       end do
+    end do
+
+    ! closure
+    write (uout,'("+ Closure")')
+    do i = 1, c%neqv
+       do  j = 1, c%ncv
+          call assignop(i,j,op)
+          do i1 = 1, c%neqv
+             do  j1 = 1, c%ncv
+                call assignop(i1,j1,op1)
+                op1 = matmul(op,op1)
+                call checkexists(op1,ifound)
+                if (all(ifound > 0)) then
+                   write (uout,'("  Op. ",A,"/",A," times ",A,"/",A," is in the closure: ",A,"/",A)') &
+                      string(i), string(j), string(i1), string(j1), string(ifound(1)), string(ifound(2))
+                else
+                   write (uout,'("  Op. ",A,"/",A," times ",A,"/",A," is not in the closure")') &
+                      string(i), string(j), string(i1), string(j1)
+                   goto 999
+                end if
+             end do
+          end do
+       end do
+    end do
+
+999 continue
+    write (uout,*)
+    
+  contains
+    subroutine assignop(ieqv,icv,op)
+      real*8, intent(out) :: op(4,4)
+      integer, intent(in) :: ieqv, icv
+      
+      op = 0d0
+      op(1:3,1:3) = c%rotm(:,1:3,ieqv)
+      op(1:3,4) = c%rotm(:,4,ieqv) + c%cen(:,icv)
+      op(4,4) = 1d0
+
+    end subroutine assignop
+    subroutine checkexists(op,ifound)
+      real*8, intent(in) :: op(4,4)
+      integer, intent(out) :: ifound(2)
+      
+      real*8 :: op1(4,4), x(3)
+      integer :: i, j
+
+      ifound = 0
+      do i = 1, c%neqv
+         do  j = 1, c%ncv
+            call assignop(i,j,op1)
+            x = op(1:3,4) - op1(1:3,4)
+            x = x - nint(x)
+            if (all(abs(op(1:3,1:3) - op1(1:3,1:3)) < 1d-4) .and. all(abs(x) < 1d-4)) then
+               ifound(1) = i
+               ifound(2) = j
+               return
+            end if
+         end do
+      end do 
+
+    end subroutine checkexists
+  end subroutine checkgroup
+
   !xx! Wigner-Seitz cell tools and cell partition
 
   !> Builds the Wigner-Seitz cell. Writes the WS components of c.
@@ -4653,115 +4763,73 @@ contains
 
   !> Write a simple cif file
   module subroutine write_d12(c,file,dosym)
-    use tools_io, only: fopen_write, fclose, string, ferror, faterr
-    use global, only: symprec
-    use param, only: bohrtoa, pi
+    use tools_io, only: fopen_write, fclose, string
+    use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: dosym
 
-    integer :: holo, laue, i, j, nmin
     character(len=3) :: schpg
-    type(crystal) :: nc
-    integer :: lu, spgnum, irhomb, count90, count120
-    real*8 :: xmin(6), x0(3,3)
-    logical :: ok
+    integer :: lu, holo, laue
+    integer :: i, j, k, l
+    real*8 :: x(3)
 
-    ! we need symmetry for this
     if (dosym) then
-       nc = c
-       x0 = nc%cell_standard(.false.,.false.,.false.)
-       call pointgroup_info(nc%spg%pointgroup_symbol,schpg,holo,laue)
-       xmin = 0d0
-       irhomb = 0
-       if (holo == holo_unk) then
-          call ferror("write_d12","unknown holohedry",faterr)
-       elseif (holo == holo_tric) then
-          nmin = 6
-          xmin(1:3) = nc%aa * bohrtoa
-          xmin(4:6) = nc%bb
-       elseif (holo == holo_mono) then
-          nmin = 4
-          xmin(1:3) = nc%aa * bohrtoa
-          ok = .false.
-          do i = 1, 3
-             if (abs(nc%bb(i) - 90d0) > symprec) then
-                xmin(4) = nc%bb(i)
-                ok = .true.
-                exit
-             end if
-          end do
-          if (.not.ok) &
-             xmin(4) = 90d0
-       elseif (holo == holo_ortho) then
-          nmin = 3
-          xmin(1:3) = nc%aa * bohrtoa
-       elseif (holo == holo_tetra) then
-          nmin = 2
-          xmin(1) = nc%aa(1) * bohrtoa
-          xmin(2) = nc%aa(3) * bohrtoa
-       elseif (holo == holo_trig) then
-          count90 = count(abs(nc%bb - 90d0) < 1d-1)
-          count120 = count(abs(sin(nc%bb * pi / 180d0) - sqrt(3d0)/2d0) < 1d-2)
-          nmin = 2
-          xmin(1) = nc%aa(1) * bohrtoa
-          if (count90 == 2 .and. count120 == 1) then
-             ! hexagonal axes
-             xmin(2) = nc%aa(3) * bohrtoa
-             irhomb = 0
-          else
-             ! rhombohedral axes
-             xmin(2) = nc%bb(1)
-             irhomb = 1
-          end if
-       elseif (holo == holo_hex) then
-          nmin = 2
-          xmin(1) = nc%aa(1) * bohrtoa
-          xmin(2) = nc%aa(3) * bohrtoa
-       elseif (holo == holo_cub) then
-          nmin = 1
-          xmin(1) = nc%aa(1) * bohrtoa
-       end if
-       spgnum = nc%spg%spacegroup_number
-    else
-       spgnum = 1
-       irhomb = 0
-       nmin = 6
-       xmin(1:3) = c%aa * bohrtoa
-       xmin(4:6) = c%bb
-    end if
+       lu = fopen_write(file)
+       write (lu,'("Title")')
+       write (lu,'("EXTERNAL")')
+       write (lu,'("TESTGEOM")')
+       write (lu,'("END")')
+       write (lu,'("END")')
+       write (lu,'("END")')
+       call fclose(lu)
 
-    lu = fopen_write(file)
-    write (lu,'("Title")')
-    write (lu,'("CRYSTAL")')
-    write (lu,'("0 ",A," 0")') string(irhomb)
-    write (lu,'(A)') string(spgnum)
-    write (lu,'(6(A,X))') (string(xmin(i),'f',15,8),i=1,nmin)
-    if (dosym) then
-       write (lu,'(A)') string(nc%nneq)
-       do i = 1, nc%nneq
-          write (lu,'(4(A,X))') string(nc%spc(nc%at(i)%is)%z), (string(nc%at(i)%x(j),'f',15,8),j=1,3)
+       lu = fopen_write("fort.34")
+
+       ! for a crystal, if symmetry is available
+       ! header: dimensionality, centring type, and crystal holohedry
+       call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
+       write (lu,'("3 1 ",A)') string(holo-1)
+       do i = 1, 3
+          write (lu,'(3(A,X))') (string(c%m_x2c(j,i)*bohrtoa,'f',decimal=10),j=1,3)
        end do
+
+       ! symmetry operations
+       write (lu,'(A)') string(c%neqv*c%ncv)
+       do i = 1, c%neqv
+          do j = 1, c%ncv
+             do k = 1, 3
+                write (lu,'(3(X,E19.12))') (c%rotm(l,k,i),l=1,3)
+             end do
+             x = c%rotm(:,4,i)+c%cen(:,j)
+             x = c%x2c(x)
+             write (lu,'(3(X,E19.12))') (x(l)*bohrtoa,l=1,3)
+          end do
+       end do
+
+       ! atoms
+       write (lu,'(A)') string(c%nneq)
+       do i = 1, c%nneq
+          write (lu,'(4(A,X))') string(c%spc(c%at(i)%is)%z), (string(c%at(i)%r(l)*bohrtoa,'f',decimal=10),l=1,3)
+       end do
+
+       call fclose(lu)
     else
+       lu = fopen_write(file)
+       write (lu,'("Title")')
+       write (lu,'("CRYSTAL")')
+       write (lu,'("0 0 0")')
+       write (lu,'("1")')
+       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
        write (lu,'(A)') string(c%ncel)
        do i = 1, c%ncel
           write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
        end do
+       write (lu,'("TESTGEOM")')
+       write (lu,'("END")')
+       write (lu,'("END")')
+       write (lu,'("END")')
     end if
-    write (lu,'("SETPRINT")')
-    write (lu,'("1")')
-    write (lu,'("3 1")')
-    write (lu,'("END")')
-    write (lu,'("xx basis xx")')
-    write (lu,'("99 0")')
-    write (lu,'("END")')
-    write (lu,'("SHRINK")')
-    write (lu,'("4 4")')
-    write (lu,'("TOLDEE")')
-    write (lu,'("7")')
-    write (lu,'("END")')
-
-    call fclose(lu)
 
   end subroutine write_d12
 
