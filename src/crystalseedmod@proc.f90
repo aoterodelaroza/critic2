@@ -2423,6 +2423,8 @@ contains
     do while (getline_raw(lu,line))
        if (index(line,"CRYSTAL CALCULATION") > 0) then
           iscrystal = .true.
+       elseif (index(line,"3D - CRYSTAL") > 0) then
+          iscrystal = .true.
        elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
@@ -2451,6 +2453,7 @@ contains
              if (.not.ok) goto 999
              if (len_trim(line) < 1) exit
              if (index(line,"ERROR") > 0) exit
+             if (index(line,"WARNING") > 0) exit
              seed%nat = seed%nat + 1
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
