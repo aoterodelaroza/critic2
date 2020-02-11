@@ -54,6 +54,8 @@ module tools_math
   public :: gauleg
   public :: bhole
   public :: xlnorm
+  public :: fdamp_tt
+  public :: fdamp_bj
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -276,6 +278,16 @@ module tools_math
        real*8, intent(in) :: rho, quad, uxpos
        real*8, intent(out) :: xlnrm
      end subroutine xlnorm
+     module function fdamp_tt(r,b,n)
+       real*8, intent(in) :: r, b
+       integer, intent(in) :: n
+       real*8 :: fdamp_tt
+     end function fdamp_tt
+     module function fdamp_bj(r,rvdw,n)
+       real*8, intent(in) :: r, rvdw
+       integer, intent(in) :: n
+       real*8 :: fdamp_bj
+     end function fdamp_bj
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

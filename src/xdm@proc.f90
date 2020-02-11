@@ -27,7 +27,7 @@ submodule (xdm) proc
   ! subroutine write_cube(file,line1,line2,n,c)
   ! function free_volume(iz) result(afree)
   ! function frevol(z,chf)
-  ! subroutine calc_edisp(c6,c8,c10,rvdw)
+  ! subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc)
   ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
@@ -753,22 +753,27 @@ contains
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
        lgetword, isinteger, equal, getword, isreal
     use types, only: realloc
-    use param, only: bohrtoa
+    use param, only: bohrtoa, alpha_free
     character*(*), intent(inout) :: line0
 
-    integer :: i, j
+    integer :: i, j, k
     integer :: lu, lp, idx, idx1, idx2, idum
     character(len=:), allocatable :: line, str, word, aux, file
     logical :: ok, inbetween
-    real*8 :: a1, a2
-    real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
-    real*8 :: rc(sy%c%ncel,sy%c%ncel), rvdw(sy%c%ncel,sy%c%ncel)
+    real*8 :: a1, a2, mra, mrb, mrc
+    real*8, allocatable :: c6(:,:), c8(:,:), c10(:,:), rc(:,:), rvdw(:,:)
+    real*8, allocatable :: v(:), vfree(:), mm(:,:), c9(:,:,:)
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
     logical, allocatable :: lfrom(:), lto(:)
-    logical :: usec(3), forcedamp
+    logical :: usec(3), forcedamp, usec9
     real*8 :: scalc(3)
     
+    ! allocate space for the XDM info
+    allocate(c6(sy%c%ncel,sy%c%ncel),c8(sy%c%ncel,sy%c%ncel),c10(sy%c%ncel,sy%c%ncel))
+    allocate(rc(sy%c%ncel,sy%c%ncel),rvdw(sy%c%ncel,sy%c%ncel))
+    allocate(v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
+
     ! parse the options
     allocate(ifrom(10),ito(10))
     file = sy%c%file
@@ -777,6 +782,7 @@ contains
     nfrom = 0
     nto = 0
     usec = .true.
+    usec9 = .false.
     scalc = 1d0
     forcedamp = .false.
     do while(.true.)
@@ -806,6 +812,8 @@ contains
           usec(3) = .false.
        else if (equal(word,"noc8")) then
           usec(2) = .false.
+       else if (equal(word,"c9")) then
+          usec9 = .true.
        else if (equal(word,"scalc6")) then
           ok = isreal(scalc(1),line0,lp)
           if (.not.ok) then
@@ -897,6 +905,13 @@ contains
           end if
        end if
        ! read the dispersion coefficients and the radii
+       if (trim(line) == "+ Volumes and moments") then
+          do i = 1, sy%c%ncel
+             ok = getline(lu,line)
+             read (line,*) idx1, v(i), vfree(i), mm(1,i), mm(2,i), mm(3,i)
+          end do
+       end if
+       ! read the dispersion coefficients and the radii
        if (trim(line) == "+ Dispersion coefficients") then
           do i = 1, sy%c%ncel
              do j = 1, i
@@ -924,9 +939,33 @@ contains
     end do main
     call fclose(lu)
     deallocate(lto,lfrom)
+    
+    ! calculate the c9 coefficients
+    if (usec9) then
+       allocate(c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
+       do i = 1, sy%c%ncel
+          do j = i, sy%c%ncel
+             do k = j, sy%c%ncel
+                mra = mm(1,i) / (v(i) / vfree(i) * alpha_free(sy%c%spc(sy%c%atcel(i)%is)%z))
+                mrb = mm(1,j) / (v(j) / vfree(j) * alpha_free(sy%c%spc(sy%c%atcel(j)%is)%z))
+                mrc = mm(1,k) / (v(k) / vfree(k) * alpha_free(sy%c%spc(sy%c%atcel(k)%is)%z))
+                c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
+                c9(j,k,i) = c9(i,j,k)
+                c9(k,i,j) = c9(i,j,k)
+                c9(i,k,j) = c9(i,j,k)
+                c9(j,i,k) = c9(i,j,k)
+                c9(k,j,i) = c9(i,j,k)
+             end do
+          end do
+       end do
+    end if
 
     ! calculate and print out the energy
-    call calc_edisp(c6,c8,c10,rvdw,usec,scalc)
+    if (usec9) then
+       call calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc)
+    else
+       call calc_edisp(c6,c8,c10,rvdw,usec_=usec,scalc_=scalc)
+    end if
 
   end subroutine xdm_qe
 
@@ -1070,9 +1109,15 @@ contains
     integer :: nelec
     integer :: prop(7), i, j, lu, luh, iz
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
-    real*8 :: mm(3,sy%c%ncel), v(sy%c%ncel), dum1(3), dum2(3,3)
-    real*8 :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
-    real*8 :: rvdw(sy%c%ncel,sy%c%ncel)
+    real*8 :: dum1(3), dum2(3,3)
+    real*8, allocatable :: mm(:,:), v(:), rvdw(:,:)
+    real*8, allocatable :: c6(:,:), c8(:,:), c9(:,:,:), c10(:,:)
+
+    ! allocate space for the calculations
+    allocate(mm(3,sy%c%ncel),v(sy%c%ncel))
+    allocate(c6(sy%c%ncel,sy%c%ncel),c8(sy%c%ncel,sy%c%ncel),c10(sy%c%ncel,sy%c%ncel))
+    allocate(c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
+    allocate(rvdw(sy%c%ncel,sy%c%ncel))
     
     ! only for wfn or dftb
     if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb) &
@@ -1511,14 +1556,16 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  subroutine calc_edisp(c6,c8,c10,rvdw,usec_,scalc_)
+  subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec_,scalc_)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use environmod, only: environ
     use tools_io, only: uout, ferror, faterr
     use param, only: icrd_cart
-    real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
+    real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel)
+    real*8, intent(in) :: c10(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
+    real*8, intent(in), optional :: c9(sy%c%ncel,sy%c%ncel,sy%c%ncel)
     logical, intent(in), optional :: usec_(3)
     real*8, intent(in), optional :: scalc_(3)
 
@@ -1569,6 +1616,9 @@ contains
           if (usec(1)) e = e - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6)
           if (usec(2)) e = e - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8)
           if (usec(3)) e = e - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10)
+
+          if (present(c9)) then
+          end if
        end do
     end do
     e = 0.5d0 * e

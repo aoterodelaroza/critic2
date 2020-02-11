@@ -85,9 +85,8 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_environ
-     module subroutine struct_econ(s,line)
+     module subroutine struct_econ(s)
        type(system), intent(in) :: s
-       character*(*), intent(in) :: line 
      end subroutine struct_econ 
      module subroutine struct_coord(s,line)
        type(system), intent(in) :: s

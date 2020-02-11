@@ -3539,7 +3539,6 @@ contains
 
     integer :: i, j, i1, j1, ifound(2)
     real*8 :: op(4,4), op1(4,4)
-    logical :: found
     real*8, parameter :: eye4(4,4) = reshape((/1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0/),shape(eye4))
 
     write (uout,'("* Checking the consistency of the space group")')

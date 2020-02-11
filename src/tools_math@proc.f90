@@ -1581,6 +1581,41 @@ contains
       df=df/bot**2
     end subroutine xlfuns
   end subroutine xlnorm
+  
+  !> Tang-Toennies damping function:
+  !>  f(r) = 1 - exp(-br) * sum_k=0^n (br^k) / k!
+  module function fdamp_tt(r,b,n)
+    real*8, intent(in) :: r, b
+    integer, intent(in) :: n
+    real*8 :: fdamp_tt
+
+    real*8 :: br, term
+    integer :: k
+
+    br = b * r
+    fdamp_tt = 1d0
+    term = 1d0
+    do k = 1, n
+       term = term * (br / real(k,8))
+       fdamp_tt = fdamp_tt + term
+    end do
+    fdamp_tt = 1 - exp(-br) * fdamp_tt
+
+  end function fdamp_tt
+
+  ! Becke-Johnson damping function:
+  !  f(r) = r^n / (r^n + rvdw^n)
+  module function fdamp_bj(r,rvdw,n)
+    real*8, intent(in) :: r, rvdw
+    integer, intent(in) :: n
+    real*8 :: fdamp_bj
+
+    real*8 :: rn
+
+    rn = r**n
+    fdamp_bj = rn / (rn + rvdw**n)
+
+  end function fdamp_bj
 
   !xx! private procedures
 

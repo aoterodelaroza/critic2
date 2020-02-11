@@ -464,7 +464,7 @@ program critic
      elseif (equal(word,'econ')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle 
-        call struct_econ(sy,line(lp:))
+        call struct_econ(sy)
 
         ! coord
      elseif (equal(word,'coord')) then

@@ -2108,15 +2108,14 @@ contains
   end subroutine struct_molcell
 
   !> Calculate the Effective Coordination Number (ECON).
-  module subroutine struct_econ(s,line)
+  module subroutine struct_econ(s)
     use systemmod, only: system
     use crystalmod, only: crystal
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
-    use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
+    use tools_io, only: uout, string, ioj_left, ioj_right
     use param, only: icrd_crys, bohrtoa
     type(system), intent(in) :: s
-    character*(*), intent(in) :: line
 
     logical :: ok
     integer :: i, j, k, n
