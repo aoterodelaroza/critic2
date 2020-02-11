@@ -751,9 +751,9 @@ contains
   subroutine xdm_qe(line0)
     use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
-       lgetword, isinteger, equal, getword
+       lgetword, isinteger, equal, getword, isreal
     use types, only: realloc
-
+    use param, only: bohrtoa
     character*(*), intent(inout) :: line0
 
     integer :: i, j
@@ -766,6 +766,8 @@ contains
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
     logical, allocatable :: lfrom(:), lto(:)
+    logical :: usec(3), forcedamp
+    real*8 :: scalc(3)
     
     ! parse the options
     allocate(ifrom(10),ito(10))
@@ -774,6 +776,9 @@ contains
     inbetween = .false.
     nfrom = 0
     nto = 0
+    usec = .true.
+    scalc = 1d0
+    forcedamp = .false.
     do while(.true.)
        word = lgetword(line0,lp)
        if (equal(word,"between")) then
@@ -797,6 +802,36 @@ contains
              call ferror("xdm_qe","No atoms found after AND keyword",faterr,line0,syntax=.true.)
        else if (equal(word,"file")) then
           file = getword(line0,lp)
+       else if (equal(word,"noc10")) then
+          usec(3) = .false.
+       else if (equal(word,"noc8")) then
+          usec(2) = .false.
+       else if (equal(word,"scalc6")) then
+          ok = isreal(scalc(1),line0,lp)
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"scalc8")) then
+          ok = isreal(scalc(2),line0,lp)
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"scalc10")) then
+          ok = isreal(scalc(3),line0,lp)
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong scalc10",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"damp")) then
+          ok = isreal(a1,line0,lp)
+          ok = ok .and. isreal(a2,line0,lp)
+          forcedamp = .true.
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong forcedamp",faterr,line0,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror("xdm_qe","Unknown extra keyword: " // trim(word),faterr,line0,syntax=.true.)
           return
@@ -848,16 +883,18 @@ contains
     lu = fopen_read(string(file))
     main: do while (getline(lu,line))
        ! read the parameters
-       if (trim(line) == "* XDM dispersion") then
-          ok = getline(lu,line)
-          idx = index(line,"=")
-          str = trim(line(idx+1:))
-          read(str,*) a1
-          ok = getline(lu,line)
-          ok = getline(lu,line)
-          idx = index(line,"=")
-          str = trim(line(idx+1:))
-          read(str,*) a2
+       if (.not.forcedamp) then
+          if (trim(line) == "* XDM dispersion") then
+             ok = getline(lu,line)
+             idx = index(line,"=")
+             str = trim(line(idx+1:))
+             read(str,*) a1
+             ok = getline(lu,line)
+             ok = getline(lu,line)
+             idx = index(line,"=")
+             str = trim(line(idx+1:))
+             read(str,*) a2
+          end if
        end if
        ! read the dispersion coefficients and the radii
        if (trim(line) == "+ Dispersion coefficients") then
@@ -877,6 +914,9 @@ contains
                 c8(j,i) = c8(i,j)
                 c10(j,i) = c10(i,j)
                 rc(j,i) = rc(i,j)
+                if (forcedamp) then
+                   rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
+                end if
                 rvdw(j,i) = rvdw(i,j)
              end do
           end do
@@ -886,7 +926,7 @@ contains
     deallocate(lto,lfrom)
 
     ! calculate and print out the energy
-    call calc_edisp(c6,c8,c10,rvdw)
+    call calc_edisp(c6,c8,c10,rvdw,usec,scalc)
 
   end subroutine xdm_qe
 
@@ -1471,7 +1511,7 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  subroutine calc_edisp(c6,c8,c10,rvdw)
+  subroutine calc_edisp(c6,c8,c10,rvdw,usec_,scalc_)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use environmod, only: environ
@@ -1479,6 +1519,8 @@ contains
     use param, only: icrd_cart
     real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel), c10(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
+    logical, intent(in), optional :: usec_(3)
+    real*8, intent(in), optional :: scalc_(3)
 
     integer :: i, j, jj, iz, nat, ierr, lvec(3)
     real*8 :: d
@@ -1487,9 +1529,15 @@ contains
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
-    logical :: isealloc
+    logical :: isealloc, usec(3)
+    real*8 :: scalc(3)
 
     real*8, parameter :: ecut = 1d-11
+
+    usec = .true.
+    scalc = 1d0
+    if (present(usec_)) usec = usec_
+    if (present(scalc_)) scalc = scalc_
 
     ! build the environment
     maxc6 = maxval(c6)
@@ -1518,9 +1566,9 @@ contains
           if (iz < 1) cycle
           if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
           d = dist(jj)
-          e = e - c6(i,j) / (rvdw(i,j)**6 + d**6) &
-                - c8(i,j) / (rvdw(i,j)**8 + d**8) &
-                - c10(i,j) / (rvdw(i,j)**10 + d**10)
+          if (usec(1)) e = e - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6)
+          if (usec(2)) e = e - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8)
+          if (usec(3)) e = e - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10)
        end do
     end do
     e = 0.5d0 * e
