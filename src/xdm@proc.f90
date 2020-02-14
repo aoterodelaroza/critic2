@@ -1570,16 +1570,18 @@ contains
     real*8, intent(in), optional :: scalc_(3)
 
     integer :: i, j, jj, iz, nat, ierr, lvec(3)
-    real*8 :: d
-    real*8 :: e
-    real*8 :: rmax, maxc6
+    integer :: kk, k
+    real*8 :: d, dij, dik, djk, xi(3), xj(3), xk(3)
+    real*8 :: e, xij(3), xik(3), xjk(3), ci, cj, ck
+    real*8 :: div
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
     logical :: isealloc, usec(3)
-    real*8 :: scalc(3)
+    real*8 :: scalc(3), e6, e8, e9, e10
 
-    real*8, parameter :: ecut = 1d-11
+    real*8, parameter :: rmax = 40d0 ! 80d0
+    real*8, parameter :: rmax9 = 20d0 ! 40d0
 
     usec = .true.
     scalc = 1d0
@@ -1587,8 +1589,6 @@ contains
     if (present(scalc_)) scalc = scalc_
 
     ! build the environment
-    maxc6 = maxval(c6)
-    rmax = (maxc6/ecut)**(1d0/6d0)
     if (rmax >= sy%c%env%dmax0) then
        isealloc = .true.
        allocate(lenv)
@@ -1600,6 +1600,10 @@ contains
 
     ! calculate the energies and derivatives
     e = 0d0
+    e6 = 0d0
+    e8 = 0d0
+    e10 = 0d0
+    e9 = 0d0
     do i = 1, lenv%ncell
        iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
@@ -1609,21 +1613,69 @@ contains
 
        do jj = 1, nat
           j = lenv%at(eid(jj))%cidx
-          iz = lenv%spc(lenv%at(eid(jj))%is)%z
-          if (iz < 1) cycle
+          if (i < j) cycle
+          if (lenv%spc(lenv%at(eid(jj))%is)%z < 1) cycle
           if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
+          
           d = dist(jj)
-          if (usec(1)) e = e - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6)
-          if (usec(2)) e = e - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8)
-          if (usec(3)) e = e - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10)
+          if (i > j) then
+             div = 1d0
+          elseif (i == j) then
+             div = 2d0
+          end if
+          if (usec(1)) e6 = e6 - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6) / div
+          if (usec(2)) e8 = e8 - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8) / div
+          if (usec(3)) e10 = e10 - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10) / div
 
           if (present(c9)) then
+             if (d > rmax9) cycle
+             do kk = 1, nat
+                k = lenv%at(eid(kk))%cidx
+                if (j < k) cycle
+                if (lenv%spc(lenv%at(eid(kk))%is)%z < 1) cycle
+
+                if (i > j .and. j > k) then
+                   div = 1d0
+                elseif (i == j .and. j > k) then
+                   div = 2d0
+                elseif (i > j .and. j == k) then
+                   div = 2d0
+                elseif (i == j .and. j == k) then
+                   div = 6d0
+                end if
+
+                xi = lenv%at(i)%r
+                xj = lenv%at(eid(jj))%r
+                xk = lenv%at(eid(kk))%r
+
+                xij = xj - xi
+                xik = xk - xi
+                xjk = xk - xj
+                
+                dij = norm2(xij)
+                dik = norm2(xik)
+                djk = norm2(xjk)
+                if (dij < 1d-15 .or. dij > rmax9) cycle
+                if (dik < 1d-15 .or. dik > rmax9) cycle
+                if (djk < 1d-15 .or. djk > rmax9) cycle
+                
+                ci = min(max(dot_product(xij,xik) / dij / dik,-1d0),1d0)
+                cj = min(max(dot_product(-xij,xjk) / dij / djk,-1d0),1d0)
+                ck = min(max(dot_product(-xik,-xjk) / dik / djk,-1d0),1d0)
+
+                ! e9 = e9 + c9(i,j,k) * f9 * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3
+                e9 = e9 + (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
+             end do
           end if
        end do
     end do
-    e = 0.5d0 * e
+    e = e6 + e8 + e9 + e10
     if (isealloc) deallocate(lenv)
 
+    write (uout,'("C6 contribution (Ha) ",1p,E20.12)') e6
+    write (uout,'("C8 contribution (Ha) ",1p,E20.12)') e8
+    write (uout,'("C9 contribution (Ha) ",1p,E20.12)') e9
+    write (uout,'("C10 contribution (Ha) ",1p,E20.12)') e10
     write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
     write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
     write (uout,'("#"/)')
