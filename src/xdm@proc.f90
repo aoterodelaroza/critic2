@@ -1578,15 +1578,20 @@ contains
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
     logical :: isealloc, usec(3)
-    real*8 :: scalc(3), e6, e8, e9, e10
+    real*8 :: scalc(3), e6, e8, e9, e10, rmax, rmax9
 
-    real*8, parameter :: rmax = 40d0 ! 80d0
-    real*8, parameter :: rmax9 = 20d0 ! 40d0
+    real*8, parameter :: e6thr = 1d-11
+    real*8, parameter :: e9thr = 1d-12
 
     usec = .true.
     scalc = 1d0
     if (present(usec_)) usec = usec_
     if (present(scalc_)) scalc = scalc_
+
+    ! calculate cutoffs
+    rmax = (maxval(c6)/e6thr)**(1d0/6d0)
+    if (present(c9)) &
+       rmax9 = (maxval(c9)/e9thr)**(1d0/9d0)
 
     ! build the environment
     if (rmax >= sy%c%env%dmax0) then
@@ -1603,7 +1608,6 @@ contains
     e6 = 0d0
     e8 = 0d0
     e10 = 0d0
-    e9 = 0d0
     do i = 1, lenv%ncell
        iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
@@ -1626,9 +1630,32 @@ contains
           if (usec(1)) e6 = e6 - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6) / div
           if (usec(2)) e8 = e8 - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8) / div
           if (usec(3)) e10 = e10 - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10) / div
+       end do
+    end do
+    
+    ! calculate the energies and derivatives
+    e9 = 0d0
+    if (present(c9)) then
+       do i = 1, lenv%ncell
+          iz = lenv%spc(lenv%at(i)%is)%z
+          if (iz < 1) cycle
+          call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax9,nozero=.true.)
+          if (ierr /= 0) &
+             call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 
-          if (present(c9)) then
-             if (d > rmax9) cycle
+          do jj = 1, nat
+             j = lenv%at(eid(jj))%cidx
+             if (i < j) cycle
+             if (lenv%spc(lenv%at(eid(jj))%is)%z < 1) cycle
+             if (dist(jj) < 1d-15 .or. dist(jj) > rmax9) cycle
+
+             d = dist(jj)
+             if (i > j) then
+                div = 1d0
+             elseif (i == j) then
+                div = 2d0
+             end if
+
              do kk = 1, nat
                 k = lenv%at(eid(kk))%cidx
                 if (j < k) cycle
@@ -1651,27 +1678,28 @@ contains
                 xij = xj - xi
                 xik = xk - xi
                 xjk = xk - xj
-                
-                dij = norm2(xij)
+
+                dij = d
                 dik = norm2(xik)
                 djk = norm2(xjk)
-                if (dij < 1d-15 .or. dij > rmax9) cycle
                 if (dik < 1d-15 .or. dik > rmax9) cycle
                 if (djk < 1d-15 .or. djk > rmax9) cycle
-                
+
                 ci = min(max(dot_product(xij,xik) / dij / dik,-1d0),1d0)
                 cj = min(max(dot_product(-xij,xjk) / dij / djk,-1d0),1d0)
                 ck = min(max(dot_product(-xik,-xjk) / dik / djk,-1d0),1d0)
 
-                ! e9 = e9 + c9(i,j,k) * f9 * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3
-                e9 = e9 + (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
+                e9 = e9 + c9(i,j,k) * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
              end do
-          end if
+          end do
        end do
-    end do
+    end if
+
+    ! Add up the contributions and wrap up
     e = e6 + e8 + e9 + e10
     if (isealloc) deallocate(lenv)
 
+    ! Write the energies
     write (uout,'("C6 contribution (Ha) ",1p,E20.12)') e6
     write (uout,'("C8 contribution (Ha) ",1p,E20.12)') e8
     write (uout,'("C9 contribution (Ha) ",1p,E20.12)') e9
