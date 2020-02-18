@@ -27,7 +27,7 @@ submodule (xdm) proc
   ! subroutine write_cube(file,line1,line2,n,c)
   ! function free_volume(iz) result(afree)
   ! function frevol(z,chf)
-  ! subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc)
+  ! subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc,scalc9)
   ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
@@ -767,7 +767,7 @@ contains
     integer, allocatable :: ifrom(:), ito(:)
     logical, allocatable :: lfrom(:), lto(:)
     logical :: usec(3), forcedamp, usec9
-    real*8 :: scalc(3)
+    real*8 :: scalc(3), scalc9
     
     ! allocate space for the XDM info
     allocate(c6(sy%c%ncel,sy%c%ncel),c8(sy%c%ncel,sy%c%ncel),c10(sy%c%ncel,sy%c%ncel))
@@ -784,6 +784,7 @@ contains
     usec = .true.
     usec9 = .false.
     scalc = 1d0
+    scalc9 = 1d0
     forcedamp = .false.
     do while(.true.)
        word = lgetword(line0,lp)
@@ -830,6 +831,12 @@ contains
           ok = isreal(scalc(3),line0,lp)
           if (.not.ok) then
              call ferror("xdm_qe","wrong scalc10",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"scalc9")) then
+          ok = isreal(scalc9,line0,lp)
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong scalc9",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"damp")) then
@@ -962,7 +969,7 @@ contains
 
     ! calculate and print out the energy
     if (usec9) then
-       call calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc)
+       call calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc,scalc9)
     else
        call calc_edisp(c6,c8,c10,rvdw,usec_=usec,scalc_=scalc)
     end if
@@ -1556,37 +1563,42 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec_,scalc_)
+  subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec_,scalc_,scalc9_)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use environmod, only: environ
+    use tools_math, only: fdamp_tt
     use tools_io, only: uout, ferror, faterr
-    use param, only: icrd_cart
+    use param, only: icrd_cart, atmvdw
     real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: c10(sy%c%ncel,sy%c%ncel)
     real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
     real*8, intent(in), optional :: c9(sy%c%ncel,sy%c%ncel,sy%c%ncel)
     logical, intent(in), optional :: usec_(3)
     real*8, intent(in), optional :: scalc_(3)
+    real*8, intent(in), optional :: scalc9_
 
     integer :: i, j, jj, iz, nat, ierr, lvec(3)
-    integer :: kk, k
+    integer :: kk, k, izi, izj, izk, npts
     real*8 :: d, dij, dik, djk, xi(3), xj(3), xk(3)
+    real*8 :: bij, bik, bjk
     real*8 :: e, xij(3), xik(3), xjk(3), ci, cj, ck
-    real*8 :: div
+    real*8 :: div, f9, ss, xran
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
     logical :: isealloc, usec(3)
-    real*8 :: scalc(3), e6, e8, e9, e10, rmax, rmax9
+    real*8 :: scalc(3), scalc9, e6, e8, e9, e10, rmax, rmax9
 
     real*8, parameter :: e6thr = 1d-11
     real*8, parameter :: e9thr = 1d-12
 
     usec = .true.
     scalc = 1d0
+    scalc9 = 1d0
     if (present(usec_)) usec = usec_
     if (present(scalc_)) scalc = scalc_
+    if (present(scalc9_)) scalc9 = scalc9_
 
     ! calculate cutoffs
     rmax = (maxval(c6)/e6thr)**(1d0/6d0)
@@ -1627,9 +1639,9 @@ contains
           elseif (i == j) then
              div = 2d0
           end if
-          if (usec(1)) e6 = e6 - scalc(1) * c6(i,j) / (rvdw(i,j)**6 + d**6) / div
-          if (usec(2)) e8 = e8 - scalc(2) * c8(i,j) / (rvdw(i,j)**8 + d**8) / div
-          if (usec(3)) e10 = e10 - scalc(3) * c10(i,j) / (rvdw(i,j)**10 + d**10) / div
+          if (usec(1)) e6 = e6 - c6(i,j) / (rvdw(i,j)**6 + d**6) / div
+          if (usec(2)) e8 = e8 - c8(i,j) / (rvdw(i,j)**8 + d**8) / div
+          if (usec(3)) e10 = e10 - c10(i,j) / (rvdw(i,j)**10 + d**10) / div
        end do
     end do
     
@@ -1637,8 +1649,8 @@ contains
     e9 = 0d0
     if (present(c9)) then
        do i = 1, lenv%ncell
-          iz = lenv%spc(lenv%at(i)%is)%z
-          if (iz < 1) cycle
+          izi = lenv%spc(lenv%at(i)%is)%z
+          if (izi < 1) cycle
           call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax9,nozero=.true.)
           if (ierr /= 0) &
              call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
@@ -1646,7 +1658,8 @@ contains
           do jj = 1, nat
              j = lenv%at(eid(jj))%cidx
              if (i < j) cycle
-             if (lenv%spc(lenv%at(eid(jj))%is)%z < 1) cycle
+             izj = lenv%spc(lenv%at(eid(jj))%is)%z
+             if (izj < 1) cycle
              if (dist(jj) < 1d-15 .or. dist(jj) > rmax9) cycle
 
              d = dist(jj)
@@ -1659,7 +1672,8 @@ contains
              do kk = 1, nat
                 k = lenv%at(eid(kk))%cidx
                 if (j < k) cycle
-                if (lenv%spc(lenv%at(eid(kk))%is)%z < 1) cycle
+                izk = lenv%spc(lenv%at(eid(kk))%is)%z
+                if (izk < 1) cycle
 
                 if (i > j .and. j > k) then
                    div = 1d0
@@ -1688,22 +1702,41 @@ contains
                 ci = min(max(dot_product(xij,xik) / dij / dik,-1d0),1d0)
                 cj = min(max(dot_product(-xij,xjk) / dij / djk,-1d0),1d0)
                 ck = min(max(dot_product(-xik,-xjk) / dik / djk,-1d0),1d0)
+                
+                bij = -0.31d0 * (atmvdw(izi) + atmvdw(izj)) + 3.43d0
+                bik = -0.31d0 * (atmvdw(izi) + atmvdw(izk)) + 3.43d0
+                bjk = -0.31d0 * (atmvdw(izj) + atmvdw(izk)) + 3.43d0
+                f9 = fdamp_tt(dij,bij,6) * fdamp_tt(dik,bik,6) * fdamp_tt(djk,bjk,6)
 
-                e9 = e9 + c9(i,j,k) * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
+                e9 = e9 + c9(i,j,k) * f9 * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
              end do
           end do
        end do
     end if
 
+    if (scalc9 /= 1d0) then
+       xran = 1000d0
+       npts = 10000
+       write (uout,'("## Analysis of C9 scaling: ",I6," cases ##")') npts
+       write (uout,'("## scal   C9   Edisp")')
+       do i = 1, npts+1
+          ss = real(i-1,8) / real(npts,8) * xran - 0.5d0 * xran
+          e = scalc(1) * e6 + scalc(2) * e8 + ss * e9 + scalc(3) * e10
+          write (uout,'(F20.12,X,1p,2(E20.12,X))') ss, ss * e9, e
+       end do
+       write (uout,'("##")')
+       write (uout,*)
+    end if
+
     ! Add up the contributions and wrap up
-    e = e6 + e8 + e9 + e10
+    e = scalc(1) * e6 + scalc(2) * e8 + scalc9 * e9 + scalc(3) * e10
     if (isealloc) deallocate(lenv)
 
     ! Write the energies
-    write (uout,'("C6 contribution (Ha) ",1p,E20.12)') e6
-    write (uout,'("C8 contribution (Ha) ",1p,E20.12)') e8
-    write (uout,'("C9 contribution (Ha) ",1p,E20.12)') e9
-    write (uout,'("C10 contribution (Ha) ",1p,E20.12)') e10
+    write (uout,'("C6 contribution (Ha) ",1p,E20.12)') scalc(1) * e6
+    write (uout,'("C8 contribution (Ha) ",1p,E20.12)') scalc(2) * e8
+    write (uout,'("C9 contribution (Ha) ",1p,E20.12)') scalc9 * e9
+    write (uout,'("C10 contribution (Ha) ",1p,E20.12)') scalc(3) * e10
     write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
     write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
     write (uout,'("#"/)')
