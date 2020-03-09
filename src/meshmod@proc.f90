@@ -408,8 +408,9 @@ contains
   module subroutine fillmesh(m,ff,prop,periodic)
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
+    use tools_math, only: bhole
     use types, only: scalar_value, realloc
-    use param, only: im_volume, im_rho, im_gradrho, im_gkin
+    use param, only: im_volume, im_rho, im_gradrho, im_gkin, im_b, im_null
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
     integer, intent(in) :: prop(:)
@@ -417,7 +418,7 @@ contains
     
     type(scalar_value) :: res
     integer :: i, j, n, nder
-    real*8 :: fval
+    real*8 :: fval, rhos, laps, tau, drhos2, dsigs, quads, br_b, br_alf, br_a
     character*10 :: fder
 
     if (.not.ff%isinit) &
@@ -434,16 +435,18 @@ contains
     nder = -1
     do j = 1, n
        select case(prop(j))
-       case(im_volume)
+       case(im_volume,im_null)
           nder = -1
        case(im_rho)
           nder = max(nder,0)
        case(im_gradrho,im_gkin)
           nder = max(nder,1)
+       case(im_b)
+          nder = max(nder,2)
        end select
     end do
 
-    !$omp parallel do private(fval,res,fder)
+    !$omp parallel do private(fval,res,fder,rhos,laps,tau,drhos2,dsigs,quads,br_b,br_alf,br_a)
     do i = 1, m%n
        if (nder >= 0) then
           call ff%grd(m%x(:,i),nder,res,periodic=periodic)
@@ -457,10 +460,24 @@ contains
              fval = res%gfmod
           else if (prop(j) == im_gkin) then
              fval = res%gkin
+          else if (prop(j) == im_b) then
+             rhos = 0.5d0 * res%f
+             laps = 0.5d0 * res%del2f
+             tau = res%gkin
+             drhos2 = (0.5d0 * res%gfmod)
+             drhos2 = drhos2 * drhos2
+             dsigs = tau - 0.25d0 * drhos2 / max(rhos,1d-30)
+             quads = (laps - 2d0 * dsigs) / 6d0
+             call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
+             fval = br_b
           else if (prop(j) > 100) then
              write (fder,'(I10)') prop(j) - 100
              call ff%grd(m%x(:,i),-1,res,fder=fder,periodic=periodic)
              fval = res%fspc
+          else if (prop(j) == im_null) then
+             fval = 0d0
+          else
+             call ferror("fillmesh","unknown quantity to calculate in fillmesh",faterr)
           end if
           !$omp critical (save)
           m%f(i,j) = fval

@@ -27,7 +27,7 @@ submodule (xdm) proc
   ! subroutine write_cube(file,line1,line2,n,c)
   ! function free_volume(iz) result(afree)
   ! function frevol(z,chf)
-  ! subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc,scalc9)
+  ! subroutine calc_edisp(p)
   ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
@@ -41,6 +41,28 @@ submodule (xdm) proc
   integer, parameter :: chf_lcwpbe = -7
   integer, parameter :: chf_pw86 = -8
   integer, parameter :: chf_b971 = -9
+
+  integer, parameter :: bj3n_f3 = 1
+  integer, parameter :: bj3n_f6 = 2
+  integer, parameter :: bj3n_sf6 = 3
+
+  type xdmparams
+     integer :: nat
+     real*8, allocatable :: rvdw(:,:)
+     real*8, allocatable :: c6(:,:), c8(:,:), c10(:,:)
+     real*8, allocatable :: c9(:,:,:)
+     logical :: usec6 = .true.
+     logical :: usec8 = .true.
+     logical :: usec9 = .false.
+     logical :: usec10 = .true.
+     real*8 :: scalc6 = 1d0
+     real*8 :: scalc8 = 1d0
+     real*8 :: scalc9 = 1d0
+     real*8 :: scalc10 = 1d0
+     real*8 :: a91 = 1d0
+     real*8 :: a92 = 1d0
+     integer :: bj3n = 3
+  end type xdmparams
 
 contains
 
@@ -756,22 +778,22 @@ contains
     use param, only: bohrtoa, alpha_free
     character*(*), intent(inout) :: line0
 
+    type(xdmparams) :: p
     integer :: i, j, k
     integer :: lu, lp, idx, idx1, idx2, idum
     character(len=:), allocatable :: line, str, word, aux, file
     logical :: ok, inbetween
     real*8 :: a1, a2, mra, mrb, mrc
-    real*8, allocatable :: c6(:,:), c8(:,:), c10(:,:), rc(:,:), rvdw(:,:)
-    real*8, allocatable :: v(:), vfree(:), mm(:,:), c9(:,:,:)
+    real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
     logical, allocatable :: lfrom(:), lto(:)
-    logical :: usec(3), forcedamp, usec9
-    real*8 :: scalc(3), scalc9
+    logical :: forcedamp
     
     ! allocate space for the XDM info
-    allocate(c6(sy%c%ncel,sy%c%ncel),c8(sy%c%ncel,sy%c%ncel),c10(sy%c%ncel,sy%c%ncel))
-    allocate(rc(sy%c%ncel,sy%c%ncel),rvdw(sy%c%ncel,sy%c%ncel))
+    p%nat = sy%c%ncel
+    allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
+    allocate(rc(sy%c%ncel,sy%c%ncel),p%rvdw(sy%c%ncel,sy%c%ncel))
     allocate(v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
 
     ! parse the options
@@ -781,10 +803,6 @@ contains
     inbetween = .false.
     nfrom = 0
     nto = 0
-    usec = .true.
-    usec9 = .false.
-    scalc = 1d0
-    scalc9 = 1d0
     forcedamp = .false.
     do while(.true.)
        word = lgetword(line0,lp)
@@ -810,31 +828,31 @@ contains
        else if (equal(word,"file")) then
           file = getword(line0,lp)
        else if (equal(word,"noc10")) then
-          usec(3) = .false.
+          p%usec10 = .false.
        else if (equal(word,"noc8")) then
-          usec(2) = .false.
+          p%usec8 = .false.
        else if (equal(word,"c9")) then
-          usec9 = .true.
+          p%usec9 = .true.
        else if (equal(word,"scalc6")) then
-          ok = isreal(scalc(1),line0,lp)
+          ok = isreal(p%scalc6,line0,lp)
           if (.not.ok) then
              call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc8")) then
-          ok = isreal(scalc(2),line0,lp)
+          ok = isreal(p%scalc8,line0,lp)
           if (.not.ok) then
              call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc10")) then
-          ok = isreal(scalc(3),line0,lp)
+          ok = isreal(p%scalc10,line0,lp)
           if (.not.ok) then
              call ferror("xdm_qe","wrong scalc10",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc9")) then
-          ok = isreal(scalc9,line0,lp)
+          ok = isreal(p%scalc9,line0,lp)
           if (.not.ok) then
              call ferror("xdm_qe","wrong scalc9",faterr,line0,syntax=.true.)
              return
@@ -844,7 +862,26 @@ contains
           ok = ok .and. isreal(a2,line0,lp)
           forcedamp = .true.
           if (.not.ok) then
-             call ferror("xdm_qe","wrong forcedamp",faterr,line0,syntax=.true.)
+             call ferror("xdm_qe","wrong damp",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"damp3")) then
+          ok = isreal(p%a91,line0,lp)
+          ok = ok .and. isreal(p%a92,line0,lp)
+          if (.not.ok) then
+             call ferror("xdm_qe","wrong damp3",faterr,line0,syntax=.true.)
+             return
+          end if
+       else if (equal(word,"damp3bjn")) then
+          word = lgetword(line0,lp)
+          if (equal(word,"3")) then
+             p%bj3n = bj3n_f3
+          elseif (equal(word,"6")) then
+             p%bj3n = bj3n_f6
+          elseif (equal(word,"sqrt6")) then
+             p%bj3n = bj3n_sf6
+          else
+             call ferror("xdm_qe","wrong damp3bjn",faterr,line0,syntax=.true.)
              return
           end if
        elseif (len_trim(word) > 0) then
@@ -923,23 +960,23 @@ contains
           do i = 1, sy%c%ncel
              do j = 1, i
                 ok = getline(lu,line)
-                read(line,*) idx1, idx2, c6(i,j), c8(i,j), c10(i,j), rc(i,j), rvdw(i,j)
+                read(line,*) idx1, idx2, p%c6(i,j), p%c8(i,j), p%c10(i,j), rc(i,j), p%rvdw(i,j)
                 if (idx1 /= i .or. idx2 /= j) then
                    call ferror("trick","read indices do not match",faterr)
                 end if
                 if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
-                   c6(i,j) = 0d0
-                   c8(i,j) = 0d0
-                   c10(i,j) = 0d0
+                   p%c6(i,j) = 0d0
+                   p%c8(i,j) = 0d0
+                   p%c10(i,j) = 0d0
                 end if
-                c6(j,i) = c6(i,j)
-                c8(j,i) = c8(i,j)
-                c10(j,i) = c10(i,j)
+                p%c6(j,i) = p%c6(i,j)
+                p%c8(j,i) = p%c8(i,j)
+                p%c10(j,i) = p%c10(i,j)
                 rc(j,i) = rc(i,j)
                 if (forcedamp) then
-                   rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
+                   p%rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
                 end if
-                rvdw(j,i) = rvdw(i,j)
+                p%rvdw(j,i) = p%rvdw(i,j)
              end do
           end do
        end if
@@ -948,31 +985,27 @@ contains
     deallocate(lto,lfrom)
     
     ! calculate the c9 coefficients
-    if (usec9) then
-       allocate(c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
+    if (p%usec9) then
+       allocate(p%c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
        do i = 1, sy%c%ncel
           do j = i, sy%c%ncel
              do k = j, sy%c%ncel
                 mra = mm(1,i) / (v(i) / vfree(i) * alpha_free(sy%c%spc(sy%c%atcel(i)%is)%z))
                 mrb = mm(1,j) / (v(j) / vfree(j) * alpha_free(sy%c%spc(sy%c%atcel(j)%is)%z))
                 mrc = mm(1,k) / (v(k) / vfree(k) * alpha_free(sy%c%spc(sy%c%atcel(k)%is)%z))
-                c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
-                c9(j,k,i) = c9(i,j,k)
-                c9(k,i,j) = c9(i,j,k)
-                c9(i,k,j) = c9(i,j,k)
-                c9(j,i,k) = c9(i,j,k)
-                c9(k,j,i) = c9(i,j,k)
+                p%c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
+                p%c9(j,k,i) = p%c9(i,j,k)
+                p%c9(k,i,j) = p%c9(i,j,k)
+                p%c9(i,k,j) = p%c9(i,j,k)
+                p%c9(j,i,k) = p%c9(i,j,k)
+                p%c9(k,j,i) = p%c9(i,j,k)
              end do
           end do
        end do
     end if
 
     ! calculate and print out the energy
-    if (usec9) then
-       call calc_edisp(c6,c8,c10,rvdw,c9,usec,scalc,scalc9)
-    else
-       call calc_edisp(c6,c8,c10,rvdw,usec_=usec,scalc_=scalc)
-    end if
+    call calc_edisp(p)
 
   end subroutine xdm_qe
 
@@ -1112,19 +1145,18 @@ contains
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
 
+    type(xdmparams) :: p
     type(mesh) :: m
     integer :: nelec
     integer :: prop(7), i, j, lu, luh, iz
     real*8 :: rho, rhop, rhopp, x(3), r, a1, a2, nn, rb
     real*8 :: dum1(3), dum2(3,3)
-    real*8, allocatable :: mm(:,:), v(:), rvdw(:,:)
-    real*8, allocatable :: c6(:,:), c8(:,:), c9(:,:,:), c10(:,:)
+    real*8, allocatable :: mm(:,:), v(:)
 
     ! allocate space for the calculations
     allocate(mm(3,sy%c%ncel),v(sy%c%ncel))
-    allocate(c6(sy%c%ncel,sy%c%ncel),c8(sy%c%ncel,sy%c%ncel),c10(sy%c%ncel,sy%c%ncel))
-    allocate(c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
-    allocate(rvdw(sy%c%ncel,sy%c%ncel))
+    allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
+    allocate(p%rvdw(sy%c%ncel,sy%c%ncel))
     
     ! only for wfn or dftb
     if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb) &
@@ -1251,10 +1283,10 @@ contains
     call fclose(luh)
 
     ! calculate and print out coefficients
-    call calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
+    call calc_coefs(a1,a2,chf,v,mm,p%c6,p%c8,p%c10,p%rvdw)
 
     ! calculate and output energy and derivatives
-    call calc_edisp(c6,c8,c10,rvdw)
+    call calc_edisp(p)
 
   end subroutine xdm_wfn
 
@@ -1563,20 +1595,14 @@ contains
   !> Calculate and print the dispersion energy and its derivatives
   !> using the dispersion coefficients and the van der Waals
   !> radii. Works for molecules and crystals.
-  subroutine calc_edisp(c6,c8,c10,rvdw,c9,usec_,scalc_,scalc9_)
+  subroutine calc_edisp(p)
     use systemmod, only: sy
     use crystalmod, only: crystal
     use environmod, only: environ
-    use tools_math, only: fdamp_tt
+    use tools_math, only: fdamp_bj
     use tools_io, only: uout, ferror, faterr
     use param, only: icrd_cart, atmvdw
-    real*8, intent(in) :: c6(sy%c%ncel,sy%c%ncel), c8(sy%c%ncel,sy%c%ncel)
-    real*8, intent(in) :: c10(sy%c%ncel,sy%c%ncel)
-    real*8, intent(in) :: rvdw(sy%c%ncel,sy%c%ncel)
-    real*8, intent(in), optional :: c9(sy%c%ncel,sy%c%ncel,sy%c%ncel)
-    logical, intent(in), optional :: usec_(3)
-    real*8, intent(in), optional :: scalc_(3)
-    real*8, intent(in), optional :: scalc9_
+    type(xdmparams), intent(in) :: p
 
     integer :: i, j, jj, iz, nat, ierr, lvec(3)
     integer :: kk, k, izi, izj, izk, npts
@@ -1587,23 +1613,16 @@ contains
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
-    logical :: isealloc, usec(3)
-    real*8 :: scalc(3), scalc9, e6, e8, e9, e10, rmax, rmax9
+    logical :: isealloc
+    real*8 :: e6, e8, e9, e10, rmax, rmax9
 
     real*8, parameter :: e6thr = 1d-11
     real*8, parameter :: e9thr = 1d-12
 
-    usec = .true.
-    scalc = 1d0
-    scalc9 = 1d0
-    if (present(usec_)) usec = usec_
-    if (present(scalc_)) scalc = scalc_
-    if (present(scalc9_)) scalc9 = scalc9_
-
     ! calculate cutoffs
-    rmax = (maxval(c6)/e6thr)**(1d0/6d0)
-    if (present(c9)) &
-       rmax9 = (maxval(c9)/e9thr)**(1d0/9d0)
+    rmax = (maxval(p%c6)/e6thr)**(1d0/6d0)
+    if (p%usec9) &
+       rmax9 = (maxval(p%c9)/e9thr)**(1d0/9d0)
 
     ! build the environment
     if (rmax >= sy%c%env%dmax0) then
@@ -1639,15 +1658,15 @@ contains
           elseif (i == j) then
              div = 2d0
           end if
-          if (usec(1)) e6 = e6 - c6(i,j) / (rvdw(i,j)**6 + d**6) / div
-          if (usec(2)) e8 = e8 - c8(i,j) / (rvdw(i,j)**8 + d**8) / div
-          if (usec(3)) e10 = e10 - c10(i,j) / (rvdw(i,j)**10 + d**10) / div
+          if (p%usec6) e6 = e6 - p%c6(i,j) / (p%rvdw(i,j)**6 + d**6) / div
+          if (p%usec8) e8 = e8 - p%c8(i,j) / (p%rvdw(i,j)**8 + d**8) / div
+          if (p%usec10) e10 = e10 - p%c10(i,j) / (p%rvdw(i,j)**10 + d**10) / div
        end do
     end do
     
     ! calculate the energies and derivatives
     e9 = 0d0
-    if (present(c9)) then
+    if (p%usec9) then
        do i = 1, lenv%ncell
           izi = lenv%spc(lenv%at(i)%is)%z
           if (izi < 1) cycle
@@ -1703,40 +1722,52 @@ contains
                 cj = min(max(dot_product(-xij,xjk) / dij / djk,-1d0),1d0)
                 ck = min(max(dot_product(-xik,-xjk) / dik / djk,-1d0),1d0)
                 
-                bij = -0.31d0 * (atmvdw(izi) + atmvdw(izj)) + 3.43d0
-                bik = -0.31d0 * (atmvdw(izi) + atmvdw(izk)) + 3.43d0
-                bjk = -0.31d0 * (atmvdw(izj) + atmvdw(izk)) + 3.43d0
-                f9 = fdamp_tt(dij,bij,6) * fdamp_tt(dik,bik,6) * fdamp_tt(djk,bjk,6)
+                bij = p%a91 * ((sqrt(p%c8(i,j)/p%c6(i,j)) + sqrt(p%c10(i,j)/p%c8(i,j)) + &
+                   (p%c10(i,j)/p%c6(i,j))**(0.25d0)) / 3d0) + p%a92
+                bik = p%a91 * ((sqrt(p%c8(i,k)/p%c6(i,k)) + sqrt(p%c10(i,k)/p%c8(i,k)) + &
+                   (p%c10(i,k)/p%c6(i,k))**(0.25d0)) / 3d0) + p%a92
+                bjk = p%a91 * ((sqrt(p%c8(j,k)/p%c6(j,k)) + sqrt(p%c10(j,k)/p%c8(j,k)) + &
+                   (p%c10(j,k)/p%c6(j,k))**(0.25d0)) / 3d0) + p%a92
 
-                e9 = e9 + c9(i,j,k) * f9 * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
+                if (p%bj3n == bj3n_f3) then
+                   f9 = fdamp_bj(dij,bij,3) * fdamp_bj(dik,bik,3) * fdamp_bj(djk,bjk,3)
+                elseif (p%bj3n == bj3n_f6) then
+                   f9 = fdamp_bj(dij,bij,6) * fdamp_bj(dik,bik,6) * fdamp_bj(djk,bjk,6)
+                elseif (p%bj3n == bj3n_sf6) then
+                   f9 = sqrt(fdamp_bj(dij,bij,6) * fdamp_bj(dik,bik,6) * fdamp_bj(djk,bjk,6))
+                else
+                   call ferror("calc_edisp","wrong damping type for the ATM term",faterr)
+                end if
+
+                e9 = e9 + p%c9(i,j,k) * f9 * (3 * ci * cj * ck + 1) / dij**3 / dik**3 / djk**3 / div
              end do
           end do
        end do
     end if
 
-    if (scalc9 /= 1d0) then
-       xran = 1000d0
-       npts = 10000
-       write (uout,'("## Analysis of C9 scaling: ",I6," cases ##")') npts
-       write (uout,'("## scal   C9   Edisp")')
-       do i = 1, npts+1
-          ss = real(i-1,8) / real(npts,8) * xran - 0.5d0 * xran
-          e = scalc(1) * e6 + scalc(2) * e8 + ss * e9 + scalc(3) * e10
-          write (uout,'(F20.12,X,1p,2(E20.12,X))') ss, ss * e9, e
-       end do
-       write (uout,'("##")')
-       write (uout,*)
-    end if
+    ! if (p%usec9 .and. p%scalc9 /= 1d0) then
+    !    xran = 1000d0
+    !    npts = 10000
+    !    write (uout,'("## Analysis of C9 scaling: ",I6," cases ##")') npts
+    !    write (uout,'("## scal   C9   Edisp")')
+    !    do i = 1, npts+1
+    !       ss = real(i-1,8) / real(npts,8) * xran - 0.5d0 * xran
+    !       e = scalc(1) * e6 + scalc(2) * e8 + ss * e9 + scalc(3) * e10
+    !       write (uout,'(F20.12,X,1p,2(E20.12,X))') ss, ss * e9, e
+    !    end do
+    !    write (uout,'("##")')
+    !    write (uout,*)
+    ! end if
 
     ! Add up the contributions and wrap up
-    e = scalc(1) * e6 + scalc(2) * e8 + scalc9 * e9 + scalc(3) * e10
+    e = p%scalc6 * e6 + p%scalc8 * e8 + p%scalc9 * e9 + p%scalc10 * e10
     if (isealloc) deallocate(lenv)
 
     ! Write the energies
-    write (uout,'("C6 contribution (Ha) ",1p,E20.12)') scalc(1) * e6
-    write (uout,'("C8 contribution (Ha) ",1p,E20.12)') scalc(2) * e8
-    write (uout,'("C9 contribution (Ha) ",1p,E20.12)') scalc9 * e9
-    write (uout,'("C10 contribution (Ha) ",1p,E20.12)') scalc(3) * e10
+    write (uout,'("C6 contribution (Ha) ",1p,E20.12)') p%scalc6 * e6
+    write (uout,'("C8 contribution (Ha) ",1p,E20.12)') p%scalc8 * e8
+    write (uout,'("C9 contribution (Ha) ",1p,E20.12)') p%scalc9 * e9
+    write (uout,'("C10 contribution (Ha) ",1p,E20.12)') p%scalc10 * e10
     write (uout,'("dispersion energy (Ha) ",1p,E20.12)') e
     write (uout,'("dispersion energy (Ry) ",1p,E20.12)') 2d0*e
     write (uout,'("#"/)')
@@ -1884,8 +1915,8 @@ contains
     enddo
 
     ! coefficients and distances
-    write (uout,'("coefficients and distances (a.u.)")')
-    write (uout,'("# i  j       dij            C6               C8               C10              Rc           Rvdw")') 
+    write (uout,'("coefficients (a.u.)")')
+    write (uout,'("# i  j       C6               C8               C10              Rc           Rvdw")') 
     do i = 1, sy%c%ncel
        iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
@@ -1904,7 +1935,7 @@ contains
           c8(j,i) = c8(i,j)
           c10(j,i) = c10(i,j)
           rvdw(j,i) = rvdw(i,j)
-          write (uout,'(I3,X,I3,1p,3(E16.9,X),2(E13.6,X))') &
+          write (uout,'(I3,X,I3,1p,4(E16.9,X),2(E13.6,X))') &
              i, j, c6(i,j), c8(i,j), c10(i,j), rc, rvdw(i,j)
        end do
     end do
