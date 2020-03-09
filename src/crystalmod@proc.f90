@@ -3026,7 +3026,7 @@ contains
 
     logical :: ok, iszero
     integer :: i1, i2, i, j, k
-    character*255 :: strout(c%neqv*c%ncv)
+    character(len=mlen) :: strout(c%neqv*c%ncv)
     real*8 :: xtrans
 
     i = 0
@@ -3038,10 +3038,11 @@ contains
     end do
 
     i = 0
-    do i1 = 1, c%ncv
+    main: do i1 = 1, c%ncv
        do i2 = 1, c%neqv
           i = i + 1
           strout(i) = ""
+
           do j = 1, 3
              ! translation
              ok = .false.
@@ -3055,7 +3056,7 @@ contains
                    exit
                 end if
              end do
-             if (.not.ok) return
+             if (.not.ok) exit main
 
              ! rotation
              do k = 1, 3
@@ -3070,7 +3071,7 @@ contains
                    strout(i) = trim(strout(i)) // "-" // xyz(k)
                    iszero = .false.
                 elseif (abs(c%rotm(j,k,i2)) > symprec) then
-                   return
+                   exit main
                 end if
              end do
 
@@ -3079,7 +3080,7 @@ contains
                 strout(i) = trim(strout(i)) // ","
           end do
        end do
-    end do
+    end do main
 
     if (present(strfin)) then
        strfin = strout
@@ -4712,10 +4713,19 @@ contains
     write (lu,'("_cell_angle_gamma ",F14.4)') c%bb(3)
     write (lu,'("_cell_volume ",F20.6)') c%omega * bohrtoa**3
 
-    ! write the symmetry, if applicable
     if (usesym) then
        allocate(strfin(c%neqv*c%ncv))
        call c%struct_report_symxyz(strfin)
+       do i = 1, c%neqv*c%ncv
+          if (index(strfin(i),"not found") > 0) then
+             usesym = .false.
+             exit
+          end if
+       end do
+    end if
+
+    ! write the symmetry, if applicable
+    if (usesym) then
        call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
        write (lu,'("_space_group_crystal_system ",A)') string(holo_string(holo))
        write (lu,'("_space_group_IT_number ",A)') string(c%spg%spacegroup_number)
@@ -4727,7 +4737,6 @@ contains
        do i = 1, c%neqv*c%ncv
           write (lu,'("  ''",A,"''")') string(strfin(i))
        end do
-       deallocate(strfin)
     else
        write (lu,'("_space_group_crystal_system triclinic")')
        write (lu,'("_space_group_IT_number 1")')
@@ -4738,6 +4747,7 @@ contains
        write (lu,'("_space_group_symop_operation_xyz")')
        write (lu,'("  ''x,y,z''")')
     end if
+    if (allocated(strfin)) deallocate(strfin)
 
     write (lu,'("loop_")')
     write (lu,'("_atom_site_label")')
