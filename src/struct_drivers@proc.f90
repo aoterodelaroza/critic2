@@ -1358,7 +1358,8 @@ contains
     character(len=:), allocatable :: word
     real*8 :: x0(3), x0in(3)
     logical :: doatoms, ok, groupshell
-    integer :: i, j, k, l
+    logical, allocatable :: isdone(:)
+    integer :: ii, i, j, k, l, idx
     type(environ), target :: eaux
     type(environ), pointer :: eptr
 
@@ -1366,6 +1367,7 @@ contains
     integer, parameter :: inone = 0
     integer, parameter :: iznuc = 1
     integer, parameter :: iid = 2
+    integer, parameter :: iidcel = 3
 
     up2d = 5d0 / bohrtoa
 
@@ -1409,11 +1411,17 @@ contains
              lp = lp2
              ok = isinteger(iat,line,lp)
              if (.not.ok) &
-                call ferror('struct_environ','Syntax error in ENVIRON/AT',faterr,line,syntax=.true.)
+                call ferror('struct_environ','Syntax error in ENVIRON/ATOM',faterr,line,syntax=.true.)
              iat_mode = iid
           else
              iat_mode = iznuc
           end if
+       elseif (equal(word,"celatom")) then
+          ok = isinteger(iat,line,lp)
+          if (.not.ok) &
+             call ferror('struct_environ','Syntax error in ENVIRON/CELATOM',faterr,line,syntax=.true.)
+          iat_mode = iidcel
+          doatoms = .true.
        elseif (equal(word,"by")) then
           lp2 = lp
           word = lgetword(line,lp)
@@ -1440,28 +1448,36 @@ contains
     write (uout,'("* ENVIRON")')
     eptr => s%c%env
     if (doatoms) then
-       do i = 1, s%c%nneq
-          if (iat_mode == iid .and. i /= iat) cycle
-          if (iat_mode == iznuc .and. s%c%spc(s%c%at(i)%is)%z /= iat) cycle
+       allocate(isdone(s%c%nneq))
+       isdone = .false.
+       do i = 1, s%c%ncel
+          idx = s%c%atcel(i)%idx
+          if (iat_mode == iid .and. idx /= iat .or. isdone(idx)) cycle
+          if (iat_mode == iznuc .and. s%c%spc(s%c%at(idx)%is)%z /= iat .or. isdone(idx)) cycle
+          if (iat_mode == iidcel .and. i /= iat) cycle
+          isdone(idx) = .true.
 
           if (iby_mode == iid) then
-             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
           elseif (iby_mode == iznuc) then
-             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
           else
-             call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                lvec,ierr,ishell,up2d=up2d,nozero=.true.)
           end if
           if (ierr > 0 .and..not.s%c%ismolecule) then
              call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
              call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                    lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                    lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
              else
-                call eaux%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,&
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                    lvec,ierr,ishell,up2d=up2d,nozero=.true.)
              end if
              if (ierr > 0) &
@@ -1469,15 +1485,18 @@ contains
              eptr => eaux
           end if
 
-          write (uout,'("+ Environment of atom ",A," (",A,") at ",3(A,X))') string(i), string(s%c%spc(s%c%at(i)%is)%name), &
-             (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3)
+          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A,X))') &
+             string(i), string(s%c%spc(s%c%at(idx)%is)%name), string(idx), &
+             (string(s%c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
 
           if (groupshell) then
              call output_by_shell()
           else
              call output_by_distance()
           end if
+          if (iat_mode == iid) exit
        end do
+       deallocate(isdone)
     else
        if (iby_mode == iid) then
           call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
