@@ -2067,15 +2067,15 @@ contains
        lfcpopt, lfcpdyn, input_xml_schema_file, gate
 
     ! namelist system
-    integer :: ibrav = 14
-    real*8 :: celldm(6) = 0.d0
+    integer :: ibrav
+    real*8 :: celldm(6)
     real*8 :: a, b, c, cosab, cosac, cosbc
-    integer :: nat = 0
-    integer :: ntyp = 0
-    integer :: origin_choice = 1 
-    integer :: space_group = 0
-    logical :: rhombohedral = .TRUE.
-    logical :: uniqueb=.FALSE.
+    integer :: nat
+    integer :: ntyp
+    integer :: origin_choice
+    integer :: space_group
+    logical :: rhombohedral
+    logical :: uniqueb
     real*8 :: tot_charge, tot_magnetization, ecutwfc, ecutrho, degauss, &
        ecfixed, qcutz, q2sigma, starting_magnetization(nsx), &
        starting_ns_eigenvalue(lqmax,nspinx,nsx), hubbard_u(nsx), &
@@ -2192,7 +2192,7 @@ contains
        cell_temperature, cell_dofree
     real(dp) :: press, wmass, temph, fnoseh, greash, cell_factor, cell_damping,&
        press_conv_thr
-    integer :: cell_nstepe = 1
+    integer :: cell_nstepe
     namelist /cell/ cell_parameters, cell_dynamics, cell_velocities, &
        press, wmass, cell_temperature, temph, fnoseh,   &
        cell_dofree, greash, cell_factor, cell_nstepe,   &
@@ -2208,6 +2208,17 @@ contains
     integer, parameter :: ibohr = 2
     integer, parameter :: iang = 3
     integer, parameter :: ialat = 4
+
+    ! initialize
+    celldm = 0d0
+    ibrav = 14
+    nat = 0
+    ntyp = 0
+    origin_choice = 1
+    space_group = 0
+    rhombohedral = .false.
+    uniqueb = .false.
+    cell_nstepe = 1
 
     ! open
     errmsg = ""
@@ -4840,7 +4851,7 @@ contains
   !> From QE, generate the lattice from the ibrav
   subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
     ! This subroutine has been adapted from parts of the Quantum
-    ! ESPRESSO code, version 4.3.2.  
+    ! ESPRESSO code, version 6.5. (Modules/latgen.f90)
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
     ! This file is distributed under the terms of the
     ! GNU General Public License. See the file `License'
@@ -4851,15 +4862,22 @@ contains
     !
     !     ibrav is the structure index:
     !       1  cubic P (sc)                8  orthorhombic P
-    !       2  cubic F (fcc)               9  one face centered orthorhombic
+    !       2  cubic F (fcc)               9  1-face (C) centered orthorhombic
     !       3  cubic I (bcc)              10  all face centered orthorhombic
     !       4  hexagonal and trigonal P   11  body centered orthorhombic
     !       5  trigonal R, 3-fold axis c  12  monoclinic P (unique axis: c)
-    !       6  tetragonal P (st)          13  one face centered monoclinic
+    !       6  tetragonal P (st)          13  one face (base) centered monoclinic
     !       7  tetragonal I (bct)         14  triclinic P
     !     Also accepted:
     !       0  "free" structure          -12  monoclinic P (unique axis: b)
-    !      -5  trigonal R, threefold axis along (111) 
+    !      -3  cubic bcc with a more symmetric choice of axis
+    !      -5  trigonal R, threefold axis along (111)
+    !      -9  alternate description for base centered orthorhombic
+    !     -13  one face (base) centered monoclinic (unique axis: b)
+    !      91  1-face (A) centered orthorombic
+    !
+    !     celldm are parameters which fix the shape of the unit cell
+    !     omega is the unit-cell volume
     !
     !     NOTA BENE: all axis sets are right-handed
     !     Boxes for US PPs do not work properly with left-handed axis
@@ -4871,46 +4889,39 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     real(DP), parameter:: sr2 = 1.414213562373d0, sr3 = 1.732050807569d0
-    integer :: ir
-    real(DP) :: term, cbya, term1, term2, singam, sen
+    INTEGER :: i,j,k,l,iperm,ir
+    real(DP) :: term, cbya, s, term1, term2, singam, sen
 
-    errmsg = ""
-    if (celldm(1) <= 0.d0) then
-       errmsg = 'Wrong celldm(1).'
-    elseif (celldm(2) <= 0.d0 .and. (ibrav == 8 .or. ibrav == 9 .or.&
-       ibrav == 10 .or. ibrav == 11 .or. ibrav == 12 .or.&
-       ibrav == -12 .or. ibrav == 13 .or. ibrav == 14)) then
-       errmsg = 'Wrong celldm(2).'
-    elseif (celldm(3) <= 0.d0 .and. (ibrav == 4 .or. ibrav == 6 .or.&
-       ibrav == 7 .or. ibrav == 8 .or. ibrav == 9 .or. ibrav == 10 .or.&
-       ibrav == 11 .or. ibrav == 12 .or. ibrav == -12 .or.&
-       ibrav == 13 .or. ibrav == 14)) then
-       errmsg = 'Wrong celldm(3).'
-    else if ((celldm(4) <= -0.5d0 .or. celldm(4) >= 1) .and.&
-       (ibrav == 5 .or. ibrav == -5)) then
-       errmsg = 'Wrong celldm(4).'
-    else if (celldm(4) >= 1.d0 .and. (ibrav == 12 .or. ibrav == 13 .or.&
-       ibrav == 14)) then
-       errmsg = 'Wrong celldm(4).'
-    else if (celldm(5) >= 1.d0 .and. (ibrav == -12 .or. ibrav == 14)) then
-       errmsg = 'Wrong celldm(5).'
-    else if (celldm(6) >= 1.d0 .and. (ibrav == 14)) then
-       errmsg = 'Wrong celldm(6).'
-    end if
+    IF (celldm(1) <= 0.d0) then
+       errmsg = 'wrong celldm(1)'
+    elseif (celldm(2) <= 0.d0 .and. ibrav == 8) then
+       errmsg = 'wrong celldm(2)'
+    elseif (celldm(2) <= 0.d0 .and.&
+       (abs(ibrav)==9.or.ibrav==91.or.ibrav==10.or.ibrav==11.or.abs(ibrav)==12.or.abs(ibrav)==13.or.ibrav==14)) then
+       errmsg = 'wrong celldm(2)'
+    elseif (celldm(3) <= 0.d0 .and.&
+       (ibrav==4.or.ibrav==6.or.ibrav==7.or.ibrav==8.or.abs(ibrav)==9.or.ibrav==91.or.ibrav==10.or.ibrav==11.or.&
+       abs(ibrav)==12.or.abs(ibrav)==13.or.ibrav==14)) then
+       errmsg = 'wrong celldm(3)'
+    elseif ((celldm(4) <= -0.5_dp .or. celldm(4) >= 1.0_dp) .and. abs(ibrav) == 5) then
+       errmsg = 'wrong celldm(4)'
+    elseif (abs(celldm(4)) >= 1.d0 .and. (ibrav==12.or.ibrav==13.or.ibrav==14))then
+       errmsg = 'wrong celldm(4)'
+    elseif (abs(celldm(5)) >= 1.d0 .and. (ibrav==-12.or.ibrav==-13.or.ibrav==14))then
+       errmsg = 'wrong celldm(5)'
+    elseif (abs(celldm(6)) >= 1.d0 .and. ibrav==14) then
+       errmsg = 'wrong celldm(6)'
+    end IF
     if (len_trim(errmsg) > 0) return
 
-    a1 = 0d0
-    a2 = 0d0
-    a3 = 0d0
-    ! index of bravais lattice supplied
-    if (ibrav == 1) then
-       ! simple cubic lattice
+    !  index of bravais lattice supplied
+    IF (ibrav == 1) THEN
+       !     simple cubic lattice
        a1(1)=celldm(1)
        a2(2)=celldm(1)
        a3(3)=celldm(1)
-       !
-    else if (ibrav == 2) then
-       ! fcc lattice
+    ELSEIF (ibrav == 2) THEN
+       !     fcc lattice
        term=celldm(1)/2.d0
        a1(1)=-term
        a1(3)=term
@@ -4918,62 +4929,74 @@ contains
        a2(3)=term
        a3(1)=-term
        a3(2)=term
-       !
-    else if (ibrav == 3) then
-       ! bcc lattice
+    ELSEIF (abs(ibrav) == 3) THEN
+       !     bcc lattice
        term=celldm(1)/2.d0
-       do ir=1,3
+       DO ir=1,3
           a1(ir)=term
           a2(ir)=term
           a3(ir)=term
-       end do
-       a2(1)=-term
-       a3(1)=-term
-       a3(2)=-term
-       !
-    else if (ibrav == 4) then
-       ! hexagonal lattice
+       ENDDO
+       IF ( ibrav < 0 ) THEN
+          a1(1)=-a1(1)
+          a2(2)=-a2(2)
+          a3(3)=-a3(3)
+       ELSE
+          a2(1)=-a2(1)
+          a3(1)=-a3(1)
+          a3(2)=-a3(2)
+       ENDIF
+    ELSEIF (ibrav == 4) THEN
+       !     hexagonal lattice
        cbya=celldm(3)
        a1(1)=celldm(1)
        a2(1)=-celldm(1)/2.d0
        a2(2)=celldm(1)*sr3/2.d0
        a3(3)=celldm(1)*cbya
-       !
-    else if (ibrav == 5) then
-       ! trigonal lattice, threefold axis along c (001)
-       term1=sqrt(1.d0+2.d0*celldm(4))
-       term2=sqrt(1.d0-celldm(4))
-       a2(2)=sr2*celldm(1)*term2/sr3
-       a2(3)=celldm(1)*term1/sr3
-       a1(1)=celldm(1)*term2/sr2
-       a1(2)=-a1(1)/sr3
-       a1(3)= a2(3)
-       a3(1)=-a1(1)
-       a3(2)= a1(2)
-       a3(3)= a2(3)
-       !
-    else if (ibrav ==-5) then
-       ! trigonal lattice, threefold axis along (111)
-       term1 = sqrt(1.0_dp + 2.0_dp*celldm(4))
-       term2 = sqrt(1.0_dp - celldm(4))
-       a1(1) = celldm(1)*(term1-2.0_dp*term2)/3.0_dp
-       a1(2) = celldm(1)*(term1+term2)/3.0_dp
-       a1(3) = a1(2)
-       a2(1) = a1(3)
-       a2(2) = a1(1)
-       a2(3) = a1(2)
-       a3(1) = a1(2)
-       a3(2) = a1(3)
-       a3(3) = a1(1)
-    else if (ibrav == 6) then
-       ! tetragonal lattice
+    ELSEIF (abs(ibrav) == 5) THEN
+       !     trigonal lattice
+       term1=sqrt(1.0_dp + 2.0_dp*celldm(4))
+       term2=sqrt(1.0_dp - celldm(4))
+
+       IF ( ibrav == 5) THEN
+          !     threefold axis along c (001)
+          a2(2)=sr2*celldm(1)*term2/sr3
+          a2(3)=celldm(1)*term1/sr3
+          a1(1)=celldm(1)*term2/sr2
+          a1(2)=-a1(1)/sr3
+          a1(3)= a2(3)
+          a3(1)=-a1(1)
+          a3(2)= a1(2)
+          a3(3)= a2(3)
+       ELSEIF ( ibrav == -5) THEN
+          !     threefold axis along (111)
+          ! Notice that in the cubic limit (alpha=90, celldm(4)=0, term1=term2=1)
+          ! does not yield the x,y,z axis, but an equivalent rotated triplet:
+          !    a/3 (-1,2,2), a/3 (2,-1,2), a/3 (2,2,-1)
+          ! If you prefer the x,y,z axis as cubic limit, you should modify the
+          ! definitions of a1(1) and a1(2) as follows:'
+          !    a1(1) = celldm(1)*(term1+2.0_dp*term2)/3.0_dp
+          !    a1(2) = celldm(1)*(term1-term2)/3.0_dp
+          ! (info by G. Pizzi and A. Cepellotti)
+          !
+          a1(1) = celldm(1)*(term1-2.0_dp*term2)/3.0_dp
+          a1(2) = celldm(1)*(term1+term2)/3.0_dp
+          a1(3) = a1(2)
+          a2(1) = a1(3)
+          a2(2) = a1(1)
+          a2(3) = a1(2)
+          a3(1) = a1(2)
+          a3(2) = a1(3)
+          a3(3) = a1(1)
+       ENDIF
+    ELSEIF (ibrav == 6) THEN
+       !     tetragonal lattice
        cbya=celldm(3)
        a1(1)=celldm(1)
        a2(2)=celldm(1)
        a3(3)=celldm(1)*cbya
-       !
-    else if (ibrav == 7) then
-       ! body centered tetragonal lattice
+    ELSEIF (ibrav == 7) THEN
+       !     body centered tetragonal lattice
        cbya=celldm(3)
        a2(1)=celldm(1)/2.d0
        a2(2)=a2(1)
@@ -4984,32 +5007,46 @@ contains
        a3(1)=-a2(1)
        a3(2)=-a2(1)
        a3(3)= a2(3)
-       !
-    else if (ibrav == 8) then
-       ! Simple orthorhombic lattice
+    ELSEIF (ibrav == 8) THEN
+       !     Simple orthorhombic lattice
        a1(1)=celldm(1)
        a2(2)=celldm(1)*celldm(2)
        a3(3)=celldm(1)*celldm(3)
-       !
-    else if (ibrav == 9) then
-       ! One face centered orthorhombic lattice
-       a1(1) = 0.5d0 * celldm(1)
-       a1(2) = a1(1) * celldm(2)
-       a2(1) = - a1(1)
-       a2(2) = a1(2)
+    ELSEIF ( abs(ibrav) == 9) THEN
+       !     One face (base) centered orthorhombic lattice  (C type)
+       IF ( ibrav == 9 ) THEN
+          !   old PWscf description
+          a1(1) = 0.5d0 * celldm(1)
+          a1(2) = a1(1) * celldm(2)
+          a2(1) = - a1(1)
+          a2(2) = a1(2)
+       ELSE
+          !   alternate description
+          a1(1) = 0.5d0 * celldm(1)
+          a1(2) =-a1(1) * celldm(2)
+          a2(1) = a1(1)
+          a2(2) =-a1(2)
+       ENDIF
        a3(3) = celldm(1) * celldm(3)
        !
-    else if (ibrav == 10) then
-       ! All face centered orthorhombic lattice
+    ELSEIF ( ibrav == 91 ) THEN
+       !     One face (base) centered orthorhombic lattice  (A type)
+       a1(1) = celldm(1)
+       a2(2) = celldm(1) * celldm(2) * 0.5_DP
+       a2(3) = - celldm(1) * celldm(3) * 0.5_DP
+       a3(2) = a2(2)
+       a3(3) = - a2(3)
+       !
+    ELSEIF (ibrav == 10) THEN
+       !     All face centered orthorhombic lattice
        a2(1) = 0.5d0 * celldm(1)
        a2(2) = a2(1) * celldm(2)
        a1(1) = a2(1)
        a1(3) = a2(1) * celldm(3)
        a3(2) = a2(1) * celldm(2)
        a3(3) = a1(3)
-       !
-    else if (ibrav == 11) then
-       ! Body centered orthorhombic lattice
+    ELSEIF (ibrav == 11) THEN
+       !     Body centered orthorhombic lattice
        a1(1) = 0.5d0 * celldm(1)
        a1(2) = a1(1) * celldm(2)
        a1(3) = a1(1) * celldm(3)
@@ -5019,41 +5056,49 @@ contains
        a3(1) = - a1(1)
        a3(2) = - a1(2)
        a3(3) = a1(3)
-       !
-    else if (ibrav == 12) then
-       ! Simple monoclinic lattice, unique (i.e. orthogonal to a) axis: c
+    ELSEIF (ibrav == 12) THEN
+       !     Simple monoclinic lattice, unique (i.e. orthogonal to a) axis: c
        sen=sqrt(1.d0-celldm(4)**2)
        a1(1)=celldm(1)
        a2(1)=celldm(1)*celldm(2)*celldm(4)
        a2(2)=celldm(1)*celldm(2)*sen
        a3(3)=celldm(1)*celldm(3)
-       !
-    else if (ibrav ==-12) then
-       ! Simple monoclinic lattice, unique axis: b (more common)
+    ELSEIF (ibrav ==-12) THEN
+       !     Simple monoclinic lattice, unique axis: b (more common)
        sen=sqrt(1.d0-celldm(5)**2)
        a1(1)=celldm(1)
        a2(2)=celldm(1)*celldm(2)
        a3(1)=celldm(1)*celldm(3)*celldm(5)
        a3(3)=celldm(1)*celldm(3)*sen
        !
-    else if (ibrav == 13) then
-       ! One face centered monoclinic lattice
+    ELSEIF (ibrav == 13) THEN
+       !     One face centered monoclinic lattice unique axis c
        sen = sqrt( 1.d0 - celldm(4) ** 2 )
-       a1(1) = 0.5d0 * celldm(1) 
+       a1(1) = 0.5d0 * celldm(1)
        a1(3) =-a1(1) * celldm(3)
        a2(1) = celldm(1) * celldm(2) * celldm(4)
        a2(2) = celldm(1) * celldm(2) * sen
        a3(1) = a1(1)
        a3(3) =-a1(3)
+    ELSEIF (ibrav == -13) THEN
+       !     One face centered monoclinic lattice unique axis b
+       sen = sqrt( 1.d0 - celldm(5) ** 2 )
+       a1(1) = 0.5d0 * celldm(1)
+       a1(2) = a1(1) * celldm(2)
+       a2(1) =-a1(1)
+       a2(2) = a1(2)
+       a3(1) = celldm(1) * celldm(3) * celldm(5)
+       a3(3) = celldm(1) * celldm(3) * sen
        !
-    else if (ibrav == 14) then
-       ! Triclinic lattice
+    ELSEIF (ibrav == 14) THEN
+       !     Triclinic lattice
        singam=sqrt(1.d0-celldm(6)**2)
-       term= (1.d0+2.d0*celldm(4)*celldm(5)*celldm(6)-celldm(4)**2-celldm(5)**2-celldm(6)**2)
-       if (term < 0.d0) then
-          errmsg = 'Celldm do not make sense, check your data.'
+       term= (1.d0+2.d0*celldm(4)*celldm(5)*celldm(6)             &
+          -celldm(4)**2-celldm(5)**2-celldm(6)**2)
+       IF (term < 0.d0) then
+          errmsg = 'celldm do not make sense, check your data'
           return
-       end if
+       end IF
        term= sqrt(term/(1.d0-celldm(6)**2))
        a1(1)=celldm(1)
        a2(1)=celldm(1)*celldm(2)*celldm(6)
@@ -5061,10 +5106,9 @@ contains
        a3(1)=celldm(1)*celldm(3)*celldm(5)
        a3(2)=celldm(1)*celldm(3)*(celldm(4)-celldm(5)*celldm(6))/singam
        a3(3)=celldm(1)*celldm(3)*term
-       !
-    else
-       errmsg = 'Nonexistent bravais lattice.'
-    end if
+    ELSE
+       errmsg = 'nonexistent bravais lattice'
+    ENDIF
 
   end subroutine qe_latgen
 
