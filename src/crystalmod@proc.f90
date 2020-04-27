@@ -3339,7 +3339,6 @@ contains
     integer :: i, j, k, iat, idx
     logical :: found
     real*8 :: rotm(3,3), x0(3)
-    logical, allocatable :: used(:)
 
     c%spgavail = .false.
     call c%spglib_wrap(c%spg,usenneq,errmsg)
@@ -3379,7 +3378,6 @@ contains
        end if
        c%atcel(i)%idx = iidx(idx)
     end do
-    deallocate(iidx)
     call realloc(c%at,c%nneq)
 
     ! unpack spglib's output into pure translations and symops
@@ -3426,31 +3424,30 @@ contains
     c%havesym = 1
 
     ! generate symmetry operation info for the complete atom list
-    allocate(used(c%ncel))
-    used = .false.
-    main: do iat = 1, c%nneq
-       do i = 1, c%neqv
+    ! use the spg%equivalent_atoms information
+    do k = 1, c%ncel
+       idx = c%spg%equivalent_atoms(k) + 1
+       iat = iidx(idx)
+
+       found = .false.
+       loopi: do i = 1, c%neqv
           do j = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
-             found = .false.
-             do k = 1, c%ncel
-                if (used(k)) cycle
-                if (c%are_lclose(x0,c%atcel(k)%x,atomeps)) then
-                   c%atcel(k)%ir = i
-                   c%atcel(k)%ic = j
-                   c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
-                   used(k) = .true.
-                   exit
-                end if
-             end do
-             if (all(used)) exit main
+             if (c%are_lclose(x0,c%atcel(k)%x,symprec)) then
+                c%atcel(k)%ir = i
+                c%atcel(k)%ic = j
+                c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
+                found = .true.
+                exit loopi
+             end if
           end do
-       end do
-    end do main
-    if (.not.all(used)) then
-       errmsg = "error building rotation and center information for atom list"
-       return
-    end if
+       end do loopi
+       if (.not.found) then
+          errmsg = "error building rotation and center information for atom list"
+          return
+       end if
+    end do
+    deallocate(iidx)
 
     ! write down the Wyckoff positions from the spg
     call c%spgtowyc(c%spg)
