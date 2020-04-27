@@ -3056,7 +3056,10 @@ contains
                    exit
                 end if
              end do
-             if (.not.ok) exit main
+             if (.not.ok) then
+                strout(i) = "<not found>"
+                exit main
+             end if
 
              ! rotation
              do k = 1, 3
@@ -3071,6 +3074,7 @@ contains
                    strout(i) = trim(strout(i)) // "-" // xyz(k)
                    iszero = .false.
                 elseif (abs(c%rotm(j,k,i2)) > symprec) then
+                   strout(i) = "<not found>"
                    exit main
                 end if
              end do
