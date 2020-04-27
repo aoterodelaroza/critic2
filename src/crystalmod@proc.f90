@@ -3433,7 +3433,7 @@ contains
        loopi: do i = 1, c%neqv
           do j = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,i),c%at(iat)%x) + c%rotm(:,4,i) + c%cen(:,j)
-             if (c%are_lclose(x0,c%atcel(k)%x,symprec)) then
+             if (c%are_lclose(x0,c%atcel(k)%x,2d0*symprec)) then
                 c%atcel(k)%ir = i
                 c%atcel(k)%ic = j
                 c%atcel(k)%lvec = nint(c%atcel(k)%x - x0)
