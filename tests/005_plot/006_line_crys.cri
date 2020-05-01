@@ -3,7 +3,6 @@
 ## check: 006_line_crys.line2 -a1e-10
 ## labels: regression quick
 crystal library mgo
-newcell primitive
 line 0 0 0 1 1 1 101 
 line 0 0 0 1 1 1 101 gx
 line 0 0 0 1 1 1 101 gy

@@ -17,7 +17,6 @@
 crystal library mgo
 
 plane 0 0 0 1 0 0 0 1 0 101 101
-newcell primitive
 plane 0 0 0 1 0 0 0 1 0 101 101 file 008_plane_crys.plane1 field "atan($0)"
 plane 0 0 0 1 0 0 0 1 0 101 101 f file 008_plane_crys.plane2
 plane 0 0 0 1 0 0 0 1 0 101 101 gx file 008_plane_crys.plane3 
