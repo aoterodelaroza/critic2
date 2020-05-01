@@ -1,0 +1,5 @@
+## delete: 019_write_db.cro
+## check: 019_write_db.db -a1e-10
+## labels: regression quick
+crystal library uracil
+write 019_write_db.db

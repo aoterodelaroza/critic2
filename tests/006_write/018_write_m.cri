@@ -1,0 +1,6 @@
+## delete: 018_write_m.cro
+## check: 018_write_m.m -a1e-10
+## labels: regression quick
+crystal library uracil
+write 018_write_m.m
+

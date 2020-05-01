@@ -16,6 +16,13 @@ set(TESTS
   015_write_gau
   016_write_cif
   017_write_cif_long
+  018_write_m
+  019_write_db
+  020_write_gulp
+  021_write_lammps
+  022_write_siesta
+  023_write_dftb
+  024_write_pyscf
   )
 
 runtests(${TESTS})
