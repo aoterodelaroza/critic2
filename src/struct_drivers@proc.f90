@@ -1435,7 +1435,7 @@ contains
           else
              iby_mode = iznuc
           end if
-       elseif (equal(word,"shells")) then
+       elseif (equal(word,"shell").or.equal(word,"shells")) then
           groupshell = .true.
        elseif (len_trim(word) > 0) then
           call ferror('struct_environ','Unknown extra keyword',faterr,line,syntax=.true.)
