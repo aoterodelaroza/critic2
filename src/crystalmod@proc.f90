@@ -207,7 +207,7 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, clearsym
     integer :: i, j, k, iat
-    real*8, allocatable :: atpos(:,:), rnn2(:)
+    real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
 
@@ -496,19 +496,18 @@ contains
        call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
 
        ! Find the atomic connectivity and the molecular fragments
-       call c%env%find_asterisms_covalent(c%nstar,rnn2)
+       call c%env%find_asterisms_covalent(c%nstar)
        call c%fill_molecular_fragments()
-       
+
        ! Write the half nearest-neighbor distance
        do i = 1, c%nneq
-          if (rnn2(i) > 0d0) then
-             c%at(i)%rnn2 = 0.5d0 * rnn2(i)
-          elseif (.not.c%ismolecule .or. c%ncel > 1) then
+          if (.not.c%ismolecule .or. c%ncel > 1) then
              call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
              c%at(i)%rnn2 = 0.5d0 * dist 
+          else
+             c%at(i)%rnn2 = 0d0
           end if
        end do
-       if (allocated(rnn2)) deallocate(rnn2)
     end if
 
     ! the initialization is done - this crystal is ready to use
