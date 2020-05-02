@@ -1,0 +1,3 @@
+## check: 006_echo.cro -a1e-10
+## labels: regression quick
+echo echooooooo
