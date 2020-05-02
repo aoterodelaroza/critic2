@@ -1,0 +1,9 @@
+## check: 002_environ_opts.cro -a1e-10
+## labels: regression quick
+crystal library corundum
+environ dist 5
+environ point 0.1 0.2 0.3
+environ shell
+environ shells
+
+

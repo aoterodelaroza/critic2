@@ -1,0 +1,6 @@
+## check: 003_environ_atomby.cro -a1e-10
+## labels: regression quick
+crystal library corundum
+environ atom Al by Al dist 7
+environ atom 1 by Al dist 7
+environ celatom 10 by 1 dist 7

@@ -1,0 +1,4 @@
+## check: 001_environ_simple.cro -a1e-10
+## labels: regression quick
+crystal library corundum
+environ

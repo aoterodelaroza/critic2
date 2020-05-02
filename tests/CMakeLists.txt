@@ -10,12 +10,13 @@ set(TEST_SHA1_HASH bbfdd75b9e47436c8eb2fb35aa6fcfdbc7f70883)
 
 ## list of test bundles
 set(TESTDIRS 
-  001_io       ## input and output; arithmetics
-  002_crystal  ## reading a crystal structure (CRYSTAL)
-  003_molecule ## reading a molecular structure (MOLECULE)
-  004_load     ## loading a scalar field (LOAD)
-  005_plot     ## plotting keywords (POINT,LINE,PLANE,CUBE)
-  006_write    ## structure writers (WRITE)
+  001_io        ## input and output; arithmetics
+  002_crystal   ## reading a crystal structure (CRYSTAL)
+  003_molecule  ## reading a molecular structure (MOLECULE)
+  004_load      ## loading a scalar field (LOAD)
+  005_plot      ## plotting keywords (POINT,LINE,PLANE,CUBE)
+  006_write     ## structure writers (WRITE)
+  007_xtaltools ## crystallography tools (NEWCELL,COMPARE,...)
   )
 
 ## define the macro that will run the tests
