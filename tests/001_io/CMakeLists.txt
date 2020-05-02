@@ -5,6 +5,7 @@ set(TESTS
   004_macinput           ## same as 002 with CR line terminators (except first line)
   005_root_caps          ## root keyword and keyword capitalization
   006_echo               ## echo keyword
+  007_reset_end          ## reset and end keywords
   )
 
 runtests(${TESTS})
