@@ -1,0 +1,26 @@
++ List of atomic species: 
+# spc = atomic species. Z = atomic number. name = atomic name (symbol).
+# Q = charge. ZPSP = pseudopotential charge.
+# spc  Z   name    Q   ZPSP
+   1  11    na     1.0  -- 
+   2  17    cl    -1.0  -- 
+
+* List of core and pseudopotential charges for each field
+# id  type   core?  ZPSP
+  0  promol   no  
+
+* Ewald electrostatic energy (Hartree) = -1.398051675707E+00
+
++ List of atomic species: 
+# spc = atomic species. Z = atomic number. name = atomic name (symbol).
+# Q = charge. ZPSP = pseudopotential charge.
+# spc  Z   name    Q   ZPSP
+   1  11    na     1.0  -- 
+   2  17    cl    -1.0  -- 
+
+* List of core and pseudopotential charges for each field
+# id  type   core?  ZPSP
+  0  promol   no  
+
+* Ewald electrostatic energy (Hartree) = -2.035361509452E-01
+

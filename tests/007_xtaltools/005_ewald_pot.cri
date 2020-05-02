@@ -1,0 +1,26 @@
+## check: 005_ewald_pot.cro -a1e-10
+## labels: regression quick
+
+## nacl
+a = 10
+crystal
+ spg fm-3m
+ cell a a a 90 90 90
+ na 0 0 0
+ cl 1/2 1/2 1/2
+endcrystal
+q na +1 cl -1
+point 0 0 0 field "$ewald"
+point 1/2 1/2 1/2 field "$ewald"
+
+## cscl
+a = 10
+crystal
+ spg pm-3m
+ cell a a a 90 90 90
+ na 0 0 0
+ cl 1/2 1/2 1/2
+endcrystal
+q na +1 cl -1
+point 0 0 0 field "$ewald"
+point 1/2 1/2 1/2 field "$ewald"
