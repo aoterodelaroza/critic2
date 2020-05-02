@@ -2386,7 +2386,7 @@ contains
     if (trim(fid) == "ewald") then
        ! Ewald potential at point x0
        xp = syl%c%c2x(x0)
-       res = syl%c%ewald_pot(xp,.false.)
+       res = syl%c%ewald_pot(xp)
     end if
     
   end function specialfieldeval

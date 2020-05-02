@@ -2066,8 +2066,7 @@ contains
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * &
-          c%ewald_pot(x,.true.)
+       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * c%ewald_pot(x)
     end do
     ewe = ewe / 2d0
 
@@ -2076,17 +2075,16 @@ contains
   !> Calculate the Ewald electrostatic potential at an arbitrary
   !> position x (crystallographic coords.)  If x is the nucleus j,
   !> return pot - q_j / |r-rj| at rj.
-  module function ewald_pot(c,x,isnuc)
-    use param, only: tpi, pi, sqpi
+  module function ewald_pot(c,x)
+    use param, only: tpi, pi, sqpi, icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x(3)
-    logical, intent(in) :: isnuc
     real*8 :: ewald_pot
 
     real*8 :: nuc_cutoff2 = 1d-14
 
     real*8 :: rcut2, qnuc
-    integer :: i, i1, i2, i3
+    integer :: i, i1, i2, i3, idnuc
     real*8 :: px(3), lvec(3), d2, d, dh
     real*8 :: sfac_c, sfacp, bbarg
     real*8 :: sum_real, sum_rec, sum0, sum_back
@@ -2098,17 +2096,12 @@ contains
     end if
 
     ! is this a nuclear position? -> get charge
-    qnuc = 0d0
-    if (isnuc) then
-       do i = 1, c%ncel
-          px = c%atcel(i)%x - x
-          d2 = dot_product(px,matmul(c%gtensor,px))
-          if (d2 < nuc_cutoff2) then
-             qnuc = c%spc(c%atcel(i)%is)%qat
-             exit
-          end if
-       end do
-    end if
+    idnuc = c%identify_atom(x,icrd_crys)
+    if (idnuc > 0) then
+       qnuc = c%spc(c%atcel(idnuc)%is)%qat
+    else
+       qnuc = 0d0
+    endif
 
     ! real space sum
     rcut2 = c%rcut * c%rcut
@@ -2152,12 +2145,8 @@ contains
     end do
     sum_rec = sum_rec * 2d0 * pi / c%omega
     
-    ! h = 0 term, apply only at the nucleus
-    if (isnuc) then
-       sum0 = - 2d0 * qnuc / sqpi / c%eta
-    else
-       sum0 = 0d0
-    end if
+    ! h = 0 term, applied only at the nucleus
+    sum0 = - 2d0 * qnuc / sqpi / c%eta
 
     ! compensating background charge term
     sum_back = -c%qsum * c%eta**2 * pi / c%omega 

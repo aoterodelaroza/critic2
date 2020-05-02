@@ -421,10 +421,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: ewe
      end function ewald_energy
-     module function ewald_pot(c,x,isnuc)
+     module function ewald_pot(c,x)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x(3)
-       logical, intent(in) :: isnuc
        real*8 :: ewald_pot
      end function ewald_pot
      module subroutine makeseed(c,seed,copysym)
