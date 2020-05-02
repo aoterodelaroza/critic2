@@ -4,6 +4,7 @@ set(TESTS
   003_environ_atomby  ## environ keyword, atom and by keywords
   004_ewald           ## ewald keyword
   005_ewald_pot       ## ewald keyword, potential
+  006_packing         ## packing keyword
   )
 
 runtests(${TESTS})
