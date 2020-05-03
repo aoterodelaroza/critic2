@@ -1,0 +1,15 @@
+## check: 010_newcell_spglib_gen_1.cri -a1e-10
+## check: 010_newcell_spglib_gen_2.cri -a1e-10
+## check: 010_newcell_spglib_gen_3.cri -a1e-10
+## check: 010_newcell_spglib_gen_4.cri -a1e-10
+## delete: 010_newcell_spglib.cro
+## labels: regression quick
+
+crystal ../zz_source/cif/allspg/209_mof-boracite.cif
+write 010_newcell_spglib_gen_1.cri
+newcell primitive
+write 010_newcell_spglib_gen_2.cri
+newcell standard
+write 010_newcell_spglib_gen_3.cri
+newcell primstd
+write 010_newcell_spglib_gen_4.cri

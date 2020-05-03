@@ -1,0 +1,18 @@
+## check: 009_newcell_manual_gen_1.cri -a1e-10
+## check: 009_newcell_manual_gen_2.cri -a1e-10
+## check: 009_newcell_manual_gen_3.cri -a1e-10
+## check: 009_newcell_manual_gen_4.cri -a1e-10
+## delete: 009_newcell_manual.cro
+## labels: regression quick
+
+crystal library mgo
+newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2
+write 009_newcell_manual_gen_1.cri
+newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2 inv
+write 009_newcell_manual_gen_2.cri
+
+crystal library mgo
+newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2 origin 1/2 1/2 1/2
+write 009_newcell_manual_gen_3.cri
+newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2 origin 1/2 1/2 1/2 inverse
+write 009_newcell_manual_gen_4.cri

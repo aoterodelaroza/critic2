@@ -1,0 +1,7 @@
+## check: 008_newcell_supercell_gen.cri -a1e-10
+## delete: 008_newcell_supercell.cro 
+## labels: regression quick
+
+crystal library urea
+newcell 2 2 2
+write 008_newcell_supercell_gen.cri
