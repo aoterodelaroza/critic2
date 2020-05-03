@@ -256,7 +256,7 @@ contains
   end subroutine struct_crystal_input
   
   !> Clear the symmetry in the system.
-  module subroutine struct_sym(s,line)
+  module subroutine struct_sym(s,line,verbose)
     use iso_c_binding, only: c_double
     use crystalseedmod, only: crystalseed
     use spglib, only: SpglibDataset, spg_standardize_cell
@@ -265,6 +265,7 @@ contains
     use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
     
     character(len=:), allocatable :: word, errmsg
     integer :: lp, i
@@ -324,7 +325,8 @@ contains
 
     ! clear the fields and report the new structure
     call s%reset_fields()
-    call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    if (verbose) & 
+       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
 
   end subroutine struct_sym
 
@@ -1926,13 +1928,14 @@ contains
   end subroutine struct_packing
 
   !> Build a new crystal from the current crystal by cell transformation
-  module subroutine struct_newcell(s,line)
+  module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
     use global, only: eval_next
     use tools_math, only: matinv
     use tools_io, only: uout, ferror, faterr, lgetword, equal, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word
     logical :: ok, doprim, doforce, changed
@@ -2062,7 +2065,8 @@ contains
        call s%reset_fields()
        
        ! report
-       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+       if (verbose) & 
+          call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     else
        write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
     end if

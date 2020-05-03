@@ -52,9 +52,10 @@ module struct_drivers
        type(crystal), intent(inout), optional :: cr0
        type(crystalseed), intent(inout), optional :: seed0
      end subroutine struct_crystal_input
-     module subroutine struct_sym(s,line)
+     module subroutine struct_sym(s,line,verbose)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
+       logical, intent(in) :: verbose
      end subroutine struct_sym
      module subroutine struct_charges(s,line,oksyn)
        type(system), intent(inout) :: s
@@ -96,9 +97,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_packing
-     module subroutine struct_newcell(s,line)
+     module subroutine struct_newcell(s,line,verbose)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
+       logical, intent(in) :: verbose
      end subroutine struct_newcell
      module subroutine struct_molcell(s,line)
        type(system), intent(inout) :: s

@@ -2243,7 +2243,7 @@ contains
     integer, intent(in), optional :: isnew(:)
 
     type(crystalseed) :: ncseed
-    logical :: ok, found
+    logical :: ok, found, atgiven
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
@@ -2257,9 +2257,11 @@ contains
        call ferror('newcell','NEWCELL incompatible with molecules',faterr)
 
     ! initialize
+    atgiven = (present(nnew).and.present(xnew).and.present(isnew))
     x0 = x00
     dd = det3(x0)
 
+    ! check the new lattice vectors are sane
     if (abs(dd) < eps) then
        call ferror('newcell','invalid input vectors',faterr)
     elseif (dd < 0d0) then
@@ -2431,6 +2433,7 @@ contains
     use global, only: symprec
     use tools_math, only: det3, matinv
     use tools_io, only: ferror, faterr
+    use types, only: realloc
     use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in) :: toprim
@@ -2468,6 +2471,8 @@ contains
     nnew = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
     if (nnew == 0) &
        call ferror("cell_standard","could not find primitive cell",faterr)
+    call realloc(x,3,nnew)
+    call realloc(types,nnew)
     rmat = transpose(rmat)
     do i = 1, 3
        rmat(:,i) = c%c2x(rmat(:,i))

@@ -123,7 +123,7 @@ program critic
      elseif (equal(word,'newcell')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call struct_newcell(sy,subline)
+        call struct_newcell(sy,subline,.not.quiet)
 
         ! molcell
      elseif (equal(word,'molcell')) then
@@ -144,10 +144,10 @@ program critic
               call check_structure_defined(ok,silent=.true.)
               if (ok) then
                  if (.not.sy%c%ismolecule) &
-                    call struct_sym(sy,"recalc") 
+                    call struct_sym(sy,"recalc",.not.quiet) 
               end if
            else
-              call struct_sym(sy,subline) 
+              call struct_sym(sy,subline,.not.quiet) 
            end if
         end if
         
