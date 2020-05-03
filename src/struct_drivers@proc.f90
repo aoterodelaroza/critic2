@@ -1890,7 +1890,7 @@ contains
        vout = 0d0
        dv = s%c%omega / ntot
 
-       !$omp parallel do private(ii,iaux,x,found,idx,dist) firstprivate(vout)
+       !$omp parallel do private(ii,iaux,x,found,idx,dist)
        do i = 0, ntot-1
           ! unpack the index
           ii(1) = modulo(i,n(1))
