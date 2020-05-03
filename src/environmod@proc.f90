@@ -522,11 +522,7 @@ contains
     call e%nearest_atom_long(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
     if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) goto 999
 
-    if (e%ismolecule) then
-       call e%nearest_atom_dumb(x0,icrd,identify_atom,lvec0,dist0)
-    else
-       call ferror("identify_atom","failed to locate nearest atom in a crystal!",faterr)
-    end if
+    call e%nearest_atom_dumb(x0,icrd,identify_atom,lvec0,dist0)
 
 999 continue ! success
     if (present(lvec)) lvec = lvec0
@@ -587,11 +583,7 @@ contains
        return
     end if
 
-    if (e%ismolecule) then
-       call e%nearest_atom_dumb(xp,icrd,nid,lvec0,dist,cidx0,idx0,is0,nozero)
-    else
-       call ferror("nearest_atom","failed to locate nearest atom in a crystal!",faterr)
-    end if
+    call e%nearest_atom_dumb(xp,icrd,nid,lvec0,dist,cidx0,idx0,is0,nozero)
 
   end subroutine nearest_atom
   
@@ -853,10 +845,10 @@ contains
     xp = x0
     call e%y2z_center(xp,icrd,icrd_cart,lvec)
     
-    ! run over all atoms in the unit cell (in a molecule this is equal
-    ! to the number of atoms in the environment)
+    ! run over all atoms in the environment (in a molecule this is equal
+    ! to the number of atoms in the molecule)
     dist = VBIG
-    do i = 1, e%ncell
+    do i = 1, e%n
        if (present(cidx0)) then
           if (e%at(i)%cidx /= cidx0) cycle
        end if
