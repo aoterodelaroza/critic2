@@ -1,0 +1,5 @@
+## check: 007_packing_vdw.cro -a1e-10
+## labels: regression quick
+
+crystal library urea
+packing vdw prec 0.5
