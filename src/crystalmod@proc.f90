@@ -2270,87 +2270,30 @@ contains
        dd = det3(x0)
        call ferror('newcell','det < 0; vectors flipped',warning)
     endif
+
+    ! set the origin translation
     if (present(t0)) then
        t = t0
     else
        t = 0d0
     end if
 
-    ! check that the vectors are pure translations
-    do i = 1, 3
-       ok = .false.
-       do j = 1, c%ncv
-          ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
-          if (ok) exit
-       end do
-       if (.not.ok) &
-          call ferror("newcell","Cell vector number " // string(i) // &
-          " is not a pure translation",faterr)
-    end do
-
-    ! is this a smaller or a larger cell? Arrange vectors.
-    if (abs(dd-1d0) < eps) then
-       nr = 1
-    elseif (dd > 1d0) then
-       nr = nint(dd)
-       if (abs(nr-dd) > eps) &
-          call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-    else
-       nr = -nint(1d0/dd)
-       if (abs(-nr-1d0/dd) > eps) &
-          call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-    end if
-
-    ! inverse matrix
-    x0inv = x0
-    call matinv(x0inv,3)
-
-    ! metrics of the new cell
-    ncseed%m_x2c = matmul(c%m_x2c,x0)
-    ncseed%useabr = 2
-    fvol = abs(det3(x0))
-    if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
-       call ferror("newcell","Inconsistent newcell volume",faterr)
-
-    ! find a star of lattice vectors and supercell centering vectors, if any
-    ! first lattice vector is (0 0 0)
-    allocate(xlat(3,10))
-    xlat = 0d0
-    nlat = 1
-    do i = minval(floor(x0(1,:))),maxval(ceiling(x0(1,:)))
-       do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
-          do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
-             x = matmul((/i, j, k/),transpose(x0inv))
-             if (any(abs(x-nint(x)) > eps)) then
-                ! this is a new candidate for supercell centering vector
-                ! check if we have it already
-                x = x - floor(x)
-                found = .false.
-                do l = 1, nlat
-                   if (all(abs(xlat(:,l) - x) < eps)) then
-                      found = .true.
-                      exit
-                   end if
-                end do
-                if (.not.found) then
-                   nlat = nlat + 1
-                   if (nlat > size(xlat,2)) call realloc(xlat,3,2*nlat)
-                   xlat(:,nlat) = x
-                end if
-             endif
-          end do
-       end do
-    end do
-
-    ! species list
+    ! species list for the new seed
     allocate(ncseed%spc(c%nspc))
     ncseed%nspc = c%nspc
     ncseed%spc = c%spc
 
+    ! metrics of the new cell
+    ncseed%m_x2c = matmul(c%m_x2c,x0)
+    ncseed%useabr = 2
+
     ! check if we have new atomic positions
-    if (present(nnew).and.present(xnew).and.present(isnew)) then
-       if (size(xnew,1) /= 3 .or. size(xnew,2) /= c%ncel) &
+    if (atgiven) then
+       ! sanity check
+       if (size(xnew,1) /= 3 .or. size(xnew,2) /= nnew .or. size(isnew) /= nnew) &
           call ferror('newcell','NEWCELL: error in size of new atomic positions array',faterr)
+
+       ! build the atomic info in the new seed from the info in input
        ncseed%nat = nnew
        allocate(ncseed%x(3,nnew),ncseed%is(nnew))
        do i = 1, nnew
@@ -2358,6 +2301,70 @@ contains
           ncseed%is(i) = isnew(i)
        end do
     else
+       ! check new volume
+       fvol = abs(det3(x0))
+       if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
+          call ferror("newcell","Inconsistent newcell volume",faterr)
+
+       ! check that the vectors are pure translations
+       do i = 1, 3
+          ok = .false.
+          do j = 1, c%ncv
+             ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
+             if (ok) exit
+          end do
+          if (.not.ok) &
+             call ferror("newcell","Cell vector number " // string(i) // &
+             " is not a pure translation",faterr)
+       end do
+
+       ! is this a smaller or a larger cell? Arrange vectors.
+       if (abs(dd-1d0) < eps) then
+          nr = 1
+       elseif (dd > 1d0) then
+          nr = nint(dd)
+          if (abs(nr-dd) > eps) &
+             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
+       else
+          nr = -nint(1d0/dd)
+          if (abs(-nr-1d0/dd) > eps) &
+             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
+       end if
+
+       ! inverse matrix
+       x0inv = x0
+       call matinv(x0inv,3)
+
+       ! find a star of lattice vectors and supercell centering vectors, if any
+       ! first lattice vector is (0 0 0)
+       allocate(xlat(3,10))
+       xlat = 0d0
+       nlat = 1
+       do i = minval(floor(x0(1,:))),maxval(ceiling(x0(1,:)))
+          do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
+             do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
+                x = matmul((/i, j, k/),transpose(x0inv))
+                if (any(abs(x-nint(x)) > eps)) then
+                   ! this is a new candidate for supercell centering vector
+                   ! check if we have it already
+                   x = x - floor(x)
+                   found = .false.
+                   do l = 1, nlat
+                      if (all(abs(xlat(:,l) - x) < eps)) then
+                         found = .true.
+                         exit
+                      end if
+                   end do
+                   if (.not.found) then
+                      nlat = nlat + 1
+                      if (nlat > size(xlat,2)) call realloc(xlat,3,2*nlat)
+                      xlat(:,nlat) = x
+                   end if
+                endif
+             end do
+          end do
+       end do
+
        ! build the new atom list
        ncseed%nat = 0
        nn = nint(c%ncel * fvol)
@@ -2392,6 +2399,7 @@ contains
        end do
        call realloc(ncseed%x,3,ncseed%nat)
        call realloc(ncseed%is,ncseed%nat)
+       deallocate(xlat)
 
        if (nr > 0) then
           if (ncseed%nat / c%ncel /= nr) then
