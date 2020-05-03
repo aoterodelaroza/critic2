@@ -10,6 +10,7 @@ set(TESTS
   009_newcell_manual    ## newcell keyword, manual specification of the new cell
   010_newcell_spglib    ## newcell keyword, spglib transformations
   011_newcell_reduced   ## newcell keyword, reduced cells
+  012_newcell_refine    ## newcell keyword, refine keyword
   )
 
 runtests(${TESTS})
