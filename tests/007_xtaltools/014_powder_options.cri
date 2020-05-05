@@ -4,4 +4,4 @@
 ## labels: regression quick
 
 crystal library urea
-powder th2ini 10 th2end 21.95 lambda 1.5 fpol 0.95 npts 100 root 014_powder_options_gen hard
+powder th2ini 10 th2end 21.95 sigma 0.1 lambda 1.5 fpol 0.95 npts 100 root 014_powder_options_gen hard

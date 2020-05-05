@@ -13,6 +13,8 @@ set(TESTS
   012_newcell_refine     ## newcell keyword, refine keyword
   013_powder_basic       ## powder keyword
   014_powder_options     ## powder keyword, options
+  015_rdf_basic          ## rdf keyword
+  016_rdf_options        ## rdf keyword, options
   )
 
 runtests(${TESTS})
