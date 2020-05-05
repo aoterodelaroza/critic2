@@ -1,0 +1,8 @@
+## check: 015_rdf_basic.cro -a1e-10
+## check: 015_rdf_basic_rdf.gnu -a1e-10
+## check: 015_rdf_basic_rdf.dat -a1e-10
+## labels: regression quick
+
+crystal library urea
+rdf
+

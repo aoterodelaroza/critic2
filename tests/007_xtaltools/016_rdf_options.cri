@@ -1,0 +1,8 @@
+## check: 016_rdf_options.cro -a1e-10
+## check: 016_rdf_options_gen.gnu -a1e-10
+## check: 016_rdf_options_gen.dat -a1e-10
+## labels: regression quick
+
+crystal library urea
+rdf rini 1.0 rend 23.0 sigma 0.1 npts 100 root 016_rdf_options_gen pair c n pair c o hard
+
