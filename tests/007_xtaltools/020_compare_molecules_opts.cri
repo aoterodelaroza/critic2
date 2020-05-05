@@ -1,0 +1,14 @@
+## check: 020_compare_molecules_opts.cro -a1e-10
+## delete: 020_compare_molecules_opts_gen.xyz
+## labels: regression
+
+molecule library neopentane
+write 020_compare_molecules_opts_gen.xyz
+
+compare . 020_compare_molecules_opts_gen.xyz
+compare molecule . 020_compare_molecules_opts_gen.xyz
+compare . 020_compare_molecules_opts_gen.xyz sorted
+compare . 020_compare_molecules_opts_gen.xyz unsorted sigma 0.1 xend 30
+
+
+

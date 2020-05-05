@@ -1,0 +1,26 @@
+* WRITE xyz file: 020_compare_molecules_opts_gen.xyz
+
+* COMPARE: compare structures
+  Molecule 1 : <current>
+  Molecule 2 : 020_compare_molecules_opts_gen.xyz
+# Using cross-correlated radial distribution functions (RDF).
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Molecule 1 : <current>
+  Molecule 2 : 020_compare_molecules_opts_gen.xyz
+# Using cross-correlated radial distribution functions (RDF).
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Molecule 1 : <current>
+  Molecule 2 : 020_compare_molecules_opts_gen.xyz
+# RMS of the atomic positions in ang_
++ RMS = 3.240195E+00
+
+* COMPARE: compare structures
+  Molecule 1 : <current>
+  Molecule 2 : 020_compare_molecules_opts_gen.xyz
+# Using cross-correlated radial distribution functions (RDF).
++ DIFF = 0.000000E+00
+

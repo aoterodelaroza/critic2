@@ -1,0 +1,29 @@
+* WRITE xyz file: 019_compare_molecules_gen.xyz
+
+* COMPARE: compare structures
+  Molecule 1 : <current>
+  Molecule 2 : 019_compare_molecules_gen.xyz
+  Molecule 3 : ../zz_source/gaussian-16/benzene/benzene.wfn
+  Molecule 4 : ../zz_source/gaussian-16/benzene/benzene.wfx
+  Molecule 5 : ../zz_source/gaussian-16/benzene/benzene.fchk
+  Molecule 6 : ../zz_source/gaussian-16/benzene/benzene.log
+# Using cross-correlated radial distribution functions (RDF).
+   Molecule     molecular library (neopentane) 019_compare_molecules_gen.xyz ../zz_source/gaussian-16/benzene/benzene.wfn ../zz_source/gaussian-16/benzene/benzene.wfx ../zz_source/gaussian-16/benzene/benzene.fchk
+     DIFF              1               2               3               4               5       
+  molecular library (neopentane)  0.0000000       0.0000000       0.1028311       0.1028311       0.1028311     
+  019_compare_molecules_gen.xyz  0.0000000       0.0000000       0.1028311       0.1028311       0.1028311     
+  ../zz_source/gaussian-16/benzene/benzene.wfn  0.1028311       0.1028311       0.0000000       0.0000000       0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.wfx  0.1028311       0.1028311       0.0000000       0.0000000       0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.fchk  0.1028311       0.1028311       0.0000000       0.0000000       0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.log  0.1028314       0.1028314       0.0000000       0.0000000       0.0000000     
+
+   Molecule     ../zz_source/gaussian-16/benzene/benzene.log
+     DIFF              6       
+  molecular library (neopentane)  0.1028314     
+  019_compare_molecules_gen.xyz  0.1028314     
+  ../zz_source/gaussian-16/benzene/benzene.wfn  0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.wfx  0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.fchk  0.0000000     
+  ../zz_source/gaussian-16/benzene/benzene.log  0.0000000     
+
+

@@ -1,0 +1,31 @@
+* WRITE espresso file: 018_compare_crystals_opts_gen.scf.in
+
+* Transformation to a new unit cell (NEWCELL)
+
+  Lattice vectors of the new cell in the old setting (cryst. coord.):
+      1.0000000    1.0000000    0.0000000 
+      0.0000000    0.0000000    1.0000000 
+      0.0000000   -1.0000000    0.0000000 
+  Origin translation:   0.4000000    0.6000000    0.9000000 
+
+* COMPARE: compare structures
+  Crystal 1 : <current>
+  Crystal 2 : 018_compare_crystals_opts_gen.scf.in
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 0.000000E+00
+
+* COMPARE: compare structures
+  Crystal 1 : <current>
+  Crystal 2 : 018_compare_crystals_opts_gen.scf.in
+# Using cross-correlated POWDER diffraction patterns.
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 8.881784E-16
+
+* COMPARE: compare structures
+  Crystal 1 : <current>
+  Crystal 2 : 018_compare_crystals_opts_gen.scf.in
+# Using cross-correlated radial distribution functions (RDF).
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 1.713496E-04
+

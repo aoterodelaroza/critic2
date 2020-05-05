@@ -1,0 +1,12 @@
+## check: 018_compare_crystals_opts.cro -a1e-10
+## delete: 018_compare_crystals_opts_gen.scf.in
+## labels: regression
+
+crystal library uracil
+write 018_compare_crystals_opts_gen.scf.in
+newcell 1 1 0 0 0 1 0 -1 0 origin 0.4 0.6 0.9
+
+compare crystal . 018_compare_crystals_opts_gen.scf.in
+compare . 018_compare_crystals_opts_gen.scf.in xend 60 sigma 0.1
+compare . 018_compare_crystals_opts_gen.scf.in rdf
+

@@ -1,0 +1,11 @@
+## check: 017_compare_crystals.cro -a1e-10
+## delete: 017_compare_crystals_gen.scf.in
+## delete: 017_compare_crystals_gen.cif
+## labels: regression quick
+
+crystal library uracil
+write 017_compare_crystals_gen.scf.in
+write 017_compare_crystals_gen.cif
+newcell 1 1 0 0 0 1 0 -1 0 origin 0.4 0.6 0.9
+compare . 017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif
+
