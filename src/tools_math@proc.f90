@@ -863,7 +863,7 @@ contains
 
   end subroutine eigsym
 
-  !> Find the eigenvectors and eigenvalues of a real nxn matrix.  The
+  !> Find the eigenvectors and eigenvalues of a real n0xn0 matrix.  The
   !> eigenvectors are stored column-wise in mat, and the real and
   !> complex parts of the eigenvalues are given in eval and evali,
   !> respectively. Complex conjugates appear adjacent. If j and j+1
@@ -1344,7 +1344,7 @@ contains
 
     ! the a matrix (eq. 47), diagonalization, and rotation matrix
     a = matmul(transpose(c3),c3) * c2 - c1;
-    call eig(a,3,eval,evali)
+    call eig(a,4,eval,evali)
     idx = maxloc(eval,1)
     xex = a(:,idx)
     xex = xex / norm2(xex)
