@@ -1,0 +1,11 @@
+## check: 027_identify_file.cro -a1e-10
+## delete: 027_identify_file_gen_1.xyz
+## delete: 027_identify_file_gen_2.xyz
+## delete: 027_identify_file_gen_3.xyz
+## delete: 027_identify_file_gen_4.xyz
+## labels: quick regression
+
+crystal library uracil
+write 027_identify_file_gen.xyz onemotif nmer 1
+
+identify 027_identify_file_gen_1.xyz

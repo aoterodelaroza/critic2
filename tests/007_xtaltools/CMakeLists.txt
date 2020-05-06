@@ -24,6 +24,8 @@ set(TESTS
   023_coord                  ## coord keyword
   024_coord_opts             ## coord keyword, with options
   025_econ                   ## econ keyword
+  026_identify               ## identify keyword
+  027_identify_file          ## identify keyword, from file
   )
 
 runtests(${TESTS})
