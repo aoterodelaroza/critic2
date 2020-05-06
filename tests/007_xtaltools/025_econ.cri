@@ -1,0 +1,9 @@
+## check: 025_econ.cro -a1e-10
+## labels: quick regression
+
+crystal library mgo
+econ
+
+crystal library fluorite
+econ
+

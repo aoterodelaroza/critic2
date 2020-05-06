@@ -23,6 +23,7 @@ set(TESTS
   022_bondfactor             ## bondfactor keyword
   023_coord                  ## coord keyword
   024_coord_opts             ## coord keyword, with options
+  025_econ                   ## econ keyword
   )
 
 runtests(${TESTS})
