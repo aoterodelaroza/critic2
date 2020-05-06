@@ -1,0 +1,7 @@
+## check: 024_coord_opts.cro -a1e-10
+## labels: quick regression
+
+crystal library urea
+coord dist 2.0
+coord fac 1.99
+coord radii C 0.9 H 0.8 N 0.7 O 0.6

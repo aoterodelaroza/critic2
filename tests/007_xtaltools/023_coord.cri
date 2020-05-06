@@ -1,0 +1,5 @@
+## check: 023_coord.cro -a1e-10
+## labels: quick regression
+
+crystal library urea
+coord
