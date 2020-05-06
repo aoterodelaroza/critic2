@@ -1,0 +1,58 @@
+## check: 022_bondfactor.cro -a1e-10
+## delete: 022_bondfactor_gen_1.xyz
+## delete: 022_bondfactor_gen_2.xyz
+## delete: 022_bondfactor_gen_3.xyz
+## delete: 022_bondfactor_gen_4.xyz
+## delete: 022_bondfactor_gen_5.xyz
+## delete: 022_bondfactor_gen_6.xyz
+## delete: 022_bondfactor_gen_7.xyz
+## delete: 022_bondfactor_gen_8.xyz
+## delete: 022_bondfactor_gen_9.xyz
+## delete: 022_bondfactor_gen_10.xyz
+## delete: 022_bondfactor_gen_11.xyz
+## delete: 022_bondfactor_gen_12.xyz
+## delete: 022_bondfactor_gen_13.xyz
+## delete: 022_bondfactor_gen_14.xyz
+## delete: 022_bondfactor_gen_15.xyz
+## delete: 022_bondfactor_gen_16.xyz
+## delete: 022_bondfactor_gen_17.xyz
+## delete: 022_bondfactor_gen_18.xyz
+## delete: 022_bondfactor_gen_19.xyz
+## delete: 022_bondfactor_gen_20.xyz
+## delete: 022_bondfactor_gen_21.xyz
+## delete: 022_bondfactor_gen_22.xyz
+## delete: 022_bondfactor_gen_23.xyz
+## delete: 022_bondfactor_gen_24.xyz
+## delete: 022_bondfactor_gen_25.xyz
+## delete: 022_bondfactor_gen_26.xyz
+## delete: 022_bondfactor_gen_27.xyz
+## delete: 022_bondfactor_gen_28.xyz
+## delete: 022_bondfactor_gen_29.xyz
+## delete: 022_bondfactor_gen_30.xyz
+## delete: 022_bondfactor_gen_31.xyz
+## delete: 022_bondfactor_gen_32.xyz
+## delete: 022_bondfactor_gen_33.xyz
+## delete: 022_bondfactor_gen_34.xyz
+## delete: 022_bondfactor_gen_35.xyz
+## delete: 022_bondfactor_gen_36.xyz
+## delete: 022_bondfactor_gen_37.xyz
+## delete: 022_bondfactor_gen_38.xyz
+## delete: 022_bondfactor_gen_39.xyz
+## delete: 022_bondfactor_gen_40.xyz
+## delete: 022_bondfactor_gen_41.xyz
+## delete: 022_bondfactor_gen_42.xyz
+## delete: 022_bondfactor_gen_43.xyz
+## delete: 022_bondfactor_gen_44.xyz
+## delete: 022_bondfactor_gen_45.xyz
+## delete: 022_bondfactor_gen_46.xyz
+## delete: 022_bondfactor_gen_47.xyz
+## delete: 022_bondfactor_gen_48.xyz
+## labels: quick regression
+
+bondfactor 0.5
+crystal library uracil
+write 022_bondfactor_gen.xyz onemotif nmer 1
+
+bondfactor 1.99
+crystal library uracil
+write 022_bondfactor_gen.xyz onemotif nmer 1

@@ -20,6 +20,7 @@ set(TESTS
   019_compare_molecules      ## compare keyword, molecules 
   020_compare_molecules_opts ## compare keyword, molecules with options
   021_atomlabel              ## atomlabel keyword
+  022_bondfactor             ## bondfactor keyword
   )
 
 runtests(${TESTS})
