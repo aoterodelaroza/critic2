@@ -26,6 +26,7 @@ set(TESTS
   025_econ                   ## econ keyword
   026_identify               ## identify keyword
   027_identify_file          ## identify keyword, from file
+  028_spg                    ## spg keyword
   )
 
 runtests(${TESTS})
