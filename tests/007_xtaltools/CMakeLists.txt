@@ -19,6 +19,7 @@ set(TESTS
   018_compare_crystals_opts  ## compare keyword, crystals with options
   019_compare_molecules      ## compare keyword, molecules 
   020_compare_molecules_opts ## compare keyword, molecules with options
+  021_atomlabel              ## atomlabel keyword
   )
 
 runtests(${TESTS})
