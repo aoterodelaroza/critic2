@@ -1,6 +1,6 @@
 ## check: 019_compare_molecules.cro -a1e-10
 ## delete: 019_compare_molecules_gen.xyz
-## labels: regression
+## labels: regression quick
 
 molecule library neopentane
 write 019_compare_molecules_gen.xyz
