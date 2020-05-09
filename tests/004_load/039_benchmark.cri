@@ -1,0 +1,12 @@
+## check: 039_benchmark.cro -r0.5
+## labels: regression quick
+
+crystal ../zz_source/wien14.2/zno/zno.struct
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct
+
+benchmark 100
+
+molecule ../zz_source/gaussian-16/h2o/h2o_hf.wfn
+load ../zz_source/gaussian-16/h2o/h2o_hf.wfn
+benchmark
+

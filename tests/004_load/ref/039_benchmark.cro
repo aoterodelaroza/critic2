@@ -1,0 +1,61 @@
++ Field number 1
+  Source: ../zz_source/wien14.2/zno/zno.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 12
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 1034/6621
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
++ Assert - no spurious CPs on the muffin tin surface: T
+
+* Benchmark of the field 
+* Field : 1
+* Benchmark of muffin / interstitial grd 
+* Number of points per zone : 100
+* Atom : 1
+* Total wall time : 0.003000 s
+* Avg. wall time per call : 30.0000 us
+* Atom : 2
+* Total wall time : 0.002000 s
+* Avg. wall time per call : 20.0000 us
+* Interstitial 
+* Total wall time : 0.031000 s
+* Avg. wall time per call : 310.0000 us
+
++ Field number 1
+  Source: ../zz_source/gaussian-16/h2o/h2o_hf.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Benchmark of the field 
+* Field : 1
+  Benchmark of the grd call 
+  Number of points : 10000
+  Total wall time : 0.147000 s
+  Avg. wall time per call : 14.7000 us
+
