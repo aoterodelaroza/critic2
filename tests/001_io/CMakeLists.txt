@@ -6,6 +6,7 @@ set(TESTS
   005_root_caps          ## root keyword and keyword capitalization
   006_echo               ## echo keyword
   007_reset_end          ## reset and end keywords
+  008_clear              ## clear keyword
   )
 
 runtests(${TESTS})

@@ -1,0 +1,13 @@
+## check: 008_clear.cro -a1e-10
+## labels: regression quick
+
+a = 2
+b = 3
+c = a + b * sin(pi/4)
+list
+
+clear pi a e
+list
+
+clear all
+list
