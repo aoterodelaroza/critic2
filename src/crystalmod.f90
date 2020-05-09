@@ -170,6 +170,7 @@ module crystalmod
 
      ! output routines
      procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
+     procedure :: struct_report_symmetry !< Write symmmetry information
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
      procedure :: struct_write_json !< Write a json object containing the crystal structure info
 
@@ -465,6 +466,9 @@ module crystalmod
        logical, intent(in) :: lcrys
        logical, intent(in) :: lq
      end subroutine struct_report
+     module subroutine struct_report_symmetry(c)
+       class(crystal), intent(in) :: c
+     end subroutine struct_report_symmetry
      module subroutine struct_report_symxyz(c,strfin)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)

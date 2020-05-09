@@ -321,6 +321,8 @@ contains
        x0 = s%c%cell_standard(.false.,.false.,.true.)
        call matinv(x0,3)
        call s%c%newcell(x0)
+    else
+       call s%c%struct_report_symmetry()
     end if
 
     ! clear the fields and report the new structure

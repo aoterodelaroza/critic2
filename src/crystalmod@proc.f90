@@ -2689,10 +2689,9 @@ contains
     logical, intent(in) :: lq
 
     integer :: i, j, k, iz, is
-    integer :: nelec, holo, laue
+    integer :: nelec
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
     character(len=:), allocatable :: str1
-    character(len=3) :: schpg
     integer, allocatable :: nis(:)
 
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
@@ -2869,22 +2868,7 @@ contains
           enddo
           write (uout,*)
 
-          if (c%havesym > 0) then
-             write(uout,'("+ Crystal symmetry information")')
-             if (c%spgavail) then
-                write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
-                   string(c%spg%international_symbol), string(c%spg%spacegroup_number)
-                write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
-
-                call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
-                write(uout,'("  Point group (Schoenflies): ",A)') string(schpg)
-                write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
-                write(uout,'("  Laue class: ",A)') string(laue_string(laue))
-             else
-                write(uout,'("  -- not available --")')
-             end if
-             write (uout,*)
-          end if
+          call c%struct_report_symmetry()
 
           write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
           write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
@@ -3003,6 +2987,33 @@ contains
     end if
 
   end subroutine struct_report
+  
+  !> Write information about the crystal symmetry.
+  module subroutine struct_report_symmetry(c)
+    use tools_io, only: string, uout
+    class(crystal), intent(in) :: c
+
+    character(len=3) :: schpg
+    integer :: holo, laue
+
+    if (.not.c%ismolecule .and. c%havesym > 0) then
+       write(uout,'("+ Crystal symmetry information")')
+       if (c%spgavail) then
+          write(uout,'("  Space group (Hermann-Mauguin): ",A, " (number ",A,")")') &
+             string(c%spg%international_symbol), string(c%spg%spacegroup_number)
+          write(uout,'("  Point group (Hermann-Mauguin): ",A)') string(c%spg%pointgroup_symbol)
+
+          call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
+          write(uout,'("  Point group (Schoenflies): ",A)') string(schpg)
+          write(uout,'("  Holohedry: ",A)') string(holo_string(holo))
+          write(uout,'("  Laue class: ",A)') string(laue_string(laue))
+       else
+          write(uout,'("  -- not available --")')
+       end if
+       write (uout,*)
+    end if
+
+  end subroutine struct_report_symmetry
 
   !> Write the list of symmetry operations to stdout, using
   !> crystallographic notation (if possible). If strfin is present,
