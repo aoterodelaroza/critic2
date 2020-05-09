@@ -29,6 +29,8 @@ set(TESTS
   028_spg                    ## spg keyword
   029_sym_basic              ## sym keyword
   030_sym_large              ## sym keyword, with large structure
+  031_sym_opts               ## sym keyword, options
+  032_sym_refine             ## sym keyword, refine keyword
   )
 
 runtests(${TESTS})

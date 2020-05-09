@@ -1,0 +1,16 @@
+* SYM: manipulation of the crystal symmetry.
+
++ RECALCULATE the symmetry operations.
+* SYM: manipulation of the crystal symmetry.
+
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): P6_3/mmc (number 194)
+  Point group (Hermann-Mauguin): 6/mmm
+  Point group (Schoenflies): D6h
+  Holohedry: hexagonal
+  Laue class: 6/mmm
+
+* WRITE cif file: 032_sym_refine_gen.cif
+

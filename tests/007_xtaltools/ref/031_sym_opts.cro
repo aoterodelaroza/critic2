@@ -1,0 +1,80 @@
+* SYM: manipulation of the crystal symmetry.
+
++ ANALYSIS of the crystal symmetry.
+
+# Sym.Prec. Space group
+  1.00E-20  Pm (6)
+  1.00E-19  Pm (6)
+  1.00E-18  Pm (6)
+  1.00E-17  Pm (6)
+  1.00E-16  Pm (6)
+  1.00E-15  P-1 (2)
+  1.00E-14  P2_1/m (11)
+  1.00E-13  P2_1/m (11)
+  1.00E-12  P2_1/m (11)
+  1.00E-11  P2_1/m (11)
+  1.00E-10  P2_1/m (11)
+  1.00E-09  P2_1/m (11)
+  1.00E-08  P2_1/m (11)
+  1.00E-07  P2_1/m (11)
+  1.00E-06  P2_1/m (11)
+  1.00E-05  P2_1/m (11)
+  1.00E-04  P2_1/m (11)
+  1.00E-03  Cmcm (63)
+  1.00E-02  P6_3/mmc (194)
+  1.00E-01  P6_3/mmc (194)
+  1.00E+00  P6_3/mmc (194)
+
+* SYM: manipulation of the crystal symmetry.
+
++ RECALCULATE the symmetry operations.
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): P6_3/mmc (number 194)
+  Point group (Hermann-Mauguin): 6/mmm
+  Point group (Schoenflies): D6h
+  Holohedry: hexagonal
+  Laue class: 6/mmm
+
+* SYM: manipulation of the crystal symmetry.
+
++ RECALCULATE the symmetry operations.
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): Cmcm (number 63)
+  Point group (Hermann-Mauguin): mmm
+  Point group (Schoenflies): D2h
+  Holohedry: orthorhombic
+  Laue class: mmm
+
+* SYM: manipulation of the crystal symmetry.
+
++ RECALCULATE the symmetry operations.
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): P2_1/m (number 11)
+  Point group (Hermann-Mauguin): 2/m
+  Point group (Schoenflies): C2h
+  Holohedry: monoclinic
+  Laue class: 2/m
+
+* SYM: manipulation of the crystal symmetry.
+
++ CLEAR the symmetry for this crystal structure.
+* SYM: manipulation of the crystal symmetry.
+
+* SYM: manipulation of the crystal symmetry.
+
++ RECALCULATE the symmetry operations.
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): P2_1/m (number 11)
+  Point group (Hermann-Mauguin): 2/m
+  Point group (Schoenflies): C2h
+  Holohedry: monoclinic
+  Laue class: 2/m
+
