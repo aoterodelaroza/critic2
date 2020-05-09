@@ -1,0 +1,13 @@
+## check: 009_library.cro -a1e-10
+## check: 009_library_gen.cif -a1e-10
+## check: 009_library_gen.xyz -a1e-10
+## labels: regression quick
+
+library crystal ../zz_source/library/newcrystal.dat
+crystal library was_cu
+write 009_library_gen.cif
+
+library molecule ../zz_source/library/newmolecule.dat
+molecule library was_1-3-cyclohexadiene
+write 009_library_gen.xyz
+

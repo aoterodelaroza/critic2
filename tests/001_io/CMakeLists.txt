@@ -7,6 +7,7 @@ set(TESTS
   006_echo               ## echo keyword
   007_reset_end          ## reset and end keywords
   008_clear              ## clear keyword
+  009_library            ## library keyword
   )
 
 runtests(${TESTS})
