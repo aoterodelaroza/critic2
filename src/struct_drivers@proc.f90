@@ -321,8 +321,6 @@ contains
 
     elseif (equal(word,'refine')) then
        x0 = s%c%cell_standard(.false.,.false.,.true.)
-       call matinv(x0,3)
-       call s%c%newcell(x0)
     else
        isempty = .true.
        call s%c%struct_report_symmetry()
