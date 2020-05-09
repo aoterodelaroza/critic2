@@ -272,6 +272,7 @@ contains
     real*8 :: osp
     type(SpglibDataset) :: spg
     real*8 :: x0(3,3)
+    logical :: isempty
 
     real*8, parameter :: spmin = 1d-20
     real*8, parameter :: factor = 10d0
@@ -287,6 +288,7 @@ contains
     end if
     
     ! parse the input
+    isempty = .false.
     lp = 1
     word = lgetword(line,lp)
     if (equal(word,'clear')) then
@@ -322,13 +324,16 @@ contains
        call matinv(x0,3)
        call s%c%newcell(x0)
     else
+       isempty = .true.
        call s%c%struct_report_symmetry()
     end if
 
     ! clear the fields and report the new structure
-    call s%reset_fields()
-    if (verbose) & 
-       call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    if (.not.isempty) then
+       call s%reset_fields()
+       if (verbose) & 
+          call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    end if
 
   end subroutine struct_sym
 

@@ -1,0 +1,23 @@
+* Transformation to a new unit cell (NEWCELL)
+
+  Lattice vectors of the new cell in the old setting (cryst. coord.):
+      8.0000000    0.0000000    0.0000000 
+      0.0000000    8.0000000    0.0000000 
+      0.0000000    0.0000000    8.0000000 
+  Origin translation:   0.0000000    0.0000000    0.0000000 
+
+* WRITE espresso file: 030_sym_large_gen.scf.in
+
+* SYM: manipulation of the crystal symmetry.
+
++ Crystal symmetry information
+  Space group (Hermann-Mauguin): P6_3/mmc (number 194)
+  Point group (Hermann-Mauguin): 6/mmm
+  Point group (Schoenflies): D6h
+  Holohedry: hexagonal
+  Laue class: 6/mmm
+
+* SYM: manipulation of the crystal symmetry.
+
+* SYM: manipulation of the crystal symmetry.
+

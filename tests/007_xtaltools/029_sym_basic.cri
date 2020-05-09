@@ -1,0 +1,47 @@
+## check: 029_sym_basic.cro -a1e-10
+## labels: regression quick
+
+sym 1
+symm 1
+crystal 
+ cell 2.456 2.456 6.696 90 90 119.99 ang
+ C 0.0001 0.0 1/4
+ C 0.9999 0.0 3/4
+ C 1/3 2/3 1/4
+ C 2/3 1/3 3/4
+endcrystal
+sym
+
+sym 0
+symm 0
+crystal 
+ cell 2.456 2.456 6.696 90 90 119.99 ang
+ C 0.0001 0.0 1/4
+ C 0.9999 0.0 3/4
+ C 1/3 2/3 1/4
+ C 2/3 1/3 3/4
+endcrystal
+sym
+
+sym -1
+symm -1
+crystal 
+ cell 2.456 2.456 6.696 90 90 119.99 ang
+ C 0.0001 0.0 1/4
+ C 0.9999 0.0 3/4
+ C 1/3 2/3 1/4
+ C 2/3 1/3 3/4
+endcrystal
+sym
+
+nosym
+nosymm
+crystal 
+ cell 2.456 2.456 6.696 90 90 119.99 ang
+ C 0.0001 0.0 1/4
+ C 0.9999 0.0 3/4
+ C 1/3 2/3 1/4
+ C 2/3 1/3 3/4
+endcrystal
+sym
+

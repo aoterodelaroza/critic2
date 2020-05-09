@@ -27,6 +27,8 @@ set(TESTS
   026_identify               ## identify keyword
   027_identify_file          ## identify keyword, from file
   028_spg                    ## spg keyword
+  029_sym_basic              ## sym keyword
+  030_sym_large              ## sym keyword, with large structure
   )
 
 runtests(${TESTS})
