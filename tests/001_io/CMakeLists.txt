@@ -8,6 +8,7 @@ set(TESTS
   007_reset_end          ## reset and end keywords
   008_clear              ## clear keyword
   009_library            ## library keyword
+  010_list            ## library keyword
   )
 
 runtests(${TESTS})

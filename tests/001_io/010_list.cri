@@ -1,0 +1,7 @@
+## check: 010_list.cro -a1e-10
+## labels: regression quick
+
+list
+reset
+a = 202020
+list
