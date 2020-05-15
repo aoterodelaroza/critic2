@@ -15,7 +15,8 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   hirshfeld.f90 hirshfeld@proc.f90 integration.f90
   integration@proc.f90 keast.f90 meshmod.f90
   meshmod@proc.f90 molcalc.f90 nci.f90 nci@proc.f90
-  pi_private.f90 pi_private@proc.f90 qtree_basic.f90
+  pi_private.f90 pi_private@proc.f90 qe_private.f90
+  qe_private@proc.f90 qtree_basic.f90
   qtree_basic@proc.f90 qtree.f90 qtree_gpaths.f90
   qtree_gpaths@proc.f90 qtree@proc.f90 qtree_tetrawork.f90
   qtree_tetrawork@proc.f90 qtree_utils.f90
