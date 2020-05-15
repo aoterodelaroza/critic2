@@ -1393,8 +1393,9 @@ contains
        write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
           string(f%grid%qe%nbnd)
        do i = 1, f%grid%qe%nks
-          write (uout,'("# kpt ",A," (",A,X,A,X,A,")")') string(i,2,justify=ioj_right), &
-             (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3)
+          write (uout,'("# kpt ",A," (",A,X,A,X,A,") w=",A)') string(i,2,justify=ioj_right), &
+             (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
+             string(f%grid%qe%wk(i),'e',decimal=8)
           if (f%grid%qe%nspin == 1) then
              write (uout,'(10(X,A))') " Ek:",&
                 (string(f%grid%qe%ek(j,i) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
