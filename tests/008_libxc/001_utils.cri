@@ -1,0 +1,7 @@
+## check: 001_utils.cro -a1e-10
+## labels: regression quick
+
+libxc
+libxc ref name flags
+libxc all
+

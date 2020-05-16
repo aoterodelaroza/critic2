@@ -17,6 +17,7 @@ set(TESTDIRS
   005_plot      ## plotting keywords (POINT,LINE,PLANE,CUBE)
   006_write     ## structure writers (WRITE)
   007_xtaltools ## crystallography tools (NEWCELL,COMPARE,...)
+  008_libxc     ## tests for the libxc library
   )
 
 ## define the macro that will run the tests
