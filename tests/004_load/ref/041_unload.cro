@@ -1,0 +1,236 @@
++ Field number 1
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $3
+
++ Field number 4
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $4
+
++ Field number 5
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $5
+
++ Field number 6
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $6
+
++ Field number 7
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $7
+
+* LIST of variables (3)
+  1. eps = 0.2220446E-15
+  2. pi = 3.141593
+  3. e = 2.718282
+
+* List of scalar fields
++ Field number 0
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1760
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $0, $rho0
+  This is the REFERENCE field.
+
++ Field number 3
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $3
+
++ Field number 7
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Grid dimensions : 30  30  81
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Cell integral (grid SUM) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $7
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      0  Pop  
+    3  lval      0  Lap  
+
+* List of additional properties at critical points (0)
+
+* LIST of variables (3)
+  1. eps = 0.2220446E-15
+  2. pi = 3.141593
+  3. e = 2.718282
+
+* List of scalar fields
++ Field number 0
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1760
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $0, $rho0
+  This is the REFERENCE field.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      0  Pop  
+    3  lval      0  Lap  
+
+* List of additional properties at critical points (0)
+

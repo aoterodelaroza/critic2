@@ -1,0 +1,21 @@
+## check: 041_unload.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+
+unload 5
+unload 1
+unload 2
+unload 4
+unload 6
+list
+
+unload all
+list
