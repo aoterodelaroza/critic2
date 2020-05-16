@@ -172,7 +172,7 @@ contains
           end if
        else if (equal(word,'normalize')) then
           if (.not.ff%type == type_grid) then
-             errmsg = "vnorm incompatible with fields other than grids"
+             errmsg = "normalize incompatible with fields other than grids"
              return
           end if
           ok = eval_next(norm,line,lp)

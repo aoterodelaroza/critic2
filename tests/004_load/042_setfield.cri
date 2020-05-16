@@ -1,0 +1,50 @@
+## check: 042_setfield.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+
+setfield 1 nearest
+setfield 2 trilinear
+setfield 3 trispline
+setfield 4 tricubic
+setfield 5 numerical
+setfield 6 analytical
+setfield 7 core zpsp c 4
+setfield 8 nocore
+setfield 9 typnuc 1
+setfield 10 normalize 1.0
+
+list
+
+crystal ../zz_source/dftb+-18.1/graphite/graphite.gen
+load ../zz_source/dftb+-18.1/graphite/detailed.xml \
+     ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
+     ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd 
+load ../zz_source/dftb+-18.1/graphite/detailed.xml \
+     ../zz_source/dftb+-18.1/graphite/eigenvec.bin \
+     ../zz_source/dftb+-18.1/wfc-3ob-3-1.hsd
+
+setfield 1 exact
+setfield 2 approximate
+
+list
+
+crystal ../zz_source/wien14.2/zno/zno.struct
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct 
+load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct 
+
+setfield 1 rhonorm
+setfield 2 vnorm
+
+list
+

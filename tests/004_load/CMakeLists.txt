@@ -40,6 +40,7 @@ set(TESTS
   039_benchmark            ## benchmark keyword
   040_grid-keywords        ## grid keywords (count, etc.)
   041_unload               ## unload keyword
+  042_setfield             ## setfield keyword
   )
 
 runtests(${TESTS})
