@@ -11,6 +11,7 @@ set(TESTS
   010_list               ## list keyword
   011_run_system         ## run and system keywords
   012_units              ## units keyword
+  013_root               ## root keyword
   )
 
 runtests(${TESTS})

@@ -1,0 +1,15 @@
+## delete: 013_root.cro
+## check: 013_root_1_xrd.dat -a1e-10
+## check: 013_root_1_xrd.gnu -a1e-10
+## check: 013_root_2_xrd.dat -a1e-10
+## check: 013_root_2_xrd.gnu -a1e-10
+## labels: regression quick
+
+root 013_root_1
+crystal library mgo
+powder
+
+root 013_root_2
+crystal library mgo
+powder
+
