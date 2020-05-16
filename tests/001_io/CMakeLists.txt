@@ -10,6 +10,7 @@ set(TESTS
   009_library            ## library keyword
   010_list               ## list keyword
   011_run_system         ## run and system keywords
+  012_units              ## units keyword
   )
 
 runtests(${TESTS})

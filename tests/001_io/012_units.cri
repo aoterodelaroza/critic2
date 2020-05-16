@@ -1,0 +1,14 @@
+## check: 012_units.cro -a1e-10
+## labels: regression quick
+
+units bohr
+units au
+units a.u.
+crystal library mgo
+environ dist 10
+
+units ang
+units angstrom
+crystal library mgo
+environ dist 10
+
