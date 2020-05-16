@@ -1,0 +1,16 @@
+## check: 040_grid-keywords.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+
+count 1 0.1
+max
+max 1
+min
+min 1
+mean 
+mean 1
+sum
+sum 1
+

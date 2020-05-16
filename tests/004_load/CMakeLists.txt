@@ -38,6 +38,7 @@ set(TESTS
   037_load-wiennorm        ## WIEN2k normalization option to load
   038_load-numericalderivs ## ghost loading and numerical derivatives
   039_benchmark            ## benchmark keyword
+  040_grid-keywords        ## grid keywords (count, etc.)
   )
 
 runtests(${TESTS})
