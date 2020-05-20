@@ -1366,7 +1366,7 @@ contains
     real*8 :: x0(3), x0in(3)
     logical :: doatoms, ok, groupshell
     logical, allocatable :: isdone(:)
-    integer :: ii, i, j, k, l, idx
+    integer :: i, j, k, l, idx
     type(environ), target :: eaux
     type(environ), pointer :: eptr
 

@@ -233,7 +233,7 @@ contains
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
        ifformat_as_pot, ifformat_as_resample,&
-       ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_ghost_explicit, &
+       ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
        ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
@@ -432,7 +432,7 @@ contains
        f%type = type_grid
        f%file = ""
 
-    elseif (seed%iff == ifformat_as_ghost .or. seed%iff == ifformat_as_ghost_explicit) then
+    elseif (seed%iff == ifformat_as_ghost) then
        call f%load_ghost(c,id,"<ghost>",seed%expr,sptr)
 
     elseif (seed%iff == ifformat_as) then

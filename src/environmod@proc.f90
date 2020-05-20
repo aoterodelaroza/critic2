@@ -543,7 +543,6 @@ contains
   !> list. If is0, consider only atoms of species is0. If nozero,
   !> disregard zero-distance atoms. This routine is thread-safe.
   module subroutine nearest_atom(e,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
-    use tools_io, only: ferror, faterr
     class(environ), intent(in) :: e
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -1341,7 +1340,7 @@ contains
   !> nstar array. To use this routine it is necessary that the boxsize
   !> is larger than the maximum covalent distance plus the tolerance.
   module subroutine find_asterisms_covalent(e,nstar)
-    use global, only: bondfactor, atomeps
+    use global, only: bondfactor
     use tools_io, only: ferror, faterr, uout, string
     use types, only: realloc
     use param, only: atmcov

@@ -65,8 +65,8 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     real(DP), parameter:: sr2 = 1.414213562373d0, sr3 = 1.732050807569d0
-    INTEGER :: i,j,k,l,iperm,ir
-    real(DP) :: term, cbya, s, term1, term2, singam, sen
+    INTEGER :: ir
+    real(DP) :: term, cbya, term1, term2, singam, sen
 
     IF (celldm(1) <= 0.d0) then
        errmsg = 'wrong celldm(1)'
@@ -297,7 +297,7 @@ contains
     REAL(DP), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: tau, extfor
     INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(IN) :: ityp
     INTEGER, DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: if_pos
-    INTEGER :: i,k,l,n,sym_n
+    INTEGER :: i,k,l,sym_n
     INTEGER,DIMENSION(:),allocatable :: msym_n 
     character(LEN=1) :: unique
     REAL(DP), DIMENSION(:,:), ALLOCATABLE :: inco
@@ -1319,7 +1319,6 @@ contains
     REAL(DP),dimension(:,:,:), INTENT(OUT) :: outco
     character(LEN=1), INTENT(IN) :: unique
 
-    INTEGER :: k,j
     simmetria: SELECT CASE (space_group_number)
        !*****************************************
        !Triclinic 1-2

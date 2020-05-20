@@ -2080,8 +2080,6 @@ contains
     real*8, intent(in) :: x(3)
     real*8 :: ewald_pot
 
-    real*8 :: nuc_cutoff2 = 1d-14
-
     real*8 :: rcut2, qnuc
     integer :: i, i1, i2, i3, idnuc
     real*8 :: px(3), lvec(3), d2, d, dh
@@ -3343,7 +3341,7 @@ contains
   module subroutine calcsym(c,usenneq,errmsg)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_error_message
-    use global, only: symprec, atomeps
+    use global, only: symprec
     use tools_io, only: string, equal
     use param, only: eyet, eye
     use types, only: realloc

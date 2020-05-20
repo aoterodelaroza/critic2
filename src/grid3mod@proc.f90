@@ -1575,8 +1575,6 @@ contains
 
     integer :: i, j, k
     integer :: ik, ik1, ik2, ik3, ikk, ilat, ikg, ik0
-    integer :: imax(4)
-    complex*16 :: tnorm, tsum
     complex*16, allocatable :: evc(:), rseq(:), raux(:,:,:), raux2(:,:,:)
     real*8 :: xkpt(3)
 
@@ -1686,11 +1684,9 @@ contains
     integer, intent(in) :: inr(3)
     complex*16, intent(out) :: fout(:,:,:)
 
-    integer :: i, j, k, is, ik, jbnd, luc, ireg, luevc
-    complex*16, allocatable :: evcaux(:), evc(:,:)
-    integer :: nk
-    complex*16, allocatable :: rseq(:), raux(:,:,:)
-    integer :: ikk, inr_(3), ilat
+    integer :: i, j, k, is, ik, jbnd, luc, ireg
+    complex*16, allocatable :: evcaux(:), evc(:,:), rseq(:), raux(:,:,:)
+    integer :: inr_(3)
 
     ! some checks
     if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &

@@ -432,7 +432,7 @@ contains
     use fieldseedmod, only: fieldseed
     use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
-       ifformat_as_ghost_explicit, ifformat_as_pot, ifformat_as_clm, &
+       ifformat_as_pot, ifformat_as_clm, &
        ifformat_as_clm_sub, ifformat_as_ghost, &
        ifformat_as, ifformat_as_resample, mlen
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
