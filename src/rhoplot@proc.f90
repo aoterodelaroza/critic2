@@ -663,7 +663,7 @@ contains
           call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
           return
        end if
-       if (ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd) then
+       if (ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd .or. ibnd > sy%f(id)%grid%qe%nbndw(ispin)) then
           call ferror('rhoplot_cube','CUBE MLWF: incorrect band number',faterr,syntax=.true.)
           return
        end if
