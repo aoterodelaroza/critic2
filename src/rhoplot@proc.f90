@@ -482,9 +482,13 @@ contains
        dogrid = .true.
        xd = eye
        x0 = 0d0
-    elseif (equal(word,'mlwf')) then
+    elseif (equal(word,'mlwf').or.equal(word,'wannier')) then
        dogrid = .true.
-       dowan = wan_mlwf
+       if (equal(word,'mlwf')) then
+          dowan = wan_mlwf
+       else
+          dowan = wan_wannier
+       end if
        ok = isinteger(ibnd,line,lp)
        ok = ok .and. isinteger(inr(1),line,lp)
        ok = ok .and. isinteger(inr(2),line,lp)
@@ -698,10 +702,10 @@ contains
           else
              faux = sy%f(id)%grid
           end if
-       elseif (dowan == wan_mlwf) then
+       elseif (dowan == wan_mlwf .or. dowan == wan_wannier) then
           ! MLWF keyword 
           allocate(caux(nn(1),nn(2),nn(3)))
-          call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,caux)
+          call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,dowan==wan_mlwf,caux)
           if (nti == nti_none .or. nti == nti_abs) then
              faux%f = abs(caux)
           elseif (nti == nti_real) then

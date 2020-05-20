@@ -1674,7 +1674,7 @@ contains
   !> function for lattice vector inr in cell grid fout. This version
   !> works on its own (c.f. get_qe_wnr) and is therefore slower. omega
   !> is the cell volume (used for normalization).
-  module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,fout)
+  module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout)
     use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
@@ -1682,6 +1682,7 @@ contains
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
     integer, intent(in) :: inr(3)
+    logical, intent(in) :: rotate
     complex*16, intent(out) :: fout(:,:,:)
 
     integer :: i, j, k, is, ik, jbnd, luc, ireg
@@ -1711,12 +1712,16 @@ contains
     do i = 1, ireg
        read (luc)
     end do
-    do is = 1, f%qe%nspin
+    do is = 1, min(f%qe%nspin,ispin)
        do ik = 1, f%qe%nks
           do jbnd = 1, f%qe%nbnd
              read (luc) evcaux(1:f%qe%ngk(ik))
-             if (ibnd > f%qe%nbndw(is) .or. jbnd > f%qe%nbndw(is)) cycle
-             evc(1:f%qe%ngk(ik),ik) = evc(1:f%qe%ngk(ik),ik) + f%qe%u(jbnd,ibnd,ik,is) * evcaux(1:f%qe%ngk(ik))
+             if (ibnd > f%qe%nbndw(is) .or. jbnd > f%qe%nbndw(is) .or. is < ispin) cycle
+             if (rotate) then
+                evc(1:f%qe%ngk(ik),ik) = evc(1:f%qe%ngk(ik),ik) + f%qe%u(jbnd,ibnd,ik,is) * evcaux(1:f%qe%ngk(ik))
+             elseif (ibnd == jbnd .and. is == ispin) then
+                evc(1:f%qe%ngk(ik),ik) = evcaux(1:f%qe%ngk(ik))
+             end if
           end do
        end do
     end do

@@ -198,12 +198,13 @@ module grid3mod
        integer, intent(inout) :: luevc_ibnd(2)
        complex*16, intent(out) :: fout(:,:,:,:)
      end subroutine get_qe_wnr
-     module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,fout)
+     module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout)
        class(grid3), intent(in) :: f
        real*8, intent(in) :: omega
        integer, intent(in) :: ibnd
        integer, intent(in) :: ispin
        integer, intent(in) :: inr(3)
+       logical, intent(in) :: rotate
        complex*16, intent(out) :: fout(:,:,:)
      end subroutine get_qe_wnr_standalone
   end interface
