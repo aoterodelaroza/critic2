@@ -798,14 +798,17 @@ contains
   module subroutine read_pwc(f,fpwc)
     use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
+    use param, only: tpi, img
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     
-    integer :: i, ispin, ik, ibnd, ikk, iver
+    integer :: i, ispin, ik, ibnd, ikk, iver, n, n2, ispin2, ik2, ibnd2, ikk2
     integer :: luc
-    integer :: npwx, ngms, nkstot, nsp, nat
-    real*8 :: at(3,3), fspin, alat
-    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
+    integer :: npwx, ngms, nkstot, nsp, nat, j, k, l1, l2, l3
+    real*8 :: at(3,3), fspin, alat, delta(3), kdif(3)
+    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
+    complex*16, allocatable :: raux2(:,:,:)
+    complex*16 :: rfac, totsum, psum
     
     ! initialize
     call f%end()
@@ -886,6 +889,12 @@ contains
     allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
     f%f = 0d0
 
+    allocate(raux2(f%n(1),f%n(2),f%n(3)))
+    allocate(evc2(maxval(f%qe%ngk(1:f%qe%nks))))
+    allocate(evca(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nspin*f%qe%nks*f%qe%nbnd))
+    evca = 0d0
+
+    n = 0
     ikk = 0
     do ispin = 1, f%qe%nspin
        do ik = 1, f%qe%nks
@@ -893,6 +902,10 @@ contains
           do ibnd = 1, f%qe%nbnd
              rseq = 0d0
              read (luc) evc(1:f%qe%ngk(ik))
+
+             n = n + 1
+             evca(1:f%qe%ngk(ik),n) = evc(1:f%qe%ngk(ik))
+
              rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
              if (f%qe%gamma_only) &
                 rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
@@ -902,8 +915,74 @@ contains
           end do
        end do
     end do
-    deallocate(raux,rseq,evc)
     f%f = f%f * fspin / (det3(at) * sum(f%qe%wk))
+
+    ! ! xxxx ! test for orthogonality of the psi_nk
+    ! write (*,*) "## sum: ", sum(f%f * det3(at) / real(product(f%n),8))
+    ! write (*,*) "## running double bands ", f%qe%nks, f%qe%nbnd
+    ! n = 0    
+    ! do ik = 1, f%qe%nks
+    !    do ibnd = 1, f%qe%nbnd
+    !       n = n + 1
+    !       n2 = 0    
+    !       do ik2 = 1, f%qe%nks
+    !          do ibnd2 = 1, f%qe%nbnd
+    !             n2 = n2 + 1
+                
+    !             evc(1:f%qe%ngk(ik)) = evca(1:f%qe%ngk(ik),n)
+    !             rseq = 0d0
+    !             rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
+    !             raux = reshape(rseq,shape(raux))
+    !             call cfftnd(3,f%n,+1,raux)
+
+    !             do k = 1, f%n(3)
+    !                do j = 1, f%n(2)
+    !                   do i = 1, f%n(1)
+    !                      raux(i,j,k) = raux(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik)*(real(i-1,8)/real(f%n(1),8))+&
+    !                         f%qe%kpt(2,ik)*(real(j-1,8)/real(f%n(2),8))+&
+    !                         f%qe%kpt(3,ik)*(real(k-1,8)/real(f%n(3),8))))
+    !                   end do
+    !                end do
+    !             end do
+
+    !             evc2(1:f%qe%ngk(ik2)) = evca(1:f%qe%ngk(ik2),n2)
+    !             rseq = 0d0
+    !             rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik2),ik2))) = evc2(1:f%qe%ngk(ik2))
+    !             raux2 = reshape(rseq,shape(raux2))
+    !             call cfftnd(3,f%n,+1,raux2)
+
+    !             do k = 1, f%n(3)
+    !                do j = 1, f%n(2)
+    !                   do i = 1, f%n(1)
+    !                      raux2(i,j,k) = raux2(i,j,k) * exp(tpi*img*(&
+    !                         f%qe%kpt(1,ik2)*(real(i-1,8)/real(f%n(1),8))+&
+    !                         f%qe%kpt(2,ik2)*(real(j-1,8)/real(f%n(2),8))+&
+    !                         f%qe%kpt(3,ik2)*(real(k-1,8)/real(f%n(3),8))))
+    !                   end do
+    !                end do
+    !             end do
+    !             psum = sum(conjg(raux2) * raux)
+
+    !             totsum = 0d0
+    !             do l1 = 1, f%qe%nk(1)
+    !                do l2 = 1, f%qe%nk(2)
+    !                   do l3 = 1, f%qe%nk(3)
+    !                      delta = real((/l1,l2,l3/)-1,8)
+
+    !                      kdif = f%qe%kpt(:,ik) - f%qe%kpt(:,ik2)
+    !                      totsum = totsum + exp(tpi*img*dot_product(kdif,delta))
+
+    !                   end do
+    !                end do
+    !             end do
+    !             totsum = totsum * psum
+    !             write (*,*) "## total sum: ", ik, ibnd, ik2, ibnd2, totsum  / real(product(f%n),8) /&
+    !                (real(f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3),8))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
 
     ! close and clean up
     call fclose(luc)
@@ -1481,44 +1560,35 @@ contains
   !> units for the scratch files containing the rotated Bloch
   !> coefficients (luevc, one for each spin) and a pointer that tracks
   !> the current band index in those files (luevc_ibnd). The latter is
-  !> updated by calls to this routine. isreal is .true. in output
-  !> if the Wannier function is real (abs(max(imag)/max(real)) < 1e-7).
-  module subroutine get_qe_wnr(f,ibnd,ispin,luevc,luevc_ibnd,fout)
+  !> updated by calls to this routine. omega is the cell volume (used
+  !> for normalization).
+  module subroutine get_qe_wnr(f,omega,ibnd,ispin,luevc,luevc_ibnd,fout)
     use tools_io, only: uout, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
+    real*8, intent(in) :: omega
     integer, intent(in) :: ibnd
     integer, intent(in) :: ispin
     integer, intent(in) :: luevc(2)
     integer, intent(inout) :: luevc_ibnd(2)
-    complex*16, intent(out), optional :: fout(:,:,:,:)
+    complex*16, intent(out) :: fout(:,:,:,:)
 
-    integer :: i, j, k, nk1, nk2, nk3
-    integer :: nk, ik, ik1, ik2, ik3, nall(3), ikk, ilat, ikg, ik0
+    integer :: i, j, k
+    integer :: ik, ik1, ik2, ik3, ikk, ilat, ikg, ik0
     integer :: imax(4)
-    complex*16 :: tnorm
+    complex*16 :: tnorm, tsum
     complex*16, allocatable :: evc(:), rseq(:), raux(:,:,:), raux2(:,:,:)
-    integer :: n(3)
     real*8 :: xkpt(3)
 
-    if (present(fout)) then
-       if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
-          call ferror("get_qe_wnr","inconsistent grid size",faterr)
-       if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= size(fout,4)) &
-          call ferror("get_qe_wnr","inconsistent number of k-points",faterr)
-    end if
+    ! some checks
+    if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
+       call ferror("get_qe_wnr","inconsistent grid size",faterr)
+    if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= size(fout,4)) &
+       call ferror("get_qe_wnr","inconsistent number of k-points",faterr)
+    if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= f%qe%nks) &
+       call ferror("get_qe_wnr","inconsistent number of k-points",faterr)
 
-    n = f%n
-    nk1 = f%qe%nk(1)
-    nk2 = f%qe%nk(2)
-    nk3 = f%qe%nk(3)
-    fout = 0d0
-    nk = nk1 * nk2 * nk3
-    nall(1) = n(1) * nk1
-    nall(2) = n(2) * nk2
-    nall(3) = n(3) * nk3
-
-    allocate(evc(maxval(f%qe%ngk(1:nk))))
+    allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
 
     if (luevc_ibnd(ispin) > ibnd) then
        rewind(luevc(ispin))
@@ -1526,7 +1596,7 @@ contains
     end if
     if (luevc_ibnd(ispin) /= ibnd) then
        do i = 1, ibnd-luevc_ibnd(ispin)
-          do ik = 1, nk
+          do ik = 1, f%qe%nks
              read (luevc(ispin)) evc(1:f%qe%ngk(ik))
           end do
        end do
@@ -1542,9 +1612,10 @@ contains
     raux = 0d0
 
     ! run over k-points
+    fout = 0d0
     ikg = 0
     !$omp parallel do private(ik1,ik2,ik3,ilat,ik0,xkpt) firstprivate(evc,rseq,raux,raux2)
-    do ik = 1, nk
+    do ik = 1, f%qe%nks
        rseq = 0d0
        !$omp critical (readio)
        ikg = ikg + 1
@@ -1553,27 +1624,27 @@ contains
        !$omp end critical (readio)
        rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik0),ik0))) = evc(1:f%qe%ngk(ik0))
        raux = reshape(rseq,shape(raux))
-       call cfftnd(3,n,+1,raux)
+       call cfftnd(3,f%n,+1,raux)
 
        ! phase factor
-       do k = 1, n(3)
-          do j = 1, n(2)
-             do i = 1, n(1)
-                raux(i,j,k) = raux(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik0)*real(i-1,8)/real(n(1),8)+&
-                   f%qe%kpt(2,ik0)*real(j-1,8)/real(n(2),8)+f%qe%kpt(3,ik0)*real(k-1,8)/real(n(3),8)))
+       do k = 1, f%n(3)
+          do j = 1, f%n(2)
+             do i = 1, f%n(1)
+                raux(i,j,k) = raux(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik0)*real(i-1,8)/real(f%n(1),8)+&
+                   f%qe%kpt(2,ik0)*real(j-1,8)/real(f%n(2),8)+f%qe%kpt(3,ik0)*real(k-1,8)/real(f%n(3),8)))
              end do
           end do
        end do
 
        ! add the contribution from this k-point
-       do ikk = 1, nk
+       do ikk = 1, f%qe%nks
           xkpt = f%qe%kpt(:,ikk) - floor(f%qe%kpt(:,ikk))
-          ik1 = mod(nint(xkpt(1) * nk1),nk1)
-          ik2 = mod(nint(xkpt(2) * nk2),nk2)
-          ik3 = mod(nint(xkpt(3) * nk3),nk3)
-          ilat = 1 + ik3 + nk3 * (ik2 + nk2 * ik1)
+          ik1 = mod(nint(xkpt(1) * f%qe%nk(1)),f%qe%nk(1))
+          ik2 = mod(nint(xkpt(2) * f%qe%nk(2)),f%qe%nk(2))
+          ik3 = mod(nint(xkpt(3) * f%qe%nk(3)),f%qe%nk(3))
+          ilat = 1 + ik3 + f%qe%nk(3) * (ik2 + f%qe%nk(2) * ik1)
           raux2 = raux * exp(-tpi*img*(f%qe%kpt(1,ik0)*ik1+f%qe%kpt(2,ik0)*ik2+f%qe%kpt(3,ik0)*ik3))
-          if (ilat < 1 .or. ilat > nk) then 
+          if (ilat < 1 .or. ilat > f%qe%nks) then 
              !$omp critical (ioerror)
              write (uout,*) "kpoint number ", ikk
              write (uout,*) "kpoint coords ", f%qe%kpt(:,ikk)
@@ -1590,17 +1661,118 @@ contains
     end do
     !$omp end parallel do
 
+    ! clean up
     deallocate(rseq,raux,raux2)
     luevc_ibnd(ispin) = luevc_ibnd(ispin) + 1
     if (allocated(evc)) deallocate(evc)
 
     ! normalize
-    imax = maxloc(abs(fout))
-    tnorm = fout(imax(1),imax(2),imax(3),imax(4))
-    tnorm = tnorm / abs(tnorm) * nk
-    fout = fout / tnorm
+    fout = fout / real(f%qe%nks,8) / sqrt(omega)
+ 
+ end subroutine get_qe_wnr
+  
+  !> Build the Wannier functions for band ibnd and spin ispin from QEs
+  !> Bloch coefficients, standalone version. Returns the Wannier
+  !> function for lattice vector inr in cell grid fout. This version
+  !> works on its own (c.f. get_qe_wnr) and is therefore slower. omega
+  !> is the cell volume (used for normalization).
+  module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,fout)
+    use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
+    use param, only: tpi, img
+    class(grid3), intent(in) :: f
+    real*8, intent(in) :: omega
+    integer, intent(in) :: ibnd
+    integer, intent(in) :: ispin
+    integer, intent(in) :: inr(3)
+    complex*16, intent(out) :: fout(:,:,:)
 
-  end subroutine get_qe_wnr
+    integer :: i, j, k, is, ik, jbnd, luc, ireg, luevc
+    complex*16, allocatable :: evcaux(:), evc(:,:)
+    integer :: nk
+    complex*16, allocatable :: rseq(:), raux(:,:,:)
+    integer :: ikk, inr_(3), ilat
+
+    ! some checks
+    if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
+       call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
+    if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= f%qe%nks) &
+       call ferror("read_wannier_chk","number of k-points from wannier different than qe",faterr)
+
+    ! open the pwc file
+    luc = fopen_read(f%qe%fpwc,form="unformatted")
+
+    ! skip the header of the pwc file
+    if (f%qe%gamma_only) then
+       ireg = 18
+    else
+       ireg = 17
+    end if
+    
+    ! read the psik coefficients from the file and perform the rotation; calculates evc
+    allocate(evcaux(maxval(f%qe%ngk(1:f%qe%nks))))
+    allocate(evc(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nks))
+    evc = 0d0
+    do i = 1, ireg
+       read (luc)
+    end do
+    do is = 1, f%qe%nspin
+       do ik = 1, f%qe%nks
+          do jbnd = 1, f%qe%nbnd
+             read (luc) evcaux(1:f%qe%ngk(ik))
+             if (ibnd > f%qe%nbndw(is) .or. jbnd > f%qe%nbndw(is)) cycle
+             evc(1:f%qe%ngk(ik),ik) = evc(1:f%qe%ngk(ik),ik) + f%qe%u(jbnd,ibnd,ik,is) * evcaux(1:f%qe%ngk(ik))
+          end do
+       end do
+    end do
+    deallocate(evcaux)
+    call fclose(luc)
+
+    ! modulo of the lattice vectors
+    inr_(1) = mod(inr(1),f%qe%nk(1))
+    inr_(2) = mod(inr(2),f%qe%nk(2))
+    inr_(3) = mod(inr(3),f%qe%nk(3))
+
+    ! allocate auxiliary arrays
+    allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
+    allocate(raux(f%n(1),f%n(2),f%n(3)))
+    rseq = 0d0
+    raux = 0d0
+    fout = 0d0
+
+    !$omp parallel do firstprivate(rseq,raux)
+    do ik = 1, f%qe%nks
+       ! calculate unk(r) as FT of the coefficients
+       rseq = 0d0
+       rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik),ik)
+       raux = reshape(rseq,shape(raux))
+       call cfftnd(3,f%n,+1,raux)
+
+       ! multiply by the phase factor (e(ik*r))
+       do k = 1, f%n(3)
+          do j = 1, f%n(2)
+             do i = 1, f%n(1)
+                raux(i,j,k) = raux(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik)*real(i-1,8)/real(f%n(1),8)+&
+                   f%qe%kpt(2,ik)*real(j-1,8)/real(f%n(2),8)+f%qe%kpt(3,ik)*real(k-1,8)/real(f%n(3),8)))
+             end do
+          end do
+       end do
+
+       ! the phase factor for this lattice vector (e(ik*R))
+       raux = raux * exp(-tpi*img*(f%qe%kpt(1,ik)*inr_(1)+f%qe%kpt(2,ik)*inr_(2)+f%qe%kpt(3,ik)*inr_(3)))
+
+       !$omp critical (sum)
+       fout = fout + raux
+       !$omp end critical (sum)
+    end do
+    !$omp end parallel do
+
+    ! cleanup
+    deallocate(rseq,raux)
+
+    ! normalize
+    fout = fout / real(f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3),8) / sqrt(omega)
+
+  end subroutine get_qe_wnr_standalone
 
   !xx! private procedures
 

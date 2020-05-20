@@ -76,7 +76,8 @@ module grid3mod
      procedure :: gradrho !< grid3 as the gradrho of another grid3
      procedure :: resample !< grid3 as a Fourier resampling of another grid3
      procedure :: rotate_qe_evc !< write U-rotated scratch files using QE evc file
-     procedure :: get_qe_wnr !< build a Wannier function from the Bloch coeffs (parallel version)
+     procedure :: get_qe_wnr !< build a Wannier function from the Bloch coeffs (pre-open, parallel)
+     procedure :: get_qe_wnr_standalone !< build a Wannier function from the Bloch coeffs (standalone)
      procedure :: new_eval !< grid3 from an arithmetic expression
   end type grid3
   public :: grid3
@@ -182,20 +183,29 @@ module grid3mod
        type(grid3), intent(in) :: frho
        integer, intent(in) :: n2(3)
      end subroutine resample
-     module subroutine get_qe_wnr(f,ibnd,ispin,luevc,luevc_ibnd,fout)
-       class(grid3), intent(in) :: f
-       integer, intent(in) :: ibnd
-       integer, intent(in) :: ispin
-       integer, intent(in) :: luevc(2)
-       integer, intent(inout) :: luevc_ibnd(2)
-       complex*16, intent(out), optional :: fout(:,:,:,:)
-     end subroutine get_qe_wnr
      module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
        class(grid3), intent(inout) :: f
        integer, intent(out) :: luevc(2)
        integer, intent(out) :: luevc_ibnd(2)
        logical, intent(in) :: useu
      end subroutine rotate_qe_evc
+     module subroutine get_qe_wnr(f,omega,ibnd,ispin,luevc,luevc_ibnd,fout)
+       class(grid3), intent(in) :: f
+       real*8, intent(in) :: omega
+       integer, intent(in) :: ibnd
+       integer, intent(in) :: ispin
+       integer, intent(in) :: luevc(2)
+       integer, intent(inout) :: luevc_ibnd(2)
+       complex*16, intent(out) :: fout(:,:,:,:)
+     end subroutine get_qe_wnr
+     module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,fout)
+       class(grid3), intent(in) :: f
+       real*8, intent(in) :: omega
+       integer, intent(in) :: ibnd
+       integer, intent(in) :: ispin
+       integer, intent(in) :: inr(3)
+       complex*16, intent(out) :: fout(:,:,:)
+     end subroutine get_qe_wnr_standalone
   end interface
 
 end module grid3mod

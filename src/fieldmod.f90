@@ -56,7 +56,7 @@ module fieldmod
   !> - A number of flags controlling the behavior of the field.
   type field
      ! parent structure information
-     type(crystal), pointer :: c => null() !< crsytal
+     type(crystal), pointer :: c => null() !< crystal
      integer :: id !< field ID
      ! general information
      logical :: isinit = .false. !< is this field initialized?

@@ -38,7 +38,7 @@ module fieldseedmod
      integer :: clm1, clm2 !< clm fields for add and sub
      character(len=mlen) :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
      character(len=mlen) :: ids2 = "" !< id2.s in clm
-     character(len=mlen) :: expr = "" !< expression in load as
+     character(len=mmlen) :: expr = "" !< expression in load as
      character(len=mmlen) :: elseopt = "" !< options to be handled elsewhere
      logical :: testrmt = .true. !< whether to test rmt (wien/elk)
      logical :: readvirtual = .false. !< Read the virtual orbitals (fchk/molden)

@@ -1749,14 +1749,14 @@ contains
     do is = 1, nspin
        do ibnd1 = 1, nbndw(is)
           ! first wannier function
-          call sy%f(fid)%grid%get_qe_wnr(ibnd1,is,luevc,luevc_ibnd,f1)
+          call sy%f(fid)%grid%get_qe_wnr(sy%c%omega,ibnd1,is,luevc,luevc_ibnd,f1)
 
           do ibnd2 = ibnd1, nbndw(is)
              ! second wannier function
              if (ibnd1 == ibnd2) then
                 f2 = f1
              else
-                call sy%f(fid)%grid%get_qe_wnr(ibnd2,is,luevc,luevc_ibnd,f2)
+                call sy%f(fid)%grid%get_qe_wnr(sy%c%omega,ibnd2,is,luevc,luevc_ibnd,f2)
              endif
 
              ! lovrlp
@@ -1880,8 +1880,8 @@ contains
     if (imtype == imtype_yt) &
        deallocate(w,wmask,psic2)
 
-    ! scale (the omega comes from wannier)
-    sij = sij / (n(1)*n(2)*n(3))
+    ! scale
+    sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
 
   end subroutine calc_sij_wannier
 

@@ -405,24 +405,49 @@ contains
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2, nder
-    character(len=:), allocatable :: word, outfile, prop, expr, wext1
+    character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: ix, iy, iz, i
+    integer :: ix, iy, iz, i, ibnd, inr(3), ispin
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
-    integer :: outform, ishift(3)
+    integer :: outform, ishift(3), dowan
     type(grid3) :: faux
+    complex*16, allocatable :: caux(:,:,:)
 
     integer, parameter :: outform_cube = 1
     integer, parameter :: outform_bincube = 2
     integer, parameter :: outform_vasp = 3
     integer, parameter :: outform_xsf = 4
 
+    integer, parameter :: wan_none = 0
+    integer, parameter :: wan_mlwf = 1
+    integer, parameter :: wan_wannier = 2
+    integer, parameter :: wan_unk = 3
+    integer, parameter :: wan_psink = 4
+
+    integer, parameter :: nti_none = 0
+    integer, parameter :: nti_f = 1
+    integer, parameter :: nti_gx = 2
+    integer, parameter :: nti_gy = 3
+    integer, parameter :: nti_gz = 4
+    integer, parameter :: nti_gmod = 5
+    integer, parameter :: nti_hxx = 6
+    integer, parameter :: nti_hxy = 7
+    integer, parameter :: nti_hxz = 8
+    integer, parameter :: nti_hyy = 9
+    integer, parameter :: nti_hyz = 10
+    integer, parameter :: nti_hzz = 11
+    integer, parameter :: nti_lap = 12
+    integer, parameter :: nti_real = 13
+    integer, parameter :: nti_imag = 14
+    integer, parameter :: nti_abs = 15
+
     ! read the points
     lp = 1
     lp2 = 1
     dogrid = .false.
+    dowan = wan_none
     doheader = .false.
     word = lgetword(line,lp)
     ok = eval_next(x0(1),word,lp2)
@@ -457,6 +482,20 @@ contains
        dogrid = .true.
        xd = eye
        x0 = 0d0
+    elseif (equal(word,'mlwf')) then
+       dogrid = .true.
+       dowan = wan_mlwf
+       ok = isinteger(ibnd,line,lp)
+       ok = ok .and. isinteger(inr(1),line,lp)
+       ok = ok .and. isinteger(inr(2),line,lp)
+       ok = ok .and. isinteger(inr(3),line,lp)
+       if (.not. ok) then
+          call ferror('rhoplot_cube','wrong MLWF syntax',faterr,line,syntax=.true.)
+          return
+       end if
+       xd = eye
+       x0 = 0d0
+       ispin = 1
     endif
 
     ! calculate the distances
@@ -489,9 +528,8 @@ contains
 
     ! read additional options
     ishift = 0
-    nti = 0
+    nti = nti_none
     nder = 0
-    prop = "f"
     id = sy%iref
     useexpr = .false.
     outform = outform_cube
@@ -534,54 +572,58 @@ contains
           end if
        else if (equal(word,'header')) then
           doheader = .true.
+       else if (equal(word,'spin')) then
+          ok = isinteger(ispin,line,lp)
+          if (.not.ok) then
+             call ferror('rhoplot_cube','wrong SPIN keyword in CUBE',faterr,line,syntax=.true.)
+             return
+          end if
+          if (ispin < 1 .or. ispin > 2) then
+             call ferror('rhoplot_cube','SPIN keyword in CUBE must be either 1 or 2',faterr,line,syntax=.true.)
+             return
+          end if
        else if (equal(word,'f')) then
-          nti = 0
-          prop = word
+          nti = nti_f
           nder = 0
        elseif (equal(word,'gx')) then
-          nti = 1
-          prop = word
+          nti = nti_gx
           nder = 1
        else if (equal(word,'gy')) then
-          nti = 2
-          prop = word
+          nti = nti_gy
           nder = 1
        else if (equal(word,'gz')) then
-          nti = 3
-          prop = word
+          nti = nti_gz
           nder = 1
        else if (equal(word,'gmod')) then
-          nti = 4
-          prop = word
+          nti = nti_gmod
           nder = 1
        else if (equal(word,'hxx')) then
-          nti = 5
-          prop = word
+          nti = nti_hxx
           nder = 2
        else if (equal(word,'hxy') .or. equal(word,'hyx')) then
-          nti = 6
-          prop = word
+          nti = nti_hxy
           nder = 2
        else if (equal(word,'hxz') .or. equal(word,'hzx')) then
-          nti = 7
-          prop = word
+          nti = nti_hxz
           nder = 2
        else if (equal(word,'hyy')) then
-          nti = 8
-          prop = word
+          nti = nti_hyy
           nder = 2
        else if (equal(word,'hyz') .or. equal(word,'hzy')) then
-          nti = 9
-          prop = word
+          nti = nti_hyz
           nder = 2
        else if (equal(word,'hzz')) then
-          nti = 10
-          prop = word
+          nti = nti_hzz
           nder = 2
        else if (equal(word,'lap')) then
-          nti = 11
-          prop = word
+          nti = nti_lap
           nder = 2
+       else if (equal(word,'real')) then
+          nti = nti_real
+       else if (equal(word,'imag')) then
+          nti = nti_imag
+       else if (equal(word,'abs')) then
+          nti = nti_abs
        else if (equal(word,'shift')) then
           if (.not.dogrid) then
              call ferror('rhoplot_cube','SHIFT can only be used with the GRID option in CUBE',faterr,line,syntax=.true.)
@@ -598,16 +640,35 @@ contains
        end if
     end do
 
-    ! step sizes
+    ! step sizes and various checks
     if (dogrid) then
        ok = (id > -1)
        if (ok) ok = ok .and. (sy%f(id)%type == type_grid)
        if (.not.ok) then
-          call ferror('rhoplot_cube','CUBE GRID can only be used with grid fields',faterr,syntax=.true.)
+          call ferror('rhoplot_cube','CUBE GRID/MLWF/... can only be used with grid fields',faterr,syntax=.true.)
           return
        end if
        nn = sy%f(id)%grid%n
     end if
+    if (dowan == wan_mlwf) then
+       if (.not.sy%f(id)%grid%isqe) then
+          call ferror('rhoplot_cube','CUBE MLWF requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
+          return
+       end if
+       if (.not.sy%f(id)%grid%iswan) then
+          call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
+          return
+       end if
+       if (ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd) then
+          call ferror('rhoplot_cube','CUBE MLWF: incorrect band number',faterr,syntax=.true.)
+          return
+       end if
+
+       do i = 1, 3
+          inr(i) = mod(inr(i),sy%f(id)%grid%qe%nk(i))
+       end do
+    end if
+
     do i = 1, 3
        xd(:,i) = xd(:,i) / real(nn(i),8)
     end do
@@ -629,15 +690,25 @@ contains
 
     ! calculate properties
     if (dogrid) then
-       if (sy%f(id)%type /= type_grid) then
-          call ferror('rhoplot_cube','grid can be used only with a grid field',faterr,syntax=.true.)
-          return
-       end if
-       if (sy%f(id)%usecore) then
-          call sy%c%promolecular_grid(faux,sy%f(id)%grid%n,sy%f(id)%zpsp)
-          faux%f = faux%f + sy%f(id)%grid%f
-       else
-          faux = sy%f(id)%grid
+       if (dowan == wan_none) then
+          ! GRID keyword
+          if (sy%f(id)%usecore) then
+             call sy%c%promolecular_grid(faux,sy%f(id)%grid%n,sy%f(id)%zpsp)
+             faux%f = faux%f + sy%f(id)%grid%f
+          else
+             faux = sy%f(id)%grid
+          end if
+       elseif (dowan == wan_mlwf) then
+          ! MLWF keyword 
+          allocate(caux(nn(1),nn(2),nn(3)))
+          call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,caux)
+          if (nti == nti_none .or. nti == nti_abs) then
+             faux%f = abs(caux)
+          elseif (nti == nti_real) then
+             faux%f = real(caux)
+          elseif (nti == nti_imag) then
+             faux%f = aimag(caux)
+          end if
        end if
 
        if (outform == outform_bincube) then
@@ -650,6 +721,7 @@ contains
           call sy%c%writegrid_xsf(faux%f,outfile,.false.)
        endif
     else
+       ! no special keywords used
        ok = .false.
        if (useexpr) then
           call faux%new_eval(c_loc(sy),nn,expr)
@@ -670,29 +742,29 @@ contains
                    if (.not.useexpr) then
                       call sy%f(id)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
                       select case(nti)
-                      case (0)
+                      case (nti_f)
                          lappt = res%f
-                      case (1)
+                      case (nti_gx)
                          lappt = res%gf(1)
-                      case (2)
+                      case (nti_gy)
                          lappt = res%gf(2)
-                      case (3)
+                      case (nti_gz)
                          lappt = res%gf(3)
-                      case (4)
+                      case (nti_gmod)
                          lappt = res%gfmod
-                      case (5)
+                      case (nti_hxx)
                          lappt = res%hf(1,1)
-                      case (6)
+                      case (nti_hxy)
                          lappt = res%hf(1,2)
-                      case (7)
+                      case (nti_hxz)
                          lappt = res%hf(1,3)
-                      case (8)
+                      case (nti_hyy)
                          lappt = res%hf(2,2)
-                      case (9)
+                      case (nti_hyz)
                          lappt = res%hf(2,3)
-                      case (10)
+                      case (nti_hzz)
                          lappt = res%hf(3,3)
-                      case (11)
+                      case (nti_lap)
                          lappt = res%del2f
                       end select
                    else
