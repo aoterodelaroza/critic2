@@ -1691,8 +1691,6 @@ contains
     ! some checks
     if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
        call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
-    if (f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3) /= f%qe%nks) &
-       call ferror("read_wannier_chk","number of k-points from wannier different than qe",faterr)
 
     ! open the pwc file
     luc = fopen_read(f%qe%fpwc,form="unformatted")
@@ -1715,7 +1713,9 @@ contains
        do ik = 1, f%qe%nks
           do jbnd = 1, f%qe%nbnd
              read (luc) evcaux(1:f%qe%ngk(ik))
-             if (ibnd > f%qe%nbndw(is) .or. jbnd > f%qe%nbndw(is) .or. is < ispin) cycle
+             if (f%iswan .and. (ibnd > f%qe%nbndw(is) .or. jbnd > f%qe%nbndw(is) .or. is < ispin)) cycle ! nbndw(:) only from wannier
+             if (ibnd > f%qe%nbnd) cycle
+
              if (rotate) then
                 evc(1:f%qe%ngk(ik),ik) = evc(1:f%qe%ngk(ik),ik) + f%qe%u(jbnd,ibnd,ik,is) * evcaux(1:f%qe%ngk(ik))
              elseif (ibnd == jbnd .and. is == ispin) then
@@ -1765,7 +1765,7 @@ contains
     deallocate(rseq,raux)
 
     ! normalize
-    fout = fout / real(f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3),8) / sqrt(omega)
+    fout = fout / real(f%qe%nks,8) / sqrt(omega)
 
   end subroutine get_qe_wnr_standalone
 
