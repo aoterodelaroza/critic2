@@ -1691,7 +1691,9 @@ contains
     ! some checks
     if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
        call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
-
+    if (any(abs(f%qe%wk - f%qe%wk(1)) > 1d-5)) &
+       call ferror("get_qe_wnr_standalone","wannier transformation only possible with uniform grids (no symmetry)",faterr)
+       
     ! open the pwc file
     luc = fopen_read(f%qe%fpwc,form="unformatted")
 
