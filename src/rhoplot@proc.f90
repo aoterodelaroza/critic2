@@ -667,10 +667,6 @@ contains
           call ferror('rhoplot_cube','CUBE MLWF: incorrect band number',faterr,syntax=.true.)
           return
        end if
-
-       do i = 1, 3
-          inr(i) = mod(inr(i),sy%f(id)%grid%qe%nk(i))
-       end do
     end if
 
     do i = 1, 3

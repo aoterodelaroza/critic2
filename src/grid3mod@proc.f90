@@ -1687,7 +1687,6 @@ contains
 
     integer :: i, j, k, is, ik, jbnd, luc, ireg
     complex*16, allocatable :: evcaux(:), evc(:,:), rseq(:), raux(:,:,:)
-    integer :: inr_(3)
 
     ! some checks
     if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
@@ -1728,11 +1727,6 @@ contains
     deallocate(evcaux)
     call fclose(luc)
 
-    ! modulo of the lattice vectors
-    inr_(1) = mod(inr(1),f%qe%nk(1))
-    inr_(2) = mod(inr(2),f%qe%nk(2))
-    inr_(3) = mod(inr(3),f%qe%nk(3))
-
     ! allocate auxiliary arrays
     allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
     allocate(raux(f%n(1),f%n(2),f%n(3)))
@@ -1759,7 +1753,7 @@ contains
        end do
 
        ! the phase factor for this lattice vector (e(ik*R))
-       raux = raux * exp(-tpi*img*(f%qe%kpt(1,ik)*inr_(1)+f%qe%kpt(2,ik)*inr_(2)+f%qe%kpt(3,ik)*inr_(3)))
+       raux = raux * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
 
        !$omp critical (sum)
        fout = fout + raux
