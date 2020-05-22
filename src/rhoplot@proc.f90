@@ -482,25 +482,29 @@ contains
        dogrid = .true.
        xd = eye
        x0 = 0d0
-    elseif (equal(word,'mlwf').or.equal(word,'wannier').or.equal(word,'unk')) then
+    elseif (equal(word,'mlwf').or.equal(word,'wannier').or.equal(word,'unk').or.equal(word,'psink')) then
        dogrid = .true.
+       inr = 0
        if (equal(word,'mlwf')) then
           dowan = wan_mlwf
        elseif (equal(word,'unk')) then
           dowan = wan_unk
+       elseif (equal(word,'psink')) then
+          dowan = wan_psink
        else
           dowan = wan_wannier
        end if
        ok = isinteger(ibnd,line,lp)
-       if (dowan == wan_unk) then
+       if (dowan == wan_unk.or.dowan == wan_psink) then
           ok = ok .and. isinteger(ik,line,lp)
-       else
+       end if
+       if (dowan /= wan_unk) then
           ok = ok .and. isinteger(inr(1),line,lp)
           ok = ok .and. isinteger(inr(2),line,lp)
           ok = ok .and. isinteger(inr(3),line,lp)
        end if
        if (.not. ok) then
-          call ferror('rhoplot_cube','wrong MLWF/WANNIER/UNK syntax',faterr,line,syntax=.true.)
+          call ferror('rhoplot_cube','wrong MLWF/WANNIER/UNK/PSINK syntax',faterr,line,syntax=.true.)
           return
        end if
        xd = eye
@@ -660,7 +664,7 @@ contains
        end if
        nn = sy%f(id)%grid%n
     end if
-    if ((dowan == wan_mlwf.or.dowan == wan_wannier.or.dowan == wan_unk).and..not.sy%f(id)%grid%isqe) then
+    if (dowan /= wan_none.and..not.sy%f(id)%grid%isqe) then
        call ferror('rhoplot_cube','CUBE MLWF/WANNIER/... requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
        return
     end if
@@ -668,7 +672,7 @@ contains
        call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
        return
     end if
-    if ((dowan == wan_mlwf.or.dowan == wan_wannier.or.dowan == wan_unk).and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
+    if (dowan /= wan_none.and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
        call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
        return
     end if
@@ -702,21 +706,15 @@ contains
           else
              faux = sy%f(id)%grid
           end if
-       elseif (dowan == wan_mlwf .or. dowan == wan_wannier) then
-          ! MLWF and WANNIER keywords
+       else
           allocate(caux(nn(1),nn(2),nn(3)))
-          call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,dowan==wan_mlwf,caux)
-          if (nti == nti_none .or. nti == nti_abs) then
-             faux%f = abs(caux)
-          elseif (nti == nti_real) then
-             faux%f = real(caux)
-          elseif (nti == nti_imag) then
-             faux%f = aimag(caux)
+          if (dowan == wan_mlwf .or. dowan == wan_wannier) then
+             ! MLWF and WANNIER keywords
+             call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,(dowan == wan_mlwf),caux)
+          elseif (dowan == wan_unk .or. dowan == wan_psink) then
+             ! UNK and PSINK keyword
+             call sy%f(id)%grid%get_qe_psink_standalone(sy%f(id)%c%omega,ibnd,ik,ispin,(dowan == wan_psink),inr,caux)
           end if
-       elseif (dowan == wan_unk) then
-          ! UNK keyword
-          allocate(caux(nn(1),nn(2),nn(3)))
-          call sy%f(id)%grid%get_qe_unk_standalone(sy%f(id)%c%omega,ibnd,ik,ispin,caux)
           if (nti == nti_none .or. nti == nti_abs) then
              faux%f = abs(caux)
           elseif (nti == nti_real) then

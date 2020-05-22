@@ -1754,7 +1754,7 @@ contains
           end do
        end do
 
-       ! the phase factor for this lattice vector (e(ik*R))
+       ! the phase factor for this lattice vector (e(-ik*R))
        raux = raux * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
 
        !$omp critical (sum)
@@ -1775,7 +1775,7 @@ contains
   !> ik, and spin ispin from QEs Bloch coefficients, standalone
   !> version. Returns the unk(r) in cell grid fout. omega is the cell
   !> volume (used for normalization).
-  module subroutine get_qe_unk_standalone(f,omega,ibnd,ik,ispin,fout)
+  module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout)
     use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
@@ -1783,6 +1783,8 @@ contains
     integer, intent(in) :: ibnd
     integer, intent(in) :: ik
     integer, intent(in) :: ispin
+    logical :: usephase
+    integer, intent(in) :: inr(3)
     complex*16, intent(out) :: fout(:,:,:)
 
     integer :: i, j, k, is, ik_, jbnd, luc, ireg
@@ -1790,7 +1792,7 @@ contains
 
     ! some checks
     if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
-       call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
+       call ferror("get_qe_psink_standalone","inconsistent grid size",faterr)
 
     ! open the pwc file
     luc = fopen_read(f%qe%fpwc,form="unformatted")
@@ -1829,24 +1831,27 @@ contains
     fout = reshape(rseq,shape(fout))
     call cfftnd(3,f%n,+1,fout)
     deallocate(rseq)
+    
+    ! the phase factor for this k-point (e(ik*r))
+    if (usephase) then
+       do k = 1, f%n(3)
+          do j = 1, f%n(2)
+             do i = 1, f%n(1)
+                fout(i,j,k) = fout(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik)*(real(i-1,8)/real(f%n(1),8))+&
+                   f%qe%kpt(2,ik)*(real(j-1,8)/real(f%n(2),8))+&
+                   f%qe%kpt(3,ik)*(real(k-1,8)/real(f%n(3),8))))
+             end do
+          end do
+       end do
+    end if
 
-    ! do k = 1, f%n(3)
-    !    do j = 1, f%n(2)
-    !       do i = 1, f%n(1)
-    !          fout(i,j,k) = fout(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik)*(real(i-1,8)/real(f%n(1),8))+&
-    !             f%qe%kpt(2,ik)*(real(j-1,8)/real(f%n(2),8))+&
-    !             f%qe%kpt(3,ik)*(real(k-1,8)/real(f%n(3),8))))
-    !       end do
-    !    end do
-    ! end do
-
-    ! ! the phase factor for this lattice vector (e(ik*R))
-    ! fout = fout * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
+    ! the phase factor for this lattice vector (e(-ik*R))
+    fout = fout * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
     
     ! normalize
     fout = fout / sqrt(omega)
 
-  end subroutine get_qe_unk_standalone
+  end subroutine get_qe_psink_standalone
 
   !xx! private procedures
 

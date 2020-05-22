@@ -78,7 +78,7 @@ module grid3mod
      procedure :: rotate_qe_evc !< write U-rotated scratch files using QE evc file
      procedure :: get_qe_wnr !< build a Wannier function from Bloch coeffs (pre-open, parallel)
      procedure :: get_qe_wnr_standalone !< build a Wannier function from Bloch coeffs (standalone)
-     procedure :: get_qe_unk_standalone !< build a unk(r) function from Bloch coeffs (standalone)
+     procedure :: get_qe_psink_standalone !< build a psink(r) function from Bloch coeffs (standalone)
      procedure :: new_eval !< grid3 from an arithmetic expression
   end type grid3
   public :: grid3
@@ -208,14 +208,16 @@ module grid3mod
        logical, intent(in) :: rotate
        complex*16, intent(out) :: fout(:,:,:)
      end subroutine get_qe_wnr_standalone
-     module subroutine get_qe_unk_standalone(f,omega,ibnd,ik,ispin,fout)
+     module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout)
        class(grid3), intent(in) :: f
        real*8, intent(in) :: omega
        integer, intent(in) :: ibnd
        integer, intent(in) :: ik
        integer, intent(in) :: ispin
+       logical :: usephase
+       integer, intent(in) :: inr(3)
        complex*16, intent(out) :: fout(:,:,:)
-     end subroutine get_qe_unk_standalone
+     end subroutine get_qe_psink_standalone
   end interface
 
 end module grid3mod
