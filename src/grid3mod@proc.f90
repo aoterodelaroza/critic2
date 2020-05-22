@@ -1770,6 +1770,83 @@ contains
     fout = fout / real(f%qe%nks,8) / sqrt(omega)
 
   end subroutine get_qe_wnr_standalone
+  
+  !> Build the unk(r) functions on a real grid for band ibnd, k-point
+  !> ik, and spin ispin from QEs Bloch coefficients, standalone
+  !> version. Returns the unk(r) in cell grid fout. omega is the cell
+  !> volume (used for normalization).
+  module subroutine get_qe_unk_standalone(f,omega,ibnd,ik,ispin,fout)
+    use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
+    use param, only: tpi, img
+    class(grid3), intent(in) :: f
+    real*8, intent(in) :: omega
+    integer, intent(in) :: ibnd
+    integer, intent(in) :: ik
+    integer, intent(in) :: ispin
+    complex*16, intent(out) :: fout(:,:,:)
+
+    integer :: i, j, k, is, ik_, jbnd, luc, ireg
+    complex*16, allocatable :: evc(:), evcaux(:), rseq(:)
+
+    ! some checks
+    if (f%n(1) /= size(fout,1).or.f%n(2) /= size(fout,2).or.f%n(3) /= size(fout,3)) &
+       call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
+
+    ! open the pwc file
+    luc = fopen_read(f%qe%fpwc,form="unformatted")
+
+    ! skip the header of the pwc file
+    if (f%qe%gamma_only) then
+       ireg = 18
+    else
+       ireg = 17
+    end if
+    
+    ! read the psik coefficients from the file; calculates evc
+    allocate(evc(f%qe%ngk(ik)),evcaux(maxval(f%qe%ngk(1:f%qe%nks))))
+    evc = 0d0
+    do i = 1, ireg
+       read (luc)
+    end do
+    main: do is = 1, f%qe%nspin
+       do ik_ = 1, f%qe%nks
+          do jbnd = 1, f%qe%nbnd
+             read (luc) evcaux(1:f%qe%ngk(ik_))
+             if (is == ispin .and. ik == ik_ .and. ibnd == jbnd) then
+                evc(1:f%qe%ngk(ik_)) = evcaux(1:f%qe%ngk(ik_))
+                exit main
+             end if
+          end do
+       end do
+    end do main
+    deallocate(evcaux)
+    call fclose(luc)
+
+    ! calculate the unk(r) as FT of the Bloch coefficients
+    allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
+    rseq = 0d0
+    rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
+    fout = reshape(rseq,shape(fout))
+    call cfftnd(3,f%n,+1,fout)
+    deallocate(rseq)
+
+    ! do k = 1, f%n(3)
+    !    do j = 1, f%n(2)
+    !       do i = 1, f%n(1)
+    !          fout(i,j,k) = fout(i,j,k) * exp(tpi*img*(f%qe%kpt(1,ik)*(real(i-1,8)/real(f%n(1),8))+&
+    !             f%qe%kpt(2,ik)*(real(j-1,8)/real(f%n(2),8))+&
+    !             f%qe%kpt(3,ik)*(real(k-1,8)/real(f%n(3),8))))
+    !       end do
+    !    end do
+    ! end do
+
+    ! ! the phase factor for this lattice vector (e(ik*R))
+    ! fout = fout * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
+    
+    ! normalize
+    fout = fout / sqrt(omega)
+
+  end subroutine get_qe_unk_standalone
 
   !xx! private procedures
 

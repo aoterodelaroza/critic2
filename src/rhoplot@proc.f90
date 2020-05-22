@@ -408,7 +408,7 @@ contains
     character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: ix, iy, iz, i, ibnd, inr(3), ispin
+    integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
     integer :: outform, ishift(3), dowan
@@ -482,19 +482,25 @@ contains
        dogrid = .true.
        xd = eye
        x0 = 0d0
-    elseif (equal(word,'mlwf').or.equal(word,'wannier')) then
+    elseif (equal(word,'mlwf').or.equal(word,'wannier').or.equal(word,'unk')) then
        dogrid = .true.
        if (equal(word,'mlwf')) then
           dowan = wan_mlwf
+       elseif (equal(word,'unk')) then
+          dowan = wan_unk
        else
           dowan = wan_wannier
        end if
        ok = isinteger(ibnd,line,lp)
-       ok = ok .and. isinteger(inr(1),line,lp)
-       ok = ok .and. isinteger(inr(2),line,lp)
-       ok = ok .and. isinteger(inr(3),line,lp)
+       if (dowan == wan_unk) then
+          ok = ok .and. isinteger(ik,line,lp)
+       else
+          ok = ok .and. isinteger(inr(1),line,lp)
+          ok = ok .and. isinteger(inr(2),line,lp)
+          ok = ok .and. isinteger(inr(3),line,lp)
+       end if
        if (.not. ok) then
-          call ferror('rhoplot_cube','wrong MLWF syntax',faterr,line,syntax=.true.)
+          call ferror('rhoplot_cube','wrong MLWF/WANNIER/UNK syntax',faterr,line,syntax=.true.)
           return
        end if
        xd = eye
@@ -654,19 +660,17 @@ contains
        end if
        nn = sy%f(id)%grid%n
     end if
-    if (dowan == wan_mlwf) then
-       if (.not.sy%f(id)%grid%isqe) then
-          call ferror('rhoplot_cube','CUBE MLWF requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
-          return
-       end if
-       if (.not.sy%f(id)%grid%iswan) then
-          call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
-          return
-       end if
-       if (ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd .or. ibnd > sy%f(id)%grid%qe%nbndw(ispin)) then
-          call ferror('rhoplot_cube','CUBE MLWF: incorrect band number',faterr,syntax=.true.)
-          return
-       end if
+    if ((dowan == wan_mlwf.or.dowan == wan_wannier.or.dowan == wan_unk).and..not.sy%f(id)%grid%isqe) then
+       call ferror('rhoplot_cube','CUBE MLWF/WANNIER/... requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
+       return
+    end if
+    if (dowan == wan_mlwf.and..not.sy%f(id)%grid%iswan) then
+       call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
+       return
+    end if
+    if ((dowan == wan_mlwf.or.dowan == wan_wannier.or.dowan == wan_unk).and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
+       call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
+       return
     end if
 
     do i = 1, 3
@@ -699,9 +703,20 @@ contains
              faux = sy%f(id)%grid
           end if
        elseif (dowan == wan_mlwf .or. dowan == wan_wannier) then
-          ! MLWF keyword 
+          ! MLWF and WANNIER keywords
           allocate(caux(nn(1),nn(2),nn(3)))
           call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,dowan==wan_mlwf,caux)
+          if (nti == nti_none .or. nti == nti_abs) then
+             faux%f = abs(caux)
+          elseif (nti == nti_real) then
+             faux%f = real(caux)
+          elseif (nti == nti_imag) then
+             faux%f = aimag(caux)
+          end if
+       elseif (dowan == wan_unk) then
+          ! UNK keyword
+          allocate(caux(nn(1),nn(2),nn(3)))
+          call sy%f(id)%grid%get_qe_unk_standalone(sy%f(id)%c%omega,ibnd,ik,ispin,caux)
           if (nti == nti_none .or. nti == nti_abs) then
              faux%f = abs(caux)
           elseif (nti == nti_real) then
