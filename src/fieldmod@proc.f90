@@ -1260,8 +1260,9 @@ contains
        n = f%grid%n
        if (isload) then
           write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
-          write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,3)
-          write (uout,'("  Last elements... ",3(A,2X))') (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=0,2)
+          write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
+          write (uout,'("  Last elements... ",3(A,2X))') &
+             (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
           write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
           write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
           write (uout,'("  Cell integral (grid SUM) = ",A)') &
