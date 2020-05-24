@@ -1,0 +1,102 @@
++ Field number 1
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 2  2  2
+  First elements... 1.810108118799E-03  1.045154298839E-03
+  Last elements... 1.810108118799E-03  1.045154298839E-03
+  Sum of elements... 1.256793063492E+00
+  Sum of squares of elements... 7.219436162369E-01
+  Cell integral (grid SUM) = 153.78628953
+  Min: 1.04515430E-03
+  Average: 1.57099133E-01
+  Max: 6.00274112E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (2): $2, $f1
+
++ Field number 9
+  Name: <promolecular>
+  Source: <generated>
+  Type: promolecular
+  Atoms in the environment: 1912
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 5
+  Number of critical points in the unit cell: 16
+  Alias for this field (1): $9
+
+* Field number 0 is now REFERENCE.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      0  Pop  
+    3  lval      0  Lap  
+
+* Summary of critical points for the reference field
+  Non-equivalent critical points = 5
+  Cell critical points = 16
+  Topological class (n|b|r|c): 5(16) 0(0) 0(0) 0(0) 
+  Morse sum: 16
+
+* Field number 1 is now REFERENCE.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+
+* Summary of critical points for the reference field
+  Non-equivalent critical points = 5
+  Cell critical points = 16
+  Topological class (n|b|r|c): 5(16) 0(0) 0(0) 0(0) 
+  Morse sum: 16
+
+* Field number 2 is now REFERENCE.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      2  Pop  
+    3  lval      2  Lap  
+
+* Summary of critical points for the reference field
+  Non-equivalent critical points = 5
+  Cell critical points = 16
+  Topological class (n|b|r|c): 5(16) 0(0) 0(0) 0(0) 
+  Morse sum: 16
+
+* Field number 9 is now REFERENCE.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      9  Pop  
+    3  lval      9  Lap  
+
+* Summary of critical points for the reference field
+  Non-equivalent critical points = 5
+  Cell critical points = 16
+  Topological class (n|b|r|c): 5(16) 0(0) 0(0) 0(0) 
+  Morse sum: 16
+

@@ -41,6 +41,7 @@ set(TESTS
   040_grid-keywords        ## grid keywords (count, etc.)
   041_unload               ## unload keyword
   042_setfield             ## setfield keyword
+  043_reference            ## reference keyword
   )
 
 runtests(${TESTS})

@@ -1,0 +1,15 @@
+## check: 043_reference.cro -a1e-10
+## labels: regression quick
+
+crystal library urea
+
+load as "$0" 2 2 2
+load copy 0 name f1
+load copy 2 to 9
+
+reference 0
+reference 1
+reference 2
+reference 9
+
+
