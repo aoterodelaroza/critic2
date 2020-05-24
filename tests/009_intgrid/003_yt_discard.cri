@@ -1,0 +1,20 @@
+## check: 003_yt_discard.cro -a1e-10
+## delete: 003_yt_discard.cml -a1e-10
+## delete: 003_yt_discard.xyz -a1e-10
+## labels: regression
+
+crystal ../zz_source/vasp-unk/icecake/icecake.CHGCAR
+
+load ../zz_source/vasp-unk/icecake/icecake.ELFCAR id elf
+load ../zz_source/vasp-unk/icecake/icecake.CHGCAR id rho
+
+reference elf
+integrable rho
+
+yt nnm discard "$elf < 0.5"
+
+cpreport short
+
+cpreport 003_yt_discard.cml border cell
+cpreport 003_yt_discard.xyz border cell
+

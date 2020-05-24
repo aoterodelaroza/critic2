@@ -1,0 +1,33 @@
+## check: 008_bader_plot.cro -a1e-10
+## check: 008_bader_plot.json -a1e-10
+## delete: 008_bader_plot_wcube_01.cube
+## delete: 008_bader_plot_wcube_02.cube
+## delete: 008_bader_plot_wcube_03.cube
+## delete: 008_bader_plot_wcube_04.cube
+## delete: 008_bader_plot_wcube_05.cube
+## delete: 008_bader_plot_wcube_06.cube
+## delete: 008_bader_plot_wcube_07.cube
+## delete: 008_bader_plot_wcube_08.cube
+## delete: 008_bader_plot_wcube_09.cube
+## delete: 008_bader_plot_basins-1.mtl
+## delete: 008_bader_plot_basins-1.obj
+## delete: 008_bader_plot_basins-2.off
+## delete: 008_bader_plot_basins-3.ply
+## delete: 008_bader_plot_basins-cell.mtl
+## delete: 008_bader_plot_basins-cell.obj
+## delete: 008_bader_plot_basins-cell.off
+## delete: 008_bader_plot_basins-cell.ply
+## labels: regression quick
+
+crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN core zpsp si 4 o 6
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+reference 1
+integrable 2
+bader json 008_bader_plot.json wcube
+bader basins obj 1
+bader basins off 2
+bader basins ply 3
+

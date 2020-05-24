@@ -1,0 +1,306 @@
+{
+  "units": "bohr",
+  "structure": {
+    "cell_lengths": [9.28611421700000,9.28611421700000,10.21585947440000],
+    "cell_angles": [90.00000000000000,90.00000000000000,119.99999999999999],
+    "cell_volume": 762.91048593648623,
+    "crys_to_cart_matrix": [[9.28611421700000,-4.64305710850000,0.00000000000000],[0.00000000000000,8.04201081436584,0.00000000000000],[0.00000000000000,0.00000000000000,10.21585947440000]],
+    "cart_to_crys_matrix": [[0.10768766963574,0.06217350505260,-0.00000000000000],[0.00000000000000,0.12434701010519,-0.00000000000000],[0.00000000000000,0.00000000000000,0.09788701601719]],
+    "is_molecule": false,
+    "periodicity": "condensed (3d)",
+    "number_of_species": 2,
+    "species": [{
+      "id": 1,
+      "name": "O_",
+      "atomic_number": 8
+    },{
+      "id": 2,
+      "name": "Si",
+      "atomic_number": 14
+    }],
+    "number_of_nonequivalent_atoms": 2,
+    "nonequivalent_atoms": [{
+      "id": 1,
+      "species": 1,
+      "fractional_coordinates": [0.41300000000000,0.26680000000000,0.21400000000000],
+      "cartesian_coordinates": [2.59639753507320,2.14560848527281,2.18619392752160],
+      "multiplicity": 6,
+      "wyckoff_letter": "c",
+      "half_nn_distance": 1.51760912603658
+    },{
+      "id": 2,
+      "species": 2,
+      "fractional_coordinates": [0.46990000000000,0.00000000000000,0.33333000000000],
+      "cartesian_coordinates": [4.36354507056830,0.00000000000000,3.40525243860175],
+      "multiplicity": 3,
+      "wyckoff_letter": "a",
+      "half_nn_distance": 1.51760912603658
+    }],
+    "number_of_cell_atoms": 9,
+    "cell_atoms": [{
+      "id": 1,
+      "species": 1,
+      "fractional_coordinates": [0.41300000000000,0.26680000000000,0.21400000000000],
+      "cartesian_coordinates": [2.59639753507320,2.14560848527281,2.18619392752160],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 1,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [0,0,0]
+    },{
+      "id": 2,
+      "species": 1,
+      "fractional_coordinates": [0.73320000000000,0.14620000000000,0.54733333333333],
+      "cartesian_coordinates": [6.12976399464170,1.17574198106029,5.59148041898827],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 2,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [1,0,0]
+    },{
+      "id": 3,
+      "species": 1,
+      "fractional_coordinates": [0.85380000000000,0.58700000000000,0.88066666666667],
+      "cartesian_coordinates": [5.20300979578510,4.72066034803275,8.99676691045494],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 3,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [1,1,0]
+    },{
+      "id": 4,
+      "species": 1,
+      "fractional_coordinates": [0.26680000000000,0.41300000000000,0.78600000000000],
+      "cartesian_coordinates": [0.55995268728510,3.32135046633309,8.02966554687840],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 4,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [0,0,1]
+    },{
+      "id": 5,
+      "species": 1,
+      "fractional_coordinates": [0.14620000000000,0.73320000000000,0.45266666666667],
+      "cartesian_coordinates": [-2.04665957342680,5.89640232909304,4.62437905541173],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 5,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [0,1,0]
+    },{
+      "id": 6,
+      "species": 1,
+      "fractional_coordinates": [0.58700000000000,0.85380000000000,0.11933333333333],
+      "cartesian_coordinates": [1.48670688614170,6.86626883330556,1.21909256394507],
+      "nonequivalent_id": 1,
+      "symop_to_nneq": 6,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [1,1,0]
+    },{
+      "id": 7,
+      "species": 2,
+      "fractional_coordinates": [0.46990000000000,0.00000000000000,0.33333000000000],
+      "cartesian_coordinates": [4.36354507056830,0.00000000000000,3.40525243860175],
+      "nonequivalent_id": 2,
+      "symop_to_nneq": 1,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [0,0,0]
+    },{
+      "id": 8,
+      "species": 2,
+      "fractional_coordinates": [1.00000000000000,0.46990000000000,0.66666333333333],
+      "cartesian_coordinates": [7.10434168171585,3.77894088167051,6.81053893006842],
+      "nonequivalent_id": 2,
+      "symop_to_nneq": 2,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [1,0,0]
+    },{
+      "id": 9,
+      "species": 2,
+      "fractional_coordinates": [0.53010000000000,0.53010000000000,0.99999666666667],
+      "cartesian_coordinates": [2.46128457321585,4.26306993269533,10.21582542153509],
+      "nonequivalent_id": 2,
+      "symop_to_nneq": 3,
+      "centering_vector_to_nneq": 1,
+      "lattice_vector_to_nneq": [1,1,0]
+    }],
+    "have_symmetry": true,
+    "space_group_hm": "P3_121",
+    "space_group_ita_number": 152,
+    "number_of_symops": 6,
+    "symops": [{
+      "id": 1,
+      "operation": "x,y,z",
+      "rotation": [[1.00000000000000,0.00000000000000,0.00000000000000],[0.00000000000000,1.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,1.00000000000000]],
+      "translation": [0.00000000000000,0.00000000000000,0.00000000000000]
+    },{
+      "id": 2,
+      "operation": "-y,x-y,-2/3+z",
+      "rotation": [[0.00000000000000,-1.00000000000000,0.00000000000000],[1.00000000000000,-1.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,1.00000000000000]],
+      "translation": [0.00000000000000,0.00000000000000,0.33333333333333]
+    },{
+      "id": 3,
+      "operation": "-x+y,-x,-1/3+z",
+      "rotation": [[-1.00000000000000,1.00000000000000,0.00000000000000],[-1.00000000000000,0.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,1.00000000000000]],
+      "translation": [-0.00000000000000,0.00000000000000,0.66666666666667]
+    },{
+      "id": 4,
+      "operation": "y,x,-z",
+      "rotation": [[0.00000000000000,1.00000000000000,0.00000000000000],[1.00000000000000,0.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,-1.00000000000000]],
+      "translation": [-0.00000000000000,0.00000000000000,0.00000000000000]
+    },{
+      "id": 5,
+      "operation": "x-y,-y,-1/3-z",
+      "rotation": [[1.00000000000000,-1.00000000000000,0.00000000000000],[0.00000000000000,-1.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,-1.00000000000000]],
+      "translation": [0.00000000000000,0.00000000000000,0.66666666666667]
+    },{
+      "id": 6,
+      "operation": "-x,-x+y,-2/3-z",
+      "rotation": [[-1.00000000000000,0.00000000000000,0.00000000000000],[-1.00000000000000,1.00000000000000,0.00000000000000],[0.00000000000000,0.00000000000000,-1.00000000000000]],
+      "translation": [0.00000000000000,0.00000000000000,0.33333333333333]
+    }],
+    "number_of_centering_vectors": 1,
+    "centering_vectors": [
+      [0.00000000000000,0.00000000000000,0.00000000000000]
+    ],
+    "number_of_molecular_fragments": 1
+  },
+  "field": {
+    "id": 1,
+    "name": "",
+    "source": "../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN",
+    "type": "grid"
+  },
+  "integration": {
+    "type": "bader",
+    "grid_npoints": [80,80,90],
+    "number_of_properties": 4,
+    "properties": [{
+      "id": 1,
+      "label": "Volume",
+      "field_name": "Volume"
+    },{
+      "id": 2,
+      "label": "Pop",
+      "field_id": 1,
+      "field_name": "Field (v)"
+    },{
+      "id": 3,
+      "label": "Lap",
+      "field_id": 1,
+      "field_name": "Laplcn (v)"
+    },{
+      "id": 4,
+      "label": "$2",
+      "field_id": 2,
+      "field_name": "Field"
+    }],
+    "number_of_attractors": 9,
+    "attractors": [{
+      "id": 1,
+      "cell_cp": 1,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.41300000000000,0.26680000000000,0.21400000000000],
+      "integrals": [
+         1.16908085E+02,
+         7.61282511E+00,
+        -9.17709886E-01,
+         7.61562738E+00]
+    },{
+      "id": 2,
+      "cell_cp": 2,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.73320000000000,0.14620000000000,0.54733333333333],
+      "integrals": [
+         1.17113382E+02,
+         7.61485102E+00,
+        -9.26803191E-01,
+         7.61769892E+00]
+    },{
+      "id": 3,
+      "cell_cp": 3,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.85380000000000,0.58700000000000,0.88066666666667],
+      "integrals": [
+         1.17089541E+02,
+         7.61336583E+00,
+        -8.88218592E-01,
+         7.61615593E+00]
+    },{
+      "id": 4,
+      "cell_cp": 4,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.26680000000000,0.41300000000000,0.78600000000000],
+      "integrals": [
+         1.16967687E+02,
+         7.61295447E+00,
+        -9.16665939E-01,
+         7.61575626E+00]
+    },{
+      "id": 5,
+      "cell_cp": 5,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.14620000000000,0.73320000000000,0.45266666666667],
+      "integrals": [
+         1.17162388E+02,
+         7.61485550E+00,
+        -9.26511667E-01,
+         7.61770273E+00]
+    },{
+      "id": 6,
+      "cell_cp": 6,
+      "nonequivalent_cp": 1,
+      "name": "O_",
+      "atomic_number": 8,
+      "fractional_coordinates": [0.58700000000000,0.85380000000000,0.11933333333333],
+      "integrals": [
+         1.17090866E+02,
+         7.61330334E+00,
+        -8.88325495E-01,
+         7.61609279E+00]
+    },{
+      "id": 7,
+      "cell_cp": 7,
+      "nonequivalent_cp": 2,
+      "name": "Si",
+      "atomic_number": 14,
+      "fractional_coordinates": [0.46990000000000,0.00000000000000,0.33333000000000],
+      "integrals": [
+         2.01826909E+01,
+         7.71822968E-01,
+         1.85372192E+00,
+         7.66343478E-01]
+    },{
+      "id": 8,
+      "cell_cp": 8,
+      "nonequivalent_cp": 2,
+      "name": "Si",
+      "atomic_number": 14,
+      "fractional_coordinates": [1.00000000000000,0.46990000000000,0.66666333333333],
+      "integrals": [
+         2.01813664E+01,
+         7.71771560E-01,
+         1.85368547E+00,
+         7.66291903E-01]
+    },{
+      "id": 9,
+      "cell_cp": 9,
+      "nonequivalent_cp": 2,
+      "name": "Si",
+      "atomic_number": 14,
+      "fractional_coordinates": [0.53010000000000,0.53010000000000,0.99999666666667],
+      "integrals": [
+         2.02144789E+01,
+         7.73730397E-01,
+         1.75682737E+00,
+         7.68331961E-01]
+    }],
+    "noatoms": false,
+    "ratom": 1.00000000000000E+40
+  }
+}

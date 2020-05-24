@@ -1,0 +1,15 @@
+## check: 002_yt_options.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN core zpsp si 4 o 6
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+reference 1
+integrable 2
+
+yt noatoms
+yt ratom 2
+
+
