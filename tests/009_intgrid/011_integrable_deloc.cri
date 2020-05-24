@@ -1,0 +1,12 @@
+## check: 011_integrable_deloc.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/mgo/mgo.pwc
+load ../zz_source/qe-6.5/mgo/rhoae.cube
+load ../zz_source/qe-6.5/mgo/mgo.pwc ../zz_source/qe-6.5/mgo/mgo.chk
+
+integrable 2
+integrable 2 deloc nosijchk nofachk wancut 4.0
+integrable 2 deloc nosijchk nofachk wancut 4.0 nou
+
+yt
