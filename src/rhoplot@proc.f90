@@ -755,7 +755,7 @@ contains
                    if (.not.useexpr) then
                       call sy%f(id)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
                       select case(nti)
-                      case (nti_f)
+                      case (nti_none,nti_f)
                          lappt = res%f
                       case (nti_gx)
                          lappt = res%gf(1)
