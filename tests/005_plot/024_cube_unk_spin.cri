@@ -1,0 +1,195 @@
+## check: 024_cube_unk_spin.cro -a1e-10
+## delete: 024_cube_unk_spin-1d-01-a.cube
+## delete: 024_cube_unk_spin-1d-02-a.cube
+## delete: 024_cube_unk_spin-1d-03-a.cube
+## delete: 024_cube_unk_spin-1u-01-a.cube
+## delete: 024_cube_unk_spin-1u-02-a.cube
+## delete: 024_cube_unk_spin-1u-03-a.cube
+## delete: 024_cube_unk_spin-2d-01-a.cube
+## delete: 024_cube_unk_spin-2d-02-a.cube
+## delete: 024_cube_unk_spin-2d-03-a.cube
+## delete: 024_cube_unk_spin-2u-01-a.cube
+## delete: 024_cube_unk_spin-2u-02-a.cube
+## delete: 024_cube_unk_spin-2u-03-a.cube
+## delete: 024_cube_unk_spin-3d-01-a.cube
+## delete: 024_cube_unk_spin-3d-02-a.cube
+## delete: 024_cube_unk_spin-3d-03-a.cube
+## delete: 024_cube_unk_spin-3u-01-a.cube
+## delete: 024_cube_unk_spin-3u-02-a.cube
+## delete: 024_cube_unk_spin-3u-03-a.cube
+## delete: 024_cube_unk_spin-4d-01-a.cube
+## delete: 024_cube_unk_spin-4d-02-a.cube
+## delete: 024_cube_unk_spin-4d-03-a.cube
+## delete: 024_cube_unk_spin-4u-01-a.cube
+## delete: 024_cube_unk_spin-4u-02-a.cube
+## delete: 024_cube_unk_spin-4u-03-a.cube
+## delete: 024_cube_unk_spin-5d-01-a.cube
+## delete: 024_cube_unk_spin-5d-02-a.cube
+## delete: 024_cube_unk_spin-5d-03-a.cube
+## delete: 024_cube_unk_spin-5u-01-a.cube
+## delete: 024_cube_unk_spin-5u-02-a.cube
+## delete: 024_cube_unk_spin-5u-03-a.cube
+## delete: 024_cube_unk_spin-6u-01-a.cube
+## delete: 024_cube_unk_spin-6u-02-a.cube
+## delete: 024_cube_unk_spin-6u-03-a.cube
+## delete: 024_cube_unk_spin-7u-01-a.cube
+## delete: 024_cube_unk_spin-7u-02-a.cube
+## delete: 024_cube_unk_spin-7u-03-a.cube
+## delete: 024_cube_unk_spin-8u-01-a.cube
+## delete: 024_cube_unk_spin-8u-02-a.cube
+## delete: 024_cube_unk_spin-8u-03-a.cube
+## delete: 024_cube_unk_spin-9u-01-a.cube
+## delete: 024_cube_unk_spin-9u-02-a.cube
+## delete: 024_cube_unk_spin-9u-03-a.cube
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/feo/feo_sym.pwc
+
+load ../zz_source/qe-6.5/feo/feo_sym.pwc
+
+cube unk 1 1 abs spin 1 file 024_cube_unk_spin-1u-01-a.cube
+cube unk 1 2 abs spin 1 file 024_cube_unk_spin-1u-02-a.cube
+cube unk 1 3 abs spin 1 file 024_cube_unk_spin-1u-03-a.cube
+
+cube unk 2 1 abs spin 1 file 024_cube_unk_spin-2u-01-a.cube
+cube unk 2 2 abs spin 1 file 024_cube_unk_spin-2u-02-a.cube
+cube unk 2 3 abs spin 1 file 024_cube_unk_spin-2u-03-a.cube
+
+cube unk 3 1 abs spin 1 file 024_cube_unk_spin-3u-01-a.cube
+cube unk 3 2 abs spin 1 file 024_cube_unk_spin-3u-02-a.cube
+cube unk 3 3 abs spin 1 file 024_cube_unk_spin-3u-03-a.cube
+
+cube unk 4 1 abs spin 1 file 024_cube_unk_spin-4u-01-a.cube
+cube unk 4 2 abs spin 1 file 024_cube_unk_spin-4u-02-a.cube
+cube unk 4 3 abs spin 1 file 024_cube_unk_spin-4u-03-a.cube
+
+cube unk 5 1 abs spin 1 file 024_cube_unk_spin-5u-01-a.cube
+cube unk 5 2 abs spin 1 file 024_cube_unk_spin-5u-02-a.cube
+cube unk 5 3 abs spin 1 file 024_cube_unk_spin-5u-03-a.cube
+
+cube unk 6 1 abs spin 1 file 024_cube_unk_spin-6u-01-a.cube
+cube unk 6 2 abs spin 1 file 024_cube_unk_spin-6u-02-a.cube
+cube unk 6 3 abs spin 1 file 024_cube_unk_spin-6u-03-a.cube
+
+cube unk 7 1 abs spin 1 file 024_cube_unk_spin-7u-01-a.cube
+cube unk 7 2 abs spin 1 file 024_cube_unk_spin-7u-02-a.cube
+cube unk 7 3 abs spin 1 file 024_cube_unk_spin-7u-03-a.cube
+
+cube unk 8 1 abs spin 1 file 024_cube_unk_spin-8u-01-a.cube
+cube unk 8 2 abs spin 1 file 024_cube_unk_spin-8u-02-a.cube
+cube unk 8 3 abs spin 1 file 024_cube_unk_spin-8u-03-a.cube
+
+cube unk 9 1 abs spin 1 file 024_cube_unk_spin-9u-01-a.cube
+cube unk 9 2 abs spin 1 file 024_cube_unk_spin-9u-02-a.cube
+cube unk 9 3 abs spin 1 file 024_cube_unk_spin-9u-03-a.cube
+
+cube unk 1 1 abs spin 2 file 024_cube_unk_spin-1d-01-a.cube
+cube unk 1 2 abs spin 2 file 024_cube_unk_spin-1d-02-a.cube
+cube unk 1 3 abs spin 2 file 024_cube_unk_spin-1d-03-a.cube
+
+cube unk 2 1 abs spin 2 file 024_cube_unk_spin-2d-01-a.cube
+cube unk 2 2 abs spin 2 file 024_cube_unk_spin-2d-02-a.cube
+cube unk 2 3 abs spin 2 file 024_cube_unk_spin-2d-03-a.cube
+
+cube unk 3 1 abs spin 2 file 024_cube_unk_spin-3d-01-a.cube
+cube unk 3 2 abs spin 2 file 024_cube_unk_spin-3d-02-a.cube
+cube unk 3 3 abs spin 2 file 024_cube_unk_spin-3d-03-a.cube
+
+cube unk 4 1 abs spin 2 file 024_cube_unk_spin-4d-01-a.cube
+cube unk 4 2 abs spin 2 file 024_cube_unk_spin-4d-02-a.cube
+cube unk 4 3 abs spin 2 file 024_cube_unk_spin-4d-03-a.cube
+
+cube unk 5 1 abs spin 2 file 024_cube_unk_spin-5d-01-a.cube
+cube unk 5 2 abs spin 2 file 024_cube_unk_spin-5d-02-a.cube
+cube unk 5 3 abs spin 2 file 024_cube_unk_spin-5d-03-a.cube
+
+
+load 024_cube_unk_spin-1u-01-a.cube id r11u
+load 024_cube_unk_spin-1u-02-a.cube id r12u
+load 024_cube_unk_spin-1u-03-a.cube id r13u
+
+load 024_cube_unk_spin-2u-01-a.cube id r21u
+load 024_cube_unk_spin-2u-02-a.cube id r22u
+load 024_cube_unk_spin-2u-03-a.cube id r23u
+
+load 024_cube_unk_spin-3u-01-a.cube id r31u
+load 024_cube_unk_spin-3u-02-a.cube id r32u
+load 024_cube_unk_spin-3u-03-a.cube id r33u
+
+load 024_cube_unk_spin-4u-01-a.cube id r41u
+load 024_cube_unk_spin-4u-02-a.cube id r42u
+load 024_cube_unk_spin-4u-03-a.cube id r43u
+
+load 024_cube_unk_spin-5u-01-a.cube id r51u
+load 024_cube_unk_spin-5u-02-a.cube id r52u
+load 024_cube_unk_spin-5u-03-a.cube id r53u
+
+load 024_cube_unk_spin-6u-01-a.cube id r61u
+load 024_cube_unk_spin-6u-02-a.cube id r62u
+load 024_cube_unk_spin-6u-03-a.cube id r63u
+
+load 024_cube_unk_spin-7u-01-a.cube id r71u
+load 024_cube_unk_spin-7u-02-a.cube id r72u
+load 024_cube_unk_spin-7u-03-a.cube id r73u
+
+load 024_cube_unk_spin-8u-01-a.cube id r81u
+load 024_cube_unk_spin-8u-02-a.cube id r82u
+load 024_cube_unk_spin-8u-03-a.cube id r83u
+
+load 024_cube_unk_spin-9u-01-a.cube id r91u
+load 024_cube_unk_spin-9u-02-a.cube id r92u
+load 024_cube_unk_spin-9u-03-a.cube id r93u
+
+load 024_cube_unk_spin-1d-01-a.cube id r11d
+load 024_cube_unk_spin-1d-02-a.cube id r12d
+load 024_cube_unk_spin-1d-03-a.cube id r13d
+
+load 024_cube_unk_spin-2d-01-a.cube id r21d
+load 024_cube_unk_spin-2d-02-a.cube id r22d
+load 024_cube_unk_spin-2d-03-a.cube id r23d
+
+load 024_cube_unk_spin-3d-01-a.cube id r31d
+load 024_cube_unk_spin-3d-02-a.cube id r32d
+load 024_cube_unk_spin-3d-03-a.cube id r33d
+
+load 024_cube_unk_spin-4d-01-a.cube id r41d
+load 024_cube_unk_spin-4d-02-a.cube id r42d
+load 024_cube_unk_spin-4d-03-a.cube id r43d
+
+load 024_cube_unk_spin-5d-01-a.cube id r51d
+load 024_cube_unk_spin-5d-02-a.cube id r52d
+load 024_cube_unk_spin-5d-03-a.cube id r53d
+
+load as "(0.125 * $r11u*$r11u + 0.5 * $r12u*$r12u + 0.375 * $r13u*$r13u + \
+          0.125 * $r21u*$r21u + 0.5 * $r22u*$r22u + 0.375 * $r23u*$r23u + \
+          0.125 * $r31u*$r31u + 0.5 * $r32u*$r32u + 0.375 * $r33u*$r33u + \
+          0.125 * $r41u*$r41u + 0.5 * $r42u*$r42u + 0.375 * $r43u*$r43u + \
+          0.125 * $r51u*$r51u + 0.5 * $r52u*$r52u + 0.375 * $r53u*$r53u + \
+          0.125 * $r61u*$r61u + 0.5 * $r62u*$r62u + 0.375 * $r63u*$r63u + \
+          0.125 * $r71u*$r71u + 0.5 * $r72u*$r72u + 0.375 * $r73u*$r73u + \
+          0.125 * $r81u*$r81u + 0.5 * $r82u*$r82u + 0.375 * $r83u*$r83u + \
+          0.125 * $r91u*$r91u + 0.5 * $r92u*$r92u + 0.375 * $r93u*$r93u)"
+
+load as "(0.125 * $r11d*$r11d + 0.5 * $r12d*$r12d + 0.375 * $r13d*$r13d + \
+          0.125 * $r21d*$r21d + 0.5 * $r22d*$r22d + 0.375 * $r23d*$r23d + \
+          0.125 * $r31d*$r31d + 0.5 * $r32d*$r32d + 0.375 * $r33d*$r33d + \
+          0.125 * $r41d*$r41d + 0.5 * $r42d*$r42d + 0.375 * $r43d*$r43d + \
+          0.125 * $r51d*$r51d + 0.5 * $r52d*$r52d + 0.375 * $r53d*$r53d)"
+
+load as "(0.125 * $r11u*$r11u + 0.5 * $r12u*$r12u + 0.375 * $r13u*$r13u + \
+          0.125 * $r21u*$r21u + 0.5 * $r22u*$r22u + 0.375 * $r23u*$r23u + \
+          0.125 * $r31u*$r31u + 0.5 * $r32u*$r32u + 0.375 * $r33u*$r33u + \
+          0.125 * $r41u*$r41u + 0.5 * $r42u*$r42u + 0.375 * $r43u*$r43u + \
+          0.125 * $r51u*$r51u + 0.5 * $r52u*$r52u + 0.375 * $r53u*$r53u + \
+          0.125 * $r61u*$r61u + 0.5 * $r62u*$r62u + 0.375 * $r63u*$r63u + \
+          0.125 * $r71u*$r71u + 0.5 * $r72u*$r72u + 0.375 * $r73u*$r73u + \
+          0.125 * $r81u*$r81u + 0.5 * $r82u*$r82u + 0.375 * $r83u*$r83u + \
+          0.125 * $r91u*$r91u + 0.5 * $r92u*$r92u + 0.375 * $r93u*$r93u + \
+          0.125 * $r11d*$r11d + 0.5 * $r12d*$r12d + 0.375 * $r13d*$r13d + \
+          0.125 * $r21d*$r21d + 0.5 * $r22d*$r22d + 0.375 * $r23d*$r23d + \
+          0.125 * $r31d*$r31d + 0.5 * $r32d*$r32d + 0.375 * $r33d*$r33d + \
+          0.125 * $r41d*$r41d + 0.5 * $r42d*$r42d + 0.375 * $r43d*$r43d + \
+          0.125 * $r51d*$r51d + 0.5 * $r52d*$r52d + 0.375 * $r53d*$r53d)"
+
+end
+

@@ -1,0 +1,115 @@
+## check: 022_cube_unk.cro -a1e-10
+## delete: 022_cube_unk-1-01-i.cube
+## delete: 022_cube_unk-1-01-r.cube
+## delete: 022_cube_unk-1-02-i.cube
+## delete: 022_cube_unk-1-02-r.cube
+## delete: 022_cube_unk-1-03-i.cube
+## delete: 022_cube_unk-1-03-r.cube
+## delete: 022_cube_unk-1-04-i.cube
+## delete: 022_cube_unk-1-04-r.cube
+## delete: 022_cube_unk-1-05-i.cube
+## delete: 022_cube_unk-1-05-r.cube
+## delete: 022_cube_unk-1-06-i.cube
+## delete: 022_cube_unk-1-06-r.cube
+## delete: 022_cube_unk-1-07-i.cube
+## delete: 022_cube_unk-1-07-r.cube
+## delete: 022_cube_unk-1-08-i.cube
+## delete: 022_cube_unk-1-08-r.cube
+## delete: 022_cube_unk-2-01-i.cube
+## delete: 022_cube_unk-2-01-r.cube
+## delete: 022_cube_unk-2-02-i.cube
+## delete: 022_cube_unk-2-02-r.cube
+## delete: 022_cube_unk-2-03-i.cube
+## delete: 022_cube_unk-2-03-r.cube
+## delete: 022_cube_unk-2-04-i.cube
+## delete: 022_cube_unk-2-04-r.cube
+## delete: 022_cube_unk-2-05-i.cube
+## delete: 022_cube_unk-2-05-r.cube
+## delete: 022_cube_unk-2-06-i.cube
+## delete: 022_cube_unk-2-06-r.cube
+## delete: 022_cube_unk-2-07-i.cube
+## delete: 022_cube_unk-2-07-r.cube
+## delete: 022_cube_unk-2-08-i.cube
+## delete: 022_cube_unk-2-08-r.cube
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/mgo/mgo.pwc
+
+load ../zz_source/qe-6.5/mgo/mgo.pwc
+
+cube unk 1 1 real file 022_cube_unk-1-01-r.cube
+cube unk 1 2 real file 022_cube_unk-1-02-r.cube
+cube unk 1 3 real file 022_cube_unk-1-03-r.cube
+cube unk 1 4 real file 022_cube_unk-1-04-r.cube
+cube unk 1 5 real file 022_cube_unk-1-05-r.cube
+cube unk 1 6 real file 022_cube_unk-1-06-r.cube
+cube unk 1 7 real file 022_cube_unk-1-07-r.cube
+cube unk 1 8 real file 022_cube_unk-1-08-r.cube
+
+cube unk 1 1 imag file 022_cube_unk-1-01-i.cube
+cube unk 1 2 imag file 022_cube_unk-1-02-i.cube
+cube unk 1 3 imag file 022_cube_unk-1-03-i.cube
+cube unk 1 4 imag file 022_cube_unk-1-04-i.cube
+cube unk 1 5 imag file 022_cube_unk-1-05-i.cube
+cube unk 1 6 imag file 022_cube_unk-1-06-i.cube
+cube unk 1 7 imag file 022_cube_unk-1-07-i.cube
+cube unk 1 8 imag file 022_cube_unk-1-08-i.cube
+
+cube unk 2 1 real file 022_cube_unk-2-01-r.cube
+cube unk 2 2 real file 022_cube_unk-2-02-r.cube
+cube unk 2 3 real file 022_cube_unk-2-03-r.cube
+cube unk 2 4 real file 022_cube_unk-2-04-r.cube
+cube unk 2 5 real file 022_cube_unk-2-05-r.cube
+cube unk 2 6 real file 022_cube_unk-2-06-r.cube
+cube unk 2 7 real file 022_cube_unk-2-07-r.cube
+cube unk 2 8 real file 022_cube_unk-2-08-r.cube
+
+cube unk 2 1 imag file 022_cube_unk-2-01-i.cube
+cube unk 2 2 imag file 022_cube_unk-2-02-i.cube
+cube unk 2 3 imag file 022_cube_unk-2-03-i.cube
+cube unk 2 4 imag file 022_cube_unk-2-04-i.cube
+cube unk 2 5 imag file 022_cube_unk-2-05-i.cube
+cube unk 2 6 imag file 022_cube_unk-2-06-i.cube
+cube unk 2 7 imag file 022_cube_unk-2-07-i.cube
+cube unk 2 8 imag file 022_cube_unk-2-08-i.cube
+
+load 022_cube_unk-1-01-r.cube id r11
+load 022_cube_unk-1-02-r.cube id r12
+load 022_cube_unk-1-03-r.cube id r13
+load 022_cube_unk-1-04-r.cube id r14
+load 022_cube_unk-1-05-r.cube id r15
+load 022_cube_unk-1-06-r.cube id r16
+load 022_cube_unk-1-07-r.cube id r17
+load 022_cube_unk-1-08-r.cube id r18
+
+load 022_cube_unk-1-01-i.cube id i11
+load 022_cube_unk-1-02-i.cube id i12
+load 022_cube_unk-1-03-i.cube id i13
+load 022_cube_unk-1-04-i.cube id i14
+load 022_cube_unk-1-05-i.cube id i15
+load 022_cube_unk-1-06-i.cube id i16
+load 022_cube_unk-1-07-i.cube id i17
+load 022_cube_unk-1-08-i.cube id i18
+
+load 022_cube_unk-2-01-r.cube id r21
+load 022_cube_unk-2-02-r.cube id r22
+load 022_cube_unk-2-03-r.cube id r23
+load 022_cube_unk-2-04-r.cube id r24
+load 022_cube_unk-2-05-r.cube id r25
+load 022_cube_unk-2-06-r.cube id r26
+load 022_cube_unk-2-07-r.cube id r27
+load 022_cube_unk-2-08-r.cube id r28
+
+load 022_cube_unk-2-01-i.cube id i21
+load 022_cube_unk-2-02-i.cube id i22
+load 022_cube_unk-2-03-i.cube id i23
+load 022_cube_unk-2-04-i.cube id i24
+load 022_cube_unk-2-05-i.cube id i25
+load 022_cube_unk-2-06-i.cube id i26
+load 022_cube_unk-2-07-i.cube id i27
+load 022_cube_unk-2-08-i.cube id i28
+
+load as "($r11*$r21+$i11*$i21 + $r12*$r22+$i12*$i22 + $r13*$r23+$i13*$i23 + $r14*$r24+$i14*$i24 + $r15*$r25+$i15*$i25 + $r16*$r26+$i16*$i26 + $r17*$r27+$i17*$i27 + $r18*$r28+$i18*$i28)"
+load as "($r11*$r11+$i11*$i11 + $r12*$r12+$i12*$i12 + $r13*$r13+$i13*$i13 + $r14*$r14+$i14*$i14 + $r15*$r15+$i15*$i15 + $r16*$r16+$i16*$i16 + $r17*$r17+$i17*$i17 + $r18*$r18+$i18*$i18)"
+
+end

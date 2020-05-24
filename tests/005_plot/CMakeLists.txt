@@ -20,6 +20,9 @@ set(TESTS
   019_cube_mlwf_spin    ## cube: mlwf keyword, with spinpolarization
   020_cube_wannier      ## cube: wannier keyword
   021_cube_wannier_spin ## cube: wannier keyword, with spinpolarization
+  022_cube_unk          ## cube: unk keyword
+  023_cube_unk_sym      ## cube: unk keyword, with symmetry
+  024_cube_unk_spin     ## cube: unk keyword, with spinpolarization
   )
 
 runtests(${TESTS})
