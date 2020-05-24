@@ -1,0 +1,58 @@
++ Field number 1
+  Source: ../zz_source/gaussian-16/h2o/h2o_hf.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: xc($1,1)+xc($1,8)
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(xc($1,1)+xc($1,8)) = -8.96531128   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: xc($1,$1:g,101)+xc($1,$1:g,130)
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(xc($1,$1:g,101)+xc($1,$1:g,130)) = -9.24980564   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: xc($1,$1:g,106)+xc($1,$1:g,131)
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(xc($1,$1:g,106)+xc($1,$1:g,131)) = -9.31527387   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: xc($1,$1:g,106)+xc($1,$1:g,132)
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(xc($1,$1:g,106)+xc($1,$1:g,132)) = -9.33540222   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral(xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)) = -9.68733485   
+
