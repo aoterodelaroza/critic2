@@ -198,13 +198,13 @@ module types
      character(len=mlen) :: expr
      integer :: lmax
      real*8 :: x0(3)
-     ! integration of delocalization indices with Wannier functions
-     logical :: useu = .true.
-     logical :: sijchk = .true.
-     logical :: fachk = .true.
-     real*8 :: wancut = 4d0
-     character(len=mlen) :: sijchkfile = ""
-     character(len=mlen) :: fachkfile = ""
+     ! integration of delocalization indices
+     logical :: useu = .true.   ! use the U rotation if using mlwfs
+     logical :: sijchk = .true. ! read and write the sijchk file
+     logical :: fachk = .true.  ! read and write the fachk file
+     real*8 :: wancut = 4d0     ! Wannier center distance cutoff
+     character(len=mlen) :: sijchkfile = "" ! name of sijchk file
+     character(len=mlen) :: fachkfile = ""  ! name of fachk file
   end type integrable
 
   !> Information about a point-property field
@@ -258,13 +258,13 @@ module types
   integer, parameter, public :: out_none = 0
   integer, parameter, public :: out_field = 1
   integer, parameter, public :: out_mpoles = 2
-  integer, parameter, public :: out_delocwan = 3
+  integer, parameter, public :: out_deloc = 3
   type int_result
-     logical :: done = .false. ! Whether it was integrated
-     integer :: outmode = out_none ! In which part of the output does this result go?
-     character*60 :: reason = "" ! Reason for not integrating or delaying
-     integer :: nwan(3) ! Number of R vectors in wannier
-     integer :: nspin ! Number of spins in wannier
+     logical :: done = .false. ! whether it was integrated
+     integer :: outmode = out_none ! in which part of the output does this result go?
+     character*60 :: reason = "" ! reason for not integrating or delaying
+     integer :: nlat(3) ! number of R vectors in DIs
+     integer :: nspin ! number of spins in DIs
      real*8, allocatable :: psum(:) ! integrated atomic properties
      real*8, allocatable :: mpole(:,:) ! integrated multipoles
      real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions

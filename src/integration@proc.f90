@@ -24,22 +24,22 @@ submodule (integration) proc
   ! subroutine int_output_fields(bas,res)
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
-  ! subroutine intgrid_deloc_wannier(bas,res)
-  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
-  ! subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
-  ! function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr)
+  ! subroutine intgrid_deloc(bas,res)
+  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sij)
+  ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,fa)
+  ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr)
   ! subroutine read_sijchk_body(sijfname,sij)
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! function quadpack_f(x,unit,xnuc) result(res)
   ! subroutine int_output_multipoles(bas,res)
-  ! subroutine int_output_deloc_wannier(bas,res)
+  ! subroutine int_output_deloc(bas,res)
   ! subroutine int_output_json(jsonfile,bas,res)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
   ! subroutine int_gridbasins(bas)
   ! subroutine int_cubew(bas)
-  ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
-  ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
+  ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nlat)
+  ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nlat)
 
   ! grid integration types
   integer, parameter :: imtype_bader = 1
@@ -240,8 +240,8 @@ contains
     ! Integrate scalar fields and multipoles
     call intgrid_fields(bas,res)
 
-    ! localization and delocalization indices - wannier
-    call intgrid_deloc_wannier(bas,res)
+    ! localization and delocalization indices
+    call intgrid_deloc(bas,res)
 
     ! header for integration output
     write (uout,*)
@@ -253,8 +253,8 @@ contains
     ! output multipoles
     call int_output_multipoles(bas,res)
 
-    ! localization and delocalization indices, wannier
-    call int_output_deloc_wannier(bas,res)
+    ! output localization and delocalization indices
+    call int_output_deloc(bas,res)
 
     ! write the json file
     if (len(jsonfile) > 0) then
@@ -1180,10 +1180,9 @@ contains
 
   end subroutine intgrid_fields
 
-  !> Calculate localization and delocalization indices using maximally
-  !> localized Wannier functions. bas = integration driver data,
-  !> res(1:npropi) = results.
-  subroutine intgrid_deloc_wannier(bas,res)
+  !> Calculate localization and delocalization indices using
+  !> grids. bas = integration driver data, res(1:npropi) = results.
+  subroutine intgrid_deloc(bas,res)
     use yt, only: yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy, itype_deloc, itype_deloc_sijchk, itype_deloc_fachk
     use fieldmod, only: type_grid, type_wfn
@@ -1192,7 +1191,7 @@ contains
     use global, only: fileroot
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
     use tools_math, only: matinv
-    use types, only: basindat, realloc, int_result, out_delocwan
+    use types, only: basindat, realloc, int_result, out_deloc
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
@@ -1202,7 +1201,7 @@ contains
     integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
     integer :: m1, m2, m3, idx(3)
     integer :: fid, p(3)
-    integer :: nwan(3), nbnd, nbndw(2), nlat, nmo, nspin, nattn
+    integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
     real*8 :: x(3), xs(3), d2, fatemp
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
     type(ytdata) :: dat
@@ -1237,11 +1236,11 @@ contains
 
        ! maybe we can read the Fa information and jump to the end
        if (sy%propi(l)%itype == itype_deloc_fachk) then
-          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(sy%propi(l)%fachkfile)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-                allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+                allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
                 call read_fachk_body(sy%propi(l)%fachkfile,res(l)%fa)
                 goto 999
              else
@@ -1253,14 +1252,14 @@ contains
              cycle
           end if
        else if (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%fachk) then
-          if (read_chk_header(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              fid = sy%propi(l)%fid
-             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
-                nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
+                nlattot == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
                 nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(fafname)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-                allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+                allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
                 call read_fachk_body(fafname,res(l)%fa)
                 goto 999
              end if
@@ -1271,13 +1270,13 @@ contains
        calcsij = .true.
        if (sy%propi(l)%itype == itype_deloc_sijchk) then
           ! read the sij from a checkpoint file (without the corresponding field)
-          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sy%propi(l)%sijchkfile)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
                 allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
                 call read_sijchk_body(sy%propi(l)%sijchkfile,res(l)%sijc)
-                res(l)%nwan = nwan
+                res(l)%nlat = nlat
                 res(l)%nspin = nspin
                 calcsij = .false.
              else
@@ -1289,10 +1288,10 @@ contains
              cycle
           end if
        elseif (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%sijchk) then
-          if (read_chk_header(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,natt1)) then
+          if (read_chk_header(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              fid = sy%propi(l)%fid
-             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nwan == sy%f(fid)%grid%qe%nk) .and.&
-                nlat == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
+             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
+                nlattot == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
                 nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sijfname)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
@@ -1325,10 +1324,10 @@ contains
           end if
           ! assign integers
           nbnd = sy%f(fid)%grid%qe%nbnd
-          nwan = sy%f(fid)%grid%qe%nk
-          nlat = sy%f(fid)%grid%qe%nks
+          nlat = sy%f(fid)%grid%qe%nk
+          nlattot = sy%f(fid)%grid%qe%nks
           nspin = sy%f(fid)%grid%qe%nspin
-          nmo = nlat * nbnd
+          nmo = nlattot * nbnd
           if (sy%f(fid)%grid%iswan) then
              nbndw = sy%f(fid)%grid%qe%nbndw
           else
@@ -1336,13 +1335,13 @@ contains
                 nbndw = nbnd
              else
                 nbndw(1) = nint(sum(sy%f(fid)%grid%qe%occ(:,1) / sy%f(fid)%grid%qe%wk(1)))
-                nbndw(2) = nint(sum(sy%f(fid)%grid%qe%occ(:,1+nlat) / sy%f(fid)%grid%qe%wk(1)))
+                nbndw(2) = nint(sum(sy%f(fid)%grid%qe%occ(:,1+nlattot) / sy%f(fid)%grid%qe%wk(1)))
                 ! trick to get it working without the Wannier info
                 do i = 2, sy%f(fid)%grid%qe%nks
                    m1 = nint(sum(sy%f(fid)%grid%qe%occ(:,i) / sy%f(fid)%grid%qe%wk(i)))
-                   m2 = nint(sum(sy%f(fid)%grid%qe%occ(:,i+nlat) / sy%f(fid)%grid%qe%wk(i)))
+                   m2 = nint(sum(sy%f(fid)%grid%qe%occ(:,i+nlattot) / sy%f(fid)%grid%qe%wk(i)))
                    if (m1 /= nbndw(1) .or. m2 /= nbndw(2)) &
-                      call ferror("intgrid_deloc_wannier","Incorrect band occupation in nspin=2 case",faterr)
+                      call ferror("intgrid_deloc","Incorrect band occupation in nspin=2 case",faterr)
                 end do
                 sy%f(fid)%grid%qe%nbndw = nbndw
              end if
@@ -1452,8 +1451,8 @@ contains
 
           ! write out some info
           write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
-          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nwan(j)),j=1,3)
-          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlat)
+          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nlat(j)),j=1,3)
+          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlattot)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
           if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
              write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
@@ -1482,7 +1481,7 @@ contains
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then
              write (uout,'("# Writing Sij checkpoint file: ",A)') trim(sijfname)
-             call write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%sijc)
+             call write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijc)
           end if
        end if ! calcsij
 
@@ -1492,10 +1491,10 @@ contains
        !       do is = 1, nspin
        !          aa = 0d0
        !          do imo = 1, nmo
-       !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+       !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
        !             if (iba /= ix1) cycle
        !             do jmo = 1, nmo
-       !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+       !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
        !                if (ibb /= ix2) cycle
        !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
        !             end do
@@ -1513,36 +1512,36 @@ contains
        ! kmo = imap(imo,jlat) gives the Wannier function index kmo
        ! resulting from taking the Wannier function imo and
        ! translating by lattice vector jlat
-       allocate(imap(nmo,nlat))
+       allocate(imap(nmo,nlattot))
        do imo = 1, nmo
-          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
           k = 0
-          do ic = 0, nwan(1)-1
-             do jc = 0, nwan(2)-1
-                do kc = 0, nwan(3)-1
+          do ic = 0, nlat(1)-1
+             do jc = 0, nlat(2)-1
+                do kc = 0, nlat(3)-1
                    k = k + 1
                    idx = (/ia-ic, ja-jc, ka-kc/)
-                   idx = modulo(idx,nwan)
-                   call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nwan)
+                   idx = modulo(idx,nlat)
+                   call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nlat)
                 end do
              end do
           end do
        end do
 
        if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-       allocate(res(l)%fa(bas%nattr,bas%nattr,nlat,nspin))
+       allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
        res(l)%fa = 0d0
        !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
        do i = 1, bas%nattr
           do j = 1, bas%nattr
              do is = 1, nspin
-                do k = 1, nlat
+                do k = 1, nlattot
                    fatemp = 0d0
                    do imo = 1, nmo
-                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nwan)
+                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
                       ! if (iba > nbndw(is)) cycle
                       do jmo = 1, nmo
-                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nwan)
+                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
                          ! if (ibb > nbndw(is)) cycle
                          fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imap(imo,k),imap(jmo,k),j,is),8)
                       end do
@@ -1573,7 +1572,7 @@ contains
        ! write the checkpoint file
        if (sy%propi(l)%fachk) then
           write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
-          call write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,bas%nattr,res(l)%fa)
+          call write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%fa)
        end if
 
        ! finished successfully
@@ -1581,8 +1580,8 @@ contains
        if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
        res(l)%done = .true.
        res(l)%reason = ""
-       res(l)%outmode = out_delocwan
-       res(l)%nwan = nwan
+       res(l)%outmode = out_deloc
+       res(l)%nlat = nlat
        res(l)%nspin = nspin
    end do ! l = 1, sy%npropi
 
@@ -1592,46 +1591,46 @@ contains
        call ytdata_clean(dat)
     end if
 
-  end subroutine intgrid_deloc_wannier
+  end subroutine intgrid_deloc
 
-  !> Write the Sij checkpoint file (Wannier DI integration).
-  subroutine write_sijchk(sijfname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,sij)
+  !> Write the Sij checkpoint file (DI integration).
+  subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sij)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: sijfname
-    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
     complex*16, intent(in) :: sij(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(sijfname,"unformatted")
-    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
     write (lu) sij
     call fclose(lu)
     
   end subroutine write_sijchk
 
-  !> Write the Fa checkpoint file (Wannier DI integration).
-  subroutine write_fachk(fafname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr,fa)
+  !> Write the Fa checkpoint file DI integration).
+  subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,fa)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: fafname
-    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
     real*8, intent(in) :: fa(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(fafname,"unformatted")
-    write (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
     write (lu) fa
     call fclose(lu)
     
   end subroutine write_fachk
 
-  !> Read the header for the Sij/Fa checkpoint file (Wannier DI
+  !> Read the header for the Sij/Fa checkpoint file (DI
   !> integration). If found and read, return .true.
-  function read_chk_header(fname,nbnd,nbndw,nwan,nmo,nlat,nspin,nattr) result(haschk)
+  function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr) result(haschk)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: fname
-    integer, intent(out) :: nbnd, nbndw(2), nwan(3), nmo, nlat, nspin, nattr
+    integer, intent(out) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
     logical :: haschk
 
     integer :: lu
@@ -1639,12 +1638,12 @@ contains
     inquire(file=fname,exist=haschk)
     if (.not.haschk) return
     lu = fopen_read(fname,"unformatted")
-    read (lu) nbnd, nbndw, nwan, nmo, nlat, nspin, nattr
+    read (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
     call fclose(lu)
 
   end function read_chk_header
 
-  !> Read the body of the Sij checkpoint file (Wannier DI integration).
+  !> Read the body of the Sij checkpoint file (DI integration).
   subroutine read_sijchk_body(sijfname,sij)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: sijfname
@@ -1659,7 +1658,7 @@ contains
 
   end subroutine read_sijchk_body
 
-  !> Read the body of the Fa checkpoint file (Wannier DI integration).
+  !> Read the body of the Fa checkpoint file (DI integration).
   subroutine read_fachk_body(fafname,fa)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: fafname
@@ -1998,21 +1997,21 @@ contains
 
   end subroutine int_output_multipoles
 
-  !> Output the delocalization indices, Wannier.  bas = integration
-  !> driver data, res(1:npropi) = results.
-  subroutine int_output_deloc_wannier(bas,res)
+  !> Output the delocalization indices.  bas = integration driver
+  !> data, res(1:npropi) = results.
+  subroutine int_output_deloc(bas,res)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use global, only: iunit, iunitname0, dunit0
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
        fopen_write, fclose
-    use types, only: basindat, int_result, out_delocwan
+    use types, only: basindat, int_result, out_deloc
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
 
     integer :: i, j, k, l, m
-    integer :: fid, natt, nwan(3), nspin, nlat
+    integer :: fid, natt, nlat(3), nspin, nlattot
     real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
     real*8, allocatable :: dist(:), diout(:), xcm(:,:)
@@ -2025,7 +2024,7 @@ contains
 
     do l = 1, sy%npropi
        if (.not.res(l)%done) cycle
-       if (res(l)%outmode /= out_delocwan) cycle
+       if (res(l)%outmode /= out_deloc) cycle
 
        write (uout,'("* Localization and delocalization indices")')
 
@@ -2034,9 +2033,9 @@ contains
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
 
        ! some integers for the run
-       nwan = res(l)%nwan
+       nlat = res(l)%nlat
        nspin = res(l)%nspin
-       nlat = nwan(1)*nwan(2)*nwan(3)
+       nlattot = nlat(1)*nlat(2)*nlat(3)
        natt = bas%nattr
 
        ! spin factor
@@ -2061,7 +2060,7 @@ contains
        ! build the supercell
        ncseed%isused = .true.
        do i = 1, 3
-          ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nwan(i)
+          ncseed%m_x2c(:,i) = sy%c%m_x2c(:,i) * nlat(i)
        end do
        ncseed%useabr = 2
        ncseed%nat = 0
@@ -2075,7 +2074,7 @@ contains
        write (uout,'("  First line: localization index. Next lines: delocaliazation index")')
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
-       allocate(dist(natt*nlat),io(natt*nlat),diout(natt*nlat),ilvec(3,natt*nlat),idat(natt*nlat))
+       allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
        do i = 1, natt
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') & 
@@ -2087,29 +2086,29 @@ contains
           dist = 0d0
           k = 0
           m = 0
-          do ic = 0, nwan(1)-1
-             do jc = 0, nwan(2)-1
-                do kc = 0, nwan(3)-1
+          do ic = 0, nlat(1)-1
+             do jc = 0, nlat(2)-1
+                do kc = 0, nlat(3)-1
                    k = k + 1
                    do j = 1, natt
                       m = m + 1
                       io(m) = m
-                      r1 = (bas%xattr(:,j) + (/ic,jc,kc/) - bas%xattr(:,i)) / real(nwan,8)
+                      r1 = (bas%xattr(:,j) + (/ic,jc,kc/) - bas%xattr(:,i)) / real(nlat,8)
                       call cr1%shortest(r1,d2)
                       dist(m) = d2 * dunit0(iunit)
                       diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin
                       if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
                       idat(m) = j
-                      ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nwan - bas%xattr(:,j))
+                      ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nlat - bas%xattr(:,j))
                    end do
                 end do
              end do
           end do
 
           ! sort by increasing distance and output for this atom
-          call qcksort(dist,io,1,natt*nlat)
+          call qcksort(dist,io,1,natt*nlattot)
           asum = 0d0
-          do m = 1, natt*nlat
+          do m = 1, natt*nlattot
              j = io(m)
              if (dist(j) < 1d-5) then
                 write (uout,'(2X,"Localization index",71("."),A)') string(diout(j),'f',12,8,4)
@@ -2145,7 +2144,7 @@ contains
           end do
           
           ! assign DIs to molecules
-          allocate(dimol(sy%c%nmol,sy%c%nmol,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1),limol(sy%c%nmol),namol(sy%c%nmol))
+          allocate(dimol(sy%c%nmol,sy%c%nmol,0:nlat(1)-1,0:nlat(2)-1,0:nlat(3)-1),limol(sy%c%nmol),namol(sy%c%nmol))
           dimol = 0d0
           limol = 0d0
           namol = 0d0
@@ -2157,9 +2156,9 @@ contains
              lvec1 = sy%c%mol(ia)%at(idxmol(2,i))%lvec
              k = 0
              m = 0
-             do ic = 0, nwan(1)-1
-                do jc = 0, nwan(2)-1
-                   do kc = 0, nwan(3)-1
+             do ic = 0, nlat(1)-1
+                do jc = 0, nlat(2)-1
+                   do kc = 0, nlat(3)-1
                       k = k + 1
                       do j = 1, natt
                          m = m + 1
@@ -2169,7 +2168,7 @@ contains
                          if (ja == 0) cycle
                          lvec2 = sy%c%mol(ja)%at(idxmol(2,j))%lvec
                          lvec3 = lvec1 - lvec2 + (/ic,jc,kc/)
-                         lvec3 = modulo(lvec3,nwan)
+                         lvec3 = modulo(lvec3,nlat)
                          raux = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin
                          if (ia == ja .and. all(lvec3 == 0)) then
                             limol(ia) = limol(ia) + 0.5d0 * raux
@@ -2208,27 +2207,27 @@ contains
              write (uout,'("# Mol   Latt. vec.    ---- Center of mass (cryst) ----      Distance      LI/DI")')
 
              m = 0 
-             do ic = 0, nwan(1)-1
-                do jc = 0, nwan(2)-1
-                   do kc = 0, nwan(3)-1
+             do ic = 0, nlat(1)-1
+                do jc = 0, nlat(2)-1
+                   do kc = 0, nlat(3)-1
                       do j = 1, sy%c%nmol
                          m = m + 1
                          io(m) = m
-                         r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nwan,8)
+                         r1 = (xcm(:,j) + (/ic,jc,kc/) - xcm(:,i)) / real(nlat,8)
                          call cr1%shortest(r1,d2)
                          dist(m) = d2 * dunit0(iunit)
                          diout(m) = dimol(i,j,ic,jc,kc)
                          idat(m) = j
-                         ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nwan - xcm(:,j))
+                         ilvec(:,m) = nint(xcm(:,i) + cr1%c2x(r1) * nlat - xcm(:,j))
                       end do
                    end do
                 end do
              end do
 
              ! sort by increasing distance and output for this molecule
-             call qcksort(dist,io,1,sy%c%nmol*nlat)
+             call qcksort(dist,io,1,sy%c%nmol*nlattot)
              asum = 0d0
-             do m = 1, sy%c%nmol*nlat
+             do m = 1, sy%c%nmol*nlattot
                 j = io(m)
                 if (dist(j) < 1d-5) then
                    write (uout,'(2X,"Localization index",51("."),A)') string(limol(i),'f',12,8,4)
@@ -2252,7 +2251,7 @@ contains
        deallocate(dist,io,diout,ilvec,idat)
     end do
 
-  end subroutine int_output_deloc_wannier
+  end subroutine int_output_deloc
 
   !> Write a JSON file containing the structure, the reference
   !> field details, and the results of the YT/BADER integration.
@@ -2687,9 +2686,9 @@ contains
 
   end subroutine int_cubew
 
-  !> Unpacking routine for use in Wannier delocalization index calculations.
-  subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nwan)
-    integer, intent(in) :: idx, nmo, nbnd, nwan(3)
+  !> Unpacking routine for use in delocalization index calculations.
+  subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nlat)
+    integer, intent(in) :: idx, nmo, nbnd, nlat(3)
     integer, intent(out) :: io, jo, ko, bo
 
     integer :: iaux
@@ -2698,29 +2697,29 @@ contains
     iaux = modulo(idx-1,nmo)
     bo = modulo(iaux,nbnd)
     iaux = (idx-1 - bo) / nbnd
-    ko = modulo(iaux,nwan(3))
-    iaux = (iaux - ko) / nwan(3)
-    jo = modulo(iaux,nwan(2))
-    iaux = (iaux - jo) / nwan(2)
-    io = modulo(iaux,nwan(1))
+    ko = modulo(iaux,nlat(3))
+    iaux = (iaux - ko) / nlat(3)
+    jo = modulo(iaux,nlat(2))
+    iaux = (iaux - jo) / nlat(2)
+    io = modulo(iaux,nlat(1))
     bo = bo + 1
 
   end subroutine unpackidx
 
-  !> Unpacking routine for use in Wannier delocalization index calculations.
-  subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nwan)
-    integer, intent(in) :: io, jo, ko, bo, nmo, nbnd, nwan(3)
+  !> Unpacking routine for use in delocalization index calculations.
+  subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nlat)
+    integer, intent(in) :: io, jo, ko, bo, nmo, nbnd, nlat(3)
     integer, intent(out) :: idx
 
     integer :: zio, zjo, zko
 
     ! transformed indices
-    zio = modulo(io,nwan(1))
-    zjo = modulo(jo,nwan(2))
-    zko = modulo(ko,nwan(3))
+    zio = modulo(io,nlat(1))
+    zjo = modulo(jo,nlat(2))
+    zko = modulo(ko,nlat(3))
 
     ! translate and pack
-    idx = bo + nbnd * (zko + nwan(3) * (zjo + nwan(2) * zio))
+    idx = bo + nbnd * (zko + nlat(3) * (zjo + nlat(2) * zio))
 
   end subroutine packidx
 

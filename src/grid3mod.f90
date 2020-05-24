@@ -22,7 +22,7 @@ module grid3mod
 
   private
 
-  !> Information for QE Kohn-Sham states plus wannier functions
+  !> Information for QE Kohn-Sham states, maybe plus wannier functions
   type qedat
      integer :: nks !< Number of k-points (nk1*nk2*nk3)
      integer :: nk(3) !< Number of k-points in each grid direction (0 if not a grid)

@@ -411,7 +411,7 @@ contains
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
-    integer :: outform, ishift(3), dowan
+    integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
 
@@ -420,11 +420,11 @@ contains
     integer, parameter :: outform_vasp = 3
     integer, parameter :: outform_xsf = 4
 
-    integer, parameter :: wan_none = 0
-    integer, parameter :: wan_mlwf = 1
-    integer, parameter :: wan_wannier = 2
-    integer, parameter :: wan_unk = 3
-    integer, parameter :: wan_psink = 4
+    integer, parameter :: psi_none = 0
+    integer, parameter :: psi_mlwf = 1
+    integer, parameter :: psi_wannier = 2
+    integer, parameter :: psi_unk = 3
+    integer, parameter :: psi_psink = 4
 
     integer, parameter :: nti_none = 0
     integer, parameter :: nti_f = 1
@@ -447,7 +447,7 @@ contains
     lp = 1
     lp2 = 1
     dogrid = .false.
-    dowan = wan_none
+    dopsi = psi_none
     doheader = .false.
     word = lgetword(line,lp)
     ok = eval_next(x0(1),word,lp2)
@@ -486,19 +486,19 @@ contains
        dogrid = .true.
        inr = 0
        if (equal(word,'mlwf')) then
-          dowan = wan_mlwf
+          dopsi = psi_mlwf
        elseif (equal(word,'unk')) then
-          dowan = wan_unk
+          dopsi = psi_unk
        elseif (equal(word,'psink')) then
-          dowan = wan_psink
+          dopsi = psi_psink
        else
-          dowan = wan_wannier
+          dopsi = psi_wannier
        end if
        ok = isinteger(ibnd,line,lp)
-       if (dowan == wan_unk.or.dowan == wan_psink) then
+       if (dopsi == psi_unk.or.dopsi == psi_psink) then
           ok = ok .and. isinteger(ik,line,lp)
        end if
-       if (dowan /= wan_unk) then
+       if (dopsi /= psi_unk) then
           ok = ok .and. isinteger(inr(1),line,lp)
           ok = ok .and. isinteger(inr(2),line,lp)
           ok = ok .and. isinteger(inr(3),line,lp)
@@ -663,15 +663,15 @@ contains
           return
        end if
        nn = sy%f(id)%grid%n
-       if (dowan /= wan_none.and..not.sy%f(id)%grid%isqe) then
+       if (dopsi /= psi_none.and..not.sy%f(id)%grid%isqe) then
           call ferror('rhoplot_cube','CUBE MLWF/WANNIER/... requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
           return
        end if
-       if (dowan == wan_mlwf.and..not.sy%f(id)%grid%iswan) then
+       if (dopsi == psi_mlwf.and..not.sy%f(id)%grid%iswan) then
           call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
           return
        end if
-       if (dowan /= wan_none.and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
+       if (dopsi /= psi_none.and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
           call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
           return
        end if
@@ -698,7 +698,7 @@ contains
 
     ! calculate properties
     if (dogrid) then
-       if (dowan == wan_none) then
+       if (dopsi == psi_none) then
           ! GRID keyword
           if (sy%f(id)%usecore) then
              call sy%c%promolecular_grid(faux,sy%f(id)%grid%n,sy%f(id)%zpsp)
@@ -708,12 +708,12 @@ contains
           end if
        else
           allocate(caux(nn(1),nn(2),nn(3)))
-          if (dowan == wan_mlwf .or. dowan == wan_wannier) then
+          if (dopsi == psi_mlwf .or. dopsi == psi_wannier) then
              ! MLWF and WANNIER keywords
-             call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,(dowan == wan_mlwf),caux)
-          elseif (dowan == wan_unk .or. dowan == wan_psink) then
+             call sy%f(id)%grid%get_qe_wnr_standalone(sy%f(id)%c%omega,ibnd,ispin,inr,(dopsi == psi_mlwf),caux)
+          elseif (dopsi == psi_unk .or. dopsi == psi_psink) then
              ! UNK and PSINK keyword
-             call sy%f(id)%grid%get_qe_psink_standalone(sy%f(id)%c%omega,ibnd,ik,ispin,(dowan == wan_psink),inr,caux)
+             call sy%f(id)%grid%get_qe_psink_standalone(sy%f(id)%c%omega,ibnd,ik,ispin,(dopsi == psi_psink),inr,caux)
           end if
           if (nti == nti_none .or. nti == nti_abs) then
              faux%f = abs(caux)
