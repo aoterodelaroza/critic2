@@ -1,0 +1,113 @@
+## check: 019_cube_mlwf_spin.cro -a1e-10
+## delete: 019_cube_mlwf_spin-1-1-i.cube
+## delete: 019_cube_mlwf_spin-1-1-r.cube
+## delete: 019_cube_mlwf_spin-1-2-i.cube
+## delete: 019_cube_mlwf_spin-1-2-r.cube
+## delete: 019_cube_mlwf_spin-1-3-i.cube
+## delete: 019_cube_mlwf_spin-1-3-r.cube
+## delete: 019_cube_mlwf_spin-1-4-i.cube
+## delete: 019_cube_mlwf_spin-1-4-r.cube
+## delete: 019_cube_mlwf_spin-1-5-i.cube
+## delete: 019_cube_mlwf_spin-1-5-r.cube
+## delete: 019_cube_mlwf_spin-1-6-i.cube
+## delete: 019_cube_mlwf_spin-1-6-r.cube
+## delete: 019_cube_mlwf_spin-1-7-i.cube
+## delete: 019_cube_mlwf_spin-1-7-r.cube
+## delete: 019_cube_mlwf_spin-1-8-i.cube
+## delete: 019_cube_mlwf_spin-1-8-r.cube
+## delete: 019_cube_mlwf_spin-2-1-i.cube
+## delete: 019_cube_mlwf_spin-2-1-r.cube
+## delete: 019_cube_mlwf_spin-2-2-i.cube
+## delete: 019_cube_mlwf_spin-2-2-r.cube
+## delete: 019_cube_mlwf_spin-2-3-i.cube
+## delete: 019_cube_mlwf_spin-2-3-r.cube
+## delete: 019_cube_mlwf_spin-2-4-i.cube
+## delete: 019_cube_mlwf_spin-2-4-r.cube
+## delete: 019_cube_mlwf_spin-2-5-i.cube
+## delete: 019_cube_mlwf_spin-2-5-r.cube
+## delete: 019_cube_mlwf_spin-2-6-i.cube
+## delete: 019_cube_mlwf_spin-2-6-r.cube
+## delete: 019_cube_mlwf_spin-2-7-i.cube
+## delete: 019_cube_mlwf_spin-2-7-r.cube
+## delete: 019_cube_mlwf_spin-2-8-i.cube
+## delete: 019_cube_mlwf_spin-2-8-r.cube
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/feo/feo.pwc
+
+load ../zz_source/qe-6.5/feo/feo.pwc ../zz_source/qe-6.5/feo/feo_up.chk ../zz_source/qe-6.5/feo/feo_dn.chk
+
+cube mlwf 5 0 0 0 real spin 2 file 019_cube_mlwf_spin-1-1-r.cube
+cube mlwf 5 0 0 1 real spin 2 file 019_cube_mlwf_spin-1-4-r.cube
+cube mlwf 5 0 1 0 real spin 2 file 019_cube_mlwf_spin-1-3-r.cube
+cube mlwf 5 0 1 1 real spin 2 file 019_cube_mlwf_spin-1-7-r.cube
+cube mlwf 5 1 0 0 real spin 2 file 019_cube_mlwf_spin-1-2-r.cube
+cube mlwf 5 1 0 1 real spin 2 file 019_cube_mlwf_spin-1-6-r.cube
+cube mlwf 5 1 1 0 real spin 2 file 019_cube_mlwf_spin-1-5-r.cube
+cube mlwf 5 1 1 1 real spin 2 file 019_cube_mlwf_spin-1-8-r.cube
+
+cube mlwf 5 0 0 0 imag spin 2 file 019_cube_mlwf_spin-1-1-i.cube
+cube mlwf 5 0 0 1 imag spin 2 file 019_cube_mlwf_spin-1-4-i.cube
+cube mlwf 5 0 1 0 imag spin 2 file 019_cube_mlwf_spin-1-3-i.cube
+cube mlwf 5 0 1 1 imag spin 2 file 019_cube_mlwf_spin-1-7-i.cube
+cube mlwf 5 1 0 0 imag spin 2 file 019_cube_mlwf_spin-1-2-i.cube
+cube mlwf 5 1 0 1 imag spin 2 file 019_cube_mlwf_spin-1-6-i.cube
+cube mlwf 5 1 1 0 imag spin 2 file 019_cube_mlwf_spin-1-5-i.cube
+cube mlwf 5 1 1 1 imag spin 2 file 019_cube_mlwf_spin-1-8-i.cube
+
+cube mlwf 2 0 0 0 real spin 2 file 019_cube_mlwf_spin-2-1-r.cube
+cube mlwf 2 0 0 1 real spin 2 file 019_cube_mlwf_spin-2-4-r.cube
+cube mlwf 2 0 1 0 real spin 2 file 019_cube_mlwf_spin-2-3-r.cube
+cube mlwf 2 0 1 1 real spin 2 file 019_cube_mlwf_spin-2-7-r.cube
+cube mlwf 2 1 0 0 real spin 2 file 019_cube_mlwf_spin-2-2-r.cube
+cube mlwf 2 1 0 1 real spin 2 file 019_cube_mlwf_spin-2-6-r.cube
+cube mlwf 2 1 1 0 real spin 2 file 019_cube_mlwf_spin-2-5-r.cube
+cube mlwf 2 1 1 1 real spin 2 file 019_cube_mlwf_spin-2-8-r.cube
+
+cube mlwf 2 0 0 0 imag spin 2 file 019_cube_mlwf_spin-2-1-i.cube
+cube mlwf 2 0 0 1 imag spin 2 file 019_cube_mlwf_spin-2-4-i.cube
+cube mlwf 2 0 1 0 imag spin 2 file 019_cube_mlwf_spin-2-3-i.cube
+cube mlwf 2 0 1 1 imag spin 2 file 019_cube_mlwf_spin-2-7-i.cube
+cube mlwf 2 1 0 0 imag spin 2 file 019_cube_mlwf_spin-2-2-i.cube
+cube mlwf 2 1 0 1 imag spin 2 file 019_cube_mlwf_spin-2-6-i.cube
+cube mlwf 2 1 1 0 imag spin 2 file 019_cube_mlwf_spin-2-5-i.cube
+cube mlwf 2 1 1 1 imag spin 2 file 019_cube_mlwf_spin-2-8-i.cube
+
+load 019_cube_mlwf_spin-1-1-i.cube id i11
+load 019_cube_mlwf_spin-1-4-i.cube id i12
+load 019_cube_mlwf_spin-1-3-i.cube id i13
+load 019_cube_mlwf_spin-1-7-i.cube id i14
+load 019_cube_mlwf_spin-1-2-i.cube id i15
+load 019_cube_mlwf_spin-1-6-i.cube id i16
+load 019_cube_mlwf_spin-1-5-i.cube id i17
+load 019_cube_mlwf_spin-1-8-i.cube id i18
+load 019_cube_mlwf_spin-1-1-r.cube id r11
+load 019_cube_mlwf_spin-1-4-r.cube id r12
+load 019_cube_mlwf_spin-1-3-r.cube id r13
+load 019_cube_mlwf_spin-1-7-r.cube id r14
+load 019_cube_mlwf_spin-1-2-r.cube id r15
+load 019_cube_mlwf_spin-1-6-r.cube id r16
+load 019_cube_mlwf_spin-1-5-r.cube id r17
+load 019_cube_mlwf_spin-1-8-r.cube id r18
+
+load 019_cube_mlwf_spin-2-1-i.cube id i21
+load 019_cube_mlwf_spin-2-4-i.cube id i22
+load 019_cube_mlwf_spin-2-3-i.cube id i23
+load 019_cube_mlwf_spin-2-7-i.cube id i24
+load 019_cube_mlwf_spin-2-2-i.cube id i25
+load 019_cube_mlwf_spin-2-6-i.cube id i26
+load 019_cube_mlwf_spin-2-5-i.cube id i27
+load 019_cube_mlwf_spin-2-8-i.cube id i28
+load 019_cube_mlwf_spin-2-1-r.cube id r21
+load 019_cube_mlwf_spin-2-4-r.cube id r22
+load 019_cube_mlwf_spin-2-3-r.cube id r23
+load 019_cube_mlwf_spin-2-7-r.cube id r24
+load 019_cube_mlwf_spin-2-2-r.cube id r25
+load 019_cube_mlwf_spin-2-6-r.cube id r26
+load 019_cube_mlwf_spin-2-5-r.cube id r27
+load 019_cube_mlwf_spin-2-8-r.cube id r28
+
+load as "($r11*$r21+$i11*$i21 + $r12*$r22+$i12*$i22 + $r13*$r23+$i13*$i23 + $r14*$r24+$i14*$i24 + $r15*$r25+$i15*$i25 + $r16*$r26+$i16*$i26 + $r17*$r27+$i17*$i27 + $r18*$r28+$i18*$i28)"
+load as "($r11*$r11+$i11*$i11 + $r12*$r12+$i12*$i12 + $r13*$r13+$i13*$i13 + $r14*$r14+$i14*$i14 + $r15*$r15+$i15*$i15 + $r16*$r16+$i16*$i16 + $r17*$r17+$i17*$i17 + $r18*$r18+$i18*$i18)"
+
+end
