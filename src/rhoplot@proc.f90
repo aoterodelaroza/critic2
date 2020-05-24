@@ -663,18 +663,18 @@ contains
           return
        end if
        nn = sy%f(id)%grid%n
-    end if
-    if (dowan /= wan_none.and..not.sy%f(id)%grid%isqe) then
-       call ferror('rhoplot_cube','CUBE MLWF/WANNIER/... requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
-       return
-    end if
-    if (dowan == wan_mlwf.and..not.sy%f(id)%grid%iswan) then
-       call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
-       return
-    end if
-    if (dowan /= wan_none.and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
-       call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
-       return
+       if (dowan /= wan_none.and..not.sy%f(id)%grid%isqe) then
+          call ferror('rhoplot_cube','CUBE MLWF/WANNIER/... requires a QE wavefunction file (pwc)',faterr,syntax=.true.)
+          return
+       end if
+       if (dowan == wan_mlwf.and..not.sy%f(id)%grid%iswan) then
+          call ferror('rhoplot_cube','CUBE MLWF requires a wannier90 checkpoint file (chk)',faterr,syntax=.true.)
+          return
+       end if
+       if (dowan /= wan_none.and.(ibnd < 1 .or. ibnd > sy%f(id)%grid%qe%nbnd)) then
+          call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
+          return
+       end if
     end if
 
     do i = 1, 3
