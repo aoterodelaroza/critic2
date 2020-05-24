@@ -1,0 +1,1258 @@
++ Field number 1
+  Source: ../zz_source/qe-6.5/na/na.pwc
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.489717478652E-04  5.261078784589E-04  7.414670929934E-04
+  Last elements... 1.050515865775E-03  7.339376442823E-04  5.261079025083E-04
+  Sum of elements... 2.514972397768E+02
+  Sum of squares of elements... 1.065031690282E+00
+  Cell integral (grid SUM) = 1.00000000
+  Min: 4.48971748E-04
+  Average: 3.92964437E-03
+  Max: 5.55668440E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+
++ Plane-wave Kohn-Sham states for this field
+  Spin: 1 K-points: 3 Bands: 5
+# kpt  1 (0.0000 0.0000 0.0000) w=2.50000000E-01
+  Ek:  -3.20  13.16  13.16  13.16  13.30
+ Occ:   2.01   0.00   0.00   0.00   0.00
+# kpt  2 (0.0000 -0.0000 -0.5000) w=1.50000000E+00
+  Ek:   0.78   1.38   9.03   9.17   9.24
+ Occ:   0.73   0.27   0.00   0.00   0.00
+# kpt  3 (-0.5000 -0.5000 -0.5000) w=2.50000000E-01
+  Ek:   4.89   4.89   4.89   5.09   7.63
+ Occ:   0.00   0.00   0.00   0.00   0.00
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* CUBE written to file: 028_cube_psink_metal-1-01-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-02-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-03-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-04-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-05-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-06-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-07-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-08-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-01-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-02-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-03-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-04-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-05-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-06-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-07-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-1-08-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-01-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-02-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-03-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-04-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-05-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-06-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-07-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-08-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-01-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-02-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-03-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-04-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-05-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-06-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-07-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-2-08-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-01-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-02-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-03-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-04-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-05-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-06-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-07-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-08-r.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-01-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-02-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-03-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-04-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-05-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-06-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-07-i.cube
+
+* CUBE written to file: 028_cube_psink_metal-3-08-i.cube
+
++ Field number 2
+  Name: r11
+  Source: 028_cube_psink_metal-1-01-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $2, $r11
+
++ Field number 3
+  Name: r12
+  Source: 028_cube_psink_metal-1-02-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $3, $r12
+
++ Field number 4
+  Name: r13
+  Source: 028_cube_psink_metal-1-03-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $4, $r13
+
++ Field number 5
+  Name: r14
+  Source: 028_cube_psink_metal-1-04-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $5, $r14
+
++ Field number 6
+  Name: r15
+  Source: 028_cube_psink_metal-1-05-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $6, $r15
+
++ Field number 7
+  Name: r16
+  Source: 028_cube_psink_metal-1-06-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $7, $r16
+
++ Field number 8
+  Name: r17
+  Source: 028_cube_psink_metal-1-07-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $8, $r17
+
++ Field number 9
+  Name: r18
+  Source: 028_cube_psink_metal-1-08-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.759271964454E-02  -1.771263355646E-02  -1.806100419500E-02
+  Last elements... -1.832653024725E-02  -1.790759046200E-02  -1.771263363944E-02
+  Sum of elements... -2.228555159148E+03
+  Sum of squares of elements... 7.828285120842E+01
+  Cell integral (grid SUM) = -8.86115156
+  Min: -3.66948140E-02
+  Average: -3.48211744E-02
+  Max: -1.75927196E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $9, $r18
+
++ Field number 10
+  Name: i11
+  Source: 028_cube_psink_metal-1-01-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $10, $i11
+
++ Field number 11
+  Name: i12
+  Source: 028_cube_psink_metal-1-02-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $11, $i12
+
++ Field number 12
+  Name: i13
+  Source: 028_cube_psink_metal-1-03-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $12, $i13
+
++ Field number 13
+  Name: i14
+  Source: 028_cube_psink_metal-1-04-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $13, $i14
+
++ Field number 14
+  Name: i15
+  Source: 028_cube_psink_metal-1-05-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $14, $i15
+
++ Field number 15
+  Name: i16
+  Source: 028_cube_psink_metal-1-06-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $15, $i16
+
++ Field number 16
+  Name: i17
+  Source: 028_cube_psink_metal-1-07-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $16, $i17
+
++ Field number 17
+  Name: i18
+  Source: 028_cube_psink_metal-1-08-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.616927318267E-02  2.634764548311E-02  2.686584806316E-02
+  Last elements... 2.726081982767E-02  2.663764505627E-02  2.634764623582E-02
+  Sum of elements... 3.314988703966E+03
+  Sum of squares of elements... 1.732143885750E+02
+  Cell integral (grid SUM) = 13.18101426
+  Min: 2.61692732E-02
+  Average: 5.17966985E-02
+  Max: 5.45837490E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $17, $i18
+
++ Field number 18
+  Name: r21
+  Source: 028_cube_psink_metal-2-01-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -4.031288007544E-09  1.147568901120E-02  2.231771521986E-02
+  Last elements... 3.267549397240E-02  2.257514944403E-02  1.147569642557E-02
+  Sum of elements... 3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = 14.34877277
+  Min: -1.04978374E-08
+  Average: 5.63855742E-02
+  Max: 9.04807867E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $18, $r21
+
++ Field number 19
+  Name: r22
+  Source: 028_cube_psink_metal-2-02-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -4.031288007544E-09  1.147568901120E-02  2.231771521986E-02
+  Last elements... 3.267549397240E-02  2.257514944403E-02  1.147569642557E-02
+  Sum of elements... 3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = 14.34877277
+  Min: -1.04978374E-08
+  Average: 5.63855742E-02
+  Max: 9.04807867E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $19, $r22
+
++ Field number 20
+  Name: r23
+  Source: 028_cube_psink_metal-2-03-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -4.031288007544E-09  1.147568901120E-02  2.231771521986E-02
+  Last elements... 3.267549397240E-02  2.257514944403E-02  1.147569642557E-02
+  Sum of elements... 3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = 14.34877277
+  Min: -1.04978374E-08
+  Average: 5.63855742E-02
+  Max: 9.04807867E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $20, $r23
+
++ Field number 21
+  Name: r24
+  Source: 028_cube_psink_metal-2-04-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.031288007544E-09  -1.147568901120E-02  -2.231771521986E-02
+  Last elements... -3.267549397240E-02  -2.257514944403E-02  -1.147569642557E-02
+  Sum of elements... -3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = -14.34877277
+  Min: -9.04807867E-02
+  Average: -5.63855742E-02
+  Max: 1.04978374E-08
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $21, $r24
+
++ Field number 22
+  Name: r25
+  Source: 028_cube_psink_metal-2-05-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -4.031288007544E-09  1.147568901120E-02  2.231771521986E-02
+  Last elements... 3.267549397240E-02  2.257514944403E-02  1.147569642557E-02
+  Sum of elements... 3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = 14.34877277
+  Min: -1.04978374E-08
+  Average: 5.63855742E-02
+  Max: 9.04807867E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $22, $r25
+
++ Field number 23
+  Name: r26
+  Source: 028_cube_psink_metal-2-06-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.031288007544E-09  -1.147568901120E-02  -2.231771521986E-02
+  Last elements... -3.267549397240E-02  -2.257514944403E-02  -1.147569642557E-02
+  Sum of elements... -3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = -14.34877277
+  Min: -9.04807867E-02
+  Average: -5.63855742E-02
+  Max: 1.04978374E-08
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $23, $r26
+
++ Field number 24
+  Name: r27
+  Source: 028_cube_psink_metal-2-07-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.031288007544E-09  -1.147568901120E-02  -2.231771521986E-02
+  Last elements... -3.267549397240E-02  -2.257514944403E-02  -1.147569642557E-02
+  Sum of elements... -3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = -14.34877277
+  Min: -9.04807867E-02
+  Average: -5.63855742E-02
+  Max: 1.04978374E-08
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $24, $r27
+
++ Field number 25
+  Name: r28
+  Source: 028_cube_psink_metal-2-08-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.031288007544E-09  -1.147568901120E-02  -2.231771521986E-02
+  Last elements... -3.267549397240E-02  -2.257514944403E-02  -1.147569642557E-02
+  Sum of elements... -3.608676746506E+03
+  Sum of squares of elements... 2.504925039969E+02
+  Cell integral (grid SUM) = -14.34877277
+  Min: -9.04807867E-02
+  Average: -5.63855742E-02
+  Max: 1.04978374E-08
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $25, $r28
+
++ Field number 26
+  Name: i21
+  Source: 028_cube_psink_metal-2-01-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 5.497837561014E-09  7.267926962053E-04  1.413446841725E-03
+  Last elements... 2.069428074584E-03  1.429742996688E-03  7.267824779711E-04
+  Sum of elements... 2.285475398248E+02
+  Sum of squares of elements... 1.004735786572E+00
+  Cell integral (grid SUM) = 0.90874771
+  Min: -6.18800416E-09
+  Average: 3.57105531E-03
+  Max: 5.73040070E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $26, $i21
+
++ Field number 27
+  Name: i22
+  Source: 028_cube_psink_metal-2-02-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 5.497837561014E-09  7.267926962053E-04  1.413446841725E-03
+  Last elements... 2.069428074584E-03  1.429742996688E-03  7.267824779711E-04
+  Sum of elements... 2.285475398248E+02
+  Sum of squares of elements... 1.004735786572E+00
+  Cell integral (grid SUM) = 0.90874771
+  Min: -6.18800416E-09
+  Average: 3.57105531E-03
+  Max: 5.73040070E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $27, $i22
+
++ Field number 28
+  Name: i23
+  Source: 028_cube_psink_metal-2-03-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 5.497837561014E-09  7.267926962053E-04  1.413446841725E-03
+  Last elements... 2.069428074584E-03  1.429742996688E-03  7.267824779711E-04
+  Sum of elements... 2.285475398248E+02
+  Sum of squares of elements... 1.004735786572E+00
+  Cell integral (grid SUM) = 0.90874771
+  Min: -6.18800416E-09
+  Average: 3.57105531E-03
+  Max: 5.73040070E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $28, $i23
+
++ Field number 29
+  Name: i24
+  Source: 028_cube_psink_metal-2-04-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -5.497837561013E-09  -7.267926962055E-04  -1.413446841725E-03
+  Last elements... -2.069428074585E-03  -1.429742996688E-03  -7.267824779713E-04
+  Sum of elements... -2.285475398249E+02
+  Sum of squares of elements... 1.004735786573E+00
+  Cell integral (grid SUM) = -0.90874771
+  Min: -5.73040070E-03
+  Average: -3.57105531E-03
+  Max: 6.18800416E-09
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $29, $i24
+
++ Field number 30
+  Name: i25
+  Source: 028_cube_psink_metal-2-05-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 5.497837561014E-09  7.267926962053E-04  1.413446841725E-03
+  Last elements... 2.069428074584E-03  1.429742996688E-03  7.267824779711E-04
+  Sum of elements... 2.285475398248E+02
+  Sum of squares of elements... 1.004735786572E+00
+  Cell integral (grid SUM) = 0.90874771
+  Min: -6.18800416E-09
+  Average: 3.57105531E-03
+  Max: 5.73040070E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $30, $i25
+
++ Field number 31
+  Name: i26
+  Source: 028_cube_psink_metal-2-06-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -5.497837561013E-09  -7.267926962055E-04  -1.413446841725E-03
+  Last elements... -2.069428074585E-03  -1.429742996688E-03  -7.267824779713E-04
+  Sum of elements... -2.285475398249E+02
+  Sum of squares of elements... 1.004735786573E+00
+  Cell integral (grid SUM) = -0.90874771
+  Min: -5.73040070E-03
+  Average: -3.57105531E-03
+  Max: 6.18800416E-09
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $31, $i26
+
++ Field number 32
+  Name: i27
+  Source: 028_cube_psink_metal-2-07-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -5.497837561013E-09  -7.267926962055E-04  -1.413446841725E-03
+  Last elements... -2.069428074585E-03  -1.429742996688E-03  -7.267824779713E-04
+  Sum of elements... -2.285475398249E+02
+  Sum of squares of elements... 1.004735786573E+00
+  Cell integral (grid SUM) = -0.90874771
+  Min: -5.73040070E-03
+  Average: -3.57105531E-03
+  Max: 6.18800416E-09
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $32, $i27
+
++ Field number 33
+  Name: i28
+  Source: 028_cube_psink_metal-2-08-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -5.497837561013E-09  -7.267926962055E-04  -1.413446841725E-03
+  Last elements... -2.069428074585E-03  -1.429742996688E-03  -7.267824779713E-04
+  Sum of elements... -2.285475398249E+02
+  Sum of squares of elements... 1.004735786573E+00
+  Cell integral (grid SUM) = -0.90874771
+  Min: -5.73040070E-03
+  Average: -3.57105531E-03
+  Max: 6.18800416E-09
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $33, $i28
+
++ Field number 34
+  Name: r31
+  Source: 028_cube_psink_metal-3-01-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $34, $r31
+
++ Field number 35
+  Name: r32
+  Source: 028_cube_psink_metal-3-02-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $35, $r32
+
++ Field number 36
+  Name: r33
+  Source: 028_cube_psink_metal-3-03-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $36, $r33
+
++ Field number 37
+  Name: r34
+  Source: 028_cube_psink_metal-3-04-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $37, $r34
+
++ Field number 38
+  Name: r35
+  Source: 028_cube_psink_metal-3-05-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $38, $r35
+
++ Field number 39
+  Name: r36
+  Source: 028_cube_psink_metal-3-06-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $39, $r36
+
++ Field number 40
+  Name: r37
+  Source: 028_cube_psink_metal-3-07-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $40, $r37
+
++ Field number 41
+  Name: r38
+  Source: 028_cube_psink_metal-3-08-r.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... -1.030228073825E-07  1.654466124258E-02  3.187833558281E-02
+  Last elements... -6.009224879459E-02  -4.665555108638E-02  -3.106206411519E-02
+  Sum of elements... 1.237992723040E-04
+  Sum of squares of elements... 1.589377650463E+02
+  Cell integral (grid SUM) = 0.00000049
+  Min: -1.34786432E-01
+  Average: 1.93436363E-09
+  Max: 1.34785716E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $41, $r38
+
++ Field number 42
+  Name: i31
+  Source: 028_cube_psink_metal-3-01-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $42, $i31
+
++ Field number 43
+  Name: i32
+  Source: 028_cube_psink_metal-3-02-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $43, $i32
+
++ Field number 44
+  Name: i33
+  Source: 028_cube_psink_metal-3-03-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $44, $i33
+
++ Field number 45
+  Name: i34
+  Source: 028_cube_psink_metal-3-04-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $45, $i34
+
++ Field number 46
+  Name: i35
+  Source: 028_cube_psink_metal-3-05-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $46, $i35
+
++ Field number 47
+  Name: i36
+  Source: 028_cube_psink_metal-3-06-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $47, $i36
+
++ Field number 48
+  Name: i37
+  Source: 028_cube_psink_metal-3-07-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $48, $i37
+
++ Field number 49
+  Name: i38
+  Source: 028_cube_psink_metal-3-08-i.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.558570515992E-07  2.226664576497E-02  4.290301029905E-02
+  Last elements... -4.281250643257E-02  -2.301293574306E-02  -1.215415574274E-03
+  Sum of elements... -1.630617170868E-04
+  Sum of squares of elements... 9.255947473718E+01
+  Cell integral (grid SUM) = -0.00000065
+  Min: -1.02526044E-01
+  Average: -2.54783933E-09
+  Max: 1.02525812E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (2): $49, $i38
+
++ Field number 50
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 7.954677147206E-03  8.063486480072E-03  8.383789317477E-03
+  Last elements... 8.632112068640E-03  8.241967442389E-03  8.063486820904E-03
+  Sum of elements... 2.011977918268E+03
+  Sum of squares of elements... 6.487877525244E+01
+  Cell integral (grid SUM) = 8.00000000
+  Min: 7.95467715E-03
+  Average: 3.14371550E-02
+  Max: 3.46071597E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $50
+
++ Field number 51
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 3.718200067765E-16  1.057757327240E-03  4.000625956872E-03
+  Last elements... 8.575763511169E-03  4.093452299657E-03  1.057758569776E-03
+  Sum of elements... 2.011977918268E+03
+  Sum of squares of elements... 9.460327520260E+01
+  Cell integral (grid SUM) = 8.00000000
+  Min: 6.10275518E-20
+  Average: 3.14371550E-02
+  Max: 6.57568820E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $51
+
++ Field number 52
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.792409549933E-13  6.156234634034E-03  2.285517257800E-02
+  Last elements... 4.355191257784E-02  2.165068526951E-02  7.730632496913E-03
+  Sum of elements... 2.011977918268E+03
+  Sum of squares of elements... 1.382472418954E+02
+  Cell integral (grid SUM) = 8.00000000
+  Min: 2.79240955E-13
+  Average: 3.14371550E-02
+  Max: 1.70953705E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $52
+
++ Field number 53
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 3.437969420924E-24  -1.783173760560E-17  -3.262770912824E-17
+  Last elements... -5.444050158593E-17  -3.189587266181E-17  -1.790288837317E-17
+  Sum of elements... -1.148857356463E-11
+  Sum of squares of elements... 2.651309617209E-27
+  Cell integral (grid SUM) = -0.00000000
+  Min: -4.54334920E-16
+  Average: -1.79508962E-16
+  Max: 4.30392412E-23
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $53
+
++ Field number 54
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.712893702415E-08  2.348993334463E-03  4.614968027644E-03
+  Last elements... -5.265728725589E-04  1.779824700860E-03  4.145340977414E-03
+  Sum of elements... -4.418895804825E-13
+  Sum of squares of elements... 1.657664360492E+01
+  Cell integral (grid SUM) = -0.00000000
+  Min: -4.35116350E-02
+  Average: -6.90452470E-18
+  Max: 4.35113607E-02
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $54
+
++ Field number 55
+  Source: <generated>
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 2.129924444097E-29  -1.489761547631E-17  -5.156736582884E-17
+  Last elements... 8.833537200326E-17  2.740320990957E-17  8.747732762769E-19
+  Sum of elements... 6.896183762050E-15
+  Sum of squares of elements... 9.539200679405E-28
+  Cell integral (grid SUM) = 0.00000000
+  Min: -4.83998014E-16
+  Average: 1.07752871E-19
+  Max: 4.98011327E-16
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $55
+

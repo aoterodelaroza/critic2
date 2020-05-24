@@ -23,6 +23,10 @@ set(TESTS
   022_cube_unk          ## cube: unk keyword
   023_cube_unk_sym      ## cube: unk keyword, with symmetry
   024_cube_unk_spin     ## cube: unk keyword, with spinpolarization
+  025_cube_psink        ## cube: psink keyword
+  026_cube_psink_sym    ## cube: psink keyword, with symmetry
+  027_cube_psink_spin   ## cube: psink keyword, with spinpolarization
+  028_cube_psink_metal  ## cube: psink keyword, in a metal
   )
 
 runtests(${TESTS})
