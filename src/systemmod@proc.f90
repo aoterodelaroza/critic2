@@ -283,10 +283,14 @@ contains
              sprop = "expr"
           case(itype_mpoles)
              sprop = "mpol"
-          case(itype_deloc)
+          case(itype_deloc_wnr)
              sprop = "dloc"
-             stradd = " | use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " // string(s%propi(i)%fachk) //&
-                ", Wannier_cutoff = " // string(s%propi(i)%wancut,'f',5,2)
+             stradd = " | Wannier overlaps, use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " //&
+                string(s%propi(i)%fachk) // ", Wannier_cutoff = " // string(s%propi(i)%wancut,'f',5,2)
+          case(itype_deloc_psink)
+             sprop = "dloc"
+             stradd = " | Bloch overlaps, use_Sij_chk = " // string(s%propi(i)%sijchk) // ", use_Fa_chk = " //&
+                string(s%propi(i)%fachk)
           case(itype_deloc_sijchk)
              sprop = "dloc"
              stradd = " | read Sij from checkpoint file: " // string(s%propi(i)%sijchkfile)
@@ -803,6 +807,7 @@ contains
   !> Define fields as integrable. Atomic integrals for these fields
   !> will be calculated in the basins of the reference field.
   module subroutine new_integrable_string(s,line,errmsg)
+    use fieldmod, only: type_grid
     use global, only: eval_next
     use tools_io, only: getword, lgetword, equal,&
        isexpression_or_word, string, isinteger, getline, isreal
@@ -904,7 +909,12 @@ contains
              ok = isinteger(idum,line,lp)
              if (ok) s%propi(s%npropi)%lmax = idum
           elseif (equal(word,"deloc")) then
-             s%propi(s%npropi)%itype = itype_deloc
+             if (s%f(id)%type == type_grid .and. s%f(id)%grid%iswan) then
+                s%propi(s%npropi)%itype = itype_deloc_wnr
+             else
+                s%propi(s%npropi)%itype = itype_deloc_psink
+             end if
+
              str = trim(str) // "#deloca"
              s%propi(s%npropi)%useu = .true.
              s%propi(s%npropi)%sijchk = .true.
@@ -920,6 +930,10 @@ contains
                    s%propi(s%npropi)%sijchk = .false.
                 else if (equal(word,"nofachk")) then
                    s%propi(s%npropi)%fachk = .false.
+                else if (equal(word,"wannier")) then
+                   s%propi(s%npropi)%itype = itype_deloc_wnr
+                else if (equal(word,"psink")) then
+                   s%propi(s%npropi)%itype = itype_deloc_psink
                 else if (equal(word,"nou")) then
                    s%propi(s%npropi)%useu = .false.
                 else if (equal(word,"wancut")) then
@@ -934,10 +948,6 @@ contains
                    exit
                 end if
              end do
-
-          elseif (equal(word,"deloc")) then
-             s%propi(s%npropi)%itype = itype_deloc
-             str = trim(str) // "#deloca"
           elseif (equal(word,"name")) then
              word = getword(line,lp)
              s%propi(s%npropi)%prop_name = string(word)
@@ -1278,7 +1288,7 @@ contains
              lprop(i) = res(id)%del2fval
           case(itype_mpoles)
              lprop(i) = res(id)%f
-          case(itype_deloc)
+          case(itype_deloc_wnr,itype_deloc_psink,itype_deloc_sijchk,itype_deloc_fachk)
              lprop(i) = res(id)%f
           case default
              cycle

@@ -1184,7 +1184,7 @@ contains
   !> grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_deloc(bas,res)
     use yt, only: yt_weights, ytdata, ytdata_clean
-    use systemmod, only: sy, itype_deloc, itype_deloc_sijchk, itype_deloc_fachk
+    use systemmod, only: sy, itype_deloc_wnr, itype_deloc_psink, itype_deloc_sijchk, itype_deloc_fachk
     use fieldmod, only: type_grid, type_wfn
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
@@ -1215,13 +1215,13 @@ contains
     do l = 1, sy%npropi
        if (res(l)%done) cycle
        if (.not.sy%propi(l)%used) cycle
-       if (sy%propi(l)%itype /= itype_deloc.and.sy%propi(l)%itype /= itype_deloc_sijchk.and.&
-          sy%propi(l)%itype /= itype_deloc_fachk) cycle
+       if (sy%propi(l)%itype /= itype_deloc_wnr.and.sy%propi(l)%itype /= itype_deloc_psink.and.&
+          sy%propi(l)%itype /= itype_deloc_sijchk.and.sy%propi(l)%itype /= itype_deloc_fachk) cycle
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
           
        ! check consistency of the field, if applicable
        ! assign checkpoints
-       if (sy%propi(l)%itype == itype_deloc) then
+       if (sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink) then
           fid = sy%propi(l)%fid
           if (.not.sy%goodfield(fid)) then
              res(l)%reason = "unknown or invalid field"
@@ -1251,7 +1251,8 @@ contains
              res(l)%reason = "Fa checkpoint file not found"
              cycle
           end if
-       else if (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%fachk) then
+       else if ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
+          sy%propi(l)%fachk) then
           if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              fid = sy%propi(l)%fid
              if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
@@ -1287,7 +1288,8 @@ contains
              res(l)%reason = "Sij checkpoint file not found"
              cycle
           end if
-       elseif (sy%propi(l)%itype == itype_deloc .and. sy%propi(l)%sijchk) then
+       elseif ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
+          sy%propi(l)%sijchk) then
           if (read_chk_header(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
              fid = sy%propi(l)%fid
              if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
@@ -1303,7 +1305,7 @@ contains
        end if ! sy%propi(l)%itype == itype_deloc, etc.
 
        ! assign values to some integers and check consistency of the input field
-       if (sy%propi(l)%itype == itype_deloc) then
+       if (sy%propi(l)%itype == itype_deloc_wnr .or.sy%propi(l)%itype == itype_deloc_psink) then
           ! check consistency of the input field
           if (sy%f(fid)%type /= type_grid) then
              if (sy%f(fid)%type /= type_wfn) &
@@ -1314,8 +1316,8 @@ contains
              res(l)%reason = "QE data not available for this field"
              cycle
           end if
-          if (.not.sy%f(fid)%grid%iswan .and. sy%propi(l)%useu) then
-             res(l)%reason = "Wannier data not available for this field"
+          if (sy%propi(l)%itype == itype_deloc_wnr.and..not.sy%f(fid)%grid%iswan.and.sy%propi(l)%useu) then
+             res(l)%reason = "Wannier rotation data not available for this field"
              cycle
           end if
           if (.not.all(sy%f(fid)%grid%n == bas%n)) then
@@ -1452,31 +1454,41 @@ contains
           ! write out some info
           write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
           write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nlat(j)),j=1,3)
-          write (uout,'(99(A,X))') "  ... Wannier functions (nbnd x nlat) =", string(nlattot)
+          write (uout,'(99(A,X))') "  ... unique grid functions (nbnd x nlat) =", string(nlattot)
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
-          if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
-             write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
-                string(sy%propi(l)%wancut,'f',5,2)
-          else
-             write (uout,'(99(A,X))') "  Discarding no overlaps."
+          if (sy%propi(l)%itype == itype_deloc_wnr) then
+             write (uout,'(99(A,X))') "  Calculating overlaps using Wannier functions (wan)"
+             if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
+                write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
+                   string(sy%propi(l)%wancut,'f',5,2)
+             else
+                write (uout,'(99(A,X))') "  Discarding no overlaps."
+             end if
+          elseif (sy%propi(l)%itype == itype_deloc_wnr) then
+             write (uout,'(99(A,X))') "  Calculating overlaps using Bloch states (psink)"
           end if
 
-          ! prepare the transformed files
-          luevc = -1
-          luevc_ibnd = 0
-          write (uout,'(99(A,X))') "  Writing temporary evc files..."
-          call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd,sy%propi(l)%useu)
+          if (sy%propi(l)%itype == itype_deloc_wnr) then
+             ! prepare the transformed files
+             luevc = -1
+             luevc_ibnd = 0
+             write (uout,'(99(A,X))') "  Writing temporary evc files..."
+             call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd,sy%propi(l)%useu)
 
-          ! calculate overlaps
-          write (uout,'(99(A,X))') "# Calculating overlaps..."
-          call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,ilvec,&
-             idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
-          deallocate(iatt,ilvec)
-          if (allocated(idg1)) deallocate(idg1)
+             ! calculate overlaps
+             write (uout,'(99(A,X))') "# Calculating overlaps..."
+             call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,ilvec,&
+                idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
+             deallocate(iatt,ilvec)
+             if (allocated(idg1)) deallocate(idg1)
 
-          ! close the rotated evc scratch files
-          if (luevc(1) >= 0) call fclose(luevc(1))
-          if (luevc(2) >= 0) call fclose(luevc(2))
+             ! close the rotated evc scratch files
+             if (luevc(1) >= 0) call fclose(luevc(1))
+             if (luevc(2) >= 0) call fclose(luevc(2))
+          elseif (sy%propi(l)%itype == itype_deloc_psink) then
+             write (*,*) "the calculation of the psink overlaps goes here!"
+             stop 1
+          end if
 
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then

@@ -90,9 +90,10 @@ module systemmod
   integer, parameter, public :: itype_lapval = 6
   integer, parameter, public :: itype_expr = 7
   integer, parameter, public :: itype_mpoles = 8
-  integer, parameter, public :: itype_deloc = 9
-  integer, parameter, public :: itype_deloc_sijchk = 10
-  integer, parameter, public :: itype_deloc_fachk = 11
+  integer, parameter, public :: itype_deloc_wnr = 9
+  integer, parameter, public :: itype_deloc_psink = 10
+  integer, parameter, public :: itype_deloc_sijchk = 11
+  integer, parameter, public :: itype_deloc_fachk = 12
   character*10, parameter, public :: itype_names(11) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
      "Laplcn (v)","Expression","Multipoles","Deloc indx","Deloc indx",&
