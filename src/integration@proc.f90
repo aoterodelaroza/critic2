@@ -1469,6 +1469,7 @@ contains
           end if
 
           if (sy%propi(l)%itype == itype_deloc_wnr) then
+             !!! using wannier functions !!!
              ! prepare the transformed files
              luevc = -1
              luevc_ibnd = 0
@@ -1486,8 +1487,11 @@ contains
              if (luevc(1) >= 0) call fclose(luevc(1))
              if (luevc(2) >= 0) call fclose(luevc(2))
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
-             write (*,*) "the calculation of the psink overlaps goes here!"
-             stop 1
+             !!! using bloch functions !!!
+             write (uout,'(99(A,X))') "# Calculating overlaps..."
+             call calc_sij_psink(fid,bas%imtype,nattn,iatt,ilvec,idg1,bas%xattr,dat,res(l)%sijc)
+             deallocate(iatt,ilvec)
+             if (allocated(idg1)) deallocate(idg1)
           end if
 
           ! write the checkpoint
@@ -1707,8 +1711,8 @@ contains
     integer, intent(in) :: ilvec(3,natt1)
     integer, intent(in) :: idg1(:,:,:)
     real*8, intent(in) :: xattr(:,:)
-    integer, intent(in) :: luevc(2)
     type(ytdata), intent(in) :: dat
+    integer, intent(in) :: luevc(2)
     integer, intent(inout) :: luevc_ibnd(2)
     complex*16, intent(out) :: sij(:,:,:,:)
 
@@ -1895,6 +1899,163 @@ contains
     sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
 
   end subroutine calc_sij_wannier
+
+  subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
+    use systemmod, only: sy
+    use yt, only: yt_weights, ytdata, ytdata_clean
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: ferror, faterr, uout, string
+    use param, only: tpi, img
+    integer, intent(in) :: fid
+    integer, intent(in) :: imtype
+    integer, intent(in) :: natt1
+    integer, intent(in) :: iatt(natt1)
+    integer, intent(in) :: ilvec(3,natt1)
+    integer, intent(in) :: idg1(:,:,:)
+    real*8, intent(in) :: xattr(:,:)
+    type(ytdata), intent(in) :: dat
+    complex*16, intent(out) :: sij(:,:,:,:)
+
+    integer :: n(3), is, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin, nn, ireg
+    integer :: imo1, imo2
+    integer :: i, m1, m2, m3, p(3), nlat(3), l1, l2, l3
+    real*8 :: x(3), xs(3), d2, delta(3), kdif(3)
+    ! integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
+    ! integer :: nbnd, nbndw(2), nwan(3), nlat, nmo, nspin
+    ! type(crystalseed) :: ncseed
+    ! type(crystal) :: nc
+    ! logical, allocatable :: lovrlp(:,:,:,:,:,:)
+    complex*16 :: padd
+    complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), evca(:,:), psic(:,:,:)
+    real*8, allocatable :: w(:,:,:)
+    logical, allocatable :: wmask(:,:,:)
+
+    ! complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
+    ! allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
+    ! allocate(evca(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nspin*f%qe%nks*f%qe%nbnd))
+    ! allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
+
+    sij = 0d0
+    n = sy%f(sy%iref)%grid%n
+    nlat = sy%f(fid)%grid%qe%nk
+    nks = sy%f(fid)%grid%qe%nks
+    nspin = sy%f(fid)%grid%qe%nspin
+    nbnd = sy%f(fid)%grid%qe%nbnd
+    ! nbndw = sy%f(fid)%grid%qe%nbndw
+    ! nmo = nlat * nbnd
+
+    if (any(n /= sy%f(fid)%grid%n)) &
+       call ferror("calc_sij_psink","inconsistent grid sizes",faterr)
+    allocate(psi1(n(1),n(2),n(3)),psi2(n(1),n(2),n(3)))
+    ! allocate(f1(n(1),n(2),n(3),nlat))
+    ! allocate(f2(n(1),n(2),n(3),nlat))
+    ! allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
+    
+    ! the big loop
+    if (imtype == imtype_yt) &
+       allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic(n(1),n(2),n(3)))
+    do is = 1, nspin
+       imo1 = 0
+       do ibnd1 = 1, nbnd
+          do ik1 = 1, nks
+             imo1 = imo1 + 1
+             call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd1,ik1,is,.true.,(/0,0,0/),psi1)
+
+             imo2 = 0
+             do ibnd2 = 1, nbnd
+                do ik2 = 1, nks
+                   imo2 = imo2 + 1
+                   kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
+                   call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd2,ik2,is,.true.,(/0,0,0/),psi2)
+
+                   write (*,*) "xx doing: ", is, ibnd1, ik1, ibnd2, ik2
+                   write (*,*) "psum: ", sum(conjg(psi1)*psi2) * sy%c%omega / real(n(1)*n(2)*n(3),8)
+
+                   if (imtype == imtype_bader) then
+                      write (*,*) "bader not implemented yet"
+                      stop 1
+                   else
+                      ! yt integration
+                      w = 0d0
+                      wmask = .false.
+                      do i = 1, natt1
+                         call yt_weights(din=dat,idb=iatt(i),w=w)
+                         wmask = .false.
+                         do m3 = 1, n(3)
+                            do m2 = 1, n(2)
+                               do m1 = 1, n(1)
+                                  if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                                  p = (/m1,m2,m3/)
+                                  x = real(p-1,8) / n - xattr(:,iatt(i))
+                                  xs = x
+                                  call sy%c%shortest(xs,d2)
+                                  p = nint(x - sy%c%c2x(xs))
+                                  wmask(m1,m2,m3) = all(p == ilvec(:,i))
+                               end do
+                            end do
+                         end do
+
+                         where (wmask)
+                            psic = w * conjg(psi1) * psi2
+                         end where
+
+                         padd = sum(psic,wmask) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+
+                         sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
+                      end do
+                   end if ! imtype == bader/yt
+                end do ! ik2
+             end do ! ibnd2
+          end do ! ik1
+       end do ! ibnd1 
+    end do ! is
+
+    ! clean up
+    if (imtype == imtype_yt) &
+       deallocate(w,wmask)
+
+    ! scale
+    sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
+    
+    imo1 = 0
+    do ibnd1 = 1, nbnd
+       do ik1 = 1, nks
+          imo1 = imo1 + 1
+          imo2 = 0
+          do ibnd2 = 1, nbnd
+             do ik2 = 1, nks
+                imo2 = imo2 + 1
+                write (*,*) imo1, imo2, sum(sij(imo1,imo2,:,1))
+             end do
+          end do
+       end do
+    end do
+
+    ! write (*,*) "checking S sum rules"
+    ! do ix1 = 1, nbndw(1)
+    !    do ix2 = 1, nbndw(2)
+    !       do is = 1, nspin
+    !          aa = 0d0
+    !          do imo = 1, nmo
+    !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+    !             if (iba /= ix1) cycle
+    !             do jmo = 1, nmo
+    !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+    !                if (ibb /= ix2) cycle
+    !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
+    !             end do
+    !          end do
+    !          write (*,*) is, ix1, ix2, aa
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
+    
+    write (*,*) "im here!"
+    stop 1
+
+  end subroutine calc_sij_psink
 
   !> Dummy function for quadpack integration
   function quadpack_f(x,unit,xnuc) result(res)
