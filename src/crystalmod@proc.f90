@@ -4573,6 +4573,7 @@ contains
 
     write (lu,'("ngridk"/,"  4 4 4"/)')
     write (lu,'("rgkmax"/,"  7.0"/)')
+    write (lu,'("highq"/,"  .true."/)')
     call fclose(lu)
 
   end subroutine write_elk
