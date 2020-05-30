@@ -267,8 +267,12 @@ module types
      integer :: nspin ! number of spins in DIs
      real*8, allocatable :: psum(:) ! integrated atomic properties
      real*8, allocatable :: mpole(:,:) ! integrated multipoles
+     ! for delocalization indices
+     integer :: sijtype ! 0 = molecular, 1 = wannier, 2 = psink, -1 = unknown
      real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
-     complex*16, allocatable :: sijc(:,:,:,:) ! Sij from Wannier
+     complex*16, allocatable :: sijc(:,:,:,:) ! Sij from wannier/psink
+     integer, allocatable :: sij_wnr_imap(:,:) ! mapping for Sij translation (wannier)
+     complex*16, allocatable :: sij_psink_phase(:,:) ! phase for Sij translation (psink)
      real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
   end type int_result
 

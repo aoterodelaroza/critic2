@@ -44,6 +44,7 @@ module grid3mod
      real*8, allocatable :: spread(:,:) !< wannier function spreads (bohr)
      complex*16, allocatable :: u(:,:,:,:) !< u matrix
   end type qedat
+  public :: qedat
 
   !> Three-dimensional grid class
   type grid3

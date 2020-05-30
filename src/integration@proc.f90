@@ -25,12 +25,15 @@ submodule (integration) proc
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
   ! subroutine intgrid_deloc(bas,res)
-  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sij)
-  ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,fa)
-  ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr)
+  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype,sij)
+  ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype,fa)
+  ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype)
   ! subroutine read_sijchk_body(sijfname,sij)
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
+  ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
+  ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
+  ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
   ! function quadpack_f(x,unit,xnuc) result(res)
   ! subroutine int_output_multipoles(bas,res)
   ! subroutine int_output_deloc(bas,res)
@@ -1192,24 +1195,26 @@ contains
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
     use tools_math, only: matinv
     use types, only: basindat, realloc, int_result, out_deloc
+    use param, only: tpi, img
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
     integer :: i, j, k, l, natt1
-    logical :: found, calcsij, first
+    logical :: found, calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
     integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
     integer :: m1, m2, m3, idx(3)
     integer :: fid, p(3)
+    integer :: ik1, ibnd1, ik2, ibnd2
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
-    real*8 :: x(3), xs(3), d2, fatemp
+    real*8 :: x(3), xs(3), d2, fatemp, kdif(3)
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
-    integer :: ib, jb, kb, ibb
-    ! real*8 :: ix1, ix2
-    ! complex*16 :: aa 
+    integer :: ib, jb, kb, ibb, isijtype
+    real*8 :: ix1, ix2
+    complex*16 :: aa, sij
 
     first = .true.
     do l = 1, sy%npropi
@@ -1234,9 +1239,18 @@ contains
           fafname = trim(fileroot) // ".chk-fa"
        end if
 
+       ! set the type of the sij matrix
+       if (sy%propi(l)%itype == itype_deloc_wnr) then
+          res(l)%sijtype = 1 
+      elseif (sy%propi(l)%itype == itype_deloc_psink) then
+          res(l)%sijtype = 2
+       else
+          res(l)%sijtype = -1
+       end if
+
        ! maybe we can read the Fa information and jump to the end
        if (sy%propi(l)%itype == itype_deloc_fachk) then
-          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%fachkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,res(l)%sijtype)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(sy%propi(l)%fachkfile)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
@@ -1253,11 +1267,11 @@ contains
           end if
        else if ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
           sy%propi(l)%fachk) then
-          if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
+          if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,isijtype)) then
              fid = sy%propi(l)%fid
              if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
                 nlattot == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
-                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
+                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr .and. isijtype == res(l)%sijtype) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(fafname)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
                 allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
@@ -1271,7 +1285,7 @@ contains
        calcsij = .true.
        if (sy%propi(l)%itype == itype_deloc_sijchk) then
           ! read the sij from a checkpoint file (without the corresponding field)
-          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
+          if (read_chk_header(sy%propi(l)%sijchkfile,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,res(l)%sijtype)) then
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sy%propi(l)%sijchkfile)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
@@ -1290,11 +1304,17 @@ contains
           end if
        elseif ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
           sy%propi(l)%sijchk) then
-          if (read_chk_header(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1)) then
+          if (read_chk_header(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,isijtype)) then
              fid = sy%propi(l)%fid
-             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
-                nlattot == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
-                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr) then
+
+             ok = (sy%propi(l)%itype == itype_deloc_psink) .or. all(nbndw == sy%f(fid)%grid%qe%nbndw)
+             ok = ok .and. all(nlat == sy%f(fid)%grid%qe%nk)
+             ok = ok .and. (nlattot == sy%f(fid)%grid%qe%nks)
+             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin) 
+             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd) 
+             ok = ok .and. (natt1 == bas%nattr)
+             ok = ok .and. (isijtype == res(l)%sijtype)
+             if (ok) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sijfname)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
                 allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
@@ -1303,6 +1323,7 @@ contains
              end if
           end if
        end if ! sy%propi(l)%itype == itype_deloc, etc.
+
 
        ! assign values to some integers and check consistency of the input field
        if (sy%propi(l)%itype == itype_deloc_wnr .or.sy%propi(l)%itype == itype_deloc_psink) then
@@ -1464,7 +1485,7 @@ contains
              else
                 write (uout,'(99(A,X))') "  Discarding no overlaps."
              end if
-          elseif (sy%propi(l)%itype == itype_deloc_wnr) then
+          elseif (sy%propi(l)%itype == itype_deloc_psink) then
              write (uout,'(99(A,X))') "  Calculating overlaps using Bloch states (psink)"
           end if
 
@@ -1486,6 +1507,7 @@ contains
              ! close the rotated evc scratch files
              if (luevc(1) >= 0) call fclose(luevc(1))
              if (luevc(2) >= 0) call fclose(luevc(2))
+
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              !!! using bloch functions !!!
              write (uout,'(99(A,X))') "# Calculating overlaps..."
@@ -1497,80 +1519,93 @@ contains
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then
              write (uout,'("# Writing Sij checkpoint file: ",A)') trim(sijfname)
-             call write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijc)
+             call write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,res(l)%sijc)
           end if
        end if ! calcsij
 
-       ! write (*,*) "checking S sum rules"
-       ! do ix1 = 1, nbndw(1)
-       !    do ix2 = 1, nbndw(2)
-       !       do is = 1, nspin
-       !          aa = 0d0
-       !          do imo = 1, nmo
-       !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-       !             if (iba /= ix1) cycle
-       !             do jmo = 1, nmo
-       !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-       !                if (ibb /= ix2) cycle
-       !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
-       !             end do
-       !          end do
-       !          write (*,*) is, ix1, ix2, aa
-       !       end do
-       !    end do
-       ! end do
-       ! stop 1
+       ! calculate the Sij translation mappings
+       if (sy%propi(l)%itype == itype_deloc_wnr) then
+          write (uout,'(99(A,X))') "# Calculating translation mappings..."
+          call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
+       end if
+
+       ! check the sanity of the Sij matrix
+       write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
+       call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
 
        !!! calculate Fa !!!
        write (uout,'("# Calculating Fa")')
 
-       ! calculate the index mapping in order to build the fa matrix
-       ! kmo = imap(imo,jlat) gives the Wannier function index kmo
-       ! resulting from taking the Wannier function imo and
-       ! translating by lattice vector jlat
-       allocate(imap(nmo,nlattot))
-       do imo = 1, nmo
-          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-          k = 0
-          do ic = 0, nlat(1)-1
-             do jc = 0, nlat(2)-1
-                do kc = 0, nlat(3)-1
-                   k = k + 1
-                   idx = (/ia-ic, ja-jc, ka-kc/)
-                   idx = modulo(idx,nlat)
-                   call packidx(idx(1),idx(2),idx(3),iba,imap(imo,k),nmo,nbnd,nlat)
+       ! calculate the fa
+       if (allocated(res(l)%fa)) deallocate(res(l)%fa)
+       allocate(res(l)%fa(bas%nattr,bas%nattr,nlat(1)*nlat(2)*nlat(3),nspin))
+       res(l)%fa = 0d0
+       if (res(l)%sijtype == 1) then
+          !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
+          do i = 1, bas%nattr
+             do j = 1, bas%nattr
+                do is = 1, nspin
+                   do k = 1, nlattot
+                      fatemp = 0d0
+                      do imo = 1, nmo
+                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+                         ! if (iba > nbndw(is)) cycle
+                         do jmo = 1, nmo
+                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+                            ! if (ibb > nbndw(is)) cycle
+                            fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * &
+                               res(l)%sijc(res(l)%sij_wnr_imap(imo,k),res(l)%sij_wnr_imap(jmo,k),j,is),8)
+                         end do
+                      end do
+                      !$omp critical (addfa)
+                      res(l)%fa(i,j,k,is) = fatemp
+                      !$omp end critical (addfa)
+                   end do
                 end do
              end do
           end do
-       end do
+          !$omp end parallel do
+       elseif (res(l)%sijtype == 2) then
+          do i = 1, bas%nattr
+             do j = 1, bas%nattr
+                do is = 1, nspin
 
-       if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-       allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
-       res(l)%fa = 0d0
-       !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
-       do i = 1, bas%nattr
-          do j = 1, bas%nattr
-             do is = 1, nspin
-                do k = 1, nlattot
-                   fatemp = 0d0
-                   do imo = 1, nmo
-                      call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-                      ! if (iba > nbndw(is)) cycle
-                      do jmo = 1, nmo
-                         call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-                         ! if (ibb > nbndw(is)) cycle
-                         fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imap(imo,k),imap(jmo,k),j,is),8)
+                   k = 0
+                   do ia = 0, nlat(1)-1
+                      do ja = 0, nlat(2)-1
+                         do ka = 0, nlat(3)-1
+                            k = k + 1
+                            fatemp = 0d0
+
+                            imo = 0
+                            do ik1 = 1, nlattot
+                               do ibnd1 = 1, nbnd
+                                  imo = imo + 1
+                                  jmo = 0
+                                  do ik2 = 1, nlattot
+                                     do ibnd2 = 1, nbnd
+                                        jmo = jmo + 1
+
+                                        kdif = sy%f(fid)%grid%qe%kpt(:,ik2) - sy%f(fid)%grid%qe%kpt(:,ik1)
+                                        ! xxxx ! 0.5 * 0.5 * (?)
+                                        res(l)%fa(i,j,k,is) = res(l)%fa(i,j,k,is) + 0.5d0 * 0.5d0 * &
+                                           sy%f(fid)%grid%qe%occ(ibnd1,ik1) * sy%f(fid)%grid%qe%occ(ibnd2,ik2) * &
+                                           real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imo,jmo,j,is) * &
+                                           exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
+                                     end do
+                                  end do
+                               end do
+                            end do
+
+                         end do
                       end do
                    end do
-                   !$omp critical (addfa)
-                   res(l)%fa(i,j,k,is) = fatemp
-                   !$omp end critical (addfa)
+
                 end do
              end do
           end do
-       end do
-       !$omp end parallel do
-       deallocate(imap)
+          
+       end if
 
        ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
        ! write (*,*) "Atomic charges..."
@@ -1583,17 +1618,18 @@ contains
        !       write (*,*) i, sum(res(l)%fa(i,:,:,is)), sum(res(l)%fa(:,i,:,is))
        !    end do
        ! end do
-       ! stop 1
        
        ! write the checkpoint file
        if (sy%propi(l)%fachk) then
           write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
-          call write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%fa)
+          call write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,res(l)%fa)
        end if
 
        ! finished successfully
 999    continue
        if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+       if (allocated(res(l)%sij_wnr_imap)) deallocate(res(l)%sij_wnr_imap)
+       if (allocated(res(l)%sij_psink_phase)) deallocate(res(l)%sij_psink_phase)
        res(l)%done = .true.
        res(l)%reason = ""
        res(l)%outmode = out_deloc
@@ -1610,32 +1646,32 @@ contains
   end subroutine intgrid_deloc
 
   !> Write the Sij checkpoint file (DI integration).
-  subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sij)
+  subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,sij)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: sijfname
-    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
     complex*16, intent(in) :: sij(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(sijfname,"unformatted")
-    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
+    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     write (lu) sij
     call fclose(lu)
     
   end subroutine write_sijchk
 
   !> Write the Fa checkpoint file DI integration).
-  subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,fa)
+  subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: fafname
-    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
+    integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
     real*8, intent(in) :: fa(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(fafname,"unformatted")
-    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
+    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     write (lu) fa
     call fclose(lu)
     
@@ -1643,10 +1679,10 @@ contains
 
   !> Read the header for the Sij/Fa checkpoint file (DI
   !> integration). If found and read, return .true.
-  function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr) result(haschk)
+  function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype) result(haschk)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: fname
-    integer, intent(out) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr
+    integer, intent(out) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
     logical :: haschk
 
     integer :: lu
@@ -1654,7 +1690,7 @@ contains
     inquire(file=fname,exist=haschk)
     if (.not.haschk) return
     lu = fopen_read(fname,"unformatted")
-    read (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr
+    read (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     call fclose(lu)
 
   end function read_chk_header
@@ -1926,7 +1962,7 @@ contains
     ! type(crystalseed) :: ncseed
     ! type(crystal) :: nc
     ! logical, allocatable :: lovrlp(:,:,:,:,:,:)
-    complex*16 :: padd
+    complex*16 :: padd, saux
     complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), evca(:,:), psic(:,:,:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
@@ -1957,20 +1993,19 @@ contains
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic(n(1),n(2),n(3)))
     do is = 1, nspin
        imo1 = 0
-       do ibnd1 = 1, nbnd
-          do ik1 = 1, nks
+       do ik1 = 1, nks
+          do ibnd1 = 1, nbnd
              imo1 = imo1 + 1
              call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd1,ik1,is,.true.,(/0,0,0/),psi1)
 
              imo2 = 0
-             do ibnd2 = 1, nbnd
-                do ik2 = 1, nks
+             do ik2 = 1, nks
+                do ibnd2 = 1, nbnd
                    imo2 = imo2 + 1
                    kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
                    call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd2,ik2,is,.true.,(/0,0,0/),psi2)
 
                    write (*,*) "xx doing: ", is, ibnd1, ik1, ibnd2, ik2
-                   write (*,*) "psum: ", sum(conjg(psi1)*psi2) * sy%c%omega / real(n(1)*n(2)*n(3),8)
 
                    if (imtype == imtype_bader) then
                       write (*,*) "bader not implemented yet"
@@ -2005,10 +2040,10 @@ contains
                          sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
                       end do
                    end if ! imtype == bader/yt
-                end do ! ik2
-             end do ! ibnd2
-          end do ! ik1
-       end do ! ibnd1 
+                end do ! ibnd2
+             end do ! ik2
+          end do ! ibnd1 
+       end do ! ik1
     end do ! is
 
     ! clean up
@@ -2018,44 +2053,139 @@ contains
     ! scale
     sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
     
-    imo1 = 0
-    do ibnd1 = 1, nbnd
-       do ik1 = 1, nks
-          imo1 = imo1 + 1
-          imo2 = 0
-          do ibnd2 = 1, nbnd
-             do ik2 = 1, nks
-                imo2 = imo2 + 1
-                write (*,*) imo1, imo2, sum(sij(imo1,imo2,:,1))
+  end subroutine calc_sij_psink
+
+  ! Calculate the information necessary to relate Sij^{A+R} to Sij^A.
+  ! This information is different if Sij is calculated in terms of
+  ! wannier functions (i,j=nR) or bloch functions (i,j=nk).
+  subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
+    use types, only: int_result
+    type(int_result), intent(inout) :: res
+    integer, intent(in) :: nmo, nbnd, nlat(3), nlattot
+
+    integer :: imo, ia, ja, ka, iba, k, ic, jc, kc, idx(3)
+
+    if (res%sijtype /= 1) return
+
+    ! translations for Sij from wannier functions
+    
+    ! Wannier functions:
+    !     S_{nR,n'R'}^{A+R''} = S_{nR-R'',n'R'-R''}^{A}
+    ! !! S(imo,1) translated by lattice vector k is S(imap(imo,k),1) !!
+    if (allocated(res%sij_wnr_imap)) deallocate(res%sij_wnr_imap)
+    allocate(res%sij_wnr_imap(nmo,nlattot))
+    do imo = 1, nmo
+       call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+       k = 0
+       do ic = 0, nlat(1)-1
+          do jc = 0, nlat(2)-1
+             do kc = 0, nlat(3)-1
+                k = k + 1
+                idx = (/ia-ic, ja-jc, ka-kc/)
+                idx = modulo(idx,nlat)
+                call packidx(idx(1),idx(2),idx(3),iba,res%sij_wnr_imap(imo,k),nmo,nbnd,nlat)
              end do
           end do
        end do
     end do
 
-    ! write (*,*) "checking S sum rules"
-    ! do ix1 = 1, nbndw(1)
-    !    do ix2 = 1, nbndw(2)
-    !       do is = 1, nspin
-    !          aa = 0d0
-    !          do imo = 1, nmo
-    !             call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-    !             if (iba /= ix1) cycle
-    !             do jmo = 1, nmo
-    !                call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-    !                if (ibb /= ix2) cycle
-    !                aa = aa + sum(res(l)%sijc(jmo,imo,:,is))
-    !             end do
-    !          end do
-    !          write (*,*) is, ix1, ix2, aa
-    !       end do
-    !    end do
-    ! end do
-    ! stop 1
-    
-    write (*,*) "im here!"
-    stop 1
+  end subroutine find_sij_translations
 
-  end subroutine calc_sij_psink
+  ! Check the sanity of the sij matrix using the orthogonality and
+  ! number of electron relations.
+  subroutine check_sij_sanity(res,qe,nspin,nmo,nbnd,nlat,nlattot)
+    use types, only: int_result
+    use grid3mod, only: qedat
+    use param, only: tpi, img
+    type(int_result), intent(in) :: res
+    type(qedat), intent(in) :: qe
+    integer, intent(in) :: nspin, nmo, nbnd, nlat(3), nlattot
+    
+    integer :: is, imo, jmo, k, l1, l2, l3
+    integer :: ik1, ibnd1, ik2, ibnd2
+    real*8 :: fspin, kdif(3), delta(3)
+    complex*16 :: asum, saux
+    
+    ! set the spin multiplier
+    if (nspin == 1) then
+       fspin = 2d0
+    else
+       fspin = 1d0
+    end if
+
+    if (res%sijtype == 1) then
+       ! checking sij from wannier functions
+
+       ! sum_AR Sij^(A+R) = delta_ij
+       do is = 1, nspin
+          do imo = 1, nmo
+             do jmo = 1, nmo
+                asum = 0d0
+                do k = 1, nlattot
+                   asum = asum + sum(res%sijc(res%sij_wnr_imap(imo,k),res%sij_wnr_imap(jmo,k),:,is))
+                end do
+                write (*,*) is, imo, jmo, asum
+             end do
+          end do
+       end do
+       
+       ! sum_i sum_A Sii^A = N
+       do is = 1, nspin
+          asum = 0d0
+          do imo = 1, nmo
+             asum = asum + sum(res%sijc(imo,imo,:,is))
+          end do
+          write (*,*) is, asum * fspin
+       end do
+    else
+       ! sum_AR Sij^(A+R) = delta_ij
+       do is = 1, nspin
+          imo = 0
+          do ik1 = 1, nlattot
+             do ibnd1 = 1, nbnd
+                imo = imo + 1
+
+                jmo = 0
+                do ik2 = 1, nlattot
+                   do ibnd2 = 1, nbnd
+                      jmo = jmo + 1
+
+                      kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
+
+                      saux = 0d0
+                      do l1 = 1, nlat(1)
+                         do l2 = 1, nlat(2)
+                            do l3 = 1, nlat(3)
+                               delta = real((/l1,l2,l3/)-1,8)
+                               saux = saux + exp(tpi*img*(kdif(1)*l1+kdif(2)*l2+kdif(3)*l3))
+                            end do
+                         end do
+                      end do
+                      saux = saux 
+                      
+                      asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
+                      write (*,*) is, imo, jmo, asum
+                   end do
+                end do
+             end do
+          end do
+       end do
+       
+       ! sum_i sum_A Sii^A = N
+       do is = 1, nspin
+          asum = 0d0
+          imo = 0
+          do ik1 = 1, nlattot
+             do ibnd1 = 1, nbnd
+                imo = imo + 1
+                asum = asum + qe%occ(ibnd1,ik1) * sum(res%sijc(imo,imo,:,is))
+             end do
+          end do
+          write (*,*) is, asum
+       end do
+    end if
+
+  end subroutine check_sij_sanity
 
   !> Dummy function for quadpack integration
   function quadpack_f(x,unit,xnuc) result(res)

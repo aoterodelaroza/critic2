@@ -975,14 +975,15 @@ contains
     !                   end do
     !                end do
     !             end do
+    !             write (*,*) "## xx ", ik, ibnd, ik2, ibnd2, psum / real(product(f%n),8)
     !             totsum = totsum * psum
+                
     !             write (*,*) "## total sum: ", ik, ibnd, ik2, ibnd2, totsum  / real(product(f%n),8) /&
-    !                (real(f%qe%nks,8))
+    !                (real(f%qe%nk(1)*f%qe%nk(2)*f%qe%nk(3),8))
     !          end do
     !       end do
     !    end do
     ! end do
-    ! stop 1
 
     ! close and clean up
     call fclose(luc)
