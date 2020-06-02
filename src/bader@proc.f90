@@ -232,6 +232,67 @@ contains
     if (allocated(path)) deallocate(path)
 
   end subroutine bader_integrate
+  
+  !> Remap the attractors from a bader calculation
+  module subroutine bader_remap(s,bas,nattn,idg1,ilvec,iatt)
+    use types, only: realloc, basindat
+    type(system), intent(in) :: s
+    type(basindat), intent(in) :: bas
+    integer, intent(out) :: nattn
+    integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:), idg1(:,:,:)
+    
+    integer :: i, m1, m2, m3, p(3)
+    real*8 :: x(3), xs(3), d2
+    logical :: found
+
+    if (allocated(iatt)) deallocate(iatt)
+    allocate(iatt(bas%nattr))
+    nattn = bas%nattr
+    do i = 1, bas%nattr
+       iatt(i) = i
+    enddo
+    if (allocated(ilvec)) deallocate(ilvec)
+    allocate(ilvec(3,bas%nattr))
+    ilvec = 0
+
+    if (allocated(idg1)) deallocate(idg1)
+    allocate(idg1(bas%n(1),bas%n(2),bas%n(3)))
+    do m3 = 1, bas%n(3)
+       do m2 = 1, bas%n(2)
+          do m1 = 1, bas%n(1)
+             idg1(m1,m2,m3) = bas%idg(m1,m2,m3)
+             p = (/m1,m2,m3/)
+             x = real(p-1,8) / bas%n - bas%xattr(:,bas%idg(m1,m2,m3))
+             xs = x
+             call s%c%shortest(xs,d2)
+             p = nint(x - s%c%c2x(xs))
+             if (any(p /= 0)) then
+                found = .false.
+                do i = bas%nattr+1, nattn
+                   if (iatt(i) == bas%idg(m1,m2,m3) .and. all(p == ilvec(:,i))) then
+                      found = .true.
+                      idg1(m1,m2,m3) = i
+                      exit
+                   end if
+                end do
+                if (.not.found) then
+                   nattn = nattn + 1
+                   if (nattn > size(ilvec,2)) then
+                      call realloc(ilvec,3,2*nattn)
+                      call realloc(iatt,2*nattn)
+                   end if
+                   ilvec(:,nattn) = p
+                   idg1(m1,m2,m3) = nattn
+                   iatt(nattn) = bas%idg(m1,m2,m3)
+                end if
+             end if
+          end do
+       end do
+    end do
+    call realloc(ilvec,3,nattn)
+    call realloc(iatt,nattn)
+
+  endsubroutine bader_remap
 
   !xx! private procedure
 

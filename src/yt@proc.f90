@@ -369,6 +369,70 @@ contains
     deallocate(waux)
   
   end subroutine yt_weights
+  
+  !> Remap the attractors from a yt calculation
+  module subroutine yt_remap(s,bas,dat,nattn,ilvec,iatt)
+    use types, only: basindat, realloc
+    type(system), intent(in) :: s
+    type(basindat), intent(in) :: bas
+    type(ytdata), intent(in) :: dat
+    integer, intent(out) :: nattn
+    integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:)
+    
+    integer :: i, j, m1, m2, m3, p(3)
+    real*8 :: x(3), xs(3), d2
+    logical :: found
+    real*8, allocatable :: w(:,:,:)
+
+    if (allocated(iatt)) deallocate(iatt)
+    allocate(iatt(bas%nattr))
+    nattn = bas%nattr
+    do i = 1, bas%nattr
+       iatt(i) = i
+    enddo
+    if (allocated(ilvec)) deallocate(ilvec)
+    allocate(ilvec(3,bas%nattr))
+    ilvec = 0
+             
+    allocate(w(bas%n(1),bas%n(2),bas%n(3)))
+    do i = 1, bas%nattr
+       call yt_weights(din=dat,idb=i,w=w)
+       do m3 = 1, bas%n(3)
+          do m2 = 1, bas%n(2)
+             do m1 = 1, bas%n(1)
+                if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                p = (/m1,m2,m3/)
+                x = real(p-1,8) / bas%n - bas%xattr(:,i)
+                xs = x
+                call s%c%shortest(xs,d2)
+                p = nint(x - s%c%c2x(xs))
+                if (any(p /= 0)) then
+                   found = .false.
+                   do j = bas%nattr+1, nattn
+                      if (iatt(j) == i .and. all(p == ilvec(:,j))) then
+                         found = .true.
+                         exit
+                      end if
+                   end do
+                   if (.not.found) then
+                      nattn = nattn + 1
+                      if (nattn > size(ilvec,2)) then
+                         call realloc(ilvec,3,2*nattn)
+                         call realloc(iatt,2*nattn)
+                      end if
+                      ilvec(:,nattn) = p
+                      iatt(nattn) = i
+                   end if
+                end if
+             end do
+          end do
+       end do
+    end do
+    deallocate(w)
+    call realloc(ilvec,3,nattn)
+    call realloc(iatt,nattn)
+
+  endsubroutine yt_remap
 
   !> Deallocate a ytdata object
   module subroutine ytdata_clean(dat)

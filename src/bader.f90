@@ -42,6 +42,7 @@ module bader
   private
 
   public :: bader_integrate
+  public :: bader_remap
   
   interface
      module subroutine bader_integrate(s,bas,iref)
@@ -50,6 +51,13 @@ module bader
        type(basindat), intent(inout) :: bas
        integer, intent(in) :: iref
      end subroutine bader_integrate
+     module subroutine bader_remap(s,bas,nattn,idg1,ilvec,iatt)
+       use types, only: basindat
+       type(system), intent(in) :: s
+       type(basindat), intent(in) :: bas
+       integer, intent(out) :: nattn
+       integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:), idg1(:,:,:)
+     endsubroutine bader_remap
   end interface
 
 end module bader

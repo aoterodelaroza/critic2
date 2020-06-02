@@ -27,6 +27,7 @@ module yt
 
   public :: yt_integrate
   public :: yt_weights
+  public :: yt_remap
   public :: ytdata_clean
   public :: ytdata
 
@@ -56,6 +57,14 @@ module yt
        type(ytdata), intent(inout), optional :: dout
        real*8, intent(inout), optional :: w(:,:,:)
      end subroutine yt_weights
+     module subroutine yt_remap(s,bas,dat,nattn,ilvec,iatt)
+       use types, only: basindat
+       type(system), intent(in) :: s
+       type(basindat), intent(in) :: bas
+       type(ytdata), intent(in) :: dat
+       integer, intent(out) :: nattn
+       integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:)
+     endsubroutine yt_remap
      module subroutine ytdata_clean(dat)
        type(ytdata), intent(inout) :: dat
      end subroutine ytdata_clean

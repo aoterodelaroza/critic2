@@ -1186,7 +1186,8 @@ contains
   !> Calculate localization and delocalization indices using
   !> grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_deloc(bas,res)
-    use yt, only: yt_weights, ytdata, ytdata_clean
+    use bader, only: bader_remap
+    use yt, only: yt_weights, ytdata, ytdata_clean, yt_remap
     use systemmod, only: sy, itype_deloc_wnr, itype_deloc_psink, itype_deloc_sijchk, itype_deloc_fachk
     use fieldmod, only: type_grid, type_wfn
     use crystalmod, only: crystal
@@ -1199,15 +1200,14 @@ contains
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, j, k, l, natt1
-    logical :: found, calcsij, first, ok
+    integer :: i, j, k, l, natt1, m1, m2
+    logical :: calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
     integer :: imo, jmo, ia, ja, ka, iba, is
-    integer :: m1, m2, m3
-    integer :: fid, p(3)
+    integer :: fid
     integer :: ik1, ibnd1, ik2, ibnd2
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
-    real*8 :: x(3), xs(3), d2, fatemp, kdif(3)
+    real*8 :: fatemp, kdif(3)
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
@@ -1396,88 +1396,15 @@ contains
              call yt_weights(luw=bas%luw,dout=dat)
              first = .false.
           end if
-
+          
           ! Recalculate the number of attractors without cell translation symmetry.
           ! Calculate basin spreads.
-          allocate(iatt(bas%nattr))
-          nattn = bas%nattr
-          do i = 1, bas%nattr
-             iatt(i) = i
-          enddo
-          allocate(ilvec(3,bas%nattr))
-          ilvec = 0
           write (uout,'(99(A,X))') "  Attractors before remapping =", string(bas%nattr)
           if (bas%imtype == imtype_bader) then
-             allocate(idg1(bas%n(1),bas%n(2),bas%n(3)))
-             do m3 = 1, bas%n(3)
-                do m2 = 1, bas%n(2)
-                   do m1 = 1, bas%n(1)
-                      idg1(m1,m2,m3) = bas%idg(m1,m2,m3)
-                      p = (/m1,m2,m3/)
-                      x = real(p-1,8) / bas%n - bas%xattr(:,bas%idg(m1,m2,m3))
-                      xs = x
-                      call sy%c%shortest(xs,d2)
-                      p = nint(x - sy%c%c2x(xs))
-                      if (any(p /= 0)) then
-                         found = .false.
-                         do i = bas%nattr+1, nattn
-                            if (iatt(i) == bas%idg(m1,m2,m3) .and. all(p == ilvec(:,i))) then
-                               found = .true.
-                               idg1(m1,m2,m3) = i
-                               exit
-                            end if
-                         end do
-                         if (.not.found) then
-                            nattn = nattn + 1
-                            if (nattn > size(ilvec,2)) then
-                               call realloc(ilvec,3,2*nattn)
-                               call realloc(iatt,2*nattn)
-                            end if
-                            ilvec(:,nattn) = p
-                            idg1(m1,m2,m3) = nattn
-                            iatt(nattn) = bas%idg(m1,m2,m3)
-                         end if
-                      end if
-                   end do
-                end do
-             end do
+             call bader_remap(sy,bas,nattn,idg1,ilvec,iatt)
           else
-             do i = 1, bas%nattr
-                call yt_weights(din=dat,idb=i,w=w)
-                do m3 = 1, bas%n(3)
-                   do m2 = 1, bas%n(2)
-                      do m1 = 1, bas%n(1)
-                         if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                         p = (/m1,m2,m3/)
-                         x = real(p-1,8) / bas%n - bas%xattr(:,i)
-                         xs = x
-                         call sy%c%shortest(xs,d2)
-                         p = nint(x - sy%c%c2x(xs))
-                         if (any(p /= 0)) then
-                            found = .false.
-                            do j = bas%nattr+1, nattn
-                               if (iatt(j) == i .and. all(p == ilvec(:,j))) then
-                                  found = .true.
-                                  exit
-                               end if
-                            end do
-                            if (.not.found) then
-                               nattn = nattn + 1
-                               if (nattn > size(ilvec,2)) then
-                                  call realloc(ilvec,3,2*nattn)
-                                  call realloc(iatt,2*nattn)
-                               end if
-                               ilvec(:,nattn) = p
-                               iatt(nattn) = i
-                            end if
-                         end if
-                      end do
-                   end do
-                end do
-             end do
+             call yt_remap(sy,bas,dat,nattn,ilvec,iatt)
           end if
-          call realloc(ilvec,3,nattn)
-          call realloc(iatt,nattn)
           write (uout,'(99(A,X))') "  Attractors after remapping =", string(nattn)
 
           ! allocate the sij
