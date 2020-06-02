@@ -1196,23 +1196,19 @@ contains
     use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
     use tools_math, only: matinv
     use types, only: basindat, realloc, int_result, out_deloc
-    use param, only: tpi, img
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, j, k, l, natt1, m1, m2
+    integer :: i, j, l, natt1, m1, m2
     logical :: calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
-    integer :: imo, jmo, ia, ja, ka, iba, is
     integer :: fid
-    integer :: ik1, ibnd1, ik2, ibnd2
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
-    real*8 :: fatemp, kdif(3)
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
-    integer :: ib, jb, kb, ibb, isijtype
+    integer :: isijtype
 
     ! run over all integrable properties
     first = .true.
@@ -1454,6 +1450,7 @@ contains
              call calc_sij_psink(fid,bas%imtype,nattn,iatt,ilvec,idg1,bas%xattr,dat,res(l)%sijc)
              deallocate(iatt,ilvec)
              if (allocated(idg1)) deallocate(idg1)
+
           end if
 
           ! write the checkpoint
@@ -1478,73 +1475,11 @@ contains
 
        ! calculate the fa
        if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-       allocate(res(l)%fa(bas%nattr,bas%nattr,nlat(1)*nlat(2)*nlat(3),nspin))
-       res(l)%fa = 0d0
        if (res(l)%sijtype == 1) then
-          !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
-          do i = 1, bas%nattr
-             do j = 1, bas%nattr
-                do is = 1, nspin
-                   do k = 1, nlattot
-                      fatemp = 0d0
-                      do imo = 1, nmo
-                         call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-                         ! if (iba > nbndw(is)) cycle
-                         do jmo = 1, nmo
-                            call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-                            ! if (ibb > nbndw(is)) cycle
-                            fatemp = fatemp + real(res(l)%sijc(jmo,imo,i,is) * &
-                               res(l)%sijc(res(l)%sij_wnr_imap(imo,k),res(l)%sij_wnr_imap(jmo,k),j,is),8)
-                         end do
-                      end do
-                      !$omp critical (addfa)
-                      res(l)%fa(i,j,k,is) = fatemp
-                      !$omp end critical (addfa)
-                   end do
-                end do
-             end do
-          end do
-          !$omp end parallel do
+          call calc_fa_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
        elseif (res(l)%sijtype == 2) then
-          do i = 1, bas%nattr
-             do j = 1, bas%nattr
-                do is = 1, nspin
-
-                   k = 0
-                   do ia = 0, nlat(1)-1
-                      do ja = 0, nlat(2)-1
-                         do ka = 0, nlat(3)-1
-                            k = k + 1
-                            fatemp = 0d0
-
-                            imo = 0
-                            do ik1 = 1, nlattot
-                               do ibnd1 = 1, nbnd
-                                  imo = imo + 1
-                                  jmo = 0
-                                  do ik2 = 1, nlattot
-                                     do ibnd2 = 1, nbnd
-                                        jmo = jmo + 1
-
-                                        kdif = sy%f(fid)%grid%qe%kpt(:,ik2) - sy%f(fid)%grid%qe%kpt(:,ik1)
-                                        ! xxxx ! 0.5 * 0.5 * (?)
-                                        res(l)%fa(i,j,k,is) = res(l)%fa(i,j,k,is) + 0.5d0 * 0.5d0 * &
-                                           sy%f(fid)%grid%qe%occ(ibnd1,ik1) * sy%f(fid)%grid%qe%occ(ibnd2,ik2) * &
-                                           real(res(l)%sijc(jmo,imo,i,is) * res(l)%sijc(imo,jmo,j,is) * &
-                                           exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
-                                     end do
-                                  end do
-                               end do
-                            end do
-
-                         end do
-                      end do
-                   end do
-
-                end do
-             end do
-          end do
-          
+          call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,&
+             sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
        end if
 
        ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
@@ -1999,6 +1934,107 @@ contains
     sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
     
   end subroutine calc_sij_psink
+
+  !> Calculate the Fa matrix from the Sij matrix, wannier version
+  subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+    use types, only: int_result
+    type(int_result), intent(inout) :: res
+    integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
+    
+    integer :: i, j, is, k, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb, nlattot
+    real*8 :: fatemp
+
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+    allocate(res%fa(nattr,nattr,nlat(1)*nlat(2)*nlat(3),nspin))
+    res%fa = 0d0
+    !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
+    do i = 1, nattr
+       do j = 1, nattr
+          do is = 1, nspin
+             do k = 1, nlattot
+                fatemp = 0d0
+                do imo = 1, nmo
+                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+                   ! if (iba > nbndw(is)) cycle
+                   do jmo = 1, nmo
+                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+                      ! if (ibb > nbndw(is)) cycle
+                      fatemp = fatemp + real(res%sijc(jmo,imo,i,is) * &
+                         res%sijc(res%sij_wnr_imap(imo,k),res%sij_wnr_imap(jmo,k),j,is),8)
+                   end do
+                end do
+                !$omp critical (addfa)
+                res%fa(i,j,k,is) = fatemp
+                !$omp end critical (addfa)
+             end do
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine calc_fa_wannier
+
+  !> Calculate the Fa matrix from the Sij matrix, psink version
+  subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
+    use types, only: int_result
+    use param, only: tpi, img
+    type(int_result), intent(inout) :: res
+    integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
+    real*8, intent(in) :: kpt(:,:), occ(:,:)
+    
+    integer :: i, j, is, k, ia, ja, ka, imo, ik1, ibnd1, jmo, ik2, ibnd2
+    real*8 :: fatemp, kdif(3), fspin
+    integer :: nlattot
+
+    ! set the spin multiplier
+    if (nspin == 1) then
+       fspin = 2d0
+    else
+       fspin = 1d0
+    end if
+
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+    allocate(res%fa(nattr,nattr,nlattot,nspin))
+    res%fa = 0d0
+    do i = 1, nattr
+       do j = 1, nattr
+          do is = 1, nspin
+
+             k = 0
+             do ia = 0, nlat(1)-1
+                do ja = 0, nlat(2)-1
+                   do ka = 0, nlat(3)-1
+                      k = k + 1
+                      fatemp = 0d0
+
+                      imo = 0
+                      do ik1 = 1, nlattot
+                         do ibnd1 = 1, nbnd
+                            imo = imo + 1
+                            jmo = 0
+                            do ik2 = 1, nlattot
+                               do ibnd2 = 1, nbnd
+                                  jmo = jmo + 1
+
+                                  kdif = kpt(:,ik2) - kpt(:,ik1)
+                                  res%fa(i,j,k,is) = res%fa(i,j,k,is) + occ(ibnd1,ik1) * occ(ibnd2,ik2) * &
+                                     real(res%sijc(jmo,imo,i,is) * res%sijc(imo,jmo,j,is) * &
+                                     exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
+                               end do
+                            end do
+                         end do
+                      end do
+
+                   end do
+                end do
+             end do
+
+          end do
+       end do
+    end do
+    res%fa = res%fa / (fspin*fspin) ! xxxx
+
+  end subroutine calc_fa_psink
 
   ! Calculate the information necessary to relate Sij^{A+R} to Sij^A.
   ! This information is different if Sij is calculated in terms of
