@@ -1269,9 +1269,15 @@ contains
           sy%propi(l)%fachk) then
           if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,isijtype)) then
              fid = sy%propi(l)%fid
-             if (all(nbndw == sy%f(fid)%grid%qe%nbndw) .and. all(nlat == sy%f(fid)%grid%qe%nk) .and.&
-                nlattot == sy%f(fid)%grid%qe%nks .and. nspin == sy%f(fid)%grid%qe%nspin .and.&
-                nbnd == sy%f(fid)%grid%qe%nbnd .and. natt1 == bas%nattr .and. isijtype == res(l)%sijtype) then
+
+             ok = (sy%propi(l)%itype == itype_deloc_psink) .or. all(nbndw == sy%f(fid)%grid%qe%nbndw)
+             ok = ok .and. all(nlat == sy%f(fid)%grid%qe%nk)
+             ok = ok .and. (nlattot == sy%f(fid)%grid%qe%nks)
+             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin) 
+             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd) 
+             ok = ok .and. (natt1 == bas%nattr)
+             ok = ok .and. (isijtype == res(l)%sijtype)
+             if (ok) then
                 write (uout,'("# Reading Fa checkpoint file: ",A)') string(fafname)
                 if (allocated(res(l)%fa)) deallocate(res(l)%fa)
                 allocate(res(l)%fa(bas%nattr,bas%nattr,nlattot,nspin))
@@ -1954,23 +1960,13 @@ contains
     complex*16, intent(out) :: sij(:,:,:,:)
 
     integer :: n(3), is, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin, nn, ireg
-    integer :: imo1, imo2
+    integer :: imo1, imo2, nmo
     integer :: i, m1, m2, m3, p(3), nlat(3), l1, l2, l3
     real*8 :: x(3), xs(3), d2, delta(3), kdif(3)
-    ! integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
-    ! integer :: nbnd, nbndw(2), nwan(3), nlat, nmo, nspin
-    ! type(crystalseed) :: ncseed
-    ! type(crystal) :: nc
-    ! logical, allocatable :: lovrlp(:,:,:,:,:,:)
     complex*16 :: padd, saux
     complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), evca(:,:), psic(:,:,:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
-
-    ! complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
-    ! allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
-    ! allocate(evca(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nspin*f%qe%nks*f%qe%nbnd))
-    ! allocate(rseq(f%n(1)*f%n(2)*f%n(3)))
 
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
@@ -1978,73 +1974,83 @@ contains
     nks = sy%f(fid)%grid%qe%nks
     nspin = sy%f(fid)%grid%qe%nspin
     nbnd = sy%f(fid)%grid%qe%nbnd
-    ! nbndw = sy%f(fid)%grid%qe%nbndw
-    ! nmo = nlat * nbnd
+    nmo = nks * nbnd
 
     if (any(n /= sy%f(fid)%grid%n)) &
        call ferror("calc_sij_psink","inconsistent grid sizes",faterr)
     allocate(psi1(n(1),n(2),n(3)),psi2(n(1),n(2),n(3)))
-    ! allocate(f1(n(1),n(2),n(3),nlat))
-    ! allocate(f2(n(1),n(2),n(3),nlat))
-    ! allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
     
     ! the big loop
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic(n(1),n(2),n(3)))
     do is = 1, nspin
-       imo1 = 0
-       do ik1 = 1, nks
-          do ibnd1 = 1, nbnd
-             imo1 = imo1 + 1
-             call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd1,ik1,is,.true.,(/0,0,0/),psi1)
+       do imo1 = 1, nmo
+          ibnd1 = modulo(imo1-1,nbnd) + 1
+          ik1 = (imo1-1) / nbnd + 1
+          call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd1,ik1,is,.true.,(/0,0,0/),psi1)
 
-             imo2 = 0
-             do ik2 = 1, nks
-                do ibnd2 = 1, nbnd
-                   imo2 = imo2 + 1
-                   kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
-                   call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd2,ik2,is,.true.,(/0,0,0/),psi2)
+          do imo2 = imo1, nmo
+             ibnd2 = modulo(imo2-1,nbnd) + 1
+             ik2 = (imo2-1) / nbnd + 1
 
-                   write (*,*) "xx doing: ", is, ibnd1, ik1, ibnd2, ik2
-
-                   if (imtype == imtype_bader) then
-                      write (*,*) "bader not implemented yet"
-                      stop 1
-                   else
-                      ! yt integration
-                      w = 0d0
-                      wmask = .false.
-                      do i = 1, natt1
-                         call yt_weights(din=dat,idb=iatt(i),w=w)
-                         wmask = .false.
-                         do m3 = 1, n(3)
-                            do m2 = 1, n(2)
-                               do m1 = 1, n(1)
-                                  if (abs(w(m1,m2,m3)) < 1d-15) cycle
-                                  p = (/m1,m2,m3/)
-                                  x = real(p-1,8) / n - xattr(:,iatt(i))
-                                  xs = x
-                                  call sy%c%shortest(xs,d2)
-                                  p = nint(x - sy%c%c2x(xs))
-                                  wmask(m1,m2,m3) = all(p == ilvec(:,i))
-                               end do
-                            end do
+             kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
+             call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd2,ik2,is,.true.,(/0,0,0/),psi2)
+                   
+             if (imtype == imtype_bader) then
+                psic = conjg(psi1) * psi2
+                do i = 1, natt1
+                   padd = sum(psic,idg1==i)* exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
+                end do ! natt1
+             else
+                ! yt integration
+                w = 0d0
+                wmask = .false.
+                !$omp parallel do private(p,x,xs,d2,padd) firstprivate(w,wmask,psic)
+                do i = 1, natt1
+                   call yt_weights(din=dat,idb=iatt(i),w=w)
+                   wmask = .false.
+                   do m3 = 1, n(3)
+                      do m2 = 1, n(2)
+                         do m1 = 1, n(1)
+                            if (abs(w(m1,m2,m3)) < 1d-15) cycle
+                            p = (/m1,m2,m3/)
+                            x = real(p-1,8) / n - xattr(:,iatt(i))
+                            xs = x
+                            call sy%c%shortest(xs,d2)
+                            p = nint(x - sy%c%c2x(xs))
+                            wmask(m1,m2,m3) = all(p == ilvec(:,i))
                          end do
-
-                         where (wmask)
-                            psic = w * conjg(psi1) * psi2
-                         end where
-
-                         padd = sum(psic,wmask) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
-
-                         sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
                       end do
-                   end if ! imtype == bader/yt
-                end do ! ibnd2
-             end do ! ik2
-          end do ! ibnd1 
-       end do ! ik1
+                   end do
+
+                   where (wmask)
+                      psic = w * conjg(psi1) * psi2
+                   end where
+
+                   padd = sum(psic,wmask) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+
+                   !$omp critical (add)
+                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
+                   !$omp end critical (add)
+                end do
+                !$omp end parallel do
+             end if ! imtype == bader/yt
+
+             write (uout,'(4X,"States (",A,",",A,") of total ",A,". Spin ",A,"/",A)') &
+                string(imo1), string(imo2), string(nmo), string(is), string(nspin)
+          end do ! imo2
+       end do ! imo1
     end do ! is
+
+    ! other half of the sij matrix
+    do is = 1, nspin
+       do imo1 = 1, nmo
+          do imo2 = imo1+1, nmo
+             sij(imo2,imo1,:,is) = conjg(sij(imo1,imo2,:,is))
+          end do
+       end do
+    end do
 
     ! clean up
     if (imtype == imtype_yt) &
