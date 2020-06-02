@@ -1202,20 +1202,19 @@ contains
     integer :: i, j, k, l, natt1
     logical :: found, calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
-    integer :: imo, jmo, ia, ja, ka, iba, ic, jc, kc, is
-    integer :: m1, m2, m3, idx(3)
+    integer :: imo, jmo, ia, ja, ka, iba, is
+    integer :: m1, m2, m3
     integer :: fid, p(3)
     integer :: ik1, ibnd1, ik2, ibnd2
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
     real*8 :: x(3), xs(3), d2, fatemp, kdif(3)
-    integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:), imap(:,:)
+    integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
     integer :: ib, jb, kb, ibb, isijtype
-    real*8 :: ix1, ix2
-    complex*16 :: aa, sij
 
+    ! run over all integrable properties
     first = .true.
     do l = 1, sy%npropi
        if (res(l)%done) cycle
@@ -1330,7 +1329,6 @@ contains
           end if
        end if ! sy%propi(l)%itype == itype_deloc, etc.
 
-
        ! assign values to some integers and check consistency of the input field
        if (sy%propi(l)%itype == itype_deloc_wnr .or.sy%propi(l)%itype == itype_deloc_psink) then
           ! check consistency of the input field
@@ -1351,6 +1349,15 @@ contains
              res(l)%reason = "Wannier and reference grids have different number of points"
              cycle
           end if
+          if (sy%propi(l)%itype == itype_deloc_psink.and.any(sy%f(fid)%grid%qe%nk == 0)) then
+             res(l)%reason = "Cannot use a pwc from open_grid.x with psink"
+             cycle
+          end if
+          if (product(sy%f(fid)%grid%qe%nk) /= sy%f(fid)%grid%qe%nks) then
+             res(l)%reason = "Cannot use a pwc with k-point symmetry"
+             cycle
+          end if
+
           ! assign integers
           nbnd = sy%f(fid)%grid%qe%nbnd
           nlat = sy%f(fid)%grid%qe%nk
@@ -1535,9 +1542,9 @@ contains
           call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
        end if
 
-       ! check the sanity of the Sij matrix
-       write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
-       call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
+       ! ! check the sanity of the Sij matrix
+       ! write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
+       ! call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
 
        !!! calculate Fa !!!
        write (uout,'("# Calculating Fa")')
@@ -1942,6 +1949,11 @@ contains
 
   end subroutine calc_sij_wannier
 
+  !> Calculate the atomic overlap matrices (sij) from the Bloch
+  !> functions in field fid. Use integration method imtype (bader/yt),
+  !> with natt1 remapped attractors, iatt = attractor mapping, ilvec =
+  !> attractor lattice vector, idg1 = grid assignment to attractors in
+  !> Bader, xattr = attractor position, dat = YT data type.
   subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
@@ -1959,12 +1971,12 @@ contains
     type(ytdata), intent(in) :: dat
     complex*16, intent(out) :: sij(:,:,:,:)
 
-    integer :: n(3), is, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin, nn, ireg
+    integer :: n(3), is, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin
     integer :: imo1, imo2, nmo
-    integer :: i, m1, m2, m3, p(3), nlat(3), l1, l2, l3
-    real*8 :: x(3), xs(3), d2, delta(3), kdif(3)
-    complex*16 :: padd, saux
-    complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), evca(:,:), psic(:,:,:)
+    integer :: i, m1, m2, m3, p(3), nlat(3)
+    real*8 :: x(3), xs(3), d2, kdif(3)
+    complex*16 :: padd
+    complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
 
