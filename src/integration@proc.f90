@@ -1982,7 +1982,7 @@ contains
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
     real*8, intent(in) :: kpt(:,:), occ(:,:)
     
-    integer :: i, j, is, k, ia, ja, ka, imo, ik1, ibnd1, jmo, ik2, ibnd2
+    integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
     real*8 :: fatemp, kdif(3), fspin
     integer :: nlattot
 
@@ -1996,10 +1996,10 @@ contains
     nlattot = nlat(1)*nlat(2)*nlat(3)
     allocate(res%fa(nattr,nattr,nlattot,nspin))
     res%fa = 0d0
-    do i = 1, nattr
-       do j = 1, nattr
-          do is = 1, nspin
-
+    do is = 1, nspin
+       do i = 1, nattr
+          do j = 1, nattr
+             
              k = 0
              do ia = 0, nlat(1)-1
                 do ja = 0, nlat(2)-1
@@ -2007,31 +2007,26 @@ contains
                       k = k + 1
                       fatemp = 0d0
 
-                      imo = 0
-                      do ik1 = 1, nlattot
-                         do ibnd1 = 1, nbnd
-                            imo = imo + 1
-                            jmo = 0
-                            do ik2 = 1, nlattot
-                               do ibnd2 = 1, nbnd
-                                  jmo = jmo + 1
+                      do imo1 = 1, nmo
+                         ibnd1 = modulo(imo1-1,nbnd) + 1
+                         ik1 = (imo1-1) / nbnd + 1
+                         do imo2 = 1, nmo
+                            ibnd2 = modulo(imo2-1,nbnd) + 1
+                            ik2 = (imo2-1) / nbnd + 1
 
-                                  kdif = kpt(:,ik2) - kpt(:,ik1)
-                                  res%fa(i,j,k,is) = res%fa(i,j,k,is) + occ(ibnd1,ik1) * occ(ibnd2,ik2) * &
-                                     real(res%sijc(jmo,imo,i,is) * res%sijc(imo,jmo,j,is) * &
-                                     exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
-                               end do
-                            end do
-                         end do
-                      end do
+                            kdif = kpt(:,ik2) - kpt(:,ik1)
+                            res%fa(i,j,k,is) = res%fa(i,j,k,is) + occ(ibnd1,ik1) * occ(ibnd2,ik2) * &
+                               real(res%sijc(imo2,imo1,i,is) * res%sijc(imo1,imo2,j,is) * &
+                               exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
+                         end do ! imo2 = imo1, nmo
+                      end do ! imo1 = 1, nmo
+                   end do ! ka = 0, nlat(3)-1
+                end do ! ja = 0, nlat(2)-1
+             end do ! ia = 0, nlat(1)-1
+          end do ! j = 1, nattr
+       end do ! i = 1, nattr
+    end do ! is = 1, nspin
 
-                   end do
-                end do
-             end do
-
-          end do
-       end do
-    end do
     res%fa = res%fa / (fspin*fspin) ! xxxx
 
   end subroutine calc_fa_psink
