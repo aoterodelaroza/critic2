@@ -1839,7 +1839,6 @@ contains
     integer :: imo1, imo2, nmo
     integer :: i, m1, m2, m3, p(3), nlat(3)
     real*8 :: x(3), xs(3), d2, kdif(3)
-    complex*16 :: padd, rphase
     complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:), evcall(:,:,:,:), rseq(:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
@@ -1900,6 +1899,8 @@ contains
           psi1 = reshape(rseq,shape(psi1))
           call cfftnd(3,n,+1,psi1)
           
+          !$omp parallel do private(ibnd2,ik2,kdif,p,x,xs,d2) &
+          !$omp             firstprivate(rseq,psi2,psic,w,wmask)
           do imo2 = imo1, nmo
              ibnd2 = modulo(imo2-1,nbnd) + 1
              ik2 = (imo2-1) / nbnd + 1
@@ -1923,18 +1924,15 @@ contains
                 end do
              end do
 
-             
              if (imtype == imtype_bader) then
                 do i = 1, natt1
-                   rphase = exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
-                   padd = sum(psic,idg1==i) * rphase
-                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
+                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + &
+                      sum(psic,idg1==i) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
                 end do ! natt1
              else
                 ! yt integration
                 w = 0d0
                 wmask = .false.
-                !$omp parallel do private(p,x,xs,d2,padd,rphase) firstprivate(psi2,w,wmask)
                 do i = 1, natt1
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
@@ -1956,19 +1954,14 @@ contains
                       psi2 = w * psic
                    end where
 
-                   rphase = exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
-                   padd = sum(psi2,wmask) * rphase
-
-                   !$omp critical (add)
-                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
-                   !$omp end critical (add)
+                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + &
+                      sum(psi2,wmask) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
                 end do
-                !$omp end parallel do
              end if ! imtype == bader/yt
-
-             write (uout,'(4X,"States (",A,",",A,") of total ",A,". Spin ",A,"/",A)') &
-                string(imo1), string(imo2), string(nmo), string(is), string(nspin)
           end do ! imo2
+          !$omp end parallel do
+          write (uout,'(4X,"State k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
+             string(ik1), string(ibnd1), string(nks), string(nbnd), string(is), string(nspin)
        end do ! imo1
     end do ! is
 
