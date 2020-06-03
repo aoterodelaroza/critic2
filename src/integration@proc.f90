@@ -1823,7 +1823,7 @@ contains
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
-    use tools_io, only: ferror, faterr, uout, string
+    use tools_io, only: ferror, faterr, uout, string, fopen_read, fclose
     use param, only: tpi, img
     integer, intent(in) :: fid
     integer, intent(in) :: imtype
@@ -1835,15 +1835,17 @@ contains
     type(ytdata), intent(in) :: dat
     complex*16, intent(out) :: sij(:,:,:,:)
 
-    integer :: n(3), is, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin
+    integer :: n(3), is, ik, ibnd, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin
     integer :: imo1, imo2, nmo
     integer :: i, m1, m2, m3, p(3), nlat(3)
     real*8 :: x(3), xs(3), d2, kdif(3)
     complex*16 :: padd
-    complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:)
+    complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:), evcall(:,:,:,:), rseq(:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
+    integer :: luc, ireg
 
+    ! initialize
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
     nlat = sy%f(fid)%grid%qe%nk
@@ -1852,10 +1854,38 @@ contains
     nbnd = sy%f(fid)%grid%qe%nbnd
     nmo = nks * nbnd
 
+    ! check consistency
     if (any(n /= sy%f(fid)%grid%n)) &
        call ferror("calc_sij_psink","inconsistent grid sizes",faterr)
-    allocate(psi1(n(1),n(2),n(3)),psi2(n(1),n(2),n(3)))
     
+    ! open the pwc file
+    luc = fopen_read(sy%f(fid)%grid%qe%fpwc,form="unformatted")
+
+    ! skip the header of the pwc file
+    if (sy%f(fid)%grid%qe%gamma_only) then
+       ireg = 18
+    else
+       ireg = 17
+    end if
+
+    ! read all the evc from the pwc file and close it
+    allocate(evcall(maxval(sy%f(fid)%grid%qe%ngk(1:nks)),nbnd,nks,nspin))
+    evcall = 0d0
+    do i = 1, ireg
+       read (luc)
+    end do
+    do is = 1, nspin
+       do ik = 1, nks
+          do ibnd = 1, nbnd
+             read (luc) evcall(1:sy%f(fid)%grid%qe%ngk(ik),ibnd,ik,is)
+          end do
+       end do
+    end do
+    call fclose(luc)
+
+    ! allocate work space
+    allocate(psi1(n(1),n(2),n(3)),psi2(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
+
     ! the big loop
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic(n(1),n(2),n(3)))
@@ -1863,15 +1893,47 @@ contains
        do imo1 = 1, nmo
           ibnd1 = modulo(imo1-1,nbnd) + 1
           ik1 = (imo1-1) / nbnd + 1
-          call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd1,ik1,is,.true.,(/0,0,0/),psi1)
+
+          rseq = 0d0
+          rseq(sy%f(fid)%grid%qe%nl(sy%f(fid)%grid%qe%igk_k(1:sy%f(fid)%grid%qe%ngk(ik1),ik1))) = &
+             evcall(1:sy%f(fid)%grid%qe%ngk(ik1),ibnd1,ik1,is)
+          psi1 = reshape(rseq,shape(psi1))
+          call cfftnd(3,n,+1,psi1)
+          
+          do m3 = 1, n(3)
+             do m2 = 1, n(2)
+                do m1 = 1, n(1)
+                   psi1(m1,m2,m3) = psi1(m1,m2,m3) * exp(tpi*img*(&
+                      sy%f(fid)%grid%qe%kpt(1,ik1)*(real(m1-1,8)/real(n(1),8))+&
+                      sy%f(fid)%grid%qe%kpt(2,ik1)*(real(m2-1,8)/real(n(2),8))+&
+                      sy%f(fid)%grid%qe%kpt(3,ik1)*(real(m3-1,8)/real(n(3),8))))
+                end do
+             end do
+          end do
 
           do imo2 = imo1, nmo
              ibnd2 = modulo(imo2-1,nbnd) + 1
              ik2 = (imo2-1) / nbnd + 1
 
              kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
-             call sy%f(fid)%grid%get_qe_psink_standalone(sy%c%omega,ibnd2,ik2,is,.true.,(/0,0,0/),psi2)
-                   
+             
+             rseq = 0d0
+             rseq(sy%f(fid)%grid%qe%nl(sy%f(fid)%grid%qe%igk_k(1:sy%f(fid)%grid%qe%ngk(ik2),ik2))) = &
+                evcall(1:sy%f(fid)%grid%qe%ngk(ik2),ibnd2,ik2,is)
+             psi2 = reshape(rseq,shape(psi2))
+             call cfftnd(3,n,+1,psi2)
+
+             do m3 = 1, n(3)
+                do m2 = 1, n(2)
+                   do m1 = 1, n(1)
+                      psi2(m1,m2,m3) = psi2(m1,m2,m3) * exp(tpi*img*(&
+                         sy%f(fid)%grid%qe%kpt(1,ik2)*(real(m1-1,8)/real(n(1),8))+&
+                         sy%f(fid)%grid%qe%kpt(2,ik2)*(real(m2-1,8)/real(n(2),8))+&
+                         sy%f(fid)%grid%qe%kpt(3,ik2)*(real(m3-1,8)/real(n(3),8))))
+                   end do
+                end do
+             end do
+
              if (imtype == imtype_bader) then
                 psic = conjg(psi1) * psi2
                 do i = 1, natt1
@@ -1919,6 +1981,12 @@ contains
        end do ! imo1
     end do ! is
 
+    ! clean up
+    deallocate(evcall,psi1,psi2)
+    if (allocated(w)) deallocate(w)
+    if (allocated(wmask)) deallocate(wmask)
+    if (allocated(psic)) deallocate(psic)
+
     ! other half of the sij matrix
     do is = 1, nspin
        do imo1 = 1, nmo
@@ -1928,12 +1996,8 @@ contains
        end do
     end do
 
-    ! clean up
-    if (imtype == imtype_yt) &
-       deallocate(w,wmask)
-
     ! scale
-    sij = sij * sy%c%omega / (n(1)*n(2)*n(3))
+    sij = sij / (n(1)*n(2)*n(3))
     
   end subroutine calc_sij_psink
 
