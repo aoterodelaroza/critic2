@@ -2047,6 +2047,7 @@ contains
     allocate(res%fa(nattr,nattr,nlattot,nspin))
     res%fa = 0d0
     do is = 1, nspin
+       !$omp parallel do private(k,fatemp,imo1,ibnd1,ik1,imo2,ibnd2,ik2,kdif)
        do i = 1, nattr
           do j = 1, nattr
              
@@ -2075,9 +2076,10 @@ contains
              end do ! ia = 0, nlat(1)-1
           end do ! j = 1, nattr
        end do ! i = 1, nattr
+       !$omp end parallel do
     end do ! is = 1, nspin
 
-    res%fa = res%fa / (fspin*fspin) ! xxxx
+    res%fa = res%fa / (fspin*fspin)
 
   end subroutine calc_fa_psink
 
