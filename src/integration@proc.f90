@@ -32,6 +32,8 @@ submodule (integration) proc
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
+  ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+  ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
   ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
   ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
   ! function quadpack_f(x,unit,xnuc) result(res)

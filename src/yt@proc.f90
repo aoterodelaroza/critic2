@@ -126,7 +126,7 @@ contains
           if (jj > ii) then
              nhi = nhi + 1
              ihi(nhi) = jj
-             chi(nhi) = al(k) * (g(j) - g(i))
+             chi(nhi) = max(al(k) * (g(j) - g(i)),vsmall)
              csum = csum + chi(nhi)
           end if
        end do
@@ -164,7 +164,7 @@ contains
                 fval = s%eval(bas%expr,.false.,ok,x)
                 if (.not.ok) &
                    call ferror("yt","invalid DISCARD expression",faterr)
-                ok = (abs(fval) < 1d-30)
+                ok = (abs(fval) < vsmall)
              end if
              if (ok) then
                 bas%nattr = bas%nattr + 1
@@ -174,7 +174,7 @@ contains
              end if
           end if
        else
-          isias = ibasin(ihi(1)) == 0
+          isias = (ibasin(ihi(1)) == 0)
           do k = 1, nhi
              isias = isias .or. (ibasin(ihi(k)) /= ibasin(ihi(1)))
           end do
@@ -188,7 +188,7 @@ contains
                 kk = ihi(k)
                 nlo(kk) = nlo(kk) + 1
                 inear(nlo(kk),kk) = ii
-                fnear(nlo(kk),kk) = chi(k) / max(csum,1d-40)
+                fnear(nlo(kk),kk) = chi(k) / max(csum,vsmall)
              end do
           end if
        end if
