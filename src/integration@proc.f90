@@ -1839,7 +1839,7 @@ contains
     integer :: imo1, imo2, nmo
     integer :: i, m1, m2, m3, p(3), nlat(3)
     real*8 :: x(3), xs(3), d2, kdif(3)
-    complex*16 :: padd
+    complex*16 :: padd, rphase
     complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:), evcall(:,:,:,:), rseq(:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
@@ -1900,51 +1900,41 @@ contains
           psi1 = reshape(rseq,shape(psi1))
           call cfftnd(3,n,+1,psi1)
           
-          do m3 = 1, n(3)
-             do m2 = 1, n(2)
-                do m1 = 1, n(1)
-                   psi1(m1,m2,m3) = psi1(m1,m2,m3) * exp(tpi*img*(&
-                      sy%f(fid)%grid%qe%kpt(1,ik1)*(real(m1-1,8)/real(n(1),8))+&
-                      sy%f(fid)%grid%qe%kpt(2,ik1)*(real(m2-1,8)/real(n(2),8))+&
-                      sy%f(fid)%grid%qe%kpt(3,ik1)*(real(m3-1,8)/real(n(3),8))))
-                end do
-             end do
-          end do
-
           do imo2 = imo1, nmo
              ibnd2 = modulo(imo2-1,nbnd) + 1
              ik2 = (imo2-1) / nbnd + 1
 
-             kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
-             
              rseq = 0d0
              rseq(sy%f(fid)%grid%qe%nl(sy%f(fid)%grid%qe%igk_k(1:sy%f(fid)%grid%qe%ngk(ik2),ik2))) = &
                 evcall(1:sy%f(fid)%grid%qe%ngk(ik2),ibnd2,ik2,is)
              psi2 = reshape(rseq,shape(psi2))
              call cfftnd(3,n,+1,psi2)
-
+             
+             psic = conjg(psi1) * psi2
+             kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
              do m3 = 1, n(3)
                 do m2 = 1, n(2)
                    do m1 = 1, n(1)
-                      psi2(m1,m2,m3) = psi2(m1,m2,m3) * exp(tpi*img*(&
-                         sy%f(fid)%grid%qe%kpt(1,ik2)*(real(m1-1,8)/real(n(1),8))+&
-                         sy%f(fid)%grid%qe%kpt(2,ik2)*(real(m2-1,8)/real(n(2),8))+&
-                         sy%f(fid)%grid%qe%kpt(3,ik2)*(real(m3-1,8)/real(n(3),8))))
+                      psic(m1,m2,m3) = psic(m1,m2,m3) * exp(-tpi*img*(&
+                         kdif(1)*(real(m1-1,8)/real(n(1),8))+&
+                         kdif(2)*(real(m2-1,8)/real(n(2),8))+&
+                         kdif(3)*(real(m3-1,8)/real(n(3),8))))
                    end do
                 end do
              end do
 
+             
              if (imtype == imtype_bader) then
-                psic = conjg(psi1) * psi2
                 do i = 1, natt1
-                   padd = sum(psic,idg1==i)* exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   rphase = exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   padd = sum(psic,idg1==i) * rphase
                    sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
                 end do ! natt1
              else
                 ! yt integration
                 w = 0d0
                 wmask = .false.
-                !$omp parallel do private(p,x,xs,d2,padd) firstprivate(w,wmask,psic)
+                !$omp parallel do private(p,x,xs,d2,padd,rphase) firstprivate(psi2,w,wmask)
                 do i = 1, natt1
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
@@ -1963,10 +1953,11 @@ contains
                    end do
 
                    where (wmask)
-                      psic = w * conjg(psi1) * psi2
+                      psi2 = w * psic
                    end where
 
-                   padd = sum(psic,wmask) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   rphase = exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   padd = sum(psi2,wmask) * rphase
 
                    !$omp critical (add)
                    sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + padd
