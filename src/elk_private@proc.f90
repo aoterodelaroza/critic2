@@ -527,41 +527,54 @@ contains
     character*(*), intent(in) :: filename
     type(environ), intent(in), target :: env
 
-    integer :: lu, i, j
-    integer :: lmmaxvr, nrmtmax, natmtot, ngrtot
-    real*8, allocatable :: rhoktmp(:), rhotmp(:,:,:)
+    integer :: lu
+    integer :: lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
+    integer, allocatable :: nrmti(:), nrmt(:)
+    integer :: i, j, k
+    real*8, allocatable :: rhoktmp(:), rhotmp(:,:)
 
     ! open the file
     lu = fopen_read(filename,"unformatted")
 
     ! read header
-    read(lu) lmmaxvr, nrmtmax, natmtot, ngrtot
+    read(lu) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
+
+    ! dimension checks
     if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) &
        call ferror("read_elk_myout","field not allocated",faterr)
     if (size(f%rhomt,1) /= nrmtmax) &
        call ferror("read_elk_myout","wrong nrmtmax in field",faterr)
-    if (size(f%rhomt,2) /= lmmaxvr) &
-       call ferror("read_elk_myout","wrong lmmaxvr in field",faterr)
+    if (size(f%rhomt,2) /= lmmaxo) &
+       call ferror("read_elk_myout","wrong lmmaxo in field",faterr)
     if (size(f%rhomt,3) /= natmtot) &
        call ferror("read_elk_myout","wrong natmtot in field",faterr)
-    if (size(f%rhok) /= ngrtot) &
-       call ferror("read_elk_myout","wrong ngrtot in field",faterr)
+    if (size(f%rhok) /= ngtot) &
+       call ferror("read_elk_myout","wrong ngtot in field",faterr)
 
-    allocate(rhotmp(lmmaxvr,nrmtmax,natmtot))
-    allocate(rhoktmp(ngrtot))
+    ! read the number of rmt points (internal)
+    allocate(nrmti(maxspecies),nrmt(maxspecies))
+    read(lu) nrmti, nrmt
 
-    ! read the density and close
+    ! read the field and close
+    allocate(rhotmp(npmtmax,natmtot))
+    allocate(rhoktmp(ngtot))
     read(lu) rhotmp, rhoktmp
     call fclose(lu)
 
-    ! reorder the rhotmp to rhomt
+    ! unpack and reorder the rhotmp to rhomt
     f%rhomt = 0d0
     do i = 1, env%ncell
-       do j = 1, nrmtmax
-          f%rhomt(j,:,i) = rhotmp(:,j,i)
+       k = 0
+       do j = 1, nrmti(env%at(i)%is)
+          f%rhomt(j,1:lmmaxi,i) = rhotmp(k+1:k+lmmaxi,i)
+          k = k + lmmaxi
+       end do
+       do j = nrmti(env%at(i)%is)+1, nrmt(env%at(i)%is)
+          f%rhomt(j,:,i) = rhotmp(k+1:k+lmmaxo,i)
+          k = k + lmmaxo
        end do
     end do
-    deallocate(rhotmp)
+    deallocate(rhotmp,nrmti,nrmt)
 
     ! fourier transform the interstitial density
     f%rhok = rhoktmp
