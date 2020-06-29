@@ -90,7 +90,7 @@
     2  fval      1  Pop  
     3  lval      1  Lap  
     4   f        2  $2  
-    5  dloc      2  $2#deloca  | use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
+    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
 
 * List of integrable properties (6)
 #  Id  Type  Field  Name
@@ -98,8 +98,8 @@
     2  fval      1  Pop  
     3  lval      1  Lap  
     4   f        2  $2  
-    5  dloc      2  $2#deloca  | use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
-    6  dloc      2  $2#deloca  | use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
+    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
+    6  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
 
 * Yu-Trinkle integration 
   Please cite: 
@@ -120,8 +120,9 @@
   Attractors after remapping = 16
   Number of bands (nbnd) = 4
   ... lattice translations (nlat) = 2 2 2
-  ... Wannier functions (nbnd x nlat) = 8
+  ... unique grid functions (nbnd x nlat) = 8
   ... spin channels = 1
+  Calculating overlaps using Wannier functions (wan)
   Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff =  4.00 
   Writing temporary evc files...
 # Calculating overlaps...
@@ -135,6 +136,7 @@
     Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
+# Calculating translation mappings...
 # Calculating Fa
 + Integrated property (number 6): $2#deloca
 # Calculating atomic overlap matrices
@@ -142,8 +144,9 @@
   Attractors after remapping = 16
   Number of bands (nbnd) = 4
   ... lattice translations (nlat) = 2 2 2
-  ... Wannier functions (nbnd x nlat) = 8
+  ... unique grid functions (nbnd x nlat) = 8
   ... spin channels = 1
+  Calculating overlaps using Wannier functions (wan)
   Discarding no overlaps.
   Writing temporary evc files...
 # Calculating overlaps...
@@ -157,6 +160,7 @@
     Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
+# Calculating translation mappings...
 # Calculating Fa
 
 * List of properties integrated in the attractor basins
