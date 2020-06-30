@@ -62,12 +62,19 @@ module wfn_private
   ! Order of the orbitals:
   ! Restricted wavefunctions (wfntyp = wfn_rhf):
   !
-  !     alpha and beta           alpha and beta
+  !       occ. (a+b)               virt. (a+b)
   ! | ..................... | ..................... |
   ! 1                     nmoocc                  nmoall
   !
+  ! Restricted open wavefunctions (wfntyp = wfn_rohf):
+  !
+  !       occ. (a+b)           occ.(a)    virt.(a+b)
+  ! | ..................... | .........|............|
+  ! 1                     nalpha     nmocc        nmoall
+  !
   ! Unrestricted wavefunctions (wfntyp = wfn_uhf):
   !
+  !    <-- occupied -->        <-- virtual -->
   !     alpha       beta        alpha       beta
   ! | ......... | ......... | ......... | ......... |
   ! 1         nalpha      nmoocc     nmoocc+      nmoall
@@ -142,7 +149,8 @@ module wfn_private
   ! wfn type identifier
   integer, parameter, public :: wfn_rhf = 0
   integer, parameter, public :: wfn_uhf = 1
-  integer, parameter, public :: wfn_frac = 2
+  integer, parameter, public :: wfn_rohf = 2
+  integer, parameter, public :: wfn_frac = 3
   
   interface
      module subroutine wfn_end(f)

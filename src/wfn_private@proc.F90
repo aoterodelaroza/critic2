@@ -823,7 +823,10 @@ contains
        f%nalpha = nalpha
        f%nalpha_virt = 0
     else
-       call ferror("read_wfn","restricted-open wfn files not supported",faterr)
+       ! assume rohf
+       f%wfntyp = wfn_rohf
+       f%nalpha = num2
+       f%nalpha_virt = 0
     endif
     call fclose(luwfn)
 
@@ -974,7 +977,8 @@ contains
        f%wfntyp = wfn_uhf
        f%nalpha = nalpha
     else
-       call ferror("read_wfx","restricted-open wfx files not supported",faterr)
+       f%wfntyp = wfn_rohf
+       f%nalpha = num2
     endif
     
     ! done
@@ -1002,7 +1006,7 @@ contains
 
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
-    integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
+    integer :: luwfn, nelec, nalpha, nbeta, nbassph, nbascar, nbeta, ncshel, nshel, lmax
     integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
     logical :: ok, isecp
     real*8 :: norm, cons
@@ -1071,6 +1075,7 @@ contains
     isecp = .false.
     nelec = 0
     nalpha = 0
+    nbeta = 0
     nmoalla = 0
     nmoallb = 0
     do while (getline_raw(luwfn,line,.false.))
@@ -1079,6 +1084,8 @@ contains
           ok = isinteger(nelec,line,lp)
        elseif (line(1:25) == "Number of alpha electrons") then
           ok = isinteger(nalpha,line,lp)
+       elseif (line(1:25) == "Number of beta electrons") then
+          ok = isinteger(nbeta,line,lp)
        elseif (line(1:25) == "Number of basis functions") then
           ok = isinteger(nbassph,line,lp)
        elseif (line(1:24) == "Number of beta electrons") then
@@ -1107,27 +1114,38 @@ contains
     if (nmoalla == 0) call ferror("read_fchk","nmoall = 0",faterr)
 
     ! Count the number of MOs
-    if (f%wfntyp == wfn_rhf) then
-       if (mod(nelec,2) == 1) call ferror("read_fchk","odd nelec but closed-shell wavefunction",faterr)
-       f%nmoocc = nelec / 2
-       f%nalpha = nelec / 2
-       nmoread = nmoalla
-       namoread = nmoalla
-    else if (f%wfntyp == wfn_uhf) then
+    if (f%wfntyp == wfn_uhf) then
        f%nmoocc = nelec
        f%nalpha = nalpha
        nmoread = (nmoalla+nmoallb)
        namoread = nmoalla
+    else 
+       if (nalpha == nbeta) then
+          f%wfntyp = wfn_rhf
+          f%nmoocc = nelec / 2
+          f%nalpha = nelec / 2
+       else
+          f%wfntyp = wfn_rohf
+          f%nmoocc = nalpha
+          f%nalpha = nbeta
+       end if
+       nmoread = nmoalla
+       namoread = nmoalla
     endif
+
     if (.not.readvirtual) then
        nmoread = f%nmoocc
-       namoread = f%nalpha
+       if (f%wfntyp == wfn_rohf) then
+          namoread = f%nmoocc
+       else
+          namoread = f%nalpha
+       end if
        f%hasvirtual = .false.
        f%nmoall = nmoread
        f%nalpha_virt = 0
     else
-       f%hasvirtual = (f%nmoall /= f%nmoocc)
        f%nmoall = nmoread
+       f%hasvirtual = (f%nmoall /= f%nmoocc)
        f%nalpha_virt = nmoalla - nalpha
     end if
 
@@ -1142,6 +1160,9 @@ contains
     ! type of wavefunction -> occupations
     if (f%wfntyp == wfn_uhf) then
        f%occ = 1
+    elseif (f%wfntyp == wfn_rohf) then
+       f%occ(1:f%nalpha) = 2
+       f%occ(f%nalpha+1:f%nmoocc) = 1
     else
        f%occ = 2
     end if
@@ -1726,7 +1747,7 @@ contains
     if (f%wfntyp == wfn_uhf) then
        f%nmoocc = nelec
     else
-       if (mod(nelec,2) == 1) call ferror("read_molden","odd nelec but closed-shell wavefunction",faterr)
+       if (mod(nelec,2) == 1) call ferror("read_molden","fixme: odd nelec but closed-shell wavefunction",faterr)
        f%nmoocc = nelec / 2
     end if
     f%nalpha = nalpha
@@ -2173,6 +2194,10 @@ contains
           else
              rho(3) = rho(3) + rhosum
           end if
+       elseif (f%wfntyp == wfn_rohf) then
+          rho(2) = rho(2) + rhosum
+          if (imo <= f%nalpha) &
+             rho(3) = rho(3) + rhosum
        end if
        if (nder>0) then
           gradsum = 2 * aocc * phi(imo,1) * phi(imo,2:4) 
@@ -2184,6 +2209,13 @@ contains
                 grad(:,2) = grad(:,2) + gradsum
                 gkin(2) = gkin(2) + gkinsum
              else
+                grad(:,3) = grad(:,3) + gradsum
+                gkin(3) = gkin(3) + gkinsum
+             end if
+          elseif (f%wfntyp == wfn_rohf) then
+             grad(:,2) = grad(:,2) + gradsum
+             gkin(2) = gkin(2) + gkinsum
+             if (imo <= f%nalpha) then
                 grad(:,3) = grad(:,3) + gradsum
                 gkin(3) = gkin(3) + gkinsum
              end if
@@ -2211,6 +2243,17 @@ contains
                 hh(5,3) = hh(5,3) + hsum(5)
                 hh(6,3) = hh(6,3) + hsum(6)
              end if
+          elseif (f%wfntyp == wfn_rohf) then
+             hh(1:3,2) = hh(1:3,2) + hsum(1:3)
+             hh(4,2) = hh(4,2) + hsum(4)
+             hh(5,2) = hh(5,2) + hsum(5)
+             hh(6,2) = hh(6,2) + hsum(6)
+             if (imo <= f%nalpha) then
+                hh(1:3,3) = hh(1:3,3) + hsum(1:3)
+                hh(4,3) = hh(4,3) + hsum(4)
+                hh(5,3) = hh(5,3) + hsum(5)
+                hh(6,3) = hh(6,3) + hsum(6)
+             end if
           end if
           stress(1,1) = stress(1,1) + aocc * (phi(imo,1) * phi(imo,5)  - phi(imo,2)*phi(imo,2))
           stress(1,2) = stress(1,2) + aocc * (phi(imo,1) * phi(imo,8)  - phi(imo,2)*phi(imo,3))
@@ -2231,7 +2274,7 @@ contains
        hhc = 0d0
     end if
 
-    if (f%wfntyp /= wfn_uhf) then
+    if (f%wfntyp /= wfn_uhf .and. f%wfntyp /= wfn_rohf) then
        rhoval(1) = rho(1)
        rhoval(2) = 0.5d0 * rhoval(1)
        rhoval(3) = rhoval(2)
@@ -2553,21 +2596,21 @@ contains
           imo = f%nmoocc + 1
        case("ahomo")
           if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","AHOMO can only be used with RHF wavefunctions",faterr)
+             call ferror("calculate_mo","AHOMO can only be used with UHF wavefunctions",faterr)
           imo = f%nalpha
        case("alumo")
           if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","ALUMO can only be used with RHF wavefunctions",faterr)
+             call ferror("calculate_mo","ALUMO can only be used with UHF wavefunctions",faterr)
           if (.not.f%hasvirtual) &
              call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
           imo = f%nmoocc + 1
        case("bhomo")
           if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","BHOMO can only be used with RHF wavefunctions",faterr)
+             call ferror("calculate_mo","BHOMO can only be used with UHF wavefunctions",faterr)
           imo = f%nmoocc
        case("blumo")
           if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","BLUMO can only be used with RHF wavefunctions",faterr)
+             call ferror("calculate_mo","BLUMO can only be used with UHF wavefunctions",faterr)
           if (.not.f%hasvirtual) &
              call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
           imo = f%nmoocc + f%nalpha_virt + 1
