@@ -1,0 +1,10 @@
+## check: 044_load-gaussian-rohf.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/gaussian-16/oh/oh_rohf.wfn
+load ../zz_source/gaussian-16/oh/oh_rohf.wfn id wfn
+load ../zz_source/gaussian-16/oh/oh_rohf.wfx id wfx
+load ../zz_source/gaussian-16/oh/oh_rohf.fchk id fchk
+molcalc "$wfn"
+molcalc "$wfx"
+molcalc "$fchk"
+point 0.1 0.2 0.3 all

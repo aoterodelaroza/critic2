@@ -42,6 +42,7 @@ set(TESTS
   041_unload               ## unload keyword
   042_setfield             ## setfield keyword
   043_reference            ## reference keyword
+  044_load-gaussian-rohf   ## from Gaussian files; restricted-open HF case
   )
 
 runtests(${TESTS})
