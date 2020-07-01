@@ -259,6 +259,9 @@ module types
   integer, parameter, public :: out_field = 1
   integer, parameter, public :: out_mpoles = 2
   integer, parameter, public :: out_deloc = 3
+  integer, parameter, public :: sijtype_unknown = 0
+  integer, parameter, public :: sijtype_wnr = 1
+  integer, parameter, public :: sijtype_psink = 2
   type int_result
      logical :: done = .false. ! whether it was integrated
      integer :: outmode = out_none ! in which part of the output does this result go?

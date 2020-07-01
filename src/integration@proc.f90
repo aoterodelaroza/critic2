@@ -1197,7 +1197,8 @@ contains
     use global, only: fileroot
     use tools_io, only: uout, string, fclose
     use tools_math, only: matinv
-    use types, only: basindat, realloc, int_result, out_deloc
+    use types, only: basindat, realloc, int_result, out_deloc, sijtype_wnr, sijtype_psink,&
+       sijtype_unknown
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
@@ -1238,11 +1239,11 @@ contains
 
        ! set the type of the sij matrix
        if (sy%propi(l)%itype == itype_deloc_wnr) then
-          res(l)%sijtype = 1 
+          res(l)%sijtype = sijtype_wnr
       elseif (sy%propi(l)%itype == itype_deloc_psink) then
-          res(l)%sijtype = 2
+          res(l)%sijtype = sijtype_psink
        else
-          res(l)%sijtype = -1
+          res(l)%sijtype = sijtype_unknown
        end if
 
        ! maybe we can read the Fa information and jump to the end
@@ -1458,9 +1459,9 @@ contains
 
        ! calculate the fa
        if (allocated(res(l)%fa)) deallocate(res(l)%fa)
-       if (res(l)%sijtype == 1) then
+       if (res(l)%sijtype == sijtype_wnr) then
           call calc_fa_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
-       elseif (res(l)%sijtype == 2) then
+       elseif (res(l)%sijtype == sijtype_psink) then
           call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
        end if
 
@@ -2069,13 +2070,13 @@ contains
   ! This information is different if Sij is calculated in terms of
   ! wannier functions (i,j=nR) or bloch functions (i,j=nk).
   subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
-    use types, only: int_result
+    use types, only: int_result, sijtype_wnr
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nlattot
 
     integer :: imo, ia, ja, ka, iba, k, ic, jc, kc, idx(3)
 
-    if (res%sijtype /= 1) return
+    if (res%sijtype /= sijtype_wnr) return
 
     ! translations for Sij from wannier functions
     
@@ -2104,7 +2105,7 @@ contains
   ! Check the sanity of the sij matrix using the orthogonality and
   ! number of electron relations.
   subroutine check_sij_sanity(res,qe,nspin,nmo,nbnd,nlat,nlattot)
-    use types, only: int_result
+    use types, only: int_result, sijtype_wnr
     use grid3mod, only: qedat
     use param, only: tpi, img
     type(int_result), intent(in) :: res
@@ -2123,7 +2124,7 @@ contains
        fspin = 1d0
     end if
 
-    if (res%sijtype == 1) then
+    if (res%sijtype == sijtype_wnr) then
        ! checking sij from wannier functions
 
        ! sum_AR Sij^(A+R) = delta_ij
