@@ -1348,7 +1348,7 @@ contains
              cycle
           end if
           if (sy%propi(l)%itype == itype_deloc_psink.and.any(sy%f(fid)%grid%qe%nk == 0)) then
-             res(l)%reason = "Cannot use a pwc from open_grid.x with psink"
+             res(l)%reason = "Cannot use a pwc from open_grid.x or gamma tricks with psink"
              cycle
           end if
           if (product(sy%f(fid)%grid%qe%nk) /= sy%f(fid)%grid%qe%nks) then
