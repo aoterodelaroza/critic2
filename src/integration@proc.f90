@@ -1202,7 +1202,7 @@ contains
     type(int_result), intent(inout) :: res(:)
 
     integer :: i, j, l, natt1, m1, m2
-    logical :: calcsij, first, ok
+    logical :: calcsij, first, ok, ok1, ok2
     integer :: luevc(2), luevc_ibnd(2)
     integer :: fid
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
@@ -1211,6 +1211,8 @@ contains
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
     integer :: isijtype
+
+    real*8, parameter :: epsocc = 1d-6
 
     ! run over all integrable properties
     first = .true.
@@ -1368,14 +1370,18 @@ contains
              if (nspin == 1) then
                 nbndw = nbnd
              else
-                nbndw(1) = nint(sum(sy%f(fid)%grid%qe%occ(:,1) / sy%f(fid)%grid%qe%wk(1)))
-                nbndw(2) = nint(sum(sy%f(fid)%grid%qe%occ(:,1+nlattot) / sy%f(fid)%grid%qe%wk(1)))
-                ! trick to get it working without the Wannier info
-                do i = 2, sy%f(fid)%grid%qe%nks
-                   m1 = nint(sum(sy%f(fid)%grid%qe%occ(:,i) / sy%f(fid)%grid%qe%wk(i)))
-                   m2 = nint(sum(sy%f(fid)%grid%qe%occ(:,i+nlattot) / sy%f(fid)%grid%qe%wk(i)))
-                   if (m1 /= nbndw(1) .or. m2 /= nbndw(2)) &
-                      call ferror("intgrid_deloc","Incorrect band occupation in nspin=2 case",faterr)
+                nbndw = nbnd
+                ok1 = .true.
+                ok2 = .true.
+                do i = nbnd, 1, -1
+                   ok1 = ok1 .and. all(abs(sy%f(fid)%grid%qe%occ(i,1:nlattot)) < epsocc)
+                   ok2 = ok2 .and. all(abs(sy%f(fid)%grid%qe%occ(i,nlattot+1:)) < epsocc)
+                   if (.not.ok1.and..not.ok2) then
+                      exit
+                   else
+                      if (ok1) nbndw(1) = i-1
+                      if (ok2) nbndw(2) = i-1
+                   end if
                 end do
                 sy%f(fid)%grid%qe%nbndw = nbndw
              end if
@@ -1468,9 +1474,9 @@ contains
           call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
        end if
 
-       ! ! check the sanity of the Sij matrix
-       ! write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
-       ! call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
+       ! check the sanity of the Sij matrix
+       write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
+       call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
 
        !!! calculate Fa !!!
        write (uout,'("# Calculating Fa")')
@@ -1836,7 +1842,7 @@ contains
     complex*16, intent(out) :: sij(:,:,:,:)
 
     integer :: n(3), is, ik, ibnd, ik1, ibnd1, ik2, ibnd2, nks, nbnd, nspin
-    integer :: imo1, imo2, nmo
+    integer :: imo1, imo2, nmo, nbndw(2)
     integer :: i, m1, m2, m3, p(3), nlat(3)
     real*8 :: x(3), xs(3), d2, kdif(3)
     complex*16, allocatable :: psi1(:,:,:), psi2(:,:,:), psic(:,:,:), evcall(:,:,:,:), rseq(:)
@@ -1851,6 +1857,7 @@ contains
     nks = sy%f(fid)%grid%qe%nks
     nspin = sy%f(fid)%grid%qe%nspin
     nbnd = sy%f(fid)%grid%qe%nbnd
+    nbndw = sy%f(fid)%grid%qe%nbndw
     nmo = nks * nbnd
 
     ! check consistency
@@ -1892,6 +1899,7 @@ contains
        do imo1 = 1, nmo
           ibnd1 = modulo(imo1-1,nbnd) + 1
           ik1 = (imo1-1) / nbnd + 1
+          if (ibnd1 > nbndw(is)) cycle
 
           rseq = 0d0
           rseq(sy%f(fid)%grid%qe%nl(sy%f(fid)%grid%qe%igk_k(1:sy%f(fid)%grid%qe%ngk(ik1),ik1))) = &
@@ -1904,6 +1912,7 @@ contains
           do imo2 = imo1, nmo
              ibnd2 = modulo(imo2-1,nbnd) + 1
              ik2 = (imo2-1) / nbnd + 1
+             if (ibnd2 > nbndw(is)) cycle
 
              rseq = 0d0
              rseq(sy%f(fid)%grid%qe%nl(sy%f(fid)%grid%qe%igk_k(1:sy%f(fid)%grid%qe%ngk(ik2),ik2))) = &
@@ -1961,7 +1970,7 @@ contains
           end do ! imo2
           !$omp end parallel do
           write (uout,'(4X,"State k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
-             string(ik1), string(ibnd1), string(nks), string(nbnd), string(is), string(nspin)
+             string(ik1), string(ibnd1), string(nks), string(nbndw(is)), string(is), string(nspin)
        end do ! imo1
     end do ! is
 
@@ -2130,7 +2139,7 @@ contains
     integer, intent(in) :: nspin, nmo, nbnd, nlat(3), nlattot
     
     integer :: is, imo, jmo, k, l1, l2, l3
-    integer :: ik1, ibnd1, ik2, ibnd2
+    integer :: ik1, ibnd1, ik2, ibnd2, ishift
     real*8 :: fspin, kdif(3), delta(3)
     complex*16 :: asum, saux
     
@@ -2166,52 +2175,59 @@ contains
           write (*,*) is, asum * fspin
        end do
     else
-       ! sum_AR Sij^(A+R) = delta_ij
-       do is = 1, nspin
-          imo = 0
-          do ik1 = 1, nlattot
-             do ibnd1 = 1, nbnd
-                imo = imo + 1
+       ! ! sum_AR Sij^(A+R) = delta_ij
+       ! do is = 1, nspin
+       !    imo = 0
+       !    do ik1 = 1, nlattot
+       !       do ibnd1 = 1, nbnd
+       !          imo = imo + 1
 
-                jmo = 0
-                do ik2 = 1, nlattot
-                   do ibnd2 = 1, nbnd
-                      jmo = jmo + 1
+       !          jmo = 0
+       !          do ik2 = 1, nlattot
+       !             do ibnd2 = 1, nbnd
+       !                jmo = jmo + 1
 
-                      kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
+       !                kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
 
-                      saux = 0d0
-                      do l1 = 1, nlat(1)
-                         do l2 = 1, nlat(2)
-                            do l3 = 1, nlat(3)
-                               delta = real((/l1,l2,l3/)-1,8)
-                               saux = saux + exp(tpi*img*(kdif(1)*l1+kdif(2)*l2+kdif(3)*l3))
-                            end do
-                         end do
-                      end do
-                      saux = saux 
+       !                saux = 0d0
+       !                do l1 = 1, nlat(1)
+       !                   do l2 = 1, nlat(2)
+       !                      do l3 = 1, nlat(3)
+       !                         delta = real((/l1,l2,l3/)-1,8)
+       !                         saux = saux + exp(tpi*img*(kdif(1)*l1+kdif(2)*l2+kdif(3)*l3))
+       !                      end do
+       !                   end do
+       !                end do
+       !                saux = saux 
                       
-                      asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
-                      write (*,*) is, imo, jmo, asum
-                   end do
-                end do
-             end do
-          end do
-       end do
+       !                asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
+       !                write (*,*) is, imo, jmo, asum
+       !             end do
+       !          end do
+       !       end do
+       !    end do
+       ! end do
        
        ! sum_i sum_A Sii^A = N
        do is = 1, nspin
+          if (is == 1) then
+             ishift = 0
+          else
+             ishift = nlattot
+          end if
           asum = 0d0
           imo = 0
           do ik1 = 1, nlattot
              do ibnd1 = 1, nbnd
                 imo = imo + 1
-                asum = asum + qe%occ(ibnd1,ik1) * sum(res%sijc(imo,imo,:,is))
+                write (*,*) is, ik1, ibnd1, qe%occ(ibnd1,ishift+ik1), sum(res%sijc(imo,imo,:,is))
+                asum = asum + qe%occ(ibnd1,ishift+ik1) * sum(res%sijc(imo,imo,:,is))
              end do
           end do
           write (*,*) is, asum
        end do
     end if
+    stop 1
 
   end subroutine check_sij_sanity
 

@@ -852,8 +852,6 @@ contains
     allocate(f%qe%ek(f%qe%nbnd,nkstot))
     if (allocated(f%qe%occ)) deallocate(f%qe%occ)
     allocate(f%qe%occ(f%qe%nbnd,nkstot))
-    if (allocated(f%qe%ek)) deallocate(f%qe%ek)
-    allocate(f%qe%ek(f%qe%nbnd,nkstot))
     read (luc) f%qe%kpt
     read (luc) f%qe%wk
     read (luc) f%qe%ek
