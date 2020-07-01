@@ -1474,9 +1474,9 @@ contains
           call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
        end if
 
-       ! check the sanity of the Sij matrix
-       write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
-       call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
+       ! ! check the sanity of the Sij matrix
+       ! write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
+       ! call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
 
        !!! calculate Fa !!!
        write (uout,'("# Calculating Fa")')
