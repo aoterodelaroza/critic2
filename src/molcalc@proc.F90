@@ -34,7 +34,6 @@ contains
 
     character(len=:), allocatable :: word, expr, savevar
     integer :: lp, lpo, imode
-    logical :: ok
     integer, parameter :: imode_none = 0
     integer, parameter :: imode_nelec = 1
     integer, parameter :: imode_peach = 2

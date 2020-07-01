@@ -798,17 +798,15 @@ contains
   module subroutine read_pwc(f,fpwc)
     use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
-    use param, only: tpi, img
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     
-    integer :: i, ispin, ik, ibnd, iver, n, n2, ispin2, ik2, ibnd2
+    integer :: i, ispin, ik, ibnd, iver, n
     integer :: luc
-    integer :: npwx, ngms, nkstot, nsp, nat, j, k, l1, l2, l3
-    real*8 :: at(3,3), fspin, alat, delta(3), kdif(3)
+    integer :: npwx, ngms, nkstot, nsp, nat
+    real*8 :: at(3,3), fspin, alat
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
     complex*16, allocatable :: raux2(:,:,:)
-    complex*16 :: rfac, totsum, psum
     logical :: ok1, ok2
     
     real*8, parameter :: epsocc = 1d-6

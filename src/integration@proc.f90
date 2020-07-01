@@ -266,10 +266,11 @@ contains
        call int_output_json(jsonfile,bas,res)
     end if
 
-    ! clean up YT weight file
+    ! clean up
     if (bas%imtype == imtype_yt) then
        call fclose(bas%luw)
     endif
+    deallocate(res)
 
   end subroutine intgrid_driver
 
@@ -894,7 +895,6 @@ contains
        end do
        call ff%addcp(ff%c%x2c(xattr(:,bas%nattr)),1d-2,1d-1,2d-1,ff%typnuc)
     end do
-    deallocate(bas%xattr)
 
     ! update the idg
     allocate(idgaux(size(bas%idg,1),size(bas%idg,2),size(bas%idg,3)))
@@ -1195,13 +1195,13 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use global, only: fileroot
-    use tools_io, only: uout, string, fopen_read, fclose, fopen_write, ferror, faterr
+    use tools_io, only: uout, string, fclose
     use tools_math, only: matinv
     use types, only: basindat, realloc, int_result, out_deloc
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, j, l, natt1, m1, m2
+    integer :: j, l, natt1
     logical :: calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
     integer :: fid
@@ -1422,8 +1422,6 @@ contains
              write (uout,'(99(A,X))') "# Calculating overlaps..."
              call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,ilvec,&
                 idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
-             deallocate(iatt,ilvec)
-             if (allocated(idg1)) deallocate(idg1)
 
              ! close the rotated evc scratch files
              if (luevc(1) >= 0) call fclose(luevc(1))
@@ -1433,10 +1431,10 @@ contains
              !!! using bloch functions !!!
              write (uout,'(99(A,X))') "# Calculating overlaps..."
              call calc_sij_psink(fid,bas%imtype,nattn,iatt,ilvec,idg1,bas%xattr,dat,res(l)%sijc)
-             deallocate(iatt,ilvec)
-             if (allocated(idg1)) deallocate(idg1)
 
           end if
+          deallocate(iatt,ilvec)
+          if (allocated(idg1)) deallocate(idg1)
 
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then
@@ -1488,7 +1486,6 @@ contains
 999    continue
        if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
        if (allocated(res(l)%sij_wnr_imap)) deallocate(res(l)%sij_wnr_imap)
-       if (allocated(res(l)%sij_psink_phase)) deallocate(res(l)%sij_psink_phase)
        res(l)%done = .true.
        res(l)%reason = ""
        res(l)%outmode = out_deloc
@@ -2151,38 +2148,38 @@ contains
           write (*,*) is, asum * fspin
        end do
     else
-       ! ! sum_AR Sij^(A+R) = delta_ij
-       ! do is = 1, nspin
-       !    imo = 0
-       !    do ik1 = 1, nlattot
-       !       do ibnd1 = 1, nbnd
-       !          imo = imo + 1
+       ! sum_AR Sij^(A+R) = delta_ij
+       do is = 1, nspin
+          imo = 0
+          do ik1 = 1, nlattot
+             do ibnd1 = 1, nbnd
+                imo = imo + 1
 
-       !          jmo = 0
-       !          do ik2 = 1, nlattot
-       !             do ibnd2 = 1, nbnd
-       !                jmo = jmo + 1
+                jmo = 0
+                do ik2 = 1, nlattot
+                   do ibnd2 = 1, nbnd
+                      jmo = jmo + 1
 
-       !                kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
+                      kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
 
-       !                saux = 0d0
-       !                do l1 = 1, nlat(1)
-       !                   do l2 = 1, nlat(2)
-       !                      do l3 = 1, nlat(3)
-       !                         delta = real((/l1,l2,l3/)-1,8)
-       !                         saux = saux + exp(tpi*img*(kdif(1)*l1+kdif(2)*l2+kdif(3)*l3))
-       !                      end do
-       !                   end do
-       !                end do
-       !                saux = saux 
+                      saux = 0d0
+                      do l1 = 1, nlat(1)
+                         do l2 = 1, nlat(2)
+                            do l3 = 1, nlat(3)
+                               delta = real((/l1,l2,l3/)-1,8)
+                               saux = saux + exp(tpi*img*(kdif(1)*l1+kdif(2)*l2+kdif(3)*l3))
+                            end do
+                         end do
+                      end do
+                      saux = saux 
                       
-       !                asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
-       !                write (*,*) is, imo, jmo, asum
-       !             end do
-       !          end do
-       !       end do
-       !    end do
-       ! end do
+                      asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
+                      write (*,*) is, imo, jmo, asum
+                   end do
+                end do
+             end do
+          end do
+       end do
        
        ! sum_i sum_A Sii^A = N
        do is = 1, nspin
@@ -2197,7 +2194,6 @@ contains
           write (*,*) is, asum
        end do
     end if
-    stop 1
 
   end subroutine check_sij_sanity
 

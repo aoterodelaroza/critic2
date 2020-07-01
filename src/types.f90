@@ -272,7 +272,6 @@ module types
      real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
      complex*16, allocatable :: sijc(:,:,:,:) ! Sij from wannier/psink
      integer, allocatable :: sij_wnr_imap(:,:) ! mapping for Sij translation (wannier)
-     complex*16, allocatable :: sij_psink_phase(:,:) ! phase for Sij translation (psink)
      real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
   end type int_result
 
