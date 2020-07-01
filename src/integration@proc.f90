@@ -25,10 +25,10 @@ submodule (integration) proc
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
   ! subroutine intgrid_deloc(bas,res)
-  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype,sij)
-  ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype,fa)
+  ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,kpt,occ,sij)
+  ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
   ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype)
-  ! subroutine read_sijchk_body(sijfname,sij)
+  ! subroutine read_sijchk_body(sijfname,kpt,occ,sij)
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
@@ -1210,7 +1210,7 @@ contains
     integer, allocatable :: iatt(:), ilvec(:,:), idg1(:,:,:)
     type(ytdata) :: dat
     character(len=:), allocatable :: sijfname, fafname
-    real*8, allocatable :: w(:,:,:)
+    real*8, allocatable :: w(:,:,:), kpt(:,:), occ(:,:,:)
     integer :: isijtype
 
     ! run over all integrable properties
@@ -1293,8 +1293,8 @@ contains
              if (natt1 == bas%nattr) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sy%propi(l)%sijchkfile)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
-                allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
-                call read_sijchk_body(sy%propi(l)%sijchkfile,res(l)%sijc)
+                allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin),kpt(3,nlattot),occ(nbnd,nlattot,nspin))
+                call read_sijchk_body(sy%propi(l)%sijchkfile,kpt,occ,res(l)%sijc)
                 res(l)%nlat = nlat
                 res(l)%nspin = nspin
                 calcsij = .false.
@@ -1321,9 +1321,15 @@ contains
              if (ok) then
                 write (uout,'("# Reading Sij checkpoint file: ",A)') string(sijfname)
                 if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
+
+                ! read the sij checkpoint body and check the kpts and occs
                 allocate(res(l)%sijc(nmo,nmo,bas%nattr,nspin))
-                call read_sijchk_body(sijfname,res(l)%sijc)
-                calcsij = .false.
+                allocate(kpt(3,nlattot),occ(nbnd,nlattot,nspin))
+                call read_sijchk_body(sijfname,kpt,occ,res(l)%sijc)
+                ok = ok .and. all(abs(kpt - sy%f(fid)%grid%qe%kpt) < 1d-4)
+                ok = ok .and. all(abs(occ - sy%f(fid)%grid%qe%occ) < 1d-4)
+                if (ok) calcsij = .false.
+                deallocate(kpt,occ)
              end if
           end if
        end if ! sy%propi(l)%itype == itype_deloc, etc.
@@ -1440,7 +1446,8 @@ contains
           ! write the checkpoint
           if (sy%propi(l)%sijchk) then
              write (uout,'("# Writing Sij checkpoint file: ",A)') trim(sijfname)
-             call write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,res(l)%sijc)
+             call write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,&
+                sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ,res(l)%sijc)
           end if
        end if ! calcsij
 
@@ -1462,7 +1469,12 @@ contains
        if (res(l)%sijtype == sijtype_wnr) then
           call calc_fa_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
        elseif (res(l)%sijtype == sijtype_psink) then
-          call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
+          if (calcsij) then
+             call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
+          else
+             call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,kpt,occ)
+             deallocate(kpt,occ)
+          end if
        end if
 
        ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
@@ -1503,16 +1515,21 @@ contains
   end subroutine intgrid_deloc
 
   !> Write the Sij checkpoint file (DI integration).
-  subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,sij)
+  subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,&
+     kpt,occ,sij)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: sijfname
     integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
+    real*8, intent(in) :: kpt(3,nlattot)
+    real*8, intent(in) :: occ(nbnd,nlattot,nspin)
     complex*16, intent(in) :: sij(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_write(sijfname,"unformatted")
     write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
+    write (lu) kpt
+    write (lu) occ
     write (lu) sij
     call fclose(lu)
     
@@ -1553,15 +1570,19 @@ contains
   end function read_chk_header
 
   !> Read the body of the Sij checkpoint file (DI integration).
-  subroutine read_sijchk_body(sijfname,sij)
+  subroutine read_sijchk_body(sijfname,kpt,occ,sij)
     use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: sijfname
+    real*8, intent(inout) :: kpt(:,:)
+    real*8, intent(inout) :: occ(:,:,:)
     complex*16, intent(inout) :: sij(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_read(sijfname,"unformatted")
     read (lu)
+    read (lu) kpt
+    read (lu) occ
     read (lu) sij
     call fclose(lu)
 
