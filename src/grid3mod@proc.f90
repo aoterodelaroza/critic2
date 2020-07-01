@@ -809,7 +809,6 @@ contains
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
     complex*16, allocatable :: raux2(:,:,:)
     complex*16 :: rfac, totsum, psum
-    real*8, allocatable :: eaux(:,:)
     logical :: ok1, ok2
     
     real*8, parameter :: epsocc = 1d-6
@@ -858,24 +857,8 @@ contains
     allocate(f%qe%occ(f%qe%nbnd,f%qe%nks,f%qe%nspin))
     read (luc) f%qe%kpt
     read (luc) f%qe%wk
-
-    allocate(eaux(f%qe%nbnd,nkstot))
-    read (luc) eaux
-    if (f%qe%nspin == 1) then
-       f%qe%ek(:,:,1) = eaux
-    else
-       f%qe%ek(:,:,1) = eaux(:,1:f%qe%nks)
-       f%qe%ek(:,:,2) = eaux(:,f%qe%nks+1:)
-    end if
-
-    read (luc) eaux
-    if (f%qe%nspin == 1) then
-       f%qe%occ(:,:,1) = eaux
-    else
-       f%qe%occ(:,:,1) = eaux(:,1:f%qe%nks)
-       f%qe%occ(:,:,2) = eaux(:,f%qe%nks+1:)
-    end if
-    deallocate(eaux)
+    read (luc) f%qe%ek
+    read (luc) f%qe%occ
 
     ! read k-point mapping
     if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
