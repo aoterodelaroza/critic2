@@ -802,14 +802,18 @@ contains
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     
-    integer :: i, ispin, ik, ibnd, ikk, iver, n, n2, ispin2, ik2, ibnd2, ikk2
+    integer :: i, ispin, ik, ibnd, iver, n, n2, ispin2, ik2, ibnd2
     integer :: luc
     integer :: npwx, ngms, nkstot, nsp, nat, j, k, l1, l2, l3
     real*8 :: at(3,3), fspin, alat, delta(3), kdif(3)
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
     complex*16, allocatable :: raux2(:,:,:)
     complex*16 :: rfac, totsum, psum
+    real*8, allocatable :: eaux(:,:)
+    logical :: ok1, ok2
     
+    real*8, parameter :: epsocc = 1d-6
+
     ! initialize
     call f%end()
     f%qe%fpwc = fpwc
@@ -849,13 +853,29 @@ contains
     if (allocated(f%qe%wk)) deallocate(f%qe%wk)
     allocate(f%qe%wk(f%qe%nks))
     if (allocated(f%qe%ek)) deallocate(f%qe%ek)
-    allocate(f%qe%ek(f%qe%nbnd,nkstot))
+    allocate(f%qe%ek(f%qe%nbnd,f%qe%nks,f%qe%nspin))
     if (allocated(f%qe%occ)) deallocate(f%qe%occ)
-    allocate(f%qe%occ(f%qe%nbnd,nkstot))
+    allocate(f%qe%occ(f%qe%nbnd,f%qe%nks,f%qe%nspin))
     read (luc) f%qe%kpt
     read (luc) f%qe%wk
-    read (luc) f%qe%ek
-    read (luc) f%qe%occ
+
+    allocate(eaux(f%qe%nbnd,nkstot))
+    read (luc) eaux
+    if (f%qe%nspin == 1) then
+       f%qe%ek(:,:,1) = eaux
+    else
+       f%qe%ek(:,:,1) = eaux(:,1:f%qe%nks)
+       f%qe%ek(:,:,2) = eaux(:,f%qe%nks+1:)
+    end if
+
+    read (luc) eaux
+    if (f%qe%nspin == 1) then
+       f%qe%occ(:,:,1) = eaux
+    else
+       f%qe%occ(:,:,1) = eaux(:,1:f%qe%nks)
+       f%qe%occ(:,:,2) = eaux(:,f%qe%nks+1:)
+    end if
+    deallocate(eaux)
 
     ! read k-point mapping
     if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
@@ -893,10 +913,8 @@ contains
     evca = 0d0
 
     n = 0
-    ikk = 0
     do ispin = 1, f%qe%nspin
        do ik = 1, f%qe%nks
-          ikk = ikk + 1
           do ibnd = 1, f%qe%nbnd
              rseq = 0d0
              read (luc) evc(1:f%qe%ngk(ik))
@@ -909,11 +927,31 @@ contains
                 rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
              raux = reshape(rseq,shape(raux))
              call cfftnd(3,f%n,+1,raux)
-             f%f = f%f + f%qe%occ(ibnd,ikk) * real(conjg(raux) * raux,8)
+             f%f = f%f + f%qe%occ(ibnd,ik,ispin) * real(conjg(raux) * raux,8)
           end do
        end do
     end do
     f%f = f%f * fspin / (det3(at) * sum(f%qe%wk))
+
+    ! assign nbndw
+    if (f%qe%nspin == 1) then
+       f%qe%nbndw = f%qe%nbnd
+    else
+       f%qe%nbndw = f%qe%nbnd
+
+       ok1 = .true.
+       ok2 = .true.
+       do i = f%qe%nbnd, 1, -1
+          ok1 = ok1 .and. all(abs(f%qe%occ(i,1:f%qe%nks,1)) < epsocc)
+          ok2 = ok2 .and. all(abs(f%qe%occ(i,1:f%qe%nks,2)) < epsocc)
+          if (.not.ok1.and..not.ok2) then
+             exit
+          else
+             if (ok1) f%qe%nbndw(1) = i-1
+             if (ok2) f%qe%nbndw(2) = i-1
+          end if
+       end do
+    end if
 
     ! close and clean up
     call fclose(luc)

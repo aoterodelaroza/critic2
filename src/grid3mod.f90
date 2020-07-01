@@ -32,8 +32,8 @@ module grid3mod
      character(len=mlen) :: fpwc !< pwc file name
      real*8, allocatable :: kpt(:,:) !< k-points in cryst. coords. (3,k)
      real*8, allocatable :: wk(:) !< k-point weights (k)
-     real*8, allocatable :: ek(:,:) !< band energies (bnd,spin*k)
-     real*8, allocatable :: occ(:,:) !< band occupations (bnd,spin*k)
+     real*8, allocatable :: ek(:,:,:) !< band energies (bnd,k,spin)
+     real*8, allocatable :: occ(:,:,:) !< band occupations (bnd,k,spin)
      integer, allocatable :: ngk(:) !< number of plane-waves for each k-point (k)
      integer, allocatable :: igk_k(:,:) !< fft reorder (npw,nk)
      integer, allocatable :: nl(:) !< fft reorder (ngms)

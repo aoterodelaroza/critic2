@@ -1202,7 +1202,7 @@ contains
     type(int_result), intent(inout) :: res(:)
 
     integer :: i, j, l, natt1, m1, m2
-    logical :: calcsij, first, ok, ok1, ok2
+    logical :: calcsij, first, ok
     integer :: luevc(2), luevc_ibnd(2)
     integer :: fid
     integer :: nlat(3), nbnd, nbndw(2), nlattot, nmo, nspin, nattn
@@ -1211,8 +1211,6 @@ contains
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:)
     integer :: isijtype
-
-    real*8, parameter :: epsocc = 1d-6
 
     ! run over all integrable properties
     first = .true.
@@ -1364,28 +1362,7 @@ contains
           nlattot = sy%f(fid)%grid%qe%nks
           nspin = sy%f(fid)%grid%qe%nspin
           nmo = nlattot * nbnd
-          if (sy%f(fid)%grid%iswan) then
-             nbndw = sy%f(fid)%grid%qe%nbndw
-          else
-             if (nspin == 1) then
-                nbndw = nbnd
-             else
-                nbndw = nbnd
-                ok1 = .true.
-                ok2 = .true.
-                do i = nbnd, 1, -1
-                   ok1 = ok1 .and. all(abs(sy%f(fid)%grid%qe%occ(i,1:nlattot)) < epsocc)
-                   ok2 = ok2 .and. all(abs(sy%f(fid)%grid%qe%occ(i,nlattot+1:)) < epsocc)
-                   if (.not.ok1.and..not.ok2) then
-                      exit
-                   else
-                      if (ok1) nbndw(1) = i-1
-                      if (ok2) nbndw(2) = i-1
-                   end if
-                end do
-                sy%f(fid)%grid%qe%nbndw = nbndw
-             end if
-          end if
+          nbndw = sy%f(fid)%grid%qe%nbndw
        end if
 
        !!! calculate Sij !!!
@@ -1486,8 +1463,7 @@ contains
        if (res(l)%sijtype == 1) then
           call calc_fa_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
        elseif (res(l)%sijtype == 2) then
-          call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,&
-             sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
+          call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
        end if
 
        ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
@@ -2039,7 +2015,7 @@ contains
     use param, only: tpi, img
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
-    real*8, intent(in) :: kpt(:,:), occ(:,:)
+    real*8, intent(in) :: kpt(:,:), occ(:,:,:)
     
     integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
     real*8 :: fatemp, kdif(3), fspin
@@ -2075,7 +2051,7 @@ contains
                             ik2 = (imo2-1) / nbnd + 1
 
                             kdif = kpt(:,ik2) - kpt(:,ik1)
-                            res%fa(i,j,k,is) = res%fa(i,j,k,is) + occ(ibnd1,ik1) * occ(ibnd2,ik2) * &
+                            res%fa(i,j,k,is) = res%fa(i,j,k,is) + occ(ibnd1,ik1,is) * occ(ibnd2,ik2,is) * &
                                real(res%sijc(imo2,imo1,i,is) * res%sijc(imo1,imo2,j,is) * &
                                exp(tpi*img*(kdif(1)*ia+kdif(2)*ja+kdif(3)*ka)),8)
                          end do ! imo2 = imo1, nmo
@@ -2139,7 +2115,7 @@ contains
     integer, intent(in) :: nspin, nmo, nbnd, nlat(3), nlattot
     
     integer :: is, imo, jmo, k, l1, l2, l3
-    integer :: ik1, ibnd1, ik2, ibnd2, ishift
+    integer :: ik1, ibnd1, ik2, ibnd2
     real*8 :: fspin, kdif(3), delta(3)
     complex*16 :: asum, saux
     
@@ -2210,18 +2186,12 @@ contains
        
        ! sum_i sum_A Sii^A = N
        do is = 1, nspin
-          if (is == 1) then
-             ishift = 0
-          else
-             ishift = nlattot
-          end if
           asum = 0d0
           imo = 0
           do ik1 = 1, nlattot
              do ibnd1 = 1, nbnd
                 imo = imo + 1
-                write (*,*) is, ik1, ibnd1, qe%occ(ibnd1,ishift+ik1), sum(res%sijc(imo,imo,:,is))
-                asum = asum + qe%occ(ibnd1,ishift+ik1) * sum(res%sijc(imo,imo,:,is))
+                asum = asum + qe%occ(ibnd1,ik1,is) * sum(res%sijc(imo,imo,:,is))
              end do
           end do
           write (*,*) is, asum
