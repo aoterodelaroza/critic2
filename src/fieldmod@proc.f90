@@ -1231,7 +1231,7 @@ contains
     real*8 :: fspin
 
     character(len=:), allocatable :: str, aux
-    integer :: i, j, k, n(3)
+    integer :: i, is, j, k, n(3)
 
     ! header
     if (.not.f%isinit) then
@@ -1397,21 +1397,12 @@ contains
           write (uout,'("# kpt ",A," (",A,X,A,X,A,") w=",A)') string(i,2,justify=ioj_right), &
              (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
              string(f%grid%qe%wk(i),'e',decimal=8)
-          if (f%grid%qe%nspin == 1) then
-             write (uout,'(10(X,A))') " Ek:",&
+          do is = 1, f%grid%qe%nspin
+             write (uout,'("  Ek(",A,"):",99(X,A))') string(is),&
                 (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:",&
+             write (uout,'(" Occ(",A,"):",99(X,A))') string(is),&
                 (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-          else
-             write (uout,'(10(X,A))') "Eup:",&
-                (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:",&
-                (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Edn:",&
-                (string(f%grid%qe%ek(j,i,2) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(10(X,A))') "Occ:",&
-                (string(f%grid%qe%occ(j,i,2)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-          end if
+          end do
        end do
     end if
 
