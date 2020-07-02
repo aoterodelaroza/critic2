@@ -1452,7 +1452,8 @@ contains
        end if ! calcsij
 
        ! calculate the Sij translation mappings
-       if (sy%propi(l)%itype == itype_deloc_wnr) then
+       if (sy%propi(l)%itype == itype_deloc_wnr .or. &
+          sy%propi(l)%itype == itype_deloc_sijchk .and. res(l)%sijtype == sijtype_wnr) then
           write (uout,'(99(A,X))') "# Calculating translation mappings..."
           call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
        end if
