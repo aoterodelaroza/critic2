@@ -793,20 +793,27 @@ contains
 
   end subroutine read_xsf
 
-  !> Read pwc file created by pw2critic.x in Quantum ESPRESSO. Contains
-  !> the Bloch states, k-points, and structural info.
-  module subroutine read_pwc(f,fpwc)
+  !> Read pwc file created by pw2critic.x in Quantum
+  !> ESPRESSO. Contains the Bloch states, k-points, and structural
+  !> info. Calculates the electron density from the Bloch states.
+  !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
+  !> ikpt = use only the indicated k-points. ibnd = use only the
+  !> indicated bands. emin,emax: only the bands in the energy range. 
+  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax)
     use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
+    integer, intent(in) :: ispin
+    integer, intent(in), allocatable :: ikpt(:)
+    integer, intent(in), allocatable :: ibnd(:)
+    real*8, intent(in) :: emin, emax
     
-    integer :: i, ispin, ik, ibnd, iver, n
+    integer :: i, is, ik, ib, iver
     integer :: luc
     integer :: npwx, ngms, nkstot, nsp, nat
     real*8 :: at(3,3), fspin, alat
-    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:), evc2(:), evca(:,:)
-    complex*16, allocatable :: raux2(:,:,:)
+    complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: ok1, ok2
     
     real*8, parameter :: epsocc = 1d-6
@@ -888,27 +895,28 @@ contains
     allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))))
     f%f = 0d0
 
-    allocate(raux2(f%n(1),f%n(2),f%n(3)))
-    allocate(evc2(maxval(f%qe%ngk(1:f%qe%nks))))
-    allocate(evca(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nspin*f%qe%nks*f%qe%nbnd))
-    evca = 0d0
-
-    n = 0
-    do ispin = 1, f%qe%nspin
+    do is = 1, f%qe%nspin
        do ik = 1, f%qe%nks
-          do ibnd = 1, f%qe%nbnd
+          do ib = 1, f%qe%nbnd
              rseq = 0d0
              read (luc) evc(1:f%qe%ngk(ik))
 
-             n = n + 1
-             evca(1:f%qe%ngk(ik),n) = evc(1:f%qe%ngk(ik))
+             ! range checks
+             if (is /= ispin .and. ispin /= 0) cycle
+             if (f%qe%ek(ib,ik,is) < emin .or. f%qe%ek(ib,ik,is) > emax) cycle
+             if (allocated(ikpt)) then
+                if (all(ik /= ikpt)) cycle
+             end if
+             if (allocated(ibnd)) then
+                if (all(ib /= ibnd)) cycle
+             end if
 
              rseq(f%qe%nl(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = evc(1:f%qe%ngk(ik))
              if (f%qe%gamma_only) &
                 rseq(f%qe%nlm(f%qe%igk_k(1:f%qe%ngk(ik),ik))) = conjg(evc(1:f%qe%ngk(ik)))
              raux = reshape(rseq,shape(raux))
              call cfftnd(3,f%n,+1,raux)
-             f%f = f%f + f%qe%occ(ibnd,ik,ispin) * real(conjg(raux) * raux,8)
+             f%f = f%f + f%qe%occ(ib,ik,is) * real(conjg(raux) * raux,8)
           end do
        end do
     end do

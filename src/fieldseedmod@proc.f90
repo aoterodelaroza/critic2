@@ -40,6 +40,11 @@ contains
     f%readvirtual = .false.
     f%vaspblk = 1
     f%fid = ""
+    f%pwcspin = 0
+    if (allocated(f%pwcikpt)) deallocate(f%pwcikpt)
+    if (allocated(f%pwcibnd)) deallocate(f%pwcibnd)
+    f%pwcemin = -1d40
+    f%pwcemax = 1d40
 
   end subroutine fieldseed_end
 
@@ -50,8 +55,7 @@ contains
   module subroutine fieldseed_parse(f,line,withoptions,lp0)
     use global, only: eval_next
     use types, only: realloc
-    use tools_io, only: getword, lower, ferror, equal, isinteger, zatguess,&
-       isexpression
+    use tools_io, only: getword, lower, equal, isexpression
     use param, only: dirsep,&
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
        ifformat_bincube, ifformat_abinit,&
@@ -495,13 +499,15 @@ contains
   !> Parse field options from a command.
   module subroutine fieldseed_parse_options(f,line,lp0)
     use global, only: eval_next
-    use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger
-    use param, only: ifformat_as_promolecular, ifformat_vasp, ifformat_vaspnov
+    use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
+       readintegers, isreal
+    use param, only: ifformat_as_promolecular, ifformat_vasp, ifformat_vaspnov, ifformat_pwc,&
+       hartoev
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     integer, intent(inout), optional :: lp0
 
-    integer :: lp, lp2, idum, inum
+    integer :: lp, lp2, idum, inum, nread
     character(len=:), allocatable :: lword, word, word2, word3
     logical :: ok
 
@@ -602,6 +608,36 @@ contains
              end if
           end if
           f%vaspblk = idum
+       elseif ((f%iff == ifformat_pwc) .and. equal(lword,'spin')) then
+          ok = isinteger(idum,line,lp)
+          if (.not.ok) then
+             f%errmsg = "error in argument to SPIN keyword"
+             return
+          end if
+          f%pwcspin = idum
+       elseif ((f%iff == ifformat_pwc) .and. equal(lword,'kpt')) then
+          call readintegers(nread,f%pwcikpt,line,lp)
+          if (nread == 0) then
+             if (allocated(f%pwcikpt)) deallocate(f%pwcikpt)
+             f%errmsg = "error in argument to KPT keyword"
+             return
+          end if
+       elseif ((f%iff == ifformat_pwc) .and. equal(lword,'band')) then
+          call readintegers(nread,f%pwcibnd,line,lp)
+          if (nread == 0) then
+             if (allocated(f%pwcibnd)) deallocate(f%pwcibnd)
+             f%errmsg = "error in argument to BAND keyword"
+             return
+          end if
+       elseif ((f%iff == ifformat_pwc) .and. equal(lword,'erange')) then
+          ok = isreal(f%pwcemin,line,lp)
+          ok = ok .and. isreal(f%pwcemax,line,lp)
+          if (.not.ok) then
+             f%errmsg = "error in argument to ERANGE keyword"
+             return
+          end if
+          f%pwcemin = f%pwcemin / hartoev
+          f%pwcemax = f%pwcemax / hartoev
        else
           call f%end()
           f%errmsg = "unknown load keyword or file name: " // word

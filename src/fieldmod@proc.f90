@@ -370,7 +370,8 @@ contains
 
        f%type = type_grid
        f%file = seed%file(1)
-       call f%grid%read_pwc(seed%file(1))
+       call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
+          seed%pwcemin,seed%pwcemax)
        if (seed%nfile == 2) then
           call f%grid%read_wannier_chk(seed%file(2))
        elseif (seed%nfile == 3) then

@@ -143,9 +143,13 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
      end subroutine read_xsf
-     module subroutine read_pwc(f,fpwc)
+     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)
+       integer, intent(in) :: ispin
+       integer, intent(in), allocatable :: ikpt(:)
+       integer, intent(in), allocatable :: ibnd(:)
+       real*8, intent(in) :: emin, emax
      end subroutine read_pwc
      module subroutine read_elk(f,file)
        class(grid3), intent(inout) :: f

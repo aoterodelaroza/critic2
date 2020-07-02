@@ -45,6 +45,12 @@ module fieldseedmod
      integer :: vaspblk = 1 !< Which VASP block to read (CHGCAR/CHG/...)
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
+     ! pwc
+     integer :: pwcspin = 0 !< read which spin (0=all,1=up,2=dn)
+     integer, allocatable :: pwcikpt(:) !< read which kpts
+     integer, allocatable :: pwcibnd(:) !< read which bands
+     real*8 :: pwcemin = -1d40 !< read minimum of energy range 
+     real*8 :: pwcemax = 1d40 !< read maximum of energy range
    contains
      procedure :: end => fieldseed_end !< Terminate a fieldseed; set the type to unknown
      procedure :: parse => fieldseed_parse !< Build a field seed from an external command

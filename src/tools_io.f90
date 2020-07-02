@@ -222,6 +222,13 @@ module tools_io
        character*(*), intent(in) :: line
        integer, intent(inout), optional :: lp0
      end function isinteger
+     module subroutine readintegers(n,ix,line,lp0)
+       logical :: isinteger
+       integer, intent(out) :: n
+       integer, intent(inout), allocatable :: ix(:)
+       character*(*), intent(in) :: line
+       integer, intent(inout), optional :: lp0
+     end subroutine readintegers
      module function isreal(rval, line, lp0)
        real*8, intent(out) :: rval
        character*(*), intent(in) :: line

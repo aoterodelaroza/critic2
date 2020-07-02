@@ -984,6 +984,40 @@ contains
     if (present(lp0)) lp0 = lp
 
   end function isinteger
+  
+  !> Read a list of integers from a line, starting at pointer lp0. Returns
+  !> the number of integers read (n), the integers (ix), and updates the
+  !> position of the pointer.
+  module subroutine readintegers(n,ix,line,lp0)
+    use types, only: realloc
+    integer, intent(out) :: n
+    integer, intent(inout), allocatable :: ix(:)
+    character*(*), intent(in) :: line
+    integer, intent(inout), optional :: lp0
+
+    integer :: idum, lp
+
+    if (present(lp0)) then
+       lp = lp0
+    else
+       lp = 1
+    end if
+    if (allocated(ix)) deallocate(ix)
+    allocate(ix(1))
+
+    n = 0
+    do while(isinteger(ix(n+1),line,lp))
+       n = n + 1
+       if (n >= size(ix,1)) call realloc(ix,2*n)
+    end do
+    if (n > 0) then
+       call realloc(ix,n)
+    else
+       deallocate(ix)
+    end if
+    if (present(lp0)) lp0 = lp
+
+  end subroutine readintegers
 
   !> Get a real number from line and sets rval to it. If a valid real
   !> number is not found, isreal returns .false. and rval is not changed. 
