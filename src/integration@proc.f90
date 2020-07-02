@@ -2407,7 +2407,7 @@ contains
 
        write (uout,'("+ Delocalization indices")')
        write (uout,'("  Each block gives information about a single atom in the main cell.")')
-       write (uout,'("  First line: localization index. Next lines: delocaliazation index")')
+       write (uout,'("  First line: localization index. Next lines: delocalization index")')
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))

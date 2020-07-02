@@ -256,7 +256,7 @@
 
 + Delocalization indices
   Each block gives information about a single atom in the main cell.
-  First line: localization index. Next lines: delocaliazation index
+  First line: localization index. Next lines: delocalization index
   with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
   equal to the atomic population. Distances are in bohr.
 # Attractor 1 (cp=1, ncp=1, name=fe, Z=26) at: 0.0000000  0.0000000  0.0000000
