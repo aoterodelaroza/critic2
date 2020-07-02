@@ -20,29 +20,29 @@
 + Plane-wave Kohn-Sham states for this field
   Spin: 1 K-points: 8 Bands: 4
 # kpt  1 (0.0000 0.0000 0.0000) w=1.25000000E-01
-  Ek: -10.98   6.71   6.71   6.71
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1): -10.98   6.71   6.71   6.71
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  2 (-0.0000 0.0000 -0.5000) w=1.25000000E-01
-  Ek:  -9.46   1.62   5.96   5.96
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  3 (0.0000 -0.5000 0.0000) w=1.25000000E-01
-  Ek:  -9.46   1.62   5.96   5.96
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  4 (0.0000 -0.5000 -0.5000) w=1.25000000E-01
-  Ek:  -9.15   2.20   5.22   5.22
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  5 (-0.5000 -0.0000 -0.0000) w=1.25000000E-01
-  Ek:  -9.46   1.62   5.96   5.96
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  6 (-0.5000 0.0000 -0.5000) w=1.25000000E-01
-  Ek:  -9.15   2.20   5.22   5.22
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  7 (0.5000 0.5000 -0.0000) w=1.25000000E-01
-  Ek:  -9.15   2.20   5.22   5.22
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22
+ Occ(1):   2.00   2.00   2.00   2.00
 # kpt  8 (0.5000 0.5000 0.5000) w=1.25000000E-01
-  Ek:  -9.46   1.62   5.96   5.96
- Occ:   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96
+ Occ(1):   2.00   2.00   2.00   2.00
 
 + Wannier functions information for this field
   Real-space lattice vectors: 2 2 2
@@ -504,7 +504,7 @@
   Source: 020_cube_wannier-2-03-r.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.437084394138E-09  -8.308699184914E-04  -1.707918838627E-03
+  First elements... -3.437084394775E-09  -8.308699184914E-04  -1.707918838627E-03
   Last elements... 9.665300837201E-03  7.491925762538E-03  5.460459534577E-03
   Sum of elements... 9.501589214072E+01
   Sum of squares of elements... 1.656396896874E+01
@@ -525,7 +525,7 @@
   Source: 020_cube_wannier-2-04-r.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.437084151632E-09  -2.005091468397E-03  -4.203362177538E-03
+  First elements... -3.437084151563E-09  -2.005091468397E-03  -4.203362177538E-03
   Last elements... 2.553463703853E-03  1.842448448285E-03  1.164266272770E-03
   Sum of elements... -1.213929094854E+02
   Sum of squares of elements... 1.816497984289E+01
@@ -546,7 +546,7 @@
   Source: 020_cube_wannier-2-05-r.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.437084192629E-09  -7.320550505757E-04  -1.352374650256E-03
+  First elements... -3.437084193584E-09  -7.320550505756E-04  -1.352374650256E-03
   Last elements... 7.788245889958E-03  6.752192067948E-03  5.460452168571E-03
   Sum of elements... 9.501588255764E+01
   Sum of squares of elements... 1.658988946626E+01
@@ -567,7 +567,7 @@
   Source: 020_cube_wannier-2-06-r.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.437084467038E-09  -1.791465555223E-03  -3.373040619701E-03
+  First elements... -3.437084467357E-09  -1.791465555223E-03  -3.373040619701E-03
   Last elements... 2.303731096718E-03  1.787685505272E-03  1.164273607168E-03
   Sum of elements... -1.213928999023E+02
   Sum of squares of elements... 1.819380727294E+01
@@ -714,7 +714,7 @@
   Source: 020_cube_wannier-2-05-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -2.322474524228E-10  -1.229178752698E-03  -2.481259885983E-03
+  First elements... -2.322474521753E-10  -1.229178752698E-03  -2.481259885983E-03
   Last elements... -3.423575154633E-03  -2.453345882481E-03  -1.711415755591E-03
   Sum of elements... -1.488932149799E+02
   Sum of squares of elements... 1.285721569363E+01
@@ -735,7 +735,7 @@
   Source: 020_cube_wannier-2-06-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -2.322473159257E-10  3.695376384129E-04  9.967524440440E-04
+  First elements... -2.322473165624E-10  3.695376384129E-04  9.967524440440E-04
   Last elements... 6.584079416388E-03  5.284677249622E-03  3.991480516406E-03
   Sum of elements... 1.383744429036E+02
   Sum of squares of elements... 1.450479389840E+01
@@ -797,13 +797,13 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -2.946980769765E-10  -2.418233297687E-04  -4.742055373263E-04
+  First elements... -2.946980770849E-10  -2.418233297687E-04  -4.742055373263E-04
   Last elements... 6.341145698083E-04  4.589078120641E-04  2.594282573088E-04
-  Sum of elements... 7.690647164244E-14
+  Sum of elements... 7.181505824044E-14
   Sum of squares of elements... 5.006518276259E-01
   Cell integral (grid SUM) = 0.00000000
   Min: -4.20351171E-02
-  Average: 2.34699926E-18
+  Average: 2.19162165E-18
   Max: 4.20351091E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
