@@ -1,0 +1,362 @@
++ Field number 1
+  Source: ../zz_source/qe-6.5/feo_nosym/rhoae.cube
+  Type: grid
+  Grid dimensions : 36  36  36
+  First elements... 5.335600000000E+04  1.037000000000E+02  1.487400000000E+01
+  Last elements... 2.891200000000E+00  4.104700000000E+00  7.154400000000E+00
+  Sum of elements... 6.437539477201E+04
+  Sum of squares of elements... 2.847198298896E+09
+  Cell integral (grid SUM) = 189.24062005
+  Min: 1.09970000E-02
+  Average: 1.37978813E+00
+  Max: 5.33560000E+04
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/qe-6.5/feo_nosym/feo.pwc
+  Type: grid
+  Grid dimensions : 36  36  36
+  First elements... 5.839851433795E-04  1.034313622256E-02  1.188284367959E-01
+  Last elements... 6.804558054365E-01  4.741987579667E-01  2.211650520331E-01
+  Sum of elements... 4.762484537371E+03
+  Sum of squares of elements... 1.690248732566E+03
+  Cell integral (grid SUM) = 14.00000000
+  Min: 5.83985143E-04
+  Average: 1.02076572E-01
+  Max: 1.02539137E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+
++ Plane-wave Kohn-Sham states for this field
+  Spin: 2 K-points: 8 Bands: 11
+# kpt  1 (0.0000 0.0000 0.0000) w=1.25000000E-01
+  Ek(1):  -8.49   7.38   7.38   7.45   7.61   7.87   8.51   8.53   8.53  11.80  27.62
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00
+  Ek(2):  -8.49   7.38   7.38   7.45   7.61   7.87   8.51   8.53   8.53  11.80  27.62
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00
+# kpt  2 (-0.0000 0.0000 -0.5000) w=1.25000000E-01
+  Ek(1):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  3 (0.0000 -0.5000 0.0000) w=1.25000000E-01
+  Ek(1):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  4 (0.0000 -0.5000 -0.5000) w=1.25000000E-01
+  Ek(1):  -7.26   4.78   6.57   7.27   7.30   8.02   8.37   8.45   8.69  16.81  20.67
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.26   4.78   6.57   7.27   7.30   8.02   8.37   8.45   8.69  16.81  20.67
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  5 (-0.5000 -0.0000 -0.0000) w=1.25000000E-01
+  Ek(1):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  6 (-0.5000 0.0000 -0.5000) w=1.25000000E-01
+  Ek(1):  -7.26   4.75   6.64   7.30   7.30   8.24   8.37   8.37   8.48  16.79  20.65
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.26   4.75   6.64   7.30   7.30   8.24   8.37   8.37   8.48  16.79  20.65
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  7 (-0.5000 -0.5000 0.0000) w=1.25000000E-01
+  Ek(1):  -7.26   4.78   6.57   7.27   7.30   8.02   8.37   8.45   8.69  16.81  20.67
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.26   4.78   6.57   7.27   7.30   8.02   8.37   8.45   8.69  16.81  20.67
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+# kpt  8 (-0.5000 -0.5000 -0.5000) w=1.25000000E-01
+  Ek(1):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Ek(2):  -7.29   3.30   5.23   5.35   8.16   8.17   8.88  11.48  11.61  15.87  20.27
+ Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   0.00   0.00
+  Alias for this field (1): $2
+
+* List of integrable properties (4)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+    4   f        2  $2  
+
+* List of integrable properties (5)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+    4   f        2  $2  
+    5  dloc      2  $2#deloca  | Bloch overlaps, use_Sij_chk = No, use_Fa_chk = No
+
+* Henkelman et al. integration 
+  Please cite: 
+    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
+    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
+    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
++ Distance atomic assignment (bohr): 1.0000E+40
++ Attractors in BADER: 2
++ Attractors after reordering: 2
+
++ Integrating atomic properties
+
++ Integrated property (number 1): Volume
++ Integrated property (number 2): Pop
++ Integrated property (number 3): Lap
++ Integrated property (number 4): $2
++ Integrated property (number 5): $2#deloca
+# Calculating atomic overlap matrices
+  Attractors before remapping = 2
+  Attractors after remapping = 15
+  Number of bands (nbnd) = 11
+  ... lattice translations (nlat) = 2 2 2
+  ... unique grid functions (nbnd x nlat) = 8
+  ... spin channels = 2
+  Calculating overlaps using Bloch states (psink)
+# Calculating overlaps...
+    State k=1 n=1 of total (k=8,n=10). Spin 1/2
+    State k=1 n=2 of total (k=8,n=10). Spin 1/2
+    State k=1 n=3 of total (k=8,n=10). Spin 1/2
+    State k=1 n=4 of total (k=8,n=10). Spin 1/2
+    State k=1 n=5 of total (k=8,n=10). Spin 1/2
+    State k=1 n=6 of total (k=8,n=10). Spin 1/2
+    State k=1 n=7 of total (k=8,n=10). Spin 1/2
+    State k=1 n=8 of total (k=8,n=10). Spin 1/2
+    State k=1 n=9 of total (k=8,n=10). Spin 1/2
+    State k=1 n=10 of total (k=8,n=10). Spin 1/2
+    State k=2 n=1 of total (k=8,n=10). Spin 1/2
+    State k=2 n=2 of total (k=8,n=10). Spin 1/2
+    State k=2 n=3 of total (k=8,n=10). Spin 1/2
+    State k=2 n=4 of total (k=8,n=10). Spin 1/2
+    State k=2 n=5 of total (k=8,n=10). Spin 1/2
+    State k=2 n=6 of total (k=8,n=10). Spin 1/2
+    State k=2 n=7 of total (k=8,n=10). Spin 1/2
+    State k=2 n=8 of total (k=8,n=10). Spin 1/2
+    State k=2 n=9 of total (k=8,n=10). Spin 1/2
+    State k=2 n=10 of total (k=8,n=10). Spin 1/2
+    State k=3 n=1 of total (k=8,n=10). Spin 1/2
+    State k=3 n=2 of total (k=8,n=10). Spin 1/2
+    State k=3 n=3 of total (k=8,n=10). Spin 1/2
+    State k=3 n=4 of total (k=8,n=10). Spin 1/2
+    State k=3 n=5 of total (k=8,n=10). Spin 1/2
+    State k=3 n=6 of total (k=8,n=10). Spin 1/2
+    State k=3 n=7 of total (k=8,n=10). Spin 1/2
+    State k=3 n=8 of total (k=8,n=10). Spin 1/2
+    State k=3 n=9 of total (k=8,n=10). Spin 1/2
+    State k=3 n=10 of total (k=8,n=10). Spin 1/2
+    State k=4 n=1 of total (k=8,n=10). Spin 1/2
+    State k=4 n=2 of total (k=8,n=10). Spin 1/2
+    State k=4 n=3 of total (k=8,n=10). Spin 1/2
+    State k=4 n=4 of total (k=8,n=10). Spin 1/2
+    State k=4 n=5 of total (k=8,n=10). Spin 1/2
+    State k=4 n=6 of total (k=8,n=10). Spin 1/2
+    State k=4 n=7 of total (k=8,n=10). Spin 1/2
+    State k=4 n=8 of total (k=8,n=10). Spin 1/2
+    State k=4 n=9 of total (k=8,n=10). Spin 1/2
+    State k=4 n=10 of total (k=8,n=10). Spin 1/2
+    State k=5 n=1 of total (k=8,n=10). Spin 1/2
+    State k=5 n=2 of total (k=8,n=10). Spin 1/2
+    State k=5 n=3 of total (k=8,n=10). Spin 1/2
+    State k=5 n=4 of total (k=8,n=10). Spin 1/2
+    State k=5 n=5 of total (k=8,n=10). Spin 1/2
+    State k=5 n=6 of total (k=8,n=10). Spin 1/2
+    State k=5 n=7 of total (k=8,n=10). Spin 1/2
+    State k=5 n=8 of total (k=8,n=10). Spin 1/2
+    State k=5 n=9 of total (k=8,n=10). Spin 1/2
+    State k=5 n=10 of total (k=8,n=10). Spin 1/2
+    State k=6 n=1 of total (k=8,n=10). Spin 1/2
+    State k=6 n=2 of total (k=8,n=10). Spin 1/2
+    State k=6 n=3 of total (k=8,n=10). Spin 1/2
+    State k=6 n=4 of total (k=8,n=10). Spin 1/2
+    State k=6 n=5 of total (k=8,n=10). Spin 1/2
+    State k=6 n=6 of total (k=8,n=10). Spin 1/2
+    State k=6 n=7 of total (k=8,n=10). Spin 1/2
+    State k=6 n=8 of total (k=8,n=10). Spin 1/2
+    State k=6 n=9 of total (k=8,n=10). Spin 1/2
+    State k=6 n=10 of total (k=8,n=10). Spin 1/2
+    State k=7 n=1 of total (k=8,n=10). Spin 1/2
+    State k=7 n=2 of total (k=8,n=10). Spin 1/2
+    State k=7 n=3 of total (k=8,n=10). Spin 1/2
+    State k=7 n=4 of total (k=8,n=10). Spin 1/2
+    State k=7 n=5 of total (k=8,n=10). Spin 1/2
+    State k=7 n=6 of total (k=8,n=10). Spin 1/2
+    State k=7 n=7 of total (k=8,n=10). Spin 1/2
+    State k=7 n=8 of total (k=8,n=10). Spin 1/2
+    State k=7 n=9 of total (k=8,n=10). Spin 1/2
+    State k=7 n=10 of total (k=8,n=10). Spin 1/2
+    State k=8 n=1 of total (k=8,n=10). Spin 1/2
+    State k=8 n=2 of total (k=8,n=10). Spin 1/2
+    State k=8 n=3 of total (k=8,n=10). Spin 1/2
+    State k=8 n=4 of total (k=8,n=10). Spin 1/2
+    State k=8 n=5 of total (k=8,n=10). Spin 1/2
+    State k=8 n=6 of total (k=8,n=10). Spin 1/2
+    State k=8 n=7 of total (k=8,n=10). Spin 1/2
+    State k=8 n=8 of total (k=8,n=10). Spin 1/2
+    State k=8 n=9 of total (k=8,n=10). Spin 1/2
+    State k=8 n=10 of total (k=8,n=10). Spin 1/2
+    State k=1 n=1 of total (k=8,n=8). Spin 2/2
+    State k=1 n=2 of total (k=8,n=8). Spin 2/2
+    State k=1 n=3 of total (k=8,n=8). Spin 2/2
+    State k=1 n=4 of total (k=8,n=8). Spin 2/2
+    State k=1 n=5 of total (k=8,n=8). Spin 2/2
+    State k=1 n=6 of total (k=8,n=8). Spin 2/2
+    State k=1 n=7 of total (k=8,n=8). Spin 2/2
+    State k=1 n=8 of total (k=8,n=8). Spin 2/2
+    State k=2 n=1 of total (k=8,n=8). Spin 2/2
+    State k=2 n=2 of total (k=8,n=8). Spin 2/2
+    State k=2 n=3 of total (k=8,n=8). Spin 2/2
+    State k=2 n=4 of total (k=8,n=8). Spin 2/2
+    State k=2 n=5 of total (k=8,n=8). Spin 2/2
+    State k=2 n=6 of total (k=8,n=8). Spin 2/2
+    State k=2 n=7 of total (k=8,n=8). Spin 2/2
+    State k=2 n=8 of total (k=8,n=8). Spin 2/2
+    State k=3 n=1 of total (k=8,n=8). Spin 2/2
+    State k=3 n=2 of total (k=8,n=8). Spin 2/2
+    State k=3 n=3 of total (k=8,n=8). Spin 2/2
+    State k=3 n=4 of total (k=8,n=8). Spin 2/2
+    State k=3 n=5 of total (k=8,n=8). Spin 2/2
+    State k=3 n=6 of total (k=8,n=8). Spin 2/2
+    State k=3 n=7 of total (k=8,n=8). Spin 2/2
+    State k=3 n=8 of total (k=8,n=8). Spin 2/2
+    State k=4 n=1 of total (k=8,n=8). Spin 2/2
+    State k=4 n=2 of total (k=8,n=8). Spin 2/2
+    State k=4 n=3 of total (k=8,n=8). Spin 2/2
+    State k=4 n=4 of total (k=8,n=8). Spin 2/2
+    State k=4 n=5 of total (k=8,n=8). Spin 2/2
+    State k=4 n=6 of total (k=8,n=8). Spin 2/2
+    State k=4 n=7 of total (k=8,n=8). Spin 2/2
+    State k=4 n=8 of total (k=8,n=8). Spin 2/2
+    State k=5 n=1 of total (k=8,n=8). Spin 2/2
+    State k=5 n=2 of total (k=8,n=8). Spin 2/2
+    State k=5 n=3 of total (k=8,n=8). Spin 2/2
+    State k=5 n=4 of total (k=8,n=8). Spin 2/2
+    State k=5 n=5 of total (k=8,n=8). Spin 2/2
+    State k=5 n=6 of total (k=8,n=8). Spin 2/2
+    State k=5 n=7 of total (k=8,n=8). Spin 2/2
+    State k=5 n=8 of total (k=8,n=8). Spin 2/2
+    State k=6 n=1 of total (k=8,n=8). Spin 2/2
+    State k=6 n=2 of total (k=8,n=8). Spin 2/2
+    State k=6 n=3 of total (k=8,n=8). Spin 2/2
+    State k=6 n=4 of total (k=8,n=8). Spin 2/2
+    State k=6 n=5 of total (k=8,n=8). Spin 2/2
+    State k=6 n=6 of total (k=8,n=8). Spin 2/2
+    State k=6 n=7 of total (k=8,n=8). Spin 2/2
+    State k=6 n=8 of total (k=8,n=8). Spin 2/2
+    State k=7 n=1 of total (k=8,n=8). Spin 2/2
+    State k=7 n=2 of total (k=8,n=8). Spin 2/2
+    State k=7 n=3 of total (k=8,n=8). Spin 2/2
+    State k=7 n=4 of total (k=8,n=8). Spin 2/2
+    State k=7 n=5 of total (k=8,n=8). Spin 2/2
+    State k=7 n=6 of total (k=8,n=8). Spin 2/2
+    State k=7 n=7 of total (k=8,n=8). Spin 2/2
+    State k=7 n=8 of total (k=8,n=8). Spin 2/2
+    State k=8 n=1 of total (k=8,n=8). Spin 2/2
+    State k=8 n=2 of total (k=8,n=8). Spin 2/2
+    State k=8 n=3 of total (k=8,n=8). Spin 2/2
+    State k=8 n=4 of total (k=8,n=8). Spin 2/2
+    State k=8 n=5 of total (k=8,n=8). Spin 2/2
+    State k=8 n=6 of total (k=8,n=8). Spin 2/2
+    State k=8 n=7 of total (k=8,n=8). Spin 2/2
+    State k=8 n=8 of total (k=8,n=8). Spin 2/2
+# Calculating Fa
+
+* List of properties integrated in the attractor basins
++ The "Label" entries will be used to identify the integrable
+  in the tables of integrated atomic properties. The entries with
+  an "x" will not be integrated.
+# id    Label      fid  Field       Additional
+  1       Volume    -- Volume       
+  2        Pop       1 Field (v)    
+  3        Lap       1 Laplcn (v)   
+  4         $2       2 Field        
+  5     $2#deloca    2 Deloc indx   
+
+* Key for the interpretation of table headings
+# Id = attractor identifier
+# cp/at = critical point/atom from the complete CP/atom list
+# (lvec) = lattice translation from CP/atom to the main cell's representative
+# ncp/nat = critical point/atom from the non-equivalent CP/atom list
+# Name = atomic name
+# Z = atomic number
+# Position = atomic position
+# Mol = molecule identifier (see corresponding table above)
+# Volume = volume of the reference field basins.
+# Pop (population) = the reference field integrated in its own basins.
+# Lap = Laplacian of the reference field integrated in the reference field basins.
+# $xxx = field xxx integrated in the basins of the reference field.
+
+* List of attractors integrated
+# Id   cp   ncp   Name  Z   mult           Position (cryst.) 
+  1    1    1      fe   26  --    0.0000000    0.0000000    0.0000000 
+  2    2    2      o    8   --    0.5000000    0.5000000    0.5000000 
+
+* Integrated atomic properties
+# (See key above for interpretation of column headings.)
+# Integrable properties 1 to 4
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap             $2       
+  1    1    1      fe   26  --   6.30229868E+01  1.79206691E+02  8.54566556E+02  6.62307875E+00
+  2    2    2      o    8   --   7.41289546E+01  1.00339290E+01 -8.54566556E+02  7.37692125E+00
+------------------------------------------------------------------------------------------------
+  Sum                            1.37151941E+02  1.89240620E+02 -4.42582859E-10  1.40000000E+01
+
+* Localization and delocalization indices
++ Integrated property (number 5): $2#deloca
++ Localization indices
+# Id   cp   ncp   Name  Z       LI(A)           N(A)
+  1    1    1      fe   26   4.94255231      6.62307875
+  2    2    2      o    8    6.06554359      7.37692125
+
++ Delocalization indices
+  Each block gives information about a single atom in the main cell.
+  First line: localization index. Next lines: delocaliazation index
+  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
+  equal to the atomic population. Distances are in bohr.
+# Attractor 1 (cp=1, ncp=1, name=fe, Z=26) at: 0.0000000  0.0000000  0.0000000
+# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
+  Localization index.......................................................................  4.94255231
+  14   2    2      o    8   -1  -1   0  -0.5000000   -0.5000000    0.5000000    4.0931468    0.34181373
+  12   2    2      o    8   -1   0  -1  -0.5000000    0.5000000   -0.5000000    4.0931468    0.34199003
+  10   2    2      o    8   -1   0   0  -0.5000000    0.5000000    0.5000000    4.0931468    0.34194470
+  8    2    2      o    8    0  -1  -1   0.5000000   -0.5000000   -0.5000000    4.0931468    0.34202049
+  4    2    2      o    8    0   0  -1   0.5000000    0.5000000   -0.5000000    4.0931468    0.34214415
+  6    2    2      o    8    0  -1   0   0.5000000   -0.5000000    0.5000000    4.0931468    0.34245441
+  7    1    1      fe   26   0   1  -1   0.0000000    1.0000000   -1.0000000    5.7885837    0.16624400
+  9    1    1      fe   26  -1   0   0  -1.0000000    0.0000000    0.0000000    5.7885837    0.16626420
+  5    1    1      fe   26   0  -1   0   0.0000000   -1.0000000    0.0000000    5.7885837    0.16354280
+  11   1    1      fe   26   1   0  -1   1.0000000    0.0000000   -1.0000000    5.7885837    0.16354277
+  3    1    1      fe   26   0   0  -1   0.0000000    0.0000000   -1.0000000    5.7885837    0.16628660
+  13   1    1      fe   26  -1   1   0  -1.0000000    1.0000000    0.0000000    5.7885837    0.16628664
+  2    2    2      o    8    0  -2   0   0.5000000   -1.5000000    0.5000000    7.0895382    0.01907511
+  16   2    2      o    8   -1  -1  -1  -0.5000000   -0.5000000   -0.5000000    7.0895382    0.01907512
+  15   1    1      fe   26  -1   1  -1  -1.0000000    1.0000000   -1.0000000    8.1862936    0.27836813
+  Total (atomic population)................................................................  6.62307875
+
+# Attractor 2 (cp=2, ncp=2, name=o, Z=8) at: 0.5000000  0.5000000  0.5000000
+# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
+  Localization index.......................................................................  6.06554359
+  5    1    1      fe   26   0   1   0   0.0000000    1.0000000    0.0000000    4.0931468    0.34245441
+  9    1    1      fe   26   1   0   0   1.0000000    0.0000000    0.0000000    4.0931468    0.34194470
+  11   1    1      fe   26   1   0   1   1.0000000    0.0000000    1.0000000    4.0931468    0.34199003
+  7    1    1      fe   26   0   1   1   0.0000000    1.0000000    1.0000000    4.0931468    0.34202049
+  13   1    1      fe   26   1   1   0   1.0000000    1.0000000    0.0000000    4.0931468    0.34181373
+  3    1    1      fe   26   0   0   1   0.0000000    0.0000000    1.0000000    4.0931468    0.34214415
+  12   2    2      o    8    1   0  -1   1.5000000    0.5000000   -0.5000000    5.7885837    0.07329556
+  14   2    2      o    8   -1   1   0  -0.5000000    1.5000000    0.5000000    5.7885837    0.07344395
+  4    2    2      o    8    0   0  -1   0.5000000    0.5000000   -0.5000000    5.7885837    0.07352516
+  10   2    2      o    8   -1   0   0  -0.5000000    0.5000000    0.5000000    5.7885837    0.07347723
+  8    2    2      o    8    0   1  -1   0.5000000    1.5000000   -0.5000000    5.7885837    0.07348813
+  6    2    2      o    8    0  -1   0   0.5000000   -0.5000000    0.5000000    5.7885837    0.07334619
+  1    1    1      fe   26   0   2   0   0.0000000    2.0000000    0.0000000    7.0895382    0.01907511
+  15   1    1      fe   26  -1   1   1  -1.0000000    1.0000000    1.0000000    7.0895382    0.01907512
+  16   2    2      o    8   -1   1  -1  -0.5000000    1.5000000   -0.5000000    8.1862936    0.09166136
+  Total (atomic population)................................................................  7.37692125
+

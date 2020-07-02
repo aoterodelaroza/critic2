@@ -9,7 +9,11 @@ set(TESTS
   008_bader_plot           ## bader keyword, plotting and output options
   009_integrable_basic     ## integrable keyword, basic
   010_integrable_multipole ## integrable keyword, multipole
-  011_integrable_deloc     ## integrable keyword, deloc
+  011_dis_wnr              ## integrable keyword, dis, with wnr
+  012_dis_psink            ## integrable keyword, dis, with psink
+  013_dis_wnr_feo          ## integrable keyword, dis, with wnr (spinpol)
+  014_dis_psink_feo        ## integrable keyword, dis, with psink (spinpol)
+  015_dis_psink_na         ## integrable keyword, dis, with psink (metal)
   )
 
 runtests(${TESTS})

@@ -1,0 +1,211 @@
++ Field number 1
+  Source: ../zz_source/qe-6.5/na_nosym/rhoae.cube
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 1.239600000000E+03  2.316600000000E+01  4.745300000000E+00
+  Last elements... 3.616100000000E+00  6.352200000000E+00  2.316600000000E+01
+  Sum of elements... 3.760370939900E+03
+  Sum of squares of elements... 1.545933412309E+06
+  Cell integral (grid SUM) = 14.95193722
+  Min: 4.39080000E-03
+  Average: 5.87557959E-02
+  Max: 1.23960000E+03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/qe-6.5/na_nosym/na.pwc
+  Type: grid
+  Grid dimensions : 40  40  40
+  First elements... 4.488391653586E-04  4.927066995422E-04  6.162193640727E-04
+  Last elements... 7.046161186180E-04  5.627792868344E-04  4.927069077714E-04
+  Sum of elements... 2.514972398032E+02
+  Sum of squares of elements... 1.026118568983E+00
+  Cell integral (grid SUM) = 1.00000000
+  Min: 4.48839165E-04
+  Average: 3.92964437E-03
+  Max: 4.48785666E-03
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+
++ Plane-wave Kohn-Sham states for this field
+  Spin: 1 K-points: 8 Bands: 5
+# kpt  1 (0.0000 0.0000 0.0000) w=2.50000000E-01
+  Ek(1):  -3.20  13.16  13.16  13.16  13.30
+ Occ(1):   2.01   0.00   0.00   0.00   0.00
+# kpt  2 (0.0000 -0.0000 -0.5000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  3 (0.0000 -0.5000 -0.0000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  4 (-0.0000 -0.5000 -0.5000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  5 (-0.5000 0.0000 -0.0000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  6 (-0.5000 -0.0000 -0.5000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  7 (-0.5000 -0.5000 -0.0000) w=2.50000000E-01
+  Ek(1):   0.78   1.38   9.03   9.17   9.24
+ Occ(1):   0.73   0.27   0.00   0.00   0.00
+# kpt  8 (-0.5000 -0.5000 -0.5000) w=2.50000000E-01
+  Ek(1):   4.89   4.89   4.89   5.10   7.63
+ Occ(1):   0.00   0.00   0.00   0.00   0.00
+  Alias for this field (1): $2
+
+* List of integrable properties (4)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+    4   f        2  $2  
+
+* List of integrable properties (5)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+    4   f        2  $2  
+    5  dloc      2  $2#deloca  | Bloch overlaps, use_Sij_chk = No, use_Fa_chk = No
+
+* Henkelman et al. integration 
+  Please cite: 
+    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
+    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
+    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
++ Distance atomic assignment (bohr): 1.0000E+40
++ Attractors in BADER: 1
++ Attractors after reordering: 1
+
++ Integrating atomic properties
+
++ Integrated property (number 1): Volume
++ Integrated property (number 2): Pop
++ Integrated property (number 3): Lap
++ Integrated property (number 4): $2
++ Integrated property (number 5): $2#deloca
+# Calculating atomic overlap matrices
+  Attractors before remapping = 1
+  Attractors after remapping = 8
+  Number of bands (nbnd) = 5
+  ... lattice translations (nlat) = 2 2 2
+  ... unique grid functions (nbnd x nlat) = 8
+  ... spin channels = 1
+  Calculating overlaps using Bloch states (psink)
+# Calculating overlaps...
+    State k=1 n=1 of total (k=8,n=5). Spin 1/1
+    State k=1 n=2 of total (k=8,n=5). Spin 1/1
+    State k=1 n=3 of total (k=8,n=5). Spin 1/1
+    State k=1 n=4 of total (k=8,n=5). Spin 1/1
+    State k=1 n=5 of total (k=8,n=5). Spin 1/1
+    State k=2 n=1 of total (k=8,n=5). Spin 1/1
+    State k=2 n=2 of total (k=8,n=5). Spin 1/1
+    State k=2 n=3 of total (k=8,n=5). Spin 1/1
+    State k=2 n=4 of total (k=8,n=5). Spin 1/1
+    State k=2 n=5 of total (k=8,n=5). Spin 1/1
+    State k=3 n=1 of total (k=8,n=5). Spin 1/1
+    State k=3 n=2 of total (k=8,n=5). Spin 1/1
+    State k=3 n=3 of total (k=8,n=5). Spin 1/1
+    State k=3 n=4 of total (k=8,n=5). Spin 1/1
+    State k=3 n=5 of total (k=8,n=5). Spin 1/1
+    State k=4 n=1 of total (k=8,n=5). Spin 1/1
+    State k=4 n=2 of total (k=8,n=5). Spin 1/1
+    State k=4 n=3 of total (k=8,n=5). Spin 1/1
+    State k=4 n=4 of total (k=8,n=5). Spin 1/1
+    State k=4 n=5 of total (k=8,n=5). Spin 1/1
+    State k=5 n=1 of total (k=8,n=5). Spin 1/1
+    State k=5 n=2 of total (k=8,n=5). Spin 1/1
+    State k=5 n=3 of total (k=8,n=5). Spin 1/1
+    State k=5 n=4 of total (k=8,n=5). Spin 1/1
+    State k=5 n=5 of total (k=8,n=5). Spin 1/1
+    State k=6 n=1 of total (k=8,n=5). Spin 1/1
+    State k=6 n=2 of total (k=8,n=5). Spin 1/1
+    State k=6 n=3 of total (k=8,n=5). Spin 1/1
+    State k=6 n=4 of total (k=8,n=5). Spin 1/1
+    State k=6 n=5 of total (k=8,n=5). Spin 1/1
+    State k=7 n=1 of total (k=8,n=5). Spin 1/1
+    State k=7 n=2 of total (k=8,n=5). Spin 1/1
+    State k=7 n=3 of total (k=8,n=5). Spin 1/1
+    State k=7 n=4 of total (k=8,n=5). Spin 1/1
+    State k=7 n=5 of total (k=8,n=5). Spin 1/1
+    State k=8 n=1 of total (k=8,n=5). Spin 1/1
+    State k=8 n=2 of total (k=8,n=5). Spin 1/1
+    State k=8 n=3 of total (k=8,n=5). Spin 1/1
+    State k=8 n=4 of total (k=8,n=5). Spin 1/1
+    State k=8 n=5 of total (k=8,n=5). Spin 1/1
+# Calculating Fa
+
+* List of properties integrated in the attractor basins
++ The "Label" entries will be used to identify the integrable
+  in the tables of integrated atomic properties. The entries with
+  an "x" will not be integrated.
+# id    Label      fid  Field       Additional
+  1       Volume    -- Volume       
+  2        Pop       1 Field (v)    
+  3        Lap       1 Laplcn (v)   
+  4         $2       2 Field        
+  5     $2#deloca    2 Deloc indx   
+
+* Key for the interpretation of table headings
+# Id = attractor identifier
+# cp/at = critical point/atom from the complete CP/atom list
+# (lvec) = lattice translation from CP/atom to the main cell's representative
+# ncp/nat = critical point/atom from the non-equivalent CP/atom list
+# Name = atomic name
+# Z = atomic number
+# Position = atomic position
+# Mol = molecule identifier (see corresponding table above)
+# Volume = volume of the reference field basins.
+# Pop (population) = the reference field integrated in its own basins.
+# Lap = Laplacian of the reference field integrated in the reference field basins.
+# $xxx = field xxx integrated in the basins of the reference field.
+
+* List of attractors integrated
+# Id   cp   ncp   Name  Z   mult           Position (cryst.) 
+  1    1    1      na   11  --    0.0000000    0.0000000    0.0000000 
+
+* Integrated atomic properties
+# (See key above for interpretation of column headings.)
+# Integrable properties 1 to 4
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap             $2       
+  1    1    1      na   11  --   2.54475954E+02  1.49519372E+01  8.77681060E-12  1.00000000E+00
+------------------------------------------------------------------------------------------------
+  Sum                            2.54475954E+02  1.49519372E+01  8.77681060E-12  1.00000000E+00
+
+* Localization and delocalization indices
++ Integrated property (number 5): $2#deloca
++ Localization indices
+# Id   cp   ncp   Name  Z       LI(A)           N(A)
+  1    1    1      na   11   0.12124363      0.47675142
+
++ Delocalization indices
+  Each block gives information about a single atom in the main cell.
+  First line: localization index. Next lines: delocaliazation index
+  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
+  equal to the atomic population. Distances are in bohr.
+# Attractor 1 (cp=1, ncp=1, name=na, Z=11) at: 0.0000000  0.0000000  0.0000000
+# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
+  Localization index.......................................................................  0.12124363
+  8    1    1      na   11  -1  -1  -1  -1.0000000   -1.0000000   -1.0000000    6.9144273    0.11582791
+  5    1    1      na   11  -1   0   0  -1.0000000    0.0000000    0.0000000    6.9144273    0.11716997
+  2    1    1      na   11   0   0  -1   0.0000000    0.0000000   -1.0000000    6.9144273    0.11729266
+  3    1    1      na   11   0  -1   0   0.0000000   -1.0000000    0.0000000    6.9144273    0.11722427
+  4    1    1      na   11   0  -1  -1   0.0000000   -1.0000000   -1.0000000    7.9840929    0.08112712
+  6    1    1      na   11  -1   0  -1  -1.0000000    0.0000000   -1.0000000    7.9840929    0.08108976
+  7    1    1      na   11  -1  -1   0  -1.0000000   -1.0000000    0.0000000    7.9840929    0.08128390
+  Total (atomic population)................................................................  0.47675142
+

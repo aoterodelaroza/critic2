@@ -1,0 +1,11 @@
+## check: 015_dis_psink_na.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/na_nosym/na.pwc
+load ../zz_source/qe-6.5/na_nosym/rhoae.cube
+load ../zz_source/qe-6.5/na_nosym/na.pwc
+
+integrable 2
+integrable 2 deloc nosijchk nofachk
+
+bader

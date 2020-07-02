@@ -1,0 +1,11 @@
+## check: 014_dis_psink_feo.cro -a1e-10
+## labels: regression
+
+crystal ../zz_source/qe-6.5/feo_nosym/feo.pwc
+load ../zz_source/qe-6.5/feo_nosym/rhoae.cube
+load ../zz_source/qe-6.5/feo_nosym/feo.pwc
+
+integrable 2
+integrable 2 deloc nosijchk nofachk
+
+bader

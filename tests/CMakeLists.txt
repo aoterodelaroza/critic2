@@ -6,7 +6,7 @@ set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
 set(TEST_URL 
   http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
   )
-set(TEST_SHA1_HASH 6f345d22c6813d0f358cf30a6faf3c5bd933043b)
+set(TEST_SHA1_HASH 8c27f8262ecf75fc3b01839354c48427de277c20)
 
 ## list of test bundles
 set(TESTDIRS 

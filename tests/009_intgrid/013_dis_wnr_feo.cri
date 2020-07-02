@@ -1,0 +1,11 @@
+## check: 013_dis_wnr_feo.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/feo/feo.pwc
+load ../zz_source/qe-6.5/feo/rhoae.cube
+load ../zz_source/qe-6.5/feo/feo.pwc ../zz_source/qe-6.5/feo/feo_up.chk ../zz_source/qe-6.5/feo/feo_dn.chk
+
+integrable 2
+integrable 2 deloc nosijchk nofachk
+
+bader
