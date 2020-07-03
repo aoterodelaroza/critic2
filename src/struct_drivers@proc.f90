@@ -1465,27 +1465,27 @@ contains
           isdone(idx) = .true.
 
           if (iby_mode == iid) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
           elseif (iby_mode == iznuc) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
           else
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,nozero=.true.)
           end if
           if (ierr > 0 .and..not.s%c%ismolecule) then
              call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
              call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
              else
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,nozero=.true.)
              end if
              if (ierr > 0) &
                 call ferror('struct_environ','unknown error calculating atom environment',faterr)
@@ -1506,21 +1506,21 @@ contains
        deallocate(isdone)
     else
        if (iby_mode == iid) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
        elseif (iby_mode == iznuc) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
        else
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
        end if
        if (ierr > 0 .and..not.s%c%ismolecule) then
           call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
           call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
           if (iby_mode == iid) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
           elseif (iby_mode == iznuc) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
           else
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
           end if
           if (ierr > 0) &
              call ferror('struct_environ','unknown error calculating point environment',faterr)
@@ -1635,9 +1635,9 @@ contains
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd, rnew
     logical :: ok
-    integer :: nat, ierr, lvec(3)
+    integer :: nat, ierr
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
-    real*8, allocatable :: dist(:), up2dsp(:,:)
+    real*8, allocatable :: up2dsp(:,:)
     type(environ), pointer :: eptr
 
     ! allocate the default radii
@@ -1738,7 +1738,7 @@ contains
     eptr => s%c%env
     do i = 1, s%c%nneq
        up2dsp(:,2) = rad + rad(s%c%at(i)%is)
-       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,ierr,up2dsp=up2dsp,nozero=.true.)
+       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,ierr,eid,up2dsp=up2dsp,nozero=.true.)
        do j = 1, nat
           coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
        end do
@@ -2146,8 +2146,8 @@ contains
 
     logical :: ok
     integer :: i, j, k, n
-    integer :: nat, lvec(3), ierr
-    integer, allocatable :: eid(:), ishell(:)
+    integer :: nat, ierr
+    integer, allocatable :: eid(:)
     real*8 :: dist0, econ, up2d  
     real*8 :: wi, numer, econprev
     real*8, allocatable :: econij(:,:), ndij(:,:), dist(:)
@@ -2175,7 +2175,7 @@ contains
           if (s%c%ismolecule .AND. s%c%ncel == 1) cycle
 
           ! grab the environment for this atom
-          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,up2d=up2d,nozero=.true.)
 
           ! get the minimum distance for all the species
           mindist = -1d0

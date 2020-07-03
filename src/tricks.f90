@@ -492,37 +492,37 @@ contains
   !     !       write (*,*) j, nneig1(j), wat1(j), dd1(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2n=10)
   !     !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2n=10000)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2n=10000)
   !     !    write (*,*) "list_near_atoms environment (n), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2sh=10)
   !     !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2sh=10000)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2sh=10000)
   !     !    write (*,*) "list_near_atoms environment (sh), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=5d0)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2d=5d0)
   !     !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
   !     !    end do
 
-  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=3000d0)
+  !     !    call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2d=3000d0)
   !     !    write (*,*) "list_near_atoms environment (dist), nat = ", nat, "(",ierr,")"
   !     !    do j = 1, nat
   !     !       write (*,*) j, nida(j), dista(j), ishella(j)
@@ -539,7 +539,7 @@ contains
   !     ! ! end do
   !     ! ! x = 100d0
   !     ! ! x = 0.6d0
-  !     ! call env%list_near_atoms(x,icrd_crys,.true.,nat,nida,dista,lveca,ierr,ishella,up2d=20d0)
+  !     ! call env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,nida,dista,lveca,ishella,up2d=20d0)
   !     ! write (*,*) "list_near_atoms environment, nat = ", nat, " ierr = ", ierr
   !     ! do j = 1, nat
   !     !    write (*,*) j, env%at(nida(j))%idx, nida(j), dista(j), ishella(j)

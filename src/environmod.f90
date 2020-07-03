@@ -299,7 +299,7 @@ module environmod
        integer, intent(in), optional :: is0
        logical, intent(in), optional :: nozero
      endsubroutine nearest_atom_dumb
-     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,&
+     module subroutine list_near_atoms(e,xp,icrd,sorted,nat,ierr,eid,dist,lvec,ishell0,up2d,&
         up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
        use param, only: icrd_rcrys
        class(environ), intent(in) :: e
@@ -307,10 +307,10 @@ module environmod
        integer, intent(in) :: icrd
        logical, intent(in) :: sorted
        integer, intent(out) :: nat
-       integer, allocatable, intent(inout) :: eid(:)
-       real*8, allocatable, intent(inout) :: dist(:)
-       integer, intent(out) :: lvec(3)
        integer, intent(out) :: ierr
+       integer, allocatable, intent(inout), optional :: eid(:)
+       real*8, allocatable, intent(inout), optional :: dist(:)
+       integer, intent(out), optional :: lvec(3)
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
        real*8, intent(in), optional :: up2dsp(:,:)

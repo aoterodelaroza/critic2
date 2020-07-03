@@ -2146,7 +2146,7 @@ contains
     integer :: i, j
     integer :: imo
     real*8 :: hh(6,3), aocc, rhosum, gradsum(3), gkinsum, hsum(6)
-    integer :: nenv, lvec(3), ierr
+    integer :: nenv, ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
@@ -2163,7 +2163,7 @@ contains
     gkin = 0d0
     vir = 0d0
     stress = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dcidx=f%spcutoff)
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! calculate the MO values and derivatives at the point
@@ -2574,7 +2574,7 @@ contains
     logical :: ok
     real*8 :: phi_(1,1), rho, grad(3), hh(6)
     character*10 :: fderl
-    integer :: nenv, lvec(3), ierr
+    integer :: nenv, ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
 
@@ -2650,7 +2650,7 @@ contains
        call ferror("calculate_mo","Invalid molecular orbital",faterr)
 
     phi = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dcidx=f%spcutoff)
+    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (f%issto) then

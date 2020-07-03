@@ -1583,9 +1583,7 @@ contains
     real*8 :: xmin(3), xmax(3), x(3), vol, vtot, svol, pp
     integer :: i, nat
     real*8, allocatable :: rvdw(:,:)
-    integer, allocatable :: eid(:)
-    real*8, allocatable :: dist(:)
-    integer :: lvec(3), ierr
+    integer :: ierr
     integer*8 :: nin, ntot
     logical :: again
 
@@ -1619,7 +1617,7 @@ contains
        ntot = ntot + 1
        call random_number(x)
        x = xmin + x * (xmax - xmin)
-       call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=rvdw)
+       call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,up2dsp=rvdw)
        if (ierr > 0) then
           write (*,*) "error!"
           stop 1
@@ -1960,9 +1958,9 @@ contains
        end if
        iz = c%spc(c%at(i)%is)%z
        if (localenv) then
-          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
+          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        else
-          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
+          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        end if
 
        do j = 1, nat

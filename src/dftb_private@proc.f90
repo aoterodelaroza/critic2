@@ -262,7 +262,7 @@ contains
     grad = 0d0
     h = 0d0
     gkin = 0d0
-    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,lvec,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
