@@ -1,0 +1,10 @@
+## check: 045_load-pwc-contrib.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/qe-6.5/feo/feo.pwc
+
+load ../zz_source/qe-6.5/feo/feo.pwc spin 0
+load ../zz_source/qe-6.5/feo/feo.pwc spin 1
+load ../zz_source/qe-6.5/feo/feo.pwc spin 2
+load ../zz_source/qe-6.5/feo/feo.pwc kpt 1 2 3 4
+load ../zz_source/qe-6.5/feo/feo.pwc band 1 2 3 4
+load ../zz_source/qe-6.5/feo/feo.pwc erange -5. 5.

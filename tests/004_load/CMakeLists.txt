@@ -43,6 +43,7 @@ set(TESTS
   042_setfield             ## setfield keyword
   043_reference            ## reference keyword
   044_load-gaussian-rohf   ## from Gaussian files; restricted-open HF case
+  045_load-pwc-contrib     ## read pwc file; only some contributions
   )
 
 runtests(${TESTS})
