@@ -23,7 +23,7 @@ module param
   public
 
   ! named constants
-  real*8, parameter :: VBIG     = huge(1) !< a very big number
+  real*8, parameter :: VBIG     = huge(1d0) !< a very big number
   real*8, parameter :: VSMALL   = 1d-80   !< a very small number
   real*8, parameter :: pi       = 3.14159265358979323846d0 !< pi
   real*8, parameter :: log2     = log(2d0) !< ln(2)
