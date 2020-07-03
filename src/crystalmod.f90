@@ -152,6 +152,7 @@ module crystalmod
      procedure :: listmolecules !< List all molecules in the crystal
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
+     procedure :: vdw_volume !< Calculate the van der waals volume
 
      ! complex operations
      procedure :: powder !< Calculate the powder diffraction pattern
@@ -388,6 +389,11 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
+     module function vdw_volume(c,relerr) result(vvdw)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: relerr
+       real*8 :: vvdw
+     end function vdw_volume
      module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
         sigma,t,ih,th2p,ip,hvecp)
        class(crystal), intent(in) :: c

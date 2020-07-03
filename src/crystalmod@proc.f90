@@ -1571,6 +1571,72 @@ contains
 
   end function get_pack_ratio
 
+  !> Calculate the vdw volume in a molecule by Monte-Carlo sampling.
+  !> relerr = use enough points to obtain a standard deviation divided by the 
+  !> volume equal to this value.
+  module function vdw_volume(c,relerr) result(vvdw)
+    use param, only: VBIG, atmvdw, icrd_cart
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: relerr
+    real*8 :: vvdw
+
+    real*8 :: xmin(3), xmax(3), x(3), vol, vtot, svol, pp
+    integer :: i, nat
+    real*8, allocatable :: rvdw(:,:)
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+    integer :: lvec(3), ierr
+    integer*8 :: nin, ntot
+    logical :: again
+
+    ! calculate the encompassing box
+    if (c%ismolecule) then
+       xmin = VBIG
+       xmax = -VBIG
+       do i = 1, c%ncel
+          xmin = min(xmin,c%atcel(i)%r)
+          xmax = max(xmax,c%atcel(i)%r)
+       end do
+    end if
+
+    ! build the list of atomic radii
+    allocate(rvdw(c%nspc,2))
+    do i = 1, c%nspc
+       rvdw(c%nspc,1) = 0d0
+       rvdw(c%nspc,2) = atmvdw(c%spc(i)%z)
+    end do
+
+    ! enlarge the box to encompass all the spheres; total volume
+    xmin = xmin - maxval(rvdw(:,2))
+    xmax = xmax + maxval(rvdw(:,2))
+    vtot = product(xmax-xmin)
+
+    ! use Monte-Carlo to determine the volume
+    again = .true.
+    ntot = 0
+    nin = 0
+    do while (again)
+       ntot = ntot + 1
+       call random_number(x)
+       x = xmin + x * (xmax - xmin)
+       call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=rvdw)
+       if (ierr > 0) then
+          write (*,*) "error!"
+          stop 1
+       elseif (nat > 0) then
+          nin = nin + 1
+       end if
+
+       pp = real(nin,8) / real(ntot,8)
+       svol = vtot * sqrt(pp * (1-pp)/real(ntot,8))
+       vvdw = vtot * pp
+       if (ntot > 100) then
+          again = (svol > relerr * vvdw)
+       end if
+    end do
+
+  end function vdw_volume
+
   !> Calculate the powder diffraction pattern. 
   !> On input, npts is the number of 2*theta points from the initial
   !> (th2ini0) to the final (th2end0) 2*theta values. Both angles are
