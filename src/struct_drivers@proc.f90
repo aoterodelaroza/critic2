@@ -1855,7 +1855,7 @@ contains
 
     ! default values    
     dovdw = .false.
-    prec = 1d-1
+    prec = 1d-2
 
     ! header
     write (uout,'("* PACKING")')
@@ -1883,50 +1883,14 @@ contains
     if (.not.dovdw) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
-       ! prepare the grid
-       write (uout,'("+ Est. precision in the % packing ratio: ",A)') string(prec,'e',10,3)
-       prec = prec * s%c%omega / 100d0
-       write (uout,'("+ Est. precision in the interstitial volume: ",A)') trim(string(prec,'f',100,4))
-       alpha = (prec / s%c%omega)**(1d0/3d0)
-       n = ceiling(s%c%aa / alpha)
-       write (uout,'("+ Using a volume grid with # of nodes: ",3(A," "))') &
-          (string(n(j)),j=1,3)
-       
-       ! run over all the points in the grid
-       ntot = n(1)*n(2)*n(3)
-       vout = 0d0
-       dv = s%c%omega / ntot
-
-       !$omp parallel do private(ii,iaux,x,found,idx,dist)
-       do i = 0, ntot-1
-          ! unpack the index
-          ii(1) = modulo(i,n(1))
-          iaux = (i - ii(1)) / (n(1))
-          ii(2) = modulo(iaux,n(2))
-          iaux = (iaux - ii(2)) / (n(2))
-          ii(3) = modulo(iaux,n(3))
-          ! calculate the point in the cell
-          x = real(ii,8) / real(n)
-
-          found = .false.
-          do j = 1, s%c%nspc
-             call s%c%nearest_atom(x,icrd_crys,idx,dist,distmax=atmvdw(s%c%spc(j)%z),is0=j)
-             if (idx > 0) then
-                found = .true.
-                exit
-             end if
-          end do
-          if (.not.found) then
-             !$omp critical (acumdv)
-             vout = vout + dv
-             !$omp end critical (acumdv)
-          end if
-       end do
-       !$omp end parallel do
-       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A)') &
-          trim(string(vout,'f',100,4))
-       write (uout,'("+ Cell volume: ",A)') trim(string(s%c%omega,'f',100,4))
-       write (uout,'("+ Packing ratio (%): ",A)') string((s%c%omega-vout)/s%c%omega*100,'f',10,4)
+       vout = s%c%vdw_volume(prec)
+       write (uout,'("+ Van der Waals volume: ",A," +- ",A)') &
+          string(vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
+          string(s%c%omega-vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
+       write (uout,'("+ Cell volume: ",A)') string(s%c%omega,'f',decimal=6)
+       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vout/s%c%omega*100d0,'f',decimal=6), &
+          string(prec*vout/s%c%omega*100d0,'f',decimal=6)
     end if
     write (uout,*)
 
