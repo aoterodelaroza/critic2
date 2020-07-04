@@ -1590,8 +1590,8 @@ contains
     ! build the list of atomic radii
     allocate(rvdw(c%nspc,2))
     do i = 1, c%nspc
-       rvdw(c%nspc,1) = 0d0
-       rvdw(c%nspc,2) = atmvdw(c%spc(i)%z)
+       rvdw(i,1) = 0d0
+       rvdw(i,2) = atmvdw(c%spc(i)%z)
     end do
 
     ! calculate the encompassing box
