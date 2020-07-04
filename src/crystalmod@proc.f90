@@ -1571,9 +1571,9 @@ contains
 
   end function get_pack_ratio
 
-  !> Calculate the vdw volume in a molecule by Monte-Carlo sampling.
-  !> relerr = use enough points to obtain a standard deviation divided by the 
-  !> volume equal to this value.
+  !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
+  !> sampling.  relerr = use enough points to obtain a standard
+  !> deviation divided by the volume equal to this value.
   module function vdw_volume(c,relerr) result(vvdw)
     use param, only: VBIG, atmvdw, icrd_cart
     class(crystal), intent(inout) :: c
