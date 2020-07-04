@@ -1587,6 +1587,13 @@ contains
     integer*8 :: nin, ntot
     logical :: again
 
+    ! build the list of atomic radii
+    allocate(rvdw(c%nspc,2))
+    do i = 1, c%nspc
+       rvdw(c%nspc,1) = 0d0
+       rvdw(c%nspc,2) = atmvdw(c%spc(i)%z)
+    end do
+
     ! calculate the encompassing box
     if (c%ismolecule) then
        xmin = VBIG
@@ -1595,19 +1602,12 @@ contains
           xmin = min(xmin,c%atcel(i)%r)
           xmax = max(xmax,c%atcel(i)%r)
        end do
+       xmin = xmin - maxval(rvdw(:,2))
+       xmax = xmax + maxval(rvdw(:,2))
+       vtot = product(xmax-xmin)
+    else
+       vtot = c%omega
     end if
-
-    ! build the list of atomic radii
-    allocate(rvdw(c%nspc,2))
-    do i = 1, c%nspc
-       rvdw(c%nspc,1) = 0d0
-       rvdw(c%nspc,2) = atmvdw(c%spc(i)%z)
-    end do
-
-    ! enlarge the box to encompass all the spheres; total volume
-    xmin = xmin - maxval(rvdw(:,2))
-    xmax = xmax + maxval(rvdw(:,2))
-    vtot = product(xmax-xmin)
 
     ! use Monte-Carlo to determine the volume
     again = .true.
@@ -1616,7 +1616,12 @@ contains
     do while (again)
        ntot = ntot + 1
        call random_number(x)
-       x = xmin + x * (xmax - xmin)
+
+       if (c%ismolecule) then
+          x = xmin + x * (xmax - xmin)
+       else
+          x = c%x2c(x)
+       end if
        call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,up2dsp=rvdw)
        if (ierr > 0) then
           write (*,*) "error!"
