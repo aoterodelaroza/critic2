@@ -1573,11 +1573,14 @@ contains
 
   !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
   !> sampling.  relerr = use enough points to obtain a standard
-  !> deviation divided by the volume equal to this value.
-  module function vdw_volume(c,relerr) result(vvdw)
+  !> deviation divided by the volume equal to this value. If
+  !> rtable(1:maxzat0) is present, use those radii instead of the 
+  !> van der walls radii
+  module function vdw_volume(c,relerr,rtable) result(vvdw)
     use param, only: VBIG, atmvdw, icrd_cart
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
+    real*8, intent(in), optional :: rtable(:)
     real*8 :: vvdw
 
     real*8 :: xmin(3), xmax(3), x(3), vol, vtot, svol, pp
@@ -1591,7 +1594,11 @@ contains
     allocate(rvdw(c%nspc,2))
     do i = 1, c%nspc
        rvdw(i,1) = 0d0
-       rvdw(i,2) = atmvdw(c%spc(i)%z)
+       if (present(rtable)) then
+          rvdw(i,2) = rtable(c%spc(i)%z)
+       else
+          rvdw(i,2) = atmvdw(c%spc(i)%z)
+       end if
     end do
 
     ! calculate the encompassing box

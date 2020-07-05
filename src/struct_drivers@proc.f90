@@ -1797,16 +1797,17 @@ contains
     use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
-    use param, only: atmvdw, icrd_crys
+    use param, only: atmvdw, atmcov, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
-    logical :: dovdw, found, ok
+    logical :: found, ok
     character(len=:), allocatable :: word
     integer :: i, j, n(3), ii(3), ntot, iaux, idx
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
+    integer :: whichuse = 0
 
     if (s%c%ismolecule) then
        call ferror("critic2","PACKING can not be used with molecules",faterr,syntax=.true.)
@@ -1814,8 +1815,8 @@ contains
     end if
 
     ! default values    
-    dovdw = .false.
     prec = 1d-2
+    whichuse = 0 ! 0 = nnm, 1 = vdw, 2 = cov
 
     ! header
     write (uout,'("* PACKING")')
@@ -1825,7 +1826,9 @@ contains
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"vdw")) then
-          dovdw = .true.
+          whichuse = 1
+       elseif (equal(word,"cov")) then
+          whichuse = 2
        elseif (equal(word,"prec")) then
           ok = eval_next(prec,line,lp)
           if (.not.ok) then
@@ -1840,10 +1843,14 @@ contains
        end if
     end do
     
-    if (.not.dovdw) then
+    if (whichuse == 0) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
-       vout = s%c%vdw_volume(prec)
+       if (whichuse == 1) then
+          vout = s%c%vdw_volume(prec,atmvdw)
+       else
+          vout = s%c%vdw_volume(prec,atmcov)
+       end if
        write (uout,'("+ Van der Waals volume: ",A," +- ",A)') &
           string(vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
        write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &

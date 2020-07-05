@@ -389,9 +389,10 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
-     module function vdw_volume(c,relerr) result(vvdw)
+     module function vdw_volume(c,relerr,rtable) result(vvdw)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: relerr
+       real*8, intent(in), optional :: rtable(:)
        real*8 :: vvdw
      end function vdw_volume
      module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
