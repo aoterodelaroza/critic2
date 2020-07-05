@@ -1,8 +1,15 @@
 * PACKING
-+ Est. precision in the % packing ratio: 5.000E-01 
-+ Est. precision in the interstitial volume: 4.8946
-+ Using a volume grid with # of nodes: 62 62 52 
-+ Interstitial volume (outside vdw spheres): 338.8739
-+ Cell volume: 978.9124
-+ Packing ratio (%): 65.3826   
++ Packing ratio (%): 6.7941    
+
+* PACKING
++ Van der Waals volume: 285.584212 +- 2.855842
++ Interstitial volume (outside vdw spheres): 2913.598615 +- 2.855842
++ Cell volume: 3199.182827
++ Packing ratio (%): 8.926786 +- 0.089268
+
+* PACKING
++ Van der Waals volume: 2217.255425 +- 1108.627712
++ Interstitial volume (outside vdw spheres): 981.927402 +- 1108.627712
++ Cell volume: 3199.182827
++ Packing ratio (%): 69.306931 +- 34.653465
 

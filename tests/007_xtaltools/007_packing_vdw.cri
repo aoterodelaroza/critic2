@@ -1,5 +1,7 @@
-## check: 007_packing_vdw.cro -a1e-10
+## check: 007_packing_vdw.cro -r0.5
 ## labels: regression quick
 
-crystal library urea
+crystal library benzene
+packing 
+packing cov
 packing vdw prec 0.5
