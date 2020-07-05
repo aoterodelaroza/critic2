@@ -253,15 +253,15 @@ contains
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword, zatguess
-    use param, only: maxzat0, atmcov
+    use param, only: maxzat0, atmcov, atmvdw, list_radii
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
     character(len=:), allocatable :: word, var
     logical :: ok
     real*8 :: rdum
-    integer :: idum, lp2
-    logical :: iok
+    integer :: idum, lp2, iz, isp
+    logical :: iok, iscov
 
     word = lgetword(line,lp)
     if (equal(word,'bondfactor')) then
@@ -604,27 +604,45 @@ contains
        precisecube = .true.
        call check_no_extra_word(ok)
     elseif (equal(word,'radii')) then
+       word = lgetword(line,lp)
+       if (equal(word,'cov')) then
+          iscov = .true.
+       elseif (equal(word,'vdw')) then
+          iscov = .false.
+       else
+          call list_radii()
+          return
+       end if
+
        do while(.true.)
           lp2 = lp
-          ok = isinteger(idum,line,lp)
+          iz = 0
+          ok = isinteger(iz,line,lp)
           if (.not.ok) then
              word = lgetword(line,lp)
              if (len_trim(word) == 0) then
                 lp = lp2
                 exit
              else
-                idum = zatguess(word)
-                if (idum < 1 .or. idum > maxzat0) then
-                   call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
-                   return
-                end if
+                iz = zatguess(word)
              end if
           end if
-          if (eval_next_real(rdum,line,lp)) then
-             atmcov(idum) = rdum / dunit0(iunit)
-          else
-             call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+
+          if (iz < 1 .or. iz > maxzat0) then
+             call ferror('critic2','Syntax error or wrong expression in RADII',faterr,line,syntax=.true.)
              return
+          end if
+          if (eval_next_real(rdum,line,lp)) then
+             rdum = rdum / dunit0(iunit)
+          else
+             call ferror('critic2','Syntax error or wrong expression in RADII',faterr,line,syntax=.true.)
+             return
+          end if
+
+          if (iscov) then
+             atmcov(iz) = rdum
+          else
+             atmvdw(iz) = rdum
           end if
        end do
     elseif (isassignment(var,word,line)) then

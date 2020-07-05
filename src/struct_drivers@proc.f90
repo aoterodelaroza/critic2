@@ -1668,46 +1668,6 @@ contains
              call ferror('struct_coord','Wrong FAC keyword',faterr,line,syntax=.true.)
              return
           end if
-       elseif (equal(word,"radii")) then
-          do while (.true.)
-             lpold = lp
-             iat = 0
-             iz = 0
-             lp2 = 1
-             word = lgetword(line,lp)
-             if (equal(word,"fac").or.equal(word,"dist").or.equal(word,"radii")) then
-                lp = lpold
-                exit
-             end if
-             ok = isinteger(iat,word,lp2)
-             if (ok) then
-                ok = (iat > 0 .and. iat <= s%c%nspc)
-             end if
-             if (.not.ok) then
-                iz = zatguess(word)
-                ok = (iz >= 0)
-                if (.not. ok) then
-                   lp = lpold
-                   exit
-                end if
-             end if
-
-             ok = eval_next(rnew,line,lp)
-             if (.not.ok) then
-                call ferror('struct_coord','Wrong RADII keyword',faterr,line,syntax=.true.)
-                return
-             end if
-
-             if (iat > 0) then
-                rad(iat) = rnew
-             else
-                do i = 1, s%c%nspc
-                   if (s%c%spc(i)%z == iz) then
-                      rad(i) = rnew
-                   end if
-                end do
-             end if
-          end do
        elseif (len_trim(word) > 0) then
           call ferror('struct_coord','Unknown extra keyword',faterr,line,syntax=.true.)
           return

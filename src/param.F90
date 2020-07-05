@@ -309,7 +309,7 @@ module param
   ! From Bondi: http://dx.doi.org/10.1021/j100785a001
   ! except H from Rowland and Taylor http://dx.doi.org/10.1021/jp953141
   ! Elements that do not have radius are assigned 2.00.
-  real*8, parameter :: atmvdw(maxzat0) = (/&
+  real*8, parameter :: atmvdw0(maxzat0) = (/&
       1.09d0, 1.40d0, 1.82d0, 2.00d0, 2.00d0, 1.70d0, 1.55d0, 1.52d0, 1.47d0, 1.54d0,& ! 1-10
       2.27d0, 1.73d0, 2.00d0, 2.10d0, 1.80d0, 1.80d0, 1.75d0, 1.88d0, 2.75d0, 2.00d0,& ! 11-20
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 1.63d0, 1.40d0, 1.39d0,& ! 21-30
@@ -323,6 +323,7 @@ module param
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,& ! 101-1100
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 0.00d0, 0.00d0,& ! 111-118
       0.00d0, 0.00d0, 0.00d0/) / bohrtoa                                               ! 119-123
+  real*8 :: atmvdw(maxzat0) = atmvdw0
 
   ! standard atomic weights
   real*8, parameter :: atmass(maxzat0) = (/&
@@ -659,6 +660,26 @@ contains
     call vh%put("eps",epsilon(1d0))
 
   end subroutine param_init
+
+  !> Write to standard output the list of atomic radii
+  subroutine list_radii()
+    use tools_io, only: uout, string, nameguess
+    use global, only: dunit0, iunit, iunitname0
+    integer :: i
+    character*(2) :: name
+
+    write (uout,'("* List of atomic radii (per atomic number)")')
+    write (uout,'("# All radii in ",A)') iunitname0(iunit)
+    write (uout,'("# Z at  rcov  rvdw")')
+    do i = 1, maxzat0
+       name = nameguess(i,.true.)
+       write (uout,'(999(X,A))') string(i,length=3), name, &
+          string(atmcov(i) * dunit0(iunit),'f',length=5,decimal=2), &
+          string(atmvdw(i) * dunit0(iunit),'f',length=5,decimal=2)
+    end do
+    write (uout,*)
+
+  end subroutine list_radii
 
   ! from quadpack.
   double precision function D1MACH(I)
