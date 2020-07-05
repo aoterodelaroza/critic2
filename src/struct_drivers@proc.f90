@@ -1863,6 +1863,65 @@ contains
 
   end subroutine struct_packing
 
+  !> Calculate the van der Waals volume of a crystal or molecule.
+  module subroutine struct_vdw(s,line)
+    use systemmod, only: system
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, string
+    use global, only: eval_next
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    integer :: lp
+    logical :: ok
+    character(len=:), allocatable :: word
+    real*8 :: vvdw
+    ! integer :: i, j, n(3), ii(3), ntot, iaux, idx
+    !real*8 :: alpha, x(3), dist
+    ! integer :: whichuse = 0
+    real*8 :: prec
+
+    ! default values    
+    prec = 1d-2
+
+    ! header
+    write (uout,'("* VDW")')
+
+    ! parse input
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"prec")) then
+          ok = eval_next(prec,line,lp)
+          if (.not.ok) then
+             call ferror('struct_packing','Wrong PREC syntax in VDW',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_packing','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+    
+    ! calculate vdw volume
+    vvdw = s%c%vdw_volume(prec)
+
+    ! output
+    write (uout,'("+ Requested sigma_{Vvdw}/Vvdw: ",A)') string(prec,'e',decimal=4)
+    write (uout,'("+ Van der Waals volume (Vvdw): ",A," +- ",A)') &
+       string(vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
+    if (.not.s%c%ismolecule) then
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
+          string(s%c%omega-vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
+       write (uout,'("+ Cell volume: ",A)') string(s%c%omega,'f',decimal=6)
+       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vvdw/s%c%omega*100d0,'f',decimal=6), &
+          string(prec*vvdw/s%c%omega*100d0,'f',decimal=6)
+    end if
+    write (uout,*)
+
+  end subroutine struct_vdw
+
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
