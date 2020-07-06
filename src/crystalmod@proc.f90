@@ -4871,16 +4871,35 @@ contains
     integer :: i, j, k, l
     real*8 :: x(3)
 
-    if (dosym) then
-       lu = fopen_write(file)
-       write (lu,'("Title")')
+    lu = fopen_write(file)
+    write (lu,'("Title")')
+    if (c%ismolecule) then
+       write (lu,'("MOLECULE")')
+       write (lu,'("1")')
+       write (lu,'(A)') string(c%ncel)
+       do i = 1, c%ncel
+          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), &
+             (string((c%atcel(i)%r(j)+c%molx0(j))*bohrtoa,'f',15,8),j=1,3)
+       end do
+    elseif (dosym) then
        write (lu,'("EXTERNAL")')
-       write (lu,'("TESTGEOM")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       call fclose(lu)
+    else
+       write (lu,'("CRYSTAL")')
+       write (lu,'("0 0 0")')
+       write (lu,'("1")')
+       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
+       write (lu,'(A)') string(c%ncel)
+       do i = 1, c%ncel
+          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
+       end do
+    end if
+    write (lu,'("TESTGEOM")')
+    write (lu,'("END")')
+    write (lu,'("END")')
+    write (lu,'("END")')
+    call fclose(lu)
 
+    if (.not.c%ismolecule.and.dosym) then
        lu = fopen_write("fort.34")
 
        ! for a crystal, if symmetry is available
@@ -4911,21 +4930,6 @@ contains
        end do
 
        call fclose(lu)
-    else
-       lu = fopen_write(file)
-       write (lu,'("Title")')
-       write (lu,'("CRYSTAL")')
-       write (lu,'("0 0 0")')
-       write (lu,'("1")')
-       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
-       write (lu,'(A)') string(c%ncel)
-       do i = 1, c%ncel
-          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
-       end do
-       write (lu,'("TESTGEOM")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       write (lu,'("END")')
     end if
 
   end subroutine write_d12
