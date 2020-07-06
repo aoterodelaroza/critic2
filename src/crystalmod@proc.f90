@@ -4896,7 +4896,7 @@ contains
        do i = 1, c%neqv
           do j = 1, c%ncv
              do k = 1, 3
-                write (lu,'(3(X,E19.12))') (c%rotm(l,k,i),l=1,3)
+                write (lu,'(3(X,E19.12))') (c%rotm(k,l,i),l=1,3)
              end do
              x = c%rotm(:,4,i)+c%cen(:,j)
              x = c%x2c(x)
