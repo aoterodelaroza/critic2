@@ -4866,6 +4866,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: dosym
 
+    character(len=:), allocatable :: file34
     character(len=3) :: schpg
     integer :: lu, holo, laue
     integer :: i, j, k, l
@@ -4900,7 +4901,8 @@ contains
     call fclose(lu)
 
     if (.not.c%ismolecule.and.dosym) then
-       lu = fopen_write("fort.34")
+       file34 = file(:index(file,'.',.true.)-1) // ".fort.34"
+       lu = fopen_write(file34)
 
        ! for a crystal, if symmetry is available
        ! header: dimensionality, centring type, and crystal holohedry
