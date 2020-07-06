@@ -30,7 +30,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   wien_private.f90 wien_private@proc.f90 xdm.f90
   xdm@proc.f90 yt.f90 yt@proc.f90
   arithmetic.F90 arithmetic@proc.F90 config@proc.F90
-  molcalc@proc.F90 param.F90
+  molcalc@proc.F90 param.F90 param@proc.f90
   tools_io@proc.F90 wfn_private@proc.F90
   )
 set(SOURCES_C doqhull.c)

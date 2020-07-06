@@ -2,7 +2,7 @@
 dist_bin_SCRIPTS = 
 bin_PROGRAMS = critic2
 critic2_SOURCES = critic2.F90 c_interface_module.f90 cfftnd.f90 \
-	spglib.f90 spglib@proc.f90 keast.f90 param.F90 \
+	spglib.f90 spglib@proc.f90 keast.f90 param.F90 param@proc.f90 \
 	doqhull.c quadpack.f90 tricks.f90 \
 	abinit_private.f90 abinit_private@proc.f90 autocp.f90 autocp@proc.f90 \
 	arithmetic.F90 arithmetic@proc.F90 bader.f90 bader@proc.f90 \
@@ -32,7 +32,7 @@ critic2_SOURCES = critic2.F90 c_interface_module.f90 cfftnd.f90 \
 if GUI
   noinst_LIBRARIES=libcritic2.a
   libcritic2_a_SOURCES = gui_interface.f90 c_interface_module.f90 cfftnd.f90 \
-	spglib.f90 spglib@proc.f90 keast.f90 param.F90 \
+	spglib.f90 spglib@proc.f90 keast.f90 param.F90 param@proc.f90 \
 	doqhull.c quadpack.f90 tricks.f90 \
 	abinit_private.f90 abinit_private@proc.f90 autocp.f90 autocp@proc.f90 \
 	arithmetic.F90 arithmetic@proc.F90 bisect.f90 bisect@proc.f90 \
@@ -149,14 +149,14 @@ critic2.o critic2.mod : flux.mod
 flux@proc.o: flux.smod flux.mod
 nci@proc.o nci@proc.smod nci.o nci.mod nci.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod environmod@proc.o environmod@proc.smod environmod.o environmod.mod environmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : fragmentmod.mod
 fragmentmod@proc.o: fragmentmod.smod fragmentmod.mod
-molcalc@proc.o molcalc@proc.smod critic2.o critic2.mod arithmetic@proc.o arithmetic@proc.smod xdm@proc.o xdm@proc.smod systemmod@proc.o systemmod@proc.smod surface@proc.o surface@proc.smod struct_drivers@proc.o struct_drivers@proc.smod stm@proc.o stm@proc.smod rhoplot@proc.o rhoplot@proc.smod quadpack.o quadpack.mod qtree_utils@proc.o qtree_utils@proc.smod qtree_tetrawork@proc.o qtree_tetrawork@proc.smod qtree_gpaths@proc.o qtree_gpaths@proc.smod qtree_basic@proc.o qtree_basic@proc.smod qtree_basic.o qtree_basic.mod qtree_basic.smod qtree@proc.o qtree@proc.smod qtree.o qtree.mod qtree.smod pi_private@proc.o pi_private@proc.smod nci@proc.o nci@proc.smod integration@proc.o integration@proc.smod gui_interface.o gui_interface.mod grid1mod@proc.o grid1mod@proc.smod flux@proc.o flux@proc.smod fieldseedmod@proc.o fieldseedmod@proc.smod fieldmod@proc.o fieldmod@proc.smod environmod@proc.o environmod@proc.smod environmod.o environmod.mod environmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod crystalmod@proc.o crystalmod@proc.smod bisect@proc.o bisect@proc.smod autocp@proc.o autocp@proc.smod : global.mod
+molcalc@proc.o molcalc@proc.smod global@proc.o global@proc.smod critic2.o critic2.mod arithmetic@proc.o arithmetic@proc.smod xdm@proc.o xdm@proc.smod systemmod@proc.o systemmod@proc.smod surface@proc.o surface@proc.smod struct_drivers@proc.o struct_drivers@proc.smod stm@proc.o stm@proc.smod rhoplot@proc.o rhoplot@proc.smod quadpack.o quadpack.mod qtree_utils@proc.o qtree_utils@proc.smod qtree_tetrawork@proc.o qtree_tetrawork@proc.smod qtree_gpaths@proc.o qtree_gpaths@proc.smod qtree_basic@proc.o qtree_basic@proc.smod qtree_basic.o qtree_basic.mod qtree_basic.smod qtree@proc.o qtree@proc.smod qtree.o qtree.mod qtree.smod pi_private@proc.o pi_private@proc.smod nci@proc.o nci@proc.smod integration@proc.o integration@proc.smod gui_interface.o gui_interface.mod grid1mod@proc.o grid1mod@proc.smod flux@proc.o flux@proc.smod fieldseedmod@proc.o fieldseedmod@proc.smod fieldmod@proc.o fieldmod@proc.smod environmod@proc.o environmod@proc.smod environmod.o environmod.mod environmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod crystalmod@proc.o crystalmod@proc.smod bisect@proc.o bisect@proc.smod autocp@proc.o autocp@proc.smod : global.mod
 integration@proc.o integration@proc.smod flux@proc.o flux@proc.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod bisect@proc.o bisect@proc.smod autocp@proc.o autocp@proc.smod : graphics.mod
 graphics@proc.o: graphics.smod graphics.mod
 critic2.o critic2.mod arithmetic@proc.o arithmetic@proc.smod xdm@proc.o xdm@proc.smod struct_drivers@proc.o struct_drivers@proc.smod pi_private.o pi_private.mod pi_private.smod nci@proc.o nci@proc.smod hirshfeld@proc.o hirshfeld@proc.smod gui_interface.o gui_interface.mod fieldmod@proc.o fieldmod@proc.smod environmod@proc.o environmod@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalmod@proc.o crystalmod@proc.smod : grid1mod.mod
 grid1mod@proc.o: grid1mod.smod grid1mod.mod
 xdm@proc.o xdm@proc.smod rhoplot@proc.o rhoplot@proc.smod integration@proc.o integration@proc.smod hirshfeld@proc.o hirshfeld@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : grid3mod.mod
 grid3mod@proc.o: grid3mod.smod grid3mod.mod
-param.o param.mod arithmetic@proc.o arithmetic@proc.smod systemmod.o systemmod.mod systemmod.smod spglib@proc.o spglib@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod : hashmod.mod
+param.o param.mod param.smod arithmetic@proc.o arithmetic@proc.smod systemmod.o systemmod.mod systemmod.smod spglib@proc.o spglib@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod : hashmod.mod
 hashmod@proc.o: hashmod.smod hashmod.mod
 critic2.o critic2.mod : hirshfeld.mod
 hirshfeld@proc.o: hirshfeld.smod hirshfeld.mod
@@ -168,6 +168,7 @@ meshmod@proc.o: meshmod.smod meshmod.mod
 critic2.o critic2.mod : molcalc.mod
 critic2.o critic2.mod : nci.mod
 nci@proc.o: nci.smod nci.mod
+param@proc.o: param.smod param.mod
 fieldmod.o fieldmod.mod fieldmod.smod : pi_private.mod
 pi_private@proc.o: pi_private.smod pi_private.mod
 crystalseedmod@proc.o crystalseedmod@proc.smod : qe_private.mod
@@ -202,7 +203,7 @@ wfn_private@proc.o wfn_private@proc.smod arithmetic@proc.o arithmetic@proc.smod 
 tools_math@lebedev.o: tools_math.smod tools_math.mod
 tools_math@proc.o: tools_math.smod tools_math.mod
 critic2.o critic2.mod : tricks.mod
-wfn_private@proc.o wfn_private@proc.smod molcalc@proc.o molcalc@proc.smod arithmetic@proc.o arithmetic@proc.smod yt@proc.o yt@proc.smod yt.o yt.mod yt.smod xdm@proc.o xdm@proc.smod systemmod@proc.o systemmod@proc.smod systemmod.o systemmod.mod systemmod.smod struct_drivers@proc.o struct_drivers@proc.smod spglib@proc.o spglib@proc.smod rhoplot@proc.o rhoplot@proc.smod qtree_tetrawork@proc.o qtree_tetrawork@proc.smod qtree_gpaths@proc.o qtree_gpaths@proc.smod qtree_gpaths.o qtree_gpaths.mod qtree_gpaths.smod qtree_basic@proc.o qtree_basic@proc.smod qtree@proc.o qtree@proc.smod nci@proc.o nci@proc.smod meshmod@proc.o meshmod@proc.smod integration@proc.o integration@proc.smod integration.o integration.mod integration.smod grid3mod@proc.o grid3mod@proc.smod grid1mod@proc.o grid1mod@proc.smod graphics@proc.o graphics@proc.smod fragmentmod@proc.o fragmentmod@proc.smod fragmentmod.o fragmentmod.mod fragmentmod.smod flux@proc.o flux@proc.smod fieldseedmod@proc.o fieldseedmod@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod environmod@proc.o environmod@proc.smod environmod.o environmod.mod environmod.smod dftb_private@proc.o dftb_private@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalseedmod@proc.o crystalseedmod@proc.smod crystalseedmod.o crystalseedmod.mod crystalseedmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod bisect@proc.o bisect@proc.smod bader@proc.o bader@proc.smod bader.o bader.mod bader.smod autocp@proc.o autocp@proc.smod : types.mod
+wfn_private@proc.o wfn_private@proc.smod tools_io@proc.o tools_io@proc.smod molcalc@proc.o molcalc@proc.smod arithmetic@proc.o arithmetic@proc.smod yt@proc.o yt@proc.smod yt.o yt.mod yt.smod xdm@proc.o xdm@proc.smod systemmod@proc.o systemmod@proc.smod systemmod.o systemmod.mod systemmod.smod struct_drivers@proc.o struct_drivers@proc.smod spglib@proc.o spglib@proc.smod rhoplot@proc.o rhoplot@proc.smod qtree_tetrawork@proc.o qtree_tetrawork@proc.smod qtree_gpaths@proc.o qtree_gpaths@proc.smod qtree_gpaths.o qtree_gpaths.mod qtree_gpaths.smod qtree_basic@proc.o qtree_basic@proc.smod qtree@proc.o qtree@proc.smod nci@proc.o nci@proc.smod meshmod@proc.o meshmod@proc.smod integration@proc.o integration@proc.smod integration.o integration.mod integration.smod grid3mod@proc.o grid3mod@proc.smod grid1mod@proc.o grid1mod@proc.smod graphics@proc.o graphics@proc.smod fragmentmod@proc.o fragmentmod@proc.smod fragmentmod.o fragmentmod.mod fragmentmod.smod flux@proc.o flux@proc.smod fieldseedmod@proc.o fieldseedmod@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod environmod@proc.o environmod@proc.smod environmod.o environmod.mod environmod.smod dftb_private@proc.o dftb_private@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalseedmod@proc.o crystalseedmod@proc.smod crystalseedmod.o crystalseedmod.mod crystalseedmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod bisect@proc.o bisect@proc.smod bader@proc.o bader@proc.smod bader.o bader.mod bader.smod autocp@proc.o autocp@proc.smod : types.mod
 types@proc.o: types.smod types.mod
 molcalc@proc.o molcalc@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod : wfn_private.mod
 fieldmod.o fieldmod.mod fieldmod.smod : wien_private.mod

@@ -253,7 +253,7 @@ contains
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword, zatguess
-    use param, only: maxzat0, atmcov, atmvdw, list_radii
+    use param, only: maxzat0, atmcov, atmvdw
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -759,5 +759,26 @@ contains
     endif
           
   end function eval_next_int
+
+  !> Write to standard output the list of atomic radii
+  module subroutine list_radii()
+    use tools_io, only: uout, string, nameguess
+    use global, only: dunit0, iunit, iunitname0
+    use param, only: atmcov, atmvdw
+    integer :: i
+    character*(2) :: name
+
+    write (uout,'("* List of atomic radii (per atomic number)")')
+    write (uout,'("# All radii in ",A)') iunitname0(iunit)
+    write (uout,'("# Z at  rcov  rvdw")')
+    do i = 1, maxzat0
+       name = nameguess(i,.true.)
+       write (uout,'(999(X,A))') string(i,length=3), name, &
+          string(atmcov(i) * dunit0(iunit),'f',length=5,decimal=2), &
+          string(atmvdw(i) * dunit0(iunit),'f',length=5,decimal=2)
+    end do
+    write (uout,*)
+
+  end subroutine list_radii
 
 end submodule proc
