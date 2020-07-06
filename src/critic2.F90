@@ -147,6 +147,8 @@ program critic
                     call struct_sym(sy,"recalc",.not.quiet) 
               end if
            else
+              call check_structure_defined(ok)
+              if (.not.ok) cycle
               call struct_sym(sy,subline,.not.quiet) 
            end if
         end if
