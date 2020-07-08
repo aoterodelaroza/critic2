@@ -37,6 +37,11 @@ set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
 
+## gfortran-10: do not check fftpack for argument mismatch
+if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0)
+  set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS -fallow-argument-mismatch)
+endif()
+
 ## C standards
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
