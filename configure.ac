@@ -84,7 +84,7 @@ AC_ARG_ENABLE(debug,
   Do not look at it. Go away, shoo shoo! -- aor, default: no])],,[enable_debug=no])
 if test "${enable_debug}" = "yes"; then
    case $FC in
-   "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran"|"gfortran-5"|"gfortran-6"|"gfortran-7"|"gfortran-8"|"gfortran-9")
+   "gfortran"|"i686-w64-mingw32-gfortran"|"x86_64-w64-mingw32-gfortran"|"gfortran-5"|"gfortran-6"|"gfortran-7"|"gfortran-8"|"gfortran-9"|"gfortran-10")
 	FCFLAGS=" -g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
 	#FFLAGS=" -g -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid -fbacktrace -fdump-core -ffree-line-length-0 -cpp"
         CFLAGS=" -g -Og -fbounds-check -Wall -Wunused-parameter -rdynamic"
@@ -97,6 +97,9 @@ if test "${enable_debug}" = "yes"; then
 	;;
    esac
 fi
+
+# check if we need fallow-argument-mismatch
+AX_CHECK_COMPILE_FLAG([-fallow-argument-mismatch], [FCFLAGS="$FCFLAGS -fallow-argument-mismatch"])
 
 # enable compilation of the gui
 AC_ARG_ENABLE([gui],
