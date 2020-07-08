@@ -114,6 +114,7 @@ endif()
 ## The library for the GUI
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES_Fortran} ${SOURCES_C})
+  add_dependencies(lcritic2 critic2)
 endif()
 
 ## install the binary
