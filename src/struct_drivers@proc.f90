@@ -604,6 +604,8 @@ contains
           call s%c%write_cif(file,dosym)
        else
           write (uout,'("* WRITE crystal file: ",A)') string(file)
+          if (.not.s%c%ismolecule.and.dosym) &
+             write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
           call s%c%write_d12(file,dosym)
        end if
        ok = check_no_extra_word()
