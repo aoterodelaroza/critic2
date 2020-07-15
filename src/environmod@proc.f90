@@ -1385,8 +1385,10 @@ contains
     allocate(rij2(e%nspc,e%nspc,2))
     rij2 = 0d0
     do i = 1, e%nspc
+       if (e%spc(i)%z <= 0) cycle
        ri = atmcov(e%spc(i)%z)
        do j = i, e%nspc
+          if (e%spc(j)%z <= 0) cycle
           rj = atmcov(e%spc(j)%z)
           
           r2 = (ri+rj) * bondfactor

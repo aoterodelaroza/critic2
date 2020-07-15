@@ -305,9 +305,15 @@ contains
        end if
        mncon_ = max(mncon_,sc(isc)%at(i)%ncon)
 
-       sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
-       sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
-       sc(isc)%at(i)%rgb(4) = 1.0
+       if (iz > 0) then
+          sc(isc)%at(i)%rad = real(0.7d0*atmcov(iz),c_float)
+          sc(isc)%at(i)%rgb(1:3) = real(jmlcol(:,iz),4) / 255.
+          sc(isc)%at(i)%rgb(4) = 1.0
+       else
+          sc(isc)%at(i)%rad = real(0.4d0,c_float)
+          sc(isc)%at(i)%rgb(1:3) = (/1d0,0.4314d0,0.7059d0/) ! hotpink1
+          sc(isc)%at(i)%rgb(4) = 1.0
+       end if
     end do
 
     ! build the fields info

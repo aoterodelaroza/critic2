@@ -1583,7 +1583,7 @@ contains
     real*8, intent(in), optional :: rtable(:)
     real*8 :: vvdw
 
-    real*8 :: xmin(3), xmax(3), x(3), vol, vtot, svol, pp
+    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp
     integer :: i, nat
     real*8, allocatable :: rvdw(:,:)
     integer :: ierr
@@ -2825,10 +2825,10 @@ contains
           string("Q",length=4,justify=ioj_center),&
           string("ZPSP",length=4,justify=ioj_right)
        do i = 1, c%nspc
-          if (c%zpsp(c%spc(i)%z) > 0) then
-             str1 = string(c%zpsp(c%spc(i)%z))
-          else
-             str1 = " -- "
+          str1 = " -- "
+          if (c%spc(i)%z > 0) then
+             if (c%zpsp(c%spc(i)%z) > 0) &
+                str1 = string(c%zpsp(c%spc(i)%z))
           end if
           write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
              string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&

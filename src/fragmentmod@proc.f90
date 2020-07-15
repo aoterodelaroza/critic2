@@ -167,8 +167,10 @@ contains
     sum = 0d0
     if (weight) then
        do i = 1, fr%nat
-          x = x + atmass(fr%spc(fr%at(i)%is)%z) * fr%at(i)%r
-          sum = sum + atmass(fr%spc(fr%at(i)%is)%z)
+          if (fr%spc(fr%at(i)%is)%z > 0) then
+             x = x + atmass(fr%spc(fr%at(i)%is)%z) * fr%at(i)%r
+             sum = sum + atmass(fr%spc(fr%at(i)%is)%z)
+          end if
        end do
     else
        do i = 1, fr%nat

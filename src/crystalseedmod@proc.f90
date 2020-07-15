@@ -2481,6 +2481,8 @@ contains
           iscrystal = .true.
        elseif (index(line,"3D - CRYSTAL") > 0) then
           iscrystal = .true.
+       elseif (index(line,"MOLECULAR CALCULATION") > 0) then
+          iscrystal = .false.
        elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
