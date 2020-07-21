@@ -529,6 +529,8 @@ contains
           errmsg = "failed copy"
           return
        end if
+       s%f(id)%id = id
+
     elseif (seed%iff == ifformat_as_lap .or. seed%iff == ifformat_as_grad .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_resample) then
        ! load as lap/grad/pot id.s
@@ -565,6 +567,10 @@ contains
           end if
           return
        end if
+       s%f(id)%id = id
+       s%f(id)%name = "<generated>"
+       s%f(id)%file = "<generated>"
+
     elseif (seed%iff == ifformat_as_clm.or.seed%iff == ifformat_as_clm_sub) then
        ! clm add/sub
        id1 = s%fieldname_to_idx(seed%ids)
@@ -575,6 +581,9 @@ contains
        end if
        id = s%getfieldnum()
        s%f(id) = s%f(id1)
+       s%f(id)%id = id
+       s%f(id)%name = "<generated>"
+       s%f(id)%file = "<generated>"
 
        if (s%f(id1)%type == type_elk.and.s%f(id2)%type == type_elk) then
           if (seed%iff == ifformat_as_clm) then
@@ -600,7 +609,7 @@ contains
           errmsg = "fields in CLM must be wien or elk and the same type"
           return
        end if
-       call s%f(id)%init_cplist
+       call s%f(id)%init_cplist()
     else
        ! rest
        id = s%getfieldnum()
