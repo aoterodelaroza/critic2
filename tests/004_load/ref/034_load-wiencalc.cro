@@ -64,8 +64,8 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 4
-  Name: up
-  Source: ../zz_source/wien14.2/zno/zno.clmup
+  Name: <generated>
+  Source: <generated>
   Type: wien2k
   Complex?: T
   Spherical harmonics expansion LMmax: 12
@@ -85,8 +85,8 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 5
-  Name: up
-  Source: ../zz_source/wien14.2/zno/zno.clmup
+  Name: <generated>
+  Source: <generated>
   Type: wien2k
   Complex?: T
   Spherical harmonics expansion LMmax: 12
