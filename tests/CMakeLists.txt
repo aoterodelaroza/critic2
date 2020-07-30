@@ -19,6 +19,7 @@ set(TESTDIRS
   007_xtaltools ## crystallography tools (NEWCELL,COMPARE,...)
   008_libxc     ## tests for the libxc library
   009_intgrid   ## grid integration
+  010_auto      ## critical point search (AUTO,...)
   )
 
 ## define the macro that will run the tests
