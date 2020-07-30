@@ -1,0 +1,9 @@
+## delete: 011_cpreport_graph.cro
+## delete: 011_cpreport_graph.xyz
+## labels: regression quick
+
+molecule library benzene
+
+auto
+cpreport 011_cpreport_graph.xyz graph
+

@@ -1,0 +1,36 @@
+## delete: 009_cpreport_xyz.cro
+## delete: 009_cpreport_xyz_1.xyz
+## delete: 009_cpreport_xyz_2.xyz
+## delete: 009_cpreport_xyz_3.xyz
+## delete: 009_cpreport_xyz_4.xyz
+## delete: 009_cpreport_xyz_5.xyz
+## delete: 009_cpreport_xyz_1.gjf
+## delete: 009_cpreport_xyz_2.gjf
+## delete: 009_cpreport_xyz_3.gjf
+## delete: 009_cpreport_xyz_4.gjf
+## delete: 009_cpreport_xyz_5.gjf
+## delete: 009_cpreport_xyz_1.cml
+## delete: 009_cpreport_xyz_2.cml
+## delete: 009_cpreport_xyz_3.cml
+## delete: 009_cpreport_xyz_4.cml
+## delete: 009_cpreport_xyz_5.cml
+## labels: regression quick
+
+crystal library urea
+
+auto
+cpreport 009_cpreport_xyz_1.xyz molmotif cell border 1 1 2
+cpreport 009_cpreport_xyz_2.xyz onemotif
+cpreport 009_cpreport_xyz_3.xyz environ 10
+cpreport 009_cpreport_xyz_4.xyz cube 20 -0.5 -0.5 -0.5
+cpreport 009_cpreport_xyz_5.xyz sphere 20 -0.5 -0.5 -0.5
+cpreport 009_cpreport_xyz_1.gjf molmotif cell border 1 1 2
+cpreport 009_cpreport_xyz_2.gjf onemotif
+cpreport 009_cpreport_xyz_3.gjf environ 10
+cpreport 009_cpreport_xyz_4.gjf cube 20 -0.5 -0.5 -0.5
+cpreport 009_cpreport_xyz_5.gjf sphere 20 -0.5 -0.5 -0.5
+cpreport 009_cpreport_xyz_1.cml molmotif cell border 1 1 2
+cpreport 009_cpreport_xyz_2.cml onemotif
+cpreport 009_cpreport_xyz_3.cml environ 10
+cpreport 009_cpreport_xyz_4.cml cube 20 -0.5 -0.5 -0.5
+cpreport 009_cpreport_xyz_5.cml sphere 20 -0.5 -0.5 -0.5

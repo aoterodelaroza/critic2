@@ -6,6 +6,10 @@ set(TESTS
   005_auto_clip_cube   ## AUTO: clip cube option
   006_auto_clip_sphere ## AUTO: clip cube option
   007_auto_seed        ## AUTO: seed options
+  008_cpreport         ## cpreport keyword
+  009_cpreport_xyz     ## cpreport keyword, xyz
+  010_cpreport_obj     ## cpreport keyword, obj,ply,off
+  011_cpreport_graph   ## cpreport keyword, graph option
   )
 
 runtests(${TESTS})
