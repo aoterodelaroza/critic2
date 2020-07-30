@@ -76,7 +76,7 @@ contains
     integer, parameter :: styp_sphere = 5  ! sphere
     integer, parameter :: styp_oh = 6      ! octahedron subdivision
     integer, parameter :: styp_point = 7   ! point
-    integer, parameter :: styp_mesh = 7    ! molecular mesh
+    integer, parameter :: styp_mesh = 8    ! molecular mesh
     type seed_
        integer :: typ        ! type of seeding strategy
        integer :: depth = 1  ! WS recursive subdivision level
