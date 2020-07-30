@@ -1,4 +1,4 @@
-number_of_nonequivalent_cps: 16
+number_of_nonequivalent_cps: 9
 nonequivalent_cps: 
 id: 1
 multiplicity: 2
@@ -82,12 +82,12 @@ rank: 3
 signature: -1
 field: 2.99295873512043E-01
 field_valence: 2.99295873512043E-01
-gradient: 7.71045909414970E-16 1.72371998859638E-17 1.97988777571397E-15
-gradient_norm: 2.12479752444959E-15
+gradient: 1.09237471693753E-19 5.97939086312532E-19 -1.99827299971976E-15
+gradient_norm: 1.99827309216558E-15
 gradient_norm_valence: 0.00000000000000E+00
-laplacian: -1.98143160553014E-02
-laplacian_valence: -1.98143160553014E-02
-hessian_eigenvalues: -4.42617573857537E-01 -4.29968226154493E-01 8.52771483956730E-01
+laplacian: -1.98143160553018E-02
+laplacian_valence: -1.98143160553018E-02
+hessian_eigenvalues: -4.42617573857538E-01 -4.29968226154494E-01 8.52771483956729E-01
 number_of_pointprops: 0
 is_nucleus: false
 id: 7
@@ -133,110 +133,5 @@ gradient_norm_valence: 0.00000000000000E+00
 laplacian: -3.36231625997293E-01
 laplacian_valence: -3.36231625997293E-01
 hessian_eigenvalues: -6.86372321301363E-01 -6.82112066970315E-01 1.03225276227439E+00
-number_of_pointprops: 0
-is_nucleus: false
-id: 10
-multiplicity: 4
-point_group: Cs
-rank: 3
-signature: -1
-field: 2.94973758073689E-02
-field_valence: 2.94973758073689E-02
-gradient: 1.72295217969948E-15 -1.59847647940550E-15 -4.96684542804626E-16
-gradient_norm: 2.40216294280900E-15
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 7.88683430140771E-02
-laplacian_valence: 7.88683430140771E-02
-hessian_eigenvalues: -3.31682672256339E-02 -3.10732254374868E-02 1.43109835677198E-01
-number_of_pointprops: 0
-is_nucleus: false
-id: 11
-multiplicity: 4
-point_group: Cs
-rank: 3
-signature: -1
-field: 2.61031460201515E-02
-field_valence: 2.61031460201515E-02
-gradient: 2.52600263014769E-16 3.46211086908062E-16 6.77537752697765E-16
-gradient_norm: 8.01702199014029E-16
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 7.19868470784398E-02
-laplacian_valence: 7.19868470784398E-02
-hessian_eigenvalues: -2.68238906616532E-02 -2.53921881321050E-02 1.24202925872198E-01
-number_of_pointprops: 0
-is_nucleus: false
-id: 12
-multiplicity: 2
-point_group: C2v
-rank: 3
-signature: 1
-field: 1.65392723170611E-02
-field_valence: 1.65392723170611E-02
-gradient: -1.29340950009525E-15 -1.27935240103733E-15 2.00660629183459E-15
-gradient_norm: 2.70852718491190E-15
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 4.50552925138137E-02
-laplacian_valence: 4.50552925138137E-02
-hessian_eigenvalues: -1.13890632900150E-02 2.63171031890402E-02 3.01272526147886E-02
-number_of_pointprops: 0
-is_nucleus: false
-id: 13
-multiplicity: 4
-point_group: Cs
-rank: 3
-signature: 1
-field: 3.46757206484928E-03
-field_valence: 3.46757206484928E-03
-gradient: 5.26767346405920E-16 4.63125328256576E-16 1.26748996765447E-15
-gradient_norm: 1.44861993808487E-15
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 8.66065026497875E-03
-laplacian_valence: 8.66065026497875E-03
-hessian_eigenvalues: -1.37748700030557E-03 3.91960244783359E-03 6.11853481745073E-03
-number_of_pointprops: 0
-is_nucleus: false
-id: 14
-multiplicity: 4
-point_group: C2
-rank: 3
-signature: 1
-field: 1.82963138614599E-03
-field_valence: 1.82963138614599E-03
-gradient: -2.67263710277108E-18 8.46234717963187E-19 -1.11798212149265E-13
-gradient_norm: 1.11798212184413E-13
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 4.49780932912550E-03
-laplacian_valence: 4.49780932912550E-03
-hessian_eigenvalues: -1.29387488631654E-04 9.31915732663806E-04 3.69528108509335E-03
-number_of_pointprops: 0
-is_nucleus: false
-id: 15
-multiplicity: 2
-point_group: S2
-rank: 3
-signature: 3
-field: 1.81010811879868E-03
-field_valence: 1.81010811879868E-03
-gradient: -7.98110838849954E-18 7.61972310504247E-19 8.36319303960514E-19
-gradient_norm: 8.06090087329760E-18
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 4.40103441098342E-03
-laplacian_valence: 4.40103441098342E-03
-hessian_eigenvalues: 7.42886258917907E-05 2.16337289254582E-03 2.16337289254582E-03
-number_of_pointprops: 0
-is_nucleus: false
-id: 16
-multiplicity: 2
-point_group: S2
-rank: 3
-signature: 3
-field: 1.04515429883892E-03
-field_valence: 1.04515429883892E-03
-gradient: -4.31198003667563E-18 -2.34121560982314E-18 9.98572435474015E-21
-gradient_norm: 4.90658354489756E-18
-gradient_norm_valence: 0.00000000000000E+00
-laplacian: 2.42582013610930E-03
-laplacian_valence: 2.42582013610930E-03
-hessian_eigenvalues: 4.26737685082372E-04 9.99541225513462E-04 9.99541225513463E-04
 number_of_pointprops: 0
 is_nucleus: false
