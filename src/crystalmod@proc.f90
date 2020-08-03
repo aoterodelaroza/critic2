@@ -4858,7 +4858,7 @@ contains
 
   end subroutine write_cif
 
-  !> Write a simple cif file
+  !> Write a simple d12 file
   module subroutine write_d12(c,file,dosym)
     use tools_io, only: fopen_write, fclose, string
     use param, only: bohrtoa
@@ -4935,6 +4935,141 @@ contains
     end if
 
   end subroutine write_d12
+
+  !> Write a shelx res file (filename = file) with the c crystal
+  !> structure. If usesym0, write symmetry to the cif file; otherwise
+  !> use P1.
+  module subroutine write_res(c,file,dosym)
+    use tools_io, only: fopen_write, fclose, string, ferror, warning, nameguess
+    use tools_math, only: det3
+    use param, only: bohrtoa, eye
+    class(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    logical, intent(in) :: dosym
+
+    integer :: i, j, lu, ilatt
+    character(len=mlen), allocatable :: strfin(:)
+    character(len=:), allocatable :: str
+    logical :: usesym, ok3(3), ok2(2)
+    real*8 :: dd
+
+    real*8, parameter :: cen_i(3)  = (/0.5d0,0.5d0,0.5d0/)
+    real*8, parameter :: cen_a(3)  = (/0.0d0,0.5d0,0.5d0/)
+    real*8, parameter :: cen_b(3)  = (/0.5d0,0.0d0,0.5d0/)
+    real*8, parameter :: cen_c(3)  = (/0.5d0,0.5d0,0.0d0/)
+    real*8, parameter :: cen_r1(3) = (/2d0,1d0,1d0/) / 3d0
+    real*8, parameter :: cen_r2(3) = (/1d0,2d0,2d0/) / 3d0
+    real*8 :: eps = 1d-5
+
+    ! use symmetry?
+    usesym = dosym .and. c%spgavail
+
+10  continue
+
+    ! open output file
+    lu = fopen_write(file)
+
+    ! header
+    write (lu,'("TITL res file created by critic2.")')
+    write (lu,'("CELL 0.71073 ",6(A,X))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
+       (string(c%bb(j),'f',10,6),j=1,3)
+    write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
+
+    if (usesym) then
+       ! identify lattice type
+       ilatt = 0
+       if (c%ncv == 1) then
+          ilatt = 1 ! P
+       elseif (c%ncv == 2) then
+          if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_a)) < eps)) then
+             ilatt = 2 ! I
+          elseif (all(abs(c%cen(:,2) - cen_b - nint(c%cen(:,2) - cen_b)) < eps)) then
+             ilatt = 5 ! A
+          elseif (all(abs(c%cen(:,2) - cen_c - nint(c%cen(:,2) - cen_c)) < eps)) then
+             ilatt = 6 ! B
+          elseif (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_i)) < eps)) then
+             ilatt = 7 ! C
+          end if
+       elseif (c%ncv == 3) then
+          ok2 = .false.
+          do i = 2, c%ncv
+             if (.not.ok2(1)) ok2(1) = all(abs(c%cen(:,i) - cen_r1 - nint(c%cen(:,i) - cen_r1)) < eps)
+             if (.not.ok2(2)) ok2(2) = all(abs(c%cen(:,i) - cen_r2 - nint(c%cen(:,i) - cen_r2)) < eps)
+          end do
+          if (all(ok2)) ilatt = 3
+       elseif (c%ncv == 4) then
+          ok3 = .false.
+          do i = 2, c%ncv
+             if (.not.ok3(1)) ok3(1) = all(abs(c%cen(:,i) - cen_a - nint(c%cen(:,i) - cen_a)) < eps)
+             if (.not.ok3(2)) ok3(2) = all(abs(c%cen(:,i) - cen_b - nint(c%cen(:,i) - cen_b)) < eps)
+             if (.not.ok3(3)) ok3(3) = all(abs(c%cen(:,i) - cen_c - nint(c%cen(:,i) - cen_c)) < eps)
+          end do
+          if (all(ok3)) ilatt = 4
+       end if
+       if (ilatt == 0) then
+          call ferror('write_res','unknown set of centering vectors',warning)
+          usesym = .false.
+          call fclose(lu)
+          goto 10
+       end if
+
+       ! identify centrosymmetry
+       do i = 1, c%neqv
+          if (all(abs(c%rotm(1:3,1:3,i) + eye) < eps) .and. all(abs(c%rotm(1:3,4,i)) < eps)) then
+             ilatt = -ilatt
+             exit
+          end if
+       end do
+    else
+       ilatt = 1
+    end if
+    write (lu,'("LATT ",A)') string(ilatt)
+
+    if (usesym) then
+       allocate(strfin(c%neqv*c%ncv))
+       call c%struct_report_symxyz(strfin)
+       do i = 1, c%neqv
+          dd = det3(c%rotm(1:3,1:3,i))
+          if (dd > 0d0) then
+             if (index(strfin(i),"not found") > 0) then
+                call ferror('write_res','unknown set of centering vectors',warning)
+                usesym = .false.
+                call fclose(lu)
+                goto 10
+             end if
+             write (lu,'("SYMM ",A)') trim(strfin(i))
+          end if
+       end do
+    end if
+
+    ! atomic species
+    write (lu,'("SFAC ",999(A,X))') (trim(nameguess(c%spc(i)%z,.true.)),i=1,c%nspc)
+
+    ! number of atoms of each type
+    str = ""
+    do i = 1, c%nspc
+       str = str // " " // string(count(c%atcel(:)%is == i))
+    end do
+    write (lu,'("UNIT ",A)') str
+    write (lu,'("FVAR 1.00")')
+
+    ! list of atoms
+    if (usesym) then
+       do i = 1, c%nneq
+          write (lu,'(999(A,X))') trim(c%spc(c%at(i)%is)%name) // string(i), string(c%at(i)%is), &
+             (string(c%at(i)%x(j),'f',12,8),j=1,3), string(real(c%at(i)%mult,8)/(c%neqv*c%ncv),'f',12,8), &
+             "0.05"
+       end do
+    else
+       do i = 1, c%ncel
+          write (lu,'(999(A,X))') trim(c%spc(c%atcel(i)%is)%name) // string(i), string(c%atcel(i)%is), &
+             (string(c%atcel(i)%x(j),'f',12,8),j=1,3), "1.0", "0.05"
+       end do
+    end if
+    ! close the file
+    call fclose(lu)
+
+  end subroutine write_res
 
   !> Write an escher octave script
   module subroutine write_escher(c,file)

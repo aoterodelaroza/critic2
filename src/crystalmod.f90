@@ -198,6 +198,7 @@ module crystalmod
      procedure :: write_critic
      procedure :: write_cif
      procedure :: write_d12
+     procedure :: write_res
      procedure :: write_escher
      procedure :: write_db
      procedure :: write_gulp
@@ -588,6 +589,11 @@ module crystalmod
        character*(*), intent(in) :: file
        logical, intent(in) :: dosym
      end subroutine write_d12
+     module subroutine write_res(c,file,dosym)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       logical, intent(in) :: dosym
+     end subroutine write_res
      module subroutine write_escher(c,file)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file

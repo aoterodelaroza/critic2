@@ -584,7 +584,7 @@ contains
        call s%c%write_critic(file)
        ok = check_no_extra_word()
        if (.not.ok) return
-    elseif (equal(wext,'cif') .or. equal(wext,'d12')) then
+    elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
        ! cif and d12
        dosym = .true.
        do while(.true.)
@@ -602,11 +602,14 @@ contains
        if (equal(wext,'cif')) then
           write (uout,'("* WRITE cif file: ",A)') string(file)
           call s%c%write_cif(file,dosym)
-       else
+       elseif (equal(wext,'d12')) then
           write (uout,'("* WRITE crystal file: ",A)') string(file)
           if (.not.s%c%ismolecule.and.dosym) &
              write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
           call s%c%write_d12(file,dosym)
+       elseif (equal(wext,'res')) then
+          write (uout,'("* WRITE res file: ",A)') string(file)
+          call s%c%write_res(file,dosym)
        end if
        ok = check_no_extra_word()
        if (.not.ok) return
