@@ -4979,16 +4979,16 @@ contains
        ! identify lattice type
        ilatt = 0
        if (c%ncv == 1) then
-          ilatt = 1 ! P
+          ilatt = -1 ! P
        elseif (c%ncv == 2) then
           if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_a)) < eps)) then
-             ilatt = 2 ! I
+             ilatt = -2 ! I
           elseif (all(abs(c%cen(:,2) - cen_b - nint(c%cen(:,2) - cen_b)) < eps)) then
-             ilatt = 5 ! A
+             ilatt = -5 ! A
           elseif (all(abs(c%cen(:,2) - cen_c - nint(c%cen(:,2) - cen_c)) < eps)) then
-             ilatt = 6 ! B
+             ilatt = -6 ! B
           elseif (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_i)) < eps)) then
-             ilatt = 7 ! C
+             ilatt = -7 ! C
           end if
        elseif (c%ncv == 3) then
           ok2 = .false.
@@ -4996,7 +4996,7 @@ contains
              if (.not.ok2(1)) ok2(1) = all(abs(c%cen(:,i) - cen_r1 - nint(c%cen(:,i) - cen_r1)) < eps)
              if (.not.ok2(2)) ok2(2) = all(abs(c%cen(:,i) - cen_r2 - nint(c%cen(:,i) - cen_r2)) < eps)
           end do
-          if (all(ok2)) ilatt = 3
+          if (all(ok2)) ilatt = -3
        elseif (c%ncv == 4) then
           ok3 = .false.
           do i = 2, c%ncv
@@ -5004,7 +5004,7 @@ contains
              if (.not.ok3(2)) ok3(2) = all(abs(c%cen(:,i) - cen_b - nint(c%cen(:,i) - cen_b)) < eps)
              if (.not.ok3(3)) ok3(3) = all(abs(c%cen(:,i) - cen_c - nint(c%cen(:,i) - cen_c)) < eps)
           end do
-          if (all(ok3)) ilatt = 4
+          if (all(ok3)) ilatt = -4
        end if
        if (ilatt == 0) then
           call ferror('write_res','unknown set of centering vectors',warning)
@@ -5021,14 +5021,14 @@ contains
           end if
        end do
     else
-       ilatt = 1
+       ilatt = -1
     end if
     write (lu,'("LATT ",A)') string(ilatt)
 
     if (usesym) then
        allocate(strfin(c%neqv*c%ncv))
        call c%struct_report_symxyz(strfin)
-       do i = 1, c%neqv
+       do i = 2, c%neqv ! skyp the identity
           dd = det3(c%rotm(1:3,1:3,i))
           if (dd > 0d0) then
              if (index(strfin(i),"not found") > 0) then
