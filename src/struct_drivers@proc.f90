@@ -29,7 +29,7 @@ contains
   module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use param, only: isformat_cif, isformat_shelx,&
+    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
        isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
@@ -104,6 +104,9 @@ contains
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(word,mol,errmsg)
+
+    elseif (isformat == isformat_f21) then
+       call seed%read_f21(word,mol,errmsg)
 
     elseif (isformat == isformat_cube) then
        call seed%read_cube(word,mol,errmsg)

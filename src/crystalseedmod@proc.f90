@@ -736,14 +736,14 @@ contains
     end function checkcifop
   end subroutine read_cif
 
-  !> Read the structure from a CIF file (uses ciftbx)
+  !> Read the structure from a res or ins (shelx) file 
   module subroutine read_shelx(seed,file,mol,errmsg)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
     use types, only: realloc
-    class(crystalseed) :: seed !< Output crystal seed
+    class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule? 
     character(len=:), allocatable, intent(out) :: errmsg
@@ -1118,6 +1118,176 @@ contains
       end do
     end function getline_local
   end subroutine read_shelx
+
+  !> Read the structure from a fort.21 from neighcrys
+  module subroutine read_f21(seed,file,mol,errmsg)
+    use tools_io, only: fopen_read, fclose, getline_raw, nameguess
+    use param, only: bohrtoa, maxzat0
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu
+    character(len=:), allocatable :: line, dum
+    character*15 :: str
+    character*1 :: latt
+    logical :: ok
+    integer :: isused(maxzat0), idum, iz, i, j
+    real*8 :: rdum
+
+    ! open the file for reading
+    errmsg = "Error reading file."
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    seed%file = file
+    seed%name = file
+
+    ! read the lattice constants and the atomic coordinates
+    isused = 0
+    seed%useabr = 1
+    seed%nat = 0
+    seed%nspc = 0
+    seed%neqv = 0
+    seed%ncv = 0
+    allocate(seed%spc(10),seed%is(10),seed%rotm(3,4,48),seed%cen(3,4))
+    seed%cen = 0d0
+    seed%rotm = 0d0
+    do while(getline_raw(lu,line))
+       if (index(line,"LATTICE CENTRING TYPE") > 0) then
+          read (line,*) dum, dum, dum, latt
+          if (latt == "P") then
+             seed%ncv=1
+          elseif (latt == "I") then
+             seed%ncv=2
+             seed%cen(1,2)=0.5d0
+             seed%cen(2,2)=0.5d0
+             seed%cen(3,2)=0.5d0
+          elseif (latt == "R") then
+             seed%ncv=3
+             seed%cen(:,2) = (/2d0,1d0,1d0/) / 3d0
+             seed%cen(:,3) = (/1d0,2d0,2d0/) / 3d0
+          elseif (latt == "F") then
+             seed%ncv=4
+             seed%cen(1,2)=0.5d0
+             seed%cen(2,2)=0.5d0
+             seed%cen(2,3)=0.5d0
+             seed%cen(3,3)=0.5d0
+             seed%cen(1,4)=0.5d0
+             seed%cen(3,4)=0.5d0
+          elseif (latt == "A") then
+             seed%ncv=2
+             seed%cen(2,2)=0.5d0
+             seed%cen(3,2)=0.5d0
+          elseif (latt == "B") then
+             seed%ncv=2
+             seed%cen(1,2)=0.5d0
+             seed%cen(3,2)=0.5d0
+          elseif (latt == "C") then
+             seed%ncv=2
+             seed%cen(1,2)=0.5d0
+             seed%cen(2,2)=0.5d0
+          else
+             errmsg = "unknown lattice centring type"
+             goto 999
+          end if
+       elseif (index(line,"ROTATION MATRICES") > 0) then
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          if (.not.ok) goto 999
+
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             ok = ok.and.getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (len_trim(line) == 0) exit
+
+             seed%neqv = seed%neqv + 1
+             read(line,*) (rdum,i=1,4), seed%rotm(1,:,seed%neqv)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*) (rdum,i=1,4), seed%rotm(2,:,seed%neqv)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read(line,*) (rdum,i=1,4), seed%rotm(3,:,seed%neqv)
+          end do
+       elseif (index(line,"LATTICE CONSTANTS") > 0) then
+          read (lu,*,err=999) dum, dum, seed%aa(1), dum, dum, seed%aa(2), dum, dum, seed%aa(3)
+          read (lu,*,err=999) dum, dum, seed%bb(1), dum, dum, seed%bb(2), dum, dum, seed%bb(3)
+          seed%aa = seed%aa / bohrtoa
+
+       elseif (index(line,"Inequivalent basis atoms") > 0) then
+
+          ! read the first block, with the atomic numbers and indices
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          if (.not.ok) goto 999
+          do while(getline_raw(lu,line))
+             if (len_trim(line) == 0) exit
+             ! a new atom
+             seed%nat = seed%nat + 1
+             read (line,*,err=999) idum, iz, str
+
+             ! assign atomic species by atomic number
+             if (isused(iz) == 0) then
+                seed%nspc = seed%nspc + 1
+                if (seed%nspc > size(seed%spc,1)) &
+                   call realloc(seed%spc,2*seed%nspc)
+                seed%spc(seed%nspc)%z = iz
+                seed%spc(seed%nspc)%name = nameguess(iz,.true.)
+                isused(iz) = seed%nspc
+             end if
+
+             ! assign atom type
+             if (seed%nat > size(seed%is,1)) &
+                call realloc(seed%is,2*seed%nat)
+             seed%is(seed%nat) = isused(iz)
+          end do
+
+          ! read the second block, with the atomic coordinates
+          allocate(seed%x(3,seed%nat))
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          do i = 1, seed%nat
+             ok = getline_raw(lu,line)
+             ok = ok.and.getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,err=999) seed%x(:,i)
+          end do
+       end if
+    end do
+    call realloc(seed%is,seed%nat)
+    call realloc(seed%spc,seed%nspc)
+
+    errmsg = ""
+999 continue
+
+    ! close the file and clean up
+    call fclose(lu)
+
+    ! have symmetry, but recalculate
+    seed%havesym = 1
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! molecule
+    seed%ismolecule = mol
+    seed%havex0 = .true.
+    seed%molx0 = 0d0
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%cubic = .false.
+    seed%border = 0d0
+
+  end subroutine read_f21
 
   !> Read the structure from a gaussian cube file
   module subroutine read_cube(seed,file,mol,errmsg)
@@ -3249,6 +3419,7 @@ contains
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,ismol,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
+       isformat_f21, &
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
@@ -3285,6 +3456,9 @@ contains
        ismol = .false.
     elseif (equal(wextdot,'res').or.equal(wextdot,'ins')) then
        isformat = isformat_shelx
+       ismol = .false.
+    elseif (equal(wextdot,'21')) then
+       isformat = isformat_f21
        ismol = .false.
     elseif (equal(wextdot,'cube')) then
        isformat = isformat_cube
@@ -3477,7 +3651,7 @@ contains
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
-       isformat_dat, isformat_unknown, dirsep
+       isformat_dat, isformat_f21, isformat_unknown, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3525,10 +3699,10 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_shelx(file,mol,errmsg)
-    elseif (isformat == isformat_shelx) then
+    elseif (isformat == isformat_f21) then
        nseed = 1
        allocate(seed(1))
-       call seed(1)%read_shelx(file,mol,errmsg)
+       call seed(1)%read_f21(file,mol,errmsg)
     else if (isformat == isformat_cube) then
        nseed = 1
        allocate(seed(1))
