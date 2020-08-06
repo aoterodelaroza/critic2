@@ -1265,6 +1265,8 @@ contains
     end do
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
+    call realloc(seed%rotm,3,4,seed%neqv)
+    call realloc(seed%cen,3,seed%ncv)
 
     errmsg = ""
 999 continue
