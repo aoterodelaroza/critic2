@@ -3445,7 +3445,7 @@ contains
     elseif (equal(wextdot,'pwc')) then
        isformat = isformat_pwc
        ismol = .false.
-    elseif (equal(wextdot,'res').or.equal(wextdot,'ins')) then
+    elseif (equal(wextdot,'res').or.equal(wextdot,'ins').or.equal(wextdot,'16')) then
        isformat = isformat_shelx
        ismol = .false.
     elseif (equal(wextdot,'21')) then
