@@ -5030,7 +5030,7 @@ contains
        call c%struct_report_symxyz(strfin)
        do i = 2, c%neqv ! skyp the identity
           dd = det3(c%rotm(1:3,1:3,i))
-          if (dd > 0d0) then
+          if (dd > 0d0 .or. ilatt < 0) then
              if (index(strfin(i),"not found") > 0) then
                 call ferror('write_res','unknown set of centering vectors',warning)
                 usesym = .false.

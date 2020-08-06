@@ -1038,18 +1038,7 @@ contains
     seed%useabr = 1 ! use aa and bb
 
     if (iscent) then
-       ! do we have the -1 operation already?
-       ok = .true.
-       do i = 1, seed%neqv
-          if (all(abs(seed%rotm(:,:,i) + eyet) < 1d-12)) then
-             ok = .false.
-             exit
-          endif
-       end do
-       if (.not.ok) then
-          errmsg = "Found improper rotation in SYMM."
-          goto 999
-       end if
+       ! add the -1 operations
        n = seed%neqv
        do i = 1, n
           seed%rotm(1:3,1:3,n+i) = -seed%rotm(1:3,1:3,i) 
