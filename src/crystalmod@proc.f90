@@ -2321,7 +2321,7 @@ contains
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
-    integer :: nr, nn
+    integer :: nn
     integer :: nlat
     real*8, allocatable :: xlat(:,:)
 
@@ -2375,11 +2375,6 @@ contains
           ncseed%is(i) = isnew(i)
        end do
     else
-       ! check new volume
-       fvol = abs(det3(x0))
-       if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
-          call ferror("newcell","Inconsistent newcell volume",faterr)
-
        ! check that the vectors are pure translations
        do i = 1, 3
           ok = .false.
@@ -2391,19 +2386,6 @@ contains
              call ferror("newcell","Cell vector number " // string(i) // &
              " is not a pure translation",faterr)
        end do
-
-       ! is this a smaller or a larger cell? Arrange vectors.
-       if (abs(dd-1d0) < eps) then
-          nr = 1
-       elseif (dd > 1d0) then
-          nr = nint(dd)
-          if (abs(nr-dd) > eps) &
-             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-       else
-          nr = -nint(1d0/dd)
-          if (abs(-nr-1d0/dd) > eps) &
-             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-       end if
 
        ! inverse matrix
        x0inv = x0
@@ -2441,7 +2423,10 @@ contains
 
        ! build the new atom list
        ncseed%nat = 0
+       fvol = abs(det3(x0))
        nn = nint(c%ncel * fvol)
+       if (abs(nn - (c%ncel*fvol)) > eps) &
+          call ferror('newcell','inconsistent number of atoms in newcell',faterr)
        allocate(ncseed%x(3,nn),ncseed%is(nn))
        do i = 1, nlat
           do j = 1, c%ncel
@@ -2474,22 +2459,6 @@ contains
        call realloc(ncseed%x,3,ncseed%nat)
        call realloc(ncseed%is,ncseed%nat)
        deallocate(xlat)
-
-       if (nr > 0) then
-          if (ncseed%nat / c%ncel /= nr) then
-             write (uout,*) "c%ncel = ", c%ncel
-             write (uout,*) "ncseed%nat = ", ncseed%nat
-             write (uout,*) "nr = ", nr
-             call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
-          end if
-       else
-          if (c%ncel / ncseed%nat /= -nr) then
-             write (uout,*) "c%ncel = ", c%ncel
-             write (uout,*) "ncseed%nat = ", ncseed%nat
-             write (uout,*) "nr = ", nr
-             call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
-          end if
-       endif
     end if
 
     ! rest of the seed information
