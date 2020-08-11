@@ -2902,7 +2902,7 @@ contains
           enddo
           write (uout,*)
 
-          call c%struct_report_symxyz()
+          call c%struct_report_symxyz(doaxes=.true.)
 
           write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
           do k = 1, c%ncv
@@ -3062,12 +3062,14 @@ contains
   !> crystallographic notation (if possible). If strfin is present,
   !> return the strings in that variable instead of writing them to
   !> uout.
-  module subroutine struct_report_symxyz(c,strfin)
-    use tools_io, only: uout, string
+  module subroutine struct_report_symxyz(c,strfin,doaxes)
+    use tools_math, only: eig, det3
+    use tools_io, only: uout, string, ioj_right
     use global, only: symprec
-    use param, only: mlen
+    use param, only: mlen, eye, pi
     class(crystal), intent(in) :: c
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
+    logical, intent(in), optional :: doaxes
 
     real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
        -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&
@@ -3078,11 +3080,17 @@ contains
        "-1/12 ","      ","1/12  ","1/6   ","1/4   ","1/3   ","5/12  ","1/2   ",&
        "7/12  ","2/3   ","3/4   ","5/6   ","11/12 ","      "/)
     character*1, parameter :: xyz(3) = (/"x","y","z"/)
+    real*8, parameter :: eps = 1d-5
 
-    logical :: ok, iszero
-    integer :: i1, i2, i, j, k
+    logical :: ok, iszero, doax
+    integer :: i1, i2, i, j, k, idx, rotnum
     character(len=mlen) :: strout(c%neqv*c%ncv)
-    real*8 :: xtrans
+    real*8 :: xtrans, rmat(3,3), eval(3), evali(3), rotaxis(3)
+    real*8 :: trace, det, ang, ridx
+    character(len=mlen), allocatable :: rotchar(:)
+
+    doax = .false.
+    if (present(doaxes)) doax = doaxes
 
     i = 0
     do i1 = 1, c%ncv
@@ -3092,9 +3100,76 @@ contains
        end do
     end do
 
+    ! classify the rotations
+    if (doax) then
+       allocate(rotchar(c%neqv))
+       do i2 = 1, c%neqv
+          rmat = c%rotm(:,1:3,i2)
+          trace = rmat(1,1)+rmat(2,2)+rmat(3,3)
+          det = det3(rmat)
+
+          if (abs(trace - 3d0) < 1d-5) then
+             rotchar(i2) = " 1"
+          elseif (abs(trace + 3d0) < 1d-5) then
+             rotchar(i2) = "-1"
+          else
+             ! determine the angle of rotation
+             ang = 0.5d0*(trace-det)
+             if (abs(ang) > 1d0) ang = sign(1d0,ang)
+             ang = acos(ang)
+             if (abs(ang) < eps) then
+                rotnum = 1
+             else
+                rotnum = nint((2d0*pi) / ang)
+             end if
+             if (det > 0d0) then
+                rotchar(i2) = string(rotnum,2,ioj_right)
+             else
+                if (rotnum == 2) then
+                   rotchar(i2) = " m"
+                else
+                   rotchar(i2) = string(-rotnum,2,ioj_right)
+                end if
+             end if
+
+             ! determine the axis of rotation
+             call eig(rmat,3,eval,evali)
+             idx = 0
+             do j = 1, 3
+                if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
+                   idx = j
+                   exit
+                end if
+             end do
+             if (idx > 0) then
+                rotaxis = rmat(:,idx)
+                ! divide by the smallest non-zero element in the vector
+                ridx = 1d40
+                do j = 1, 3
+                   if (abs(rotaxis(j)) > eps .and. abs(rotaxis(j)) < ridx) ridx = abs(rotaxis(j))
+                end do
+                rotaxis = rotaxis / ridx
+             endif
+
+             if (all(abs(rotaxis - nint(rotaxis)) < eps)) then
+                rotchar(i2) = rotchar(i2)(1:2) // " [" // string(nint(rotaxis(1))) // "," //&
+                   string(nint(rotaxis(2))) // "," // string(nint(rotaxis(3))) // "]"
+             else
+                rotchar(i2) = rotchar(i2)(1:2) // " [" // string(rotaxis(1),'f',decimal=1) // "," //&
+                   string(rotaxis(2),'f',decimal=1) // "," // string(rotaxis(3),'f',decimal=1) // "]"
+             end if
+
+             rotaxis = c%x2c(rotaxis)
+             rotaxis = rotaxis / norm2(rotaxis)
+             rotchar(i2) = trim(rotchar(i2)) // "; [" // string(rotaxis(1),'f',decimal=3) // "," //&
+                string(rotaxis(2),'f',decimal=3) // "," // string(rotaxis(3),'f',decimal=3) // "]"
+          end if
+       end do
+    end if
+
     i = 0
     main: do i1 = 1, c%ncv
-       do i2 = 1, c%neqv
+       loopi: do i2 = 1, c%neqv
           i = i + 1
           strout(i) = ""
 
@@ -3113,7 +3188,7 @@ contains
              end do
              if (.not.ok) then
                 strout(i) = "<not found>"
-                exit main
+                cycle loopi
              end if
 
              ! rotation
@@ -3130,7 +3205,7 @@ contains
                    iszero = .false.
                 elseif (abs(c%rotm(j,k,i2)) > symprec) then
                    strout(i) = "<not found>"
-                   exit main
+                   cycle loopi
                 end if
              end do
 
@@ -3138,15 +3213,21 @@ contains
              if (j < 3) &
                 strout(i) = trim(strout(i)) // ","
           end do
-       end do
+          if (doax) then
+             strout(i) = string(strout(i),30) // " ## " // trim(rotchar(i2))
+          end if
+       end do loopi
     end do main
-
+    if (doax) deallocate(rotchar)
+    
     if (present(strfin)) then
        strfin = strout
     else
        write(uout,'("+ List of symmetry operations in crystallographic notation:")')
+       if (doax) &
+          write(uout,'("# number: operation ... ## order of rotation [axis]; [axis in Cartesian]")')
        do k = 1, c%neqv*c%ncv
-          write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
+          write (uout,'(3X,A,": ",A)') string(k,length=3,justify=ioj_right), string(strout(k))
        enddo
        write (uout,*)
     end if

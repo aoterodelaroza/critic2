@@ -477,9 +477,10 @@ module crystalmod
      module subroutine struct_report_symmetry(c)
        class(crystal), intent(in) :: c
      end subroutine struct_report_symmetry
-     module subroutine struct_report_symxyz(c,strfin)
+     module subroutine struct_report_symxyz(c,strfin,doaxes)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
+       logical, intent(in), optional :: doaxes
      end subroutine struct_report_symxyz
      module subroutine struct_write_json(c,lu,prfx)
        class(crystal), intent(in) :: c
