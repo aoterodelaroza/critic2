@@ -111,6 +111,9 @@ module crystalmod
      integer :: nlvac = 0 !< Number of vacuum lattice vectors
      integer :: lvac(3,2) !< Vacuum lattice vectors
      integer :: lcon(3,2) !< Connected lattice vectors
+     ! variables for 3d molecular crystals
+     logical :: ismol3d !< Is this a 3d molecular crystal?
+     integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
 
      !! Initialization level: isewald !!
      ! ewald data
@@ -147,6 +150,7 @@ module crystalmod
 
      ! molecular environments and neighbors
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
+     procedure :: calculate_molecular_equivalence !< Calculate symmetry relations between molecules
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
@@ -371,6 +375,9 @@ module crystalmod
      module subroutine fill_molecular_fragments(c)
        class(crystal), intent(inout) :: c
      end subroutine fill_molecular_fragments
+     module subroutine calculate_molecular_equivalence(c)
+       class(crystal), intent(inout) :: c
+     end subroutine calculate_molecular_equivalence
      module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
        class(crystal), intent(inout) :: c
        type(fragment), intent(in) :: fri

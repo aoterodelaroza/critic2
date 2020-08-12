@@ -143,6 +143,9 @@ contains
     c%lvac = 0
     c%lcon = 0
 
+    ! no 3d molecular crystals
+    c%ismol3d = .false.
+
     ! core charges
     c%zpsp = -1
 
@@ -185,6 +188,7 @@ contains
     c%ws_mnfv = 0
     c%nmol = 0
     c%nlvac = 0
+    c%ismol3d = .false.
 
   end subroutine struct_end
 
@@ -498,6 +502,7 @@ contains
        ! Find the atomic connectivity and the molecular fragments
        call c%env%find_asterisms_covalent(c%nstar)
        call c%fill_molecular_fragments()
+       call c%calculate_molecular_equivalence()
 
        ! Write the half nearest-neighbor distance
        do i = 1, c%nneq
@@ -1286,6 +1291,68 @@ contains
     end if
 
   end subroutine fill_molecular_fragments
+
+  !> Calculate whether the crystal is a molecular crystal. If it is,
+  !> for each molecule, calculate whether it is contained as a whole
+  !> in the asymmetric unit (idxmol=-1) or not (idxmol >= 0). If it
+  !> is not, then the molecule can be symmetry-unique idxmol = 0 or
+  !> equivalent to the molecule with index idxmol>0. Fills ismol3d
+  !> and idxmol.
+  module subroutine calculate_molecular_equivalence(c)
+    use tools, only: qcksort
+    class(crystal), intent(inout) :: c
+    
+    integer :: mmax, i, j
+    integer, allocatable :: iord(:,:), midx(:,:)
+
+    ! 3d molecular crystals calculations
+    c%ismol3d = all(c%mol(1:c%nmol)%discrete).and..not.c%ismolecule
+    if (c%ismol3d) then
+       ! assign fractional (-1)/symmetry unique (0)/symmetry equivalent (>0)
+       if (allocated(c%idxmol)) deallocate(c%idxmol)
+       allocate(c%idxmol(c%nmol))
+       c%idxmol = 0
+
+       ! find the maximum number of atoms
+       mmax = 0
+       do i = 1, c%nmol
+          mmax = max(mmax,c%mol(i)%nat)
+       end do
+
+       ! sort the atomic indices
+       allocate(midx(mmax,c%nmol))
+       allocate(iord(mmax,c%nmol))
+       do i = 1, c%nmol
+          do j = 1, c%mol(i)%nat
+             midx(j,i) = c%mol(i)%at(j)%idx
+             iord(j,i) = j
+          end do
+          call qcksort(midx(:,i),iord(:,i),1,c%mol(i)%nat)
+
+          ! check if the molecule is fractional
+          do j = 1, c%mol(i)%nat-1
+             if (midx(iord(j,i),i) == midx(iord(j+1,i),i)) then
+                c%idxmol(i) = -1
+                exit
+             end if
+          end do
+       end do
+
+       ! assign idxmol based on the atomic sequence
+       do i = 1, c%nmol
+          if (c%idxmol(i) < 0) cycle
+          do j = 1, i-1
+             if (c%idxmol(j) < 0) cycle
+             if (all(midx(iord(:,i),i) == midx(iord(:,j),j))) then
+                c%idxmol(i) = j
+                exit
+             end if
+          end do
+       end do
+       deallocate(midx,iord)
+    end if
+
+  end subroutine calculate_molecular_equivalence
 
   !> List all molecules resulting from completing the initial fragment
   !> fri by adding adjacent atoms that are covalently bonded. Return
@@ -2736,6 +2803,7 @@ contains
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
     character(len=:), allocatable :: str1
     integer, allocatable :: nis(:)
+    integer :: izp0
 
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
@@ -2946,8 +3014,24 @@ contains
                 (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
           end do
           if (.not.c%ismolecule) then
-             if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
+             if (c%ismol3d .or. c%nlvac == 3) then
                 write (uout,'(/"+ This is a molecular crystal.")')
+                write (uout,'("  Number of molecules per cell (Z) = ",A)') string(c%nmol)
+                izp0 = 0
+                do i = 1, c%nmol
+                   if (c%idxmol(i) < 0) then
+                      izp0 = -1
+                      exit
+                   elseif (c%idxmol(i) == 0) then
+                      izp0 = izp0 + 1
+                   end if
+                end do
+                if (izp0 > 0) then
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(izp0)
+                else
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') < 1")') 
+                end if
+
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
                 write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
@@ -3266,7 +3350,7 @@ contains
           (string(c%molborder(j),'f',decimal=14),j=1,3)
     else
        write (lu,'(A,"  ""is_molecule"": false,")') prfx
-       if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
+       if (c%nlvac == 3) then
           write (lu,'(A,"  ""periodicity"": ""molecular (0d)"",")') prfx
        else if (c%nlvac == 2) then
           write (lu,'(A,"  ""periodicity"": ""polymer (1d)"",")') prfx
