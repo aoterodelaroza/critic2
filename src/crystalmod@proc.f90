@@ -2793,7 +2793,7 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat, pi
+    use param, only: bohrtoa, maxzat, pi, atmass, pcamu,bohr2cm
     class(crystal), intent(in) :: c
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
@@ -2801,6 +2801,7 @@ contains
     integer :: i, j, k, iz, is
     integer :: nelec
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
+    real*8 :: dens, mass
     character(len=:), allocatable :: str1
     integer, allocatable :: nis(:)
     integer :: izp0
@@ -2834,7 +2835,7 @@ contains
           nis(c%at(i)%is) = nis(c%at(i)%is) + c%at(i)%mult
        end do
        maxdv = gcd(nis,c%nspc)
-       write (uout,'("  Empirical formula: ",999(/4X,10(A,"(",A,") ")))') &
+       write (uout,'("  Empirical formula: ",999(10(A,"(",A,") ")))') &
           (string(c%spc(i)%name), string(nint(nis(i)/maxdv)), i=1,c%nspc)
        deallocate(nis)
        if (.not.c%ismolecule) then
@@ -2845,12 +2846,36 @@ contains
        endif
        write (uout,'("  Number of atomic species: ",A)') string(c%nspc)
        nelec = 0
+       mass = 0d0
        do i = 1, c%nneq
           iz = c%spc(c%at(i)%is)%z
-          if (iz >= maxzat) cycle
+          if (iz >= maxzat .or. iz <= 0) cycle
           nelec = nelec + iz * c%at(i)%mult
+          mass = mass + atmass(iz) * c%at(i)%mult
        end do
-       write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
+       write (uout,'("  Number of electrons (with zero atomic charge): ",A)') string(nelec)
+       if (.not.c%ismolecule) then
+          write (uout,'("  Molar mass (amu, per unit cell): ",A)') string(mass,'f',decimal=3)
+       else
+          write (uout,'("  Molar mass (amu): ",A)') string(mass,'f',decimal=3)
+       end if
+
+       ! Cell volume and density, space group short report
+       if (.not.c%ismolecule) then
+          dens = (mass*pcamu) / (c%omega*bohr2cm**3)
+          write (uout,'("  Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
+          write (uout,'("  Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
+          write (uout,'("  Density (g/cm^3): ",A)') string(dens,'f',decimal=3)
+          ! space group, very short report
+          if (c%havesym > 0 .and. c%spgavail) then
+             write(uout,'("  Space group (H-M): ",A, " (",A,")")') &
+                string(c%spg%international_symbol), string(c%spg%spacegroup_number)
+          else
+             write(uout,'("  Space group (H-M): ---")')
+          end if
+       end if
+
+       write (uout,*)
     end if
 
     if (lq) then
@@ -2951,13 +2976,6 @@ contains
           write (uout,'("  x-axis: ",A," -> ",A)') trim(string(c%molborder(1),'f',10,4)), trim(string(1d0-c%molborder(1),'f',10,4))
           write (uout,'("  y-axis: ",A," -> ",A)') trim(string(c%molborder(2),'f',10,4)), trim(string(1d0-c%molborder(2),'f',10,4))
           write (uout,'("  z-axis: ",A," -> ",A)') trim(string(c%molborder(3),'f',10,4)), trim(string(1d0-c%molborder(3),'f',10,4))
-          write (uout,*)
-       end if
-
-       ! Cell volume
-       if (.not.c%ismolecule) then
-          write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
-          write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
           write (uout,*)
        end if
 
