@@ -6,7 +6,7 @@ set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
 set(TEST_URL 
   http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
   )
-set(TEST_SHA1_HASH 106abcfe5a24dd72231086a787457dc0)
+set(TEST_SHA1_HASH 86ce03bf92f1585f260b778b0e3303cb292a9755)
 
 ## list of test bundles
 set(TESTDIRS 
@@ -134,6 +134,7 @@ if(NOT "${TEST_PACKAGE_FOUND}")
     if (EXISTS "${TEST_PACKAGE_TARGET}")
       file(REMOVE "${TEST_PACKAGE_TARGET}")
     endif()
+    message(STATUS "package: ${TEST_PACKAGE_TARGET}")
     file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
       TIMEOUT 60 
       TLS_VERIFY ON
