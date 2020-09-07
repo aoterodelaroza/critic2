@@ -1131,7 +1131,11 @@ contains
              if (f%qe%center(j,i,is) < 0d0) &
                 f%qe%center(j,i,is) = f%qe%center(j,i,is) + nk(j)
           end do
-          f%qe%spread(i,is) = sqrt(f%qe%spread(i,is)) / bohrtoa
+          if (f%qe%spread(i,is) < 0d0) then
+             f%qe%spread(i,is) = -sqrt(abs(f%qe%spread(i,is))) / bohrtoa
+          else
+             f%qe%spread(i,is) = sqrt(f%qe%spread(i,is)) / bohrtoa
+          end if
        end do
     end do
 
