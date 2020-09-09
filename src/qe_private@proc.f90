@@ -288,7 +288,7 @@ contains
 
   end subroutine qe_latgen
 
-  SUBROUTINE sup_spacegroup(tau,ityp,extfor,if_pos,space_group_number,not_eq,&
+  module subroutine sup_spacegroup(tau,ityp,extfor,if_pos,space_group_number,not_eq,&
      uniqueb,rhombohedral,choice,ibrav)
     INTEGER, INTENT(IN) :: space_group_number, choice
     LOGICAL, INTENT (IN) :: uniqueb, rhombohedral
@@ -367,7 +367,7 @@ contains
     DEALLOCATE(msym_n)
 
     RETURN
-  END SUBROUTINE sup_spacegroup
+  end subroutine sup_spacegroup
 
   !xx! private
   SUBROUTINE ccord(outco,sym_n,not_eq,ibrav,unique)

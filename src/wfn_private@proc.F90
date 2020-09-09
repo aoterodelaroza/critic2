@@ -1006,7 +1006,7 @@ contains
 
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
-    integer :: luwfn, nelec, nalpha, nbeta, nbassph, nbascar, nbeta, ncshel, nshel, lmax
+    integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
     integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
     logical :: ok, isecp
     real*8 :: norm, cons

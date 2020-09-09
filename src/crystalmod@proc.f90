@@ -2450,7 +2450,7 @@ contains
     integer :: ntyp, nat
     integer :: i, nnew, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
-    integer, allocatable :: types(:)
+    integer, allocatable :: types_(:)
     real*8 :: rmat(3,3)
 
     x0 = 0d0
@@ -2462,10 +2462,10 @@ contains
     rmat = transpose(c%m_x2c)
     nat = c%ncel
     ntyp = c%nspc
-    allocate(x(3,4*c%ncel),types(4*c%ncel)) ! to make room for spglib
+    allocate(x(3,4*c%ncel),types_(4*c%ncel)) ! to make room for spglib
     do i = 1, c%ncel
        x(:,i) = c%atcel(i)%x
-       types(i) = c%atcel(i)%is
+       types_(i) = c%atcel(i)%is
     end do
 
     ! parse options
@@ -2474,11 +2474,11 @@ contains
     inorefine = 1
     if (refine) inorefine = 0
 
-    nnew = spg_standardize_cell(rmat,x,types,nat,iprim,inorefine,symprec)
+    nnew = spg_standardize_cell(rmat,x,types_,nat,iprim,inorefine,symprec)
     if (nnew == 0) &
        call ferror("cell_standard","could not find primitive cell",faterr)
     call realloc(x,3,nnew)
-    call realloc(types,nnew)
+    call realloc(types_,nnew)
     rmat = transpose(rmat)
     do i = 1, 3
        rmat(:,i) = c%c2x(rmat(:,i))
@@ -2489,7 +2489,7 @@ contains
 
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
     if (refine) then
-       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types)
+       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_)
     else
        ! if a primitive is wanted but det is not less than 1, do not make the change
        if (all(abs(rmat - eye) < symprec)) return
