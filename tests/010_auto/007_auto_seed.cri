@@ -1,0 +1,19 @@
+## delete: 007_auto_seed.cro
+## check: 007_auto_seed_seeds.obj -a1e-10
+## check: 007_auto_seed_seeds.mtl -a1e-10
+## labels: regression quick
+
+molecule library benzene
+
+auto dry seedobj \
+     seed point x0 0.1 0.2 0.3 \
+     seed line x0 0 0 -5 x1 0 0 5 npts 5 \
+     seed line x0 0 0 -5 x1 0 0 5 npts 5 \
+     seed triplet dist 5 \
+     seed pair dist 5 nr 4 \
+     seed sphere x0 0 0 0 radius 5 ntheta 5 nphi 5 nr 5 \
+     seed oh x0 0 0 0 radius 5 depth 1 nr 4 \
+
+meshtype becke small
+auto dry seed mesh 
+

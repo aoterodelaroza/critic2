@@ -76,7 +76,7 @@ contains
     integer, parameter :: styp_sphere = 5  ! sphere
     integer, parameter :: styp_oh = 6      ! octahedron subdivision
     integer, parameter :: styp_point = 7   ! point
-    integer, parameter :: styp_mesh = 7    ! molecular mesh
+    integer, parameter :: styp_mesh = 8    ! molecular mesh
     type seed_
        integer :: typ        ! type of seeding strategy
        integer :: depth = 1  ! WS recursive subdivision level
@@ -828,6 +828,8 @@ contains
           ok = eval_next(n,line,lp)
           if (.not.ok) n = 10
           call critshell(n)
+       elseif (equal(wext,'test')) then
+          call write_test_cps(file)
        elseif (equal(wext,'json')) then
           call write_json_cps(file)
        elseif (len_trim(word) > 0) then
@@ -2082,5 +2084,91 @@ contains
     call fclose(lu)
 
   end subroutine write_json_cps
+
+  !> Write a test file containing the CPs. For running the tests with
+  !> cmake.
+  subroutine write_test_cps(file)
+    use systemmod, only: sy
+    use tools_io, only: uout, fopen_write, fclose, string
+    use types, only: scalar_value
+    character*(*), intent(in) :: file
+
+    type(scalar_value) :: res
+    integer :: lu, nprop
+    integer :: i, j, k, ip
+    real*8 :: fres, xp(3)
+    logical :: iok
+
+    write (uout,'("* WRITE TEST file: ",A/)') string(file)
+
+    lu = fopen_write(file)
+
+    ! non-equivalent CPs
+    write (lu,'("number_of_nonequivalent_cps: ",A)') string(sy%f(sy%iref)%ncp)
+    write (lu,'("nonequivalent_cps: ")') 
+    do i = 1, sy%f(sy%iref)%ncp
+       write (lu,'("id: ",A)') string(i)
+       write (lu,'("multiplicity: ",A)') string(sy%f(sy%iref)%cp(i)%mult)
+       write (lu,'("point_group: ",A)') string(sy%f(sy%iref)%cp(i)%pg)
+
+       ! grab the evaluation at the CP
+       res = sy%f(sy%iref)%cp(i)%s
+       write (lu,'("rank: ",A)') string(res%r)
+       write (lu,'("signature: ",A)') string(res%s)
+       write (lu,'("field: ",A)') string(res%f,'e',decimal=14)
+       write (lu,'("field_valence: ",A)') string(res%fval,'e',decimal=14)
+       write (lu,'("gradient: ",2(A,X),A)') &
+          (string(res%gf(j),'e',decimal=14),j=1,3)
+       write (lu,'("gradient_norm: ",A)') string(res%gfmod,'e',decimal=14)
+       write (lu,'("gradient_norm_valence: ",A)') string(res%gfmodval,'e',decimal=14)
+       if (res%avail_gkin) then
+          write (lu,'("kinetic_energy_density: ",A)') string(res%gkin,'e',decimal=14)
+       end if
+       write (lu,'("laplacian: ",A)') string(res%del2f,'e',decimal=14)
+       write (lu,'("laplacian_valence: ",A)') string(res%del2fval,'e',decimal=14)
+       write (lu,'("hessian_eigenvalues: ",2(A,X),A)') &
+          (string(res%hfeval(j),'e',decimal=14),j=1,3)
+
+       ! spin polarized quantities
+       if (res%avail_spin .and. res%spinpol) then
+          write (lu,'("field_spin_up: ",A)') string(res%fspin(1),'e',decimal=14)
+          write (lu,'("field_spin_down: ",A)') string(res%fspin(2),'e',decimal=14)
+          write (lu,'("gradient_norm_spin_up: ",A)') string(res%gfmodspin(1),'e',decimal=14)
+          write (lu,'("gradient_norm_spin_down: ",A)') string(res%gfmodspin(2),'e',decimal=14)
+          write (lu,'("laplacian_spin_up: ",A)') string(res%lapspin(1),'e',decimal=14)
+          write (lu,'("laplacian_spin_down: ",A)') string(res%lapspin(2),'e',decimal=14)
+          if (res%avail_gkin) then
+             write (lu,'("kinetic_energy_density_spin_up: ",A)') string(res%gkinspin(1),'e',decimal=14)
+             write (lu,'("kinetic_energy_density_spin_down: ",A)') string(res%gkinspin(2),'e',decimal=14)
+          end if
+       end if
+
+       ! properties at points defined by the user
+       nprop = count(sy%propp(1:sy%npropp)%ispecial == 0)
+       if (nprop > 0) then
+          write (lu,'("number_of_pointprops: ",A)') string(nprop)
+          write (lu,'("pointprops: ")')
+          do ip = 1, sy%npropp
+             if (sy%propp(ip)%ispecial == 0) then
+                fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
+                write (lu,'("id: ",A)') string(ip)
+                write (lu,'("name: ",A)') string(sy%propp(ip)%name)
+                write (lu,'("expression: ",A)') string(sy%propp(ip)%expr)
+                write (lu,'("value: ",A)') string(fres,'e',decimal=14)
+             endif
+          end do
+       else
+          write (lu,'("number_of_pointprops: ",A)') string(nprop)
+       end if
+
+       if (res%isnuc) then
+          write (lu,'("is_nucleus: true")') 
+       else
+          write (lu,'("is_nucleus: false")') 
+       end if
+    end do
+    call fclose(lu)
+
+  end subroutine write_test_cps
 
 end submodule proc

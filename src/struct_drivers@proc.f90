@@ -29,7 +29,7 @@ contains
   module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use param, only: isformat_cif, isformat_shelx,&
+    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
        isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
@@ -104,6 +104,9 @@ contains
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(word,mol,errmsg)
+
+    elseif (isformat == isformat_f21) then
+       call seed%read_f21(word,mol,errmsg)
 
     elseif (isformat == isformat_cube) then
        call seed%read_cube(word,mol,errmsg)
@@ -584,7 +587,7 @@ contains
        call s%c%write_critic(file)
        ok = check_no_extra_word()
        if (.not.ok) return
-    elseif (equal(wext,'cif') .or. equal(wext,'d12')) then
+    elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
        ! cif and d12
        dosym = .true.
        do while(.true.)
@@ -602,9 +605,14 @@ contains
        if (equal(wext,'cif')) then
           write (uout,'("* WRITE cif file: ",A)') string(file)
           call s%c%write_cif(file,dosym)
-       else
+       elseif (equal(wext,'d12')) then
           write (uout,'("* WRITE crystal file: ",A)') string(file)
+          if (.not.s%c%ismolecule.and.dosym) &
+             write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
           call s%c%write_d12(file,dosym)
+       elseif (equal(wext,'res')) then
+          write (uout,'("* WRITE res file: ",A)') string(file)
+          call s%c%write_res(file,dosym)
        end if
        ok = check_no_extra_word()
        if (.not.ok) return
@@ -1465,27 +1473,27 @@ contains
           isdone(idx) = .true.
 
           if (iby_mode == iid) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
           elseif (iby_mode == iznuc) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
           else
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                lvec,ishell,up2d=up2d,nozero=.true.)
           end if
           if (ierr > 0 .and..not.s%c%ismolecule) then
              call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
              call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
              if (iby_mode == iid) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,nid0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
              elseif (iby_mode == iznuc) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,iz0=iby,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
              else
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
-                   lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+                   lvec,ishell,up2d=up2d,nozero=.true.)
              end if
              if (ierr > 0) &
                 call ferror('struct_environ','unknown error calculating atom environment',faterr)
@@ -1506,21 +1514,21 @@ contains
        deallocate(isdone)
     else
        if (iby_mode == iid) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
        elseif (iby_mode == iznuc) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
        else
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
        end if
        if (ierr > 0 .and..not.s%c%ismolecule) then
           call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
           call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_xr2c,s%c%m_x2xr,s%c%m_x2c,up2d)
           if (iby_mode == iid) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nid0=iby)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
           elseif (iby_mode == iznuc) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,iz0=iby)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
           else
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d)
+             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
           end if
           if (ierr > 0) &
              call ferror('struct_environ','unknown error calculating point environment',faterr)
@@ -1635,9 +1643,9 @@ contains
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd, rnew
     logical :: ok
-    integer :: nat, ierr, lvec(3)
+    integer :: nat, ierr
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
-    real*8, allocatable :: dist(:), up2dsp(:,:)
+    real*8, allocatable :: up2dsp(:,:)
     type(environ), pointer :: eptr
 
     ! allocate the default radii
@@ -1668,46 +1676,6 @@ contains
              call ferror('struct_coord','Wrong FAC keyword',faterr,line,syntax=.true.)
              return
           end if
-       elseif (equal(word,"radii")) then
-          do while (.true.)
-             lpold = lp
-             iat = 0
-             iz = 0
-             lp2 = 1
-             word = lgetword(line,lp)
-             if (equal(word,"fac").or.equal(word,"dist").or.equal(word,"radii")) then
-                lp = lpold
-                exit
-             end if
-             ok = isinteger(iat,word,lp2)
-             if (ok) then
-                ok = (iat > 0 .and. iat <= s%c%nspc)
-             end if
-             if (.not.ok) then
-                iz = zatguess(word)
-                ok = (iz >= 0)
-                if (.not. ok) then
-                   lp = lpold
-                   exit
-                end if
-             end if
-
-             ok = eval_next(rnew,line,lp)
-             if (.not.ok) then
-                call ferror('struct_coord','Wrong RADII keyword',faterr,line,syntax=.true.)
-                return
-             end if
-
-             if (iat > 0) then
-                rad(iat) = rnew
-             else
-                do i = 1, s%c%nspc
-                   if (s%c%spc(i)%z == iz) then
-                      rad(i) = rnew
-                   end if
-                end do
-             end if
-          end do
        elseif (len_trim(word) > 0) then
           call ferror('struct_coord','Unknown extra keyword',faterr,line,syntax=.true.)
           return
@@ -1738,7 +1706,7 @@ contains
     eptr => s%c%env
     do i = 1, s%c%nneq
        up2dsp(:,2) = rad + rad(s%c%at(i)%is)
-       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,ierr,up2dsp=up2dsp,nozero=.true.)
+       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,ierr,eid,up2dsp=up2dsp,nozero=.true.)
        do j = 1, nat
           coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
        end do
@@ -1837,16 +1805,17 @@ contains
     use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
-    use param, only: atmvdw, icrd_crys
+    use param, only: atmvdw, atmcov, icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
-    logical :: dovdw, found, ok
+    logical :: found, ok
     character(len=:), allocatable :: word
     integer :: i, j, n(3), ii(3), ntot, iaux, idx
     real*8 :: prec, alpha, x(3), dist
     real*8 :: vout, dv
+    integer :: whichuse = 0
 
     if (s%c%ismolecule) then
        call ferror("critic2","PACKING can not be used with molecules",faterr,syntax=.true.)
@@ -1854,8 +1823,8 @@ contains
     end if
 
     ! default values    
-    dovdw = .false.
-    prec = 1d-1
+    prec = 1d-2
+    whichuse = 0 ! 0 = nnm, 1 = vdw, 2 = cov
 
     ! header
     write (uout,'("* PACKING")')
@@ -1865,7 +1834,9 @@ contains
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,"vdw")) then
-          dovdw = .true.
+          whichuse = 1
+       elseif (equal(word,"cov")) then
+          whichuse = 2
        elseif (equal(word,"prec")) then
           ok = eval_next(prec,line,lp)
           if (.not.ok) then
@@ -1880,57 +1851,84 @@ contains
        end if
     end do
     
-    if (.not.dovdw) then
+    if (whichuse == 0) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
-       ! prepare the grid
-       write (uout,'("+ Est. precision in the % packing ratio: ",A)') string(prec,'e',10,3)
-       prec = prec * s%c%omega / 100d0
-       write (uout,'("+ Est. precision in the interstitial volume: ",A)') trim(string(prec,'f',100,4))
-       alpha = (prec / s%c%omega)**(1d0/3d0)
-       n = ceiling(s%c%aa / alpha)
-       write (uout,'("+ Using a volume grid with # of nodes: ",3(A," "))') &
-          (string(n(j)),j=1,3)
-       
-       ! run over all the points in the grid
-       ntot = n(1)*n(2)*n(3)
-       vout = 0d0
-       dv = s%c%omega / ntot
-
-       !$omp parallel do private(ii,iaux,x,found,idx,dist)
-       do i = 0, ntot-1
-          ! unpack the index
-          ii(1) = modulo(i,n(1))
-          iaux = (i - ii(1)) / (n(1))
-          ii(2) = modulo(iaux,n(2))
-          iaux = (iaux - ii(2)) / (n(2))
-          ii(3) = modulo(iaux,n(3))
-          ! calculate the point in the cell
-          x = real(ii,8) / real(n)
-
-          found = .false.
-          do j = 1, s%c%nspc
-             call s%c%nearest_atom(x,icrd_crys,idx,dist,distmax=atmvdw(s%c%spc(j)%z),is0=j)
-             if (idx > 0) then
-                found = .true.
-                exit
-             end if
-          end do
-          if (.not.found) then
-             !$omp critical (acumdv)
-             vout = vout + dv
-             !$omp end critical (acumdv)
-          end if
-       end do
-       !$omp end parallel do
-       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A)') &
-          trim(string(vout,'f',100,4))
-       write (uout,'("+ Cell volume: ",A)') trim(string(s%c%omega,'f',100,4))
-       write (uout,'("+ Packing ratio (%): ",A)') string((s%c%omega-vout)/s%c%omega*100,'f',10,4)
+       if (whichuse == 1) then
+          vout = s%c%vdw_volume(prec,atmvdw)
+       else
+          vout = s%c%vdw_volume(prec,atmcov)
+       end if
+       write (uout,'("+ Van der Waals volume: ",A," +- ",A)') &
+          string(vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
+          string(s%c%omega-vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
+       write (uout,'("+ Cell volume: ",A)') string(s%c%omega,'f',decimal=6)
+       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vout/s%c%omega*100d0,'f',decimal=6), &
+          string(prec*vout/s%c%omega*100d0,'f',decimal=6)
     end if
     write (uout,*)
 
   end subroutine struct_packing
+
+  !> Calculate the van der Waals volume of a crystal or molecule.
+  module subroutine struct_vdw(s,line)
+    use systemmod, only: system
+    use tools_io, only: ferror, faterr, uout, lgetword, equal, string
+    use global, only: eval_next
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    integer :: lp
+    logical :: ok
+    character(len=:), allocatable :: word
+    real*8 :: vvdw
+    ! integer :: i, j, n(3), ii(3), ntot, iaux, idx
+    !real*8 :: alpha, x(3), dist
+    ! integer :: whichuse = 0
+    real*8 :: prec
+
+    ! default values    
+    prec = 1d-2
+
+    ! header
+    write (uout,'("* VDW")')
+
+    ! parse input
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"prec")) then
+          ok = eval_next(prec,line,lp)
+          if (.not.ok) then
+             call ferror('struct_packing','Wrong PREC syntax in VDW',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_packing','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+    
+    ! calculate vdw volume
+    vvdw = s%c%vdw_volume(prec)
+
+    ! output
+    write (uout,'("+ Requested sigma_{Vvdw}/Vvdw: ",A)') string(prec,'e',decimal=4)
+    write (uout,'("+ Van der Waals volume (Vvdw): ",A," +- ",A)') &
+       string(vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
+    if (.not.s%c%ismolecule) then
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
+          string(s%c%omega-vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
+       write (uout,'("+ Cell volume: ",A)') string(s%c%omega,'f',decimal=6)
+       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vvdw/s%c%omega*100d0,'f',decimal=6), &
+          string(prec*vvdw/s%c%omega*100d0,'f',decimal=6)
+    end if
+    write (uout,*)
+
+  end subroutine struct_vdw
 
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
@@ -2146,8 +2144,8 @@ contains
 
     logical :: ok
     integer :: i, j, k, n
-    integer :: nat, lvec(3), ierr
-    integer, allocatable :: eid(:), ishell(:)
+    integer :: nat, ierr
+    integer, allocatable :: eid(:)
     real*8 :: dist0, econ, up2d  
     real*8 :: wi, numer, econprev
     real*8, allocatable :: econij(:,:), ndij(:,:), dist(:)
@@ -2175,7 +2173,7 @@ contains
           if (s%c%ismolecule .AND. s%c%ncel == 1) cycle
 
           ! grab the environment for this atom
-          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,lvec,ierr,ishell,up2d=up2d,nozero=.true.)
+          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,up2d=up2d,nozero=.true.)
 
           ! get the minimum distance for all the species
           mindist = -1d0

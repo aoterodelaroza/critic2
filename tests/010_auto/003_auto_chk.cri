@@ -1,0 +1,7 @@
+## delete: 003_auto_chk.cro
+## delete: 003_auto_chk.chk_cps
+## labels: regression quick
+
+crystal library urea
+
+auto chk

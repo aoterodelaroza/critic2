@@ -143,6 +143,9 @@ contains
     c%lvac = 0
     c%lcon = 0
 
+    ! no 3d molecular crystals
+    c%ismol3d = .false.
+
     ! core charges
     c%zpsp = -1
 
@@ -185,6 +188,7 @@ contains
     c%ws_mnfv = 0
     c%nmol = 0
     c%nlvac = 0
+    c%ismol3d = .false.
 
   end subroutine struct_end
 
@@ -498,6 +502,7 @@ contains
        ! Find the atomic connectivity and the molecular fragments
        call c%env%find_asterisms_covalent(c%nstar)
        call c%fill_molecular_fragments()
+       call c%calculate_molecular_equivalence()
 
        ! Write the half nearest-neighbor distance
        do i = 1, c%nneq
@@ -1287,6 +1292,68 @@ contains
 
   end subroutine fill_molecular_fragments
 
+  !> Calculate whether the crystal is a molecular crystal. If it is,
+  !> for each molecule, calculate whether it is contained as a whole
+  !> in the asymmetric unit (idxmol=-1) or not (idxmol >= 0). If it
+  !> is not, then the molecule can be symmetry-unique idxmol = 0 or
+  !> equivalent to the molecule with index idxmol>0. Fills ismol3d
+  !> and idxmol.
+  module subroutine calculate_molecular_equivalence(c)
+    use tools, only: qcksort
+    class(crystal), intent(inout) :: c
+    
+    integer :: mmax, i, j
+    integer, allocatable :: iord(:,:), midx(:,:)
+
+    ! 3d molecular crystals calculations
+    c%ismol3d = all(c%mol(1:c%nmol)%discrete).and..not.c%ismolecule
+    if (c%ismol3d) then
+       ! assign fractional (-1)/symmetry unique (0)/symmetry equivalent (>0)
+       if (allocated(c%idxmol)) deallocate(c%idxmol)
+       allocate(c%idxmol(c%nmol))
+       c%idxmol = 0
+
+       ! find the maximum number of atoms
+       mmax = 0
+       do i = 1, c%nmol
+          mmax = max(mmax,c%mol(i)%nat)
+       end do
+
+       ! sort the atomic indices
+       allocate(midx(mmax,c%nmol))
+       allocate(iord(mmax,c%nmol))
+       do i = 1, c%nmol
+          do j = 1, c%mol(i)%nat
+             midx(j,i) = c%mol(i)%at(j)%idx
+             iord(j,i) = j
+          end do
+          call qcksort(midx(:,i),iord(:,i),1,c%mol(i)%nat)
+
+          ! check if the molecule is fractional
+          do j = 1, c%mol(i)%nat-1
+             if (midx(iord(j,i),i) == midx(iord(j+1,i),i)) then
+                c%idxmol(i) = -1
+                exit
+             end if
+          end do
+       end do
+
+       ! assign idxmol based on the atomic sequence
+       do i = 1, c%nmol
+          if (c%idxmol(i) < 0) cycle
+          do j = 1, i-1
+             if (c%idxmol(j) < 0) cycle
+             if (all(midx(iord(:,i),i) == midx(iord(:,j),j))) then
+                c%idxmol(i) = j
+                exit
+             end if
+          end do
+       end do
+       deallocate(midx,iord)
+    end if
+
+  end subroutine calculate_molecular_equivalence
+
   !> List all molecules resulting from completing the initial fragment
   !> fri by adding adjacent atoms that are covalently bonded. Return
   !> the number of fragment (nfrag), the fragments themselves (fr),
@@ -1570,6 +1637,82 @@ contains
     px = px / c%omega * 100d0
 
   end function get_pack_ratio
+
+  !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
+  !> sampling.  relerr = use enough points to obtain a standard
+  !> deviation divided by the volume equal to this value. If
+  !> rtable(1:maxzat0) is present, use those radii instead of the 
+  !> van der walls radii
+  module function vdw_volume(c,relerr,rtable) result(vvdw)
+    use param, only: VBIG, atmvdw, icrd_cart
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: relerr
+    real*8, intent(in), optional :: rtable(:)
+    real*8 :: vvdw
+
+    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp
+    integer :: i, nat
+    real*8, allocatable :: rvdw(:,:)
+    integer :: ierr
+    integer*8 :: nin, ntot
+    logical :: again
+
+    ! build the list of atomic radii
+    allocate(rvdw(c%nspc,2))
+    do i = 1, c%nspc
+       rvdw(i,1) = 0d0
+       if (present(rtable)) then
+          rvdw(i,2) = rtable(c%spc(i)%z)
+       else
+          rvdw(i,2) = atmvdw(c%spc(i)%z)
+       end if
+    end do
+
+    ! calculate the encompassing box
+    if (c%ismolecule) then
+       xmin = VBIG
+       xmax = -VBIG
+       do i = 1, c%ncel
+          xmin = min(xmin,c%atcel(i)%r)
+          xmax = max(xmax,c%atcel(i)%r)
+       end do
+       xmin = xmin - maxval(rvdw(:,2))
+       xmax = xmax + maxval(rvdw(:,2))
+       vtot = product(xmax-xmin)
+    else
+       vtot = c%omega
+    end if
+
+    ! use Monte-Carlo to determine the volume
+    again = .true.
+    ntot = 0
+    nin = 0
+    do while (again)
+       ntot = ntot + 1
+       call random_number(x)
+
+       if (c%ismolecule) then
+          x = xmin + x * (xmax - xmin)
+       else
+          x = c%x2c(x)
+       end if
+       call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,up2dsp=rvdw)
+       if (ierr > 0) then
+          write (*,*) "error!"
+          stop 1
+       elseif (nat > 0) then
+          nin = nin + 1
+       end if
+
+       pp = real(nin,8) / real(ntot,8)
+       svol = vtot * sqrt(pp * (1-pp)/real(ntot,8))
+       vvdw = vtot * pp
+       if (ntot > 100) then
+          again = (svol > relerr * vvdw)
+       end if
+    end do
+
+  end function vdw_volume
 
   !> Calculate the powder diffraction pattern. 
   !> On input, npts is the number of 2*theta points from the initial
@@ -1894,9 +2037,9 @@ contains
        end if
        iz = c%spc(c%at(i)%is)%z
        if (localenv) then
-          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
+          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        else
-          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rend+tshift,nozero=.true.)
+          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        end if
 
        do j = 1, nat
@@ -2245,7 +2388,7 @@ contains
     real*8 :: x0(3,3), x0inv(3,3), fvol
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, k, l, m
-    integer :: nr, nn
+    integer :: nn
     integer :: nlat
     real*8, allocatable :: xlat(:,:)
 
@@ -2299,11 +2442,6 @@ contains
           ncseed%is(i) = isnew(i)
        end do
     else
-       ! check new volume
-       fvol = abs(det3(x0))
-       if (abs(nint(fvol)-fvol) > eps .and. abs(nint(1d0/fvol)-1d0/fvol) > eps) &
-          call ferror("newcell","Inconsistent newcell volume",faterr)
-
        ! check that the vectors are pure translations
        do i = 1, 3
           ok = .false.
@@ -2315,19 +2453,6 @@ contains
              call ferror("newcell","Cell vector number " // string(i) // &
              " is not a pure translation",faterr)
        end do
-
-       ! is this a smaller or a larger cell? Arrange vectors.
-       if (abs(dd-1d0) < eps) then
-          nr = 1
-       elseif (dd > 1d0) then
-          nr = nint(dd)
-          if (abs(nr-dd) > eps) &
-             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-       else
-          nr = -nint(1d0/dd)
-          if (abs(-nr-1d0/dd) > eps) &
-             call ferror('newcell','inconsistent determinant of lat. vectors',faterr)
-       end if
 
        ! inverse matrix
        x0inv = x0
@@ -2365,7 +2490,10 @@ contains
 
        ! build the new atom list
        ncseed%nat = 0
+       fvol = abs(det3(x0))
        nn = nint(c%ncel * fvol)
+       if (abs(nn - (c%ncel*fvol)) > eps) &
+          call ferror('newcell','inconsistent number of atoms in newcell',faterr)
        allocate(ncseed%x(3,nn),ncseed%is(nn))
        do i = 1, nlat
           do j = 1, c%ncel
@@ -2398,22 +2526,6 @@ contains
        call realloc(ncseed%x,3,ncseed%nat)
        call realloc(ncseed%is,ncseed%nat)
        deallocate(xlat)
-
-       if (nr > 0) then
-          if (ncseed%nat / c%ncel /= nr) then
-             write (uout,*) "c%ncel = ", c%ncel
-             write (uout,*) "ncseed%nat = ", ncseed%nat
-             write (uout,*) "nr = ", nr
-             call ferror('newcell','inconsistent cell # of atoms (nr > 0)',faterr)
-          end if
-       else
-          if (c%ncel / ncseed%nat /= -nr) then
-             write (uout,*) "c%ncel = ", c%ncel
-             write (uout,*) "ncseed%nat = ", ncseed%nat
-             write (uout,*) "nr = ", nr
-             call ferror('newcell','inconsistent cell # of atoms (nr < 0)',faterr)
-          end if
-       endif
     end if
 
     ! rest of the seed information
@@ -2681,7 +2793,7 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat, pi
+    use param, only: bohrtoa, maxzat, pi, atmass, pcamu,bohr2cm
     class(crystal), intent(in) :: c
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
@@ -2689,8 +2801,10 @@ contains
     integer :: i, j, k, iz, is
     integer :: nelec
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
+    real*8 :: dens, mass
     character(len=:), allocatable :: str1
     integer, allocatable :: nis(:)
+    integer :: izp0
 
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
@@ -2721,7 +2835,7 @@ contains
           nis(c%at(i)%is) = nis(c%at(i)%is) + c%at(i)%mult
        end do
        maxdv = gcd(nis,c%nspc)
-       write (uout,'("  Empirical formula: ",999(/4X,10(A,"(",A,") ")))') &
+       write (uout,'("  Empirical formula: ",999(10(A,"(",A,") ")))') &
           (string(c%spc(i)%name), string(nint(nis(i)/maxdv)), i=1,c%nspc)
        deallocate(nis)
        if (.not.c%ismolecule) then
@@ -2732,12 +2846,36 @@ contains
        endif
        write (uout,'("  Number of atomic species: ",A)') string(c%nspc)
        nelec = 0
+       mass = 0d0
        do i = 1, c%nneq
           iz = c%spc(c%at(i)%is)%z
-          if (iz >= maxzat) cycle
+          if (iz >= maxzat .or. iz <= 0) cycle
           nelec = nelec + iz * c%at(i)%mult
+          mass = mass + atmass(iz) * c%at(i)%mult
        end do
-       write (uout,'("  Number of electrons (with zero atomic charge): ",A/)') string(nelec)
+       write (uout,'("  Number of electrons (with zero atomic charge): ",A)') string(nelec)
+       if (.not.c%ismolecule) then
+          write (uout,'("  Molar mass (amu, per unit cell): ",A)') string(mass,'f',decimal=3)
+       else
+          write (uout,'("  Molar mass (amu): ",A)') string(mass,'f',decimal=3)
+       end if
+
+       ! Cell volume and density, space group short report
+       if (.not.c%ismolecule) then
+          dens = (mass*pcamu) / (c%omega*bohr2cm**3)
+          write (uout,'("  Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
+          write (uout,'("  Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
+          write (uout,'("  Density (g/cm^3): ",A)') string(dens,'f',decimal=3)
+          ! space group, very short report
+          if (c%havesym > 0 .and. c%spgavail) then
+             write(uout,'("  Space group (H-M): ",A, " (",A,")")') &
+                string(c%spg%international_symbol), string(c%spg%spacegroup_number)
+          else
+             write(uout,'("  Space group (H-M): ---")')
+          end if
+       end if
+
+       write (uout,*)
     end if
 
     if (lq) then
@@ -2749,10 +2887,10 @@ contains
           string("Q",length=4,justify=ioj_center),&
           string("ZPSP",length=4,justify=ioj_right)
        do i = 1, c%nspc
-          if (c%zpsp(c%spc(i)%z) > 0) then
-             str1 = string(c%zpsp(c%spc(i)%z))
-          else
-             str1 = " -- "
+          str1 = " -- "
+          if (c%spc(i)%z > 0) then
+             if (c%zpsp(c%spc(i)%z) > 0) &
+                str1 = string(c%zpsp(c%spc(i)%z))
           end if
           write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
              string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
@@ -2841,13 +2979,6 @@ contains
           write (uout,*)
        end if
 
-       ! Cell volume
-       if (.not.c%ismolecule) then
-          write (uout,'("+ Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
-          write (uout,'("+ Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
-          write (uout,*)
-       end if
-
        ! Write symmetry operations 
        if (.not.c%ismolecule) then
           write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
@@ -2857,7 +2988,7 @@ contains
           enddo
           write (uout,*)
 
-          call c%struct_report_symxyz()
+          call c%struct_report_symxyz(doaxes=.true.)
 
           write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
           do k = 1, c%ncv
@@ -2901,8 +3032,24 @@ contains
                 (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
           end do
           if (.not.c%ismolecule) then
-             if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
+             if (c%ismol3d .or. c%nlvac == 3) then
                 write (uout,'(/"+ This is a molecular crystal.")')
+                write (uout,'("  Number of molecules per cell (Z) = ",A)') string(c%nmol)
+                izp0 = 0
+                do i = 1, c%nmol
+                   if (c%idxmol(i) < 0) then
+                      izp0 = -1
+                      exit
+                   elseif (c%idxmol(i) == 0) then
+                      izp0 = izp0 + 1
+                   end if
+                end do
+                if (izp0 > 0) then
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(izp0)
+                else
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') < 1")') 
+                end if
+
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
                 write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
@@ -3017,12 +3164,14 @@ contains
   !> crystallographic notation (if possible). If strfin is present,
   !> return the strings in that variable instead of writing them to
   !> uout.
-  module subroutine struct_report_symxyz(c,strfin)
-    use tools_io, only: uout, string
+  module subroutine struct_report_symxyz(c,strfin,doaxes)
+    use tools_math, only: eig, det3
+    use tools_io, only: uout, string, ioj_right
     use global, only: symprec
-    use param, only: mlen
+    use param, only: mlen, eye, pi
     class(crystal), intent(in) :: c
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
+    logical, intent(in), optional :: doaxes
 
     real*8, parameter :: rfrac(25) = (/-12d0/12d0,-11d0/12d0,-10d0/12d0,&
        -9d0/12d0,-8d0/12d0,-7d0/12d0,-6d0/12d0,-5d0/12d0,-4d0/12d0,-3d0/12d0,&
@@ -3033,11 +3182,17 @@ contains
        "-1/12 ","      ","1/12  ","1/6   ","1/4   ","1/3   ","5/12  ","1/2   ",&
        "7/12  ","2/3   ","3/4   ","5/6   ","11/12 ","      "/)
     character*1, parameter :: xyz(3) = (/"x","y","z"/)
+    real*8, parameter :: eps = 1d-5
 
-    logical :: ok, iszero
-    integer :: i1, i2, i, j, k
+    logical :: ok, iszero, doax
+    integer :: i1, i2, i, j, k, idx, rotnum
     character(len=mlen) :: strout(c%neqv*c%ncv)
-    real*8 :: xtrans
+    real*8 :: xtrans, rmat(3,3), eval(3), evali(3), rotaxis(3)
+    real*8 :: trace, det, ang, ridx
+    character(len=mlen), allocatable :: rotchar(:)
+
+    doax = .false.
+    if (present(doaxes)) doax = doaxes
 
     i = 0
     do i1 = 1, c%ncv
@@ -3047,9 +3202,76 @@ contains
        end do
     end do
 
+    ! classify the rotations
+    if (doax) then
+       allocate(rotchar(c%neqv))
+       do i2 = 1, c%neqv
+          rmat = c%rotm(:,1:3,i2)
+          trace = rmat(1,1)+rmat(2,2)+rmat(3,3)
+          det = det3(rmat)
+
+          if (abs(trace - 3d0) < 1d-5) then
+             rotchar(i2) = " 1"
+          elseif (abs(trace + 3d0) < 1d-5) then
+             rotchar(i2) = "-1"
+          else
+             ! determine the angle of rotation
+             ang = 0.5d0*(trace-det)
+             if (abs(ang) > 1d0) ang = sign(1d0,ang)
+             ang = acos(ang)
+             if (abs(ang) < eps) then
+                rotnum = 1
+             else
+                rotnum = nint((2d0*pi) / ang)
+             end if
+             if (det > 0d0) then
+                rotchar(i2) = string(rotnum,2,ioj_right)
+             else
+                if (rotnum == 2) then
+                   rotchar(i2) = " m"
+                else
+                   rotchar(i2) = string(-rotnum,2,ioj_right)
+                end if
+             end if
+
+             ! determine the axis of rotation
+             call eig(rmat,3,eval,evali)
+             idx = 0
+             do j = 1, 3
+                if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
+                   idx = j
+                   exit
+                end if
+             end do
+             if (idx > 0) then
+                rotaxis = rmat(:,idx)
+                ! divide by the smallest non-zero element in the vector
+                ridx = 1d40
+                do j = 1, 3
+                   if (abs(rotaxis(j)) > eps .and. abs(rotaxis(j)) < ridx) ridx = abs(rotaxis(j))
+                end do
+                rotaxis = rotaxis / ridx
+             endif
+
+             if (all(abs(rotaxis - nint(rotaxis)) < eps)) then
+                rotchar(i2) = rotchar(i2)(1:2) // " [" // string(nint(rotaxis(1))) // "," //&
+                   string(nint(rotaxis(2))) // "," // string(nint(rotaxis(3))) // "]"
+             else
+                rotchar(i2) = rotchar(i2)(1:2) // " [" // string(rotaxis(1),'f',decimal=1) // "," //&
+                   string(rotaxis(2),'f',decimal=1) // "," // string(rotaxis(3),'f',decimal=1) // "]"
+             end if
+
+             rotaxis = c%x2c(rotaxis)
+             rotaxis = rotaxis / norm2(rotaxis)
+             rotchar(i2) = trim(rotchar(i2)) // "; [" // string(rotaxis(1),'f',decimal=3) // "," //&
+                string(rotaxis(2),'f',decimal=3) // "," // string(rotaxis(3),'f',decimal=3) // "]"
+          end if
+       end do
+    end if
+
     i = 0
     main: do i1 = 1, c%ncv
-       do i2 = 1, c%neqv
+       loopi: do i2 = 1, c%neqv
           i = i + 1
           strout(i) = ""
 
@@ -3068,7 +3290,7 @@ contains
              end do
              if (.not.ok) then
                 strout(i) = "<not found>"
-                exit main
+                cycle loopi
              end if
 
              ! rotation
@@ -3085,7 +3307,7 @@ contains
                    iszero = .false.
                 elseif (abs(c%rotm(j,k,i2)) > symprec) then
                    strout(i) = "<not found>"
-                   exit main
+                   cycle loopi
                 end if
              end do
 
@@ -3093,15 +3315,21 @@ contains
              if (j < 3) &
                 strout(i) = trim(strout(i)) // ","
           end do
-       end do
+          if (doax) then
+             strout(i) = string(strout(i),30) // " ## " // trim(rotchar(i2))
+          end if
+       end do loopi
     end do main
-
+    if (doax) deallocate(rotchar)
+    
     if (present(strfin)) then
        strfin = strout
     else
        write(uout,'("+ List of symmetry operations in crystallographic notation:")')
+       if (doax) &
+          write(uout,'("# number: operation ... ## order of rotation [axis]; [axis in Cartesian]")')
        do k = 1, c%neqv*c%ncv
-          write (uout,'(3X,A,": ",A)') string(k), string(strout(k))
+          write (uout,'(3X,A,": ",A)') string(k,length=3,justify=ioj_right), string(strout(k))
        enddo
        write (uout,*)
     end if
@@ -3140,7 +3368,7 @@ contains
           (string(c%molborder(j),'f',decimal=14),j=1,3)
     else
        write (lu,'(A,"  ""is_molecule"": false,")') prfx
-       if (all(c%mol(1:c%nmol)%discrete) .or. c%nlvac == 3) then
+       if (c%nlvac == 3) then
           write (lu,'(A,"  ""periodicity"": ""molecular (0d)"",")') prfx
        else if (c%nlvac == 2) then
           write (lu,'(A,"  ""periodicity"": ""polymer (1d)"",")') prfx
@@ -4782,7 +5010,7 @@ contains
 
   end subroutine write_cif
 
-  !> Write a simple cif file
+  !> Write a simple d12 file
   module subroutine write_d12(c,file,dosym)
     use tools_io, only: fopen_write, fclose, string
     use param, only: bohrtoa
@@ -4790,22 +5018,43 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: dosym
 
+    character(len=:), allocatable :: file34
     character(len=3) :: schpg
     integer :: lu, holo, laue
     integer :: i, j, k, l
     real*8 :: x(3)
 
-    if (dosym) then
-       lu = fopen_write(file)
-       write (lu,'("Title")')
+    lu = fopen_write(file)
+    write (lu,'("Title")')
+    if (c%ismolecule) then
+       write (lu,'("MOLECULE")')
+       write (lu,'("1")')
+       write (lu,'(A)') string(c%ncel)
+       do i = 1, c%ncel
+          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), &
+             (string((c%atcel(i)%r(j)+c%molx0(j))*bohrtoa,'f',15,8),j=1,3)
+       end do
+    elseif (dosym) then
        write (lu,'("EXTERNAL")')
-       write (lu,'("TESTGEOM")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       call fclose(lu)
+    else
+       write (lu,'("CRYSTAL")')
+       write (lu,'("0 0 0")')
+       write (lu,'("1")')
+       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
+       write (lu,'(A)') string(c%ncel)
+       do i = 1, c%ncel
+          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
+       end do
+    end if
+    write (lu,'("TESTGEOM")')
+    write (lu,'("END")')
+    write (lu,'("END")')
+    write (lu,'("END")')
+    call fclose(lu)
 
-       lu = fopen_write("fort.34")
+    if (.not.c%ismolecule.and.dosym) then
+       file34 = file(:index(file,'.',.true.)-1) // ".fort.34"
+       lu = fopen_write(file34)
 
        ! for a crystal, if symmetry is available
        ! header: dimensionality, centring type, and crystal holohedry
@@ -4820,7 +5069,7 @@ contains
        do i = 1, c%neqv
           do j = 1, c%ncv
              do k = 1, 3
-                write (lu,'(3(X,E19.12))') (c%rotm(l,k,i),l=1,3)
+                write (lu,'(3(X,E19.12))') (c%rotm(k,l,i),l=1,3)
              end do
              x = c%rotm(:,4,i)+c%cen(:,j)
              x = c%x2c(x)
@@ -4835,24 +5084,144 @@ contains
        end do
 
        call fclose(lu)
-    else
-       lu = fopen_write(file)
-       write (lu,'("Title")')
-       write (lu,'("CRYSTAL")')
-       write (lu,'("0 0 0")')
-       write (lu,'("1")')
-       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
-       write (lu,'(A)') string(c%ncel)
-       do i = 1, c%ncel
-          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
-       end do
-       write (lu,'("TESTGEOM")')
-       write (lu,'("END")')
-       write (lu,'("END")')
-       write (lu,'("END")')
     end if
 
   end subroutine write_d12
+
+  !> Write a shelx res file (filename = file) with the c crystal
+  !> structure. If usesym0, write symmetry to the cif file; otherwise
+  !> use P1.
+  module subroutine write_res(c,file,dosym)
+    use tools_io, only: fopen_write, fclose, string, ferror, warning, nameguess
+    use tools_math, only: det3
+    use param, only: bohrtoa, eye
+    class(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    logical, intent(in) :: dosym
+
+    integer :: i, j, lu, ilatt
+    character(len=mlen), allocatable :: strfin(:)
+    character(len=:), allocatable :: str
+    logical :: usesym, ok3(3), ok2(2)
+    real*8 :: dd
+
+    real*8, parameter :: cen_i(3)  = (/0.5d0,0.5d0,0.5d0/)
+    real*8, parameter :: cen_a(3)  = (/0.0d0,0.5d0,0.5d0/)
+    real*8, parameter :: cen_b(3)  = (/0.5d0,0.0d0,0.5d0/)
+    real*8, parameter :: cen_c(3)  = (/0.5d0,0.5d0,0.0d0/)
+    real*8, parameter :: cen_r1(3) = (/2d0,1d0,1d0/) / 3d0
+    real*8, parameter :: cen_r2(3) = (/1d0,2d0,2d0/) / 3d0
+    real*8 :: eps = 1d-5
+
+    ! use symmetry?
+    usesym = dosym .and. c%spgavail
+
+10  continue
+
+    ! open output file
+    lu = fopen_write(file)
+
+    ! header
+    write (lu,'("TITL res file created by critic2.")')
+    write (lu,'("CELL 0.71073 ",6(A,X))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
+       (string(c%bb(j),'f',10,6),j=1,3)
+    write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
+
+    if (usesym) then
+       ! identify lattice type
+       ilatt = 0
+       if (c%ncv == 1) then
+          ilatt = -1 ! P
+       elseif (c%ncv == 2) then
+          if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_a)) < eps)) then
+             ilatt = -2 ! I
+          elseif (all(abs(c%cen(:,2) - cen_b - nint(c%cen(:,2) - cen_b)) < eps)) then
+             ilatt = -5 ! A
+          elseif (all(abs(c%cen(:,2) - cen_c - nint(c%cen(:,2) - cen_c)) < eps)) then
+             ilatt = -6 ! B
+          elseif (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_i)) < eps)) then
+             ilatt = -7 ! C
+          end if
+       elseif (c%ncv == 3) then
+          ok2 = .false.
+          do i = 2, c%ncv
+             if (.not.ok2(1)) ok2(1) = all(abs(c%cen(:,i) - cen_r1 - nint(c%cen(:,i) - cen_r1)) < eps)
+             if (.not.ok2(2)) ok2(2) = all(abs(c%cen(:,i) - cen_r2 - nint(c%cen(:,i) - cen_r2)) < eps)
+          end do
+          if (all(ok2)) ilatt = -3
+       elseif (c%ncv == 4) then
+          ok3 = .false.
+          do i = 2, c%ncv
+             if (.not.ok3(1)) ok3(1) = all(abs(c%cen(:,i) - cen_a - nint(c%cen(:,i) - cen_a)) < eps)
+             if (.not.ok3(2)) ok3(2) = all(abs(c%cen(:,i) - cen_b - nint(c%cen(:,i) - cen_b)) < eps)
+             if (.not.ok3(3)) ok3(3) = all(abs(c%cen(:,i) - cen_c - nint(c%cen(:,i) - cen_c)) < eps)
+          end do
+          if (all(ok3)) ilatt = -4
+       end if
+       if (ilatt == 0) then
+          call ferror('write_res','unknown set of centering vectors',warning)
+          usesym = .false.
+          call fclose(lu)
+          goto 10
+       end if
+
+       ! identify centrosymmetry
+       do i = 1, c%neqv
+          if (all(abs(c%rotm(1:3,1:3,i) + eye) < eps) .and. all(abs(c%rotm(1:3,4,i)) < eps)) then
+             ilatt = -ilatt
+             exit
+          end if
+       end do
+    else
+       ilatt = -1
+    end if
+    write (lu,'("LATT ",A)') string(ilatt)
+
+    if (usesym) then
+       allocate(strfin(c%neqv*c%ncv))
+       call c%struct_report_symxyz(strfin)
+       do i = 2, c%neqv ! skip the identity
+          dd = det3(c%rotm(1:3,1:3,i))
+          if (dd > 0d0 .or. ilatt < 0) then
+             if (index(strfin(i),"not found") > 0) then
+                call ferror('write_res','unknown set of centering vectors',warning)
+                usesym = .false.
+                call fclose(lu)
+                goto 10
+             end if
+             write (lu,'("SYMM ",A)') trim(strfin(i))
+          end if
+       end do
+    end if
+
+    ! atomic species
+    write (lu,'("SFAC ",999(A,X))') (trim(nameguess(c%spc(i)%z,.true.)),i=1,c%nspc)
+
+    ! number of atoms of each type
+    str = ""
+    do i = 1, c%nspc
+       str = str // " " // string(count(c%atcel(:)%is == i))
+    end do
+    write (lu,'("UNIT ",A)') str
+    write (lu,'("FVAR 1.00")')
+
+    ! list of atoms
+    if (usesym) then
+       do i = 1, c%nneq
+          write (lu,'(999(A,X))') trim(c%spc(c%at(i)%is)%name) // string(i), string(c%at(i)%is), &
+             (string(c%at(i)%x(j),'f',12,8),j=1,3), string(real(c%at(i)%mult,8)/(c%neqv*c%ncv),'f',12,8), &
+             "0.05"
+       end do
+    else
+       do i = 1, c%ncel
+          write (lu,'(999(A,X))') trim(c%spc(c%atcel(i)%is)%name) // string(i), string(c%atcel(i)%is), &
+             (string(c%atcel(i)%x(j),'f',12,8),j=1,3), "1.0", "0.05"
+       end do
+    end if
+    ! close the file
+    call fclose(lu)
+
+  end subroutine write_res
 
   !> Write an escher octave script
   module subroutine write_escher(c,file)

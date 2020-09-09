@@ -175,10 +175,9 @@ contains
     integer :: ni, llplus1, norb, norb1
     real*8 :: phi, phip, phipp, zj, or
     real*8 :: rhop, rhopp, rhofac1, xx2r(3), xxion(3), rfac, radd
-    integer :: n0, nm1, nm2, nenv, ierr, lvec(3)
+    integer :: n0, nm1, nm2, nenv, ierr
     real*8 :: tmprho
     integer, allocatable :: eid(:)
-    real*8, allocatable :: dist(:)
 
     real*8, parameter :: eps0 = 1d-7
 
@@ -186,7 +185,7 @@ contains
     rho = 0d0
     grad = 0d0
     h = 0d0
-    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,ierr,up2dsp=f%spcutoff)
+    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (exact) then

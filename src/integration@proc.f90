@@ -1362,6 +1362,10 @@ contains
              res(l)%reason = "Cannot use a pwc with k-point symmetry"
              cycle
           end if
+          if (sy%propi(l)%useu .and. any(sy%f(fid)%grid%qe%spread < 0d0)) then
+             res(l)%reason = "Cannot use the U when Wannier functions have negative spread"
+             cycle
+          end if
 
           ! assign integers
           nbnd = sy%f(fid)%grid%qe%nbnd

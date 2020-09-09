@@ -23,6 +23,8 @@ set(TESTS
   022_write_siesta     ## write siesta files (fdf,STRUCT_IN)
   023_write_dftb       ## write dftb+ files (gen,hsd)
   024_write_pyscf      ## write pyscf files, crystals and molecules
+  025_write_d12        ## write d12 files
+  026_write_res        ## write res files
   )
 
 runtests(${TESTS})

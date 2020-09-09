@@ -1,0 +1,9 @@
+## delete: 005_auto_clip_cube.cro
+## check: 005_auto_clip_cube_seeds.obj -a1e-10
+## check: 005_auto_clip_cube_seeds.mtl -a1e-10
+## labels: regression quick
+
+crystal library urea
+
+auto dry seedobj clip cube 0.3 0.3 0.3 0.7 0.7 0.7
+

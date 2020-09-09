@@ -1,0 +1,9 @@
+## check: 002_auto_opts.test -a1e-10
+## delete: 002_auto_opts.cro
+## labels: regression quick
+
+crystal library urea
+
+auto gradeps 1e-8 discard "$0 < 0.1" nuceps 1e-1 nucepsh 1e-1 epsdegen 1e-9
+auto dry
+cpreport 002_auto_opts.test

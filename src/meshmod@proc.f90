@@ -243,7 +243,7 @@ contains
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer, allocatable :: eid(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat, lvec(3), ierr
+    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat, ierr
     real*8 :: x(3), fscal, fscal2, xnuc(3), rmax
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
     logical :: isealloc
@@ -301,7 +301,7 @@ contains
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in 
     ! the correct order 
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat,lvec,ierr) &
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat,ierr) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
@@ -336,9 +336,9 @@ contains
 
              ! find all atoms within a distance = rthres from the mesh point
              if (isealloc) then
-                call env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax)
+                call env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax)
              else
-                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax)
+                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax)
              end if
              if (ierr > 0) then
                 call ferror('genmesh_franchini','could not find environment of a mesh point',faterr)

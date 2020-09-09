@@ -876,24 +876,29 @@ contains
   !> main cell if the environment is from a crystal. Then, calculate
   !> the list of nearest atoms. If sorted is true, the list is sorted
   !> by distance and shell (if up2n or up2sh is used, the list is
-  !> always sorted). The output list eid contains nat atoms with IDs
-  !> eid(1:nat) from the environment, distances to the input point
-  !> equal to dist(1:nat) and lattice vector lvec in
-  !> cryst. coords. The position of atom i in cryst. coords. is
-  !> xr2x(e%at(eid(i))%x) + lvec. Optionally, ishell0(i) contains the
-  !> shell ID for atom i in the output list. One or more of four
-  !> cutoff criteria must be chosen: list up to a distance up2d,
-  !> between a minimum and a maximum species-dependent distance
-  !> (up2dsp), up to a distance to each atom in the complete list
-  !> (up2dcidx), up to a number of shells up2sh or up to a number of
-  !> atoms up2n. If nid0, consider only atoms with index nid0 from the
-  !> non-equivalent list. If id0, consider only atoms with index id0
-  !> from the complete list. If iz0, consider only atoms with atomic
-  !> number iz0. If ispc0, consider only species with species ID
-  !> ispc0. If nozero, disregard zero-distance atoms. The output error
+  !> always sorted). The list contains nat atoms. The output error
   !> condition ierr is 0 if the search was successful or non-zero if
   !> the input search conditions could not be met by this environment.
-  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,eid,dist,lvec,ierr,ishell0,up2d,&
+  !>
+  !> Optional output:
+  !> The output eid contains nat atoms with IDs eid(1:nat) from
+  !> the environment, distances to the input point equal to
+  !> dist(1:nat) and lattice vector lvec in cryst. coords. The
+  !> position of atom i in cryst. coords. is xr2x(e%at(eid(i))%x) +
+  !> lvec. Optionally, ishell0(i) contains the shell ID for atom i in
+  !> the output list. One or more of four cutoff criteria must be
+  !> chosen: list up to a distance up2d, between a minimum and a
+  !> maximum species-dependent distance (up2dsp), up to a distance to
+  !> each atom in the complete list (up2dcidx), up to a number of
+  !> shells up2sh or up to a number of atoms up2n. If nid0, consider
+  !> only atoms with index nid0 from the non-equivalent list. If id0,
+  !> consider only atoms with index id0 from the complete list. If
+  !> iz0, consider only atoms with atomic number iz0. If ispc0,
+  !> consider only species with species ID ispc0. If nozero, disregard
+  !> zero-distance atoms.
+  !> Sorted and the up2sh and up2n options work only if the dist(:)
+  !> array is present.
+  module subroutine list_near_atoms(e,xp,icrd,sorted,nat,ierr,eid,dist,lvec,ishell0,up2d,&
      up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
     use global, only: atomeps
     use tools_io, only: ferror, faterr
@@ -905,10 +910,10 @@ contains
     integer, intent(in) :: icrd
     logical, intent(in) :: sorted
     integer, intent(out) :: nat
-    integer, allocatable, intent(inout) :: eid(:)
-    real*8, allocatable, intent(inout) :: dist(:)
-    integer, intent(out) :: lvec(3)
     integer, intent(out) :: ierr
+    integer, allocatable, intent(inout), optional :: eid(:)
+    real*8, allocatable, intent(inout), optional :: dist(:)
+    integer, intent(out), optional :: lvec(3)
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
     real*8, intent(in), optional :: up2dsp(:,:)
@@ -931,6 +936,7 @@ contains
     real*8, allocatable :: rshel(:)
     integer, allocatable :: idxshel(:)
     logical :: doshell, enough
+    integer :: lvecin(3)
 
     if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2dcidx).and.&
         .not.present(up2sh).and..not.present(up2n)) &
@@ -939,11 +945,12 @@ contains
 
     ! Find the integer region for the main cell copy of the input point
     x0 = xp
-    call e%y2z_center(x0,icrd,icrd_cart,lvec)
+    call e%y2z_center(x0,icrd,icrd_cart,lvecin)
     ireg0 = e%c2p(x0)
-    xx = real(lvec,8)
+    xx = real(lvecin,8)
     xx = e%xr2x(xx)
-    lvec = nint(xx)
+    lvecin = nint(xx)
+    if (present(lvec)) lvec = lvecin
 
     ! calculate the maximum distance for which we guarantee we will
     ! get all the atoms
@@ -954,9 +961,14 @@ contains
     nshel = 0
     rcutshel = -1d0
     rcutn = -1d0
-    if (allocated(eid)) deallocate(eid)
-    if (allocated(dist)) deallocate(dist)
-    allocate(eid(10),dist(10))
+    if (present(eid)) then
+       if (allocated(eid)) deallocate(eid)
+       allocate(eid(10))
+    end if
+    if (present(dist)) then
+       if (allocated(dist)) deallocate(dist)
+       allocate(dist(10))
+    end if
     if (doshell) then
        allocate(ishell(10),rshel(10),idxshel(10))
     end if
@@ -1057,8 +1069,8 @@ contains
     ! Rearrange the arrays 
     if (nat > 0) then
        ! First reallocation
-       call realloc(eid,nat)
-       call realloc(dist,nat)
+       if (present(eid)) call realloc(eid,nat)
+       if (present(dist)) call realloc(dist,nat)
        if (doshell) call realloc(ishell,nat)
 
        ! Re-order shell labels first by distance, then by atom ID
@@ -1080,7 +1092,7 @@ contains
        end if
 
        ! Sort output atoms by distance
-       if (sorted .or. present(up2sh) .or. present(up2n)) then
+       if ((sorted .or. present(up2sh) .or. present(up2n)).and.present(dist)) then
           allocate(iord(nat))
           do i = 1, nat
              iord(i) = i
@@ -1109,7 +1121,7 @@ contains
              ! We do not do shell so by distance only
              call mergesort(dist,iord,1,nat)
           end if
-          eid = eid(iord)
+          if (present(eid)) eid = eid(iord)
           dist = dist(iord)
           if (doshell) ishell = ishell(iord)
           deallocate(iord)
@@ -1125,7 +1137,7 @@ contains
                 end do
              end if
              if (present(up2n)) nat = min(up2n,nat)
-             call realloc(eid,nat)
+             if (present(eid)) call realloc(eid,nat)
              call realloc(dist,nat)
              call realloc(ishell,nat)
           end if
@@ -1145,13 +1157,15 @@ contains
   contains
     subroutine add_atom_to_output_list()
       nat = nat + 1
-      if (nat > size(eid,1)) then
-         call realloc(eid,2*nat)
-         call realloc(dist,2*nat)
-         if (doshell) call realloc(ishell,2*nat)
+      if (present(eid)) then
+         if (nat > size(eid,1)) call realloc(eid,2*nat)
+         eid(nat) = k
       end if
-      eid(nat) = k
-      dist(nat) = dist0
+      if (present(dist)) then
+         if (nat > size(dist,1)) call realloc(dist,2*nat)
+         dist(nat) = dist0
+      end if
+      if (doshell .and. nat > size(ishell,1)) call realloc(ishell,2*nat)
 
       ! Update the up2n rcut, distance to farthest known atom in the initial 1->up2n list.  
       ! The final (ordered) list will have its farthest atom at a distance less than rcutn.
@@ -1274,7 +1288,7 @@ contains
        call ferror("promolecular","dmax0 not large enough for promolecular",faterr)
 
     ! compute the list of atoms that contribute to the point
-    call e%list_near_atoms(xc,icrd_cart,.false.,nat,nid,dist,lvec,ierr,up2dsp=rcutmax)
+    call e%list_near_atoms(xc,icrd_cart,.false.,nat,ierr,nid,dist,lvec,up2dsp=rcutmax)
     deallocate(rcutmax)
     rlvec = lvec
     rlvec = e%x2c(rlvec)
@@ -1371,8 +1385,10 @@ contains
     allocate(rij2(e%nspc,e%nspc,2))
     rij2 = 0d0
     do i = 1, e%nspc
+       if (e%spc(i)%z <= 0) cycle
        ri = atmcov(e%spc(i)%z)
        do j = i, e%nspc
+          if (e%spc(j)%z <= 0) cycle
           rj = atmcov(e%spc(j)%z)
           
           r2 = (ri+rj) * bondfactor
@@ -1474,7 +1490,7 @@ contains
        if (iz > 0) then
           dsp(:,1) = (d0sp + rtable(iz)) * factor
           dsp(:,2) = (d0sp + rtable(iz)) / factor
-          call e%list_near_atoms(e%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2dsp=dsp,nozero=.true.)
+          call e%list_near_atoms(e%at(i)%r,icrd_cart,.false.,nat,ierr,eid,lvec=lvec,up2dsp=dsp,nozero=.true.)
 
           if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
           if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)

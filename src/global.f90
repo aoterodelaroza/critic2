@@ -214,6 +214,8 @@ module global
        integer, intent(inout) :: lp0
        integer, intent(out) :: res
      end function eval_next_int
+     module subroutine list_radii()
+     end subroutine list_radii
   end interface
 
 end module global

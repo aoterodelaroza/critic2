@@ -111,6 +111,9 @@ module crystalmod
      integer :: nlvac = 0 !< Number of vacuum lattice vectors
      integer :: lvac(3,2) !< Vacuum lattice vectors
      integer :: lcon(3,2) !< Connected lattice vectors
+     ! variables for 3d molecular crystals
+     logical :: ismol3d !< Is this a 3d molecular crystal?
+     integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
 
      !! Initialization level: isewald !!
      ! ewald data
@@ -147,11 +150,13 @@ module crystalmod
 
      ! molecular environments and neighbors
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
+     procedure :: calculate_molecular_equivalence !< Calculate symmetry relations between molecules
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
+     procedure :: vdw_volume !< Calculate the van der waals volume
 
      ! complex operations
      procedure :: powder !< Calculate the powder diffraction pattern
@@ -197,6 +202,7 @@ module crystalmod
      procedure :: write_critic
      procedure :: write_cif
      procedure :: write_d12
+     procedure :: write_res
      procedure :: write_escher
      procedure :: write_db
      procedure :: write_gulp
@@ -369,6 +375,9 @@ module crystalmod
      module subroutine fill_molecular_fragments(c)
        class(crystal), intent(inout) :: c
      end subroutine fill_molecular_fragments
+     module subroutine calculate_molecular_equivalence(c)
+       class(crystal), intent(inout) :: c
+     end subroutine calculate_molecular_equivalence
      module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
        class(crystal), intent(inout) :: c
        type(fragment), intent(in) :: fri
@@ -388,6 +397,12 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
+     module function vdw_volume(c,relerr,rtable) result(vvdw)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: relerr
+       real*8, intent(in), optional :: rtable(:)
+       real*8 :: vvdw
+     end function vdw_volume
      module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
         sigma,t,ih,th2p,ip,hvecp)
        class(crystal), intent(in) :: c
@@ -469,9 +484,10 @@ module crystalmod
      module subroutine struct_report_symmetry(c)
        class(crystal), intent(in) :: c
      end subroutine struct_report_symmetry
-     module subroutine struct_report_symxyz(c,strfin)
+     module subroutine struct_report_symxyz(c,strfin,doaxes)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
+       logical, intent(in), optional :: doaxes
      end subroutine struct_report_symxyz
      module subroutine struct_write_json(c,lu,prfx)
        class(crystal), intent(in) :: c
@@ -581,6 +597,11 @@ module crystalmod
        character*(*), intent(in) :: file
        logical, intent(in) :: dosym
      end subroutine write_d12
+     module subroutine write_res(c,file,dosym)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       logical, intent(in) :: dosym
+     end subroutine write_res
      module subroutine write_escher(c,file)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file

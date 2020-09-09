@@ -1,0 +1,48 @@
+## delete: 008_cpreport.cro
+## delete: 008_cpreport.scf.in
+## delete: 008_cpreport.tess
+## delete: 008_cpreport_.cri
+## delete: 008_cpreport_.incritic
+## delete: 008_cpreport.POSCAR
+## delete: 008_cpreport.CONTCAR
+## delete: 008_cpreport.abin
+## delete: 008_cpreport.elk
+## delete: 008_cpreport.gau
+## delete: 008_cpreport.cif
+## delete: 008_cpreport.m
+## delete: 008_cpreport.gin
+## delete: 008_cpreport.lammps
+## delete: 008_cpreport.fdf
+## delete: 008_cpreport.STRUCT_IN
+## delete: 008_cpreport.hsd
+## delete: 008_cpreport.gen
+## delete: 008_cpreport.json
+## labels: regression quick
+
+crystal library urea
+
+auto
+cpreport short
+cpreport long
+cpreport verylong
+cpreport shells 2
+
+cpreport 008_cpreport.scf.in
+cpreport 008_cpreport.tess
+cpreport 008_cpreport_.cri
+cpreport 008_cpreport_.incritic
+cpreport 008_cpreport.POSCAR
+cpreport 008_cpreport.CONTCAR
+cpreport 008_cpreport.abin
+cpreport 008_cpreport.elk
+cpreport 008_cpreport.gau
+cpreport 008_cpreport.cif
+cpreport 008_cpreport.m
+cpreport 008_cpreport.gin
+cpreport 008_cpreport.lammps
+cpreport 008_cpreport.fdf
+cpreport 008_cpreport.STRUCT_IN
+cpreport 008_cpreport.hsd
+cpreport 008_cpreport.gen
+cpreport 008_cpreport.json
+

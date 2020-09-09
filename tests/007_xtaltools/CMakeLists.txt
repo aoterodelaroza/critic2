@@ -31,6 +31,7 @@ set(TESTS
   030_sym_large              ## sym keyword, with large structure
   031_sym_opts               ## sym keyword, options
   032_sym_refine             ## sym keyword, refine keyword
+  033_vdw                    ## vdw keyword
   )
 
 runtests(${TESTS})

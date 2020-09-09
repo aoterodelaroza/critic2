@@ -64,6 +64,7 @@ module crystalseedmod
      procedure :: read_library
      procedure :: read_cif 
      procedure :: read_shelx 
+     procedure :: read_f21
      procedure :: read_cube 
      procedure :: read_bincube 
      procedure :: read_wien 
@@ -121,11 +122,17 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_cif
      module subroutine read_shelx(seed,file,mol,errmsg)
-       class(crystalseed) :: seed
+       class(crystalseed), intent(inout)  :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_shelx
+     module subroutine read_f21(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_f21
      module subroutine read_cube(seed,file,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

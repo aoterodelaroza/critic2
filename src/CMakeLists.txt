@@ -30,12 +30,17 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   wien_private.f90 wien_private@proc.f90 xdm.f90
   xdm@proc.f90 yt.f90 yt@proc.f90
   arithmetic.F90 arithmetic@proc.F90 config@proc.F90
-  molcalc@proc.F90 param.F90
+  molcalc@proc.F90 param.F90 param@proc.f90
   tools_io@proc.F90 wfn_private@proc.F90
   )
 set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
+
+## gfortran-10: do not check fftpack for argument mismatch
+if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0)
+  set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS -fallow-argument-mismatch)
+endif()
 
 ## C standards
 set(CMAKE_C_STANDARD 99)
@@ -114,6 +119,7 @@ endif()
 ## The library for the GUI
 if (ENABLE_GUI)
   add_library(lcritic2 OBJECT ${SOURCES_Fortran} ${SOURCES_C})
+  add_dependencies(lcritic2 critic2)
 endif()
 
 ## install the binary

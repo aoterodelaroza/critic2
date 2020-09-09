@@ -1,0 +1,9 @@
+## delete: 006_auto_clip_sphere.cro
+## check: 006_auto_clip_sphere_seeds.obj -a1e-10
+## check: 006_auto_clip_sphere_seeds.mtl -a1e-10
+## labels: regression quick
+
+crystal library urea
+
+auto dry seedobj clip sphere 0.5 0.5 0.5 3
+

@@ -38,6 +38,7 @@ module struct_drivers
   public :: struct_econ
   public :: struct_coord
   public :: struct_packing
+  public :: struct_vdw
   public :: struct_newcell
   public :: struct_molcell
   public :: struct_identify
@@ -97,6 +98,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_packing
+     module subroutine struct_vdw(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line
+     end subroutine struct_vdw
      module subroutine struct_newcell(s,line,verbose)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line

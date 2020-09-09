@@ -667,7 +667,7 @@ contains
     rmax2 = rmax*rmax
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
-       call lenv%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       call lenv%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,ierr,eid,dist,lvec2,up2d=rmax,nozero=.true.)
        if (ierr /= 0) &
           call ferror("xdm_grid","error listing atoms from the environment",faterr)
 
@@ -1604,7 +1604,7 @@ contains
     use param, only: icrd_cart, atmvdw
     type(xdmparams), intent(in) :: p
 
-    integer :: i, j, jj, iz, nat, ierr, lvec(3)
+    integer :: i, j, jj, iz, nat, ierr
     integer :: kk, k, izi, izj, izk, npts
     real*8 :: d, dij, dik, djk, xi(3), xj(3), xk(3)
     real*8 :: bij, bik, bjk
@@ -1642,7 +1642,7 @@ contains
     do i = 1, lenv%ncell
        iz = lenv%spc(lenv%at(i)%is)%z
        if (iz < 1) cycle
-       call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax,nozero=.true.)
+       call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax,nozero=.true.)
        if (ierr /= 0) &
           call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 
@@ -1670,7 +1670,7 @@ contains
        do i = 1, lenv%ncell
           izi = lenv%spc(lenv%at(i)%is)%z
           if (izi < 1) cycle
-          call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,eid,dist,lvec,ierr,up2d=rmax9,nozero=.true.)
+          call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax9,nozero=.true.)
           if (ierr /= 0) &
              call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 
@@ -1841,7 +1841,7 @@ contains
        alpha1 = alpha(i,i1)
        ml1 = mm(:,i,i1)
 
-       call lenv%list_near_atoms(x0,icrd_cart,.false.,nat,eid,dist,lvec2,ierr,up2d=rmax,nozero=.true.)
+       call lenv%list_near_atoms(x0,icrd_cart,.false.,nat,ierr,eid,dist,lvec2,up2d=rmax,nozero=.true.)
        if (ierr /= 0) &
           call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
 

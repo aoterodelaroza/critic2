@@ -39,7 +39,7 @@ program critic
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
-     struct_compare, struct_identify, struct_econ
+     struct_vdw, struct_compare, struct_identify, struct_econ
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -147,6 +147,8 @@ program critic
                     call struct_sym(sy,"recalc",.not.quiet) 
               end if
            else
+              call check_structure_defined(ok)
+              if (.not.ok) cycle
               call struct_sym(sy,subline,.not.quiet) 
            end if
         end if
@@ -477,6 +479,12 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_packing(sy,line(lp:))
+
+        ! vdw
+     elseif (equal(word,'vdw')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call struct_vdw(sy,line(lp:))
 
         ! identify
      elseif (equal(word,'identify')) then

@@ -1,0 +1,8 @@
+## check: 001_auto_simple.test -a1e-10
+## delete: 001_auto_simple.cro
+## labels: regression quick
+
+crystal library urea
+
+auto
+cpreport 001_auto_simple.test
