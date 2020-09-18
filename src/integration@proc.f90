@@ -1628,7 +1628,7 @@ contains
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
     integer, intent(in) :: ilvec(3,natt1)
-    integer, intent(in) :: idg1(:,:,:)
+    integer, intent(in), allocatable :: idg1(:,:,:)
     real*8, intent(in) :: xattr(:,:)
     type(ytdata), intent(in) :: dat
     integer, intent(in) :: luevc(2)
