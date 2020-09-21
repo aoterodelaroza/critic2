@@ -27,6 +27,7 @@ if (NOT critic2_GIT_COMMIT)
 endif()
 
 ## global flags for cmake
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
