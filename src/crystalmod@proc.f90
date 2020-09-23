@@ -5102,7 +5102,7 @@ contains
     integer :: i, j, lu, ilatt
     character(len=mlen), allocatable :: strfin(:)
     character(len=:), allocatable :: str
-    logical :: usesym, ok3(3), ok2(2), firstpass
+    logical :: usesym, ok3(3), ok2(2)
     real*8 :: dd
 
     real*8, parameter :: cen_i(3)  = (/0.5d0,0.5d0,0.5d0/)
@@ -5115,7 +5115,6 @@ contains
 
     ! use symmetry?
     usesym = dosym .and. c%spgavail
-    firstpass = .true.
 
 10  continue
 
@@ -5128,7 +5127,7 @@ contains
        (string(c%bb(j),'f',10,6),j=1,3)
     write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
 
-    if (usesym .and. firstpass) then
+    if (usesym) then
        ! identify lattice type
        ilatt = 0
        if (c%ncv == 1) then
@@ -5163,8 +5162,6 @@ contains
           call ferror('write_res','unknown set of centering vectors',warning)
           usesym = .false.
           call fclose(lu)
-          firstpass = .false.
-          goto 10
        end if
 
        ! identify centrosymmetry
