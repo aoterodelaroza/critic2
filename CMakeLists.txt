@@ -140,20 +140,20 @@ endif()
 
 ## qhull
 if (USE_EXTERNAL_QHULL)
-  find_package(Qhull)
+  find_package(QHULL)
 endif()
 
 ## spglib
 if (USE_EXTERNAL_SPGLIB)
-  find_package(Spglib)
+  find_package(SPGLIB)
 endif()
 
 ## numdiff
-find_package(Numdiff)
+find_package(NUMDIFF)
 
 ## libxc
 if (USE_LIBXC)
-  find_package(Libxc)
+  find_package(LIBXC)
   if (LIBXC_FOUND)
     set(MINLIBXC_VERSION 4.1)
     if (${LIBXC_VERSION} VERSION_LESS ${MINLIBXC_VERSION})
@@ -166,12 +166,12 @@ endif()
 
 ## readline
 if (USE_READLINE)
-  find_package(Readline)
+  find_package(READLINE)
 endif()
 
 ## libcint
 if (USE_LIBCINT)
-  find_package(Libcint)
+  find_package(LIBCINT)
 endif()
 
 ## the syntax.txt target
