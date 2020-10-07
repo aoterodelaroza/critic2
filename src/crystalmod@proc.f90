@@ -1302,7 +1302,7 @@ contains
     use tools, only: qcksort
     class(crystal), intent(inout) :: c
     
-    integer :: mmax, i, j
+    integer :: mmax, i, j, nat
     integer, allocatable :: iord(:,:), midx(:,:)
 
     ! 3d molecular crystals calculations
@@ -1323,11 +1323,12 @@ contains
        allocate(midx(mmax,c%nmol))
        allocate(iord(mmax,c%nmol))
        do i = 1, c%nmol
-          do j = 1, c%mol(i)%nat
+          nat = c%mol(i)%nat
+          do j = 1, nat
              midx(j,i) = c%mol(i)%at(j)%idx
              iord(j,i) = j
           end do
-          call qcksort(midx(:,i),iord(:,i),1,c%mol(i)%nat)
+          call qcksort(midx(1:nat,i),iord(1:nat,i),1,c%mol(i)%nat)
 
           ! check if the molecule is fractional
           do j = 1, c%mol(i)%nat-1
@@ -1340,10 +1341,11 @@ contains
 
        ! assign idxmol based on the atomic sequence
        do i = 1, c%nmol
+          nat = c%mol(i)%nat
           if (c%idxmol(i) < 0) cycle
           do j = 1, i-1
              if (c%idxmol(j) < 0) cycle
-             if (all(midx(iord(:,i),i) == midx(iord(:,j),j))) then
+             if (all(midx(iord(1:nat,i),i) == midx(iord(1:nat,j),j))) then
                 c%idxmol(i) = j
                 exit
              end if
