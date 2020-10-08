@@ -2638,7 +2638,9 @@ contains
     ! rewind and read the correct structure
     rewind(lu)
     do while (getline_raw(lu,line))
-       if (index(line,"CRYSTAL CALCULATION") > 0) then
+       if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) then
+          cycle
+       elseif (index(line,"CRYSTAL CALCULATION") > 0) then
           iscrystal = .true.
        elseif (index(line,"3D - CRYSTAL") > 0) then
           iscrystal = .true.
@@ -2647,9 +2649,11 @@ contains
        elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
+          if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
           do i = 1, 3
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
+             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
              lp = 1
              ok = isreal(r(i,1),line,lp)
              ok = ok.and.isreal(r(i,2),line,lp)
@@ -2664,12 +2668,14 @@ contains
           do i = 1, 3
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
+             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
           end do
           line = ""
           seed%nat = 0
           do while (.true.)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
+             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
              if (len_trim(line) < 1) exit
              if (index(line,"ERROR") > 0) exit
              if (index(line,"WARNING") > 0) exit
