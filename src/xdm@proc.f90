@@ -1054,11 +1054,12 @@ contains
     real*8 :: a1, a2, rdum
     character(len=:), allocatable :: line, str, word
     real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
-    logical :: ok
+    logical :: ok, good
     character*10 :: atom
 
     allocate(rc(sy%c%ncel,sy%c%ncel),v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
 
+    good = .false.
     a1 = 0d0
     a2 = 0d0
     lu = fopen_read(string(file))
@@ -1086,6 +1087,7 @@ contains
 
        ! read the dispersion coefficients and the radii
        if (trim(line) == "coefficients and distances (a.u.)") then
+          good = .true.
           ok = getline_raw(lu,line)
           do i = 1, sy%c%ncel
              do j = i, sy%c%ncel
@@ -1112,6 +1114,9 @@ contains
        end if
     end do main
     call fclose(lu)
+
+    if (.not.good) &
+       call ferror("xdm_read_postg","invalid postg output file",faterr)
 
     ! calculate the c9 coefficients, if applicable
     call xdm_calculate_c9(p,mm,v,vfree)
