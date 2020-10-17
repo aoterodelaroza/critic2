@@ -20,7 +20,9 @@ submodule (xdm) proc
   
   !xx! private procedures
   ! subroutine xdm_grid(line)
-  ! subroutine xdm_qe(line0)
+  ! subroutine xdm_from_file(line0)
+  ! subroutine xdm_read_qe(file,p,forcedamp,lto,lfrom)
+  ! subroutine xdm_read_postg(file,p)
   ! subroutine xdm_excitation(line0)
   ! subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
   ! subroutine xdm_wfn(a1o,a2o,chf)
@@ -92,7 +94,9 @@ contains
     if (equal(word,"grid")) then
        call xdm_grid(line(lp:))
     elseif (equal(word,"qe")) then
-       call xdm_qe(line(lp:))
+       call xdm_from_file(line(lp:),.true.)
+    elseif (equal(word,"postg")) then
+       call xdm_from_file(line(lp:),.false.)
     elseif (equal(word,"excitation")) then
        call xdm_excitation(line(lp:))
     else
@@ -770,21 +774,21 @@ contains
   end subroutine xdm_grid
 
   !> Calculate XDM from the information in a QE output
-  subroutine xdm_qe(line0)
+  subroutine xdm_from_file(line0,isqe)
     use systemmod, only: sy
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
        lgetword, isinteger, equal, getword, isreal
     use types, only: realloc
-    use param, only: bohrtoa, alpha_free
+    use param, only: bohrtoa
     character*(*), intent(inout) :: line0
+    logical, intent(in) :: isqe
 
     type(xdmparams) :: p
-    integer :: i, j, k
+    integer :: i, j
     integer :: lu, lp, idx, idx1, idx2, idum
     character(len=:), allocatable :: line, str, word, aux, file
     logical :: ok, inbetween
-    real*8 :: a1, a2, mra, mrb, mrc
-    real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
+    real*8 :: a1, a2
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
     logical, allocatable :: lfrom(:), lto(:)
@@ -793,8 +797,7 @@ contains
     ! allocate space for the XDM info
     p%nat = sy%c%ncel
     allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
-    allocate(rc(sy%c%ncel,sy%c%ncel),p%rvdw(sy%c%ncel,sy%c%ncel))
-    allocate(v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
+    allocate(p%rvdw(sy%c%ncel,sy%c%ncel))
 
     ! parse the options
     allocate(ifrom(10),ito(10))
@@ -814,17 +817,17 @@ contains
              ifrom(nfrom) = idum
           end do
           if (nfrom == 0) &
-             call ferror("xdm_qe","No atoms found after BETWEEN keyword",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","No atoms found after BETWEEN keyword",faterr,line0,syntax=.true.)
        else if (equal(word,"and")) then
           if (.not.inbetween) &
-             call ferror("xdm_qe","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
           do while (isinteger(idum,line0,lp))
              nto = nto + 1
              if (nto > size(ito,1)) call realloc(ito,2*nto)
              ito(nto) = idum
           end do
           if (nto == 0) &
-             call ferror("xdm_qe","No atoms found after AND keyword",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","No atoms found after AND keyword",faterr,line0,syntax=.true.)
        else if (equal(word,"file")) then
           file = getword(line0,lp)
        else if (equal(word,"noc10")) then
@@ -836,25 +839,25 @@ contains
        else if (equal(word,"scalc6")) then
           ok = isreal(p%scalc6,line0,lp)
           if (.not.ok) then
-             call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong scalc8",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc8")) then
           ok = isreal(p%scalc8,line0,lp)
           if (.not.ok) then
-             call ferror("xdm_qe","wrong scalc8",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong scalc8",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc10")) then
           ok = isreal(p%scalc10,line0,lp)
           if (.not.ok) then
-             call ferror("xdm_qe","wrong scalc10",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong scalc10",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"scalc9")) then
           ok = isreal(p%scalc9,line0,lp)
           if (.not.ok) then
-             call ferror("xdm_qe","wrong scalc9",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong scalc9",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"damp")) then
@@ -862,14 +865,14 @@ contains
           ok = ok .and. isreal(a2,line0,lp)
           forcedamp = .true.
           if (.not.ok) then
-             call ferror("xdm_qe","wrong damp",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong damp",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"damp3")) then
           ok = isreal(p%a91,line0,lp)
           ok = ok .and. isreal(p%a92,line0,lp)
           if (.not.ok) then
-             call ferror("xdm_qe","wrong damp3",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong damp3",faterr,line0,syntax=.true.)
              return
           end if
        else if (equal(word,"damp3bjn")) then
@@ -881,11 +884,11 @@ contains
           elseif (equal(word,"sqrt6")) then
              p%bj3n = bj3n_sf6
           else
-             call ferror("xdm_qe","wrong damp3bjn",faterr,line0,syntax=.true.)
+             call ferror("xdm_from_file","wrong damp3bjn",faterr,line0,syntax=.true.)
              return
           end if
        elseif (len_trim(word) > 0) then
-          call ferror("xdm_qe","Unknown extra keyword: " // trim(word),faterr,line0,syntax=.true.)
+          call ferror("xdm_from_file","Unknown extra keyword: " // trim(word),faterr,line0,syntax=.true.)
           return
        else
           exit
@@ -894,9 +897,9 @@ contains
     if (nto > 0) call realloc(ito,nto)
     if (nfrom > 0) call realloc(ifrom,nfrom)
     if (nto > 0 .and. nfrom == 0) &
-       call ferror("xdm_qe","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
+       call ferror("xdm_from_file","AND found but missing BETWEEN",faterr,line0,syntax=.true.)
     if (nfrom > 0 .and. nto == 0) &
-       call ferror("xdm_qe","BETWEEN found but missing AND",faterr,line0,syntax=.true.)
+       call ferror("xdm_from_file","BETWEEN found but missing AND",faterr,line0,syntax=.true.)
 
     ! allocate the from and to atoms
     allocate(lto(sy%c%ncel),lfrom(sy%c%ncel))
@@ -914,7 +917,12 @@ contains
        end do
     end if
 
-    write (uout,'("* Sum the XDM dispersion energy using a QE output")')
+    if (isqe) then
+       write (uout,'("* Calculation of XDM dispersion energy using a QE output")')
+    else
+       write (uout,'("* Calculation of XDM dispersion energy using a postg output")')
+    end if
+
     write (uout,'("+ Reading coefficients from the file: ",A)') string(file)
     if (nto > 0 .or. nfrom > 0) then
        str = "  Between atoms: "
@@ -932,17 +940,51 @@ contains
     end if
     deallocate(ito,ifrom)
 
+    if (isqe) then
+       call xdm_read_qe(file,p,forcedamp,lto,lfrom)
+    else
+       call xdm_read_postg(file,p,forcedamp,lto,lfrom)
+    end if
+    deallocate(lto,lfrom)
+    
+    ! calculate and print out the energy
+    call calc_edisp(p)
+
+  end subroutine xdm_from_file
+
+  !> Read the dispersion coeffiients from a QE output file. Populate
+  !> the p type. Consider only the coefficients between atoms lto
+  !> and atoms lfrom. If forcedamp, use the damping function parameters
+  !> from the file.
+  subroutine xdm_read_qe(file,p,forcedamp,lto,lfrom)
+    use systemmod, only: sy
+    use tools_io, only: getline_raw, string, fopen_read, ferror, faterr, fclose
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    type(xdmparams), intent(inout) :: p
+    logical, intent(in) :: forcedamp
+    logical, intent(in) :: lto(:), lfrom(:)
+    
+    integer :: lu
+    logical :: ok
+    integer :: i, j, idx, idx1, idx2
+    real*8 :: a1, a2
+    character(len=:), allocatable :: line, str
+    real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
+
+    allocate(rc(sy%c%ncel,sy%c%ncel),v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
+
     lu = fopen_read(string(file))
-    main: do while (getline(lu,line))
+    main: do while (getline_raw(lu,line))
        ! read the parameters
        if (.not.forcedamp) then
           if (trim(line) == "* XDM dispersion") then
-             ok = getline(lu,line)
+             ok = getline_raw(lu,line)
              idx = index(line,"=")
              str = trim(line(idx+1:))
              read(str,*) a1
-             ok = getline(lu,line)
-             ok = getline(lu,line)
+             ok = getline_raw(lu,line)
+             ok = getline_raw(lu,line)
              idx = index(line,"=")
              str = trim(line(idx+1:))
              read(str,*) a2
@@ -950,19 +992,23 @@ contains
        end if
        ! read the dispersion coefficients and the radii
        if (trim(line) == "+ Volumes and moments") then
+          ok = getline_raw(lu,line)
+          ok = getline_raw(lu,line)
           do i = 1, sy%c%ncel
-             ok = getline(lu,line)
+             ok = getline_raw(lu,line)
              read (line,*) idx1, v(i), vfree(i), mm(1,i), mm(2,i), mm(3,i)
           end do
        end if
        ! read the dispersion coefficients and the radii
        if (trim(line) == "+ Dispersion coefficients") then
+          ok = getline_raw(lu,line)
+          ok = getline_raw(lu,line)
           do i = 1, sy%c%ncel
              do j = 1, i
-                ok = getline(lu,line)
+                ok = getline_raw(lu,line)
                 read(line,*) idx1, idx2, p%c6(i,j), p%c8(i,j), p%c10(i,j), rc(i,j), p%rvdw(i,j)
                 if (idx1 /= i .or. idx2 /= j) then
-                   call ferror("trick","read indices do not match",faterr)
+                   call ferror("xdm_read_qe","read indices do not match",faterr)
                 end if
                 if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
                    p%c6(i,j) = 0d0
@@ -982,32 +1028,129 @@ contains
        end if
     end do main
     call fclose(lu)
-    deallocate(lto,lfrom)
+
+    ! calculate the c9 coefficients, if applicable
+    call xdm_calculate_c9(p,mm,v,vfree)
+
+  end subroutine xdm_read_qe
+
+  !> Read the dispersion coeffiients from a postg output file. Populate
+  !> the p type. Consider only the coefficients between atoms lto
+  !> and atoms lfrom. If forcedamp, use the damping function parameters
+  !> from the file.
+  subroutine xdm_read_postg(file,p,forcedamp,lto,lfrom)
+    use systemmod, only: sy
+    use tools_io, only: getline_raw, string, fopen_read, ferror, faterr, fclose, equal, &
+       getword, isreal
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    type(xdmparams), intent(inout) :: p
+    logical, intent(in) :: forcedamp
+    logical, intent(in) :: lto(:), lfrom(:)
     
-    ! calculate the c9 coefficients
-    if (p%usec9) then
-       allocate(p%c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
-       do i = 1, sy%c%ncel
-          do j = i, sy%c%ncel
-             do k = j, sy%c%ncel
-                mra = mm(1,i) / (v(i) / vfree(i) * alpha_free(sy%c%spc(sy%c%atcel(i)%is)%z))
-                mrb = mm(1,j) / (v(j) / vfree(j) * alpha_free(sy%c%spc(sy%c%atcel(j)%is)%z))
-                mrc = mm(1,k) / (v(k) / vfree(k) * alpha_free(sy%c%spc(sy%c%atcel(k)%is)%z))
-                p%c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
-                p%c9(j,k,i) = p%c9(i,j,k)
-                p%c9(k,i,j) = p%c9(i,j,k)
-                p%c9(i,k,j) = p%c9(i,j,k)
-                p%c9(j,i,k) = p%c9(i,j,k)
-                p%c9(k,j,i) = p%c9(i,j,k)
+    integer :: lu, lp
+    logical :: ok
+    integer :: i, j, idx, idx1, idx2
+    real*8 :: a1, a2, rdum
+    character(len=:), allocatable :: line, str, word
+    real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
+    logical :: ok
+    character*10 :: atom
+
+    allocate(rc(sy%c%ncel,sy%c%ncel),v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
+
+    a1 = 0d0
+    a2 = 0d0
+    lu = fopen_read(string(file))
+    main: do while (getline_raw(lu,line))
+       lp = 1
+       word = getword(line,lp)
+
+       ! read the parameters
+       if (.not.forcedamp) then
+          if (equal(word,"a1")) then
+             ok = isreal(a1,line,lp)
+          elseif (equal(word,"a2(ang)")) then
+             ok = isreal(a2,line,lp)
+          end if
+       end if
+
+       ! read the dispersion coefficients and the radii
+       if (trim(line) == "moments and volumes") then
+          ok = getline_raw(lu,line)
+          do i = 1, sy%c%ncel
+             ok = getline_raw(lu,line)
+             read (line,*) idx1, atom, v(i), vfree(i), mm(1,i), mm(2,i), mm(3,i)
+          end do
+       end if
+
+       ! read the dispersion coefficients and the radii
+       if (trim(line) == "coefficients and distances (a.u.)") then
+          ok = getline_raw(lu,line)
+          do i = 1, sy%c%ncel
+             do j = i, sy%c%ncel
+                ok = getline_raw(lu,line)
+                read(line,*) idx1, idx2, rdum, p%c6(i,j), p%c8(i,j), p%c10(i,j), rc(i,j), p%rvdw(i,j)
+                if (idx1 /= i .or. idx2 /= j) then
+                   call ferror("xdm_read_postg","read indices do not match",faterr)
+                end if
+                if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
+                   p%c6(i,j) = 0d0
+                   p%c8(i,j) = 0d0
+                   p%c10(i,j) = 0d0
+                end if
+                p%c6(j,i) = p%c6(i,j)
+                p%c8(j,i) = p%c8(i,j)
+                p%c10(j,i) = p%c10(i,j)
+                rc(j,i) = rc(i,j)
+                if (forcedamp) then
+                   p%rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
+                end if
+                p%rvdw(j,i) = p%rvdw(i,j)
              end do
           end do
+       end if
+    end do main
+    call fclose(lu)
+
+    ! calculate the c9 coefficients, if applicable
+    call xdm_calculate_c9(p,mm,v,vfree)
+
+  end subroutine xdm_read_postg
+
+  !> Calculate the c9 coefficients from the volumes and moments.
+  subroutine xdm_calculate_c9(p,mm,v,vfree)
+    use systemmod, only: sy
+    use param, only: alpha_free
+    type(xdmparams), intent(inout) :: p
+    real*8, intent(in) :: mm(:,:), v(:), vfree(:)
+
+    real*8 :: mra, mrb, mrc
+    integer :: i, j, k
+
+    if (.not.p%usec9) return
+    
+    ! calculate the c9 coefficients
+    if (allocated(p%c9)) deallocate(p%c9)
+    allocate(p%c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
+    do i = 1, sy%c%ncel
+       do j = i, sy%c%ncel
+          do k = j, sy%c%ncel
+             mra = mm(1,i) / (v(i) / vfree(i) * alpha_free(sy%c%spc(sy%c%atcel(i)%is)%z))
+             mrb = mm(1,j) / (v(j) / vfree(j) * alpha_free(sy%c%spc(sy%c%atcel(j)%is)%z))
+             mrc = mm(1,k) / (v(k) / vfree(k) * alpha_free(sy%c%spc(sy%c%atcel(k)%is)%z))
+             p%c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
+             p%c9(j,k,i) = p%c9(i,j,k)
+             p%c9(k,i,j) = p%c9(i,j,k)
+             p%c9(i,k,j) = p%c9(i,j,k)
+             p%c9(j,i,k) = p%c9(i,j,k)
+             p%c9(k,j,i) = p%c9(i,j,k)
+          end do
        end do
-    end if
+    end do
 
-    ! calculate and print out the energy
-    call calc_edisp(p)
-
-  end subroutine xdm_qe
+  end subroutine xdm_calculate_c9
+    
 
   !> Calculate XDM from the information in a QE output
   subroutine xdm_excitation(line0)
