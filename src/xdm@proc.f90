@@ -833,6 +833,8 @@ contains
           p%usec10 = .false.
        else if (equal(word,"noc8")) then
           p%usec8 = .false.
+       else if (equal(word,"noc6")) then
+          p%usec6 = .false.
        else if (equal(word,"c9")) then
           p%usec9 = .true.
        else if (equal(word,"scalc6")) then
