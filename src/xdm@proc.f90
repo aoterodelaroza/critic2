@@ -1087,7 +1087,7 @@ contains
           ok = getline_raw(lu,line)
           do i = 1, sy%c%ncel
              ok = getline_raw(lu,line)
-             read (line,*) idx1, atom, v(i), vfree(i), mm(1,i), mm(2,i), mm(3,i)
+             read (line,*) idx1, atom, mm(1,i), mm(2,i), mm(3,i), v(i), vfree(i)
           end do
        end if
 
