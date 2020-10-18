@@ -21,7 +21,7 @@ submodule (xdm) proc
   !xx! private procedures
   ! subroutine xdm_grid(line)
   ! subroutine xdm_from_file(line0)
-  ! subroutine xdm_read_qe(file,p,forcedamp,lto,lfrom)
+  ! subroutine xdm_read_qe(file,p)
   ! subroutine xdm_read_postg(file,p)
   ! subroutine xdm_excitation(line0)
   ! subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
@@ -50,6 +50,9 @@ submodule (xdm) proc
 
   type xdmparams
      integer :: nat
+     logical :: forcedamp
+     real*8 :: a1, a2
+     logical, allocatable :: lto(:), lfrom(:)
      real*8, allocatable :: rvdw(:,:)
      real*8, allocatable :: c6(:,:), c8(:,:), c10(:,:)
      real*8, allocatable :: c9(:,:,:)
@@ -787,16 +790,16 @@ contains
     integer :: lp, idum
     character(len=:), allocatable :: str, word, aux, file
     logical :: ok, inbetween
-    real*8 :: a1, a2
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
-    logical, allocatable :: lfrom(:), lto(:)
-    logical :: forcedamp
     
     ! allocate space for the XDM info
     p%nat = sy%c%ncel
     allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
-    allocate(p%rvdw(sy%c%ncel,sy%c%ncel))
+    allocate(p%rvdw(sy%c%ncel,sy%c%ncel),p%lto(sy%c%ncel),p%lfrom(sy%c%ncel))
+    p%forcedamp = .false.
+    p%a1 = 0d0
+    p%a2 = 0d0
 
     ! parse the options
     allocate(ifrom(10),ito(10))
@@ -805,7 +808,6 @@ contains
     inbetween = .false.
     nfrom = 0
     nto = 0
-    forcedamp = .false.
     do while(.true.)
        word = lgetword(line0,lp)
        if (equal(word,"between")) then
@@ -862,9 +864,9 @@ contains
              return
           end if
        else if (equal(word,"damp")) then
-          ok = isreal(a1,line0,lp)
-          ok = ok .and. isreal(a2,line0,lp)
-          forcedamp = .true.
+          ok = isreal(p%a1,line0,lp)
+          ok = ok .and. isreal(p%a2,line0,lp)
+          p%forcedamp = .true.
           if (.not.ok) then
              call ferror("xdm_from_file","wrong damp",faterr,line0,syntax=.true.)
              return
@@ -903,18 +905,17 @@ contains
        call ferror("xdm_from_file","BETWEEN found but missing AND",faterr,line0,syntax=.true.)
 
     ! allocate the from and to atoms
-    allocate(lto(sy%c%ncel),lfrom(sy%c%ncel))
     if (nto == 0 .and. nfrom == 0) then
-       lto = .true.
-       lfrom = .true.
+       p%lto = .true.
+       p%lfrom = .true.
     else
-       lto = .false.
-       lfrom = .false.
+       p%lto = .false.
+       p%lfrom = .false.
        do i = 1, nto
-          lto(ito(i)) = .true.
+          p%lto(ito(i)) = .true.
        end do
        do i = 1, nfrom
-          lfrom(ifrom(i)) = .true.
+          p%lfrom(ifrom(i)) = .true.
        end do
     end if
 
@@ -942,11 +943,10 @@ contains
     deallocate(ito,ifrom)
 
     if (isqe) then
-       call xdm_read_qe(file,p,forcedamp,lto,lfrom)
+       call xdm_read_qe(file,p)
     else
-       call xdm_read_postg(file,p,forcedamp,lto,lfrom)
+       call xdm_read_postg(file,p)
     end if
-    deallocate(lto,lfrom)
     
     ! calculate and print out the energy
     call calc_edisp(p)
@@ -954,22 +954,17 @@ contains
   end subroutine xdm_from_file
 
   !> Read the dispersion coeffiients from a QE output file. Populate
-  !> the p type. Consider only the coefficients between atoms lto
-  !> and atoms lfrom. If forcedamp, use the damping function parameters
-  !> from the file.
-  subroutine xdm_read_qe(file,p,forcedamp,lto,lfrom)
+  !> the p type.
+  subroutine xdm_read_qe(file,p)
     use systemmod, only: sy
     use tools_io, only: getline_raw, string, fopen_read, ferror, faterr, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(xdmparams), intent(inout) :: p
-    logical, intent(in) :: forcedamp
-    logical, intent(in) :: lto(:), lfrom(:)
     
     integer :: lu
     logical :: ok, good
     integer :: i, j, idx, idx1, idx2
-    real*8 :: a1, a2
     character(len=:), allocatable :: line, str
     real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
 
@@ -979,17 +974,17 @@ contains
     lu = fopen_read(string(file))
     main: do while (getline_raw(lu,line))
        ! read the parameters
-       if (.not.forcedamp) then
+       if (.not.p%forcedamp) then
           if (trim(line) == "* XDM dispersion") then
              ok = getline_raw(lu,line)
              idx = index(line,"=")
              str = trim(line(idx+1:))
-             read(str,*) a1
+             read(str,*) p%a1
              ok = getline_raw(lu,line)
              ok = getline_raw(lu,line)
              idx = index(line,"=")
              str = trim(line(idx+1:))
-             read(str,*) a2
+             read(str,*) p%a2
           end if
        end if
        ! read the dispersion coefficients and the radii
@@ -1012,7 +1007,7 @@ contains
                 if (idx1 /= i .or. idx2 /= j) then
                    call ferror("xdm_read_qe","read indices do not match",faterr)
                 end if
-                if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
+                if (.not.(p%lto(i) .and. p%lfrom(j) .or. p%lto(j) .and. p%lfrom(i))) then
                    p%c6(i,j) = 0d0
                    p%c8(i,j) = 0d0
                    p%c10(i,j) = 0d0
@@ -1021,8 +1016,8 @@ contains
                 p%c8(j,i) = p%c8(i,j)
                 p%c10(j,i) = p%c10(i,j)
                 rc(j,i) = rc(i,j)
-                if (forcedamp) then
-                   p%rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
+                if (p%forcedamp) then
+                   p%rvdw(i,j) = p%a1 * rc(i,j) + p%a2 / bohrtoa
                 end if
                 p%rvdw(j,i) = p%rvdw(i,j)
              end do
@@ -1041,23 +1036,19 @@ contains
   end subroutine xdm_read_qe
 
   !> Read the dispersion coeffiients from a postg output file. Populate
-  !> the p type. Consider only the coefficients between atoms lto
-  !> and atoms lfrom. If forcedamp, use the damping function parameters
-  !> from the file.
-  subroutine xdm_read_postg(file,p,forcedamp,lto,lfrom)
+  !> the p type.
+  subroutine xdm_read_postg(file,p)
     use systemmod, only: sy
     use tools_io, only: getline_raw, string, fopen_read, ferror, faterr, fclose, equal, &
        getword, isreal
     use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(xdmparams), intent(inout) :: p
-    logical, intent(in) :: forcedamp
-    logical, intent(in) :: lto(:), lfrom(:)
     
     integer :: lu, lp
     logical :: ok
     integer :: i, j, idx1, idx2
-    real*8 :: a1, a2, rdum
+    real*8 :: rdum
     character(len=:), allocatable :: line, word
     real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
     logical :: ok, good
@@ -1066,19 +1057,17 @@ contains
     allocate(rc(sy%c%ncel,sy%c%ncel),v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
 
     good = .false.
-    a1 = 0d0
-    a2 = 0d0
     lu = fopen_read(string(file))
     main: do while (getline_raw(lu,line))
        lp = 1
        word = getword(line,lp)
 
        ! read the parameters
-       if (.not.forcedamp) then
+       if (.not.p%forcedamp) then
           if (equal(word,"a1")) then
-             ok = isreal(a1,line,lp)
+             ok = isreal(p%a1,line,lp)
           elseif (equal(word,"a2(ang)")) then
-             ok = isreal(a2,line,lp)
+             ok = isreal(p%a2,line,lp)
           end if
        end if
 
@@ -1102,7 +1091,7 @@ contains
                 if (idx1 /= i .or. idx2 /= j) then
                    call ferror("xdm_read_postg","read indices do not match",faterr)
                 end if
-                if (.not.(lto(i) .and. lfrom(j) .or. lto(j) .and. lfrom(i))) then
+                if (.not.(p%lto(i) .and. p%lfrom(j) .or. p%lto(j) .and. p%lfrom(i))) then
                    p%c6(i,j) = 0d0
                    p%c8(i,j) = 0d0
                    p%c10(i,j) = 0d0
@@ -1111,8 +1100,8 @@ contains
                 p%c8(j,i) = p%c8(i,j)
                 p%c10(j,i) = p%c10(i,j)
                 rc(j,i) = rc(i,j)
-                if (forcedamp) then
-                   p%rvdw(i,j) = a1 * rc(i,j) + a2 / bohrtoa
+                if (p%forcedamp) then
+                   p%rvdw(i,j) = p%a1 * rc(i,j) + p%a2 / bohrtoa
                 end if
                 p%rvdw(j,i) = p%rvdw(i,j)
              end do
