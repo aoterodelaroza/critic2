@@ -966,7 +966,7 @@ contains
     logical, intent(in) :: lto(:), lfrom(:)
     
     integer :: lu
-    logical :: ok
+    logical :: ok, good
     integer :: i, j, idx, idx1, idx2
     real*8 :: a1, a2
     character(len=:), allocatable :: line, str
@@ -974,6 +974,7 @@ contains
 
     allocate(rc(sy%c%ncel,sy%c%ncel),v(sy%c%ncel),vfree(sy%c%ncel),mm(3,sy%c%ncel))
 
+    good = .false.
     lu = fopen_read(string(file))
     main: do while (getline_raw(lu,line))
        ! read the parameters
@@ -1025,9 +1026,13 @@ contains
                 p%rvdw(j,i) = p%rvdw(i,j)
              end do
           end do
+          good = .true.
        end if
     end do main
     call fclose(lu)
+
+    if (.not.good) &
+       call ferror("xdm_read_qe","invalid QE output file",faterr)
 
     ! calculate the c9 coefficients, if applicable
     call xdm_calculate_c9(p,mm,v,vfree)
