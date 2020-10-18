@@ -716,6 +716,69 @@ contains
 
   end subroutine wfn_read_dat_geometry
 
+  !> Read the molecular geometry from a postg output file (.pgout).
+  module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg)
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: n !< Number of atoms
+    real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
+    integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
+    character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, i, idum
+    character(len=:), allocatable :: line
+    logical :: ok
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+ 
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+ 
+    n = 0
+    allocate(x(3,10),z(10),name(10))
+    main: do while (getline_raw(lu,line))
+       if (line(1:7) == "# n  At") then
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (line(1:1) == "#") exit main
+
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+                call realloc(name,2*n)
+             end if
+             read (line,*,err=999) idum, name(n), x(1,n), x(2,n), x(3,n)
+             z(n) = zatguess(name(n))
+          end do
+          call realloc(x,3,n)
+          call realloc(z,n)
+          call realloc(name,n)
+       end if
+    end do main
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    endif
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end subroutine wfn_read_pgout_geometry
+
   !> Read the wavefunction from a wfn file
   module subroutine read_wfn(f,file,env)
     use tools_io, only: fopen_read, zatguess, ferror, faterr, fclose

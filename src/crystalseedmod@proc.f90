@@ -2055,9 +2055,10 @@ contains
   module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
-       wfn_read_log_geometry, wfn_read_dat_geometry
+       wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
-       isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat
+       isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
+       isformat_pgout
     use tools_io, only: equali
     use types, only: realloc
 
@@ -2094,6 +2095,9 @@ contains
     elseif (fmt == isformat_dat) then
        ! psi4 output file
        call wfn_read_dat_geometry(file,seed%nat,seed%x,z,name,errmsg)
+    elseif (fmt == isformat_pgout) then
+       ! postg output file
+       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,name,errmsg)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -3421,7 +3425,7 @@ contains
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat
+       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3494,6 +3498,9 @@ contains
        ismol = .false.
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
+       ismol = .true.
+    elseif (equal(wextdot,'pgout')) then
+       isformat = isformat_pgout
        ismol = .true.
     elseif (equal(wextdot,'wfn')) then
        isformat = isformat_wfn
@@ -3648,7 +3655,7 @@ contains
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
-       isformat_dat, isformat_f21, isformat_unknown, dirsep
+       isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3752,14 +3759,11 @@ contains
        call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
-    elseif (isformat == isformat_dat) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_mol(file,isformat_dat,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_gaussian) then
        call read_all_log(nseed,seed,file,errmsg)
-    elseif (isformat == isformat_wfn.or.isformat == isformat_wfx.or.&
-       isformat == isformat_fchk.or.isformat == isformat_molden) then
+    elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
+       isformat == isformat_fchk.or.isformat == isformat_molden.or.&
+       isformat == isformat_dat .or. isformat == isformat_pgout) then
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)

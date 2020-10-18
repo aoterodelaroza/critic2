@@ -119,6 +119,7 @@ module param
   integer, parameter, public :: isformat_pwc = 22
   integer, parameter, public :: isformat_axsf = 23
   integer, parameter, public :: isformat_dat = 24
+  integer, parameter, public :: isformat_pgout = 25
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields. 
