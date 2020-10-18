@@ -495,7 +495,6 @@ contains
   !> This routine is thread-safe.
   module function identify_atom(e,x0,icrd,lvec,dist,distmax)
     use global, only: atomeps
-    use tools_io, only: ferror, faterr
     class(environ), intent(in) :: e
     real*8, intent(in) :: x0(3)
     integer, intent(in) :: icrd
@@ -1465,7 +1464,7 @@ contains
     real*8, intent(in) :: factor
     
     integer :: i, j, iz, ierr, lvec(3), nat
-    real*8, allocatable :: d0sp(:), dsp(:,:), dist(:)
+    real*8, allocatable :: d0sp(:), dsp(:,:)
     integer, allocatable :: eid(:)
 
     if (allocated(nstar)) deallocate(nstar)

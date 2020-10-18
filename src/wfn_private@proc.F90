@@ -720,7 +720,6 @@ contains
   module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess
     use types, only: realloc
-    use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -728,7 +727,7 @@ contains
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, i, idum
+    integer :: lu, idum
     character(len=:), allocatable :: line
     logical :: ok
 

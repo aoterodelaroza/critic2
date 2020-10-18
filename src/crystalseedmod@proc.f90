@@ -1123,7 +1123,7 @@ contains
     character*15 :: str
     character*1 :: latt
     logical :: ok
-    integer :: isused(maxzat0), idum, iz, i, j
+    integer :: isused(maxzat0), idum, iz, i
     real*8 :: rdum
 
     ! open the file for reading

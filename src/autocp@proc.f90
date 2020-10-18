@@ -2095,7 +2095,7 @@ contains
 
     type(scalar_value) :: res
     integer :: lu, nprop
-    integer :: i, j, k, ip
+    integer :: i, j, ip
     real*8 :: fres, xp(3)
     logical :: iok
 

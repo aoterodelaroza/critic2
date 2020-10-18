@@ -995,7 +995,7 @@ contains
     character*(*), intent(in) :: line
     integer, intent(inout), optional :: lp0
 
-    integer :: idum, lp
+    integer :: lp
 
     if (present(lp0)) then
        lp = lp0

@@ -2376,7 +2376,7 @@ contains
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
-    use tools_io, only: ferror, faterr, warning, string, uout
+    use tools_io, only: ferror, faterr, warning, string
     use types, only: realloc
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
@@ -3170,7 +3170,7 @@ contains
     use tools_math, only: eig, det3
     use tools_io, only: uout, string, ioj_right
     use global, only: symprec
-    use param, only: mlen, eye, pi
+    use param, only: mlen, pi
     class(crystal), intent(in) :: c
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
     logical, intent(in), optional :: doaxes

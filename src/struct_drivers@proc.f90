@@ -1640,9 +1640,9 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
-    integer :: lp, lp2, lpold, i, j, k, iat, iz
+    integer :: lp, i, j, k
     real*8, allocatable :: rad(:)
-    real*8 :: fac, dd, rnew
+    real*8 :: fac, dd
     logical :: ok
     integer :: nat, ierr
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
@@ -1806,16 +1806,15 @@ contains
     use systemmod, only: system
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
-    use param, only: atmvdw, atmcov, icrd_crys
+    use param, only: atmvdw, atmcov
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
-    logical :: found, ok
+    logical :: ok
     character(len=:), allocatable :: word
-    integer :: i, j, n(3), ii(3), ntot, iaux, idx
-    real*8 :: prec, alpha, x(3), dist
-    real*8 :: vout, dv
+    real*8 :: prec
+    real*8 :: vout
     integer :: whichuse = 0
 
     if (s%c%ismolecule) then
@@ -1884,9 +1883,6 @@ contains
     logical :: ok
     character(len=:), allocatable :: word
     real*8 :: vvdw
-    ! integer :: i, j, n(3), ii(3), ntot, iaux, idx
-    !real*8 :: alpha, x(3), dist
-    ! integer :: whichuse = 0
     real*8 :: prec
 
     ! default values    

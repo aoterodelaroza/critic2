@@ -779,14 +779,13 @@ contains
     use tools_io, only: uout, string, getline, ferror, faterr, fopen_read, fclose, &
        lgetword, isinteger, equal, getword, isreal
     use types, only: realloc
-    use param, only: bohrtoa
     character*(*), intent(inout) :: line0
     logical, intent(in) :: isqe
 
     type(xdmparams) :: p
-    integer :: i, j
-    integer :: lu, lp, idx, idx1, idx2, idum
-    character(len=:), allocatable :: line, str, word, aux, file
+    integer :: i
+    integer :: lp, idum
+    character(len=:), allocatable :: str, word, aux, file
     logical :: ok, inbetween
     real*8 :: a1, a2
     integer :: nfrom, nto
@@ -1055,9 +1054,9 @@ contains
     
     integer :: lu, lp
     logical :: ok
-    integer :: i, j, idx, idx1, idx2
+    integer :: i, j, idx1, idx2
     real*8 :: a1, a2, rdum
-    character(len=:), allocatable :: line, str, word
+    character(len=:), allocatable :: line, word
     real*8, allocatable :: rc(:,:), v(:), vfree(:), mm(:,:)
     logical :: ok, good
     character*10 :: atom
@@ -1754,15 +1753,15 @@ contains
     use environmod, only: environ
     use tools_math, only: fdamp_bj
     use tools_io, only: uout, ferror, faterr
-    use param, only: icrd_cart, atmvdw
+    use param, only: icrd_cart
     type(xdmparams), intent(in) :: p
 
     integer :: i, j, jj, iz, nat, ierr
-    integer :: kk, k, izi, izj, izk, npts
+    integer :: kk, k, izi, izj, izk
     real*8 :: d, dij, dik, djk, xi(3), xj(3), xk(3)
     real*8 :: bij, bik, bjk
     real*8 :: e, xij(3), xik(3), xjk(3), ci, cj, ck
-    real*8 :: div, f9, ss, xran
+    real*8 :: div, f9
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(environ), pointer :: lenv
