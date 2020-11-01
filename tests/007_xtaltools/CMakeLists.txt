@@ -32,6 +32,7 @@ set(TESTS
   031_sym_opts               ## sym keyword, options
   032_sym_refine             ## sym keyword, refine keyword
   033_vdw                    ## vdw keyword
+  034_sym_wholemols          ## sym keyword, wholemols keyword
   )
 
 runtests(${TESTS})

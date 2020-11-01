@@ -1,0 +1,7 @@
+## delete: 034_sym_wholemols.cro
+## check: 034_sym_wholemols_gen.res -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
+sym wholemols
+write 034_sym_wholemols_gen.res
