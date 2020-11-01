@@ -185,6 +185,7 @@ module crystalmod
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: clearsym !< Clear symmetry info and transform to a P1
      procedure :: checkgroup !< Check that the space group operations are consistent
+     procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
 
      ! WS cell
      procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
@@ -517,6 +518,9 @@ module crystalmod
      module subroutine checkgroup(c)
        class(crystal), intent(inout) :: c
      end subroutine checkgroup
+     module subroutine wholemols(c)
+       class(crystal), intent(inout) :: c
+     end subroutine wholemols
      module subroutine wigner(c,area)
        class(crystal), intent(inout) :: c
        real*8, intent(out), optional :: area(14)

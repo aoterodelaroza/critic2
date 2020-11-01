@@ -48,6 +48,7 @@ module types
      module procedure realloc_cp
      module procedure realloc_gpathp
      module procedure realloc1l
+     module procedure realloc2l
      module procedure realloc1r
      module procedure realloc2r
      module procedure realloc3r
@@ -322,6 +323,10 @@ module types
        logical, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1l
+     module subroutine realloc2l(a,n1,n2)
+       logical, intent(inout), allocatable :: a(:,:)
+       integer, intent(in) :: n1, n2
+     end subroutine realloc2l
      module subroutine realloc1r(a,nnew)
        real*8, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

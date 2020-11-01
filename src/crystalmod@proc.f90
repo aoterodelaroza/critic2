@@ -2372,7 +2372,7 @@ contains
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. If nnew,
   !> xnew, and isnew are given, replace the nnew atoms with the
-  !> new positoins (xnew) and species (isnew).
+  !> new positions (xnew) and species (isnew).
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
@@ -3882,6 +3882,222 @@ contains
 
     end subroutine checkexists
   end subroutine checkgroup
+  
+  !> Re-assign atomic types to have an asymmetric unit with whole molecules
+  module subroutine wholemols(c)
+    use crystalseedmod, only: crystalseed
+    use tools, only: qcksort
+    use tools_io, only: ferror, faterr
+    use types, only: realloc
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+
+    integer, allocatable :: imol(:)
+    logical, allocatable :: ismap(:,:), ldone(:)
+    integer :: i, j, k, l, id, is, ilast
+    real*8 :: x0(3)
+    type(crystalseed) :: ncseed
+    ! xxxx
+    logical, allocatable :: sgroup(:,:), agroup(:), isuse(:)
+    integer, allocatable :: pr(:,:), iorder(:), idxi(:)
+    real*8 :: rot(3,4), xd(3), xxd(3)
+    logical :: found, ok, again
+    integer :: ip, ig, ngroup, ngroupold, ncyci
+
+    allocate(imol(c%ncel))
+    imol = 0
+    do i = 1, c%nmol
+       do j = 1, c%mol(i)%nat
+          imol(c%mol(i)%at(j)%cidx) = i
+       end do
+    end do
+    if (any(imol == 0)) &
+       call ferror('wholemols','some atoms could not be assigned to molecules',faterr)
+
+    ! compute the product table
+    allocate(pr(c%neqv,c%neqv))
+    do i = 1, c%neqv
+       do j = 1, c%neqv
+          rot(:,1:3) = matmul(c%rotm(1:3,1:3,i),c%rotm(1:3,1:3,j))
+          rot(:,4) = matmul(c%rotm(1:3,1:3,i),c%rotm(1:3,4,j)) + c%rotm(1:3,4,i)
+
+          found = .false.
+          loopk: do k = 1, c%neqv
+             ok = all(abs(rot(1:3,1:3) - c%rotm(1:3,1:3,k)) < 1d-5)
+             if (ok) then
+                xd = rot(1:3,4) - c%rotm(1:3,4,k)
+                xd = xd - nint(xd)
+                do l = 1, c%ncv
+                   xxd = xd - c%cen(:,l)
+                   if (all(abs(xxd - nint(xxd)) < 1d-5)) then
+                      found = .true.
+                      pr(i,j) = k
+                      exit loopk
+                   end if
+                end do
+             end if
+          end do loopk
+          if (.not.found) then
+             write (*,*) "this is not a group!"
+             stop 1
+          end if
+       end do
+    end do
+    if (pr(1,1) /= 1) then
+       write (*,*) "identity is not the first element!"
+    end if
+
+    ! initialize with the trivial subgroups
+    allocate(sgroup(c%neqv,2),agroup(c%neqv))
+    ngroup = 2
+    sgroup = .true.
+    sgroup(2:,2) = .false.
+
+    ! construct all subgroups
+    ngroupold = 1
+    do while (ngroupold < ngroup)
+       ! consider the next subgroup
+       ngroupold = ngroupold + 1
+       ig = ngroupold
+
+       ! try adding operations one by one
+       do i = 2, c%neqv
+          agroup = sgroup(:,ig)
+          if (agroup(i)) cycle
+          agroup(i) = .true.
+
+          ! check if it is a subset of a known non-trivial subgroup
+          found = .false.
+          do j = 3, ngroup
+             if (all((agroup .and. sgroup(:,j)) .eqv. agroup)) then
+                found = .true.
+                exit
+             end if
+          end do
+          if (found) cycle
+
+          ! complete the subgroup
+          again = .true.
+          do while (again)
+             again = .false.
+             do k = 1, c%neqv
+                if (.not.agroup(k)) cycle
+                do j = 1, c%neqv
+                   if (.not.agroup(j)) cycle
+                   if (.not.agroup(pr(k,j))) then
+                      agroup(pr(k,j)) = .true.
+                      again = .true.
+                   end if
+                end do
+             end do
+          end do
+
+          ! check it is not the original group
+          if (all(agroup)) cycle
+
+          ! add it to the list
+          ngroup = ngroup + 1
+          if (ngroup > size(sgroup,2)) call realloc(sgroup,c%neqv,2*ngroup)
+          sgroup(:,ngroup) = agroup
+       end do
+    end do
+
+    ! sort the subgroups by order
+    allocate(iorder(ngroup),idxi(ngroup))
+    do i = 1, ngroup
+       iorder(i) = count(sgroup(:,i))
+       idxi(i) = i
+    end do
+    call qcksort(iorder,idxi,1,ngroup)
+    sgroup = sgroup(:,idxi)
+    deallocate(iorder,idxi)
+
+    ! identify the largest known subroup with whole molecules in the asymmetric unit
+    allocate(ismap(c%ncv,c%neqv),ldone(c%nneq))
+    ig = 0
+    do l = ngroup,1,-1
+       ismap = .false.
+       do i = 1, c%neqv
+          if (.not.sgroup(i,l)) cycle
+          do j = 1, c%ncv
+
+             ldone = .false.
+             do k = 1, c%ncel
+                if (ldone(c%atcel(k)%idx)) cycle
+
+                x0 = matmul(c%rotm(1:3,1:3,i),c%atcel(k)%x) + c%rotm(:,4,i) + c%cen(:,j)
+                id = c%identify_atom(x0,icrd_crys)
+
+                if (id == 0) &
+                   call ferror('wholemols','error identifying rotated atom',faterr)
+                if (k /= id .and. imol(k) == imol(id)) &
+                   ismap(j,i) = .true.
+                ldone(c%atcel(k)%idx) = .true.
+             end do
+          end do
+       end do
+       
+       if (all(.not.ismap)) then
+          ig = l
+          exit
+       end if
+    end do
+
+    ! calculate the asymmetric unit for the new group, write it down in the seed
+    allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel))
+    ncseed%nat = 0
+    allocate(isuse(c%ncel))
+    isuse = .false.
+    do i = 1, c%ncel
+       if (isuse(i)) cycle
+       isuse(i) = .true.
+       do j = 1, c%neqv
+          if (.not.sgroup(j,ig)) cycle
+          do k = 1, c%ncv
+             x0 = matmul(c%rotm(1:3,1:3,j),c%atcel(i)%x) + c%rotm(:,4,j) + c%cen(:,k)
+             id = c%identify_atom(x0,icrd_crys)
+             if (id == 0) &
+                call ferror('wholemols','error identifying rotated atom',faterr)
+             isuse(id) = .true.
+          end do
+       end do
+       
+       ncseed%nat = ncseed%nat + 1
+       ncseed%x(:,ncseed%nat) = c%atcel(i)%x
+       ncseed%is(ncseed%nat) = c%atcel(i)%is
+    end do
+
+    ! write down the new symmetry operations in the seed
+    ncseed%ncv = c%ncv
+    allocate(ncseed%cen(3,c%ncv))
+    ncseed%cen = c%cen(1:3,1:c%ncv)
+    ncseed%neqv = count(sgroup(:,ig))
+    allocate(ncseed%rotm(3,4,ncseed%neqv))
+    k = 0
+    do i = 1, c%neqv
+       if (sgroup(i,ig)) then
+          k = k + 1
+          ncseed%rotm(:,:,k) = c%rotm(:,:,i)
+       end if
+    end do
+
+    ! write the rest of the seed
+    allocate(ncseed%spc(c%nspc))
+    ncseed%nspc = c%nspc
+    ncseed%spc = c%spc
+    ncseed%useabr = 2
+    ncseed%m_x2c = c%m_x2c
+    ncseed%ismolecule = c%ismolecule
+    ncseed%isused = .true.
+    ncseed%file = c%file
+    ncseed%havesym = 1
+    ncseed%findsym = 0
+    ncseed%checkrepeats = .false.
+
+    ! build the new crystal
+    call c%struct_new(ncseed,.true.)
+
+  end subroutine wholemols
 
   !xx! Wigner-Seitz cell tools and cell partition
 

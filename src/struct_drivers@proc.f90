@@ -325,6 +325,10 @@ contains
 
     elseif (equal(word,'refine')) then
        x0 = s%c%cell_standard(.false.,.false.,.true.)
+
+    elseif (equal(word,'wholemols')) then
+       call s%c%wholemols()
+
     else
        isempty = .true.
        call s%c%struct_report_symmetry()

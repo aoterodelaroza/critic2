@@ -276,6 +276,29 @@ contains
 
   end subroutine realloc1l
 
+  !> Adapt the size of an allocatable 2D logical array
+  module subroutine realloc2l(a,n1,n2)
+    logical, intent(inout), allocatable :: a(:,:) !< Input array, logical, 2D
+    integer, intent(in) :: n1, n2 !< new dimension
+    
+    logical, allocatable :: temp(:,:)
+    integer :: nold(2)
+    
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
+    allocate(temp(n1,n2))
+    
+    temp = .false.
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2))) = a(1:min(n1,nold(1)),1:min(n2,nold(2)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc2l
+
   !> Adapt the size of an allocatable 1D real*8 array
   module subroutine realloc1r(a,nnew)
     real*8, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
