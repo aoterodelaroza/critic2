@@ -25,6 +25,7 @@ set(TESTS
   024_write_pyscf      ## write pyscf files, crystals and molecules
   025_write_d12        ## write d12 files
   026_write_res        ## write res files
+  027_write_d12_withsym ## write d12 file, with symmetry
   )
 
 runtests(${TESTS})
