@@ -5343,8 +5343,11 @@ contains
     write (lu,'("TITL res file created by critic2.")')
     write (lu,'("CELL 0.71073 ",6(A,X))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
        (string(c%bb(j),'f',10,6),j=1,3)
-    write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
-
+    if (usesym) then
+       write (lu,'("ZERR ",A," 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') string(c%ncel/c%nneq)
+    else
+       write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
+    end if
     if (usesym) then
        ! identify lattice type
        ilatt = 0
