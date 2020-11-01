@@ -619,14 +619,17 @@ contains
           write (uout,'("* WRITE crystal file: ",A)') string(file)
           if (.not.s%c%ismolecule.and.dosym) &
              write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
-          if (dosym .and. s%c%spg%spacegroup_number == 161 .and. s%c%spg%n_operations == 6) then
+
+          if (dosym .and. (&
+             (s%c%spg%spacegroup_number == 146 .and. s%c%spg%n_operations == 3) .or.&
+             (s%c%spg%spacegroup_number == 148 .and. s%c%spg%n_operations == 6) .or.&
+             (s%c%spg%spacegroup_number == 155 .and. s%c%spg%n_operations == 6) .or.&
+             (s%c%spg%spacegroup_number == 160 .and. s%c%spg%n_operations == 6) .or.&
+             (s%c%spg%spacegroup_number == 161 .and. s%c%spg%n_operations == 6) .or.&
+             (s%c%spg%spacegroup_number == 166 .and. s%c%spg%n_operations == 12) .or.&
+             (s%c%spg%spacegroup_number == 167 .and. s%c%spg%n_operations == 12))) then
              call ferror('struct_write',&
                 'deactivating symmetry in d12 writer due to bug in crystal17 (EXTERNAL keyword, spg=161, rhombohedral)',&
-                warning)
-             dosym = .false.
-          elseif (dosym .and. s%c%spg%spacegroup_number == 167 .and. s%c%spg%n_operations == 12) then
-             call ferror('struct_write',&
-                'deactivating symmetry in d12 writer due to bug in crystal17 (EXTERNAL keyword, spg=167, rhombohedral)',&
                 warning)
              dosym = .false.
           end if
