@@ -4017,7 +4017,7 @@ contains
     ig = 0
     do l = ngroup,1,-1
        ismap = .false.
-       do i = 1, c%neqv
+       do i = 2, c%neqv
           if (.not.sgroup(i,l)) cycle
           do j = 1, c%ncv
 
@@ -4030,7 +4030,8 @@ contains
 
                 if (id == 0) &
                    call ferror('wholemols','error identifying rotated atom',faterr)
-                if (k /= id .and. imol(k) == imol(id)) &
+
+                if (imol(k) == imol(id)) &
                    ismap(j,i) = .true.
                 ldone(c%atcel(k)%idx) = .true.
              end do
