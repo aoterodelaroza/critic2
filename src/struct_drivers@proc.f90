@@ -327,6 +327,10 @@ contains
        x0 = s%c%cell_standard(.false.,.false.,.true.)
 
     elseif (equal(word,'wholemols')) then
+       if (.not.s%c%ismol3d) then
+          call ferror('struct_sym','Cannot apply WHOLEMOLS to a non-molecular crystal',faterr,line,syntax=.true.)
+          return
+       end if
        call s%c%wholemols()
 
     else
