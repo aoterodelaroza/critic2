@@ -430,7 +430,7 @@ contains
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
-       string
+       string, warning
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
@@ -615,9 +615,21 @@ contains
           write (uout,'("* WRITE cif file: ",A)') string(file)
           call s%c%write_cif(file,dosym)
        elseif (equal(wext,'d12')) then
+
           write (uout,'("* WRITE crystal file: ",A)') string(file)
           if (.not.s%c%ismolecule.and.dosym) &
              write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
+          if (dosym .and. s%c%spg%spacegroup_number == 161 .and. s%c%spg%n_operations == 6) then
+             call ferror('struct_write',&
+                'deactivating symmetry in d12 writer due to bug in crystal17 (EXTERNAL keyword, spg=161, rhombohedral)',&
+                warning)
+             dosym = .false.
+          elseif (dosym .and. s%c%spg%spacegroup_number == 167 .and. s%c%spg%n_operations == 12) then
+             call ferror('struct_write',&
+                'deactivating symmetry in d12 writer due to bug in crystal17 (EXTERNAL keyword, spg=167, rhombohedral)',&
+                warning)
+             dosym = .false.
+          end if
           call s%c%write_d12(file,dosym)
        elseif (equal(wext,'res')) then
           write (uout,'("* WRITE res file: ",A)') string(file)
