@@ -1759,7 +1759,7 @@ contains
           (string(sy%f(sy%iref)%cp(i)%r(j),'f',decimal=14),j=1,3)
        write (lu,'(A,"    ""multiplicity"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%mult)
        write (lu,'(A,"    ""point_group"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%pg)
-       xp = sy%f(sy%iref)%cp(i)%x
+       xp = sy%f(sy%iref)%cp(i)%r
 
        ! grab the evaluation at the CP
        res = sy%f(sy%iref)%cp(i)%s
