@@ -1741,7 +1741,7 @@ contains
     integer, intent(in) :: lu
     character*(*), intent(in) :: prfx
 
-    integer :: i, j, k, ip, nprop, idx
+    integer :: i, j, k, ip, nprop, idx, ilast
     type(scalar_value) :: res
     logical :: iok
     real*8 :: xp(3), fres
@@ -1804,13 +1804,21 @@ contains
        if (nprop > 0) then
           write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
           write (lu,'(A,"    ""pointprops"": [{")') prfx
+          ilast = 0
+          do ip = 1, sy%npropp
+             if (sy%propp(ip)%ispecial == 0) ilast = ip
+          end do
           do ip = 1, sy%npropp
              if (sy%propp(ip)%ispecial == 0) then
                 fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
                 write (lu,'(A,"      ""id"": ",A,",")') prfx, string(ip)
                 write (lu,'(A,"      ""name"": """,A,""",")') prfx, string(sy%propp(ip)%name)
                 write (lu,'(A,"      ""expression"": """,A,""",")') prfx, string(sy%propp(ip)%expr)
-                write (lu,'(A,"      ""value"": ",A)') prfx, string(fres,'e',decimal=14)
+                if (ip == ilast) then
+                   write (lu,'(A,"      ""value"": ",A)') prfx, string(fres,'e',decimal=14)
+                else
+                   write (lu,'(A,"      ""value"": ",A,",")') prfx, string(fres,'e',decimal=14)
+                end if
              endif
           end do
           write (lu,'(A,"    }],")') prfx
