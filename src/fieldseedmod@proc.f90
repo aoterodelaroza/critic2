@@ -45,6 +45,7 @@ contains
     if (allocated(f%pwcibnd)) deallocate(f%pwcibnd)
     f%pwcemin = -1d40
     f%pwcemax = 1d40
+    f%molden_prinorm = .false.
 
   end subroutine fieldseed_end
 
@@ -71,7 +72,7 @@ contains
     logical, intent(in) :: withoptions
     integer, intent(inout), optional :: lp0
     
-    character(len=:), allocatable :: file, lfile, extdot, extund, word, lword
+    character(len=:), allocatable :: file, lfile, extdot, extdot2, extund, word, lword
     integer :: lp, nfile, i, lpo, lpo2
     logical :: ok, nofoundexit, savemid
     
@@ -134,8 +135,13 @@ contains
     elseif (equal(lfile,"fchk")) then
        f%iff = ifformat_fchk
        call read_next_as_file()
-    elseif (equal(lfile,"molden")) then
+    elseif (equal(lfile,"molden") .or. equal(lfile,"molden_psi4")) then
        f%iff = ifformat_molden
+       f%molden_prinorm = .false.
+       call read_next_as_file()
+    elseif (equal(lfile,"molden_orca")) then
+       f%iff = ifformat_molden
+       f%molden_prinorm = .true.
        call read_next_as_file()
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
@@ -197,6 +203,10 @@ contains
           f%iff = ifformat_fchk
        else if (equal(extdot,'molden')) then
           f%iff = ifformat_molden
+          f%molden_prinorm = .false.
+       else if (equal(extdot2,'molden.input')) then
+          f%iff = ifformat_molden
+          f%molden_prinorm = .true.
        else if (equal(extdot,'clmsum').or.equal(extdot,'clmup').or.equal(extdot,'clmdn')) then
           f%iff = ifformat_wien
        else if (equal(extdot,'grid')) then
@@ -481,13 +491,23 @@ contains
     end subroutine read_next_as_word
 
     subroutine read_next_as_file()
+
+      integer :: idx
+
       lpo = lp
       file = getword(line,lp)
       lfile = lower(file)
       word = file(index(file,dirsep,.true.)+1:)
-      extdot = word(index(word,'.',.true.)+1:)
       word = file(index(file,dirsep,.true.)+1:)
       extund = word(index(word,'_',.true.)+1:)
+
+      idx = index(word,'.',.true.)
+      extdot = word(idx+1:)
+      if (idx > 0) then
+         extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
+      else
+         extdot2 = ""
+      end if
     end subroutine read_next_as_file
 
     subroutine backtrack()
@@ -502,7 +522,7 @@ contains
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
        readintegers, isreal
     use param, only: ifformat_as_promolecular, ifformat_vasp, ifformat_vaspnov, ifformat_pwc,&
-       hartoev
+       ifformat_molden, hartoev
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     integer, intent(inout), optional :: lp0
@@ -596,6 +616,7 @@ contains
        elseif ((f%iff == ifformat_vasp .or. f%iff == ifformat_vaspnov) .and.&
           (isinteger(idum,lword).or.equal(lword,'rho').or.equal(lword,'spin').or.&
           equal(lword,'magx').or.equal(lword,'magy').or.equal(lword,'magz'))) then
+          ! rho, spin, magx, magy, magz options for vasp inputs
           if (.not.isinteger(idum,lword)) then
              if (equal(lword,'rho')) then
                 idum = 1
@@ -609,6 +630,7 @@ contains
           end if
           f%vaspblk = idum
        elseif ((f%iff == ifformat_pwc) .and. equal(lword,'spin')) then
+          ! spin option in pwc inputs
           ok = isinteger(idum,line,lp)
           if (.not.ok) then
              f%errmsg = "error in argument to SPIN keyword"
@@ -616,6 +638,7 @@ contains
           end if
           f%pwcspin = idum
        elseif ((f%iff == ifformat_pwc) .and. equal(lword,'kpt')) then
+          ! kpt option in pwc inputs
           call readintegers(nread,f%pwcikpt,line,lp)
           if (nread == 0) then
              if (allocated(f%pwcikpt)) deallocate(f%pwcikpt)
@@ -623,6 +646,7 @@ contains
              return
           end if
        elseif ((f%iff == ifformat_pwc) .and. equal(lword,'band')) then
+          ! band option in pwc inputs
           call readintegers(nread,f%pwcibnd,line,lp)
           if (nread == 0) then
              if (allocated(f%pwcibnd)) deallocate(f%pwcibnd)
@@ -630,6 +654,7 @@ contains
              return
           end if
        elseif ((f%iff == ifformat_pwc) .and. equal(lword,'erange')) then
+          ! erange option in pwc inputs
           ok = isreal(f%pwcemin,line,lp)
           ok = ok .and. isreal(f%pwcemax,line,lp)
           if (.not.ok) then
@@ -638,6 +663,10 @@ contains
           end if
           f%pwcemin = f%pwcemin / hartoev
           f%pwcemax = f%pwcemax / hartoev
+       elseif ((f%iff == ifformat_molden) .and. equal(lword,'psi4')) then
+          f%molden_prinorm = .false.
+       elseif ((f%iff == ifformat_molden) .and. equal(lword,'orca')) then
+          f%molden_prinorm = .true.
        else
           call f%end()
           f%errmsg = "unknown load keyword or file name: " // word

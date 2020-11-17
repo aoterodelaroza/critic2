@@ -237,9 +237,10 @@ module wfn_private
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
      end subroutine read_fchk
-     module subroutine read_molden(f,file,readvirtual,env)
+     module subroutine read_molden(f,file,prinorm,readvirtual,env)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
+       logical, intent(in) :: prinorm
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
      end subroutine read_molden

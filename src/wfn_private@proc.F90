@@ -1591,14 +1591,19 @@ contains
 
   end subroutine read_fchk
 
-  !> Read the wavefunction from a molden file. See the manual for
+  !> Read the wavefunction into f from a molden file (file). If
+  !> readvirtual, do not skip the virtual orbitals. If prinorm, the
+  !> primitive coefficients have already been normalized for their
+  !> angular part (true=orca, false=psi4).  Uses the environment env
+  !> for calculating the range of each primitive. See the manual for
   !> the list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,readvirtual,env)
+  module subroutine read_molden(f,file,prinorm,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
+    logical, intent(in) :: prinorm !< Primitives already normalized
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
 
@@ -2100,26 +2105,34 @@ contains
        do j = jshl0(ishlt(i)), jshl1(ishlt(i))
           ityp = typtrans(j)
 
-          ! primitive coefficients normalized
-          do k = 1, ishlpri(i)
-             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
-          end do
-
-          ! normalization constant for the basis function
-          norm = 0d0
-          do k1 = 1, ishlpri(i)
-             do k2 = 1, ishlpri(i)
-                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
+          if (prinorm) then
+             ! primitive coefficients already normalized
+             do k = 1, ishlpri(i)
+                nn = nn + 1
+                cpri(nn) = ccontr(nm+k)
              end do
-          end do
-          cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
-          norm = 1d0 / sqrt(norm * cons)
+          else
+             ! primitive coefficients normalized with the angular part
+             do k = 1, ishlpri(i)
+                cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
+             end do
 
-          ! calculate and assign the normalized primitive coefficients
-          do k = 1, ishlpri(i)
-             nn = nn + 1
-             cpri(nn) = cnorm(k) * norm
-          end do
+             ! normalization constant for the basis function
+             norm = 0d0
+             do k1 = 1, ishlpri(i)
+                do k2 = 1, ishlpri(i)
+                   norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
+                end do
+             end do
+             cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
+             norm = 1d0 / sqrt(norm * cons)
+
+             ! calculate and assign the normalized primitive coefficients
+             do k = 1, ishlpri(i)
+                nn = nn + 1
+                cpri(nn) = cnorm(k) * norm
+             end do
+          end if
        end do
        nm = nm + ishlpri(i)
     end do

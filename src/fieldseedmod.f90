@@ -45,6 +45,7 @@ module fieldseedmod
      integer :: vaspblk = 1 !< Which VASP block to read (CHGCAR/CHG/...)
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
+     logical :: molden_prinorm = .false. !< primitive normalization in molden files
      ! pwc
      integer :: pwcspin = 0 !< read which spin (0=all,1=up,2=dn)
      integer, allocatable :: pwcikpt(:) !< read which kpts

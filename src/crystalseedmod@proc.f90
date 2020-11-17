@@ -3434,16 +3434,22 @@ contains
     logical, intent(out) :: ismol
     logical, intent(out), optional :: alsofield
 
-    character(len=:), allocatable :: basename, wextdot, wext_, line
+    character(len=:), allocatable :: basename, wextdot, wextdot2, wext_, line
     logical :: isvasp, alsofield_
-    integer :: lu, nat, ios
+    integer :: lu, nat, ios, idx
     character*1 :: isfrac
 
     if (present(alsofield)) alsofield = .false.
     alsofield_ = .false.
     basename = file(index(file,dirsep,.true.)+1:)
-    wextdot = basename(index(basename,'.',.true.)+1:)
     wext_ = basename(index(basename,'_',.true.)+1:)
+
+    idx = index(basename,'.',.true.)
+    wextdot = basename(idx+1:)
+    if (idx > 0) then
+       wextdot2 = basename(index(basename(1:idx-1),'.',.true.)+1:)
+    end if
+
     isvasp = (index(basename,'CONTCAR') > 0) .or. &
        (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0).or.&
        (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0).or.&
@@ -3518,7 +3524,7 @@ contains
        isformat = isformat_fchk
        ismol = .true.
        alsofield_ = .true.
-    elseif (equal(wextdot,'molden')) then
+    elseif (equal(wextdot,'molden') .or. equal(wextdot2,'molden.input')) then
        isformat = isformat_molden
        ismol = .true.
        alsofield_ = .true.

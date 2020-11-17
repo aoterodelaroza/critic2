@@ -398,7 +398,7 @@ contains
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%readvirtual,f%c%env)
+       call f%wfn%read_molden(seed%file(1),seed%molden_prinorm,seed%readvirtual,f%c%env)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
