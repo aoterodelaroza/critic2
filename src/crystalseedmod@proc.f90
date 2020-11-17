@@ -3448,6 +3448,8 @@ contains
     wextdot = basename(idx+1:)
     if (idx > 0) then
        wextdot2 = basename(index(basename(1:idx-1),'.',.true.)+1:)
+    else
+       wextdot2 = ""
     end if
 
     isvasp = (index(basename,'CONTCAR') > 0) .or. &
