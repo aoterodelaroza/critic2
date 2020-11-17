@@ -777,6 +777,74 @@ contains
     call fclose(lu)
 
   end subroutine wfn_read_pgout_geometry
+  
+  !> Read the molecular geometry from an orca output file (.out).
+  module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg)
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    integer, intent(out) :: n
+    real*8, allocatable, intent(inout) :: x(:,:)
+    integer, allocatable, intent(inout) :: z(:)
+    character*(10), allocatable, intent(inout) :: name(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, i
+    character(len=:), allocatable :: line
+    logical :: ok
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    n = 0
+    allocate(x(3,10),z(10),name(10))
+    main: do while (getline_raw(lu,line))
+       if (line(1:33) == "CARTESIAN COORDINATES (ANGSTROEM)") then
+          n = 0
+          ok = getline_raw(lu,line)
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (len_trim(line) == 0) exit
+
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+                call realloc(name,2*n)
+             end if
+             read (line,*,err=999) name(n), x(1,n), x(2,n), x(3,n)
+             z(n) = zatguess(name(n))
+          end do
+       end if
+    end do main
+
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    else
+       call realloc(x,3,n)
+       call realloc(z,n)
+       call realloc(name,n)
+       x = x / bohrtoa
+    endif
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end subroutine wfn_read_orca_geometry
 
   !> Read the wavefunction from a wfn file
   module subroutine read_wfn(f,file,env)

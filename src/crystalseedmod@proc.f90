@@ -25,7 +25,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_xyz(nseed,seed,file,errmsg)
   ! subroutine read_all_log(nseed,seed,file,errmsg)
   ! subroutine read_cif_items(seed,mol,errmsg)
-  ! function is_espresso(file)
+  ! function which_out_format(file)
 
 contains
 
@@ -2055,10 +2055,11 @@ contains
   module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
-       wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry
+       wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry,&
+       wfn_read_orca_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout
+       isformat_pgout, isformat_orca
     use tools_io, only: equali
     use types, only: realloc
 
@@ -2098,6 +2099,9 @@ contains
     elseif (fmt == isformat_pgout) then
        ! postg output file
        call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,name,errmsg)
+    elseif (fmt == isformat_orca) then
+       ! orca output file
+       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -3494,13 +3498,7 @@ contains
        isformat = isformat_elk
        ismol = .false.
     elseif (equal(wextdot,'out')) then
-       if (is_espresso(file)) then
-          isformat = isformat_qeout
-          ismol = .false.
-       else
-          isformat = isformat_crystal
-          ismol = .false.
-       end if
+       call which_out_format(file,isformat,ismol)
     elseif (equal(wextdot,'in')) then
        isformat = isformat_qein
        ismol = .false.
@@ -3593,6 +3591,8 @@ contains
     endif
     if (present(alsofield)) alsofield = alsofield_
 
+    if (isformat == 0) goto 999
+
     return
 999 continue
     isformat = isformat_unknown
@@ -3663,7 +3663,8 @@ contains
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
-       isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, dirsep
+       isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
+       dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3771,7 +3772,8 @@ contains
        call read_all_log(nseed,seed,file,errmsg)
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
-       isformat == isformat_dat .or. isformat == isformat_pgout) then
+       isformat == isformat_dat .or. isformat == isformat_pgout.or.&
+       isformat == isformat_orca) then
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
@@ -5052,30 +5054,39 @@ contains
   end subroutine read_cif_items
 
   !> Determine whether a given output file (.scf.out or .out) comes
-  !> from a crystal or a quantum espresso calculation. To do this,
-  !> try to find the "Program PWSCF" line in the output header.
-  function is_espresso(file)
+  !> from a crystal, quantum espresso, or orca calculation.
+  subroutine which_out_format(file,isformat,ismol)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
-
-    logical :: is_espresso
+    use param, only: isformat_qeout, isformat_crystal, isformat_orca
     character*(*), intent(in) :: file !< Input file name
+    integer, intent(out) :: isformat
+    logical, intent(out) :: ismol
 
     integer :: lu, lp
     character(len=:), allocatable :: line, word1, word2
 
-    is_espresso = .false.
+    isformat = 0
+    ismol = .true.
     lu = fopen_read(file)
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
-       lp = 1
-       word1 = lgetword(line,lp)
-       word2 = lgetword(line,lp)
-       is_espresso = (equal(word1,"program") .and. equal(word2,"pwscf"))
-       if (is_espresso) exit
+       if (index(line,"--- An Ab Initio, DFT and Semiempirical electronic structure package ---") > 0) then
+          isformat = isformat_orca
+          ismol = .true.
+          exit
+       else if (index(line,"EEEEEEEEEE STARTING  DATE") > 0) then
+          isformat = isformat_crystal
+          ismol = .false.
+          exit
+       else if (index(line,"Program PWSCF") > 0) then
+          isformat = isformat_qeout
+          ismol = .false.
+          exit
+       end if
     end do
     call fclose(lu)
 
-  end function is_espresso
+  end subroutine which_out_format
 
 end submodule proc
