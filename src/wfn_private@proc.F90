@@ -1660,18 +1660,18 @@ contains
   end subroutine read_fchk
 
   !> Read the wavefunction into f from a molden file (file). If
-  !> readvirtual, do not skip the virtual orbitals. If prinorm, the
-  !> primitive coefficients have already been normalized for their
-  !> angular part (true=orca, false=psi4).  Uses the environment env
-  !> for calculating the range of each primitive. See the manual for
-  !> the list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,prinorm,readvirtual,env)
+  !> readvirtual, do not skip the virtual orbitals. molden_type: type
+  !> of molden file (orca, psi4).  Uses the environment env for
+  !> calculating the range of each primitive. See the manual for the
+  !> list of molden-generating programs that have been tested.
+  module subroutine read_molden(f,file,molden_type,readvirtual,env)
+    use wfn_private, only: molden_type_psi4, molden_type_orca
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
-    logical, intent(in) :: prinorm !< Primitives already normalized
+    integer, intent(in) :: molden_type !< Type of molden file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
 
@@ -2173,7 +2173,7 @@ contains
        do j = jshl0(ishlt(i)), jshl1(ishlt(i))
           ityp = typtrans(j)
 
-          if (prinorm) then
+          if (molden_type == molden_type_orca) then
              ! primitive coefficients already normalized
              do k = 1, ishlpri(i)
                 nn = nn + 1

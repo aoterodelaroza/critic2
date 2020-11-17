@@ -20,6 +20,7 @@
 
 ! Field seed class. 
 module fieldseedmod
+  use wfn_private, only: molden_type_psi4
   use param, only: ifformat_unknown, mlen, mmlen
   implicit none
 
@@ -45,7 +46,7 @@ module fieldseedmod
      integer :: vaspblk = 1 !< Which VASP block to read (CHGCAR/CHG/...)
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
-     logical :: molden_prinorm = .false. !< primitive normalization in molden files
+     integer :: molden_type = molden_type_psi4 !< type of molden file
      ! pwc
      integer :: pwcspin = 0 !< read which spin (0=all,1=up,2=dn)
      integer, allocatable :: pwcikpt(:) !< read which kpts

@@ -154,6 +154,10 @@ module wfn_private
   integer, parameter, public :: wfn_rohf = 2
   integer, parameter, public :: wfn_frac = 3
   
+  ! molden types
+  integer, parameter, public :: molden_type_psi4 = 1
+  integer, parameter, public :: molden_type_orca = 2
+
   interface
      module subroutine wfn_end(f)
        class(molwfn), intent(inout) :: f
@@ -246,10 +250,10 @@ module wfn_private
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
      end subroutine read_fchk
-     module subroutine read_molden(f,file,prinorm,readvirtual,env)
+     module subroutine read_molden(f,file,molden_type,readvirtual,env)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
-       logical, intent(in) :: prinorm
+       integer, intent(in) :: molden_type
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
      end subroutine read_molden
