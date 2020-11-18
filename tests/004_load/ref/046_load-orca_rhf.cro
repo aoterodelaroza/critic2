@@ -1,0 +1,47 @@
++ Field number 1
+  Name: molden
+  Source: ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 10
+  Number of MOs (occupied): 10
+  Number of primitives (GTO): 336
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 6
+  Number of critical points in the unit cell: 6
+  Alias for this field (2): $1, $molden
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $molden
+  Mesh size      104492
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($molden) = 20.00004138   
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.963376214E-02
+  Field value, valence (fval): 1.963376214E-02
+  Gradient (grad f): 6.795101815E-03  -6.785902940E-03  -1.448073740E-02
+  Gradient norm (|grad f|): 1.737566238E-02
+  Gradient norm, valence: 1.737566238E-02
+  Kinetic energy density (G,tau): 1.507385929E-02
+  Laplacian (del2 f): 6.666685722E-02
+  Laplacian, valence (del2 fval): 6.666685722E-02
+  Hessian:
+     9.947426457E-02   4.191356424E-03  -1.868406081E-04
+     4.191356424E-03  -2.133916528E-02   6.523986844E-03
+    -1.868406081E-04   6.523986844E-03  -1.146824207E-02
+  Hessian eigenvalues: -2.470290475E-02  -8.249751780E-03  9.961951375E-02
+  Ellipticity (l_1/l_2 - 1): 1.994381578E+00
+  Field 0 (f,|grad|,lap): 2.569585436E-02  2.125275665E-02  5.881689668E-02
+

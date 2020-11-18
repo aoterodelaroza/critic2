@@ -2130,7 +2130,8 @@ contains
     end if
 
     ! If this is an orca molden file, flip the sign of the MO coefficients in these cases:
-    ! - ml=3 and ml=-3 for the f shells
+    ! - abs(m)=3 for the f shells
+    ! - abs(m)>=3 for the g shells
     if (imoldentype == molden_type_orca) then
        do j = 1, ncshel
           nsph = nshlt(ishlt(j))

@@ -1,0 +1,51 @@
++ Field number 1
+  Name: molden
+  Source: ../zz_source/orca-4.0.1/oh/oh.molden
+  Type: molecular wavefunction
+  Wavefunction type: unrestricted
+  Number of MOs (total): 9 (alpha=5,beta=4)
+  Number of MOs (occupied): 9 (alpha=5,beta=4)
+  Number of primitives (GTO): 130
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (2): $1, $molden
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $molden
+  Mesh size      36542
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($molden) = 9.00000071    
+
+* POINT 0.1000000  0.2000000  0.3000000
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.129159403E+00
+  Field value, valence (fval): 1.129159403E+00
+  Gradient (grad f): -6.290068764E-01  -1.305516941E+00  -1.629135182E+00
+  Gradient norm (|grad f|): 2.180391152E+00
+  Gradient norm, valence: 2.180391152E+00
+  Kinetic energy density (G,tau): 3.880595457E+00
+  Laplacian (del2 f): -3.109785844E+00
+  Laplacian, valence (del2 fval): -3.109785844E+00
+  Hessian:
+    -4.491532513E+00   2.725331089E+00   2.535771716E+00
+     2.725331089E+00  -3.082847262E-01   5.243996292E+00
+     2.535771716E+00   5.243996292E+00   1.690031396E+00
+  Hessian eigenvalues: -5.836135206E+00  -4.470446624E+00  7.196795986E+00
+  Ellipticity (l_1/l_2 - 1): 3.054926494E-01
+  Spin up   field/gradient_norm/laplacian: 5.659249744E-01  1.109089681E+00  -7.617473864E-02
+  Spin up   kinetic energy density (G): 2.300878348E+00
+  Spin down field/gradient_norm/laplacian: 5.632344290E-01  1.071471814E+00  -3.033611106E+00
+  Spin down kinetic energy density (G): 1.579717108E+00
+  Field 0 (f,|grad|,lap): 9.599062335E-01  1.869149169E+00  9.285566987E-01
+

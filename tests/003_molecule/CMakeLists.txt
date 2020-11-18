@@ -9,6 +9,7 @@ set(TESTS
   008_moleculeenv-simple ## read molecule structure using a molecule environment; includes options
   009_molecule-library   ## from the molecule structure library
   010_molcell            ## molcell keyword
+  011_molecule-orca      ## read molecule structure from orca output
   )
 
 runtests(${TESTS})

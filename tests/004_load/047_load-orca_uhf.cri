@@ -1,0 +1,6 @@
+## check: 047_load-orca_uhf.cro -a1e-10
+## labels: regression quick
+molecule ../zz_source/orca-4.0.1/oh/oh.molden
+load ../zz_source/orca-4.0.1/oh/oh.molden name molden
+molcalc "$molden"
+point 0.1 0.2 0.3 all

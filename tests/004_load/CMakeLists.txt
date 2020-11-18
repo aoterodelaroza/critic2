@@ -44,6 +44,8 @@ set(TESTS
   043_reference            ## reference keyword
   044_load-gaussian-rohf   ## from Gaussian files; restricted-open HF case
   045_load-pwc-contrib     ## read pwc file; only some contributions
+  046_load-orca_rhf        ## from orca files; RHF case
+  047_load-orca_uhf        ## from orca files; UHF case
   )
 
 runtests(${TESTS})

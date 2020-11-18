@@ -1,0 +1,8 @@
+## delete: 011_molecule-orca.cro
+## check: 011_molecule-orca_gen_01.cri -a1e-10
+## check: 011_molecule-orca_gen_02.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.out
+write 011_molecule-orca_gen_01.cri
+molecule ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
+write 011_molecule-orca_gen_02.cri

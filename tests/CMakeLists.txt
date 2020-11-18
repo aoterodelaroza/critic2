@@ -3,10 +3,10 @@
 ## test data package info
 set(TEST_PACKAGE_NAME "zz_source.tar.xz")
 set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
-set(TEST_URL 
-  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
-  )
-set(TEST_SHA1_HASH 86ce03bf92f1585f260b778b0e3303cb292a9755)
+#set(TEST_URL 
+#  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
+#  )
+set(TEST_SHA1_HASH f3004aecb135bd76d7642b89b733c6d110a128e8)
 
 ## list of test bundles
 set(TESTDIRS 
@@ -130,26 +130,27 @@ endif()
 
 ## fetch the test data package, if necessary - verify the hash
 if(NOT "${TEST_PACKAGE_FOUND}")
-  foreach(url ${TEST_URL})
-    if (EXISTS "${TEST_PACKAGE_TARGET}")
-      file(REMOVE "${TEST_PACKAGE_TARGET}")
-    endif()
-    message(STATUS "package: ${TEST_PACKAGE_TARGET}")
-    file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
-      TIMEOUT 60 
-      TLS_VERIFY ON
-      SHOW_PROGRESS
-      STATUS status
-      )
-    list(GET status 0 error_code)
-    if(NOT "${error_code}")
-      file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
-      if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
-	set(TEST_PACKAGE_FOUND "YES")
-	break()
-      endif()
-    endif()
-  endforeach()
+  message(FATAL_ERROR "A package file with the correct sha1sum could not be found.")
+  # foreach(url ${TEST_URL})
+  #   if (EXISTS "${TEST_PACKAGE_TARGET}")
+  #     file(REMOVE "${TEST_PACKAGE_TARGET}")
+  #   endif()
+  #   message(STATUS "package: ${TEST_PACKAGE_TARGET}")
+  #   file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
+  #     TIMEOUT 60 
+  #     TLS_VERIFY ON
+  #     SHOW_PROGRESS
+  #     STATUS status
+  #     )
+  #   list(GET status 0 error_code)
+  #   if(NOT "${error_code}")
+  #     file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
+  #     if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
+  # 	set(TEST_PACKAGE_FOUND "YES")
+  # 	break()
+  #     endif()
+  #   endif()
+  # endforeach()
 endif()
 
 ## unpack data for the tests (source)
