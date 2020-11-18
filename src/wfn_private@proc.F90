@@ -2129,6 +2129,20 @@ contains
        return
     end if
 
+    ! If this is an orca molden file, flip the sign of the MO coefficients in these cases:
+    ! - ml=3 and ml=-3 for the f shells
+    if (imoldentype == molden_type_orca) then
+       do j = 1, ncshel
+          nsph = nshlt(ishlt(j))
+          if (ishlt(j) == -3) then
+             do i = 1, f%nmoall
+                motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7) = -motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7)
+             end do
+          end if
+          ns = ns + nsph
+       end do
+    end if
+
     !! From this point onward, only GTO wavefunctions !!
     ! convert spherical basis functions to Cartesian and build the mocoef
     ! deallocate the temporary motemp
@@ -3213,6 +3227,8 @@ contains
        N = 2**(7d0/4d0) * a**(5d0/4d0) / pi**(3d0/4d0)
     else if (type >= 5 .and. type <= 10) then
        N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else if (type >= 11 .and. type <= 20) then
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
     else
        call ferror("gnorm","fixme: primitive type not supported",faterr)
     endif
