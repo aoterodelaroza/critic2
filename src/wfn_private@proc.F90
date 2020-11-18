@@ -2138,6 +2138,10 @@ contains
              do i = 1, f%nmoall
                 motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7) = -motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7)
              end do
+          else if (ishlt(j) == -3) then
+             do i = 1, f%nmoall
+                motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+9) = -motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+9)
+             end do
           end if
           ns = ns + nsph
        end do
@@ -3229,6 +3233,8 @@ contains
        N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
     else if (type >= 11 .and. type <= 20) then
        N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
+    else if (type >= 21 .and. type <= 35) then
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
     else
        call ferror("gnorm","fixme: primitive type not supported",faterr)
     endif
