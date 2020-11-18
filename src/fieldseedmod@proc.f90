@@ -22,7 +22,7 @@ contains
 
   !> Terminate a field seed and set the field format to unknown.
   module subroutine fieldseed_end(f)
-    use wfn_private, only: molden_type_psi4
+    use wfn_private, only: molden_type_unknown
     use param, only: ifformat_unknown
     class(fieldseed), intent(inout) :: f
 
@@ -46,7 +46,7 @@ contains
     if (allocated(f%pwcibnd)) deallocate(f%pwcibnd)
     f%pwcemin = -1d40
     f%pwcemax = 1d40
-    f%molden_type = molden_type_psi4
+    f%molden_type = molden_type_unknown
 
   end subroutine fieldseed_end
 
@@ -55,7 +55,7 @@ contains
   !> contains the new string pointer (if provided). If withoptions,
   !> read the field options from the input line, too.
   module subroutine fieldseed_parse(f,line,withoptions,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
     use global, only: eval_next
     use types, only: realloc
     use tools_io, only: getword, lower, equal, isexpression
@@ -137,7 +137,11 @@ contains
     elseif (equal(lfile,"fchk")) then
        f%iff = ifformat_fchk
        call read_next_as_file()
-    elseif (equal(lfile,"molden") .or. equal(lfile,"molden_psi4")) then
+    elseif (equal(lfile,"molden")) then
+       f%iff = ifformat_molden
+       f%molden_type = molden_type_unknown
+       call read_next_as_file()
+    elseif (equal(lfile,"molden_psi4")) then
        f%iff = ifformat_molden
        f%molden_type = molden_type_psi4
        call read_next_as_file()
@@ -205,7 +209,7 @@ contains
           f%iff = ifformat_fchk
        else if (equal(extdot,'molden')) then
           f%iff = ifformat_molden
-          f%molden_type = molden_type_psi4
+          f%molden_type = molden_type_unknown
        else if (equal(extdot2,'molden.input')) then
           f%iff = ifformat_molden
           f%molden_type = molden_type_orca
@@ -520,7 +524,7 @@ contains
 
   !> Parse field options from a command.
   module subroutine fieldseed_parse_options(f,line,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
     use global, only: eval_next
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
        readintegers, isreal

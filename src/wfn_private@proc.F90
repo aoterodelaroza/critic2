@@ -23,6 +23,7 @@ submodule (wfn_private) proc
   ! subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
   ! subroutine calculate_edf(f,xpos,rhoc,gradc,hc,nder,nenv,eid,dist)
   ! function gnorm(type,a) result(N)
+  ! function gnorm_orca(type,a) result(N)
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
   ! subroutine complete_struct(f,env)
@@ -1665,7 +1666,7 @@ contains
   !> calculating the range of each primitive. See the manual for the
   !> list of molden-generating programs that have been tested.
   module subroutine read_molden(f,file,molden_type,readvirtual,env)
-    use wfn_private, only: molden_type_psi4, molden_type_orca
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
@@ -1677,7 +1678,7 @@ contains
 
     character(len=:), allocatable :: line, keyword, word, word1
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc
-    integer :: luwfn, istat, ityp
+    integer :: luwfn, istat, ityp, imoldentype
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
     integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf
@@ -1738,6 +1739,11 @@ contains
        /)
 
     ! initialize
+    if (molden_type == molden_type_orca) then
+       imoldentype = molden_type_orca
+    else
+       imoldentype = molden_type_psi4
+    end if
     f%useecp = .false.
     f%issto = .false.
     is5d = .false.
@@ -1761,6 +1767,11 @@ contains
              exit
           end if
           ok = getline_raw(luwfn,line,.false.)
+       else if (trim(keyword) == "title" .and. molden_type == molden_type_unknown) then
+          ok = getline_raw(luwfn,line,.false.)
+          if (index(line,"created by orca_2mkl") > 0) then
+             imoldentype = molden_type_orca
+          end if
        else if (trim(keyword) == "atoms") then
           ! read the number of atoms 
           ok = getline_raw(luwfn,line,.true.)
@@ -2173,34 +2184,29 @@ contains
        do j = jshl0(ishlt(i)), jshl1(ishlt(i))
           ityp = typtrans(j)
 
-          if (molden_type == molden_type_orca) then
-             ! primitive coefficients already normalized
-             do k = 1, ishlpri(i)
-                nn = nn + 1
-                cpri(nn) = ccontr(nm+k)
-             end do
-          else
-             ! primitive coefficients normalized with the angular part
-             do k = 1, ishlpri(i)
-                cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
-             end do
+          ! primitive coefficients normalized with the angular part
+          do k = 1, ishlpri(i)
+             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k))
+             if (imoldentype == molden_type_orca) then
+                cnorm(k) = cnorm(k) / gnorm_orca(ityp,exppri(nm+k))
+             end if
+          end do
 
-             ! normalization constant for the basis function
-             norm = 0d0
-             do k1 = 1, ishlpri(i)
-                do k2 = 1, ishlpri(i)
-                   norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
-                end do
+          ! normalization constant for the basis function
+          norm = 0d0
+          do k1 = 1, ishlpri(i)
+             do k2 = 1, ishlpri(i)
+                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
              end do
-             cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
-             norm = 1d0 / sqrt(norm * cons)
+          end do
+          cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
+          norm = 1d0 / sqrt(norm * cons)
 
-             ! calculate and assign the normalized primitive coefficients
-             do k = 1, ishlpri(i)
-                nn = nn + 1
-                cpri(nn) = cnorm(k) * norm
-             end do
-          end if
+          ! calculate and assign the normalized primitive coefficients
+          do k = 1, ishlpri(i)
+             nn = nn + 1
+             cpri(nn) = cnorm(k) * norm
+          end do
        end do
        nm = nm + ishlpri(i)
     end do
@@ -3190,6 +3196,28 @@ contains
        call ferror("gnorm","fixme: primitive type not supported",faterr)
     endif
   endfunction gnorm
+
+  !> Calculate the normalization factor of a primitive of a given
+  !> angular momentum l with exponent a, orca convention. This is used
+  !> to "de-normalize" the orca primitive coefficients.
+  function gnorm_orca(type,a) result(N)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    integer, intent(in) :: type
+    real*8, intent(in) :: a
+    real*8 :: N
+
+    if (type == 1) then
+       N = 2**(3d0/4d0) * a**(3d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 2 .and. type <= 4) then
+       N = 2**(7d0/4d0) * a**(5d0/4d0) / pi**(3d0/4d0)
+    else if (type >= 5 .and. type <= 10) then
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
+    else
+       call ferror("gnorm","fixme: primitive type not supported",faterr)
+    endif
+
+  endfunction gnorm_orca
 
   !> Read a list of n integers from a logical unit
   function wfx_read_integers(lu,n,errmsg) result(x)

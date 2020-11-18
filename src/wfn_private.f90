@@ -155,6 +155,7 @@ module wfn_private
   integer, parameter, public :: wfn_frac = 3
   
   ! molden types
+  integer, parameter, public :: molden_type_unknown = 0
   integer, parameter, public :: molden_type_psi4 = 1
   integer, parameter, public :: molden_type_orca = 2
 
