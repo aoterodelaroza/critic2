@@ -2,6 +2,7 @@
   Name: molden
   Source: ../zz_source/orca-4.0.1/oh/oh.molden
   Type: molecular wavefunction
+  Molden file dialect: orca
   Wavefunction type: unrestricted
   Number of MOs (total): 9 (alpha=5,beta=4)
   Number of MOs (occupied): 9 (alpha=5,beta=4)

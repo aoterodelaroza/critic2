@@ -293,6 +293,7 @@
 + Field number 1
   Source: ../zz_source/psi4-1.4/benzene/benzene_occ.molden
   Type: molecular wavefunction
+  Molden file dialect: psi4
   Wavefunction type: restricted
   Number of MOs (total): 21
   Number of MOs (occupied): 21

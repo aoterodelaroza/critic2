@@ -2,6 +2,7 @@
   Name: molden
   Source: ../zz_source/psi4-1.4/oh/oh_uhf.molden
   Type: molecular wavefunction
+  Molden file dialect: psi4
   Wavefunction type: unrestricted
   Number of MOs (total): 9 (alpha=5,beta=4)
   Number of MOs (occupied): 9 (alpha=5,beta=4)

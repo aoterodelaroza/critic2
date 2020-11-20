@@ -2,6 +2,7 @@
   Name: molden
   Source: ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
   Type: molecular wavefunction
+  Molden file dialect: orca
   Wavefunction type: restricted
   Number of MOs (total): 10
   Number of MOs (occupied): 10

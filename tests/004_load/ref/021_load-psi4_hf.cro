@@ -2,6 +2,7 @@
   Name: molden
   Source: ../zz_source/psi4-1.4/h2o/h2o_hf.molden
   Type: molecular wavefunction
+  Molden file dialect: psi4
   Wavefunction type: restricted
   Number of MOs (total): 5
   Number of MOs (occupied): 5
