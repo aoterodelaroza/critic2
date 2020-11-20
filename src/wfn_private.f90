@@ -98,6 +98,7 @@ module wfn_private
      logical :: issto !< are the primitives GTOs or STOs?
      logical :: hasvirtual !< are the virtual orbitals known?
      integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
+     integer :: molden_type !< type of source molden file 
      integer, allocatable :: icenter(:) !< primitive center
      integer, allocatable :: icord(:) !< icenter(icord(1:nprim)) is ordered
      integer, allocatable :: iprilo(:) !< atom i has primitives from iprilo(i) to iprihi(i)
@@ -158,6 +159,7 @@ module wfn_private
   integer, parameter, public :: molden_type_unknown = 0
   integer, parameter, public :: molden_type_psi4 = 1
   integer, parameter, public :: molden_type_orca = 2
+  integer, parameter, public :: molden_type_adf_sto = 3
 
   interface
      module subroutine wfn_end(f)

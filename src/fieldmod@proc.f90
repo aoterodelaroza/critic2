@@ -1221,7 +1221,8 @@ contains
   !> isload is true, show load-time information. If isset is true,
   !> show flags for this field.
   module subroutine printinfo(f,isload,isset)
-    use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac
+    use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac, &
+       molden_type_orca, molden_type_psi4, molden_type_adf_sto
     use global, only: dunit0, iunit, iunitname0
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
@@ -1316,6 +1317,13 @@ contains
              str = "(STO)"
           else
              str = "(GTO)"
+          end if
+          if (f%wfn%molden_type == molden_type_orca) then
+             write (uout,'("  Molden file dialect: orca")')
+          else if (f%wfn%molden_type == molden_type_psi4) then
+             write (uout,'("  Molden file dialect: psi4")')
+          else if (f%wfn%molden_type == molden_type_adf_sto) then
+             write (uout,'("  Molden file dialect: ADF (STOs)")')
           end if
           if (f%wfn%wfntyp == wfn_rhf) then
              write (uout,'("  Wavefunction type: restricted")')

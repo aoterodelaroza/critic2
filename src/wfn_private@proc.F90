@@ -791,7 +791,7 @@ contains
     character*(10), allocatable, intent(inout) :: name(:)
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, i
+    integer :: lu
     character(len=:), allocatable :: line
     logical :: ok
 
@@ -862,6 +862,7 @@ contains
     logical :: isfrac, found
     character*8 :: dum1
 
+    f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
     f%hasvirtual = .false.
@@ -987,6 +988,7 @@ contains
     character(len=:), allocatable :: line, line2
     logical :: isfrac
 
+    f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
     f%hasvirtual = .false.
@@ -1194,6 +1196,7 @@ contains
     !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
 
     ! no ecps for now
+    f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
     f%nedf = 0
@@ -1666,7 +1669,6 @@ contains
   !> calculating the range of each primitive. See the manual for the
   !> list of molden-generating programs that have been tested.
   module subroutine read_molden(f,file,molden_type,readvirtual,env)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: pi
@@ -1677,7 +1679,7 @@ contains
     type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: line, keyword, word, word1
-    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc
+    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca
     integer :: luwfn, istat, ityp, imoldentype
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
@@ -1739,11 +1741,7 @@ contains
        /)
 
     ! initialize
-    if (molden_type == molden_type_orca) then
-       imoldentype = molden_type_orca
-    else
-       imoldentype = molden_type_psi4
-    end if
+    f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
     is5d = .false.
@@ -1755,6 +1753,7 @@ contains
     line = ""
     issto = .false.
     isgto = .false.
+    isorca = .false.
     f%nedf = 0
     nmf = 0
 
@@ -1769,9 +1768,7 @@ contains
           ok = getline_raw(luwfn,line,.false.)
        else if (trim(keyword) == "title" .and. molden_type == molden_type_unknown) then
           ok = getline_raw(luwfn,line,.false.)
-          if (index(line,"created by orca_2mkl") > 0) then
-             imoldentype = molden_type_orca
-          end if
+          if (index(line,"created by orca_2mkl") > 0) isorca = .true.
        else if (trim(keyword) == "atoms") then
           ! read the number of atoms 
           ok = getline_raw(luwfn,line,.true.)
@@ -1887,6 +1884,17 @@ contains
        f%issto = .false.
     else
        f%issto = .true.
+    end if
+
+    ! assign molden type
+    if (molden_type /= molden_type_unknown) then
+       f%molden_type = molden_type
+    elseif (f%issto) then
+       f%molden_type = molden_type_adf_sto
+    elseif (isorca) then
+       f%molden_type = molden_type_orca
+    else
+       f%molden_type = molden_type_psi4
     end if
 
     ! type of wavefunction -> number of MOs
@@ -2132,7 +2140,7 @@ contains
     ! If this is an orca molden file, flip the sign of the MO coefficients in these cases:
     ! - abs(m)=3 for the f shells
     ! - abs(m)>=3 for the g shells
-    if (imoldentype == molden_type_orca) then
+    if (f%molden_type == molden_type_orca) then
        do j = 1, ncshel
           nsph = nshlt(ishlt(j))
           if (ishlt(j) == -3) then
@@ -2206,7 +2214,7 @@ contains
           ! primitive coefficients normalized with the angular part
           do k = 1, ishlpri(i)
              cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k))
-             if (imoldentype == molden_type_orca) then
+             if (f%molden_type == molden_type_orca) then
                 cnorm(k) = cnorm(k) / gnorm_orca(ityp,exppri(nm+k))
              end if
           end do
