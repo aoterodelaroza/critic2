@@ -1002,7 +1002,7 @@ contains
     f%nedf = 0
     nalpha = 0
     do while (getline_raw(luwfn,line))
-       if (len_trim(line) < 1) exit
+       line = adjustl(line)
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*) f%nmoocc
@@ -1049,8 +1049,7 @@ contains
     rewind(luwfn)
     do while (.true.)
        read(luwfn,'(A)',end=20) line
-       line2 = adjustl(line)
-       line = line2
+       line = adjustl(line)
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri)
@@ -3269,9 +3268,12 @@ contains
     if (.not.ok) return
     do while(.true.)
        if (.not.isinteger(idum,line,lp)) then
+          line = adjustl(line(lp:))
+          if (line(1:1) == "<") exit
           lp = 1
           ok = getline_raw(lu,line)
-          if (.not.ok .or. line(1:2) == "</") exit
+          line = adjustl(line)
+          if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
           if (kk > n) then
@@ -3310,17 +3312,20 @@ contains
     if (.not.ok) return
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
+          line = adjustl(line(lp:))
+          if (line(1:1) == "<") exit
           lp = 1
           ok = getline_raw(lu,line)
+          line = adjustl(line)
           if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
           if (kk > n) then
              if (present(errmsg)) then
-                errmsg = "Exceeded size of the array reading integers"
+                errmsg = "Exceeded size of the array reading reals"
                 return
              else
-                call ferror("wfx_read_integers","Exceeded size of the array reading reals",faterr)
+                call ferror("wfx_read_reals1","Exceeded size of the array reading reals",faterr)
              end if
           end if
           x(kk) = rdum
