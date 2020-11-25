@@ -46,19 +46,33 @@ submodule (wfn_private) proc
   real*8, parameter :: s3 = sqrt(3d0)
   real*8, parameter :: s3_4 = sqrt(3d0/4d0)
   real*8, parameter :: s3_8 = sqrt(3d0/8d0)
+  real*8, parameter :: s5_4 = sqrt(5d0/4d0)
   real*8, parameter :: s5_8 = sqrt(5d0/8d0)
   real*8, parameter :: s5_16 = sqrt(5d0/16d0)
+  real*8, parameter :: s5_28 = sqrt(5d0/28d0)
+  real*8, parameter :: s3_40 = sqrt(3d0/40d0)
+  real*8, parameter :: s6_5 = sqrt(6d0/5d0)
   real*8, parameter :: s6 = sqrt(6d0)
+  real*8, parameter :: s9_7 = sqrt(9d0/7d0)
+  real*8, parameter :: s9_8 = sqrt(9d0/8d0)
+  real*8, parameter :: s9_20 = sqrt(9d0/20d0)
+  real*8, parameter :: s9_56 = sqrt(9d0/56d0)
   real*8, parameter :: s10 = sqrt(10d0)
+  real*8, parameter :: s10_7 = sqrt(10d0/7d0)
   real*8, parameter :: s10_8 = sqrt(10d0/8d0)
   real*8, parameter :: s15 = sqrt(15d0)
   real*8, parameter :: s15_4 = sqrt(15d0/4d0)
+  real*8, parameter :: s27_16 = sqrt(27d0/16d0)
+  real*8, parameter :: s27_28 = sqrt(27d0/28d0)
+  real*8, parameter :: s27_35 = sqrt(27d0/35d0)
+  real*8, parameter :: s27_560 = sqrt(27d0/560d0)
   real*8, parameter :: s35_4 = sqrt(35d0/4d0)
   real*8, parameter :: s35_8 = sqrt(35d0/8d0)
   real*8, parameter :: s35_64 = sqrt(35d0/64d0)
   real*8, parameter :: s45 = sqrt(45d0)
   real*8, parameter :: s45_4 = sqrt(45d0/4d0)
   real*8, parameter :: s45_8 = sqrt(45d0/8d0)
+  real*8, parameter :: s45_56 = sqrt(45d0/56d0)
   real*8, parameter :: s315_8 = sqrt(315d0/8d0)
   real*8, parameter :: s315_16 = sqrt(315d0/16d0)
   real*8, parameter :: d32 = 3d0/2d0
@@ -66,6 +80,15 @@ submodule (wfn_private) proc
   real*8, parameter :: d38 = 3d0/8d0
 
   ! -- Real solid harmonics r^l * Slm as a function of Cartesian products. -- 
+
+  ! see: Schlegel and Frisch, Int. J. Quantum Chem. 54 (1995) 83,
+  !      "Transformation Between Cartesian and Pure Spherical Harmonic Gaussians"
+  !      https://doi.org/10.1002/qua.560540202
+  ! Use table 1 and note that:
+  !   Rlm = sqrt(2) * Im[Y_l^|m|] if m < 0
+  !         Y_l^0 if m =0
+  !         sqrt(2) * Re[Y_l^|m|] if m > 0
+  ! Can also be found in Helgaker, eqs. 9.1.9 to 9.1.12
 
   ! dsphcar: l = 2 
   !   spherical molden order: m = 0, 1, -1, 2, -2
@@ -75,9 +98,9 @@ submodule (wfn_private) proc
      -0.5d0, 0.0d0, 0.0d0,  s3_4, 0.0d0,& ! xx
      -0.5d0, 0.0d0, 0.0d0, -s3_4, 0.0d0,& ! yy
       1.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0,& ! zz
-      0.0d0, 0.0d0, 0.0d0, 0.0d0,    s3,& ! xy
-      0.0d0,    s3, 0.0d0, 0.0d0, 0.0d0,& ! xz
-      0.0d0, 0.0d0,    s3, 0.0d0, 0.0d0 & ! yz
+      0.0d0, 0.0d0, 0.0d0, 0.0d0, 1.0d0,& ! xy
+      0.0d0, 1.0d0, 0.0d0, 0.0d0, 0.0d0,& ! xz
+      0.0d0, 0.0d0, 1.0d0, 0.0d0, 0.0d0 & ! yz
      /),shape(dsphcar))
 
   ! fsphcar: l = 3 
@@ -88,13 +111,13 @@ submodule (wfn_private) proc
      0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,     s5_8,   0.0d0,& ! xxx 
      0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   -s5_8,& ! yyy 
      1.0d0,   0.0d0,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! zzz 
-     0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,   -s45_8,   0.0d0,& ! xyy 
-     0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   s45_8,& ! xxy 
-      -d32,   0.0d0,   0.0d0,    s15_4,   0.0d0,    0.0d0,   0.0d0,& ! xxz 
-     0.0d0,      s6,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! xzz 
-     0.0d0,   0.0d0,      s6,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! yzz 
-      -d32,   0.0d0,   0.0d0,   -s15_4,   0.0d0,    0.0d0,   0.0d0,& ! yyz 
-     0.0d0,   0.0d0,   0.0d0,    0.0d0,     s15,    0.0d0,   0.0d0 & ! xyz 
+     0.0d0,  -s3_40,   0.0d0,    0.0d0,   0.0d0,    -s9_8,   0.0d0,& ! xyy 
+     0.0d0,   0.0d0,  -s3_40,    0.0d0,   0.0d0,    0.0d0,    s9_8,& ! xxy 
+    -s9_20,   0.0d0,   0.0d0,     s3_4,   0.0d0,    0.0d0,   0.0d0,& ! xxz 
+     0.0d0,    s6_5,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! xzz 
+     0.0d0,   0.0d0,    s6_5,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! yzz 
+    -s9_20,   0.0d0,   0.0d0,    -s3_4,   0.0d0,    0.0d0,   0.0d0,& ! yyz 
+     0.0d0,   0.0d0,   0.0d0,    0.0d0,     1d0,    0.0d0,   0.0d0 & ! xyz 
      /),shape(fsphcar))
 
   ! gsphcar: l = 4
@@ -105,18 +128,18 @@ submodule (wfn_private) proc
        d38,  0.0d0,  0.0d0, -s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! xxxx
        d38,  0.0d0,  0.0d0,  s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! yyyy
        1d0,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! zzzz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0,  s35_4,& ! xxxy
-     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0,   s35_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0, -s35_4,& ! xyyy
-     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, -s35_8,    0.0d0,  0.0d0,& ! yyyz
-     0.0d0,    s10,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
-     0.0d0,  0.0d0,    s10,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
-       d34,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0, -s315_16,  0.0d0,& ! xxyy
-      -3d0,  0.0d0,  0.0d0,  s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
-      -3d0,  0.0d0,  0.0d0, -s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
-     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, s315_8,    0.0d0,  0.0d0,& ! xxyz
-     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0, -s315_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0,    s45,   0.0d0,  0.0d0,    0.0d0,  0.0d0 & ! xyzz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s5_28,   0.0d0,  0.0d0,    0.0d0,   s5_4,& ! xxxy
+     0.0d0,-s45_56,  0.0d0,  0.0d0,  0.0d0,    s5_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s5_28,   0.0d0,  0.0d0,    0.0d0,  -s5_4,& ! xyyy
+     0.0d0,  0.0d0,-s45_56,  0.0d0,  0.0d0,   0.0d0,  -s5_8,    0.0d0,  0.0d0,& ! yyyz
+     0.0d0,  s10_7,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
+     0.0d0,  0.0d0,  s10_7,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
+   s27_560,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,  -s27_16,  0.0d0,& ! xxyy
+   -s27_35,  0.0d0,  0.0d0, s27_28,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
+   -s27_35,  0.0d0,  0.0d0,-s27_28,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
+     0.0d0,  0.0d0, -s9_56,  0.0d0,  0.0d0,   0.0d0,   s9_8,    0.0d0,  0.0d0,& ! xxyz
+     0.0d0, -s9_56,  0.0d0,  0.0d0,  0.0d0,   -s9_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0,   s9_7,   0.0d0,  0.0d0,    0.0d0,  0.0d0 & ! xyzz
      /),shape(gsphcar))
 
   ! gsphcar: l = 4
@@ -126,19 +149,19 @@ submodule (wfn_private) proc
   real*8 :: gsphcar_fchk(9,15) = reshape((/&
   !    0       1      -1       2      -2        3      -3         4      -4
        1d0,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! zzzz
-     0.0d0,  0.0d0,    s10,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
-      -3d0,  0.0d0,  0.0d0, -s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
-     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, -s35_8,    0.0d0,  0.0d0,& ! yyyz
+     0.0d0,  0.0d0,  s10_7,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yzzz
+   -s27_35,  0.0d0,  0.0d0,-s27_28,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! yyzz
+     0.0d0,  0.0d0,-s45_56,  0.0d0,  0.0d0,   0.0d0,  -s5_8,    0.0d0,  0.0d0,& ! yyyz
        d38,  0.0d0,  0.0d0,  s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0,& ! yyyy
-     0.0d0,    s10,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0,    s45,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xyzz
-     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0, -s315_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0, -s35_4,& ! xyyy
-      -3d0,  0.0d0,  0.0d0,  s45_4,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
-     0.0d0,  0.0d0, -s45_8,  0.0d0,  0.0d0,   0.0d0, s315_8,    0.0d0,  0.0d0,& ! xxyz
-       d34,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0, -s315_16,  0.0d0,& ! xxyy
-     0.0d0, -s45_8,  0.0d0,  0.0d0,  0.0d0,   s35_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
-     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s10_8,   0.0d0,  0.0d0,    0.0d0,  s35_4,& ! xxxy
+     0.0d0,  s10_7,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xzzz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0,   s9_7,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xyzz
+     0.0d0, -s9_56,  0.0d0,  0.0d0,  0.0d0,   -s9_8,  0.0d0,    0.0d0,  0.0d0,& ! xyyz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s5_28,   0.0d0,  0.0d0,    0.0d0,  -s5_4,& ! xyyy
+   -s27_35,  0.0d0,  0.0d0, s27_28,  0.0d0,   0.0d0,  0.0d0,    0.0d0,  0.0d0,& ! xxzz
+     0.0d0,  0.0d0, -s9_56,  0.0d0,  0.0d0,   0.0d0,   s9_8,    0.0d0,  0.0d0,& ! xxyz
+   s27_560,  0.0d0,  0.0d0,  0.0d0,  0.0d0,   0.0d0,  0.0d0,  -s27_16,  0.0d0,& ! xxyy
+     0.0d0,-s45_56,  0.0d0,  0.0d0,  0.0d0,    s5_8,  0.0d0,    0.0d0,  0.0d0,& ! xxxz
+     0.0d0,  0.0d0,  0.0d0,  0.0d0, -s5_28,   0.0d0,  0.0d0,    0.0d0,   s5_4,& ! xxxy
        d38,  0.0d0,  0.0d0, -s5_16,  0.0d0,   0.0d0,  0.0d0,   s35_64,  0.0d0 & ! xxxx
      /),shape(gsphcar))
 
@@ -1471,38 +1494,14 @@ contains
     do i = 1, ncshel
        do j = jshl0(abs(ishlt(i))), jshl1(abs(ishlt(i)))
           ityp = typtrans(j)
-          ! primitive coefficients normalized
+
+          ! normalize primitive coefficients
           do k = 1, ishlpri(i)
              cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
           end do
 
-          ! normalization constant for the basis function
-          norm = 0d0
-          do k1 = 1, ishlpri(i)
-             do k2 = 1, ishlpri(i)
-                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(abs(ishlt(i))+3d0/2d0)
-             end do
-          end do
-          cons = pi**(3d0/2d0) * dfacm1(2*abs(ishlt(i))) / 2**(abs(ishlt(i)))
-          norm = 1d0 / sqrt(norm * cons)
-
-          ! gaussian fchk: multiply by sqrt((2lx-1)!! * (2ly-1)!! * (2lz-1)!! / (2l-1)!!)
-          ! only for Cartesian primitives
-          if (ishlt(i) >= 0) then
-             if (ityp >= 8 .and. ityp <= 10) then
-                norm = norm * sqrt(3d0)
-             elseif (ityp >= 14 .and. ityp <= 19) then
-                norm = norm * sqrt(5d0)
-             elseif (ityp == 20) then
-                norm = norm * sqrt(15d0)
-             else if (ityp >= 24 .and. ityp <= 29) then
-                norm = norm * sqrt(7d0)
-             else if (ityp >= 30 .and. ityp <= 32) then
-                norm = norm * sqrt(35d0/3d0)
-             else if (ityp >= 33 .and. ityp <= 35) then
-                norm = norm * sqrt(35d0)
-             end if
-          end if
+          ! normalize basis function
+          norm = aonorm(ityp,ishlpri(i),exppri(nm+1:nm+ishlpri(i)),cnorm(1:ishlpri(i)))
 
           ! calculate and assign the normalized primitive coefficients
           do k = 1, ishlpri(i)
@@ -1683,7 +1682,7 @@ contains
     integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
     integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf
-    real*8 :: rdum, norm, cons
+    real*8 :: rdum, norm
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
 
@@ -1874,6 +1873,13 @@ contains
        end if
        if (.not.ok) exit
     end do
+
+    ! orca always uses spherical
+    if (isorca) then
+       is5d = .true.
+       is7f = .true.
+       is9g = .true.
+    end if
     
     if (isgto.and.issto) then
        call ferror('read_molden','Both [GTO] and [STO] blocks are present',faterr)
@@ -2146,7 +2152,7 @@ contains
              do i = 1, f%nmoall
                 motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7) = -motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+7)
              end do
-          else if (ishlt(j) == -3) then
+          else if (ishlt(j) == -4) then
              do i = 1, f%nmoall
                 motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+9) = -motemp((i-1)*nbassph+ns+6:(i-1)*nbassph+ns+9)
              end do
@@ -2210,23 +2216,18 @@ contains
        do j = jshl0(ishlt(i)), jshl1(ishlt(i))
           ityp = typtrans(j)
 
-          ! primitive coefficients normalized with the angular part
+          ! normalize primitive coefficients
           do k = 1, ishlpri(i)
              cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k))
+
+             ! remove the normalization factor from the orca molden files
              if (f%molden_type == molden_type_orca) then
                 cnorm(k) = cnorm(k) / gnorm_orca(ityp,exppri(nm+k))
              end if
           end do
 
-          ! normalization constant for the basis function
-          norm = 0d0
-          do k1 = 1, ishlpri(i)
-             do k2 = 1, ishlpri(i)
-                norm = norm + cnorm(k1) * cnorm(k2) / (exppri(nm+k1)+exppri(nm+k2))**(ishlt(i)+3d0/2d0)
-             end do
-          end do
-          cons = pi**(3d0/2d0) * dfacm1(2*ishlt(i)) / 2**(ishlt(i))
-          norm = 1d0 / sqrt(norm * cons)
+          ! AO normalization factor
+          norm = aonorm(ityp,ishlpri(i),exppri(nm+1:nm+ishlpri(i)),cnorm(1:ishlpri(i)))
 
           ! calculate and assign the normalized primitive coefficients
           do k = 1, ishlpri(i)
@@ -3167,6 +3168,8 @@ contains
 
   !> Calculate the normalization factor of a primitive of a given type
   !> with exponent a.
+  !> [ (4a)^(i+j+k) * (2a/pi)^(3/2) / (2i-1)!! / (2j-1)!! / (2k-1)!! ]^(1/2)
+  !> (Note: (2l)! = (2l-1)!! * 2^l * l!.)
   function gnorm(type,a) result(N)
     use tools_io, only: ferror, faterr
     use param, only: pi
@@ -3176,7 +3179,7 @@ contains
 
     if (type == 1) then
        ! 1
-       ! x
+       ! 1
        N = 2**(3d0/4d0) * a**(3d0/4d0) / pi**(3d0/4d0)
     else if (type >= 2 .and. type <= 4) then
        ! 2 3 4
@@ -3205,22 +3208,23 @@ contains
     else if (type >= 21 .and. type <= 23) then
        ! 21   22   23   
        ! xxxx yyyy zzzz 
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(105d0)
     else if (type >= 24 .and. type <= 29) then
        ! 24   25   26   27   28   29  
        ! xxxy xxxz xyyy yyyz xzzz yzzz
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(5d0)
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
     else if (type >= 30 .and. type <= 32) then
        ! 30   31   32  
        ! xxyy xxzz yyzz
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) * sqrt(3d0)
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(9d0)
     else if (type >= 33 .and. type <= 35) then
        ! 33   34   35   
        ! xxyz xyyz xyzz 
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0)
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
     else
        call ferror("gnorm","fixme: primitive type not supported",faterr)
     endif
+
   endfunction gnorm
 
   !> Calculate the normalization factor of a primitive of a given
@@ -3240,14 +3244,98 @@ contains
     else if (type >= 5 .and. type <= 10) then
        N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
     else if (type >= 11 .and. type <= 20) then
-       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
+       N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
     else if (type >= 21 .and. type <= 35) then
-       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(35d0)
+       N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(105d0)
     else
        call ferror("gnorm","fixme: primitive type not supported",faterr)
     endif
 
   endfunction gnorm_orca
+
+  !> Calculate the normalization factor of an atomic orbital composed
+  !> of n primitives of type type. The exponents are a and the
+  !> coefficients are c.
+  function aonorm(type,n,a,c)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
+    integer, intent(in) :: type, n
+    real*8, intent(in) :: a(n), c(n)
+    real*8 :: aonorm
+
+    real*8 :: dfac
+    integer :: l
+    integer :: i, j
+
+    if (type == 1) then
+       ! 1
+       ! 1
+       dfac = 1d0
+       l = 0
+    else if (type >= 2 .and. type <= 4) then
+       ! 2 3 4
+       ! x y z
+       dfac = 1d0
+       l = 1
+    else if (type >= 5 .and. type <= 7) then
+       ! 5  6  7
+       ! xx yy zz
+       dfac = 3d0
+       l = 2
+    else if (type >= 8 .and. type <= 10) then
+       ! 7  8  9
+       ! xy xz yz
+       dfac = 1d0
+       l = 2
+    else if (type >= 11 .and. type <= 13) then
+       ! 11  12  13
+       ! xxx yyy zzz
+       dfac = 15d0
+       l = 3
+    else if (type >= 14 .and. type <= 19) then
+       ! 14  15  16  17  18  19  
+       ! xyy xxy xxz xzz yzz yyz 
+       dfac = 3d0
+       l = 3
+    else if (type == 20) then
+       ! 20
+       ! xyz
+       dfac = 1d0
+       l = 3
+    else if (type >= 21 .and. type <= 23) then
+       ! 21   22   23   
+       ! xxxx yyyy zzzz 
+       dfac = 105d0
+       l = 4
+    else if (type >= 24 .and. type <= 29) then
+       ! 24   25   26   27   28   29  
+       ! xxxy xxxz xyyy yyyz xzzz yzzz
+       dfac = 15d0
+       l = 4
+    else if (type >= 30 .and. type <= 32) then
+       ! 30   31   32  
+       ! xxyy xxzz yyzz
+       dfac = 9d0
+       l = 4
+    else if (type >= 33 .and. type <= 35) then
+       ! 33   34   35   
+       ! xxyz xyyz xyzz 
+       dfac = 3d0
+       l = 4
+    else
+       call ferror("aonorm","fixme: primitive type not supported",faterr)
+    endif
+
+    aonorm = 0d0
+    do i = 1, n
+       do j = 1, n
+          aonorm = aonorm + c(i) * c(j) / (a(i)+a(j))**(l+3d0/2d0)
+       end do
+    end do
+    aonorm = aonorm * dfac * pi**(3d0/2d0) / 2**l
+    aonorm = 1d0 / sqrt(aonorm)
+
+  endfunction aonorm
 
   !> Read a list of n integers from a logical unit
   function wfx_read_integers(lu,n,errmsg) result(x)
