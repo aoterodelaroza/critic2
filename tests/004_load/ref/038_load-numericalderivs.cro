@@ -768,7 +768,7 @@
   Field 11 (f,|grad|,lap): 1.583029680E-10  5.281072419E-07  8.591981451E-04
 
 + Field number 1
-  Source: ../zz_source/gaussian-16/benzene/benzene.wfn
+  Source: ../zz_source/g16A.03/benzene/benzene.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
   Number of MOs (total): 21
@@ -786,7 +786,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Source: ../zz_source/gaussian-16/benzene/benzene.wfn
+  Source: ../zz_source/g16A.03/benzene/benzene.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
   Number of MOs (total): 21

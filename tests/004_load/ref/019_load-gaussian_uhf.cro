@@ -1,6 +1,6 @@
 + Field number 1
   Name: wfn
-  Source: ../zz_source/gaussian-16/oh/oh_uhf.wfn
+  Source: ../zz_source/g16A.03/oh/oh_uhf.wfn
   Type: molecular wavefunction
   Wavefunction type: unrestricted
   Number of MOs (total): 9 (alpha=5,beta=4)
@@ -19,7 +19,7 @@
 
 + Field number 2
   Name: wfx
-  Source: ../zz_source/gaussian-16/oh/oh_uhf.wfx
+  Source: ../zz_source/g16A.03/oh/oh_uhf.wfx
   Type: molecular wavefunction
   Wavefunction type: unrestricted
   Number of MOs (total): 9 (alpha=5,beta=4)
@@ -36,7 +36,7 @@
 
 + Field number 3
   Name: fchk
-  Source: ../zz_source/gaussian-16/oh/oh_uhf.fchk
+  Source: ../zz_source/g16A.03/oh/oh_uhf.fchk
   Type: molecular wavefunction
   Wavefunction type: unrestricted
   Number of MOs (total): 9 (alpha=5,beta=4)

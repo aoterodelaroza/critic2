@@ -43,7 +43,7 @@
   Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01
 
 + Field number 1
-  Source: ../zz_source/gaussian-16/benzene/benzene.cube
+  Source: ../zz_source/g16A.03/benzene/benzene.cube
   Type: grid
   Grid dimensions : 54  56  40
   First elements... 1.647720000000E-09  1.984650000000E-09  2.349970000000E-09
