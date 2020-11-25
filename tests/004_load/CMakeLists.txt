@@ -46,6 +46,8 @@ set(TESTS
   045_load-pwc-contrib     ## read pwc file; only some contributions
   046_load-orca_rhf        ## from orca files; RHF case
   047_load-orca_uhf        ## from orca files; UHF case
+  048_check_molwfn_lmax    ## molecular wavefunctions; check max. angular momentum
+  049_check_molwfn_wfntyp  ## molecular wavefunctions; check wavefunction type
   )
 
 runtests(${TESTS})

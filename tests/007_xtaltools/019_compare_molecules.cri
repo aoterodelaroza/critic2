@@ -5,8 +5,8 @@
 molecule library neopentane
 write 019_compare_molecules_gen.xyz
 
-compare . 019_compare_molecules_gen.xyz ../zz_source/gaussian-16/benzene/benzene.wfn \
-          ../zz_source/gaussian-16/benzene/benzene.wfx \
-          ../zz_source/gaussian-16/benzene/benzene.fchk \
-          ../zz_source/gaussian-16/benzene/benzene.log 
+compare . 019_compare_molecules_gen.xyz ../zz_source/g16A.03/benzene/benzene.wfn \
+          ../zz_source/g16A.03/benzene/benzene.wfx \
+          ../zz_source/g16A.03/benzene/benzene.fchk \
+          ../zz_source/g16A.03/benzene/benzene.log 
 

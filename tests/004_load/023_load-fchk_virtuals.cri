@@ -1,7 +1,7 @@
 ## check: 023_load-fchk_virtuals.cro -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/h2o/h2o_hf.fchk
-load ../zz_source/gaussian-16/h2o/h2o_hf.fchk readvirtual
+molecule ../zz_source/g16A.03/h2o/h2o_hf.fchk
+load ../zz_source/g16A.03/h2o/h2o_hf.fchk readvirtual
 molcalc "2 * ($1:1)^2 + 2 * ($1:2)^2 + 2 * ($1:3)^2 + 2 * ($1:4)^2 + 2 * ($1:5)^2 - $1"
 point 0.1 0.2 0.3 field "$1:homo"
 point 0.1 0.2 0.3 field "$1:lumo"

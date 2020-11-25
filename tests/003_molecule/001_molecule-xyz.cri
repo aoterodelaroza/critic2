@@ -3,9 +3,9 @@
 ## check: 001_molecule-xyz_gen_02.cri -a1e-10
 ## check: 001_molecule-xyz_gen_03.cri -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/benzene/benzene.xyz
+molecule ../zz_source/g16A.03/benzene/benzene.xyz
 write 001_molecule-xyz_gen_01.cri
-molecule ../zz_source/gaussian-16/benzene/benzene.xyz 100
+molecule ../zz_source/g16A.03/benzene/benzene.xyz 100
 write 001_molecule-xyz_gen_02.cri
-molecule ../zz_source/gaussian-16/benzene/benzene.xyz cubic
+molecule ../zz_source/g16A.03/benzene/benzene.xyz cubic
 write 001_molecule-xyz_gen_03.cri

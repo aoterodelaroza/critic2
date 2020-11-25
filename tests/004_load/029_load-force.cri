@@ -1,10 +1,10 @@
 ## check: 029_load-force.cro -a1e-10
 ## labels: regression quick
 
-molecule ../zz_source/gaussian-16/benzene/benzene.wfn
-load wfn ../zz_source/gaussian-16/benzene/benzene.wfn
-load wfx ../zz_source/gaussian-16/benzene/benzene.wfx
-load fchk ../zz_source/gaussian-16/benzene/benzene.fchk
+molecule ../zz_source/g16A.03/benzene/benzene.wfn
+load wfn ../zz_source/g16A.03/benzene/benzene.wfn
+load wfx ../zz_source/g16A.03/benzene/benzene.wfx
+load fchk ../zz_source/g16A.03/benzene/benzene.fchk
 
 crystal ../zz_source/qe-6.1/graphite/rho.cube
 load cube ../zz_source/qe-6.1/graphite/rho.cube

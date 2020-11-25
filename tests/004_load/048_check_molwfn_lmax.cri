@@ -1,0 +1,161 @@
+## check: 048_check_molwfn_lmax.cro -a1e-10
+## labels: regression
+
+### gaussian ###
+molecule ../zz_source/g16A.03/h2o_lmax/h2o_spsph.fchk
+load ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfn id wfn_spsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfx id wfx_spsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_spsph.fchk id fchk_spsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfn id wfn_spcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfx id wfx_spcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_spcar.fchk id fchk_spcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfn id wfn_dsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfx id wfx_dsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_dsph.fchk id fchk_dsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfn id wfn_dcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfx id wfx_dcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_dcar.fchk id fchk_dcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfn id wfn_fsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfx id wfx_fsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_fsph.fchk id fchk_fsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfn id wfn_fcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfx id wfx_fcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_fcar.fchk id fchk_fcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfn id wfn_gsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfx id wfx_gsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_gsph.fchk id fchk_gsph
+load ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfn id wfn_gcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfx id wfx_gcar
+load ../zz_source/g16A.03/h2o_lmax/h2o_gcar.fchk id fchk_gcar
+
+point 0. 0.1 0. field "$wfn_spsph"
+point 0. 0.1 0. field "$wfx_spsph"
+point 0. 0.1 0. field "$fchk_spsph"
+point 0. 0.1 0. field "$wfn_spcar"
+point 0. 0.1 0. field "$wfx_spcar"
+point 0. 0.1 0. field "$fchk_spcar"
+point 0. 0.1 0. field "$wfn_dsph"
+point 0. 0.1 0. field "$wfx_dsph"
+point 0. 0.1 0. field "$fchk_dsph"
+point 0. 0.1 0. field "$wfn_dcar"
+point 0. 0.1 0. field "$wfx_dcar"
+point 0. 0.1 0. field "$fchk_dcar"
+point 0. 0.1 0. field "$wfn_fsph"
+point 0. 0.1 0. field "$wfx_fsph"
+point 0. 0.1 0. field "$fchk_fsph"
+point 0. 0.1 0. field "$wfn_fcar"
+point 0. 0.1 0. field "$wfx_fcar"
+point 0. 0.1 0. field "$fchk_fcar"
+point 0. 0.1 0. field "$wfn_gsph"
+point 0. 0.1 0. field "$wfx_gsph"
+point 0. 0.1 0. field "$fchk_gsph"
+point 0. 0.1 0. field "$wfn_gcar"
+point 0. 0.1 0. field "$wfx_gcar"
+point 0. 0.1 0. field "$fchk_gcar"
+
+molcalc "$wfn_spsph"
+molcalc "$wfx_spsph"
+molcalc "$fchk_spsph"
+molcalc "$wfn_spcar"
+molcalc "$wfx_spcar"
+molcalc "$fchk_spcar"
+molcalc "$wfn_dsph"
+molcalc "$wfx_dsph"
+molcalc "$fchk_dsph"
+molcalc "$wfn_dcar"
+molcalc "$wfx_dcar"
+molcalc "$fchk_dcar"
+molcalc "$wfn_fsph"
+molcalc "$wfx_fsph"
+molcalc "$fchk_fsph"
+molcalc "$wfn_fcar"
+molcalc "$wfx_fcar"
+molcalc "$fchk_fcar"
+molcalc "$wfn_gsph"
+molcalc "$wfx_gsph"
+molcalc "$fchk_gsph"
+molcalc "$wfn_gcar"
+molcalc "$wfx_gcar"
+molcalc "$fchk_gcar"
+
+### orca 4.0.1 ### 
+molecule ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.molden
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.molden id spsph
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.molden id dsph
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.molden id fsph
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.wfn id spsphw
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.wfn id dsphw
+load ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.wfn id fsphw
+
+point 0. 0.1 0. field "$spsph"
+point 0. 0.1 0. field "$dsph"
+point 0. 0.1 0. field "$fsph"
+point 0. 0.1 0. field "$spsphw"
+point 0. 0.1 0. field "$dsphw"
+point 0. 0.1 0. field "$fsphw"
+
+molcalc "$spsph"
+molcalc "$dsph"
+molcalc "$fsph"
+molcalc "$spsphw"
+molcalc "$dsphw"
+molcalc "$fsphw"
+
+### orca 4.2 ### 
+molecule ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.molden
+load ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.molden id spsph
+load ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.molden id dsph
+load ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.molden id fsph
+load ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.molden id gsph
+load ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfn id spsphw
+load ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfn id dsphw
+load ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfn id fsphw
+load ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfn id gsphw
+load ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfx id spsphx
+load ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfx id dsphx
+load ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfx id fsphx
+load ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfx id gsphx
+
+point 0. 0.1 0. field "$spsph"
+point 0. 0.1 0. field "$dsph"
+point 0. 0.1 0. field "$fsph"
+point 0. 0.1 0. field "$gsph"
+point 0. 0.1 0. field "$spsphw"
+point 0. 0.1 0. field "$dsphw"
+point 0. 0.1 0. field "$fsphw"
+point 0. 0.1 0. field "$gsphw"
+point 0. 0.1 0. field "$spsphx"
+point 0. 0.1 0. field "$dsphx"
+point 0. 0.1 0. field "$fsphx"
+point 0. 0.1 0. field "$gsphx"
+
+molcalc "$spsph"
+molcalc "$dsph"
+molcalc "$fsph"
+molcalc "$gsph"
+molcalc "$spsphw"
+molcalc "$dsphw"
+molcalc "$fsphw"
+molcalc "$gsphw"
+molcalc "$spsphx"
+molcalc "$dsphx"
+molcalc "$fsphx"
+molcalc "$gsphx"
+
+### psi4 1.4 ###
+molecule ../zz_source/psi4-1.4/h2o_lmax/h2o_spsph.molden
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_spsph.molden id spsph
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_dsph.molden id dsph
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_fsph.molden id fsph
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_gsph.molden id gsph
+
+point 0. 0.1 -0.0523587685 field "$spsph"
+point 0. 0.1 -0.0523587685 field "$dsph"
+point 0. 0.1 -0.0523587685 field "$fsph"
+point 0. 0.1 -0.0523587685 field "$gsph"
+
+molcalc "$spsph"
+molcalc "$dsph"
+molcalc "$fsph"
+molcalc "$gsph"
+

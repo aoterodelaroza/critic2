@@ -1,8 +1,8 @@
 ## check: 002_molcalc_libxc.cro -a1e-10
 ## labels: regression quick
 
-molecule ../zz_source/gaussian-16/h2o/h2o_hf.wfx
-load ../zz_source/gaussian-16/h2o/h2o_hf.wfx
+molecule ../zz_source/g16A.03/h2o/h2o_hf.wfx
+load ../zz_source/g16A.03/h2o/h2o_hf.wfx
 
 molcalc "xc($1,1)+xc($1,8)" # LDA (same as SVWN in Gaussian)
 molcalc "xc($1,$1:g,101)+xc($1,$1:g,130)" # PBE

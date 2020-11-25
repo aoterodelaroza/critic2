@@ -1,8 +1,8 @@
 ## check: 001_load-wfn.cro -a1e-10
 ## check: 001_load-wfn.line -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/benzene/benzene.wfn
-load ../zz_source/gaussian-16/benzene/benzene.wfn
+molecule ../zz_source/g16A.03/benzene/benzene.wfn
+load ../zz_source/g16A.03/benzene/benzene.wfn
 line 0 -4 0 0 4 0 101 file 001_load-wfn.line
 molcalc "$1"
 point 0.1 0.2 0.3 all

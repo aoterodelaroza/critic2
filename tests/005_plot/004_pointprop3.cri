@@ -1,7 +1,7 @@
 ## check: 004_pointprop3.cro -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/benzene/benzene.wfx
-load ../zz_source/gaussian-16/benzene/benzene.wfx
+molecule ../zz_source/g16A.03/benzene/benzene.wfx
+load ../zz_source/g16A.03/benzene/benzene.wfx
 pointprop gtf
 pointprop vtf
 pointprop htf

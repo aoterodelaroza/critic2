@@ -73,9 +73,9 @@ load as "abs($2:zz-$1:zz)" ghost id zz #11
 point 0.1 0.2 0.3 all
 
 # wfn
-molecule ../zz_source/gaussian-16/benzene/benzene.wfn
-load ../zz_source/gaussian-16/benzene/benzene.wfn analytical
-load ../zz_source/gaussian-16/benzene/benzene.wfn numerical
+molecule ../zz_source/g16A.03/benzene/benzene.wfn
+load ../zz_source/g16A.03/benzene/benzene.wfn analytical
+load ../zz_source/g16A.03/benzene/benzene.wfn numerical
 load as "abs($2:x-$1:x)" ghost id x #3
 load as "abs($2:y-$1:y)" ghost id y #4
 load as "abs($2:z-$1:z)" ghost id z #5

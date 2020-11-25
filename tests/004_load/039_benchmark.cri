@@ -5,7 +5,7 @@ crystal ../zz_source/wien14.2/zno/zno.struct
 
 benchmark
 
-molecule ../zz_source/gaussian-16/h2o/h2o_hf.wfn
-load ../zz_source/gaussian-16/h2o/h2o_hf.wfn
+molecule ../zz_source/g16A.03/h2o/h2o_hf.wfn
+load ../zz_source/g16A.03/h2o/h2o_hf.wfn
 benchmark
 

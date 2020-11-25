@@ -1,0 +1,155 @@
+## check: 049_check_molwfn_wfntyp.cro -a1e-10
+## labels: regression
+
+### gaussian ### 
+molecule ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.fchk
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.fchk id fchk_rhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.wfn id wfn_rhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.wfx id wfx_rhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.fchk id fchk_uhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.wfn id wfn_uhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.wfx id wfx_uhf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.fchk id fchk_rohf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.wfn id wfn_rohf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.wfx id wfx_rohf
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.fchk id fchk_mp2
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.wfn id wfn_mp2
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.wfx id wfx_mp2
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.fchk id fchk_ump2
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.wfn id wfn_ump2
+load ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.wfx id wfx_ump2
+
+point 0. 0.1 0. field "$fchk_rhf"
+point 0. 0.1 0. field "$wfn_rhf"
+point 0. 0.1 0. field "$wfx_rhf"
+point 0. 0.1 0. field "$fchk_uhf"
+point 0. 0.1 0. field "$wfn_uhf"
+point 0. 0.1 0. field "$wfx_uhf"
+point 0. 0.1 0. field "$fchk_rohf"
+point 0. 0.1 0. field "$wfn_rohf"
+point 0. 0.1 0. field "$wfx_rohf"
+point 0. 0.1 0. field "$fchk_mp2"
+point 0. 0.1 0. field "$wfn_mp2"
+point 0. 0.1 0. field "$wfx_mp2"
+point 0. 0.1 0. field "$fchk_ump2"
+point 0. 0.1 0. field "$wfn_ump2"
+point 0. 0.1 0. field "$wfx_ump2"
+
+molcalc "$fchk_rhf"
+molcalc "$wfn_rhf"
+molcalc "$wfx_rhf"
+molcalc "$fchk_uhf"
+molcalc "$wfn_uhf"
+molcalc "$wfx_uhf"
+molcalc "$fchk_rohf"
+molcalc "$wfn_rohf"
+molcalc "$wfx_rohf"
+molcalc "$fchk_mp2"
+molcalc "$wfn_mp2"
+molcalc "$wfx_mp2"
+molcalc "$fchk_ump2"
+molcalc "$wfn_ump2"
+molcalc "$wfx_ump2"
+
+### orca 4.0.1 ### 
+molecule ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rhf.molden
+
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rhf.molden id rhf
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rhf.wfn id rhfw
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_uhf.molden id uhf
+#load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rohf.molden id rohf
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rohf.wfn id rohfw
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_mp2.molden id mp2
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_mp2.wfn id mp2w
+load ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_ump2.molden id ump2
+
+point 0. 0.1 0. field "$rhf"
+point 0. 0.1 0. field "$rhfw"
+point 0. 0.1 0. field "$uhf"
+#point 0. 0.1 0. field "$rohf"
+point 0. 0.1 0. field "$rohfw"
+point 0. 0.1 0. field "$mp2"
+point 0. 0.1 0. field "$mp2w"
+point 0. 0.1 0. field "$ump2"
+
+molcalc "$rhf"
+molcalc "$rhfw"
+molcalc "$uhf"
+#molcalc "$rohf"
+molcalc "$rohfw"
+molcalc "$mp2"
+molcalc "$mp2w"
+molcalc "$ump2"
+
+### orca 4.2 ### 
+molecule ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.molden
+
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.molden id rhf
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.wfn id rhfw
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.wfx id rhfx
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.molden id uhf
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.wfn id uhfw
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.wfx id uhfx
+#load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rohf.molden id rohf
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rohf.wfn id rohfw
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_rohf.wfx id rohfx
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.molden id mp2
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.wfn id mp2w
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.wfx id mp2x
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.molden id ump2
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.wfn id ump2w
+load ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.wfx id ump2x
+
+point 0. 0.1 0. field "$rhf"
+point 0. 0.1 0. field "$rhfw"
+point 0. 0.1 0. field "$rhfx"
+point 0. 0.1 0. field "$uhf"
+point 0. 0.1 0. field "$uhfw"
+point 0. 0.1 0. field "$uhfx"
+#point 0. 0.1 0. field "$rohf"
+point 0. 0.1 0. field "$rohfw"
+point 0. 0.1 0. field "$rohfx"
+point 0. 0.1 0. field "$mp2"
+point 0. 0.1 0. field "$mp2w"
+point 0. 0.1 0. field "$mp2x"
+point 0. 0.1 0. field "$ump2"
+point 0. 0.1 0. field "$ump2w"
+point 0. 0.1 0. field "$ump2x"
+
+molcalc "$rhf"
+molcalc "$rhfw"
+molcalc "$rhfx"
+molcalc "$uhf"
+molcalc "$uhfw"
+molcalc "$uhfx"
+#molcalc "$rohf"
+molcalc "$rohfw"
+molcalc "$rohfx"
+molcalc "$mp2"
+molcalc "$mp2w"
+molcalc "$mp2x"
+molcalc "$ump2"
+molcalc "$ump2w"
+molcalc "$ump2x"
+
+### psi4 1.4 ### 
+molecule ../zz_source/psi4-1.4/h2o_wfntyp/h2o_rhf.molden
+
+load ../zz_source/psi4-1.4/h2o_wfntyp/h2o_rhf.molden id rhf
+load ../zz_source/psi4-1.4/h2o_wfntyp/h2o_uhf.molden id uhf
+load ../zz_source/psi4-1.4/h2o_wfntyp/h2o_rohf.molden id rohf
+#load ../zz_source/psi4-1.4/h2o_wfntyp/h2o_mp2.molden id mp2
+#load ../zz_source/psi4-1.4/h2o_wfntyp/h2o_ump2.molden id ump2
+
+point 0. 0.1 0. field "$rhf"
+point 0. 0.1 0. field "$uhf"
+point 0. 0.1 0. field "$rohf"
+#point 0. 0.1 0. field "$mp2"
+#point 0. 0.1 0. field "$ump2"
+
+molcalc "$rhf"
+molcalc "$uhf"
+molcalc "$rohf"
+#molcalc "$mp2"
+#molcalc "$ump2"
+

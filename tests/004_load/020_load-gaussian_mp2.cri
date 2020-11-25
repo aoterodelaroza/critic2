@@ -1,9 +1,9 @@
 ## check: 020_load-gaussian_mp2.cro -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/h2o/h2o_mp2.wfn
-load ../zz_source/gaussian-16/h2o/h2o_mp2.wfn id wfn
-load ../zz_source/gaussian-16/h2o/h2o_mp2.wfx id wfx
-load ../zz_source/gaussian-16/h2o/h2o_mp2.fchk id fchk
+molecule ../zz_source/g16A.03/h2o/h2o_mp2.wfn
+load ../zz_source/g16A.03/h2o/h2o_mp2.wfn id wfn
+load ../zz_source/g16A.03/h2o/h2o_mp2.wfx id wfx
+load ../zz_source/g16A.03/h2o/h2o_mp2.fchk id fchk
 molcalc "$wfn"
 molcalc "$wfx"
 molcalc "$fchk"

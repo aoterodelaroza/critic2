@@ -1,8 +1,8 @@
 ## check: 016_load-fchk.cro -a1e-10
 ## check: 016_load-fchk.line -a1e-10
 ## labels: regression quick
-molecule ../zz_source/gaussian-16/benzene/benzene.fchk
-load ../zz_source/gaussian-16/benzene/benzene.fchk
+molecule ../zz_source/g16A.03/benzene/benzene.fchk
+load ../zz_source/g16A.03/benzene/benzene.fchk
 line 0 -4 0 0 4 0 101 file 016_load-fchk.line
 molcalc "$1"
 point 0.1 0.2 0.3 all

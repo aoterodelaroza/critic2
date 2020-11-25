@@ -1,0 +1,1359 @@
++ Field number 1
+  Name: wfn_spsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $wfn_spsph
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: wfx_spsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $wfx_spsph
+
++ Field number 3
+  Name: fchk_spsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $fchk_spsph
+
++ Field number 4
+  Name: wfn_spcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $wfn_spcar
+
++ Field number 5
+  Name: wfx_spcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $5, $wfx_spcar
+
++ Field number 6
+  Name: fchk_spcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $6, $fchk_spcar
+
++ Field number 7
+  Name: wfn_dsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $7, $wfn_dsph
+
++ Field number 8
+  Name: wfx_dsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $8, $wfx_dsph
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 9
+  Name: fchk_dsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $9, $fchk_dsph
+
++ Field number 10
+  Name: wfn_dcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $10, $wfn_dcar
+
++ Field number 11
+  Name: wfx_dcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $11, $wfx_dcar
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 12
+  Name: fchk_dcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $12, $fchk_dcar
+
++ Field number 13
+  Name: wfn_fsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $13, $wfn_fsph
+
++ Field number 14
+  Name: wfx_fsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $14, $wfx_fsph
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 15
+  Name: fchk_fsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $15, $fchk_fsph
+
++ Field number 16
+  Name: wfn_fcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $16, $wfn_fcar
+
++ Field number 17
+  Name: wfx_fcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $17, $wfx_fcar
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 18
+  Name: fchk_fcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $18, $fchk_fcar
+
++ Field number 19
+  Name: wfn_gsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $19, $wfn_gsph
+
++ Field number 20
+  Name: wfx_gsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $20, $wfx_gsph
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 21
+  Name: fchk_gsph
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $21, $fchk_gsph
+
++ Field number 22
+  Name: wfn_gcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $22, $wfn_gcar
+
++ Field number 23
+  Name: wfx_gcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $23, $wfx_gcar
+
+WARNING(read_fchk): ECPs detected in fchk, but fchk contains no EDF information -> no core density added
++ Field number 24
+  Name: fchk_gcar
+  Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $24, $fchk_gcar
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_spsph): 3.942740908E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_spsph): 3.942740811E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_spsph): 3.942740813E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_spcar): 3.944108694E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_spcar): 3.944108664E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_spcar): 3.944108663E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_dsph): 3.970063760E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_dsph): 3.970062390E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_dsph): 3.970062397E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_dcar): 3.972821408E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_dcar): 3.972820109E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_dcar): 3.972820113E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_fsph): 3.931472864E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_fsph): 3.931473092E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_fsph): 3.931473097E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_fcar): 3.929946123E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_fcar): 3.929946341E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_fcar): 3.929946350E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_gsph): 3.938761313E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_gsph): 3.938761339E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_gsph): 3.938761334E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfn_gcar): 3.940597222E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($wfx_gcar): 3.940597393E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fchk_gcar): 3.940597396E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_spsph) = 9.99999249    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_spsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_spsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_spcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_spcar) = 9.99999252    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_spcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_spcar) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_spcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_spcar) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_dsph) = 9.99999595    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_dsph) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_dsph) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_dcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_dcar) = 9.99999588    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_dcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_dcar) = 9.99999485    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_dcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_dcar) = 9.99999485    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_fsph) = 9.99999364    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_fsph) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_fsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_fcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_fcar) = 9.99999364    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_fcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_fcar) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_fcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_fcar) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_gsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_gsph) = 9.99999466    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_gsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_gsph) = 9.99999462    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_gsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_gsph) = 9.99999461    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfn_gcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfn_gcar) = 9.99999455    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $wfx_gcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($wfx_gcar) = 9.99999463    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fchk_gcar
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fchk_gcar) = 9.99999463    
+
++ Field number 1
+  Name: spsph
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $spsph
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: dsph
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $dsph
+
++ Field number 3
+  Name: fsph
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $fsph
+
++ Field number 4
+  Name: spsphw
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $spsphw
+
++ Field number 5
+  Name: dsphw
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $5, $dsphw
+
++ Field number 6
+  Name: fsphw
+  Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $6, $fsphw
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($spsph): 3.942741286E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($dsph): 3.970062351E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fsph): 3.931473000E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($spsphw): 3.942741287E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($dsphw): 3.970062349E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fsphw): 3.931472957E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsph) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsph) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsphw) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsphw) = 9.99999485    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsphw) = 9.99999428    
+
++ Field number 1
+  Name: spsph
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $spsph
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: dsph
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $dsph
+
++ Field number 3
+  Name: fsph
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $fsph
+
++ Field number 4
+  Name: gsph
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $gsph
+
++ Field number 5
+  Name: spsphw
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $5, $spsphw
+
++ Field number 6
+  Name: dsphw
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $6, $dsphw
+
++ Field number 7
+  Name: fsphw
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $7, $fsphw
+
++ Field number 8
+  Name: gsphw
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfn
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $8, $gsphw
+
++ Field number 9
+  Name: spsphx
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $9, $spsphx
+
++ Field number 10
+  Name: dsphx
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $10, $dsphx
+
++ Field number 11
+  Name: fsphx
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $11, $fsphx
+
++ Field number 12
+  Name: gsphx
+  Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $12, $gsphx
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($spsph): 3.942741286E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($dsph): 3.970062351E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fsph): 3.931473000E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($gsph): 3.938761266E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($spsphw): 3.942741287E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($dsphw): 3.970062349E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fsphw): 3.931472957E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($gsphw): 3.938761288E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($spsphx): 3.942741287E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($dsphx): 3.970062349E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($fsphx): 3.931473007E+00
+
+* POINT 0.0000000  0.1000000  0.0000000
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+  Expression ($gsphx): 3.938761260E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsph) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsph) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($gsph) = 9.99999462    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsphw) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsphw) = 9.99999485    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsphw) = 9.99999428    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gsphw
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($gsphw) = 9.99999459    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsphx
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsphx) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsphx
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsphx) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsphx
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsphx) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gsphx
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($gsphx) = 9.99999461    
+
++ Field number 1
+  Name: spsph
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_spsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $spsph
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: dsph
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_dsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $dsph
+
++ Field number 3
+  Name: fsph
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_fsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $fsph
+
++ Field number 4
+  Name: gsph
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_gsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $gsph
+
+* POINT 0.0000000  0.1000000  -0.0523588
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+  Expression ($spsph): 3.942731515E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+  Expression ($dsph): 3.970038552E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+  Expression ($fsph): 3.931442448E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+  Expression ($gsph): 3.938751132E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $spsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($spsph) = 9.99999434    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $dsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($dsph) = 9.99999484    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $fsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($fsph) = 9.99999433    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gsph
+  Mesh size      52246
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($gsph) = 9.99999462    
+
