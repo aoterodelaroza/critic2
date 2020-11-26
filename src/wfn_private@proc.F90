@@ -85,9 +85,9 @@ submodule (wfn_private) proc
   !      "Transformation Between Cartesian and Pure Spherical Harmonic Gaussians"
   !      https://doi.org/10.1002/qua.560540202
   ! Use table 1 and note that:
-  !   Rlm = sqrt(2) * Im[Y_l^|m|] if m < 0
+  !   Rlm = sqrt(2) * Im[r^l * Y_l^|m|] if m < 0
   !         Y_l^0 if m =0
-  !         sqrt(2) * Re[Y_l^|m|] if m > 0
+  !         sqrt(2) * Re[r^l * Y_l^|m|] if m > 0
   ! Can also be found in Helgaker, eqs. 9.1.9 to 9.1.12
 
   ! dsphcar: l = 2 
