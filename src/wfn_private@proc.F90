@@ -1163,7 +1163,7 @@ contains
     integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
     integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
     integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
-    logical :: ok, isecp
+    logical :: ok
     real*8 :: norm, cons
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:), mosph(:,:)
@@ -1228,7 +1228,6 @@ contains
     f%wfntyp = wfn_rhf
 
     ! first pass: dimensions
-    isecp = .false.
     nelec = 0
     nalpha = 0
     nbeta = 0
@@ -1257,15 +1256,10 @@ contains
        elseif (line(1:21) == "Beta Orbital Energies") then
           ok = isinteger(nmoallb,line,lp)
           f%wfntyp = wfn_uhf
-       elseif (line(1:8) == "ECP-LMax") then
-          isecp = .true.
        endif
     enddo
 
     ! ECPs not implemented yet
-    if (isecp) then
-       call ferror("read_fchk","ECPs detected in fchk, but fchk contains no EDF information -> no core density added",warning)
-    end if
     if (nelec == 0) call ferror("read_fchk","nelec = 0",faterr)
     if (nmoalla == 0) call ferror("read_fchk","nmoall = 0",faterr)
 
