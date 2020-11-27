@@ -1,0 +1,22 @@
++ Field number 1
+  Source: ../zz_source/g16A.03/h2o/h2o_hf.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data available for molecular integrals
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Total energy = -76.0601769240 Hartree
+  Number of electrons = 9.9999999971
+
