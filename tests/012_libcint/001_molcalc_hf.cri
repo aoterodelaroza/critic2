@@ -1,0 +1,6 @@
+## check: 001_molcalc_hf.cro -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/h2o/h2o_hf.fchk
+load ../zz_source/g16A.03/h2o/h2o_hf.fchk
+molcalc hf
