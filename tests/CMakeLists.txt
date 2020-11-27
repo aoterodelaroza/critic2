@@ -20,6 +20,7 @@ set(TESTDIRS
   008_libxc     ## tests for the libxc library
   009_intgrid   ## grid integration
   010_auto      ## critical point search (AUTO,...)
+  011_mesh      ## mesh integrations (MOLCALC,...)
   )
 
 ## define the macro that will run the tests

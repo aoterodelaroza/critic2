@@ -1,0 +1,19 @@
+## check: 001_meshtype.cro -a1e-10
+## labels: regression quick
+
+crystal library mgo
+meshtype franchini amazing
+meshtype franchini verygood
+meshtype franchini good
+meshtype franchini normal
+meshtype franchini small
+molcalc "$0"
+
+molecule library benzene
+meshtype franchini amazing
+meshtype franchini verygood
+meshtype franchini good
+meshtype franchini normal
+meshtype franchini small
+molcalc "$0"
+
