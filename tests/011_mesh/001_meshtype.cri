@@ -17,3 +17,10 @@ meshtype franchini normal
 meshtype franchini small
 molcalc "$0"
 
+meshtype becke amazing
+meshtype becke verygood
+meshtype becke good
+meshtype becke normal
+meshtype becke small
+molcalc "$0"
+

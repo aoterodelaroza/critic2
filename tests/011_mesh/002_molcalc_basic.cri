@@ -1,0 +1,8 @@
+## check: 002_molcalc_basic.cro -a1e-10
+## labels: regression quick
+
+molecule library benzene
+meshtype franchini small
+molcalc assign blah
+molcalc "$0^2"
+blah

@@ -1,0 +1,12 @@
+## check: 003_molcalc_peach.cro -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/benzene-td/benzene-td.fchk
+load ../zz_source/g16A.03/benzene-td/benzene-td.fchk readvirtual
+meshtype franchini small
+molcalc peach
+      20 -> 27         0.47497
+      20 -> 38        -0.16404
+      21 -> 28         0.47497
+      21 -> 39        -0.16404
+end

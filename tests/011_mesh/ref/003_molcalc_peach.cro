@@ -1,0 +1,24 @@
++ Field number 1
+  Source: ../zz_source/g16A.03/benzene-td/benzene-td.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 126
+  Number of MOs (occupied): 21
+  Number of primitives (GTO): 216
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Measure of overlap between orbitals in an excitation (PEACH). 
+  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118.
+  Mesh size      0
++ PEACH = 0.611   
+
