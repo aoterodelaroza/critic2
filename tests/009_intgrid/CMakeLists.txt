@@ -14,6 +14,9 @@ set(TESTS
   013_dis_wnr_feo          ## integrable keyword, dis, with wnr (spinpol)
   014_dis_psink_feo        ## integrable keyword, dis, with psink (spinpol)
   015_dis_psink_na         ## integrable keyword, dis, with psink (metal)
+  016_hirshfeld_grid       ## hirshfeld keyword, using grids
+  017_hirshfeld_nogrid_crystal ## hirshfeld keyword, using meshes in a crystal
+  018_hirshfeld_nogrid_mol ## hirshfeld keyword, using meshes in a molecule
   )
 
 runtests(${TESTS})

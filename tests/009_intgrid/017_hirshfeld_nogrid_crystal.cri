@@ -1,0 +1,8 @@
+## check: 017_hirshfeld_nogrid_crystal.cro -a1e-10
+## labels: regression quick
+
+meshtype franchini small
+crystal ../zz_source/wien14.2/bp/bp.struct
+load ../zz_source/wien14.2/bp/bp.clmsum ../zz_source/wien14.2/bp/bp.struct
+hirshfeld
+

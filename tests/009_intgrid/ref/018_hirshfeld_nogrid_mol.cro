@@ -1,0 +1,34 @@
++ Field number 1
+  Source: ../zz_source/g16A.03/h2o/h2o_hf.wfx
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 121
+  Number of EDFs: 0
+  Basis set data NOT available
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Hirshfeld atomic electron populations (using mesh integration)
+  Reference field: 1
++ Mesh details
+  Mesh size      13200
+  Mesh type      Becke
+  Mesh level     small
++ Hirshfeld integration results
+# N_hirsh = atomic electron populations
+# V_hirsh = atomic volumes 
+#nneq mult name   N_hirsh          V_hirsh
+ 1    1    O1    8.3274095735    669.4192952693  
+ 2    1    H2    0.8363532713    1827.3966154715 
+ 3    1    H3    0.8363532713    1827.3966154715 
+# total number of electrons: 1.0000116116E+01
+# total volume: 4.3242125262E+03
+

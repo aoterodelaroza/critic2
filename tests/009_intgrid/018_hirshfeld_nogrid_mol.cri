@@ -1,0 +1,8 @@
+## check: 018_hirshfeld_nogrid_mol.cro -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/h2o/h2o_hf.wfx
+load ../zz_source/g16A.03/h2o/h2o_hf.wfx
+meshtype becke small
+hirshfeld
+

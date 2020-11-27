@@ -1,0 +1,35 @@
++ Field number 1
+  Source: ../zz_source/qe-6.5/mgo/rho.cube
+  Type: grid
+  Grid dimensions : 32  32  32
+  First elements... 1.794300000000E-02  1.807000000000E-02  1.843900000000E-02
+  Last elements... 1.626600000000E-02  1.649800000000E-02  1.701700000000E-02
+  Sum of elements... 2.207003453430E+03
+  Sum of squares of elements... 7.612467667693E+02
+  Cell integral (grid SUM) = 7.99999893
+  Min: 9.82830000E-04
+  Average: 6.73524003E-02
+  Max: 1.03750000E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Hirshfeld atomic electron populations (using grid integration)
+  Reference field: 1
+  Grid size: 32 32 32
+
++ Hirshfeld integration results
+# N_hirsh = atomic electron populations
+# V_hirsh = atomic volumes 
+#nneq mult name   N_hirsh          V_hirsh
+ 1    1    Mg    1.7012905568    70.9806723576   
+ 2    1    O_    6.2987083772    47.7975582172   
+# total number of electrons: 7.9999989340E+00
+# total volume: 1.1877823057E+02
+

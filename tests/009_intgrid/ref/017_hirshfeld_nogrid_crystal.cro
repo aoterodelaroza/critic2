@@ -1,0 +1,37 @@
++ Field number 1
+  Source: ../zz_source/wien14.2/bp/bp.clmsum
+  Type: wien2k
+  Complex?: T
+  Spherical harmonics expansion LMmax: 6
+  Max. points in radial grid: 781
+  Total number of plane waves (new/orig): 278/2733
+  Density-style normalization? T
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 8
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Muffin-tin discontinuity test
+  Atom: 1 rmt= 1.5800000 RMS/max/min(fout-fin) = 0.000393  0.000756  -0.000874
+  Atom: 2 rmt= 2.0000000 RMS/max/min(fout-fin) = 0.000972  0.002233  -0.002214
++ Assert - no spurious CPs on the muffin tin surface: T
+
+* Hirshfeld atomic electron populations (using mesh integration)
+  Reference field: 1
++ Mesh details
+  Mesh size      47520
+  Mesh type      Franchini
+  Mesh level     small
++ Hirshfeld integration results
+# N_hirsh = atomic electron populations
+# V_hirsh = atomic volumes 
+#nneq mult name   N_hirsh          V_hirsh
+ 1    4     B    5.1155940707    60.2991798092   
+ 2    4     P   14.8872981904    98.3867485197   
+# total number of electrons: 8.0011569045E+01
+# total volume: 6.3474371332E+02
+
