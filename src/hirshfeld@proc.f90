@@ -24,95 +24,91 @@ contains
 
   ! calculate hirshfeld charges using a grid
   module subroutine hirsh_props_grid()
+    use fragmentmod, only: fragment
     use systemmod, only: sy
     use grid3mod, only: grid3
     use grid1mod, only: grid1, agrid
     use fieldmod, only: type_grid
     use tools_io, only: ferror, faterr, uout, string, ioj_center
+    use param, only: VSMALL
 
     integer :: i, j, k
     real*8 :: dist, rrho, rrho1, rrho2, x(3), xdelta(3,3)
     integer :: n(3)
     logical :: doagain
-    integer :: ishl, il, ill, ivec(3), iat
-    real*8 :: lvec(3), sum, qtotal, qerr, qat(sy%c%nneq)
-    type(grid3) :: hw
+    integer :: ishl, il, ill, ivec(3), iat, cidx
+    real*8 :: lvec(3), vsum, asum, ntotal, vtotal
+    real*8, allocatable :: nat(:), vat(:)
+    type(grid3) :: hw, hwat
+    type(fragment) :: fr
 
-    if (sy%f(sy%iref)%type /= type_grid) &
-       call ferror("hirsh_props_grid","grid hirshfeld only for grid interface",faterr)
+    if (sy%f(sy%iref)%type /= type_grid .or. sy%c%ismolecule) &
+       call ferror("hirsh_props_grid","grid hirshfeld only for grid fields in crystals",faterr)
 
-    write (uout,'("* Hirshfeld atomic charges")')
-    write (uout,'("  Promolecular density grid size: ",3(A,X))') (string(sy%f(sy%iref)%grid%n(j)),j=1,3)
+    ! Header
+    write (uout,'("* Hirshfeld atomic electron populations")')
+    write (uout,'("  Reference field: ",A)') string(sy%iref)
+    write (uout,'("  Grid size: ",3(A,X))') (string(sy%f(sy%iref)%grid%n(j)),j=1,3)
+    write (uout,*)
 
-
+    ! Calculate the promolecular density on the grid
     n = sy%f(sy%iref)%grid%n
     call sy%c%promolecular_grid(hw,n)
 
-    do i = 1, 3
-       xdelta(:,i) = 0d0
-       xdelta(i,i) = 1d0 / real(n(i),8)
-       xdelta(:,i) = sy%c%x2c(xdelta(:,i))
-    end do
+    ! Initialize accumulation and fragment
+    allocate(nat(sy%c%nneq),vat(sy%c%nneq))
+    ntotal = 0d0
+    vtotal = 0d0
+    nat = 0d0
+    vat = 0d0
+    fr%nat = 1
+    fr%nspc = 1
+    allocate(fr%at(1),fr%spc(1))
 
-    ! parallelize over atoms
-    qtotal = 0d0
-    qerr = 0d0
-    qat = 0d0
-    !$omp parallel do private (doagain,ishl,sum,ill,ivec,lvec,x,dist,rrho,rrho1,rrho2)
     do iat = 1, sy%c%nneq
-       doagain = .true.
-       ishl = -1
-       sum = 0d0
-       do while(doagain)
-          doagain = .false.
-          ishl = ishl+1
-
-          do il = 0, (2*ishl+1)**3-1
-             ill = il
-             ivec(1) = mod(ill,2*ishl+1)-ishl
-             ill = ill / (2*ishl+1)
-             ivec(2) = mod(ill,2*ishl+1)-ishl
-             ill = ill / (2*ishl+1)
-             ivec(3) = mod(ill,2*ishl+1)-ishl
-
-             if (all(abs(ivec) /= ishl)) cycle
-
-             lvec = sy%c%x2c(real(ivec,8))
-
-             do k = 1, n(3)
-                do j = 1, n(2)
-                   do i = 1, n(1)
-                      x = lvec + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + &
-                         (k-1) * xdelta(:,3) - sy%c%at(iat)%r
-                      dist = norm2(x)
-                      if (.not.agrid(sy%c%spc(sy%c%at(iat)%is)%z)%isinit) cycle
-                      if (dist > agrid(sy%c%spc(sy%c%at(iat)%is)%z)%rmax / 2) cycle
-
-                      doagain = .true.
-                      call agrid(sy%c%spc(sy%c%at(iat)%is)%z)%interp(dist,rrho,rrho1,rrho2)
-                      sum = sum + rrho / hw%f(i,j,k) * sy%f(sy%iref)%grid%f(i,j,k)
-                   end do
-                end do
-             end do
-          end do
+       ! Fetch a representative with that iat
+       cidx = 0
+       do i = 1, sy%c%ncel
+          if (sy%c%atcel(i)%idx == iat) then
+             cidx = i
+             exit
+          end if
        end do
 
-       sum = sum * sy%c%omega / real(n(1)*n(2)*n(3),8)
-       !$omp critical (io)
-       qat(iat) = sum
-       qtotal = qtotal + sum * sy%c%at(iat)%mult
-       qerr = qerr + (sy%f(sy%iref)%zpsp(sy%c%spc(sy%c%at(iat)%is)%z)-sum) * sy%c%at(iat)%mult
-       !$omp end critical (io)
+       ! Prepare a fragment with this atom
+       fr%at(1)%x = sy%c%atcel(cidx)%x
+       fr%at(1)%r = sy%c%atcel(cidx)%r
+       fr%at(1)%is = 1
+       fr%at(1)%idx = iat
+       fr%at(1)%cidx = cidx
+       fr%at(1)%lvec = 0
+       fr%spc(1) = sy%c%spc(sy%c%at(iat)%is)
+
+       ! Calculate grid with the atomic density. The sum over cells
+       ! turns into a sum over periodic copies of the atom.
+       call sy%c%promolecular_grid(hwat,n,fr=fr)
+
+       ! hirshfeld weights
+       hwat%f = hwat%f / max(hw%f,VSMALL)
+       asum = sum(sy%f(sy%iref)%grid%f * hwat%f) * sy%c%omega / real(n(1)*n(2)*n(3),8)
+       vsum = sum(hwat%f) * sy%c%omega / real(n(1)*n(2)*n(3),8)
+       nat(iat) = asum
+       ntotal = ntotal + asum * sy%c%at(iat)%mult
+       vat(iat) = vsum
+       vtotal = vtotal + vsum * sy%c%at(iat)%mult
     end do
-    !$omp end parallel do
-    write (uout,'("# i  Atom Charge")')
+
+    ! Write the results
+    write (uout,'("#nneq mult name   N_hirsh          V_hirsh")')
     do iat = 1, sy%c%nneq
-       write (uout,'(3(A,X))') string(iat,length=4,justify=ioj_center), &
+       write (uout,'(5(A,X))') string(iat,length=4,justify=ioj_center), &
+          string(sy%c%at(iat)%mult,length=4,justify=ioj_center), &
           string(sy%c%spc(sy%c%at(iat)%is)%name,length=5,justify=ioj_center), &
-          string(sy%f(sy%iref)%zpsp(sy%c%spc(sy%c%at(iat)%is)%z)-qat(iat),'f',length=16,decimal=10,justify=3)
+          string(nat(iat),'f',length=16,decimal=10,justify=3), &
+          string(vat(iat),'f',length=16,decimal=10,justify=3)
     end do
-    write (uout,'("# total integrated charge: ",A)') string(qtotal,'e',decimal=10)
-    write (uout,'("# error integrated charge: ",A)') string(qerr,'e',decimal=10)
+    write (uout,'("# total number of electrons: ",A)') string(ntotal,'e',decimal=10)
+    write (uout,'("# total volume: ",A)') string(vtotal,'e',decimal=10)
     write (uout,*)
 
   end subroutine hirsh_props_grid
