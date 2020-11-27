@@ -2,8 +2,8 @@
 * Field : 0
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.330000 s
-  Avg. wall time per call : 33.0000 us
+  Total wall time : 0.329000 s
+  Avg. wall time per call : 32.9000 us
 
 + Field number 1
   Source: ../zz_source/g16A.03/h2o/h2o_hf.wfn
@@ -13,7 +13,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 121
   Number of EDFs: 0
-  Basis set data NOT available
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -27,6 +26,6 @@
 * Field : 1
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.142000 s
-  Avg. wall time per call : 14.2000 us
+  Total wall time : 0.145000 s
+  Avg. wall time per call : 14.5000 us
 
