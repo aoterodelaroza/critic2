@@ -1610,10 +1610,10 @@ contains
                 else
                    if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
                 end if
-                f%cint%moc(:,nc+icintcar(j)) = mosph(:,nc) * norm
+                f%cint%moc(:,nc+icintcar(j)) = mosph(1:f%nmoocc,nc) * norm
              else
                 ! spherical normalization factors to agree with libCINT convetion
-                f%cint%moc(:,nc+icintsph(j)) = mosph(:,nc)
+                f%cint%moc(:,nc+icintsph(j)) = mosph(1:f%nmoocc,nc)
              end if
           end do
        end do
