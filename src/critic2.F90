@@ -26,7 +26,7 @@ program critic
   use molcalc, only: molcalc_driver
   use stm, only: stm_driver
   use xdm, only: xdm_driver
-  use hirshfeld, only: hirsh_props_grid
+  use hirshfeld, only: hirsh_driver
   use qtree, only: qtree_integration, qtree_setsphfactor
   use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
   use integration, only: intgrid_driver
@@ -439,7 +439,7 @@ program critic
         if (.not.ok) cycle
         call check_no_extra_word(ok)
         if (.not.ok) cycle
-        call hirsh_props_grid()
+        call hirsh_driver()
 
         ! ewald
      elseif (equal(word,'ewald')) then

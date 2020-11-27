@@ -21,11 +21,13 @@ module hirshfeld
 
   private
 
-  public :: hirsh_props_grid
+  public :: hirsh_driver
 
   interface
-     module subroutine hirsh_props_grid()
-     end subroutine hirsh_props_grid
+     module subroutine hirsh_driver()
+     end subroutine hirsh_driver
+     module subroutine hirsh_grid()
+     end subroutine hirsh_grid
   end interface
 
 end module hirshfeld
