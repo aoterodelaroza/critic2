@@ -1008,7 +1008,7 @@ contains
     type(environ), intent(in), target :: env
 
     integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
-    character(len=:), allocatable :: line, line2
+    character(len=:), allocatable :: line
     logical :: isfrac
 
     f%molden_type = molden_type_unknown
@@ -1150,7 +1150,6 @@ contains
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,file,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
-    use param, only: pi
 #ifdef HAVE_CINT
     use param, only: sqpi
 #endif
@@ -1160,11 +1159,11 @@ contains
     type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: line
-    integer :: lp, i, j, k, k1, k2, nn, nm, nl, nc, ns, ncar, nsph
+    integer :: lp, i, j, k, nn, nm, nl, nc, ns, ncar, nsph
     integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
     integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
     logical :: ok
-    real*8 :: norm, cons
+    real*8 :: norm
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:), mosph(:,:)
     real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:)
@@ -1663,7 +1662,6 @@ contains
   module subroutine read_molden(f,file,molden_type,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
-    use param, only: pi
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     integer, intent(in) :: molden_type !< Type of molden file
@@ -1672,8 +1670,8 @@ contains
 
     character(len=:), allocatable :: line, keyword, word, word1
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca
-    integer :: luwfn, istat, ityp, imoldentype
-    integer :: i, j, k, k1, k2, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
+    integer :: luwfn, istat, ityp
+    integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
     integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf
     real*8 :: rdum, norm

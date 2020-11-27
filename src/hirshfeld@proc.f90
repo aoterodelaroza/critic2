@@ -43,12 +43,10 @@ contains
     use tools_io, only: uout, string
     use param, only: VSMALL
 
-    integer :: i, j, k
-    real*8 :: dist, rrho, rrho1, rrho2, x(3), xdelta(3,3)
+    integer :: i, j
     integer :: n(3)
-    logical :: doagain
-    integer :: ishl, il, ill, ivec(3), iat, cidx
-    real*8 :: lvec(3), vsum, asum, ntotal, vtotal
+    integer :: iat, cidx
+    real*8 :: vsum, asum, ntotal, vtotal
     real*8, allocatable :: nat(:), vat(:)
     type(grid3) :: hw, hwat
     type(fragment) :: fr
@@ -210,7 +208,7 @@ contains
   ! per atom and total, volume per atom and total.
   subroutine hirsh_report(nat,vat,ntotal,vtotal)
     use systemmod, only: sy
-    use tools_io, only: ferror, faterr, uout, string, ioj_center
+    use tools_io, only: uout, string, ioj_center
     real*8, intent(in) :: nat(sy%c%nneq), vat(sy%c%nneq)
     real*8, intent(in) :: ntotal, vtotal
 

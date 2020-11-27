@@ -524,7 +524,7 @@ contains
 
   !> Parse field options from a command.
   module subroutine fieldseed_parse_options(f,line,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
+    use wfn_private, only: molden_type_psi4, molden_type_orca
     use global, only: eval_next
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
        readintegers, isreal

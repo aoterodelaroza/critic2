@@ -3424,9 +3424,8 @@ contains
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,ismol,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
-       isformat_f21, &
+       isformat_f21, isformat_qein, isformat_xyz,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout
@@ -5062,8 +5061,8 @@ contains
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
 
-    integer :: lu, lp
-    character(len=:), allocatable :: line, word1, word2
+    integer :: lu
+    character(len=:), allocatable :: line
 
     isformat = 0
     ismol = .true.
