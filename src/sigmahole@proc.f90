@@ -26,14 +26,14 @@ contains
     use fieldmod, only: type_wfn
     use global, only: iunit, dunit0, iunitname0
     use tools_math, only: cross
-    use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string
+    use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string, ioj_center
     use types, only: scalar_value, realloc
     use param, only: pi, bohrtoa
 
     integer, parameter :: ic = 1
-    integer, parameter :: ix = 2
-    integer, parameter :: nu = 91
-    integer, parameter :: nv = 91
+    integer, parameter :: ix = 4
+    integer, parameter :: nu = 101
+    integer, parameter :: nv = 101
     real*8, parameter :: maxang = 90d0
     real*8, parameter :: brak_init = 1.0d0
     real*8, parameter :: brak_rat = 1.25d0
@@ -44,13 +44,16 @@ contains
     character*(*), parameter :: filename = "sigmahole.dat"
     character*(*), parameter :: gnuname = "sigmahole.gnu"
     
-    real*8 :: minv, xp(3), uvec(3), mep
+    real*8 :: minv, xp(3), uvec(3)
     real*8 :: xc(3), xx(3), u, v, th, ph, xl(3)
     real*8 :: umat(3,3), rat, rini, rfin, rmid, mep
-    integer :: iu, iv, i, lu, lug, nmax, iunext, iuprev
+    integer :: iu, iv, i, lu, lug, nmax, iunext, iuprev, ivnext, ivprev
+    integer :: i1st
     type(scalar_value) :: res
     real*8, allocatable :: mval(:,:), rval(:,:), ms(:), ls(:), rs(:), ss(:), ds(:)
-    integer, allocatable :: assign(:,:), uvmax(:,:)
+    integer, allocatable :: iassign(:,:), uvmax(:,:), ival(:)
+    character*(:), allocatable :: strrs, strss
+    logical :: doit, changed
 
     ! checks
     if (.not.sy%c%ismolecule) &
@@ -67,9 +70,12 @@ contains
     write (uout,'("* SIGMAHOLE: charaterization of molecular sigma-hole regions")')
     write (uout,'("+ Data file: ",A)') trim(filename)
     write (uout,'("+ gnuplot file: ",A)') trim(gnuname)
-    write (uout,'("  Base atom: ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ic)%is)%name), string(ic)
-    write (uout,'("  Electronegative atom: ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ix)%is)%name), string(ix)
+    write (uout,'("  Base atom (B): ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ic)%is)%name), string(ic)
+    write (uout,'("  Electronegative atom (X): ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ix)%is)%name), string(ix)
     write (uout,'("  Electron density isosurface (a.u.): ",A)') string(isoval,'e',decimal=4)
+    write (uout,'("  Number of u-points: ",A)') string(nu)
+    write (uout,'("  Number of v-points: ",A)') string(nv)
+    write (uout,'("  Maximum B-X-sigma_hole angle (degrees): ",A)') string(maxang,'f',decimal=2)
 
     ! open file
     lu = fopen_write(filename)
@@ -91,6 +97,7 @@ contains
 
     ! minimum v value
     minv = (cos(maxang * pi / 180d0) + 1d0) / 2d0
+    write (uout,'("  Solid angle per uv-point (sphere = 4*pi): ",A)') string(4 * pi * (1-minv) / real(nu*nv,8),'e',decimal=4)
 
     allocate(mval(nu,nv),rval(nu,nv))
 
@@ -178,6 +185,14 @@ contains
     write (lug,'("pause -1")')
     call fclose(lug)
 
+    ! prepare for assignment
+    allocate(iassign(nu,nv))
+    where(mval < 0d0)
+       iassign = -1
+    elsewhere
+       iassign = 0
+    end where
+
     ! locate maxima
     nmax = 0
     allocate(uvmax(2,10))
@@ -186,6 +201,7 @@ contains
        nmax = 1
        uvmax(1,nmax) = 1
        uvmax(2,nmax) = nv
+       if (mval(1,nv) > 0d0) iassign(:,nv) = nmax
     end if
     do iv = 2, nv-1
        do iu = 1, nu
@@ -198,6 +214,7 @@ contains
              if (nmax > size(uvmax,2)) call realloc(uvmax,2,2*nmax)
              uvmax(1,nmax) = iu
              uvmax(2,nmax) = iv
+             iassign(iu,iv) = nmax
           end if
        end do
     end do
@@ -264,9 +281,96 @@ contains
        ls(i) = acos(min(max(dot_product(xp,xl) / norm2(xp) / norm2(xl),-1d0),1d0)) * 180d0 / pi
     end do
 
-    ! size
-    ss = 0d0
+    ! build mapping for calculating size
+    allocate(ival(4))
+    changed = .true.
+    do while (changed)
+       changed = .false.
+       do iu = 1, nu
+          do iv = 1, nv-1
+             if (iassign(iu,iv) == 0) then
+                iunext = modulo(iu-1 +1,nu)+1
+                iuprev = modulo(iu-1 -1,nu)+1
+                ival(1) = iassign(iunext,iv)
+                ival(2) = iassign(iuprev,iv)
+                ival(3) = iassign(iu,iv+1)
+                if (iv == 1) then
+                   ival(4) = 0
+                else
+                   ival(4) = iassign(iu,iv-1)
+                end if
+                if (any(ival > 0)) then
+                   do i = 1, 4
+                      if (ival(i) > 0) then
+                         i1st = ival(i)
+                         exit
+                      end if
+                   end do
 
+                   doit = .true.
+                   do i = 1, 4
+                      if (ival(i) > 0 .and. ival(i) /= i1st) then
+                         where (iassign == ival(i) .or. iassign == i1st)
+                            iassign = -1
+                         end where
+                         doit = .false.
+                      end if
+                   end do
+
+                   if (doit) iassign(iu,iv) = i1st
+                   changed = .true.
+                end if
+             end if
+          end do
+       end do
+    end do
+    deallocate(ival)
+    if (iassign(1,nv) == 0) then
+       allocate(ival(nu))
+       ival = iassign(:,nv-1)
+       i1st = 0
+       do iu = 1, nu
+          if (ival(iu) > 0) then
+             i1st = ival(iu)
+             exit
+          end if
+       end do
+
+       if (i1st == 0) then
+          iassign(:,nv) = -1
+       else
+          doit = .true.
+          do iu = 1, nu
+             if (ival(iu) > 0 .and. ival(iu) /= i1st) then
+                where (iassign == ival(iu) .or. iassign == i1st)
+                   iassign = -1
+                end where
+                doit = .false.
+             end if
+          end do
+          if (doit) iassign(:,nv) = i1st
+       end if
+       deallocate(ival)
+    end if
+    
+    ! calculate size
+    ss = 0d0
+    do i = 1, nmax
+       if (any(iassign == i)) then
+          do iu = 1, nu
+             do iv = 1, nv
+                if (iassign(iu,iv) == i) then
+                   ss(i) = ss(i) + rval(iu,iv)**2
+                end if
+             end do
+          end do
+          ss(i) = 4 * pi * (1-minv) / real(nu*nv,8) * ss(i)
+       else
+          ss(i) = -1d0
+       end if
+    end do
+
+    ! write results
     write (uout,'("+ List of sigma-holes found (",A,"): ")') string(nmax)
     write (uout,'("# See Kolar and Hobza, Chem. Rev. 116 (2016) 5155. doi:10.1021/acs.chemrev.5b00560 (Figure 7)")')
     write (uout,'("# dist = distance between X and the sigma-hole (",A,")")') iunitname0(iunit)
@@ -277,20 +381,22 @@ contains
     write (uout,'("# ")')
     write (uout,'("#id dist     ls       ms         rs       ss")')
     do i = 1, nmax
-       ! handle case when rs < 0
-       ! calculate ss
+       if (rs(i) > 0) then
+          strrs = string(rs(i)*dunit0(iunit),'f',length=9,decimal=4,justify=ioj_center)
+       else
+          strrs = "   n/a   "
+       end if
+       if (rs(i) > 0) then
+          strss = string(ss(i)*dunit0(iunit)**2,'f',length=9,decimal=4,justify=ioj_center)
+       else
+          strss = "   n/a   "
+       end if
 
        write (uout,'(99(A,X))') string(i,2), string(ds(i)*dunit0(iunit),'f',length=8,decimal=4),&
           string(ls(i),'f',length=7,decimal=2), string(ms(i),'e',decimal=4),&
-          string(rs(i)*dunit0(iunit),'f',length=8,decimal=4), string(ss(i)*dunit0(iunit)**2,'f',length=10,decimal=4)
+          strrs, strss
     end do
-
-    ! integer, parameter :: nu = 21
-    ! integer, parameter :: nv = 21
-    ! real*8, parameter :: maxang = 90d0
-
-    ! write (*,*) nmax
-    stop 1
+    write (uout,*)
 
   end subroutine sigmahole_driver
 
