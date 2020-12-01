@@ -27,6 +27,7 @@ program critic
   use stm, only: stm_driver
   use xdm, only: xdm_driver
   use hirshfeld, only: hirsh_driver
+  use sigmahole, only: sigmahole_driver
   use qtree, only: qtree_integration, qtree_setsphfactor
   use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
   use integration, only: intgrid_driver
@@ -479,6 +480,12 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_packing(sy,line(lp:))
+
+        ! sigmahole
+     elseif (equal(word,'sigmahole')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call sigmahole_driver()
 
         ! vdw
      elseif (equal(word,'vdw')) then
