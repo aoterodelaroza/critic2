@@ -126,6 +126,7 @@ contains
 
     ! open file
     lu = fopen_write(filename)
+    write (lu,'("# u v theta phi x y z r(u,v) mep(u,v)")')
 
     ! calculate center point and local coordinate frame
     xc = s%c%atcel(ic)%r
