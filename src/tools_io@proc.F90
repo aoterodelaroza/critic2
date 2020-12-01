@@ -773,7 +773,9 @@ contains
        'Xn', 'Xb', 'Xr', 'Xc', 'Xz'& ! 119-123
        /) 
 
-    if (zat > 0 .and. zat <= maxzat0) then
+    if (zat == 0) then
+       nameguess = 'Bq'
+    elseif (zat > 0 .and. zat <= maxzat0) then
        nameguess = an(zat)
     elseif (zat == 201) then
        nameguess = 'Xx'
