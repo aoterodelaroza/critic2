@@ -21,57 +21,104 @@ submodule (sigmahole) proc
 contains
 
   ! Driver for the Hirshfeld routines.
-  module subroutine sigmahole_driver()
-    use systemmod, only: sy
+  module subroutine sigmahole_driver(s,line)
+    use systemmod, only: system
     use fieldmod, only: type_wfn
-    use global, only: iunit, dunit0, iunitname0
+    use global, only: iunit, dunit0, iunitname0, eval_next, fileroot
     use tools_math, only: cross
-    use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string, ioj_center
+    use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string, ioj_center,&
+       isinteger, lgetword, equal
     use types, only: scalar_value, realloc
     use param, only: pi, bohrtoa
 
-    integer, parameter :: ic = 1
-    integer, parameter :: ix = 4
-    integer, parameter :: nu = 101
-    integer, parameter :: nv = 101
-    real*8, parameter :: maxang = 90d0
+    type(system), intent(inout) :: s
+    character*(*), intent(in) :: line
+
     real*8, parameter :: brak_init = 1.0d0
     real*8, parameter :: brak_rat = 1.25d0
     real*8, parameter :: brak_max = 10d0
     real*8, parameter :: range_max = 50d0
-    real*8, parameter :: isoval = 1d-3
     real*8, parameter :: bisect_eps = 1d-5
-    character*(*), parameter :: filename = "sigmahole.dat"
-    character*(*), parameter :: gnuname = "sigmahole.gnu"
     
-    real*8 :: minv, xp(3), uvec(3)
+    real*8 :: minv, xp(3), uvec(3), isoval
     real*8 :: xc(3), xx(3), u, v, th, ph, xl(3)
-    real*8 :: umat(3,3), rat, rini, rfin, rmid, mep
-    integer :: iu, iv, i, lu, lug, nmax, iunext, iuprev, ivnext, ivprev
-    integer :: i1st
+    real*8 :: umat(3,3), rat, rini, rfin, rmid, mep, maxang
+    integer :: iu, iv, i, lu, lug, nmax, iunext, iuprev
+    integer :: i1st, lp, ic, ix, nu, nv
     type(scalar_value) :: res
     real*8, allocatable :: mval(:,:), rval(:,:), ms(:), ls(:), rs(:), ss(:), ds(:)
     integer, allocatable :: iassign(:,:), uvmax(:,:), ival(:)
-    character*(:), allocatable :: strrs, strss
-    logical :: doit, changed
+    character*(:), allocatable :: strrs, strss, word, filename, gnuname
+    logical :: doit, changed, ok
 
     ! checks
-    if (.not.sy%c%ismolecule) &
+    if (.not.s%c%ismolecule) &
        call ferror("sigmahole_driver","sigmahole only for molecules",faterr)
-    if (sy%f(sy%iref)%type /= type_wfn) &
+    if (s%f(s%iref)%type /= type_wfn) &
        call ferror("sigmahole_driver","sigmahole only for wfn fields",faterr)
-    if (.not.allocated(sy%f(sy%iref)%wfn%cint)) &
+    if (.not.allocated(s%f(s%iref)%wfn%cint)) &
        call ferror('sigmahole_driver','basis set data required for sigmahole calculation',faterr)
-    if (ic < 0 .or. ic > sy%c%ncel) &
+
+    ! parse input
+    filename = trim(fileroot) // "_sigmahole.dat"
+    gnuname = trim(fileroot) // "_sigmahole.gnu"
+
+    nu = 101
+    nv = 101
+    isoval = 1d-3
+    maxang = 90d0
+    write (uout,'("* SIGMAHOLE: charaterization of molecular sigma-hole regions")')
+    lp = 1
+    ok = isinteger(ic,line,lp)
+    ok = ok .and. isinteger(ix,line,lp)
+    if (.not.ok) then
+       call ferror('sigmahole_driver','Must indicate identifiers for basal and electronegative atoms',faterr,line,syntax=.true.)
+       return
+    end if
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"npts")) then
+          ok = isinteger(nu,line,lp)
+          ok = ok .and. isinteger(nv,line,lp)
+          if (.not.ok) then
+             call ferror('sigmahole_driver','Error reading NPTS in SIGMAHOLE',faterr,line,syntax=.true.)
+             return
+          end if
+          if (nu < 0 .or. nv < 0) then
+             call ferror('sigmahole_driver','Invalid NPTS in SIGMAHOLE',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"isoval")) then
+          ok = eval_next(isoval,line,lp)
+          if (.not.ok) then
+             call ferror('sigmahole_driver','Error reading ISOVAL in SIGMAHOLE',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"maxangle")) then
+          ok = eval_next(maxang,line,lp)
+          if (.not.ok) then
+             call ferror('sigmahole_driver','Error reading MAXANGLE in SIGMAHOLE',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (len_trim(word) > 0) then
+          call ferror('sigmahole_driver','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
+
+    ! some more checks
+    if (ic < 0 .or. ic > s%c%ncel) &
        call ferror('sigmahole_driver','erroneous atomic ID for basal atom',faterr)
-    if (ix < 0 .or. ix > sy%c%ncel) &
+    if (ix < 0 .or. ix > s%c%ncel) &
        call ferror('sigmahole_driver','erroneous atomic ID for hole-bearing atom',faterr)
 
-    write (uout,'("* SIGMAHOLE: charaterization of molecular sigma-hole regions")')
+    ! some info to the output
     write (uout,'("+ Data file: ",A)') trim(filename)
     write (uout,'("+ gnuplot file: ",A)') trim(gnuname)
-    write (uout,'("  Base atom (B): ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ic)%is)%name), string(ic)
-    write (uout,'("  Electronegative atom (X): ",A," (",A,")")') trim(sy%c%spc(sy%c%at(ix)%is)%name), string(ix)
+    write (uout,'("  Base atom (B): ",A," (",A,")")') trim(s%c%spc(s%c%at(ic)%is)%name), string(ic)
+    write (uout,'("  Electronegative atom (X): ",A," (",A,")")') trim(s%c%spc(s%c%at(ix)%is)%name), string(ix)
     write (uout,'("  Electron density isosurface (a.u.): ",A)') string(isoval,'e',decimal=4)
     write (uout,'("  Number of u-points: ",A)') string(nu)
     write (uout,'("  Number of v-points: ",A)') string(nv)
@@ -81,8 +128,8 @@ contains
     lu = fopen_write(filename)
 
     ! calculate center point and local coordinate frame
-    xc = sy%c%atcel(ic)%r
-    xx = sy%c%atcel(ix)%r
+    xc = s%c%atcel(ic)%r
+    xx = s%c%atcel(ix)%r
     umat(:,3) = xx - xc
     umat(:,3) = umat(:,3) / norm2(umat(:,3))
     xp = (/1d0,0d0,0d0/)
@@ -120,7 +167,7 @@ contains
           rfin = -1d0
           do while(rat < brak_max)
              xp = xx + rat * uvec
-             call sy%f(sy%iref)%grd(xp,0,res)
+             call s%f(s%iref)%grd(xp,0,res)
              if (res%f < isoval) then
                 if (rat == brak_init) &
                    call ferror('sigmahole_driver','failed bracketing: lower than isovalue at first point',faterr)
@@ -138,7 +185,7 @@ contains
           do while (abs(rfin-rini) > bisect_eps)
              rmid = 0.5d0 * (rini + rfin)
              xp = xx + rmid * uvec
-             call sy%f(sy%iref)%grd(xp,0,res)
+             call s%f(s%iref)%grd(xp,0,res)
              if (res%f > isoval) then
                 rini = rmid
              else
@@ -149,7 +196,7 @@ contains
           ! write the result
           xl = xl * rmid
           rval(iu,iv) = rmid
-          mval(iu,iv) = sy%f(sy%iref)%wfn%mep(xp)
+          mval(iu,iv) = s%f(s%iref)%wfn%mep(xp)
           write (lu,'(99(A,X))') string(u,'e',decimal=8), string(v,'e',decimal=8), &
              string(th,'e',decimal=8), string(ph,'e',decimal=8), &
              (string(xl(i)*bohrtoa,'e',decimal=8),i=1,3), &
@@ -181,7 +228,7 @@ contains
     write (lug,'("set pm3d depthorder # interpolate 0,0")')
     write (lug,'("set cbrange [-0.03:0.03]")')
     write (lug,'("")')
-    write (lug,'("splot ""sigmahole.dat"" u 5:6:7:9 with pm3d")')
+    write (lug,'("splot """,A,""" u 5:6:7:9 with pm3d")') filename
     write (lug,'("pause -1")')
     call fclose(lug)
 
@@ -246,7 +293,7 @@ contains
           rfin = -1d0
           do while(rat < range_max)
              xp = xx + rat * uvec
-             mep = sy%f(sy%iref)%wfn%mep(xp)
+             mep = s%f(s%iref)%wfn%mep(xp)
              if (mep < 0d0) then
                 rfin = rat
                 exit
@@ -262,7 +309,7 @@ contains
              do while (abs(rfin-rini) > bisect_eps)
                 rmid = 0.5d0 * (rini + rfin)
                 xp = xx + rmid * uvec
-                mep = sy%f(sy%iref)%wfn%mep(xp)
+                mep = s%f(s%iref)%wfn%mep(xp)
                 if (mep > 0d0) then
                    rini = rmid
                 else

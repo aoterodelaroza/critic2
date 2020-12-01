@@ -485,7 +485,7 @@ program critic
      elseif (equal(word,'sigmahole')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call sigmahole_driver()
+        call sigmahole_driver(sy,line(lp:))
 
         ! vdw
      elseif (equal(word,'vdw')) then

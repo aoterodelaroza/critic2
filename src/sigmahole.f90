@@ -24,10 +24,11 @@ module sigmahole
   public :: sigmahole_driver
 
   interface
-     module subroutine sigmahole_driver()
+     module subroutine sigmahole_driver(s,line)
+       use systemmod, only: system
+       type(system), intent(inout) :: s
+       character*(*), intent(in) :: line
      end subroutine sigmahole_driver
-     module subroutine sigmahole_grid()
-     end subroutine sigmahole_grid
   end interface
 
 end module sigmahole
