@@ -1,0 +1,8 @@
+## check: 001_sigmahole.cro -a1e-10
+## check: 001_sigmahole_sigmahole.gnu -a1e-10
+## check: 001_sigmahole_sigmahole.dat -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/phbr/phbr.fchk
+load ../zz_source/g16A.03/phbr/phbr.fchk
+sigmahole 1 4 npts 11 11 isoval 0.002 maxangle 90

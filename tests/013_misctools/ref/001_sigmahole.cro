@@ -1,0 +1,38 @@
++ Field number 1
+  Source: ../zz_source/g16A.03/phbr/phbr.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 38
+  Number of MOs (occupied): 38
+  Number of primitives (GTO): 299
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* SIGMAHOLE: charaterization of molecular sigma-hole regions
++ Data file: 001_sigmahole_sigmahole.dat
++ gnuplot file: 001_sigmahole_sigmahole.gnu
+  Base atom (B): C_ (1)
+  Electronegative atom (X): Br (4)
+  Electron density isosurface (a.u.): 2.0000E-03
+  Number of u-points: 11
+  Number of v-points: 11
+  Maximum B-X-sigma_hole angle (degrees): 90.00
+  Solid angle per uv-point (sphere = 4*pi): 5.1927E-02
++ List of sigma-holes found (1): 
+# See Kolar and Hobza, Chem. Rev. 116 (2016) 5155. doi:10.1021/acs.chemrev.5b00560 (Figure 7)
+# dist = distance between X and the sigma-hole (ang_)
+# ls (linearity) = base-X-sigma_hole angle (degree)
+# ms (magnitude) = value of the MEP at the sigma-hole (a.u.)
+# rs (range) = distance between X and the point at which the MEP changes sign (ang_)
+# ss (size) = average aperture angle for MEP-positive region on isosurface (ang_^2)
+# 
+#id dist     ls       ms         rs       ss
+1  1.8592   180.00  3.1577E-02  2.8440    6.3197  
+

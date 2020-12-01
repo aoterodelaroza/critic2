@@ -4,4 +4,4 @@
 crystal library benzene
 packing 
 packing cov
-packing vdw prec 0.5
+packing vdw prec 1e-3

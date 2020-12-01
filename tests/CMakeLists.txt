@@ -22,6 +22,7 @@ set(TESTDIRS
   010_auto      ## critical point search (AUTO,...)
   011_mesh      ## mesh integrations (MOLCALC,...)
   012_libcint   ## tests for the libcint library
+  013_misctools ## miscellaneous tools
   )
 
 ## define the macro that will run the tests
