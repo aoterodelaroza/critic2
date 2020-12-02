@@ -20,6 +20,6 @@ crystal
  na 0 0 0
  cl 1/2 1/2 1/2
 endcrystal
-q na +1 cl -1
+qat na +1 cl -1
 ewald
 
