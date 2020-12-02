@@ -867,7 +867,7 @@ contains
     use types, only: basindat, int_result, out_field
     character*(*), intent(in) :: line
 
-    integer :: meth, cpid, ntheta, nphi, np
+    integer :: meth, cpid, ntheta, nphi, nn, np
     logical :: usefiles, verbose, ok
     integer :: lp
     integer :: linmin, linmax
@@ -891,7 +891,8 @@ contains
        ok = ok .and. eval_next(nphi,line,lp)
     elseif (equal(word,'lebedev')) then
        meth = INT_lebedev
-       ok= eval_next(np,line,lp)
+       ok= eval_next(nn,line,lp)
+       if (ok) np = nn
        call good_lebedev(np)
     else
        call ferror('integrals','Unknown method in INTEGRALS', faterr,line,syntax=.true.)
