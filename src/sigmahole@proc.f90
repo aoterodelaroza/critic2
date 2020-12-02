@@ -29,7 +29,7 @@ contains
     use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string, ioj_center,&
        isinteger, lgetword, equal
     use types, only: scalar_value, realloc
-    use param, only: pi, bohrtoa
+    use param, only: pi
 
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
@@ -124,10 +124,6 @@ contains
     write (uout,'("  Number of v-points: ",A)') string(nv)
     write (uout,'("  Maximum B-X-sigma_hole angle (degrees): ",A)') string(maxang,'f',decimal=2)
 
-    ! open file
-    lu = fopen_write(filename)
-    write (lu,'("# u v theta phi x y z r(u,v) mep(u,v)")')
-
     ! calculate center point and local coordinate frame
     xc = s%c%atcel(ic)%r
     xx = s%c%atcel(ix)%r
@@ -150,6 +146,7 @@ contains
     allocate(mval(nu,nv),rval(nu,nv))
 
     ! calculate and plot
+    !$omp parallel do private (u,v,ph,th,xl,uvec,rini,rat,rfin,xp,res,rmid,mep)
     do iu = 1, nu
        u = real(iu-1,8) / real(nu-1,8)
        do iv = 1, nv
@@ -193,21 +190,39 @@ contains
                 rfin = rmid
              end if
           end do
+          mep = s%f(s%iref)%wfn%mep(xp)
 
-          ! write the result
-          xl = xl * rmid
+          !$omp critical (iowrite)
           rval(iu,iv) = rmid
-          mval(iu,iv) = s%f(s%iref)%wfn%mep(xp)
+          mval(iu,iv) = mep
+          !$omp end critical (iowrite)
+       end do
+    end do
+
+    ! write the data file
+    lu = fopen_write(filename)
+    write (lu,'("# u v theta phi x y z r(u,v) mep(u,v)")')
+    do iu = 1, nu
+       u = real(iu-1,8) / real(nu-1,8)
+       do iv = 1, nv
+          v = (real(iv-1,8) / real(nv-1,8)) * (1-minv) + minv
+          ph = acos(2*v-1)
+          th = 2*pi*u
+          xl(1) = cos(th)*sin(ph) 
+          xl(2) = sin(th)*sin(ph)
+          xl(3) = cos(ph)
+          xl = xl * rval(iu,iv)
+
           write (lu,'(99(A,X))') string(u,'e',decimal=8), string(v,'e',decimal=8), &
              string(th,'e',decimal=8), string(ph,'e',decimal=8), &
-             (string(xl(i)*bohrtoa,'e',decimal=8),i=1,3), &
-             string(rmid*bohrtoa,'e',decimal=8), string(mval(iu,iv),'e',decimal=8)
+             (string(xl(i)*dunit0(iunit),'e',decimal=8),i=1,3), &
+             string(rval(iu,iv)*dunit0(iunit),'e',decimal=8), string(mval(iu,iv),'e',decimal=8)
        end do
        write (lu,*)
     end do
     call fclose(lu)
 
-    ! gnuplot template file
+    ! write the gnuplot template file
     lug = fopen_write(gnuname)
     write (lug,'("set terminal wxt size 800,800")')
     write (lug,'("set mapping cartesian")')
