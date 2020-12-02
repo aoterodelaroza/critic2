@@ -23,6 +23,7 @@ set(TESTDIRS
   011_mesh      ## mesh integrations (MOLCALC,...)
   012_libcint   ## tests for the libcint library
   013_misctools ## miscellaneous tools
+  014_bisect    ## bisection keywords
   )
 
 ## define the macro that will run the tests

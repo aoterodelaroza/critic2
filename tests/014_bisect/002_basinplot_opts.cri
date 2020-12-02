@@ -1,0 +1,13 @@
+## delete: 002_basinplot_opts.cro -a1e-3
+## check: 002_basinplot_opts-1.off -a1e-3
+## check: 002_basinplot_opts-1.ply -a1e-3
+## check: 002_basinplot_opts-1.basin -a1e-3
+## check: 002_basinplot_opts-1.dbasin -a1e-3
+## labels: regression quick
+
+crystal library urea
+basinplot triang 1 off cp 1 verbose
+basinplot sphere 2 2 ply cp 1 verbose
+basinplot cube 1 basin cp 1 verbose
+basinplot triang 1 dbasin 2 cp 1 verbose map "$0**2"
+

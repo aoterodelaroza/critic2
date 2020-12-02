@@ -1,0 +1,20 @@
+* Attraction basins plot (BASINPLOT)
+  Starting polyhedron: cube 
+  Subdivision level: 1
+  IAS precision: 1.000000E-08
+  Output file format: OBJ
++ List of CP basins to be plotted (cryst. coord.): 
+#  ncp   cp       x             y             z
+    1      1  0.000000E+00  0.000000E+00  0.000000E+00
+    2      5  5.000000E-01  5.000000E-01  5.000000E-01
+
+  Plotting CP number (cp/ncp): 1/1
+  Number of vertices: 26
+  Number of faces: 24
+  Written file: 001_basinplot_basic-1.obj
+
+  Plotting CP number (cp/ncp): 5/2
+  Number of vertices: 26
+  Number of faces: 24
+  Written file: 001_basinplot_basic-5.obj
+
