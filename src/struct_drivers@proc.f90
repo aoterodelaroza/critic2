@@ -1143,13 +1143,14 @@ contains
     integer :: lp, i, j, k, n
     integer :: ns, imol, isformat, ismoli
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
     integer, allocatable :: hvecp(:,:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
     logical :: ok, usedot
     logical :: dopowder, ismol, laux, sorted
     character*1024, allocatable :: fname(:)
+    logical, allocatable :: unique(:)
 
     real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -1168,6 +1169,7 @@ contains
     allocate(fname(1))
     sorted = .false.
     sigma = sigma0
+    epsreduce = -1d0
 
     ! read the input options
     doguess = 0
@@ -1184,6 +1186,12 @@ contains
           ok = eval_next(sigma,line,lp)
           if (.not.ok) then
              call ferror('struct_compare','incorrect SIGMA',faterr,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'reduce')) then
+          ok = eval_next(epsreduce,line,lp)
+          if (.not.ok) then
+             call ferror('struct_compare','incorrect REDUCE',faterr,syntax=.true.)
              return
           end if
        elseif (equal(word,'powder')) then
@@ -1371,6 +1379,34 @@ contains
        end do
     endif
     write (uout,*)
+
+    ! reduce
+    if (epsreduce > 0d0) then
+       allocate(unique(ns))
+       unique = .true.
+       do i = ns, 1, -1
+          do j = 1, i-1
+             if (diff(i,j) < epsreduce) then
+                unique(i) = .false.
+                exit
+             end if
+          end do
+       end do
+
+       write (uout,'("+ List of unique structures (",A,"): ")') string(count(unique))
+       do i = 1, ns
+          if (unique(i)) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
+       end do
+       write (uout,*)
+
+       write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(unique))
+       do i = 1, ns
+          if (.not.unique(i)) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
+       end do
+       write (uout,*)
+
+       deallocate(unique)
+    end if
 
     ! clean up
     deallocate(diff)
