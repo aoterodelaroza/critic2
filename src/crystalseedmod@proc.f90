@@ -3460,7 +3460,7 @@ contains
        (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0).or.&
        (index(basename,'AECCAR2') > 0) .or. (index(basename,'POSCAR') > 0)
 
-    if (equal(wextdot,'cif')) then
+    if (equal(lower(wextdot),'cif')) then
        isformat = isformat_cif
        ismol = .false.
     elseif (equal(wextdot,'pwc')) then
