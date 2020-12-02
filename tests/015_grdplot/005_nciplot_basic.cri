@@ -1,0 +1,19 @@
+## check: 005_nciplot_basic.cro -a1e-10
+## check: 005_nciplot_basic-gen.vmd -a1e-10
+## check: 005_nciplot_basic-gen-grad.cube -a1e-10
+## check: 005_nciplot_basic-gen-dens.cube -a1e-10
+## check: 005_nciplot_basic-gen.dat -a1e-10
+## check: 005_nciplot_basic-gen_cell.xyz -a1e-10
+## labels: regression quick
+
+crystal library urea
+nciplot
+ oname 005_nciplot_basic-gen
+ cutoffs 0.2 2.0
+ rhoparam 0.95
+ rhoparam2 0.75
+ cutplot 0.5 0.05
+ srhorange -5 5
+ nochk
+ nstep 2 2 2
+end

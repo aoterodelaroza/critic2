@@ -1,0 +1,56 @@
+#!/usr/local/bin/vmd
+
+# Display settings            
+display projection   Orthographic            
+display nearclip set 0.000000            
+display depthcue   off
+light 2 on
+light 3 on
+axes location off
+stage location off
+color Display {Background} white
+
+# load the xyz with the atoms
+mol new 005_nciplot_basic-gen_cell.xyz type xyz first 0 last -1 step 1 filebonds 0 autobonds 1 waitfor all
+
+# Render cell atoms as CPK
+mol top 0
+mol modstyle 0 0 CPK 1.000000 0.300000 50.000000 50.000000
+mol modcolor 0 0 Element
+mol modmaterial 0 0 Opaque
+
+# Cell
+draw color red
+draw cylinder {       -1.3913        -1.3913        -1.1710 } {        4.1738        -1.3913        -1.1710 } radius 0.05 resolution 20
+draw cylinder {       -1.3913        -1.3913        -1.1710 } {       -1.3913         4.1738        -1.1710 } radius 0.05 resolution 20
+draw cylinder {       -1.3913        -1.3913        -1.1710 } {       -1.3913        -1.3913         3.5130 } radius 0.05 resolution 20
+draw cylinder {       -1.3913        -1.3913         3.5130 } {       -1.3913         4.1738         3.5130 } radius 0.05 resolution 20
+draw cylinder {       -1.3913         4.1738         3.5130 } {       -1.3913         4.1738        -1.1710 } radius 0.05 resolution 20
+draw cylinder {       -1.3913         4.1738        -1.1710 } {        4.1738         4.1738        -1.1710 } radius 0.05 resolution 20
+draw cylinder {        4.1738         4.1738        -1.1710 } {        4.1738        -1.3913        -1.1710 } radius 0.05 resolution 20
+draw cylinder {        4.1738        -1.3913        -1.1710 } {        4.1738        -1.3913         3.5130 } radius 0.05 resolution 20
+draw cylinder {        4.1738        -1.3913         3.5130 } {       -1.3913        -1.3913         3.5130 } radius 0.05 resolution 20
+draw cylinder {        4.1738         4.1738         3.5130 } {       -1.3913         4.1738         3.5130 } radius 0.05 resolution 20
+draw cylinder {        4.1738         4.1738         3.5130 } {        4.1738        -1.3913         3.5130 } radius 0.05 resolution 20
+draw cylinder {        4.1738         4.1738         3.5130 } {        4.1738         4.1738        -1.1710 } radius 0.05 resolution 20
+
+# Load the cubes
+mol new 005_nciplot_basic-gen-dens.cube type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all
+mol addfile 005_nciplot_basic-gen-grad.cube type cube first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all
+
+# representation of the atoms
+mol top 1
+mol modstyle 0 top Isosurface     0.05 1 0 0 1 1
+mol modcolor 0 top Volume 0
+mol modmaterial 0 top Opaque
+mol scaleminmax top 0   -25.00    25.00
+mol selupdate 0 top 0
+mol colupdate 0 top 0
+color scale method BGR
+
+# center
+mol top 0
+display resetview
+rotate x by 15
+rotate y by 20
+rotate z by 3

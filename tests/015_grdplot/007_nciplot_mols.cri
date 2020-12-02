@@ -1,0 +1,14 @@
+## check: 007_nciplot_mols.cro -a1e-10
+## check: 007_nciplot_mols.vmd -a1e-10
+## check: 007_nciplot_mols-grad.cube -a1e-10
+## check: 007_nciplot_mols-dens.cube -a1e-10
+## check: 007_nciplot_mols.dat -a1e-10
+## check: 007_nciplot_mols_cell.xyz -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
+load ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
+nciplot
+ increments 1.0 1.0 1.0
+ nochk
+end
