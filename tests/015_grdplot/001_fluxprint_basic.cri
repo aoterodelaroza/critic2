@@ -1,0 +1,14 @@
+## delete: 001_fluxprint_basic.cro
+## delete: 001_fluxprint_basic_flux.cml
+## labels: regression quick
+
+crystal library mgo
+auto
+fluxprint
+ point 0 0.1 0.2 0.3
+ ncp 1 2 2 lvec 1 1 1
+ bcp 9 0 2 dynamical
+ rcp 33 0 2
+ ccp 57 2 2
+end
+

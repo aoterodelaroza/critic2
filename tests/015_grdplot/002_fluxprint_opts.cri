@@ -1,0 +1,34 @@
+## delete: 002_fluxprint_opts.cro
+## delete: 002_fluxprint_opts_flux.ply
+## delete: 002_fluxprint_opts_flux.off
+## delete: 002_fluxprint_opts_flux.txt
+## delete: 002_fluxprint_opts_flux.tess
+## delete: 002_fluxprint_opts_flux.obj
+## delete: 002_fluxprint_opts_flux.mtl
+## labels: regression quick
+
+crystal library mgo
+auto
+fluxprint
+ graph 2
+ color 0 0 255 
+ ply
+ nosym
+end
+fluxprint
+ bcp 9 0 2
+ off
+end
+fluxprint
+ bcp 9 0 2
+ text
+end
+fluxprint
+ bcp 9 0 2
+ tess
+end
+fluxprint
+ bcp 9 0 2
+ obj
+end
+

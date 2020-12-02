@@ -24,6 +24,7 @@ set(TESTDIRS
   012_libcint   ## tests for the libcint library
   013_misctools ## miscellaneous tools
   014_bisect    ## bisection keywords
+  015_grdplot   ## gradient path tracing plots
   )
 
 ## define the macro that will run the tests
