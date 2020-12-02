@@ -1,0 +1,10 @@
+## delete: 029_cube_precise.cro
+## check: 029_cube_precise_01.cube -a1e-10
+## check: 029_cube_precise_02.cube -a1e-10
+## labels: regression quick
+crystal library urea
+
+standardcube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 2 2 2 file 029_cube_precise_01.cube
+precisecube
+cube 0.2 0.2 0.2 0.8 0.8 0.8 2 2 2 file 029_cube_precise_02.cube
