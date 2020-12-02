@@ -1,0 +1,11 @@
+## delete: 008_prune_distance.cro
+## delete: 008_prune_distance_flux.ply
+## labels: regression quick
+
+crystal library mgo
+auto
+prune_distance 0.5
+fluxprint
+ ncp 1 5 5 
+ ply
+end

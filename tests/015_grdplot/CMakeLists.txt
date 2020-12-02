@@ -6,6 +6,7 @@ set(TESTS
   005_nciplot_basic    ## nciplot, basic
   006_nciplot_fragment ## nciplot, fragments
   007_nciplot_mols     ## nciplot, for molecules
+  008_prune_distance   ## prune_distance keyword
   )
 
 runtests(${TESTS})
