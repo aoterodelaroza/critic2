@@ -1,0 +1,12 @@
+## delete: 004_bundleplot_opts.cro -a1e-3
+## check: 004_bundleplot_opts-bundle.off -a1e-3
+## check: 004_bundleplot_opts-bundle.ply -a1e-3
+## check: 004_bundleplot_opts-bundle.basin -a1e-3
+## check: 004_bundleplot_opts-gen.dbasin -a1e-3
+## labels: regression quick
+
+crystal library mgo
+bundleplot 0.1 0.2 0.3 cube 1 off map 0
+bundleplot 0.1 0.2 0.3 triang 1 ply verbose
+bundleplot 0.1 0.2 0.3 sphere 2 2 basin prec 1e-3 map "$0**2"
+bundleplot 0.1 0.2 0.3 triang 1 dbasin 2 root 004_bundleplot_opts-gen
