@@ -1,0 +1,9 @@
+## check: 035_compare_reduce.cro -a1e-10
+## labels: regression quick
+
+molecule library neopentane
+compare reduce 1e-6 . ../zz_source/g16A.03/benzene/benzene.wfn \
+          ../zz_source/g16A.03/benzene/benzene.wfx \
+          ../zz_source/g16A.03/benzene/benzene.fchk \
+          ../zz_source/g16A.03/benzene/benzene.log 
+
