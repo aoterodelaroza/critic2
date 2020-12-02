@@ -48,6 +48,7 @@ set(TESTS
   047_load-orca_uhf        ## from orca files; UHF case
   048_check_molwfn_lmax    ## molecular wavefunctions; check max. angular momentum
   049_check_molwfn_wfntyp  ## molecular wavefunctions; check wavefunction type
+  050_load-corekeyw        ## core, nocore, zpsp keywords
   )
 
 runtests(${TESTS})
