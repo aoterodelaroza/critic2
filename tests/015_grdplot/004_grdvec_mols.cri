@@ -1,0 +1,19 @@
+## delete: 004_grdvec_mols.cro 
+## delete: 004_grdvec_mols-gen.neg.iso 
+## delete: 004_grdvec_mols-gen.iso 
+## delete: 004_grdvec_mols-gen-label.gnu 
+## delete: 004_grdvec_mols-gen.gnu 
+## delete: 004_grdvec_mols-gen.dat 
+## labels: regression quick
+
+molecule library pyridine
+auto
+grdvec
+ root 004_grdvec_mols-gen
+ plane 0 -3 -3 0 3 -3 0 -3 3
+ extendx 0.1 0.1
+ extendy 0.1 0.1
+ hmax 0.1
+ rbcpall
+ contour f 4 4 log 2
+end
