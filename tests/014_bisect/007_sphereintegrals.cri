@@ -1,0 +1,6 @@
+## check: 007_sphereintegrals.cro -a1e-3
+## labels: regression quick
+
+crystal library mgo
+sphereintegrals gauleg 2 2 nr 4 r0 0.01 rend 2 cp 1
+sphereintegrals lebedev 6 nr 2 r0 0.001 rend 1 cp 2
