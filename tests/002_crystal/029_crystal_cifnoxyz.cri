@@ -1,0 +1,5 @@
+## delete: 029_crystal_cifnoxyz.cro
+## check: 029_crystal_cifnoxyz_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/cif/noxyz/bindi.CIF
+write 029_crystal_cifnoxyz_gen.cri
