@@ -4871,13 +4871,13 @@ contains
 
   !> Write a VASP POSCAR template
   module subroutine write_vasp(c,file,verbose)
-    use tools_io, only: fopen_write, string, uout, fclose
+    use tools_io, only: fopen_write, string, uout, fclose, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: lbl1, aux
+    character(len=:), allocatable :: lbl1, lbl2, aux, auxname
     integer :: i, j, lu, ntyp
 
     ! Cell
@@ -4887,9 +4887,11 @@ contains
     do i = 1, 3
        write (lu,'(3(F15.10,X))') c%m_x2c(:,i) * bohrtoa
     end do
+    
 
     ! Number of atoms per type and Direct
     lbl1 = ""
+    lbl2 = ""
     do i = 1, c%nspc
        ntyp = 0
        do j = 1, c%ncel
@@ -4897,7 +4899,10 @@ contains
        end do
        aux = lbl1 // " " // string(ntyp)
        lbl1 = aux
+       auxname = lbl2 // " " // trim(nameguess(c%spc(i)%z,.true.))
+       lbl2 = auxname
     end do
+    write (lu,'(A)') lbl2
     write (lu,'(A)') lbl1
     write (lu,'("Direct")')
 
