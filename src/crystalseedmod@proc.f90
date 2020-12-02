@@ -4755,6 +4755,7 @@ contains
   !> Read all items in a cif file when the cursor has already been
   !> moved to the corresponding data block. Fills seed.
   subroutine read_cif_items(seed,mol,errmsg)
+    use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
     use arithmetic, only: eval, isvariable, setvariable
     use param, only: bohrtoa
     use tools_io, only: lower, zatguess, nameguess
@@ -4768,10 +4769,11 @@ contains
     logical, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
 
+    integer :: hnum
     character(len=1024) :: sym, tok
     character*30 :: atname, spg
     integer :: i, j, it, iznum, idx
-    logical :: found, fl, ix, iy, iz, fl1, fl2, ok, iok
+    logical :: found, foundsym, fl, ix, iy, iz, fl1, fl2, ok, iok
     real*8 :: sigx, rot0(3,4), x(3), xo, yo, zo
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
@@ -4875,7 +4877,7 @@ contains
     iz = isvariable("z",zo)
 
     ! use the symmetry information from _symmetry_equiv_pos_as_xyz
-    found = .false.
+    foundsym = .false.
     fl1 = .false.
     fl2 = .false.
     seed%neqv = 0
@@ -4886,7 +4888,7 @@ contains
     seed%rotm = 0d0
     seed%rotm(:,:,1) = eyet
     do while(.true.)
-       if (.not.found) then
+       if (.not.foundsym) then
           fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
           if (.not.checkcifop()) goto 999
           if (.not.fl1) then
@@ -4894,7 +4896,7 @@ contains
              if (.not.checkcifop()) goto 999
           end if
           if (.not.(fl1.or.fl2)) exit
-          found = .true.
+          foundsym = .true.
        else
           if (fl1) then
              fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
@@ -4987,23 +4989,11 @@ contains
        ! exit the loop
        if (.not.loop_) exit
     end do
-
-    seed%havesym = 1
-    seed%checkrepeats = .true.
-    seed%findsym = 0
-    if (seed%neqv == 0) then
-       seed%neqv = 1
-       seed%rotm(:,:,1) = eyet
-       seed%rotm = 0d0
-       seed%havesym = 0
-       seed%checkrepeats = .false.
-       seed%findsym = -1
-    end if
-    call realloc(seed%rotm,3,4,seed%neqv)
-    call realloc(seed%cen,3,seed%ncv)
+    if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
+    if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
 
     ! read and process spg information
-    if (.not.found) then
+    if (.not.foundsym) then
        ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
        fl = char_('_symmetry_space_group_name_H-M',spg)
        if (.not.checkcifop()) goto 999
@@ -5012,17 +5002,33 @@ contains
        if (.not.fl) fl = char_('_space_group_name_H-M_alt',spg)
        if (.not.checkcifop()) goto 999
 
-       ! oh, well, that's that...
+       ! oh, well, that's that... let's get out of here
        if (.not.fl) then
           errmsg = "Error reading symmetry."
           goto 999
        end if
 
        ! call spglib and hope for the best
-       seed%havesym = 0
-       seed%findsym = -1
-       seed%checkrepeats = .false.
+       seed%neqv = 0
+       hnum = spg_get_hall_number_from_symbol(spg)
+       if (hnum > 0) &
+          call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
+       foundsym = (seed%neqv > 0)
     endif
+
+    ! assign symmetry actions
+    if (.not.foundsym) then
+       seed%neqv = 1
+       seed%rotm(:,:,1) = eyet
+       seed%rotm = 0d0
+       seed%havesym = 0
+       seed%checkrepeats = .false.
+       seed%findsym = -1
+    else
+       seed%havesym = 1
+       seed%checkrepeats = .true.
+       seed%findsym = 0
+    end if
 
     ! rest of the seed information
     seed%isused = .true.
