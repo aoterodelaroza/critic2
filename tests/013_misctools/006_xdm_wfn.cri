@@ -1,0 +1,7 @@
+## check: 006_xdm_wfn.cro -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/benzene/benzene.wfx
+load ../zz_source/g16A.03/benzene/benzene.wfx
+meshtype franchini small
+xdm 1. 1. 0.

@@ -1,0 +1,34 @@
+* Exchange-hole dipole moment (XDM) dispersion calculation 
+  Please cite: 
+  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
+  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
+  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+
+* Calculation of XDM dispersion energy using a QE output
++ Reading coefficients from the file: ../zz_source/qe-6.1/co2-stishovite/co2-stishovite_32.scf.out
+C6 contribution (Ha)  -1.381261567207E-02
+C8 contribution (Ha)  -7.854817288983E-03
+C9 contribution (Ha)   0.000000000000E+00
+C10 contribution (Ha)  -5.616132270557E-03
+dispersion energy (Ha)  -2.728356523161E-02
+dispersion energy (Ry)  -5.456713046322E-02
+#
+
+* Exchange-hole dipole moment (XDM) dispersion calculation 
+  Please cite: 
+  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
+  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
+  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+
+* Calculation of XDM dispersion energy using a QE output
++ Reading coefficients from the file: ../zz_source/qe-6.1/co2-stishovite/co2-stishovite_32.scf.out
+  Between atoms: 1
+  And atoms: 2
+C6 contribution (Ha)  -8.923721143976E-04
+C8 contribution (Ha)  -6.083532422234E-04
+C9 contribution (Ha)   0.000000000000E+00
+C10 contribution (Ha)  -5.004902959584E-04
+dispersion energy (Ha)  -2.001215652579E-03
+dispersion energy (Ry)  -4.002431305159E-03
+#
+

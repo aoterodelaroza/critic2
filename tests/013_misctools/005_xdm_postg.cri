@@ -1,0 +1,9 @@
+## check: 005_xdm_postg.cro -a1e-10
+## labels: regression quick
+
+molecule ../zz_source/g16A.03/benzene/benzene.pgout
+xdm postg file ../zz_source/g16A.03/benzene/benzene.pgout
+xdm postg noc6 scalc8 2.0
+xdm postg noc8 scalc10 2.0
+xdm postg noc10 scalc6 2.0
+xdm postg c9 scalc9 2.0 damp 1. 1. damp3 1. 1. damp3bjn 6

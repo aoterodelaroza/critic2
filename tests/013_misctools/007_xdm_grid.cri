@@ -1,0 +1,15 @@
+## check: 007_xdm_grid.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/vasp-5.4.1/agtao3/CHG
+load ../zz_source/vasp-5.4.1/agtao3/AECCAR0 id ae0
+load ../zz_source/vasp-5.4.1/agtao3/AECCAR2 id ae2
+load ../zz_source/vasp-5.4.1/agtao3/CHGCAR id rho
+load ../zz_source/vasp-5.4.1/agtao3/ELFCAR id elf
+load as "$ae0+$ae2" id rhoae
+
+load as "$rho" 7 7 7 id rho1
+load as "$ae0+$ae2" 7 7 7 id rhoae1
+load as "$elf" 7 7 7 id elf1
+
+xdm grid rho rho1 elf elf1 rhoae rhoae1 xa1 1. xa2 1. 

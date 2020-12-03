@@ -1,0 +1,7 @@
+## check: 004_xdm_qe.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.1/co2-stishovite/co2-stishovite_32.scf.out
+xdm qe 
+xdm qe between 1 and 2
+
