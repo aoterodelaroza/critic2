@@ -34,6 +34,7 @@ set(TESTS
   033_vdw                    ## vdw keyword
   034_sym_wholemols          ## sym keyword, wholemols keyword
   035_compare_reduce         ## compare keyword, reduce option
+  036_radii                  ## radii keyword
   )
 
 runtests(${TESTS})
