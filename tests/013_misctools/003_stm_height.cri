@@ -1,0 +1,9 @@
+## check: 003_stm_height.cro -a1e-10
+## check: 003_stm_height_stm.gnu -a1e-10
+## check: 003_stm_height_stm.dat -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/alas110re/ldos.cube
+load ../zz_source/qe-6.5/alas110re/ldos.cube
+stm height 0.542 cells 3 3
+
