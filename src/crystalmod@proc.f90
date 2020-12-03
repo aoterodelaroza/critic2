@@ -964,6 +964,17 @@ contains
     call c%symeqv(x0,mult)
 
   end function get_mult
+  
+  !> Calculate the number of k-points (nk) for a given rk-length. Uses
+  !> the VASP formula.
+  module subroutine get_kpoints(c,rk,nk)
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: rk
+    integer, intent(out) :: nk(3)
+
+    nk = int(max(1d0,rk * c%ar + 0.5d0))
+
+  end subroutine get_kpoints
 
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
@@ -1646,6 +1657,7 @@ contains
   !> rtable(1:maxzat0) is present, use those radii instead of the 
   !> van der walls radii
   module function vdw_volume(c,relerr,rtable) result(vvdw)
+    use tools_io, only: ferror, faterr
     use param, only: VBIG, atmvdw, icrd_cart
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
@@ -1700,8 +1712,7 @@ contains
        end if
        call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,up2dsp=rvdw)
        if (ierr > 0) then
-          write (*,*) "error!"
-          stop 1
+          call ferror('vdw_volume','error determining the list of near atoms',faterr)
        elseif (nat > 0) then
           nin = nin + 1
        end if
@@ -4826,13 +4837,18 @@ contains
   end subroutine write_3dmodel
 
   !> Write a quantum espresso input template
-  module subroutine write_espresso(c,file)
-    use tools_io, only: fopen_write, lower, fclose
+  module subroutine write_espresso(c,file,rklength)
+    use tools_io, only: fopen_write, lower, fclose, string
     use param, only: atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    real*8, intent(in), optional :: rklength
 
-    integer :: i, lu
+    integer :: i, lu, nk(3)
+    real*8 :: rk
+
+    rk = 40d0
+    if (present(rklength)) rk = rklength
 
     lu = fopen_write(file)
     write (lu,'("&control")')
@@ -4860,7 +4876,10 @@ contains
     do i = 1, c%ncel
        write (lu,'(A,3(X,F13.8,X))') trim(c%spc(c%atcel(i)%is)%name), c%atcel(i)%x
     end do
-    write (lu,'(/"K_POINTS automatic"/"2 2 2 1 1 1"/)')
+
+    call c%get_kpoints(rk,nk)
+    write (lu,'(/"K_POINTS automatic"/3(A,X)" 1 1 1"/)') (string(nk(i)),i=1,3)
+
     write (lu,'("CELL_PARAMETERS bohr")')
     do i = 1, 3
        write (lu,'(3(F18.12,X))') c%m_x2c(:,i)

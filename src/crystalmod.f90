@@ -147,6 +147,7 @@ module crystalmod
      procedure :: identify_fragment_from_xyz !< Build a crystal fragment from an xyz file
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
+     procedure :: get_kpoints !< k-point grid for a given rklength
 
      ! molecular environments and neighbors
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
@@ -357,6 +358,11 @@ module crystalmod
        real*8, intent(in) :: x0(3)
        integer :: mult
      end function get_mult
+     module subroutine get_kpoints(c,rk,nk)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: rk
+       integer, intent(out) :: nk(3)
+     end subroutine get_kpoints
      module subroutine build_env(c,dmax0)
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: dmax0
@@ -562,9 +568,10 @@ module crystalmod
        real*8, intent(in) :: rcub, xcub(3)
        type(grhandle), intent(out), optional :: gr0
      end subroutine write_3dmodel
-     module subroutine write_espresso(c,file)
+     module subroutine write_espresso(c,file,rklength)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       real*8, intent(in), optional :: rklength
      end subroutine write_espresso
      module subroutine write_vasp(c,file,verbose)
        class(crystal), intent(in) :: c

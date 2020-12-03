@@ -439,7 +439,7 @@ contains
     integer :: lp, ix(3), lp2, iaux, nmer
     logical :: doborder, molmotif, dosym, docell, domolcell, ok
     logical :: onemotif, environ, lnmer
-    real*8 :: rsph, xsph(3), rcub, xcub(3), renv
+    real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
 
     lp = 1
     file = getword(line,lp)
@@ -563,10 +563,14 @@ contains
        if (.not.ok) return
     elseif (equal(wext,'in')) then
        ! espresso
+       ok = eval_next(rk,line,lp)
        write (uout,'("* WRITE espresso file: ",A)') string(file)
-       call s%c%write_espresso(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
+       if (ok) then
+          call s%c%write_espresso(file,rk)
+       else
+          call s%c%write_espresso(file)
+       end if
+
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
