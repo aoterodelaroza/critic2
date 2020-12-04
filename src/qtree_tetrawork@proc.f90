@@ -27,10 +27,9 @@ contains
   !> integration.
   module subroutine tetrah_subdivide(base_t,iiv,il,acum_atprop,trm,fgr,lapgr,vgr)
     use systemmod, only: sy
-    use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, lustick, &
-       cindex, nnuc, tvol, periodic, intcorner_deferred, maxl
-    use global, only: color_allocate, plot_mode, plotsticks, minl, integ_mode,&
-       checkbeta
+    use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, lustick,&
+       cindex, nnuc, tvol, periodic, intcorner_deferred, maxl, minl, integ_mode,&
+       plot_mode, checkbeta, plotsticks, color_allocate
     use tools_io, only: uout, faterr, ferror
     
     integer, intent(in) :: base_t
@@ -243,9 +242,9 @@ contains
     use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreer, qtreeidx, cindex, maxl,&
        torig, tvec, r_betagp, r_betaint, nder, ngrd_term, savefgr,&
-       savelapgr, nterm, ngrd1, ngrd2, ndiff, ludif, map_ode_pointers
+       savelapgr, nterm, ngrd1, ngrd2, ndiff, ludif, map_ode_pointers,&
+       gradient_mode, qtree_ode_mode, color_allocate
     use qtree_gpaths, only: gradient_full, gradient_color, gradient_qtree
-    use global, only: color_allocate, qtree_ode_mode, gradient_mode
     use tools_io, only: uout, ferror, faterr
     use types, only: scalar_value
 
@@ -452,9 +451,8 @@ contains
 
   !> Paint the interior of a tetrahedral region
   module subroutine tetrah_paint(base_t,iv,l,color,trm)
-    use qtree_basic, only: qtreei, qtreeidx, maxl, cindex
+    use qtree_basic, only: qtreei, qtreeidx, maxl, cindex, color_allocate
     use tools_math, only: matinv
-    use global, only: color_allocate
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
     integer, intent(in) :: l
@@ -600,9 +598,8 @@ contains
   !> the region represented by the grid.
   module subroutine integ_inner_cubpack(base_t,iv,l,color,acum_atprop)
     use systemmod, only: sy
-    use qtree_basic, only: borig, bvec, maxl, ngrd_int, tvol
+    use qtree_basic, only: borig, bvec, maxl, ngrd_int, tvol, cub_abs, cub_rel, cub_mpts
     use CUI, only: cubatr
-    use global, only: cub_abs, cub_rel, cub_mpts
     use tools_io, only: ferror, faterr, uout
 
     integer, intent(in) :: base_t
@@ -952,9 +949,9 @@ contains
   !> internal) interatomic surface
   module subroutine integ_border_cubpack(base_t,iv,l,ts,acum_atprop)
     use systemmod, only: sy
-    use qtree_basic, only: borig, bvec, maxlen, ngrd_int, nnuc, tvol, r_betaint
+    use qtree_basic, only: borig, bvec, maxlen, ngrd_int, nnuc, tvol, r_betaint,&
+       cub_abs, cub_rel, cub_mpts
     use CUI, only: cubatr
-    use global, only: cub_abs, cub_rel, cub_mpts
     use tools_math, only: mixed
     use tools_io, only: ferror, faterr, uout
 
@@ -1286,8 +1283,7 @@ contains
   module subroutine integ_corner(base_t,iv,l,ts,acum_atprop,fgr,lapgr)
     use systemmod, only: sy
     use qtree_basic, only: qtreer, qtreeidx, borig, bvec, maxl, nder, ngrd_int, nnuc,&
-       savefgr, savelapgr, cindex, tvol
-    use global, only: color_allocate, prop_mode
+       savefgr, savelapgr, cindex, tvol, prop_mode, color_allocate
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
@@ -1416,8 +1412,7 @@ contains
   module subroutine integ_corner_sum(base_t,trm,vgr,acum_atprop)
     use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, maxl, ngrd_int,&
-       cindex
-    use global, only: color_allocate, prop_mode
+       cindex, prop_mode, color_allocate
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
     

@@ -24,11 +24,11 @@
 program critic
   use tricks, only: trick
   use molcalc, only: molcalc_driver
+  use qtree, only: qtree_driver
   use stm, only: stm_driver
   use xdm, only: xdm_driver
   use hirshfeld, only: hirsh_driver
   use sigmahole, only: sigmahole_driver
-  use qtree, only: qtree_integration, qtree_setsphfactor
   use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
   use integration, only: intgrid_driver
   use flux, only: fluxprint
@@ -382,13 +382,7 @@ program critic
      elseif (equal(word,'qtree')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        ok = eval_next(level,line,lp)
-        if (.not.ok) level = 6
-        ok = eval_next(plevel,line,lp)
-        if (.not.ok) plevel = 0
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        call qtree_integration(level,plevel)
+        call qtree_driver(subline)
 
         ! yt
      elseif (equal(word,'yt')) then
@@ -419,12 +413,6 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call molcalc_driver(line(lp:))
-
-        ! sphfactor
-     elseif (equal(word,'sphfactor')) then
-        call check_structure_defined(ok)
-        if (.not.ok) cycle
-        call qtree_setsphfactor(subline)
 
         ! root
      elseif (equal(word,'root')) then

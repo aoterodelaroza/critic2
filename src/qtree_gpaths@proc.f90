@@ -27,9 +27,8 @@ contains
     use systemmod, only: sy
     use qtree_basic, only: qtreeidx, qtreei, qtreer, nnuc, maxl, minlen,&
        ode_type, ode_b, ode_o, ode_a, ngrd_term, ode_b2, safety, qinv, q1inv,&
-       periodic, r_betagp, r_betaint, ode_fsal, nder, savefgr, savelapgr, neargp
-    use global, only: color_allocate, qtreefac, stepsize, ode_abserr,&
-       killext, mpstep
+       periodic, r_betagp, r_betaint, ode_fsal, nder, savefgr, savelapgr, neargp,&
+       stepsize, ode_abserr, mpstep, qtreefac, killext, color_allocate
     use tools_io, only: ferror, faterr, uout
     use types, only: scalar_value
 
@@ -284,9 +283,8 @@ contains
     use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreeidx, nnuc, maxl, ode_type, ode_b,&
        ode_o, ode_a, ngrd_term, ode_b2, safety, periodic,&
-       qinv, q1inv, lrotm, cindex, ode_fsal, r_betagp, crys2convex, locate_tetrah
-    use global, only: color_allocate, stepsize, ode_abserr,&
-       ws_origin, killext
+       qinv, q1inv, lrotm, cindex, ode_fsal, r_betagp, crys2convex, locate_tetrah,&
+       stepsize, ode_abserr, ws_origin, killext, color_allocate
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 
@@ -510,8 +508,7 @@ contains
     use systemmod, only: sy
     use qtree_basic, only: nnuc, ode_o, ode_a, ode_type, ode_b, ngrd_term,&
        ode_b2, safety, qinv, q1inv, periodic, lrotm, r_betagp, ode_fsal,&
-       crys2convex, locate_tetrah
-    use global, only: stepsize, ode_abserr, killext, ws_origin
+       crys2convex, locate_tetrah, stepsize, ode_abserr, ws_origin, killext
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
 

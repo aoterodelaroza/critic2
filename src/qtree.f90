@@ -22,17 +22,16 @@ module qtree
   
   private
 
-  public :: qtree_integration
-  public :: qtree_setsphfactor
+  public :: qtree_driver
   
   interface
+     module subroutine qtree_driver(line)
+       character*(*), intent(in) :: line
+     end subroutine qtree_driver
      module subroutine qtree_integration(lvl, plvl)
        integer, intent(in) :: lvl
        integer, intent(in) :: plvl
      end subroutine qtree_integration
-     module subroutine qtree_setsphfactor(line)
-       character*(*), intent(in) :: line
-     end subroutine qtree_setsphfactor
   end interface
 
 end module qtree

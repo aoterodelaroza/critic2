@@ -28,8 +28,202 @@ submodule (qtree) proc
   integer, parameter :: INT_spherequad_nleb = 170 !< number of lebedev nodes
 
 contains
-
+  
   !> Main driver for the QTREE integration.
+  module subroutine qtree_driver(line)
+    use systemmod, only: sy
+    use qtree_basic, only: minl, sphfactor, sphintfactor, gradient_mode,&
+       qtree_ode_mode, stepsize, docontacts, killext,&
+       ode_abserr, integ_mode, integ_scheme, keastnum, plot_mode, prop_mode, mpstep,&
+       qtreefac, cub_abs, cub_rel, cub_mpts, ws_origin, ws_scale, autosph, checkbeta,&
+       plotsticks, color_allocate, setsph_lvl, vcutoff, r_betaint, r_betagp
+    use global, only: eval_next, dunit0, iunit
+    use tools_io, only: isinteger, lgetword, ferror, faterr, equal
+    character*(*), intent(in) :: line
+
+    character(len=:), allocatable :: word
+    integer :: lp, level, plevel, idum, idum2
+    real*8 :: rdum
+    logical :: ok
+
+    ! default values
+    level = 6
+    plevel = 0
+    minl = 4
+    if (allocated(sphfactor)) deallocate(sphfactor)
+    allocate(sphfactor(sy%c%nneq))
+    sphfactor = 0d0
+    if (allocated(sphintfactor)) deallocate(sphintfactor)
+    allocate(sphintfactor(sy%c%nneq))
+    sphintfactor = 1d0
+    gradient_mode = 1
+    qtree_ode_mode = 8
+    stepsize = 0.1d0
+    ode_abserr = -1d0
+    integ_mode = 0
+    integ_scheme = 1
+    keastnum = 5
+    plot_mode = 0
+    prop_mode = 1
+    mpstep = 0
+    qtreefac = 2d0
+    cub_abs = 1d0
+    cub_rel = 1d-6
+    cub_mpts = 1000
+    docontacts = .false.
+    ws_origin = (/0d0, 0d0, 0d0/)
+    ws_scale = -1d0
+    killext = .true.
+    autosph = 2
+    checkbeta = .false.
+    plotsticks = .true.
+    color_allocate = -1
+    setsph_lvl = 6
+    vcutoff = 0d0
+    if (allocated(r_betaint)) deallocate(r_betaint)
+    allocate(r_betaint(sy%c%nneq))
+    r_betaint = 0d0
+    if (allocated(r_betagp)) deallocate(r_betagp)
+    allocate(r_betagp(sy%c%nneq))
+    r_betagp = 0d0
+
+    ! read input
+    lp = 1
+    ok = isinteger(level,line,lp)
+    ok = ok .and. isinteger(plevel,line,lp)
+    do while(.true.)
+       word = lgetword(line,lp)
+       if (equal(word,"minl")) then
+          ok = eval_next(minl,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in MINL keyword',faterr,line)
+       elseif (equal(word,"gradient_mode")) then
+          ok = eval_next(gradient_mode,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in GRADIENT_MODE keyword',faterr,line)
+       elseif (equal(word,"qtree_ode_mode")) then
+          ok = eval_next(qtree_ode_mode,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in QTREE_ODE_MODE keyword',faterr,line)
+       elseif (equal(word,"stepsize")) then
+          ok = eval_next(stepsize,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in STEPSIZE keyword',faterr,line)
+          stepsize = stepsize / dunit0(iunit)
+       elseif (equal(word,"ode_abserr")) then
+          ok = eval_next(ode_abserr,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in ODE_ABSERR keyword',faterr,line)
+          stepsize = stepsize / dunit0(iunit)
+       elseif (equal(word,"sphfactor")) then
+          do while (isinteger(idum,line,lp))
+             ok = eval_next(rdum,line,lp)
+             if (.not.ok) &
+                call ferror('qtree_driver','error in SPHFACTOR keyword',faterr,line)
+             if (idum < 0 .or. idum > sy%c%nneq) &
+                call ferror('qtree_driver','error in SPHFACTOR keyword: atom id out of range',faterr,line)
+             sphfactor(idum) = rdum
+          end do
+       elseif (equal(word,"sphintfactor")) then
+          do while (isinteger(idum,line,lp))
+             ok = eval_next(rdum,line,lp)
+             if (.not.ok) &
+                call ferror('qtree_driver','error in SPHINTFACTOR keyword',faterr,line)
+             if (idum < 0 .or. idum > sy%c%nneq) &
+                call ferror('qtree_driver','error in SPHINTFACTOR keyword: atom id out of range',faterr,line)
+             sphintfactor(idum) = rdum
+          end do
+       elseif (equal(word,"integ_mode")) then
+          ok = eval_next(idum,line,lp)
+          ok = ok .and. eval_next(idum2,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in INTEG_MODE keyword',faterr,line)
+          if (idum < 0 .or. idum > 20) &
+             call ferror('qtree_driver','error in INTEG_MODE level: out of range',faterr,line)
+          integ_mode(idum) = idum2
+       elseif (equal(word,"integ_scheme")) then
+          ok = eval_next(integ_scheme,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in INTEG_SCHEME keyword',faterr,line)
+       elseif (equal(word,"keastnum")) then
+          ok = eval_next(keastnum,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in KEASTNUM keyword',faterr,line)
+       elseif (equal(word,"plot_mode")) then
+          ok = eval_next(plot_mode,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in PLOT_MODE keyword',faterr,line)
+       elseif (equal(word,"prop_mode")) then
+          ok = eval_next(prop_mode,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in PROP_MODE keyword',faterr,line)
+       elseif (equal(word,"mpstep")) then
+          ok = eval_next(mpstep,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in MPSTEP keyword',faterr,line)
+       elseif (equal(word,"qtreefac")) then
+          ok = eval_next(qtreefac,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in MPSTEP keyword',faterr,line)
+       elseif (equal(word,"cub_abs")) then
+          ok = eval_next(cub_abs,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in CUB_ABS keyword',faterr,line)
+       elseif (equal(word,"cub_rel")) then
+          ok = eval_next(cub_rel,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in CUB_REL keyword',faterr,line)
+       elseif (equal(word,"cub_mpts")) then
+          ok = eval_next(cub_mpts,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in CUB_MPTS keyword',faterr,line)
+       elseif (equal(word,"docontacts")) then
+          docontacts = .true.
+       elseif (equal(word,"ws_origin")) then
+          ok = eval_next(ws_origin(1),line,lp)
+          ok = ok .and. eval_next(ws_origin(2),line,lp)
+          ok = ok .and. eval_next(ws_origin(3),line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in WS_ORIGIN keyword',faterr,line)
+       elseif (equal(word,"ws_scale")) then
+          ok = eval_next(ws_scale,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in WS_SCALE keyword',faterr,line)
+       elseif (equal(word,"nokillext")) then
+          killext = .false.
+       elseif (equal(word,"autosph")) then
+          ok = eval_next(autosph,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in AUTOSPH keyword',faterr,line)
+       elseif (equal(word,"checkbeta")) then
+          checkbeta = .true.
+       elseif (equal(word,'noplotsticks')) then
+          plotsticks = .false.
+       elseif (equal(word,"color_allocate")) then
+          ok = eval_next(color_allocate,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in COLOR_ALLOCATE keyword',faterr,line)
+       elseif (equal(word,'setsph_lvl')) then
+          ok = eval_next(setsph_lvl,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in SETSPH_LVL keyword',faterr,line)
+       elseif (equal(word,'vcutoff')) then
+          ok = eval_next(vcutoff,line,lp)
+          if (.not.ok) &
+             call ferror('qtree_driver','error in VCUTOFF keyword',faterr,line)
+       elseif (len_trim(word) == 0) then
+          exit
+       else
+          call ferror('qtree_driver','unknown keyword in QTREE',faterr,line,syntax=.true.)
+       end if
+    end do
+
+    ! run qtree
+    call qtree_integration(level,plevel)
+    
+  end subroutine qtree_driver
+
+  !> Main routine for the QTREE integration.
   module subroutine qtree_integration(lvl, plvl)
     use systemmod, only: sy
     use integration, only: int_output_header, int_output_fields
@@ -40,13 +234,14 @@ contains
        maxlen, periodic, leqv, tcontact, tcontact_void, r_betaint, lustick, atprop, &
        tvol, savefgr, savelapgr, ndiff, ngrd1, ngrd2, bvec, perm3, cmat, torig, lrotm,&
        eps_tetrah_contact, cindex, leqvf, qtree_initialize, qtree_checksymmetry,&
-       qtree_cleanup
+       qtree_cleanup, minl, sphfactor, gradient_mode, qtree_ode_mode, stepsize, ode_abserr,&
+       integ_mode, integ_scheme, plot_mode, prop_mode, qtreefac, docontacts, ws_scale,&
+       autosph, plotsticks, color_allocate, setsph_lvl, vcutoff
     use CUI, only: cubpack_info
     use keast, only: keast_rule, keast_order_num
-    use global, only: quiet, plot_mode, color_allocate, docontacts, setsph_lvl,&
-       autosph, prop_mode, gradient_mode, qtree_ode_mode, stepsize, ode_abserr, integ_scheme,&
-       integ_mode, minl, sphfactor, int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
-       ws_scale, qtreefac, fileroot, plotsticks, vcutoff, mneq
+    use global, only: quiet, &
+       int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
+       fileroot
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
     use types, only: basindat, int_result, out_field
@@ -63,7 +258,7 @@ contains
     logical :: ok
     real*8 :: xx(3)
     character*50 :: roottess
-    real*8 :: sphereprop(mneq,sy%npropi)
+    real*8, allocatable :: sphereprop(:,:)
     real*8 :: abserr
     integer :: neval, meaneval, vin(3), vino(3)
     character(10) :: pname
@@ -110,6 +305,9 @@ contains
        write (uout,*)
        docontacts = .false.
     end if
+
+    ! allocate
+    allocate(sphereprop(sy%npropi,sy%c%nneq))
 
     ! Determine sphere radii
     write (uout,'("+ Pre-calculating the beta-sphere radii at lvl : ",A)') string(setsph_lvl)
@@ -194,9 +392,6 @@ contains
     write (uout,*)
 
     ! Integration spehres
-    if (sy%c%nneq > size(sphfactor)) then
-       call ferror('qtree_integration','too many non-equivalent atoms',faterr)
-    end if
     if (INT_radquad_errprop > 0 .and. INT_radquad_errprop <= sy%npropi) then
        pname = sy%propi(INT_radquad_errprop)%prop_name
     else
@@ -319,15 +514,15 @@ contains
     do i = 1, nnuc
        xx = sy%c%x2c(sy%f(sy%iref)%cp(i)%x)
 
-       sphereprop(i,:) = 0d0
+       sphereprop(:,i) = 0d0
        if (all(integ_mode(minl+1:maxl) /= 0) .and. r_betaint(i) > eps) then
           if (INT_spherequad_type == INT_gauleg) then
              call sphereintegrals_gauleg(xx,r_betaint(i), &
-                INT_spherequad_ntheta,INT_spherequad_nphi,sphereprop(i,:),&
+                INT_spherequad_ntheta,INT_spherequad_nphi,sphereprop(:,i),&
                 abserr,neval,meaneval)
           else
              call sphereintegrals_lebedev(xx,r_betaint(i),INT_spherequad_nleb,&
-                sphereprop(i,:),abserr,neval,meaneval)
+                sphereprop(:,i),abserr,neval,meaneval)
           end if
        end if
        write (uout,'("+ Integrating the beta-sphere for ncp: ",A)') string(i)
@@ -353,7 +548,7 @@ contains
        !    do j = 1, sy%npropi
        !       write (uout,'(99(A,X))') string(j,length=3,justify=ioj_left),&
        !          string(sy%propi(j)%prop_name,length=10,justify=ioj_center),&
-       !          string(sphereprop(i,j),'e',decimal=10,length=18,justify=6)
+       !          string(sphereprop(j,i),'e',decimal=10,length=18,justify=6)
        !    end do
        ! end if
        ! write (uout,*)
@@ -662,7 +857,7 @@ contains
     ! scale integrals and sum spheres 
     do i = 1, nnuc
        atprop(i,:) = atprop(i,:) * leqvf / sy%f(sy%iref)%cp(i)%mult
-       atprop(i,2:sy%npropi) = atprop(i,2:sy%npropi) + sphereprop(i,2:sy%npropi)
+       atprop(i,2:sy%npropi) = atprop(i,2:sy%npropi) + sphereprop(2:sy%npropi,i)
     end do
 
     ! output the results
@@ -698,42 +893,6 @@ contains
 
   end subroutine qtree_integration
 
-  module subroutine qtree_setsphfactor(line)
-    use systemmod, only: sy
-    use global, only: sphfactor, eval_next
-    use tools_io, only: ferror, faterr, getword, zatguess
-    character*(*), intent(in) :: line
-    
-    integer :: lp, i, idum, isym
-    logical :: ok
-    character(len=:), allocatable :: sym
-    real*8 :: rdum
-
-    lp = 1
-    ok = eval_next(idum,line,lp)
-    if (.not. ok) then
-       sym = getword(line,lp)
-       isym = zatguess(sym)
-       ok = eval_next(rdum,line,lp)
-       if (isym == -1 .or..not.ok) &
-          call ferror('setvariables','Wrong sphfactor',faterr,line)
-
-       do i = 1, sy%c%nneq
-          if (sy%c%spc(sy%c%at(i)%is)%z == isym) then
-             sphfactor(i) = rdum
-          end if
-       end do
-    else
-       ok = eval_next(rdum,line,lp)
-       if (.not. ok .or. idum == 0d0) then
-          sphfactor = rdum
-       else
-          sphfactor(idum) = rdum
-       end if
-    end if
-    
-  end subroutine qtree_setsphfactor
-
   !xx! private procedures
 
   !> Set sphere sizes according to user's input or, alternatively, calculate them 
@@ -743,9 +902,10 @@ contains
     use qtree_tetrawork, only: term_rec
     use qtree_basic, only: qtreeidx, qtreei, qtreer, torig, tvec, maxlen, nnuc,&
        nt_orig, r_betagp, tvol, cindex, r_betaint, find_beta_rodriguez, get_tlengths,&
-       qtree_initialize, qtree_checksymmetry, qtree_cleanup
+       qtree_initialize, qtree_checksymmetry, qtree_cleanup, sphfactor, sphintfactor,&
+       color_allocate, vcutoff
     use fieldmod, only: type_elk, type_wien
-    use global, only: color_allocate, rbetadef, vcutoff, sphfactor, sphintfactor
+    use global, only: rbetadef
     use tools_io, only: ferror, faterr, uout, string
     
     integer, intent(in) :: lvl
@@ -945,9 +1105,8 @@ contains
   subroutine qtree_setsph2(verbose)
     use systemmod, only: sy
     use surface, only: minisurf
-    use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez
+    use qtree_basic, only: nnuc, r_betagp, r_betaint, find_beta_rodriguez, sphfactor, sphintfactor
     use fieldmod, only: type_elk, type_wien
-    use global, only: sphfactor, sphintfactor
     use tools_io, only: uout, string
     logical, intent(in) :: verbose
 

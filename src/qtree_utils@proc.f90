@@ -25,8 +25,8 @@ contains
   module subroutine small_writetess(roottess,otrm,trm)
     use systemmod, only: sy
     use qtree_basic, only: qtreei, minlen, maxl, nnuc, cindex,&
-       torig, tvec, lrotm, leqv, nt_orig
-    use global, only: ws_origin, plot_mode, fileroot, plotsticks
+       torig, tvec, lrotm, leqv, nt_orig, plot_mode, ws_origin, plotsticks
+    use global, only: fileroot
     use tools_io, only: fopen_write, fclose
     use param, only: maxzat0, jmlcol, jmlcol2
     character*(*), intent(in) :: roottess
@@ -226,8 +226,7 @@ contains
   !> Open and write the header of a tessel input file.
   module subroutine open_difftess(roottess)
     use systemmod, only: sy
-    use qtree_basic, only: ludif, minlen, maxl
-    use global, only: gradient_mode, qtree_ode_mode, ws_origin
+    use qtree_basic, only: ludif, minlen, maxl, gradient_mode, qtree_ode_mode, ws_origin
     use tools_io, only: fopen_write
     character*(*), intent(in) :: roottess
 

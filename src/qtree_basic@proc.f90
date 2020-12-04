@@ -137,9 +137,6 @@ contains
   !> dynamically.
   module subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
     use systemmod, only: sy
-    use global, only: minl, prop_mode, integ_scheme, integ_mode, keastnum,&
-       qtree_ode_mode, color_allocate, plot_mode, docontacts, ws_origin,&
-       ws_scale
     use tools_math, only: mixed, cross, matinv
     use tools_io, only: ferror, faterr, uout, warning
     integer, intent(in) :: lvl, plvl
@@ -399,7 +396,6 @@ contains
   !> Check that the symmetry of the cell and the tetrahedra are consistent.
   module subroutine qtree_checksymmetry()
     use systemmod, only: sy
-    use global, only: ws_scale
 
     real*8 :: sumi
     integer :: i
@@ -484,7 +480,6 @@ contains
 
   !> Remap the pointers to the given one-step ODE solver.
   module subroutine map_ode_pointers(odem)
-    use global, only: ode_abserr
     use tools_io, only: ferror, faterr
 
     integer, intent(in) :: odem
@@ -616,7 +611,6 @@ contains
   !> which it belongs and the associated convex coordinates. Also,
   ! return the poi
   module subroutine locate_tetrah(x,base_t,rver,lrot)
-    use global, only: ws_origin
     real*8, intent(inout) :: x(3)
     integer, intent(out) :: base_t
     real*8, intent(out) :: rver(3)
@@ -661,7 +655,6 @@ contains
   !> the origin to use on xp and the distance
   module subroutine neargp(xp,base_t,lrot,idx,dist)
     use systemmod, only: sy
-    use global, only: ws_origin
     use tools_io, only: ferror, faterr
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t

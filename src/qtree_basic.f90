@@ -17,7 +17,6 @@
 
 !> Qtree, basic routines.
 module qtree_basic
-  use global, only: mneq
   implicit none
 
   private
@@ -69,6 +68,35 @@ module qtree_basic
 
   ! level of recursive subdivision
   integer, public :: maxl
+  integer, public :: minl
+
+  ! qtree options
+  real*8, allocatable, public :: sphfactor(:)
+  real*8, allocatable, public :: sphintfactor(:)
+  integer, public :: gradient_mode
+  integer, public :: qtree_ode_mode    
+  real*8, public :: stepsize
+  real*8, public :: ode_abserr
+  integer, public :: integ_mode(20)
+  integer, public :: integ_scheme
+  integer, public :: keastnum
+  integer, public :: plot_mode
+  integer, public :: prop_mode 
+  integer, public :: mpstep 
+  real*8, public :: qtreefac
+  real*8, public :: cub_abs
+  real*8, public :: cub_rel
+  integer, public :: cub_mpts
+  logical, public :: docontacts
+  real*8, public :: ws_origin(3)
+  real*8, public :: ws_scale
+  logical, public :: killext
+  integer, public :: autosph
+  logical, public :: checkbeta
+  logical, public :: plotsticks
+  integer, public :: color_allocate
+  integer, public :: setsph_lvl
+  real*8, public  :: vcutoff
 
   ! grd call count
   integer, public :: nterm
@@ -94,8 +122,8 @@ module qtree_basic
   logical, public :: intcorner_deferred
 
   ! integration spheres
-  real*8, public :: r_betaint(mneq)
-  real*8, public :: r_betagp(mneq)
+  real*8, allocatable, public :: r_betaint(:)
+  real*8, allocatable, public :: r_betagp(:)
 
   ! gradient modes, comparison
   integer, public :: ndiff

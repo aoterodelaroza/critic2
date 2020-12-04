@@ -29,9 +29,6 @@ module global
      module procedure eval_next_int
   end interface eval_next
 
-  ! *** dimension parameters ***
-  integer, parameter :: mneq = 200 !< maximum number of non-equivalent atoms
-
   ! Distance cutoffs
   real*8, parameter :: atomeps = 1d-2 !< Minimum distance to consider two atoms different
   real*8, parameter :: atomeps2 = atomeps*atomeps 
@@ -155,33 +152,6 @@ module global
   ! mesh type and quality for molecular integrations
   integer :: mesh_type !< type of mesh for molecular integrations (see meshmod)
   integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
-
-  ! qtree
-  ! note: ws_origin also used in auto
-  integer :: gradient_mode   
-  integer :: qtree_ode_mode    
-  real*8 :: stepsize
-  real*8 :: ode_abserr
-  integer :: mpstep 
-  real*8  :: qtreefac
-  integer :: integ_mode(20)
-  integer :: integ_scheme
-  integer :: keastnum
-  integer :: prop_mode 
-  real*8  :: sphfactor(mneq), sphintfactor(mneq)
-  real*8  :: cub_abs, cub_rel
-  integer :: cub_mpts
-  integer :: plot_mode
-  logical :: docontacts
-  real*8 :: ws_origin(3), ws_scale
-  integer :: autosph
-  logical :: killext, checkbeta
-  integer :: minl 
-  logical :: plotsticks
-  integer :: qtree_presplit
-  integer :: color_allocate
-  integer :: setsph_lvl
-  real*8  :: vcutoff
   
   interface
      module subroutine global_init(ghome,datadir)
