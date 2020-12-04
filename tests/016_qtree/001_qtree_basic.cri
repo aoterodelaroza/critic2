@@ -1,0 +1,8 @@
+#crystal ../zz_source/wien14.2/bp/bp.struct
+#load ../zz_source/wien14.2/bp/bp.clmsum ../zz_source/wien14.2/bp/bp.struct
+
+crystal library mgo
+
+qtree 4 minl 3
+
+

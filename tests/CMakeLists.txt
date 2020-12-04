@@ -25,6 +25,7 @@ set(TESTDIRS
   013_misctools ## miscellaneous tools
   014_bisect    ## bisection keywords
   015_grdplot   ## gradient path tracing plots
+  016_qtree     ## qtree keyword
   )
 
 ## define the macro that will run the tests
