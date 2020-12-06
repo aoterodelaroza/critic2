@@ -1046,7 +1046,6 @@ contains
     type(xdmparams), intent(inout) :: p
     
     integer :: lu, lp
-    logical :: ok
     integer :: i, j, idx1, idx2
     real*8 :: rdum
     character(len=:), allocatable :: line, word

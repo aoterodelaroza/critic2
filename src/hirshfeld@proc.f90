@@ -36,7 +36,7 @@ contains
   end subroutine hirsh_driver
 
   ! Calculate hirshfeld populations and volumes using a grid.
-  module subroutine hirsh_grid()
+  subroutine hirsh_grid()
     use fragmentmod, only: fragment
     use systemmod, only: sy
     use grid3mod, only: grid3
@@ -110,7 +110,7 @@ contains
   end subroutine hirsh_grid
 
   ! Calculate hirshfeld populations and volumes using a mesh.
-  module subroutine hirsh_nogrid()
+  subroutine hirsh_nogrid()
     use fieldmod, only: field
     use meshmod, only: mesh
     use global, only: mesh_type, mesh_level

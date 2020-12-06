@@ -26,8 +26,6 @@ module hirshfeld
   interface
      module subroutine hirsh_driver()
      end subroutine hirsh_driver
-     module subroutine hirsh_grid()
-     end subroutine hirsh_grid
   end interface
 
 end module hirshfeld
