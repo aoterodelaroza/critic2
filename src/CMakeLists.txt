@@ -80,23 +80,23 @@ else()
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
 endif()
 
-## qhull
-if (QHULL_FOUND)
-  include_directories("${QHULL_INCLUDE_DIRS}")
-  target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
-else()
+# ## qhull -- deactivated
+# if (QHULL_FOUND)
+#   include_directories("${QHULL_INCLUDE_DIRS}")
+#   target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
+# else()
   add_subdirectory(qhull)
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
-endif()
+# endif()
 
 ## spglib
-if (SPGLIB_FOUND)
-  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
-else()
-  add_subdirectory(spglib)
-  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
-endif()
+#if (SPGLIB_FOUND)
+#  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
+#else()
+add_subdirectory(spglib)
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
+#endif()
 
 ## libxc
 if (LIBXC_FOUND)
