@@ -1,5 +1,12 @@
-set(TESTS
+set(TESTS )
+if (LIBCINT_FOUND)
+set(TESTS ${TESTS}
   001_sigmahole    ## sigmahole keyword
+  )
+endif()
+
+set(TESTS
+  ${TESTS}
   002_stm_current  ## stm, constant current  
   003_stm_height   ## stm, constant height  
   004_xdm_qe       ## xdm, qe keyword
