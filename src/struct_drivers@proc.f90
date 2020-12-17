@@ -1865,6 +1865,167 @@ contains
 
   end subroutine struct_coord
 
+  !> Calculate the coordination polyedra.
+  module subroutine struct_polyhedra(s,line)
+    use iso_c_binding, only: c_int, c_double
+    use systemmod, only: system
+    use tools_io, only: equali, zatguess, ferror, faterr, getword, uout, string, ioj_left, ioj_center
+    use tools_math, only: mixed
+    use global, only: bondfactor, eval_next, dunit0, iunit, iunitname0
+    use environmod, only: environ
+    ! use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
+    !    ioj_left, ioj_right, uout, string
+    use param, only: atmcov, icrd_crys
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    character(len=:), allocatable :: at1, at2
+    integer :: lp, is1, is2, iz1, iz2, ierr, lvec(3)
+    real*8 :: rdum, rmin, rmax, vol, xp1(3), xp2(3), xp3(3)
+    logical :: ok
+    integer, allocatable :: eid(:)
+    integer :: i, j
+    real*8, allocatable :: dist(:)
+    integer(c_int) :: nat, nf
+    real(c_double) :: x0(3)
+    real(c_double), allocatable :: xstar(:,:)
+    integer(c_int), allocatable :: iface(:,:)
+    type(environ), pointer :: eptr
+
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf) bind(c)
+         import c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface) bind(c)
+         import c_int, c_double
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+       end subroutine runqhull_basintriangulate_step2
+    end interface
+
+    ! Initialize
+    lp = 1
+    eptr => s%c%env
+
+    ! Literal interpretation of the species
+    at1 = getword(line,lp)
+    at2 = getword(line,lp)
+    is1 = 0
+    is2 = 0
+    do i = 1, s%c%nspc
+       if (is1 == 0) then
+          if (equali(at1,s%c%spc(i)%name)) &
+             is1 = i
+       end if
+       if (is2 == 0) then
+          if (equali(at2,s%c%spc(i)%name)) &
+             is2 = i
+       end if
+    end do
+    
+    ! If not found, convert to atomic number and try that instead
+    if (is1 == 0) then
+       iz1 = zatguess(at1)
+    else
+       iz1 = s%c%spc(is1)%z
+    end if
+    if (is2 == 0) then
+       iz2 = zatguess(at2)
+    else
+       iz2 = s%c%spc(is2)%z
+    end if
+    if (iz1 <= 0) &
+       call ferror("struct_polyhedra","unrecognized atomic species: " // at1,faterr)
+    if (iz2 <= 0) &
+       call ferror("struct_polyhedra","unrecognized atomic species: " // at2,faterr)
+
+    ! default distance range
+    rmin = 0d0
+    rmax = (atmcov(iz1) + atmcov(iz2)) * bondfactor
+    ok = eval_next(rdum,line,lp)
+    if (ok) rmax = rdum / dunit0(iunit)
+    ok = eval_next(rdum,line,lp)
+    if (ok) then
+       rmin = rmax
+       rmax = rdum / dunit0(iunit)
+    end if
+
+    write (uout,'("* POLYHEDRA: calculation of coordination polyhedra")')
+    if (is1 == 0) then
+       write (uout,'("  Center of the polyhedra: Z = ",A)') string(iz1)
+    else
+       write (uout,'("  Center of the polyhedra: ",A)') trim(s%c%spc(is1)%name)
+    end if
+    if (is2 == 0) then
+       write (uout,'("  Vertex of the polyhedra: Z = ",A)') string(iz2)
+    else
+       write (uout,'("  Vertex of the polyhedra: ",A)') trim(s%c%spc(is2)%name)
+    end if
+    write (uout,'("  Distance range(",A,"): ",A," to ",A)') string(iunitname0(iunit)),& 
+       string(rmin*dunit0(iunit),'f',decimal=4), string(rmax*dunit0(iunit),'f',decimal=4)
+    write (uout, '("# nid = non-equivalent atom ID. at = atomic name (symbol)")')
+    write (uout, '("# cryst coords = crystallographic coordinates. nv = number of vertices.")')
+    write (uout, '("# rmin = minimum vertex distance (",A,"), rmax = maximum vertex distance (",A,").")') &
+       string(iunitname0(iunit)), string(iunitname0(iunit))
+    write (uout, '("# nf = number of faces. volume = polyhedron volume (",A,"^3).")') string(iunitname0(iunit))
+    write (uout,'("#nid at mult   ----- Cryst. coords. -----     nv   rmin       rmax      nf   volume")')
+    do i = 1, s%c%nneq
+       if (is1 == 0) then
+          if (s%c%spc(s%c%at(i)%is)%z /= iz1) cycle
+       else
+          if (s%c%at(i)%is /= is1) cycle
+       end if
+
+       ! find the environment
+       if (is2 /= 0) then
+          ! by species
+          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,&
+             lvec=lvec,up2d=rmax,ispc0=is2,nozero=.true.)
+       else
+          ! by z
+          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,&
+             up2d=rmax,iz0=iz2,nozero=.true.)
+       end if
+       if (nat <= 2) cycle
+
+       ! project on a sphere and triangulate the convex polyhedron
+       if (allocated(xstar)) deallocate(xstar)
+       allocate(xstar(3,nat))
+       x0 = s%c%at(i)%r
+       do j = 1, nat
+          xstar(:,j) = eptr%xr2x(eptr%at(eid(j))%x) + lvec
+          xstar(:,j) = s%c%x2c(xstar(:,j))
+       end do
+       call runqhull_basintriangulate_step1(nat,x0,xstar,nf)
+       if (allocated(iface)) deallocate(iface)
+       allocate(iface(3,nf))
+       call runqhull_basintriangulate_step2(nf,iface)
+
+       ! calculate the polyhedron volume
+       vol = 0d0
+       do j = 1, nf
+          xp1 = xstar(:,iface(1,j)) - x0
+          xp2 = xstar(:,iface(2,j)) - x0
+          xp3 = xstar(:,iface(3,j)) - x0
+          vol = vol + abs(mixed(xp1,xp2,xp3)) / 6d0
+       end do
+
+       write (uout,'(99(A,X))') string(i,3,ioj_left), &
+          string(s%c%spc(s%c%at(i)%is)%name,4,ioj_center),string(s%c%at(i)%mult,3),&
+          (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3),&
+          string(nat,3,ioj_center), string(minval(dist)*dunit0(iunit),'f',length=10,decimal=6),&
+          string(maxval(dist)*dunit0(iunit),'f',length=10,decimal=6), string(nf,3,ioj_center),&
+          string(vol*dunit0(iunit)**3,'f',length=10,decimal=6)
+    end do
+    write (uout,*)
+
+  end subroutine struct_polyhedra
+
   !> Calculate the packing ratio of the crystal.
   module subroutine struct_packing(s,line)
     use systemmod, only: system

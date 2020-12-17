@@ -37,6 +37,7 @@ module struct_drivers
   public :: struct_environ
   public :: struct_econ
   public :: struct_coord
+  public :: struct_polyhedra
   public :: struct_packing
   public :: struct_vdw
   public :: struct_newcell
@@ -94,6 +95,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_coord
+     module subroutine struct_polyhedra(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line
+     end subroutine struct_polyhedra
      module subroutine struct_packing(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
