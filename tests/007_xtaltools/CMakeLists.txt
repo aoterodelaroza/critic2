@@ -35,6 +35,7 @@ set(TESTS
   034_sym_wholemols          ## sym keyword, wholemols keyword
   035_compare_reduce         ## compare keyword, reduce option
   036_radii                  ## radii keyword
+  037_polyhedra              ## polyhedra keyword
   )
 
 runtests(${TESTS})

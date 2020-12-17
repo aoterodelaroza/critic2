@@ -1,0 +1,11 @@
+* POLYHEDRA: calculation of coordination polyhedra
+  Center of the polyhedra: Mg
+  Vertex of the polyhedra: O
+  Distance range(bohr): 0.0000 to 5.5000
+# nid = non-equivalent atom ID. at = atomic name (symbol)
+# cryst coords = crystallographic coordinates. nv = number of vertices.
+# rmin = minimum vertex distance (bohr), rmax = maximum vertex distance (bohr).
+# nf = number of faces. volume = polyhedron volume (bohr^3).
+#nid at mult   ----- Cryst. coords. -----     nv   rmin       rmax      nf   volume
+1    Mg  4   0.000000   0.000000   0.000000    6  3.978818   3.978818    8  83.984875 
+
