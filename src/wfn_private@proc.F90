@@ -610,7 +610,7 @@ contains
 
     integer :: lu, idum
     character(len=:), allocatable :: line
-    logical :: ok, reloc
+    logical :: ok
 
     errmsg = ""
     ! deallocate
@@ -628,8 +628,8 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     do while (getline_raw(lu,line))
-       reloc = .false.
        if (index(line,"Input orientation:") > 0) then
+          n = 0
           ok = getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
@@ -644,16 +644,10 @@ contains
                 call realloc(x,3,2*n)
                 call realloc(z,2*n)
                 call realloc(name,2*n)
-                reloc = .true.
              end if
              read (line,*,err=999) idum, z(n), idum, x(:,n)
              name(n) = nameguess(z(n),.true.)
           end do
-          if (reloc) then
-             call realloc(x,3,n)
-             call realloc(z,n)
-             call realloc(name,n)
-          end if
        end if
     end do
     if (n == 0) then
@@ -661,6 +655,9 @@ contains
        goto 999
     end if
     x = x / bohrtoa
+    call realloc(x,3,n)
+    call realloc(z,n)
+    call realloc(name,n)
 
     errmsg = ""
 999 continue
