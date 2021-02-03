@@ -620,6 +620,13 @@ contains
     integer :: mhi, mlo, q
 
     gcd2 = 1
+    if (m == 0) then
+       gcd2 = n
+       return
+    elseif (n == 0) then
+       gcd2 = m
+       return
+    end if
 
     mhi = max(m,n)
     mlo = min(m,n)
