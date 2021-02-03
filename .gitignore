@@ -62,6 +62,7 @@ build*/
 CMakeCache.txt
 CMakeFiles
 cmake_install.cmake
+compile_commands.json
 
 # tests (source tree)
 tests/zz_source.tar.xz
