@@ -2135,6 +2135,7 @@ contains
     ! - abs(m)=3 for the f shells
     ! - abs(m)>=3 for the g shells
     if (f%molden_type == molden_type_orca) then
+       ns = 0
        do j = 1, ncshel
           nsph = nshlt(ishlt(j))
           if (ishlt(j) == -3) then
