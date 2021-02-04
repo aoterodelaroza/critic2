@@ -5476,7 +5476,9 @@ contains
              (string(c%atcel(i)%x(j),'f',12,8),j=1,3), "1.0", "0.05"
        end do
     end if
+
     ! close the file
+    write (lu,'("END")')
     call fclose(lu)
 
   end subroutine write_res
