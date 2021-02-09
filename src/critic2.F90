@@ -1,26 +1,26 @@
 ! Copyright (c) 2019 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!                           _ _   _      ____  
+!                           _ _   _      ____
 !                  ___ _ __(_) |_(_) ___|___ \
 !                 / __| '__| | __| |/ __| __) |
-!                | (__| |  | | |_| | (__ / __/ 
+!                | (__| |  | | |_| | (__ / __/
 !                 \___|_|  |_|\__|_|\___|_____|
-!                                     
+!
 program critic
   use tricks, only: trick
   use molcalc, only: molcalc_driver
@@ -40,7 +40,8 @@ program critic
   use struct_drivers, only: struct_crystal_input, struct_newcell, struct_molcell,&
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
-     struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra
+     struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
+     struct_makemols_neighcrys
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -62,7 +63,7 @@ program critic
   character(len=:), allocatable :: subline, word, word2
   character(len=:), allocatable :: line, errmsg
   !
-  integer :: level, plevel, id, idum
+  integer :: id, idum
   integer :: i, nn, ismoli, ncom
   logical :: ok
   real*8 :: rdum
@@ -131,7 +132,7 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_molcell(sy,subline)
-        
+
         ! sym/symm/nosym/nosymm
      elseif (equal(word,'symm').or.equal(word,'sym').or.equal(word,'nosym').or.equal(word,'nosymm')) then
         if (equal(word,'nosym').or.equal(word,'nosymm')) then
@@ -145,15 +146,15 @@ program critic
               call check_structure_defined(ok,silent=.true.)
               if (ok) then
                  if (.not.sy%c%ismolecule) &
-                    call struct_sym(sy,"recalc",.not.quiet) 
+                    call struct_sym(sy,"recalc",.not.quiet)
               end if
            else
               call check_structure_defined(ok)
               if (.not.ok) cycle
-              call struct_sym(sy,subline,.not.quiet) 
+              call struct_sym(sy,subline,.not.quiet)
            end if
         end if
-        
+
         ! q/qat, zpsp, nocore
      elseif (equal(word,'q') .or. equal(word,'qat') .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
         call check_structure_defined(ok)
@@ -304,7 +305,7 @@ program critic
         if (.not.ok) cycle
         call nciplot()
 
-        ! benchmark 
+        ! benchmark
      elseif (equal(word,'benchmark')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
@@ -371,14 +372,14 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call sphereintegrals(subline)
-        
+
         ! integrals
      elseif (equal(word,'integrals')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call integrals(subline)
-        
-        ! qtree 
+
+        ! qtree
      elseif (equal(word,'qtree')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
@@ -454,7 +455,7 @@ program critic
         ! econ
      elseif (equal(word,'econ')) then
         call check_structure_defined(ok)
-        if (.not.ok) cycle 
+        if (.not.ok) cycle
         call struct_econ(sy)
 
         ! coord
@@ -492,6 +493,10 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_identify(sy,line,lp)
+
+        ! makemols_neighcrys
+     elseif (equal(word,'makemols_neighcrys')) then
+        call struct_makemols_neighcrys(line,lp)
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&
@@ -637,7 +642,7 @@ program critic
 
   ! pause at the end of the windows execution so I can see the output
 #ifdef WIN
-  read (*,*) 
+  read (*,*)
 #endif
 
 contains
@@ -674,4 +679,3 @@ contains
   end subroutine check_structure_defined
 
 end program critic
-

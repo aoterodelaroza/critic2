@@ -43,7 +43,8 @@ module struct_drivers
   public :: struct_newcell
   public :: struct_molcell
   public :: struct_identify
-  
+  public :: struct_makemols_neighcrys
+
   interface
      module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
        character*(*), intent(in) :: line
@@ -90,7 +91,7 @@ module struct_drivers
      end subroutine struct_environ
      module subroutine struct_econ(s)
        type(system), intent(in) :: s
-     end subroutine struct_econ 
+     end subroutine struct_econ
      module subroutine struct_coord(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
@@ -121,6 +122,10 @@ module struct_drivers
        character*(*), intent(in) :: line0
        integer, intent(inout) :: lp
      end subroutine struct_identify
+     module subroutine struct_makemols_neighcrys(line0,lp)
+       character*(*), intent(in) :: line0
+       integer, intent(inout) :: lp
+     end subroutine struct_makemols_neighcrys
   end interface
 
 end module struct_drivers

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -53,7 +53,7 @@ submodule (crystalmod) proc
   character(len=12), parameter :: laue_string(0:11) = (/ &
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
-  
+
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
   integer, parameter :: inv=1 !< identifier for sym. operations
@@ -151,9 +151,9 @@ contains
 
     ! the crystal is not initialized until struct_new is run
     c%file = ""
-    c%isinit = .false. 
-    c%havesym = 0 
-    c%isewald = .false. 
+    c%isinit = .false.
+    c%havesym = 0
+    c%isewald = .false.
 
   end subroutine struct_init
 
@@ -173,7 +173,7 @@ contains
     call c%env%end()
     c%isinit = .false.
     c%havesym = 0
-    c%isewald = .false. 
+    c%isewald = .false.
     c%file = ""
     c%nspc = 0
     c%nneq = 0
@@ -207,7 +207,7 @@ contains
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
-    
+
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
     logical :: good, clearsym
     integer :: i, j, k, iat
@@ -309,7 +309,7 @@ contains
        end if
     end if
 
-    ! transform the atomic coordinates in the case of a molecule, and fill 
+    ! transform the atomic coordinates in the case of a molecule, and fill
     ! the remaining molecular fields
     if (seed%ismolecule) then
        c%ismolecule = seed%ismolecule
@@ -323,12 +323,12 @@ contains
           end do
 
           ! Keep the (1/2,1/2,1/2) translation applied
-          c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm 
+          c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm
 
           ! Set up the molecular cell. c%molborder is in fractional coordinates
           ! and gives the position of the molecular cell in each axis. By default,
           ! choose the molecular cell as the minimal encompassing cell for the molecule
-          ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell 
+          ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell
           ! can not exceed the actual unit cell
           c%molborder = max(seed%border - max(2d0,0.8d0 * seed%border),0d0) / (xmax - xmin)
        else
@@ -343,7 +343,7 @@ contains
           if (seed%havex0) then
              c%molx0 = seed%molx0
           else
-             c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa 
+             c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa
           endif
 
           ! calculate the molecular cell
@@ -485,7 +485,7 @@ contains
     end if
 
     if (clearsym) then
-       ! symmetry was not available or there was an error, and I do not 
+       ! symmetry was not available or there was an error, and I do not
        ! want symmetry - make a copy of at() to atcel() and set P1
        call c%clearsym(neq2cel=.true.)
     end if
@@ -508,7 +508,7 @@ contains
        do i = 1, c%nneq
           if (.not.c%ismolecule .or. c%ncel > 1) then
              call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
-             c%at(i)%rnn2 = 0.5d0 * dist 
+             c%at(i)%rnn2 = 0.5d0 * dist
           else
              c%at(i)%rnn2 = 0d0
           end if
@@ -569,14 +569,14 @@ contains
   !> Convert input cryst. -> cartesian. This routine is thread-safe.
   pure module function x2c(c,xx) result(res)
     class(crystal), intent(in) :: c
-    real*8, intent(in) :: xx(3) 
+    real*8, intent(in) :: xx(3)
     real*8 :: res(3)
 
     res = matmul(c%m_x2c,xx)
 
   end function x2c
 
-  !> Convert input cartesian -> cryst. This routine is thread-safe. 
+  !> Convert input cartesian -> cryst. This routine is thread-safe.
   pure module function c2x(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
@@ -586,7 +586,7 @@ contains
 
   end function c2x
 
-  !> Convert reduced cryst. -> cartesian. This routine is thread-safe. 
+  !> Convert reduced cryst. -> cartesian. This routine is thread-safe.
   pure module function xr2c(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
@@ -596,7 +596,7 @@ contains
 
   end function xr2c
 
-  !> Convert cartesian -> reduced cryst. This routine is thread-safe. 
+  !> Convert cartesian -> reduced cryst. This routine is thread-safe.
   pure module function c2xr(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
@@ -606,7 +606,7 @@ contains
 
   end function c2xr
 
-  !> Convert reduced cryst. -> input cryst. This routine is thread-safe. 
+  !> Convert reduced cryst. -> input cryst. This routine is thread-safe.
   pure module function xr2x(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
@@ -616,7 +616,7 @@ contains
 
   end function xr2x
 
-  !> Convert input cryst. -> reduced cryst. This routine is thread-safe. 
+  !> Convert input cryst. -> reduced cryst. This routine is thread-safe.
   pure module function x2xr(c,xx) result(res)
     class(crystal), intent(in) :: c
     real*8, intent(in)  :: xx(3)
@@ -674,7 +674,7 @@ contains
        x = x - nint(x)
        x = matmul(c%m_x2c,x)
        dist = norm2(x)
-    else 
+    else
        x = matmul(c%m_x2xr,x)
        x = x - nint(x)
        x = matmul(c%m_xr2c,x)
@@ -849,8 +849,8 @@ contains
 
     lu = fopen_read(file)
     read(lu,*,err=999) nat
-    read(lu,*,err=999) 
-    
+    read(lu,*,err=999)
+
     fr%nat = nat
     allocate(fr%at(nat))
     fr%nspc = c%nspc
@@ -868,7 +868,7 @@ contains
           deallocate(fr%spc)
           return
        endif
-       fr%at(i)%r = x0 
+       fr%at(i)%r = x0
        fr%at(i)%x = c%c2x(x0)
        fr%at(i)%cidx = id
        fr%at(i)%idx = c%atcel(id)%idx
@@ -964,7 +964,7 @@ contains
     call c%symeqv(x0,mult)
 
   end function get_mult
-  
+
   !> Calculate the number of k-points (nk) for a given rk-length. Uses
   !> the VASP formula.
   module subroutine get_kpoints(c,rk,nk)
@@ -1054,7 +1054,7 @@ contains
   !> List atoms inside a sphere of radius rsph and center xsph
   !> (cryst.)  or a cube of side rcub and center xcub (cryst.). Return
   !> the list of atomic positions (Cartesian) in x, the atomic numbers
-  !> in z and the number of atoms in nat. 
+  !> in z and the number of atoms in nat.
   module function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
     use tools_io, only: ferror, faterr
     use types, only: realloc
@@ -1140,7 +1140,7 @@ contains
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
     if (allocated(c%mol)) deallocate(c%mol)
 
-    ! initizialize 
+    ! initizialize
     allocate(used(c%ncel))
     used = .false.
     c%nmol = 0
@@ -1149,7 +1149,7 @@ contains
     ! run over atoms in the unit cell
     do i = 1, c%ncel
        if (used(i)) cycle
-       
+
        ! increment the fragment counter
        c%nmol = c%nmol + 1
        if (c%nmol > size(c%mol)) then
@@ -1228,7 +1228,7 @@ contains
              ldone(nat) = .false.
           end do
        end do
-       
+
        ! add this fragment to the list
        used(i) = .true.
        allocate(c%mol(c%nmol)%spc(c%nspc))
@@ -1263,7 +1263,7 @@ contains
        end do
     end if
 
-    ! accumulate all the lattice vectors and calculate the vacuum lattice vectors 
+    ! accumulate all the lattice vectors and calculate the vacuum lattice vectors
     nlvec = 0
     c%nlvac = 0
     do i = 1, c%nmol
@@ -1312,7 +1312,7 @@ contains
   module subroutine calculate_molecular_equivalence(c)
     use tools, only: qcksort
     class(crystal), intent(inout) :: c
-    
+
     integer :: mmax, i, j, nat
     integer, allocatable :: iord(:,:), midx(:,:)
 
@@ -1371,7 +1371,7 @@ contains
   !> fri by adding adjacent atoms that are covalently bonded. Return
   !> the number of fragment (nfrag), the fragments themselves (fr),
   !> and whether the fragments are discrete (not connected to copies
-  !> of themselves in a different cell). 
+  !> of themselves in a different cell).
   module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod, only: realloc_fragment
     use types, only: realloc
@@ -1380,7 +1380,7 @@ contains
     integer, intent(out) :: nfrag
     type(fragment), intent(out), allocatable :: fr(:)
     logical, intent(out), allocatable :: isdiscrete(:)
-    
+
     integer :: i, j, k, l, newid, newl(3), jid
     integer :: nat
     integer, allocatable :: id(:), lvec(:,:)
@@ -1403,7 +1403,7 @@ contains
     nfrag = 0
     allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),ldone(10))
     isdiscrete = .true.
-    
+
     do i = 1, nseed
         if (fseed(i)) cycle
 
@@ -1427,7 +1427,7 @@ contains
              ! id for the atom and lattice vector
              newid = c%nstar(jid)%idcon(k)
              newl = c%nstar(jid)%lcon(:,k) + lvec(:,j)
- 
+
              ! is this atom in the fragment already? -> skip it
              found = .false.
              do l = 1, nat
@@ -1482,7 +1482,7 @@ contains
           fr(nfrag)%at(j)%r = c%x2c(fr(nfrag)%at(j)%x)
           fr(nfrag)%at(j)%cidx = id(j)
           fr(nfrag)%at(j)%idx = c%atcel(id(j))%idx
-          fr(nfrag)%at(j)%lvec = lvec(:,j) 
+          fr(nfrag)%at(j)%lvec = lvec(:,j)
           fr(nfrag)%at(j)%is = c%atcel(id(j))%is
        end do
 
@@ -1547,7 +1547,7 @@ contains
     do i = 1, c%neqv
        ok = .false.
        do m = 1, c%ncv
-          dumy = matmul(c%rotm(1:3,1:3,i),x0) 
+          dumy = matmul(c%rotm(1:3,1:3,i),x0)
           dumy = - dumy + x0 - c%rotm(1:3,4,i) - c%cen(:,m)
           call c%shortest(dumy,dist2)
           ok = (dist2 < eps)
@@ -1640,7 +1640,7 @@ contains
     use param, only: pi
     class(crystal), intent(inout) :: c
     real*8 :: px
-    
+
     integer :: i
 
     px = 0d0
@@ -1654,7 +1654,7 @@ contains
   !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
   !> sampling.  relerr = use enough points to obtain a standard
   !> deviation divided by the volume equal to this value. If
-  !> rtable(1:maxzat0) is present, use those radii instead of the 
+  !> rtable(1:maxzat0) is present, use those radii instead of the
   !> van der walls radii
   module function vdw_volume(c,relerr,rtable) result(vvdw)
     use tools_io, only: ferror, faterr
@@ -1727,7 +1727,7 @@ contains
 
   end function vdw_volume
 
-  !> Calculate the powder diffraction pattern. 
+  !> Calculate the powder diffraction pattern.
   !> On input, npts is the number of 2*theta points from the initial
   !> (th2ini0) to the final (th2end0) 2*theta values. Both angles are
   !> in degrees. lambda0 is the wavelength of the radiation (in
@@ -1861,7 +1861,7 @@ contains
                 ! lpf = (1 + cos(th2)**2) / sin(th)**2
                 ! int = int * lpf
 
-                ! gdis lorentz-polarization correction; checked in diamond; 
+                ! gdis lorentz-polarization correction; checked in diamond;
                 ! criticized by Yinghua because it is a correction for the integrated
                 ! intensity
                 ! lpf = 0.5*(1+cos(th2)**2) / sin(th2) / sin(th)
@@ -1876,7 +1876,7 @@ contains
                 afac = (1-fpol) / (1+fpol)
                 mcorr = mcorr * (1+afac*(0.5d0+0.5d0*cos(2*th2))) / (1+afac)
                 int = int * mcorr
-                
+
                 ! sum the peak
                 if (int > ieps) then
                    ! use a gaussian profile, add the intensity
@@ -1954,8 +1954,8 @@ contains
   !> On output, t is the distance grid, and ih is the value of the
   !> RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
-  !> except using the sqrt of the atomic numbers instead of the 
-  !> charges. Optionally, if npairs0/ipairs0 are given, return the 
+  !> except using the sqrt of the atomic numbers instead of the
+  !> charges. Optionally, if npairs0/ipairs0 are given, return the
   !> RDF of only the pairs of species given in the ipairs0
   !> array. npairs0 is the number of selected pairs. If dp, ip, and isp
   !> are provided, on output they will contain the list of peaks that contribute
@@ -2217,7 +2217,7 @@ contains
 
     if (.not.c%isewald) &
        call c%calculate_ewald_cutoffs()
-    
+
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
@@ -2297,18 +2297,18 @@ contains
        end do
     end do
     sum_rec = sum_rec * 2d0 * pi / c%omega
-    
+
     ! h = 0 term, applied only at the nucleus
     sum0 = - 2d0 * qnuc / sqpi / c%eta
 
     ! compensating background charge term
-    sum_back = -c%qsum * c%eta**2 * pi / c%omega 
+    sum_back = -c%qsum * c%eta**2 * pi / c%omega
 
     ! sum up and exit
     ewald_pot = sum_real + sum_rec + sum0 + sum_back
 
   end function ewald_pot
-  
+
   !> Make a crystal seed (seed) from a crystal structure
   module subroutine makeseed(c,seed,copysym)
     use crystalseedmod, only: crystalseed
@@ -2322,7 +2322,7 @@ contains
     seed%isused = .true.
     seed%name = ""
     seed%file = c%file
-    
+
     ! atoms
     if (copysym .and. c%spgavail) then
        seed%nat = c%nneq
@@ -2376,7 +2376,7 @@ contains
     seed%border = 0d0
     seed%havex0 = .true.
     seed%molx0 = c%molx0
-    
+
   end subroutine makeseed
 
   !> Given a crystal structure (c) and three lattice vectors in cryst.
@@ -2571,7 +2571,7 @@ contains
     logical, intent(in) :: doforce
     logical, intent(in) :: refine
     real*8 :: x0(3,3)
-    
+
     integer :: ntyp, nat
     integer :: i, nnew, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
@@ -2635,7 +2635,7 @@ contains
     use param, only: eye
     class(crystal), intent(inout) :: c
     real*8 :: x0(3,3)
-    
+
     real*8 :: rmat(3,3)
     integer :: id, i
 
@@ -2718,7 +2718,7 @@ contains
     class(crystal), intent(in) :: c
     real*8, intent(out) :: rmat(3,4)
     real*8, intent(out), optional :: rbas(3,3)
-    
+
     integer :: i, j, k, iord(7)
     real*8 :: sc(4,4), xstar(3,7), xlen(7), dd
     logical :: again, ok
@@ -2800,7 +2800,7 @@ contains
 
   end subroutine delaunay_reduction
 
-  !> Write information about the crystal structure to the output. lcrys = 
+  !> Write information about the crystal structure to the output. lcrys =
   !> information about the structure. lq = charges.
   module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
@@ -2948,7 +2948,7 @@ contains
                 string(i,3,ioj_center),&
                 string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
-                string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+                string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),&
                 string(is,3,ioj_center),&
                 string(c%spc(is)%name,7,ioj_center),&
                 string(c%spc(is)%z,3,ioj_center)
@@ -2992,7 +2992,7 @@ contains
           write (uout,*)
        end if
 
-       ! Write symmetry operations 
+       ! Write symmetry operations
        if (.not.c%ismolecule) then
           write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
           do k = 1, c%neqv
@@ -3060,7 +3060,7 @@ contains
                 if (izp0 > 0) then
                    write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(izp0)
                 else
-                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') < 1")') 
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') < 1")')
                 end if
 
              else if (c%nlvac == 2) then
@@ -3075,7 +3075,7 @@ contains
                    (string(c%lvac(j,1)),j=1,3)
                 write (uout,'("  Connected lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
                    (string(c%lcon(j,1)),j=1,3), (string(c%lcon(j,2)),j=1,3)
-             else 
+             else
                 write (uout,'(/"+ This is a 3D periodic structure.")')
              end if
           end if
@@ -3145,7 +3145,7 @@ contains
     end if
 
   end subroutine struct_report
-  
+
   !> Write information about the crystal symmetry.
   module subroutine struct_report_symmetry(c)
     use tools_io, only: string, uout
@@ -3334,7 +3334,7 @@ contains
        end do loopi
     end do main
     if (doax) deallocate(rotchar)
-    
+
     if (present(strfin)) then
        strfin = strout
     else
@@ -3361,7 +3361,7 @@ contains
     integer :: i, j, k
 
     if (.not.c%isinit) return
-    
+
     write (lu,'(A,"  ""cell_lengths"": [",2(A,","),A,"]",",")') prfx, &
        (string(c%aa(j),'f',decimal=14),j=1,3)
     write (lu,'(A,"  ""cell_angles"": [",2(A,","),A,"]",",")') prfx, &
@@ -3372,7 +3372,7 @@ contains
        ((string(c%m_x2c(j,k),'f',decimal=14),k=1,3),j=1,3)
     write (lu,'(A,"  ""cart_to_crys_matrix"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
        ((string(c%m_c2x(j,k),'f',decimal=14),k=1,3),j=1,3)
-    
+
     if (c%ismolecule) then
        write (lu,'(A,"  ""is_molecule"": true,")') prfx
        write (lu,'(A,"  ""molecule_centering_vector"": [",2(A,","),A,"]",",")') prfx, &
@@ -3387,7 +3387,7 @@ contains
           write (lu,'(A,"  ""periodicity"": ""polymer (1d)"",")') prfx
        else if (c%nlvac == 1) then
           write (lu,'(A,"  ""periodicity"": ""slab (2d)"",")') prfx
-       else 
+       else
           write (lu,'(A,"  ""periodicity"": ""condensed (3d)"",")') prfx
        end if
     endif
@@ -3482,7 +3482,7 @@ contains
 
   !> Use the spg library to find information about the space group,
   !> encapsulated in the spg user-defined type (spg).
-  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:). 
+  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:).
   !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
   !> If error, return the error in errmsg. Otherwise, return
   !> a zero-length string.
@@ -3538,14 +3538,14 @@ contains
     end if
 
   end subroutine spglib_wrap
-  
+
   !> Set the Wyckoff positions in crystal c from the information in spg.
   !> Assumes the atoms are in the same order. If spg is not present
   !> or not initialized, then fill with "?".
   module subroutine spgtowyc(c,spg)
     class(crystal), intent(inout) :: c
     type(SpglibDataset), intent(inout), optional :: spg
-    
+
     integer :: i, idx, ilet
     logical :: doit
 
@@ -3574,9 +3574,9 @@ contains
   end subroutine spgtowyc
 
   !> Calculate the crystal symmetry operations.
-  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:) 
-  !> Output: neqv, rotm, spg, at()%mult, ncel, and atcel(). 
-  !> If usenneq, use nneq and at(:) instead of ncel and atcel(:). 
+  !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:)
+  !> Output: neqv, rotm, spg, at()%mult, ncel, and atcel().
+  !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
   !> If error, errmsg in output has length > 0 and contains the error
   !> message.
   module subroutine calcsym(c,usenneq,errmsg)
@@ -3599,7 +3599,7 @@ contains
     call c%spglib_wrap(c%spg,usenneq,errmsg)
     if (len_trim(errmsg) > 0) return
     c%spgavail = .true.
-    
+
     ! make a copy of nneq into ncel, if appropriate
     if (usenneq) then
        c%ncel = c%nneq
@@ -3708,7 +3708,7 @@ contains
     call c%spgtowyc(c%spg)
 
   end subroutine calcsym
-  
+
   !> Clear the symmetry information from the crystal and rebuild the
   !> atom list. If cel2neq, copy the atom information from atcel(:) to
   !> at(:). If neq2cel, copy from at(:) to atcel(:). Note that if
@@ -3795,7 +3795,7 @@ contains
     real*8, parameter :: eye4(4,4) = reshape((/1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,0d0,1d0/),shape(eye4))
 
     write (uout,'("* Checking the consistency of the space group")')
-    
+
     ! list of operations
     write (uout,'("+ List of operations")')
     do i = 1, c%neqv
@@ -3858,12 +3858,12 @@ contains
 
 999 continue
     write (uout,*)
-    
+
   contains
     subroutine assignop(ieqv,icv,op)
       real*8, intent(out) :: op(4,4)
       integer, intent(in) :: ieqv, icv
-      
+
       op = 0d0
       op(1:3,1:3) = c%rotm(:,1:3,ieqv)
       op(1:3,4) = c%rotm(:,4,ieqv) + c%cen(:,icv)
@@ -3873,7 +3873,7 @@ contains
     subroutine checkexists(op,ifound)
       real*8, intent(in) :: op(4,4)
       integer, intent(out) :: ifound(2)
-      
+
       real*8 :: op1(4,4), x(3)
       integer :: i, j
 
@@ -3889,11 +3889,11 @@ contains
                return
             end if
          end do
-      end do 
+      end do
 
     end subroutine checkexists
   end subroutine checkgroup
-  
+
   !> Re-assign atomic types to have an asymmetric unit with whole molecules
   module subroutine wholemols(c)
     use crystalseedmod, only: crystalseed
@@ -4058,7 +4058,7 @@ contains
              end do
           end do
        end do
-       
+
        if (all(.not.ismap)) then
           ig = l
           exit
@@ -4084,7 +4084,7 @@ contains
              isuse(id) = .true.
           end do
        end do
-       
+
        ncseed%nat = ncseed%nat + 1
        ncseed%x(:,ncseed%nat) = c%atcel(i)%x
        ncseed%is(ncseed%nat) = c%atcel(i)%is
@@ -4138,7 +4138,7 @@ contains
     use types, only: realloc
     use param, only: pi, eye
     class(crystal), intent(inout) :: c
-    real*8, intent(out), optional :: area(14) !< area of the WS faces 
+    real*8, intent(out), optional :: area(14) !< area of the WS faces
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -4232,7 +4232,7 @@ contains
     end if
 
     deallocate(ivws,xvws)
-    
+
     ! is the cell orthogonal?
     c%isortho = (c%ws_nf <= 6)
     if (c%isortho) then
@@ -4290,7 +4290,7 @@ contains
     real*8, intent(in) :: xorigin(3)
     integer, intent(out), optional :: ntetrag
     real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
-    
+
     integer :: leqv
     real*8 :: lrotm(3,3,48)
     logical, allocatable :: active(:)
@@ -4591,7 +4591,7 @@ contains
     end if
 
     if (.not.lnmer) then
-       ! normal write 
+       ! normal write
        call dowrite(file,fr)
     else
        wroot = file(:index(file,'.',.true.)-1)
@@ -4639,7 +4639,7 @@ contains
              icount = 0
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
-                file0 = wroot 
+                file0 = wroot
                 call fr%init()
                 do k = 1, i
                    aux = trim(file0) // "_" // string(icomb(k))
@@ -4661,7 +4661,7 @@ contains
     subroutine dowrite(fileo,fro)
       character*(*) :: fileo
       type(fragment) :: fro
-      
+
       if (equal(fmt,"xyz")) then
          call fro%writexyz(fileo)
       elseif (equal(fmt,"gjf")) then
@@ -4906,7 +4906,7 @@ contains
     do i = 1, 3
        write (lu,'(3(F15.10,X))') c%m_x2c(:,i) * bohrtoa
     end do
-    
+
 
     ! Number of atoms per type and Direct
     lbl1 = ""
@@ -5076,15 +5076,15 @@ contains
 
     lu = fopen_write(file)
     write (lu,'("%chk=",A,".chk")') wroot
-    write (lu,'("%nprocs=8")') 
-    write (lu,'("%mem=2GB")') 
-    write (lu,'("#p pbepbe/sto-3g int(grid=ultrafine) pop=regular fmm=(print)")') 
-    write (lu,'("   iop1=timestamp iop(5/13=1,5/33=1,5/181=10,5/184=186)")') 
-    write (lu,'("   scf=(novaracc,noincfock,tight)")') 
-    write (lu,*) 
-    write (lu,'("title")') 
-    write (lu,*) 
-    write (lu,'("0 1")') 
+    write (lu,'("%nprocs=8")')
+    write (lu,'("%mem=2GB")')
+    write (lu,'("#p pbepbe/sto-3g int(grid=ultrafine) pop=regular fmm=(print)")')
+    write (lu,'("   iop1=timestamp iop(5/13=1,5/33=1,5/181=10,5/184=186)")')
+    write (lu,'("   scf=(novaracc,noincfock,tight)")')
+    write (lu,*)
+    write (lu,'("title")')
+    write (lu,*)
+    write (lu,'("0 1")')
     do i = 1, c%ncel
        write (lu,'(99(A,X))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.),2,ioj_left),&
           (string(c%atcel(i)%r(j)*bohrtoa,'f',14,8,ioj_left),j=1,3)
@@ -5198,7 +5198,7 @@ contains
 
     ! header
     write (lu,'("data_",A)') string(deblank(fileroot))
-    write (lu,'("_audit_creation_method ''critic2''")') 
+    write (lu,'("_audit_creation_method ''critic2''")')
 
     ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa
@@ -5384,7 +5384,7 @@ contains
     if (usesym) then
        write (lu,'("ZERR ",A," 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') string(c%ncel/c%nneq)
     else
-       write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') 
+       write (lu,'("ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")')
     end if
     if (usesym) then
        ! identify lattice type
@@ -5669,17 +5669,17 @@ contains
 
     ! header
     write (lu,'("# fdf file created by critic2.",/)')
-    write (lu,'("SystemName crystal")') 
-    write (lu,'("SystemLabel crystal")') 
+    write (lu,'("SystemName crystal")')
+    write (lu,'("SystemLabel crystal")')
     write (lu,*)
 
     write (lu,'("NumberOfSpecies ",I3)') c%nspc
     write (lu,'("NumberOfAtoms ", I6)') c%ncel
-    write (lu,'("%block Chemical_Species_Label")') 
+    write (lu,'("%block Chemical_Species_Label")')
     do i = 1, c%nspc
        write (lu,'(I3,I3,X,A2)') i, c%spc(i)%z, lower(nameguess(c%spc(i)%z,.true.))
     end do
-    write (lu,'("%endblock Chemical_Species_Label")') 
+    write (lu,'("%endblock Chemical_Species_Label")')
     write (lu,*)
 
     write (lu,'("LatticeConstant 1.0 ang")')
@@ -5758,12 +5758,12 @@ contains
     call fclose(lu)
 
     ! Write the chemical species block to standard output
-    write (uout,'("%block Chemical_Species_Label")') 
+    write (uout,'("%block Chemical_Species_Label")')
     do i = 1, c%nspc
        write (uout,'(3(2X,A))') string(i), string(c%spc(i)%z), &
           string(nameguess(c%spc(i)%z,.true.))
     end do
-    write (uout,'("%endblock Chemical_Species_Label")') 
+    write (uout,'("%endblock Chemical_Species_Label")')
     write (uout,*)
 
   end subroutine write_siesta_in
@@ -5922,7 +5922,7 @@ contains
           write (lu,'(2X,1p,3(E22.14,X))') c%m_x2c(:,i)
        end do
        write (lu,'("''''''")')
-       
+
        write (lu,'("cell.unit = ''Bohr''")')
        write (lu,'("cell.basis = ''gth-szv''")')
        write (lu,'("cell.pseudo = ''gth-pade''")')
@@ -5963,7 +5963,7 @@ contains
        ! molecule
        write (lu,'(A," C")') string(c%ncel)
        write (lu,'(A)') strtyp
-       
+
        ! Cartesian coordinates
        do i = 1, c%nspc
           do k = 1, c%ncel
@@ -6101,7 +6101,7 @@ contains
 
   !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
-  !> to write the whole cube or only the header (onlyheader). 
+  !> to write the whole cube or only the header (onlyheader).
   module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa
@@ -6263,7 +6263,7 @@ contains
     real*8, intent(out) :: fp(3) !< Density gradient
     real*8, intent(out) :: fpp(3,3) !< Density hessian
     integer, intent(in) :: nder !< Number of derivatives to calculate
-    integer, intent(in), optional :: zpsp(:) 
+    integer, intent(in), optional :: zpsp(:)
     type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
 
     call c%env%promolecular(x0,icrd,f,fp,fpp,nder,zpsp,fr)
@@ -6278,16 +6278,16 @@ contains
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
     use param, only: icrd_crys
-    class(crystal), intent(in) :: c 
-    type(grid3), intent(out) :: f 
+    class(crystal), intent(in) :: c
+    type(grid3), intent(out) :: f
     integer, intent(in) :: n(3)
-    integer, intent(in), optional :: zpsp(:)  
+    integer, intent(in), optional :: zpsp(:)
     type(fragment), intent(in), optional :: fr
 
     integer :: i, j, k
     real*8 :: x(3), xdelta(3,3), rdum1(3), rdum2(3,3), rho
 
-    ! initialize 
+    ! initialize
     call f%end()
     f%isinit = .true.
     f%n = n

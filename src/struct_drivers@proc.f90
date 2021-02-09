@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -81,7 +81,7 @@ contains
     end if
     if (ismol) then
        docube = .false.
-       rborder = rborder_def 
+       rborder = rborder_def
        do while(.true.)
           if (equal(word2,'cubic').or.equal(word2,'cube')) then
              docube = .true.
@@ -257,9 +257,9 @@ contains
     if (present(seed0)) then
        seed0 = seed
     end if
-    
+
   end subroutine struct_crystal_input
-  
+
   !> Clear the symmetry in the system.
   module subroutine struct_sym(s,line,verbose)
     use iso_c_binding, only: c_double
@@ -271,7 +271,7 @@ contains
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
-    
+
     character(len=:), allocatable :: word, errmsg
     integer :: lp, i
     real*8 :: osp
@@ -291,7 +291,7 @@ contains
        call ferror('struct_sym','Symmetry not available in a MOLECULE',faterr,line,syntax=.true.)
        return
     end if
-    
+
     ! parse the input
     isempty = .false.
     lp = 1
@@ -342,7 +342,7 @@ contains
     ! clear the fields and report the new structure
     if (.not.isempty) then
        call s%reset_fields()
-       if (verbose) & 
+       if (verbose) &
           call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     end if
 
@@ -733,7 +733,7 @@ contains
     integer, allocatable :: is(:)
     type(species), allocatable :: spc(:)
     logical :: found
-    
+
     nspc = 0
     allocate(spc(1))
     allocate(is(s%c%nneq))
@@ -806,7 +806,7 @@ contains
        end if
     end do
     call realloc(spc,nspc)
-    
+
     s%c%nspc = nspc
     if (allocated(s%c%spc)) deallocate(s%c%spc)
     allocate(s%c%spc(s%c%nspc))
@@ -838,7 +838,7 @@ contains
              string(i,3,ioj_center),&
              string(s%c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
-             string(s%c%at(i)%x(3),'f',length=14,decimal=10,justify=3),& 
+             string(s%c%at(i)%x(3),'f',length=14,decimal=10,justify=3),&
              string(s%c%spc(s%c%at(i)%is)%name,10,ioj_center), &
              string(s%c%at(i)%mult,4,ioj_center), &
              string(s%c%spc(s%c%at(i)%is)%z,4,ioj_center)
@@ -881,13 +881,13 @@ contains
     logical :: ok, ishard
 
     if (s%c%ismolecule) then
-       call ferror("struct_powder","POWDER can not be used with molecules",faterr,syntax=.true.)
+       call ferror("struct_powder","POWDER cannot be used with molecules",faterr,syntax=.true.)
        return
     end if
 
     ! default values
-    th2ini = 5d0 
-    th2end = 90d0 
+    th2ini = 5d0
+    th2end = 90d0
     lambda = 1.5406d0
     fpol = 0d0 ! polarization, fpol = 0.95 for synchrotron
     npts = 10001
@@ -956,7 +956,7 @@ contains
     call s%c%powder(th2ini,th2end,ishard,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
     np = size(th2p)
 
-    ! write the data file 
+    ! write the data file
     lu = fopen_write(trim(root) // ".dat")
     write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
     do i = 1, npts
@@ -1000,7 +1000,7 @@ contains
     if (allocated(th2p)) deallocate(th2p)
     if (allocated(ip)) deallocate(ip)
     if (allocated(hvecp)) deallocate(hvecp)
-    
+
   end subroutine struct_powder
 
   !> Calculate the radial distribution function for the current
@@ -1095,7 +1095,7 @@ contains
 
     call s%c%rdf(rini,rend,sigma,ishard,npts,t,ih,npairs,ipairs)
 
-    ! write the data file 
+    ! write the data file
     lu = fopen_write(trim(root) // ".dat")
     write (lu,'("# ",A,A)') string("r (bohr)",13,ioj_center), string("RDF(r)",13,ioj_center)
     do i = 1, npts
@@ -1122,7 +1122,7 @@ contains
 
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
-    
+
   end subroutine struct_rdf
 
   !> Compare two crystal structures using the powder diffraction
@@ -1266,7 +1266,7 @@ contains
           write (uout,'("  ",A," ",A,": <current>")') string(tname), string(i,2)
           c(i) = s%c
        else
-          write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i)) 
+          write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
           call struct_crystal_input(fname(i),ismoli,.false.,.false.,cr0=c(i))
           if (.not.c(i)%isinit) &
              call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
@@ -1325,7 +1325,7 @@ contains
        if (allocated(th2p)) deallocate(th2p)
        if (allocated(ip)) deallocate(ip)
        if (allocated(hvecp)) deallocate(hvecp)
-       
+
        ! self-correlation
        allocate(xnorm(ns))
        h =  (xend-th2ini) / real(npts-1,8)
@@ -1365,8 +1365,8 @@ contains
        end do
        diff = diff * dunit0(iunit)
     endif
-   
-    ! write output 
+
+    ! write output
     if (ns == 2) then
        write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
     else
@@ -1418,7 +1418,7 @@ contains
 
   end subroutine struct_compare
 
-  !> Calculate the atomic environment of a point or all the 
+  !> Calculate the atomic environment of a point or all the
   !> non-equivalent atoms in the unit cell.
   module subroutine struct_environ(s,line)
     use systemmod, only: system
@@ -1653,7 +1653,7 @@ contains
       write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
       write (uout,'("# Number of atomic shells in the environment: ",A)') string(mshel)
       write (uout,'("# ishl = shell ID. nneig = number of neighbors in the shell. nid = non-equivalent list atomic ID.")')
-      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. Rest of fields are for a single")') 
+      write (uout,'("# name = atomic name (symbol). spc = atomic species. dist = distance. Rest of fields are for a single")')
       write (uout,'("# representative of the shell: id = complete list atomic ID plus lattice vector (lvec) and coordinates. ")')
       if (s%c%ismolecule) then
          write (uout,'("#ishl nneig nid   name   spc  dist(",A,")  id     lvec            Coordinates (",A,") ")') &
@@ -1927,7 +1927,7 @@ contains
              is2 = i
        end if
     end do
-    
+
     ! If not found, convert to atomic number and try that instead
     if (is1 == 0) then
        iz1 = zatguess(at1)
@@ -1966,7 +1966,7 @@ contains
     else
        write (uout,'("  Vertex of the polyhedra: ",A)') trim(s%c%spc(is2)%name)
     end if
-    write (uout,'("  Distance range(",A,"): ",A," to ",A)') string(iunitname0(iunit)),& 
+    write (uout,'("  Distance range(",A,"): ",A," to ",A)') string(iunitname0(iunit)),&
        string(rmin*dunit0(iunit),'f',decimal=4), string(rmax*dunit0(iunit),'f',decimal=4)
     write (uout, '("# nid = non-equivalent atom ID. at = atomic name (symbol)")')
     write (uout, '("# cryst coords = crystallographic coordinates. nv = number of vertices.")')
@@ -2043,11 +2043,11 @@ contains
     integer :: whichuse = 0
 
     if (s%c%ismolecule) then
-       call ferror("critic2","PACKING can not be used with molecules",faterr,syntax=.true.)
+       call ferror("critic2","PACKING cannot be used with molecules",faterr,syntax=.true.)
        return
     end if
 
-    ! default values    
+    ! default values
     prec = 1d-2
     whichuse = 0 ! 0 = nnm, 1 = vdw, 2 = cov
 
@@ -2075,7 +2075,7 @@ contains
           exit
        end if
     end do
-    
+
     if (whichuse == 0) then
        write (uout,'("+ Packing ratio (%): ",A)') string(s%c%get_pack_ratio(),'f',10,4)
     else
@@ -2110,7 +2110,7 @@ contains
     real*8 :: vvdw
     real*8 :: prec
 
-    ! default values    
+    ! default values
     prec = 1d-2
 
     ! header
@@ -2133,7 +2133,7 @@ contains
           exit
        end if
     end do
-    
+
     ! calculate vdw volume
     vvdw = s%c%vdw_volume(prec)
 
@@ -2169,7 +2169,7 @@ contains
     logical :: doinv, dorefine
 
     if (s%c%ismolecule) then
-       call ferror("struct_newcell","NEWCELL can not be used with molecules",faterr,syntax=.true.)
+       call ferror("struct_newcell","NEWCELL cannot be used with molecules",faterr,syntax=.true.)
        return
     end if
 
@@ -2285,12 +2285,12 @@ contains
        if (dotyp == 1 .and. dorefine) &
           write (uout,'("  Atomic positions have been refined.")')
        write (uout,*)
-       
+
        ! reset all fields and properties to the default
        call s%reset_fields()
-       
+
        ! report
-       if (verbose) & 
+       if (verbose) &
           call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     else
        write (uout,'("+ Cell transformation leads to the same cell: skipping."/)')
@@ -2321,7 +2321,7 @@ contains
     end if
 
     ! defaults
-    rborder = rborder_def 
+    rborder = rborder_def
 
     ! read optional border input
     lp = 1
@@ -2368,13 +2368,13 @@ contains
     integer :: i, j, k, n
     integer :: nat, ierr
     integer, allocatable :: eid(:)
-    real*8 :: dist0, econ, up2d  
+    real*8 :: dist0, econ, up2d
     real*8 :: wi, numer, econprev
     real*8, allocatable :: econij(:,:), ndij(:,:), dist(:)
     real*8, allocatable :: econij_noit(:,:), ndij_noit(:,:), mindist(:)
     character(len=:), allocatable :: str, namestr
 
-    real*8, parameter :: up2dmax = 15d0 / bohrtoa  
+    real*8, parameter :: up2dmax = 15d0 / bohrtoa
     real*8, parameter :: wthresh = 1d-10
     real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
 
@@ -2386,7 +2386,7 @@ contains
     ndij_noit = 0d0
 
     ! initialize
-    up2d = up2dmax  
+    up2d = up2dmax
 
     main: do while(.true.)
        ! loop over non-equivalent atoms
@@ -2400,7 +2400,7 @@ contains
           ! get the minimum distance for all the species
           mindist = -1d0
           mindist(0) = dist(1)
-          do k = 1, nat 
+          do k = 1, nat
              if (mindist(s%c%env%at(eid(k))%is) < 0d0) mindist(s%c%env%at(eid(k))%is) = dist(k)
              if (all(mindist >= 0d0)) exit
           end do
@@ -2418,7 +2418,7 @@ contains
                 ! loop over the environment atoms and consider only species j
                 numer = 0d0
                 econ = 0d0
-                do k = 1, nat 
+                do k = 1, nat
                    if (j /= 0 .and. s%c%env%at(eid(k))%is /= j) cycle
                    wi = exp(1 - (dist(k)/dist0)**6)
                    numer = numer + dist(k) * wi
@@ -2428,7 +2428,7 @@ contains
                 if (ok) dist0 = numer / econ
 
                 ! if dist0 is dangerously close to the up2d, increase by a factor and try again
-                if (.not.ok .or. dist0 > up2d / epsfac) then 
+                if (.not.ok .or. dist0 > up2d / epsfac) then
                    up2d = 1.5d0 * up2d
                    cycle main
                 end if
@@ -2442,7 +2442,7 @@ contains
              end do ! while (abs(econ-econprev) > wthresh)
              econij(j,i) = econ
              ndij(j,i) = dist0
-          end do ! j = 0, s%c%nspc 
+          end do ! j = 0, s%c%nspc
        end do ! i = 1, s%c%nneq
        exit
     end do main
@@ -2590,7 +2590,7 @@ contains
 
           ! read next line
           lp = 1
-          ok = getline(uin,line,ucopy=ucopy) 
+          ok = getline(uin,line,ucopy=ucopy)
           if (ok) then
              word = lgetword(line,lp)
           else
@@ -2680,7 +2680,7 @@ contains
 
       lu = fopen_read(word)
       read(lu,*) nat
-      read(lu,*) 
+      read(lu,*)
       do i = 1, nat
          read(lu,*) word, x0
          x0 = s%c%c2x(x0 / bohrtoa - s%c%molx0)
@@ -2694,5 +2694,176 @@ contains
     end subroutine readxyz
 
   end subroutine struct_identify
+
+  !> Write a .mols file for neighcrys. Works even if Z' > 1 or if
+  !> there are more than two molecules.
+  module subroutine struct_makemols_neighcrys(line0,lp)
+    use systemmod, only: system
+    use tools_math, only: det3, cross
+    use tools_io, only: getword, ferror, faterr, string, getline_raw, fopen_read, fclose, &
+       fopen_write
+    use types, only: realloc
+    character*(*), intent(in) :: line0
+    integer, intent(inout) :: lp
+
+    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: file, line, line2
+    logical :: laux, ok
+    integer :: lu, i, j
+    integer :: ncel, nmol, idum, idax(3)
+    integer, allocatable :: imap(:), idmol(:), iz(:)
+    real*8, allocatable :: xx(:,:)
+    real*8 :: rmat(3,3), xv(3), xnn
+    character*10 :: cdum
+    character*15, allocatable :: atlbl(:)
+
+    real*8, parameter :: eps = 1d-6
+
+    ! read the molecules in from the fort.21 file
+    file = getword(line0,lp)
+    inquire(file=file,exist=laux)
+    if (.not.laux) &
+       call ferror("makemols_neighcrys","file not found: " // string(file),faterr)
+
+    lu = fopen_read(file)
+    main: do while (getline_raw(lu,line))
+       if (trim(line) == " Equivalent basis atoms") then
+          ! default error message
+          errmsg = "Unexpected error or end of line reading Equivalent basis atoms block"
+
+          ! skip four lines
+          ok = getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          ok = ok.and.getline_raw(lu,line)
+          if (.not.ok) goto 999
+
+          ! allocate space for the atomic information
+          ncel = 0
+          nmol = 0
+          allocate(imap(10),idmol(10),iz(10),atlbl(10))
+
+          ! read the atomic information and check against the loaded structure
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (len_trim(line) == 0) exit
+
+             ncel = ncel + 1
+             if (ncel > size(imap,1)) then
+                call realloc(imap,2*ncel)
+                call realloc(idmol,2*ncel)
+                call realloc(iz,2*ncel)
+                call realloc(atlbl,2*ncel)
+             end if
+             read(line,*,err=999) idum, iz(ncel), atlbl(ncel), cdum, idmol(ncel)
+          end do
+
+          ! keep reading until we find the "crystallographic" keyword
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (index(line,"crystallographic") > 0) exit
+          end do
+
+          ! reallocate and allocate coordinates
+          call realloc(imap,ncel)
+          call realloc(idmol,ncel)
+          call realloc(iz,ncel)
+          call realloc(atlbl,ncel)
+          allocate(xx(3,ncel))
+
+          ! read the coordinates
+          errmsg = "Unexpected error or end of line reading the coordinates block"
+          ncel = 0
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (len_trim(line) == 0) exit
+             ok = ok .and. getline_raw(lu,line2)
+             if (.not.ok) goto 999
+
+             ncel = ncel + 1
+             if (ncel > size(imap,1)) then
+                errmsg = "Too many atoms in coordinates block"
+                goto 999
+             end if
+             read(line,*,err=999) idum, cdum, xx(:,ncel)
+          end do
+
+          ! we are done with this file
+          nmol = maxval(idmol)
+          exit main
+       end if
+    end do main
+    call fclose(lu)
+    errmsg = ""
+
+    ! read the mols file
+    file = getword(line0,lp)
+    if (len_trim(file) == 0) then
+       errmsg = "A name for the mols file is required"
+       goto 999
+    end if
+
+    ! write the mols file
+    lu = fopen_write(file)
+    write (lu,'("MOLX ",A)') string(nmol)
+    do i = 1, nmol
+       idax = 0
+       do j = 1, ncel
+          if (idmol(j) /= i) cycle
+
+          if (idax(1) == 0) then
+             idax(1) = j
+             rmat(:,1) = xx(:,j)
+          elseif (idax(2) == 0) then
+             xnn = norm2(xx(:,j) - xx(:,idax(1)))
+             if (xnn < eps) cycle
+             idax(2) = j
+             rmat(:,2) = (xx(:,j) - xx(:,idax(1))) / xnn
+          else
+             xnn = norm2(xx(:,j) - xx(:,idax(1)))
+             if (xnn < eps) cycle
+             rmat(:,3) = (xx(:,j) - xx(:,idax(1))) / xnn
+             xv = cross(rmat(:,2),rmat(:,3))
+             if (norm2(xv) >= eps) then
+                idax(3) = j
+                exit
+             end if
+          end if
+       end do
+
+       if (any(idax == 0)) then
+          ! the molecule must be linear
+          ! find any third atom in the system that is not collinear
+          do j = 1, ncel
+             if (idmol(j) == i) cycle
+             xnn = norm2(xx(:,j) - xx(:,idax(1)))
+             if (xnn < eps) cycle
+             rmat(:,3) = (xx(:,j) - xx(:,idax(1))) / xnn
+             xv = cross(rmat(:,2),rmat(:,3))
+             if (norm2(xv) >= eps) then
+                idax(3) = j
+                exit
+             end if
+          end do
+
+       end if
+
+       write (lu,'("X LINE  ",A,X,A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
+       write (lu,'("Y PLANE ",A,X,A," 1",X,A," 1")') &
+          trim(atlbl(idax(1))), trim(atlbl(idax(2))), trim(atlbl(idax(3)))
+    end do
+    write (lu,'("ENDS")')
+    call fclose(lu)
+
+    return
+999 continue
+
+    call ferror('struct_makemols_neighcrys',errmsg,faterr,line,syntax=.true.)
+    return
+
+  end subroutine struct_makemols_neighcrys
 
 end submodule proc
