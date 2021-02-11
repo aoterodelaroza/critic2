@@ -2837,22 +2837,8 @@ contains
           end if
        end do
 
-       if (any(idax == 0)) then
-          ! the molecule must be linear
-          ! find any third atom in the system that is not collinear
-          do j = 1, ncel
-             if (idmol(j) == i) cycle
-             xnn = norm2(xx(:,j) - xx(:,idax(1)))
-             if (xnn < eps) cycle
-             rmat(:,3) = (xx(:,j) - xx(:,idax(1))) / xnn
-             xv = cross(rmat(:,2),rmat(:,3))
-             if (norm2(xv) >= eps) then
-                idax(3) = j
-                exit
-             end if
-          end do
-
-       end if
+       if (any(idax == 0)) &
+          call ferror("makemols_neighcrys","cannot be applied if the molecule is linear",faterr)
 
        write (lu,'("X LINE  ",A,X,A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
        write (lu,'("Y PLANE ",A,X,A," 1",X,A," 1")') &
