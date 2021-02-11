@@ -36,7 +36,7 @@ module crystalseedmod
      integer :: nat = 0 !< Number of atoms
      real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
      integer, allocatable :: is(:) !< Species of a given atom
-     ! species 
+     ! species
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species
      ! cell
@@ -59,28 +59,29 @@ module crystalseedmod
      logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
      real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
    contains
-     procedure :: parse_crystal_env 
-     procedure :: parse_molecule_env 
+     procedure :: parse_crystal_env
+     procedure :: parse_molecule_env
      procedure :: read_library
-     procedure :: read_cif 
-     procedure :: read_shelx 
+     procedure :: read_cif
+     procedure :: read_shelx
      procedure :: read_f21
-     procedure :: read_cube 
-     procedure :: read_bincube 
-     procedure :: read_wien 
-     procedure :: read_vasp 
+     procedure :: read_cube
+     procedure :: read_bincube
+     procedure :: read_wien
+     procedure :: read_vasp
      procedure :: read_potcar
-     procedure :: read_abinit 
-     procedure :: read_elk 
-     procedure :: read_mol 
-     procedure :: read_qeout 
-     procedure :: read_qein 
-     procedure :: read_crystalout 
-     procedure :: read_siesta 
-     procedure :: read_dftbp 
-     procedure :: read_xsf 
+     procedure :: read_abinit
+     procedure :: read_elk
+     procedure :: read_mol
+     procedure :: read_qeout
+     procedure :: read_qein
+     procedure :: read_crystalout
+     procedure :: read_siesta
+     procedure :: read_dmain
+     procedure :: read_dftbp
+     procedure :: read_xsf
      procedure :: read_pwc
-     procedure :: read_axsf 
+     procedure :: read_axsf
   end type crystalseed
   public :: crystalseed
 
@@ -203,6 +204,12 @@ module crystalseedmod
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_siesta
+     module subroutine read_dmain(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_dmain
      module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

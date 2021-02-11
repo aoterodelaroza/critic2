@@ -36,7 +36,7 @@ contains
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
-       isformat_pgout, isformat_orca
+       isformat_pgout, isformat_orca, isformat_dmain
     use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -208,6 +208,9 @@ contains
        call seed%read_axsf(word,istruct,xnudge,rborder,docube,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
+
+    elseif (isformat == isformat_dmain) then
+       call seed%read_dmain(word,mol,errmsg)
 
     else if (equal(lower(word),'library')) then
        call seed%read_library(subline,mol,ok)
@@ -2727,7 +2730,7 @@ contains
 
     lu = fopen_read(file)
     main: do while (getline_raw(lu,line))
-       if (trim(line) == " Equivalent basis atoms") then
+       if (trim(line) == " Inequivalent basis atoms") then
           ! default error message
           errmsg = "Unexpected error or end of line reading Equivalent basis atoms block"
 

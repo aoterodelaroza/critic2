@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -304,11 +304,11 @@ contains
              line = trim(adjustl(sline(i)))
              xn = seed%x(:,j) - floor(seed%x(:,j))
              ! push the atom coordinates into x,y,z variables
-             do k = 1, 3 
+             do k = 1, 3
                 call setvariable(ico(k),seed%x(k,j))
              end do
 
-             ! parse the three fields in the arithmetic expression 
+             ! parse the three fields in the arithmetic expression
              do k = 1, 3
                 if (k < 3) then
                    idx = index(line,",")
@@ -408,7 +408,7 @@ contains
 
     ok = .false.
     docube = .false.
-    rborder = rborder_def 
+    rborder = rborder_def
     seed%nat = 0
     seed%nspc = 0
     allocate(seed%x(3,10),seed%is(10),seed%spc(2))
@@ -652,7 +652,7 @@ contains
 
   end subroutine read_library
 
-  !> Read the structure from a CIF file (uses ciftbx) and returns a 
+  !> Read the structure from a CIF file (uses ciftbx) and returns a
   !> crystal seed.
   module subroutine read_cif(seed,file,dblock,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
@@ -664,7 +664,7 @@ contains
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
-    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
     include 'ciftbx/ciftbx.cmv'
@@ -736,7 +736,7 @@ contains
     end function checkcifop
   end subroutine read_cif
 
-  !> Read the structure from a res or ins (shelx) file 
+  !> Read the structure from a res or ins (shelx) file
   module subroutine read_shelx(seed,file,mol,errmsg)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
@@ -745,7 +745,7 @@ contains
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, lp, ilat
@@ -784,8 +784,8 @@ contains
     if (.not.allocated(seed%x)) allocate(seed%x(3,10))
     if (.not.allocated(seed%is)) allocate(seed%is(10))
 
-    ! centering vectors may come in symm. If that happens, 
-    ! replicate the atoms and let LATT determine the global 
+    ! centering vectors may come in symm. If that happens,
+    ! replicate the atoms and let LATT determine the global
     ! centering vectors
     lncv = 0
     allocate(lcen(3,1))
@@ -837,7 +837,7 @@ contains
           end if
           select case(abs(ilat))
           case(1)
-             ! P 
+             ! P
              seed%ncv=1
           case(2)
              ! I
@@ -870,7 +870,7 @@ contains
              seed%cen(1,2)=0.5d0
              seed%cen(3,2)=0.5d0
           case(7)
-             ! C 
+             ! C
              seed%ncv=2
              seed%cen(1,2)=0.5d0
              seed%cen(2,2)=0.5d0
@@ -905,7 +905,7 @@ contains
           end do
 
           if (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
-             ! a non-zero pure translation or the identity 
+             ! a non-zero pure translation or the identity
              if (all(abs(rot0(:,4)) < 1d-12)) then
                 ! ignore the identity
              else
@@ -997,7 +997,7 @@ contains
           ! end of the input
           exit
        else
-          ! maybe this is an atom, but if we can not tell, it could be a new or very old keyword 
+          ! maybe this is an atom, but if we can not tell, it could be a new or very old keyword
           iz = zatguess(word)
           if (iz < 0) cycle
 
@@ -1041,8 +1041,8 @@ contains
        ! add the -1 operations
        n = seed%neqv
        do i = 1, n
-          seed%rotm(1:3,1:3,n+i) = -seed%rotm(1:3,1:3,i) 
-          seed%rotm(:,4,n+i) = seed%rotm(:,4,i) 
+          seed%rotm(1:3,1:3,n+i) = -seed%rotm(1:3,1:3,i)
+          seed%rotm(:,4,n+i) = seed%rotm(:,4,i)
        end do
        seed%neqv = 2*n
     end if
@@ -1429,7 +1429,7 @@ contains
         goto 999
      end if
      seed%useabr = 2
-     
+
      ! Atomic positions.
      allocate(seed%x(3,seed%nat),seed%is(seed%nat))
      allocate(seed%spc(2))
@@ -1826,7 +1826,7 @@ contains
     call realloc(seed%is,seed%nat)
 
     ! check there are no more atoms in this line
-    nn = -1 
+    nn = -1
     ok = isinteger(nn,line,lp)
     if (ok .and. nn /= -1) then
        errmsg = "Too few atom types"
@@ -2141,7 +2141,7 @@ contains
 
     errmsg = ""
 999 continue
-    
+
     ! rest of the seed information
     seed%isused = .true.
     seed%ismolecule = .true.
@@ -2274,7 +2274,7 @@ contains
     character(len=8) :: fcp_relax
 
     namelist /system/ ibrav, celldm, a, b, c, cosab, cosac, cosbc, nat,     &
-       ntyp, nbnd, ecutwfc, ecutrho, nr1, nr2, nr3, nr1s, nr2s, nr3s, nr1b, & 
+       ntyp, nbnd, ecutwfc, ecutrho, nr1, nr2, nr3, nr1s, nr2s, nr3s, nr1b, &
        nr2b, nr3b, nosym, nosym_evc, noinv, force_symmorphic, starting_magnetization, &
        occupations, degauss, nspin, ecfixed, qcutz, q2sigma, lda_plus_u, &
        hubbard_u, hubbard_alpha, edir, emaxpos, eopreg, eamp, smearing, &
@@ -2518,7 +2518,7 @@ contains
 
     ! figure it out
     if (space_group /= 0) then
-       ! space group number was given 
+       ! space group number was given
        if (iunit /= icrystalsg) then
           errmsg = "space_group requires crystal_sg atomic coordinates"
           goto 999
@@ -2831,6 +2831,156 @@ contains
 
   end subroutine read_siesta
 
+  !> Read the structure from a DMACRYS input file (dmain)
+  module subroutine read_dmain(seed,file,mol,errmsg)
+    use tools_io, only: fopen_read, nameguess, fclose, getline_raw, lgetword, isreal,&
+       getword, zatguess, isinteger, lower
+    use tools_math, only: matinv
+    use param, only: bohrtoa, maxzat
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer, allocatable :: usedz(:)
+    character(len=:), allocatable :: line, word, lword
+    character*2 :: atsym
+    logical :: havelatt, haverlscal, ok
+    integer :: lu, lp, iz, lvl, nrec, ier
+    real*8 :: r(3,3), rlscal
+    integer :: i
+
+    errmsg = ""
+    ! open
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    ! loop over the lines
+    haverlscal = .false.
+    havelatt = .false.
+    rlscal = 1d0
+    do while (.true.)
+       ok = getline_raw(lu,line)
+       if (.not.ok) goto 999
+       lp = 1
+       word = lgetword(line,lp)
+
+       ! read the lattice vectors
+       if (word == "latt" .and..not.havelatt) then
+          do i = 1, 3
+             read (lu,*,err=999) r(i,:)
+          end do
+          havelatt = .true.
+       elseif (word == "cuto") then
+          ! lattice vector scaling factor
+          ok = isreal(rlscal,line,lp)
+          haverlscal = .true.
+       elseif (word == "basi") then
+          seed%nspc = 0
+          seed%nat = 0
+          allocate(seed%x(3,10),seed%is(10),seed%spc(2),usedz(maxzat))
+          usedz = 0
+          do while(.true.)
+             ! get the atom
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             lp = 1
+             word = getword(line,lp)
+             lword = lower(word)
+             if (lword == "ends") exit
+             atsym = word(1:2)
+             iz = zatguess(atsym)
+
+             ! write down the species
+             if (usedz(iz) == 0) then
+                seed%nspc = seed%nspc + 1
+                if (seed%nspc > size(seed%spc,1)) &
+                   call realloc(seed%spc,2*seed%nspc)
+                seed%spc(seed%nspc)%z = iz
+                seed%spc(seed%nspc)%name = atsym
+                usedz(iz) = seed%nspc
+             end if
+
+             ! write down the atom
+             seed%nat = seed%nat + 1
+             if (seed%nat > size(seed%x,2)) then
+                call realloc(seed%x,3,2*seed%nat)
+                call realloc(seed%is,2*seed%nat)
+             end if
+             ok = isreal(seed%x(1,seed%nat),line,lp)
+             ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
+             ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+             if (.not.ok) goto 999
+             seed%is(seed%nat) = usedz(iz)
+
+             ! process the block for this atom
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             lp = 1
+             word = lgetword(line,lp)
+             if (word == "level") then
+                ok = isinteger(lvl,line,lp)
+                nrec = 0
+                do i = 0, lvl
+                   nrec = nrec + (2*i+1 - 1)/7 + 1
+                end do
+             else
+                nrec = 0
+             end if
+
+             ! skip the extra lines
+             ok = .true.
+             do i = 1, nrec
+                ok = ok .and. getline_raw(lu,line)
+             end do
+             if (.not.ok) goto 999
+          end do
+          call realloc(seed%spc,seed%nspc)
+          call realloc(seed%x,3,seed%nat)
+          exit
+       elseif (word == "stop") then
+          exit
+       end if
+    end do
+
+    ! lattice vectors
+    seed%useabr = 2
+    seed%m_x2c = transpose(r) * rlscal / bohrtoa
+
+    ! transform atoms
+    r = transpose(r)
+    call matinv(r,3,ier)
+    if (ier /= 0) goto 999
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(r,seed%x(:,i))
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+  end subroutine read_dmain
+
   !> Read the structure from a file in DFTB+ gen format.
   module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
     use tools_math, only: matinv
@@ -3060,7 +3210,7 @@ contains
           allocate(seed%x(3,10),seed%spc(5),seed%is(10))
           do while (getline_raw(lu,line))
              if (len_trim(line) == 0) exit
-             
+
              read (line,*,err=999) atn, x
              seed%nat = seed%nat + 1
              if (seed%nat > size(seed%x,2)) then
@@ -3118,7 +3268,7 @@ contains
           goto 999
        end if
        seed%useabr = 2
-       
+
        ! convert atoms to crystallographic
        do i = 1, seed%nat
           seed%x(:,i) = matmul(r,seed%x(:,i))
@@ -3248,7 +3398,7 @@ contains
     integer :: lu, lp, iprim, i, it, iz, j, ier
     real*8 :: r(3,3), x(3)
     logical :: ok, ismol, didreadr, didreadx
-    
+
     ! open
     ismol = .false.
     errmsg = ""
@@ -3428,7 +3578,8 @@ contains
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout
+       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
+       isformat_dmain, isformat_dmaout
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3529,6 +3680,12 @@ contains
        alsofield_ = .true.
     elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
        isformat = isformat_siesta
+       ismol = .false.
+    elseif (equal(wextdot,'dmain')) then
+       isformat = isformat_dmain
+       ismol = .false.
+    elseif (equal(wextdot,'dmaout')) then
+       isformat = isformat_dmaout
        ismol = .false.
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
@@ -3652,7 +3809,7 @@ contains
   end subroutine read_potcar
 
   !> Read all seeds from a file. If iafield is present, then
-  !> return the seed number for which the file can be read as a 
+  !> return the seed number for which the file can be read as a
   !> field (or 0 if none).
   module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
     use global, only: rborder_def, doguess
@@ -3663,7 +3820,7 @@ contains
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       dirsep
+       isformat_dmain, isformat_dmaout, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3780,6 +3937,14 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_siesta(file,mol,errmsg)
+    elseif (isformat == isformat_dmain) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_dmain(file,mol,errmsg)
+    elseif (isformat == isformat_dmaout) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_dmaout(file,mol,errmsg)
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
@@ -3895,7 +4060,7 @@ contains
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=1024) :: dictfile
@@ -3943,7 +4108,7 @@ contains
           goto 999
        end if
     end do
-    call realloc_crystalseed(seed,nseed)       
+    call realloc_crystalseed(seed,nseed)
 
 999 continue
 
@@ -3984,7 +4149,7 @@ contains
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     integer, intent(in) :: istruct !< ID of the structure
-    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, ideq, i, j, is0, ier
@@ -4131,7 +4296,7 @@ contains
        elseif (line(1:15) == "CELL_PARAMETERS") then
           cfac = 1d0
           if (index(line,"angstrom") > 0) then
-             cfac = 1d0 / bohrtoa 
+             cfac = 1d0 / bohrtoa
           elseif (index(line,"alat") > 0) then
              cfac = alat
           elseif (index(line,"bohr") > 0) then
@@ -4154,7 +4319,7 @@ contains
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox = .true.
-             rfac = 1d0 / bohrtoa 
+             rfac = 1d0 / bohrtoa
           elseif (index(line,"alat") > 0) then
              tox = .true.
              rfac = alat
@@ -4212,7 +4377,7 @@ contains
           elseif (istruct == is0) then
              iuse = 1
           end if
-          
+
           ! keep the seed
           if (iuse > 0) then
              seed(iuse)%nat = nat
@@ -4282,7 +4447,7 @@ contains
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< Is this a molecule? 
+    logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, i, is0, ier

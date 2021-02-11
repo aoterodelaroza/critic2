@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -87,7 +87,7 @@ module types
      character*1 :: wyc !< Wyckoff letter
      real*8 :: rnn2   !< half the nearest neighbor distance
   end type neqatom
-  
+
   !> Any atom in the crystal type
   type :: anyatom
      real*8 :: x(3)   !< coordinates (crystallographic)
@@ -109,7 +109,7 @@ module types
      integer :: ir   !< rotation matrix to the representative equivalent atom
      integer :: ic   !< translation vector to the representative equivalent atom
   end type celatom
-  
+
   !> Result of the evaluation of a scalar field
   type scalar_value
      ! always available
@@ -169,7 +169,7 @@ module types
      logical :: isnuc !< Is it a nucleus?
      logical :: isnnm !< Is it a non-nuclear attractor/repulsor?
 
-     ! beta-sphere 
+     ! beta-sphere
      real*8 :: rbeta !< beta-sphere radius
 
      ! Properties at the CP
@@ -186,8 +186,8 @@ module types
      ! Complete list -> reduced CP list index and conversion
      integer :: idx !< Complete to non-equivalent list index
      integer :: ir !< Rotation matrix to the neq cp list
-     integer :: ic !< Translation vector to the neq cp list 
-     integer :: lvec(3) !< Lattice vector to the neq cp list 
+     integer :: ic !< Translation vector to the neq cp list
+     integer :: lvec(3) !< Lattice vector to the neq cp list
   end type cp_type
 
   !> Information about an integrable field
@@ -213,7 +213,7 @@ module types
      character*(10) :: name
      character*(2048) :: expr
      integer :: ispecial ! 0 = expression, 1 = stress
-     integer :: nf 
+     integer :: nf
      integer, allocatable :: fused(:)
   end type pointpropable
 
@@ -224,7 +224,7 @@ module types
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
   end type neighstar
 
-  !> Point along a gradient path 
+  !> Point along a gradient path
   type gpathp
      integer :: i
      real*8 :: x(3)
@@ -233,7 +233,7 @@ module types
      real*8 :: gf(3)
      real*8 :: hf(3,3)
   end type gpathp
-  
+
   !> Basin data for grid integration
   type basindat
      ! integration input
@@ -380,5 +380,5 @@ module types
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5cmplx8
   end interface
-  
+
 end module types
