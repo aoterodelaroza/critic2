@@ -2854,9 +2854,6 @@ contains
 
        end if
 
-       write (*,*) idax
-       stop 1
-
        write (lu,'("X LINE  ",A,X,A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
        write (lu,'("Y PLANE ",A,X,A," 1",X,A," 1")') &
           trim(atlbl(idax(1))), trim(atlbl(idax(2))), trim(atlbl(idax(3)))
