@@ -3579,7 +3579,7 @@ contains
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
-       isformat_dmain, isformat_dmaout
+       isformat_dmain
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3683,9 +3683,6 @@ contains
        ismol = .false.
     elseif (equal(wextdot,'dmain')) then
        isformat = isformat_dmain
-       ismol = .false.
-    elseif (equal(wextdot,'dmaout')) then
-       isformat = isformat_dmaout
        ismol = .false.
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
@@ -3820,7 +3817,7 @@ contains
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       isformat_dmain, isformat_dmaout, dirsep
+       isformat_dmain, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -3941,10 +3938,6 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_dmain(file,mol,errmsg)
-    elseif (isformat == isformat_dmaout) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_dmaout(file,mol,errmsg)
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
