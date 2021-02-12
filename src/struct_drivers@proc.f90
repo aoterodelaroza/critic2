@@ -2730,7 +2730,7 @@ contains
 
     lu = fopen_read(file)
     main: do while (getline_raw(lu,line))
-       if (trim(line) == " Inequivalent basis atoms") then
+       if (trim(line) == " Equivalent basis atoms") then
           ! default error message
           errmsg = "Unexpected error or end of line reading Equivalent basis atoms block"
 
@@ -2845,19 +2845,20 @@ contains
        end do
 
        if (any(idax == 0)) then
-          ! the molecule must be linear
-          ! find any third atom in the system that is not collinear
-          do j = 1, ncel
-             if (idmol(j) == i) cycle
-             xnn = norm2(xx(:,j) - xx(:,idax(1)))
-             if (xnn < eps) cycle
-             rmat(:,3) = (xx(:,j) - xx(:,idax(1))) / xnn
-             xv = cross(rmat(:,2),rmat(:,3))
-             if (norm2(xv) >= eps) then
-                idax(3) = j
-                exit
-             end if
-          end do
+          ! ! the molecule must be linear
+          ! ! find any third atom in the system that is not collinear
+          ! do j = 1, ncel
+          !    if (idmol(j) == i) cycle
+          !    xnn = norm2(xx(:,j) - xx(:,idax(1)))
+          !    if (xnn < eps) cycle
+          !    rmat(:,3) = (xx(:,j) - xx(:,idax(1))) / xnn
+          !    xv = cross(rmat(:,2),rmat(:,3))
+          !    if (norm2(xv) >= eps) then
+          !       idax(3) = j
+          !       exit
+          !    end if
+          ! end do
+          call ferror("makemols_neighcrys","cannot be applied to a linear molecule",faterr)
        end if
 
        write (lu,'("X LINE  ",A,X,A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
