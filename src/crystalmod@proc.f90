@@ -5394,11 +5394,11 @@ contains
        elseif (c%ncv == 2) then
           if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_a)) < eps)) then
              ilatt = -2 ! I
-          elseif (all(abs(c%cen(:,2) - cen_b - nint(c%cen(:,2) - cen_b)) < eps)) then
+          elseif (all(abs(c%cen(:,2) - cen_a - nint(c%cen(:,2) - cen_a)) < eps)) then
              ilatt = -5 ! A
-          elseif (all(abs(c%cen(:,2) - cen_c - nint(c%cen(:,2) - cen_c)) < eps)) then
+          elseif (all(abs(c%cen(:,2) - cen_b - nint(c%cen(:,2) - cen_b)) < eps)) then
              ilatt = -6 ! B
-          elseif (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_i)) < eps)) then
+          elseif (all(abs(c%cen(:,2) - cen_c - nint(c%cen(:,2) - cen_c)) < eps)) then
              ilatt = -7 ! C
           end if
        elseif (c%ncv == 3) then
