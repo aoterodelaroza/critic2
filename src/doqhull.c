@@ -1,7 +1,7 @@
-/* 
+/*
 Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-<victor@fluor.quimica.uniovi.es>. 
+<victor@fluor.quimica.uniovi.es>.
 
 critic2 is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -50,9 +50,9 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   // p: print vertices
   // Fv: print facet vertex indices
   // Fa: print areas
-  int nopts = 6;
-  char *opts[] = {"qhull","v","Qbb","QV0","Fv","p"};
-  qh_init_A(fid1, fid2, stderr, nopts, opts);  
+  int nopts = 7;
+  char *opts[] = {"qhull","v","Qbb","QV0","Fv","p","Qs"};
+  qh_init_A(fid1, fid2, stderr, nopts, opts);
   qh_initflags(qh qhull_command);
 
   int dim, numpoints;
@@ -89,11 +89,11 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
 }
 
 // Read the Voronoi polyhedron calculated in step 1. Input: number of faces
-// (nf), number of vertices (nv) and maximum number of vertices per face (mnfv). 
+// (nf), number of vertices (nv) and maximum number of vertices per face (mnfv).
 // Returns: the neighbor vertex identifier for a given face (ivws), the vertices
 // of the polyhedron (xvws), the number of vertices for each face (nfvws), and
 // the list of vertices for each face (fvws).
-void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[nv][3], 
+void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[nv][3],
 	       int nfvws[nf], int fvws[nf][mnfv]){
 
   rewind(fidsave_voronoi);
@@ -151,7 +151,7 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
   // Qt: faces are triangles
   int nopts = 3;
   char *opts[] = {"qhull","Fv","Qt"};
-  qh_init_A(fid1, fid2, stderr, nopts, opts);  
+  qh_init_A(fid1, fid2, stderr, nopts, opts);
   qh_initflags(qh qhull_command);
 
   int dim, numpoints;
@@ -192,4 +192,3 @@ void runqhull_basintriangulate_step2(int nf, int iface[nf][3]){
 
   fclose(fidsave_basintri);
 }
-
