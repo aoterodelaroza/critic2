@@ -2728,6 +2728,8 @@ contains
     if (.not.laux) &
        call ferror("makemols_neighcrys","file not found: " // string(file),faterr)
 
+    ncel = 0
+    nmol = 0
     lu = fopen_read(file)
     main: do while (getline_raw(lu,line))
        if (trim(line) == " Equivalent basis atoms") then
@@ -2742,8 +2744,6 @@ contains
           if (.not.ok) goto 999
 
           ! allocate space for the atomic information
-          ncel = 0
-          nmol = 0
           allocate(imap(10),idmol(10),iz(10),atlbl(10))
 
           ! read the atomic information and check against the loaded structure
@@ -2761,6 +2761,8 @@ contains
              end if
              read(line,*,err=999) idum, iz(ncel), atlbl(ncel), cdum, idmol(ncel)
           end do
+          if (ncel == 0) &
+             call ferror("makemols_neighcrys","no atoms found in the fort.21 file",faterr)
 
           ! keep reading until we find the "crystallographic" keyword
           do while (.true.)
@@ -2801,6 +2803,10 @@ contains
     end do main
     call fclose(lu)
     errmsg = ""
+    if (ncel == 0) &
+       call ferror("makemols_neighcrys","no atoms found in the fort.21 file",faterr)
+    if (nmol == 0) &
+       call ferror("makemols_neighcrys","no molecules found in the fort.21 file",faterr)
 
     ! read the mols file
     file = getword(line0,lp)
@@ -2814,6 +2820,8 @@ contains
     do i = 1, nmol
        if (any(idmol(1:ncel) == i)) nmol2 = nmol2 + 1
     end do
+    if (nmol2 == 0) &
+       call ferror("makemols_neighcrys","no inequivalent molecules found in the fort.21 file",faterr)
 
     ! write the mols file
     lu = fopen_write(file)
