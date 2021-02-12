@@ -5392,7 +5392,7 @@ contains
        if (c%ncv == 1) then
           ilatt = -1 ! P
        elseif (c%ncv == 2) then
-          if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_a)) < eps)) then
+          if (all(abs(c%cen(:,2) - cen_i - nint(c%cen(:,2) - cen_i)) < eps)) then
              ilatt = -2 ! I
           elseif (all(abs(c%cen(:,2) - cen_a - nint(c%cen(:,2) - cen_a)) < eps)) then
              ilatt = -5 ! A
