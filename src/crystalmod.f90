@@ -195,6 +195,7 @@ module crystalmod
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
 
      ! structure writers
+     procedure :: write_simple_driver
      procedure :: write_mol
      procedure :: write_3dmodel
      procedure :: write_espresso
@@ -549,31 +550,35 @@ module crystalmod
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
      end subroutine search_lattice
-     module subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
-        environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
+     module subroutine write_simple_driver(c,file)
+       class(crystal), intent(inout) :: c
+       character*(*), intent(in) :: file
+     end subroutine write_simple_driver
+     module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
+        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,luout)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*3, intent(in) :: fmt
-       integer, intent(in) :: ix(3)
-       logical, intent(in) :: doborder, onemotif, molmotif, environ
-       real*8, intent(in) :: renv
-       logical, intent(in) :: lnmer
-       integer, intent(in) :: nmer
-       real*8, intent(in) :: rsph, xsph(3)
-       real*8, intent(in) :: rcub, xcub(3)
+       integer, intent(in), optional :: ix0(3)
+       logical, intent(in), optional :: doborder0, onemotif0, molmotif0, environ0
+       real*8, intent(in), optional :: renv0
+       logical, intent(in), optional :: lnmer0
+       integer, intent(in), optional :: nmer0
+       real*8, intent(in), optional :: rsph0, xsph0(3)
+       real*8, intent(in), optional :: rcub0, xcub0(3)
        integer, intent(out), optional :: luout
      end subroutine write_mol
-     module subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
-        docell,domolcell,rsph,xsph,rcub,xcub,gr0)
+     module subroutine write_3dmodel(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
+        docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0)
        use graphics, only: grhandle
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*3, intent(in) :: fmt
-       integer, intent(in) :: ix(3)
-       logical, intent(in) :: doborder, onemotif, molmotif
-       logical, intent(in) :: docell, domolcell
-       real*8, intent(in) :: rsph, xsph(3)
-       real*8, intent(in) :: rcub, xcub(3)
+       integer, intent(in), optional :: ix0(3)
+       logical, intent(in), optional :: doborder0, onemotif0, molmotif0
+       logical, intent(in), optional :: docell0, domolcell0
+       real*8, intent(in), optional :: rsph0, xsph0(3)
+       real*8, intent(in), optional :: rcub0, xcub0(3)
        type(grhandle), intent(out), optional :: gr0
      end subroutine write_3dmodel
      module subroutine write_espresso(c,file,rklength)

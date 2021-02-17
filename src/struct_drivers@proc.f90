@@ -3178,15 +3178,8 @@ contains
           end do
        end do
        call cx%struct_new(seed,.true.)
-!       call cx%wholemols()
-
-       if (cx%ismolecule) then
-          call cx%write_mol(wfile,'xyz',(/1,1,1/),.false.,.false.,.false.,.false.,0d0,.false.,&
-             1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
-       else
-          call cx%write_espresso("new.scf.in")
-          ! call cx%write_res(wfile,.true.)
-       end if
+       call cx%wholemols()
+       call cx%write_simple_driver(wfile)
     end if
 
   end subroutine struct_order_molecules

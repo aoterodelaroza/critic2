@@ -4516,6 +4516,66 @@ contains
 
   end subroutine search_lattice
 
+  !> Write the structure to a file. Use the format derived from the
+  !> extension of file and use default values for all options.
+  module subroutine write_simple_driver(c,file)
+    use tools_io, only: lower, ferror, faterr, equal
+    class(crystal), intent(inout) :: c
+    character*(*), intent(in) :: file
+
+    character(len=:), allocatable :: wext, wroot
+
+    wext = lower(file(index(file,'.',.true.)+1:))
+    wroot = file(:index(file,'.',.true.)-1)
+
+    if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
+       call c%write_mol(file,wext)
+    else if(equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
+       call c%write_3dmodel(file,wext)
+    elseif (equal(wext,'gau')) then
+       call c%write_gaussian(file)
+    elseif (equal(wext,'in')) then
+       call c%write_espresso(file)
+    elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
+       call c%write_vasp(file,.false.)
+    elseif (equal(wext,'abin')) then
+       call c%write_abinit(file)
+    elseif (equal(wext,'elk')) then
+       call c%write_elk(file)
+    elseif (equal(wext,'tess')) then
+       call c%write_tessel(file)
+    elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
+       call c%write_critic(file)
+    elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
+       call c%write_cif(file,.true.)
+    elseif (equal(wext,'d12').or.equal(wext,'34')) then
+       call c%write_d12(file,.true.)
+    elseif (equal(wext,'res')) then
+       call c%write_res(file,.true.)
+    elseif (equal(wext,'m')) then
+       call c%write_escher(file)
+    elseif (equal(wext,'db')) then
+       call c%write_db(file)
+    elseif (equal(wext,'gin')) then
+       call c%write_gulp(file)
+    elseif (equal(wext,'lammps')) then
+       call c%write_lammps(file)
+    elseif (equal(wext,'fdf')) then
+       call c%write_siesta_fdf(file)
+    elseif (equal(wext,'struct_in')) then
+       call c%write_siesta_in(file)
+    elseif (equal(wext,'hsd')) then
+       call c%write_dftbp_hsd(file)
+    elseif (equal(wext,'gen')) then
+       call c%write_dftbp_gen(file)
+    elseif (equal(wext,'pyscf')) then
+       call c%write_pyscf(file)
+    else
+       call ferror('struct_write','unrecognized file format',faterr)
+    end if
+
+  end subroutine write_simple_driver
+
   !> Write a xyz/gjf/cml file containing a finite piece of the crystal
   !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
   !> of unit cells to plot.  If doborder is .true., add all atoms at
@@ -4529,8 +4589,8 @@ contains
   !> rcub (bohr) is positive, use all atoms in a cube around xcub
   !> (cryst.). If luout is present, return the LU in that argument
   !> and do not close the file.
-  module subroutine write_mol(c,file,fmt,ix,doborder,onemotif,molmotif,&
-     environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,luout)
+  module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
+     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,luout)
     use global, only: dunit0, iunit
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
@@ -4540,13 +4600,13 @@ contains
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
-    integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, onemotif, molmotif, environ
-    real*8, intent(in) :: renv
-    logical, intent(in) :: lnmer
-    integer, intent(in) :: nmer
-    real*8, intent(in) :: rsph, xsph(3)
-    real*8, intent(in) :: rcub, xcub(3)
+    integer, intent(in), optional :: ix0(3)
+    logical, intent(in), optional :: doborder0, onemotif0, molmotif0, environ0
+    real*8, intent(in), optional :: renv0
+    logical, intent(in), optional :: lnmer0
+    integer, intent(in), optional :: nmer0
+    real*8, intent(in), optional :: rsph0, xsph0(3)
+    real*8, intent(in), optional :: rcub0, xcub0(3)
     integer, intent(out), optional :: luout
 
     type(fragment) :: fr
@@ -4559,6 +4619,39 @@ contains
     logical :: doagain
     real*8, allocatable :: cmlist(:,:)
     real*8 :: xcm(3), dist
+    integer :: ix(3)
+    logical :: doborder, onemotif, molmotif, environ
+    real*8 :: renv
+    logical :: lnmer
+    integer :: nmer
+    real*8 :: rsph, xsph(3)
+    real*8 :: rcub, xcub(3)
+
+    ! set the default options
+    ix = 1
+    doborder = .false.
+    onemotif = .false.
+    molmotif = .false.
+    environ = .false.
+    renv = 0d0
+    lnmer = .false.
+    nmer = 1
+    rsph = -1d0
+    xsph = 0d0
+    rcub = -1d0
+    xcub = 0d0
+    if (present(ix0)) ix = ix0
+    if (present(doborder0)) doborder = doborder0
+    if (present(onemotif0)) onemotif = onemotif0
+    if (present(molmotif0)) molmotif = molmotif0
+    if (present(environ0)) environ = environ0
+    if (present(renv0)) renv = renv0
+    if (present(lnmer0)) lnmer = lnmer0
+    if (present(nmer0)) nmer = nmer0
+    if (present(rsph0)) rsph = rsph0
+    if (present(xsph0)) xsph = xsph0
+    if (present(rcub0)) rcub = rcub0
+    if (present(xcub0)) xcub = xcub0
 
     ! determine the fragments
     if (onemotif) then
@@ -4798,8 +4891,8 @@ contains
   !> rcub (bohr) is positive, use all atoms in a cube around xcub
   !> (cryst.). If gr0 is present, then return the graphics handle and
   !> do not close the files.
-  module subroutine write_3dmodel(c,file,fmt,ix,doborder,onemotif,molmotif,&
-     docell,domolcell,rsph,xsph,rcub,xcub,gr0)
+  module subroutine write_3dmodel(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
+     docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0)
     use graphics, only: grhandle
     use fragmentmod, only: fragment
     use tools_io, only: equal
@@ -4807,11 +4900,11 @@ contains
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
-    integer, intent(in) :: ix(3)
-    logical, intent(in) :: doborder, onemotif, molmotif
-    logical, intent(in) :: docell, domolcell
-    real*8, intent(in) :: rsph, xsph(3)
-    real*8, intent(in) :: rcub, xcub(3)
+    integer, intent(in), optional :: ix0(3)
+    logical, intent(in), optional :: doborder0, onemotif0, molmotif0
+    logical, intent(in), optional :: docell0, domolcell0
+    real*8, intent(in), optional :: rsph0, xsph0(3)
+    real*8, intent(in), optional :: rcub0, xcub0(3)
     type(grhandle), intent(out), optional :: gr0
 
     integer :: i, j
@@ -4821,6 +4914,11 @@ contains
     logical, allocatable :: isdiscrete(:)
     integer :: nmol
     type(grhandle) :: gr
+    integer :: ix(3)
+    logical :: doborder, onemotif, molmotif
+    logical :: docell, domolcell
+    real*8 :: rsph, xsph(3)
+    real*8 :: rcub, xcub(3)
 
     real*8, parameter :: rfac = 1.4d0
     real*8, parameter :: x0cell(3,2,12) = reshape((/&
@@ -4836,6 +4934,28 @@ contains
        1d0, 1d0, 1d0,   0d0, 1d0, 1d0,&
        1d0, 1d0, 1d0,   1d0, 0d0, 1d0,&
        1d0, 1d0, 1d0,   1d0, 1d0, 0d0/),shape(x0cell))
+
+    ! set default values
+    ix = 1
+    doborder = .false.
+    onemotif = .false.
+    molmotif = .false.
+    docell = .false.
+    domolcell = .false.
+    rsph = -1d0
+    xsph = 0d0
+    rcub = -1d0
+    xcub = 0d0
+    if (present(ix0)) ix = ix0
+    if (present(doborder0)) doborder = doborder0
+    if (present(onemotif0)) onemotif = onemotif0
+    if (present(molmotif0)) molmotif = molmotif0
+    if (present(docell0)) docell = docell0
+    if (present(domolcell0)) domolcell = domolcell0
+    if (present(rsph0)) rsph = rsph0
+    if (present(xsph0)) xsph = xsph0
+    if (present(rcub0)) rcub = rcub0
+    if (present(xcub0)) xcub = xcub0
 
     ! open and get the atom list
     if (onemotif) then
