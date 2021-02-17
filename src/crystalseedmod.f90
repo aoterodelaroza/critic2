@@ -20,6 +20,7 @@
 
 ! Crystal seed class. External file readers.
 module crystalseedmod
+  use fragmentmod, only: fragment
   use types, only: species
   use param, only: mlen
   implicit none
@@ -61,6 +62,7 @@ module crystalseedmod
    contains
      procedure :: parse_crystal_env
      procedure :: parse_molecule_env
+     procedure :: from_fragment
      procedure :: read_library
      procedure :: read_cif
      procedure :: read_shelx
@@ -115,6 +117,10 @@ module crystalseedmod
        logical, intent(in) :: mol
        logical, intent(out) :: oksyn
      end subroutine read_library
+     module subroutine from_fragment(seed,fr)
+       class(crystalseed), intent(inout) :: seed
+       type(fragment), intent(in) :: fr
+     end subroutine from_fragment
      module subroutine read_cif(seed,file,dblock,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

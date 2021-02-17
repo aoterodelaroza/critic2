@@ -1955,13 +1955,22 @@ contains
   !> RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the
-  !> charges. Optionally, if npairs0/ipairs0 are given, return the
-  !> RDF of only the pairs of species given in the ipairs0
-  !> array. npairs0 is the number of selected pairs. If dp, ip, and isp
-  !> are provided, on output they will contain the list of peaks that contribute
-  !> to the RDF. Specifically, the distances (dp, in bohr), intensities
-  !> (ip), and the atomic species (isp(2,*)).
-  module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0)
+  !> charges.
+  !>
+  !> Optionally, if npairs0/ipairs0 are given, return the RDF of only
+  !> the pairs of species given in the ipairs0 array. npairs0 is the
+  !> number of selected pairs. If dp, ip, and isp are provided, on
+  !> output they will contain the list of peaks that contribute to the
+  !> RDF. Specifically, the distances (dp, in bohr), intensities (ip),
+  !> and the atomic species (isp(2,*)).
+  !>
+  !> If ihat is present, return the RDF for non-equivalent atom i in
+  !> ihat(:,i).
+  !>
+  !> If intpeak is present, use intpeak(i) for the intensity of a peak
+  !> associated with non-equivalent atom i, instead of its atomic
+  !> number.
+  module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
     use global, only: atomeps
     use param, only: icrd_cart
     use environmod, only: environ
@@ -1975,6 +1984,8 @@ contains
     real*8, allocatable, intent(inout) :: ih(:)
     integer, intent(in), optional :: npairs0
     integer, intent(in), optional :: ipairs0(:,:)
+    real*8, allocatable, intent(inout), optional :: ihat(:,:)
+    real*8, intent(in), optional :: intpeak(:)
 
     integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
     integer :: idx, mmult, mza
@@ -1982,7 +1993,7 @@ contains
     logical :: localenv, found
     type(environ) :: le
     integer, allocatable :: eid(:), ipairs(:,:)
-    real*8, allocatable :: dist(:)
+    real*8, allocatable :: dist(:), ihaux(:)
 
     real*8, parameter :: ieps = 1d-10
 
@@ -1991,6 +2002,7 @@ contains
     if (present(npairs0) .and. present(ipairs0)) then
        npairs = npairs0
        if (npairs > 0) then
+          allocate(ipairs(size(ipairs0,1),npairs))
           ipairs = ipairs0(:,1:npairs)
           do i = 1, npairs
              if (ipairs(2,i) < ipairs(1,i)) then
@@ -2000,6 +2012,13 @@ contains
              end if
           end do
        end if
+    end if
+
+    ! set up the space for atomic RDFs
+    if (present(ihat)) then
+       if (allocated(ihat)) deallocate(ihat)
+       allocate(ihat(npts,c%nneq))
+       ihat = 0d0
     end if
 
     ! sigma2 and tshift for soft RDFs
@@ -2020,11 +2039,12 @@ contains
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
-    allocate(t(npts),ih(npts))
+    allocate(t(npts),ih(npts),ihaux(npts))
     do i = 1, npts
        t(i) = rini + real(i-1,8) / real(npts-1,8) * (rend-rini)
     end do
     ih = 0d0
+    ihaux = 0d0
 
     ! prepare the environment
     localenv = .true.
@@ -2089,16 +2109,27 @@ contains
              fac = 1d0
           end if
 
-          int = fac * sqrt(real(iz * jz,8)) * c%at(i)%mult
-          ih = ih + int * exp(-(t - dist(j))**2 / 2d0 / sigma2)
+          if (present(intpeak)) then
+             int = fac * sqrt(intpeak(i) * intpeak(idx)) * c%at(i)%mult
+          else
+             int = fac * sqrt(real(iz * jz,8)) * c%at(i)%mult
+          end if
+          ihaux = int * exp(-(t - dist(j))**2 / 2d0 / sigma2)
+          ih = ih + ihaux
+          if (present(ihat)) &
+             ihat(:,i) = ihat(:,i) + ihaux
        end do
     end do
     if (.not.c%ismolecule) then
        do i = 1, npts
           if (abs(t(i)) < atomeps) cycle
           ih(i) = ih(i) / t(i)**2
+          if (present(ihat)) &
+             ihat(i,:) = ihat(i,:) / t(i)**2
        end do
        ih = ih / c%ncel
+       if (present(ihat)) &
+          ihat = ihat / c%ncel
     end if
 
   end subroutine rdf

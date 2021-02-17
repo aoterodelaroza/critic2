@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -35,7 +35,7 @@ contains
 
     integer :: n, m, i
     real*8 :: w
-    
+
     ! check that the lengths are equal
     n = size(f)
     if (size(g) /= n) call ferror('crosscorr_triangle','inconsistent spectra',faterr)
@@ -155,7 +155,7 @@ contains
   !>  rrlm(:) = (/ C00, C11, C10, S11, C22, C21, C20, S21, S22,... /)
   !> and the first few are:
   !> C00 = 1 ; C11 = x ; C10 = z ; S11 = y
-  !> C22 = sqrt(3)/2*(x^2-y^2) ; C21 = sqrt(3)*x*z 
+  !> C22 = sqrt(3)/2*(x^2-y^2) ; C21 = sqrt(3)*x*z
   !> C20 = 1/2*(3*z^2-r^2)
   !> S21 = sqrt(3)*y*z ; S22 = sqrt(3)*x*y
   !>
@@ -177,21 +177,21 @@ contains
        imin = l*l+1
        imax = (l+1)*(l+1)
        rlm(imin:imax) = rlm(imin:imax) * sqrt(4d0*pi/(2*l+1)) * r**l
-       
+
        ! m = 0
        ip = imin+l
        rrlm(ip) = real(rlm(ip),8)
 
        ! m > 0
        do m = 1, l
-          ip = imin + l + m 
-          im = imin + l - m 
+          ip = imin + l + m
+          im = imin + l - m
           iphas = (-1)**m
           rrlm(im) = sh * real(iphas*rlm(ip)+rlm(im),8)
           rrlm(ip) = sh * real(-iphas*img*rlm(ip)+img*rlm(im),8)
        end do
     end do
-    
+
   end subroutine genrlm_real
 
   !> Generates a sequence of spherical harmonics, including the Condon-Shortley
@@ -265,7 +265,7 @@ contains
     return
   end subroutine genylm
 
-  !> Convert the input vector v to spherical coordinates. 
+  !> Convert the input vector v to spherical coordinates.
   !> v = (r*sin(th)*cos(ph),r*sin(th)*sin(ph),r*cos(th))
   module subroutine tosphere(v,r,tp)
     use param, only: pi
@@ -468,7 +468,7 @@ contains
     real*8, intent(in) :: a, b
     real*8, intent(out) :: rho
     real*8, intent(out), optional :: rho1, rho2
-    
+
     ! radial grid derivation formulas
     integer, parameter :: noef(6,3) = reshape((/&
        0,  1,  2,  3,  4,  5,&
@@ -589,7 +589,7 @@ contains
     return
   end function ep
 
-  !> Compute the greatest common divisor of an array of num integers (n). 
+  !> Compute the greatest common divisor of an array of num integers (n).
   module function gcdn(n,num)
     integer, intent(in) :: n(num)
     integer, intent(in) :: num
@@ -610,7 +610,7 @@ contains
     end do
 
   end function gcdn
-  
+
   !> Compute greatest common divisor of two integers.
   module function gcd2(m,n)
     integer, intent(in) :: m
@@ -639,8 +639,8 @@ contains
     gcd2 = mlo
 
   end function gcd2
-  
-  !> Compute the least common multiple of an array of num integers (n). 
+
+  !> Compute the least common multiple of an array of num integers (n).
   module function lcmn(n,num)
     integer, intent(in) :: n(num)
     integer, intent(in) :: num
@@ -671,7 +671,7 @@ contains
 
   end function lcm2
 
-  !> Compute the greatest common divisor of an array of num integers (n). 
+  !> Compute the greatest common divisor of an array of num integers (n).
   !> integer*8 version.
   module function gcdn_i8(n,num)
     integer*8, intent(in) :: n(num)
@@ -693,7 +693,7 @@ contains
     end do
 
   end function gcdn_i8
-  
+
   !> Compute greatest common divisor of two integers.  integer*8
   !> version.
   module function gcd2_i8(m,n)
@@ -716,7 +716,7 @@ contains
     gcd2_i8 = mlo
 
   end function gcd2_i8
-  
+
   !> Compute the least common multiple of an array of num integers
   !> (n).  integer*8 version.
   module function lcmn_i8(n,num)
@@ -955,13 +955,13 @@ contains
   module function mnorm2(a)
     real*8, intent(in) :: a(3,3)
     real*8 :: mnorm2
-    
+
     real*8 :: b(3,3), eval(3)
 
     b = matmul(transpose(a),a)
     call eigsym(b,3,eval)
     mnorm2 = sqrt(maxval(eval))
-    
+
   end function mnorm2
 
   !> Determinant of a real 3x3 symmetric matrix
@@ -973,7 +973,7 @@ contains
        2d0 * m(1,2) * m(2,3) * m(1,3) - &
        m(1,3) * m(1,3) * m(2,2) - &
        m(2,3) * m(2,3) * m(1,1) - &
-       m(1,2) * m(1,2) * m(3,3) 
+       m(1,2) * m(1,2) * m(3,3)
 
   end function det3sym
 
@@ -994,7 +994,7 @@ contains
     integer, intent(in) :: n0
     real*8, intent(inout) :: m(n0,n0)
     integer, intent(out), optional :: ier
-    
+
     integer :: lwork
     real*8 :: onework(1)
     real*8, allocatable :: work(:)
@@ -1030,7 +1030,7 @@ contains
     integer, intent(in) :: n0
     real*8, intent(inout) :: m(n0,n0)
     integer, intent(out), optional :: ier
-    
+
     integer :: lwork
     real*8, allocatable :: work(:)
     real*8 :: onework(1)
@@ -1077,7 +1077,7 @@ contains
     use param, only: VSMALL
     real*8, intent(inout) :: x0(3), x1(3), x2(3)
     real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
-    
+
     real*8 :: sx, sy, zx0, zx1, zy0, zy1
     real*8 :: ax(3), ay(3), ax0(3), ax1(3), ay0(3), ay1(3), dx, dy
 
@@ -1093,7 +1093,7 @@ contains
     if (present(zx1i)) zx1 = zx1i
     if (present(zy0i)) zy0 = zy0i
     if (present(zy1i)) zy1 = zy1i
-    
+
     ax = (x1-x0)
     ay = (x2-x0)
     dx = norm2(ax)
@@ -1203,14 +1203,14 @@ contains
        ziso(10)= 2.d-1
        ziso(11)= 4.d-1
        ziso(12)= 8.d-1
-       ziso(13)= 1.d0 
-       ziso(14)= 2.d0 
-       ziso(15)= 4.d0 
-       ziso(16)= 8.d0 
-       ziso(17)= 1.d1 
-       ziso(18)= 2.d1 
-       ziso(19)= 4.d1 
-       ziso(20)= 8.d1 
+       ziso(13)= 1.d0
+       ziso(14)= 2.d0
+       ziso(15)= 4.d0
+       ziso(16)= 8.d0
+       ziso(17)= 1.d1
+       ziso(18)= 2.d1
+       ziso(19)= 4.d1
+       ziso(20)= 8.d1
        if (fmin < -eps) then
           ziso(21:40) = ziso(1:20)
           ziso(1) = -8.d1
@@ -1317,7 +1317,7 @@ contains
     use tools_io, only: ferror, faterr
     real*8, intent(in) :: x1o(:,:), x2o(:,:)
     real*8 :: rmsd
-    
+
     integer :: n, i, idx
     real*8, allocatable :: x1(:,:), x2(:,:)
     real*8 :: xcm1(3), xcm2(3), c1(4,4), c2, c3(4,4), xex(4)
@@ -1327,7 +1327,7 @@ contains
     if (size(x1o,1) /= 3 .or. size(x2o,1) /= 3 .or. size(x2o,2) /= n) &
        call ferror("rmsd_walker","Inconsistent number of points",faterr)
     allocate(x1(3,n),x2(3,n))
-    
+
     xcm1 = sum(x1o,2) / n
     xcm2 = sum(x2o,2) / n
     do i = 1, n
@@ -1452,7 +1452,7 @@ contains
   !> spherically averaged exchange hole in the BR model is an
   !> exponential A*exp(-alpha * r) at a distance b from the reference
   !> point. A = prefac, alpha = alf, b = b. Input: spin density
-  !> (rho), curvature of the hole (quad), and normalization (hnorm). 
+  !> (rho), curvature of the hole (quad), and normalization (hnorm).
   !>  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
   module subroutine bhole(rho,quad,hnorm,b,alf,prefac)
     use tools_io, only: ferror, faterr
@@ -1513,7 +1513,7 @@ contains
   end subroutine bhole
 
   !> Calculate the effective hole normalization using the reverse BR
-  !> trick. From numol. rho = spin density; quad = qsigma; uxpos = 
+  !> trick. From numol. rho = spin density; quad = qsigma; uxpos =
   !> Slater potential (spin). xlnrm = effective hole normalization.
   module subroutine xlnorm(rho,quad,uxpos,xlnrm)
     use tools_io, only: ferror, faterr
@@ -1588,7 +1588,7 @@ contains
       df=df/bot**2
     end subroutine xlfuns
   end subroutine xlnorm
-  
+
   !> Tang-Toennies damping function:
   !>  f(r) = 1 - exp(-br) * sum_k=0^n (br^k) / k!
   module function fdamp_tt(r,b,n)
@@ -1626,7 +1626,7 @@ contains
 
   !xx! private procedures
 
-  !< RHS of the BR hole equation, and derivative. 
+  !< RHS of the BR hole equation, and derivative.
   subroutine bhole_xfuncs(x,rhs,f,df)
     real*8, intent(in) :: x !< x-value
     real*8, intent(in) :: rhs !< Right-hand side

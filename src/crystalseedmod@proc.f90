@@ -652,6 +652,52 @@ contains
 
   end subroutine read_library
 
+  !> Create a crystal seed from a molecular fragment
+  module subroutine from_fragment(seed,fr)
+    use global, only: rborder_def
+    use tools_io, only: ferror, faterr
+    class(crystalseed), intent(inout) :: seed
+    type(fragment), intent(in) :: fr
+
+    integer :: i
+
+    if (fr%nat==0) &
+       call ferror('from_fragment','fragment has zero atoms',faterr)
+    if (.not.fr%discrete) &
+       call ferror('from_fragment','cannot handle non-discrete fragments',faterr)
+
+    ! copy species
+    seed%nspc = fr%nspc
+    if (allocated(seed%spc)) deallocate(seed%spc)
+    allocate(seed%spc(seed%nspc))
+    seed%spc = fr%spc
+
+    ! copy atoms
+    seed%nat = fr%nat
+    if (allocated(seed%x)) deallocate(seed%x)
+    if (allocated(seed%is)) deallocate(seed%is)
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    do i = 1, seed%nat
+       seed%x(:,i) = fr%at(i)%r
+       seed%is(i) = fr%at(i)%is
+    end do
+
+    ! rest of the info
+    seed%useabr = 0
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+    seed%isused = .true.
+    seed%ismolecule = .true.
+    seed%cubic = .false.
+    seed%border = rborder_def
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = ""
+    seed%name = ""
+
+  end subroutine from_fragment
+
   !> Read the structure from a CIF file (uses ciftbx) and returns a
   !> crystal seed.
   module subroutine read_cif(seed,file,dblock,mol,errmsg)

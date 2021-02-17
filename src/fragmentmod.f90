@@ -26,7 +26,7 @@ module fragmentmod
   private
   public :: fragment
   public :: realloc_fragment
-  
+
   !> Type for a fragment of the crystal
   type fragment
      integer :: nat !< Number of atoms in the fragment
@@ -45,17 +45,17 @@ module fragmentmod
      procedure :: writecml ! write a cml file
      procedure :: writegjf ! write a gjf file
   end type fragment
-  
+
   interface
      module subroutine fragment_init(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_init
-     module subroutine merge_array(fr,fra,add) 
+     module subroutine merge_array(fr,fra,add)
        class(fragment), intent(inout) :: fr
        type(fragment), intent(in) :: fra(:)
        logical, intent(in), optional :: add
      end subroutine merge_array
-     module subroutine append(fr,fra) 
+     module subroutine append(fr,fra)
        class(fragment), intent(inout) :: fr
        class(fragment), intent(in) :: fra
      end subroutine append

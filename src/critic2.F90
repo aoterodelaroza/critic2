@@ -41,7 +41,7 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys
+     struct_makemols_neighcrys, struct_order_molecules
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -497,6 +497,10 @@ program critic
         ! makemols_neighcrys
      elseif (equal(word,'makemols_neighcrys')) then
         call struct_makemols_neighcrys(line,lp)
+
+        ! order_molecules
+     elseif (equal(word,'order_molecules')) then
+        call struct_order_molecules(line,lp)
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&

@@ -30,7 +30,7 @@ module crystalmod
   private
 
   !> The crystal class. A crystal contains the structural information for the
-  !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule 
+  !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule
   !> (%ismolecule=.true.) embedded in a large cell. When use in combination
   !> with the system class, the crystal needs to be passed as pointer to the
   !> system, and therefore needs to be declared as TARGET.
@@ -84,7 +84,7 @@ module crystalmod
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
      real*8 :: molborder(3) !< molecular cell border (cryst coords)
-     ! wigner-seitz cell 
+     ! wigner-seitz cell
      integer :: ws_nv !< number of vertices
      integer :: ws_nf !< number of facets
      integer :: ws_mnfv !< maximum number of vertices per facet
@@ -228,7 +228,7 @@ module crystalmod
 
   ! other crystallography tools that are crystal-independent
   public :: search_lattice
-  
+
   ! module procedure interfaces
   interface
      !xx! proc submodule
@@ -252,7 +252,7 @@ module crystalmod
      end function identify_spc
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
-       real*8, intent(in) :: xx(3) 
+       real*8, intent(in) :: xx(3)
        real*8 :: res(3)
      end function x2c
      pure module function c2x(c,xx) result(res)
@@ -425,7 +425,7 @@ module crystalmod
        real*8, allocatable, intent(inout) :: ip(:)
        integer, allocatable, intent(inout) :: hvecp(:,:)
      end subroutine powder
-     module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0)
+     module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rini
        real*8, intent(in) :: rend
@@ -436,6 +436,8 @@ module crystalmod
        real*8, allocatable, intent(inout) :: ih(:)
        integer, intent(in), optional :: npairs0
        integer, intent(in), optional :: ipairs0(:,:)
+       real*8, allocatable, intent(inout), optional :: ihat(:,:)
+       real*8, intent(in), optional :: intpeak(:)
      end subroutine rdf
      module subroutine calculate_ewald_cutoffs(c)
        class(crystal), intent(inout) :: c
@@ -682,15 +684,15 @@ module crystalmod
        real*8, intent(out) :: fp(3)
        real*8, intent(out) :: fpp(3,3)
        integer, intent(in) :: nder
-       integer, intent(in), optional :: zpsp(:) 
+       integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
      module subroutine promolecular_grid(c,f,n,zpsp,fr)
        use grid3mod, only: grid3
-       class(crystal), intent(in) :: c 
-       type(grid3), intent(out) :: f 
+       class(crystal), intent(in) :: c
+       type(grid3), intent(out) :: f
        integer, intent(in) :: n(3)
-       integer, intent(in), optional :: zpsp(:)  
+       integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_grid
      !xx! environproc submodule

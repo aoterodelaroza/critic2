@@ -270,7 +270,7 @@ contains
     use spglib, only: SpglibDataset, spg_standardize_cell
     use global, only: symprec
     use tools_math, only: matinv
-    use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, isreal, string
+    use tools_io, only: uout, lgetword, equal, isinteger, ferror, faterr, string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
@@ -1139,13 +1139,13 @@ contains
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
-       ioj_left, string
+       ioj_left, string, lower
     use types, only: realloc
     use param, only: isformat_unknown
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, tname, difstr, diftyp
+    character(len=:), allocatable :: word, lword, tname, difstr, diftyp
     integer :: doguess0
     integer :: lp, i, j, k, n
     integer :: ns, imol, isformat, ismoli
@@ -1183,36 +1183,37 @@ contains
     imol = -1
     do while(.true.)
        word = getword(line,lp)
-       if (equal(word,'xend')) then
+       lword = lower(word)
+       if (equal(lword,'xend')) then
           ok = eval_next(xend,line,lp)
           if (.not.ok) then
              call ferror('struct_compare','incorrect TH2END',faterr,syntax=.true.)
              return
           end if
-       elseif (equal(word,'sigma')) then
+       elseif (equal(lword,'sigma')) then
           ok = eval_next(sigma,line,lp)
           if (.not.ok) then
              call ferror('struct_compare','incorrect SIGMA',faterr,syntax=.true.)
              return
           end if
-       elseif (equal(word,'reduce')) then
+       elseif (equal(lword,'reduce')) then
           ok = eval_next(epsreduce,line,lp)
           if (.not.ok) then
              call ferror('struct_compare','incorrect REDUCE',faterr,syntax=.true.)
              return
           end if
-       elseif (equal(word,'powder')) then
+       elseif (equal(lword,'powder')) then
           dopowder = .true.
-       elseif (equal(word,'rdf')) then
+       elseif (equal(lword,'rdf')) then
           dopowder = .false.
           sorted = .false.
-       elseif (equal(word,'molecule')) then
+       elseif (equal(lword,'molecule')) then
           imol = 1
-       elseif (equal(word,'crystal')) then
+       elseif (equal(lword,'crystal')) then
           imol = 0
-       elseif (equal(word,'sorted')) then
+       elseif (equal(lword,'sorted')) then
           sorted = .true.
-       elseif (equal(word,'unsorted')) then
+       elseif (equal(lword,'unsorted')) then
           sorted = .false.
        elseif (len_trim(word) > 0) then
           ns = ns + 1
@@ -1307,7 +1308,7 @@ contains
 
     if (.not.ismol .or. (ismol.and..not.sorted)) then
        ! crystals
-       allocate(iha(10001,ns))
+       allocate(iha(npts,ns))
        do i = 1, ns
           ! calculate the powder diffraction pattern
           if (dopowder) then
@@ -2883,5 +2884,291 @@ contains
     return
 
   end subroutine struct_makemols_neighcrys
+
+  !> Put the atoms of one molecule in the same order as another.
+  module subroutine struct_order_molecules(line,lp)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_math, only: crosscorr_triangle, rmsd_walker
+    use tools_io, only: getword, string, ferror, faterr, lower, equal, isreal, uout, string
+    use types, only: realloc
+    use param, only: maxzat0
+    character*(*), intent(in) :: line
+    integer, intent(inout) :: lp
+
+    type(crystal) :: cref, cx
+    type(crystal), allocatable :: c(:)
+    type(crystalseed) :: seed
+    character*1024, allocatable :: fname(:)
+    character(len=:), allocatable :: word, lword, wfile, msg
+    integer :: i, j, is, ns, lp, nat, idx0, idx1
+    real*8, allocatable :: t(:), iha(:,:), ihat(:,:,:)
+    real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
+    real*8 :: xdiff, h, eps, rms1, rms2
+    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:)
+    real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
+    logical, allocatable :: isinv(:)
+    logical :: ok, mol2nd
+
+    integer, parameter :: isuse_valid = 0
+    integer, parameter :: isuse_different_nat = 1
+    integer, parameter :: isuse_different_rdf = 2
+    integer, parameter :: isuse_equivalent_to_other = 3
+    integer, parameter :: isuse_could_not_assign = 4
+
+    real*8, parameter :: rend0 = 25d0
+    real*8, parameter :: sigma0 = 0.05d0
+    integer, parameter :: npts0 = 201
+    real*8, parameter :: eps_default = 1d-6
+
+    write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
+
+    ! read the input
+    ns = 0
+    eps = eps_default
+    allocate(fname(2))
+    do while(.true.)
+       word = getword(line,lp)
+       lword = lower(word)
+       if (equal(lword,'write')) then
+          wfile = getword(line,lp)
+       elseif (equal(lword,'eps')) then
+          ok = isreal(eps,line,lp)
+          if (.not.ok) &
+             call ferror("struct_order_molecules","error reading eps",faterr)
+       elseif (len_trim(word) == 0) then
+          exit
+       else
+          ns = ns + 1
+          if (ns > 2) &
+             call ferror("struct_order_molecules","cannot order more than two structures",faterr)
+          fname(ns) = word
+       end if
+    end do
+    if (ns /= 2) &
+       call ferror("struct_order_molecules","need two structures to order",faterr)
+
+    ! get the reference structure and check it is a molecule
+    call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
+    if (.not.cref%isinit) &
+       call ferror("struct_order_molecules","could not load structure" // string(fname(1)),faterr)
+    allocate(c(1))
+    if (.not.cref%ismolecule) &
+       call ferror("struct_order_molecules","the first structure is not a molecule",faterr)
+
+    ! get the other structures
+    do i = 2, ns
+       call struct_crystal_input(fname(i),-1,.false.,.false.,cr0=c(i-1))
+       if (.not.c(i-1)%isinit) &
+          call ferror("struct_order_molecules","could not load structure" // string(fname(i)),faterr)
+    end do
+
+    ! if the second structure is a crystal, load all the fragments
+    if (.not.c(1)%ismolecule) then
+       if (.not.c(1)%ismol3d) &
+          call ferror("struct_order_molecules","the second structure is not a molecular crystal",faterr)
+       if (any(c(1)%idxmol(1:c(1)%nmol) < 0)) &
+          call ferror("struct_order_molecules","the second structure must have whole molecules",faterr)
+
+       ! save the crystal in cx
+       cx = c(1)
+
+       ! read the fragments from cx into structures
+       deallocate(c)
+       allocate(c(cx%nmol))
+       do i = 1, cx%nmol
+          call seed%from_fragment(cx%mol(i))
+          call c(i)%struct_new(seed,.true.)
+       end do
+       ns = cx%nmol
+       mol2nd = .false.
+    else
+       ns = 1
+       mol2nd = .true.
+    end if
+
+    ! allocate the use and permutation arrays
+    allocate(isuse(ns),isperm(cref%nneq,ns))
+    isuse = isuse_valid
+
+    ! do not process equivalent molecules
+    if (.not.mol2nd) then
+       do i = 1, ns
+          if (cx%idxmol(i) > 0) isuse(i) = isuse_equivalent_to_other
+       end do
+    end if
+
+    ! check that the number of atoms are equal
+    do i = 1, ns
+       if (cref%nneq /= c(i)%nneq) isuse(i) = isuse_different_nat
+    end do
+    nat = cref%nneq
+
+    ! allocate space for the RDFs
+    allocate(iha(npts0,ns),ihat(npts0,nat,ns),ihatrefsave(npts0,nat))
+    iha = 0d0
+    ihat = 0d0
+
+    ! get the RDF for the reference structure and save it
+    h = rend0 / real(npts0-1,8)
+    call cref%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihref,ihat=ihatref)
+    ihref = ihref / sqrt(abs(crosscorr_triangle(h,ihref,ihref,1d0)))
+    do j = 1, nat
+       ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
+    end do
+    ihatrefsave = ihatref
+
+    ! check the total RDF of each fragment matches the reference
+    do i = 1, ns
+       if (isuse(i) /= isuse_valid) cycle
+
+       ! calculate the RDFs
+       call c(i)%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihataux)
+       iha(:,i) = ihaux / sqrt(abs(crosscorr_triangle(h,ihaux,ihaux,1d0)))
+       do j = 1, nat
+          ihat(:,j,i) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
+       end do
+
+       ! check that the molecules are identical
+       xdiff = max(1d0 - crosscorr_triangle(h,ihref,iha(:,i),1d0),0d0)
+       if (xdiff > eps) isuse(i) = isuse_different_rdf
+    end do
+
+    ! identify equivalent atoms
+    allocate(idmult(nat,2),nid(nat),nidold(nat),intpeak(nat))
+    main: do is = 1, ns
+       if (isuse(is) /= isuse_valid) cycle
+
+       intpeak = 0
+       nidold = -1
+       nid = 0
+       ihatref = ihatrefsave
+       do while (.true.)
+          nidold = nid
+          nid = 0
+
+          ! recalculate the differences
+          idmult = 0
+          do i = 1, nat
+             do j = 1, nat
+                if (cref%spc(cref%at(i)%is)%z /= c(is)%spc(c(is)%at(j)%is)%z) cycle
+
+                xdiff = max(1d0 - crosscorr_triangle(h,ihatref(:,i),ihat(:,j,is),1d0),0d0)
+                if (xdiff < eps) then
+                   nid(i) = nid(i) + 1
+                   if (nid(i) > size(idmult,2)) &
+                      call realloc(idmult,nat,2*nid(i))
+                   idmult(i,nid(i)) = j
+                end if
+             end do
+          end do
+
+          if (any(nid == 0)) then
+             ! some atoms could not be assigned
+             isuse(is) = isuse_could_not_assign
+             cycle main
+          elseif (all(nid == nidold)) then
+             if (all(nid == 1)) then
+                ! all done
+                exit
+             else
+                ! Did not change and all nids are positive and some are > 1. Must be because of symmetry
+                ! so we arbitrarily assign a pair of atoms and continue
+                do i = 1, nat
+                   if (nid(i) > 1) then
+                      nid(i) = 1
+                      exit
+                   end if
+                end do
+             end if
+          end if
+
+          ! re-do the reference structure and assign peak intensity to unique atoms
+          do i = 1, nat
+             if (nid(i) == 1) then
+                intpeak(i) = maxzat0 + i
+             else
+                intpeak(i) = cref%spc(cref%at(i)%is)%z
+             end if
+          end do
+          call cref%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihatref,intpeak=intpeak)
+          do j = 1, nat
+             ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
+          end do
+
+          ! re-do the target structure and assign peak intensity to unique atoms
+          do i = 1, nat
+             intpeak(i) = c(is)%spc(c(is)%at(i)%is)%z
+          end do
+          do i = 1, nat
+             if (nid(i) == 1) intpeak(idmult(i,1)) = maxzat0 + i
+          end do
+          call c(is)%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihataux,intpeak=intpeak)
+          do j = 1, nat
+             ihat(:,j,is) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
+          end do
+       end do
+       isperm(:,is) = idmult(:,1)
+    end do main
+
+    ! get the rmsd from walker
+    allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
+    do i = 1, nat
+       x1(:,i) = cref%at(i)%r
+    end do
+    rmsd = 0d0
+    isinv = .false.
+    do is = 1, ns
+       if (isuse(is) /= isuse_valid) cycle
+       do i = 1, nat
+          x2(:,i) = c(is)%at(isperm(i,is))%r
+       end do
+       rms1 = rmsd_walker(x1,x2)
+       x2 = -x2
+       rms2 = rmsd_walker(x1,x2)
+       if (rms1 <= rms2) then
+          isinv(is) = .false.
+          rmsd(is) = rms1
+       else
+          isinv(is) = .true.
+          rmsd(is) = rms2
+       end if
+    end do
+
+    ! report on the results
+    write (uout,'("+ Reference structure: ",A)') string(cref%file)
+    write (uout,'("+ Target structure: ",A)') string(fname(2))
+    if (mol2nd) then
+       write (uout,'("  The target structure is a molecule.")')
+    else
+       write (uout,'("  The target structure is a molecular crystal with ",A," fragments.")') string(ns)
+    end if
+    write (uout,'("# List of reordered structures (",A,")")') string(ns)
+    write (uout,'("#id -- Reorder result --")')
+    do is = 1, ns
+       if (isuse(is) == isuse_different_nat) then
+          msg = "the target and reference structures have different number of atoms"
+       elseif (isuse(is) == isuse_different_rdf) then
+          msg = "the target and reference structures have different total RDFs"
+       elseif (isuse(is) == isuse_equivalent_to_other) then
+          msg = "the target structure is equivalent to another target structure in the crystal"
+       elseif (isuse(is) == isuse_could_not_assign) then
+          msg = "could not assign some atoms in the target structure"
+       else
+          msg = ""
+          do i = 1, nat
+             msg = msg // " " // string(isperm(i,is))
+          end do
+       end if
+       if (isuse(is) /= isuse_valid) then
+          write (uout,'(X,A," skipped (",A,")")') string(is,2), string(msg)
+       else
+          write (uout,'(X,A," success (rmse=",A,",inv=",A,",perm=",A,")")') &
+             string(is,2), trim(string(rmsd(is),'e',decimal=4)), string(isinv(is)), string(msg)
+       end if
+    end do
+    write (uout,*)
+
+  end subroutine struct_order_molecules
 
 end submodule proc
