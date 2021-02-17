@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -211,7 +211,7 @@ contains
     rewind(bas%luw)
     deallocate(inear,fnear,nlo,g,iio)
 
-    ! clean up and output 
+    ! clean up and output
     allocate(bas%idg(n(1),n(2),n(3)))
     bas%idg = reshape(ibasin,shape(bas%idg))
     deallocate(ibasin)
@@ -367,9 +367,9 @@ contains
 
     ! clean up
     deallocate(waux)
-  
+
   end subroutine yt_weights
-  
+
   !> Remap the attractors from a yt calculation
   module subroutine yt_remap(s,bas,dat,nattn,ilvec,iatt)
     use types, only: basindat, realloc
@@ -378,7 +378,7 @@ contains
     type(ytdata), intent(in) :: dat
     integer, intent(out) :: nattn
     integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:)
-    
+
     integer :: i, j, m1, m2, m3, p(3)
     real*8 :: x(3), xs(3), d2
     logical :: found
@@ -393,7 +393,7 @@ contains
     if (allocated(ilvec)) deallocate(ilvec)
     allocate(ilvec(3,bas%nattr))
     ilvec = 0
-             
+
     allocate(w(bas%n(1),bas%n(2),bas%n(3)))
     do i = 1, bas%nattr
        call yt_weights(din=dat,idb=i,w=w)

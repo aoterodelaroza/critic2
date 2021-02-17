@@ -703,6 +703,7 @@ contains
        seed%x(:,i) = fr%at(iord(i))%r
        seed%is(i) = fr%at(iord(i))%is
     end do
+    deallocate(iord)
 
     ! rest of the info
     seed%useabr = 0

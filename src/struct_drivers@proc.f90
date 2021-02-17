@@ -2907,7 +2907,7 @@ contains
     real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
     real*8 :: xdiff, h, eps, rms1, rms2
     integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:), itperm(:)
-    integer, allocatable :: cidxorig(:,:), iorder(:)
+    integer, allocatable :: cidxorig(:,:)
     real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     logical :: ok
@@ -2990,16 +2990,13 @@ contains
 
     ! make the mapping between structure+atom and the original cidx
     ! sort because the from_fragment routine also sorts
-    allocate(cidxorig(nat,ns),iorder(nat))
+    allocate(cidxorig(nat,ns))
     do is = 1, ns
        do i = 1, nat
-          iorder(i) = i
           cidxorig(i,is) = cx%mol(is)%at(i)%cidx
        end do
-       call qcksort(cidxorig(:,is),iorder,1,nat)
-       cidxorig(:,is) = cidxorig(iorder,is)
+       call qcksort(cidxorig(:,is))
     end do
-    deallocate(iorder)
 
     ! allocate space for the RDFs
     allocate(iha(npts0,ns),ihat(npts0,nat,ns),ihatrefsave(npts0,nat))

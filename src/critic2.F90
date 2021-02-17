@@ -50,6 +50,7 @@ program critic
   use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
+  use tools, only: mergesort
   use tools_io, only: uout, ucopy, uin, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, history_init, history_end, stdargs,&
      tictac, start_clock, print_clock, isinteger, isreal, getline
@@ -70,6 +71,7 @@ program critic
 #ifdef HAVE_LIBXC
   logical :: doref, doname, doflags
 #endif
+  integer :: temp(10)
 
   ! initialize parameters
   call start_clock()
@@ -619,7 +621,6 @@ program critic
 
         ! temp, for testing
      elseif (equal(word,'temp')) then
-        call sy%c%checkgroup()
 
      elseif (equal(word,'end')) then
         call check_no_extra_word(ok)

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -29,14 +29,14 @@ submodule (wfn_private) proc
   ! subroutine complete_struct(f,env)
 
   ! double factorials minus one
-  integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/) 
+  integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/)
 
   ! double factorials
-  integer, parameter :: dfac(0:8) = (/1,1,2,3,8,15,48,105,384/) 
+  integer, parameter :: dfac(0:8) = (/1,1,2,3,8,15,48,105,384/)
 
   ! number of angular components for shell type
   !                                    gs fs ds ps  s  p  d   f   g
-  integer, parameter :: nshlt(-4:4) = (/9, 7, 5, 3, 1, 3, 6, 10, 15/) 
+  integer, parameter :: nshlt(-4:4) = (/9, 7, 5, 3, 1, 3, 6, 10, 15/)
 
   ! initial and final types for cartesian (>0) and spherical (<0) shells
   integer, parameter :: jshl0(-4:4) = (/17, 10, 5, 2, 1, 2, 5,  11, 21/) ! s, p, d, f, g
@@ -79,7 +79,7 @@ submodule (wfn_private) proc
   real*8, parameter :: d34 = 3d0/4d0
   real*8, parameter :: d38 = 3d0/8d0
 
-  ! -- Real solid harmonics r^l * Slm as a function of Cartesian products. -- 
+  ! -- Real solid harmonics r^l * Slm as a function of Cartesian products. --
 
   ! see: Schlegel and Frisch, Int. J. Quantum Chem. 54 (1995) 83,
   !      "Transformation Between Cartesian and Pure Spherical Harmonic Gaussians"
@@ -90,7 +90,7 @@ submodule (wfn_private) proc
   !         sqrt(2) * Re[r^l * Y_l^|m|] if m > 0
   ! Can also be found in Helgaker, eqs. 9.1.9 to 9.1.12
 
-  ! dsphcar: l = 2 
+  ! dsphcar: l = 2
   !   spherical molden order: m = 0, 1, -1, 2, -2
   !   Cartesian molden order: xx, yy, zz, xy, xz, yz
   real*8 :: dsphcar(5,6) = reshape((/&
@@ -103,21 +103,21 @@ submodule (wfn_private) proc
       0.0d0, 0.0d0, 1.0d0, 0.0d0, 0.0d0 & ! yz
      /),shape(dsphcar))
 
-  ! fsphcar: l = 3 
+  ! fsphcar: l = 3
   !   spherical molden order: m = 0, 1, -1, 2, -2, 3, -3
   !   Cartesian molden order: xxx, yyy, zzz, xyy, xxy, xxz, xzz, yzz, yyz, xyz
   real*8 :: fsphcar(7,10) = reshape((/&
-     ! 0        1       -1         2       -2         3       -3 
-     0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,     s5_8,   0.0d0,& ! xxx 
-     0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   -s5_8,& ! yyy 
-     1.0d0,   0.0d0,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! zzz 
-     0.0d0,  -s3_40,   0.0d0,    0.0d0,   0.0d0,    -s9_8,   0.0d0,& ! xyy 
-     0.0d0,   0.0d0,  -s3_40,    0.0d0,   0.0d0,    0.0d0,    s9_8,& ! xxy 
-    -s9_20,   0.0d0,   0.0d0,     s3_4,   0.0d0,    0.0d0,   0.0d0,& ! xxz 
-     0.0d0,    s6_5,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! xzz 
-     0.0d0,   0.0d0,    s6_5,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! yzz 
-    -s9_20,   0.0d0,   0.0d0,    -s3_4,   0.0d0,    0.0d0,   0.0d0,& ! yyz 
-     0.0d0,   0.0d0,   0.0d0,    0.0d0,     1d0,    0.0d0,   0.0d0 & ! xyz 
+     ! 0        1       -1         2       -2         3       -3
+     0.0d0,   -s3_8,   0.0d0,    0.0d0,   0.0d0,     s5_8,   0.0d0,& ! xxx
+     0.0d0,   0.0d0,   -s3_8,    0.0d0,   0.0d0,    0.0d0,   -s5_8,& ! yyy
+     1.0d0,   0.0d0,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! zzz
+     0.0d0,  -s3_40,   0.0d0,    0.0d0,   0.0d0,    -s9_8,   0.0d0,& ! xyy
+     0.0d0,   0.0d0,  -s3_40,    0.0d0,   0.0d0,    0.0d0,    s9_8,& ! xxy
+    -s9_20,   0.0d0,   0.0d0,     s3_4,   0.0d0,    0.0d0,   0.0d0,& ! xxz
+     0.0d0,    s6_5,   0.0d0,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! xzz
+     0.0d0,   0.0d0,    s6_5,    0.0d0,   0.0d0,    0.0d0,   0.0d0,& ! yzz
+    -s9_20,   0.0d0,   0.0d0,    -s3_4,   0.0d0,    0.0d0,   0.0d0,& ! yyz
+     0.0d0,   0.0d0,   0.0d0,    0.0d0,     1d0,    0.0d0,   0.0d0 & ! xyz
      /),shape(fsphcar))
 
   ! gsphcar: l = 4
@@ -177,7 +177,7 @@ contains
   !> Terminate the wfn arrays
   module subroutine wfn_end(f)
     class(molwfn), intent(inout) :: f
-    
+
     if (allocated(f%icenter)) deallocate(f%icenter)
     if (allocated(f%icord)) deallocate(f%icord)
     if (allocated(f%iprilo)) deallocate(f%iprilo)
@@ -257,7 +257,7 @@ contains
     end do
 
     errmsg = ""
-999 continue    
+999 continue
     call fclose(lu)
 
   end subroutine wfn_read_xyz_geometry
@@ -482,7 +482,7 @@ contains
        x(:,i) = xat((i-1)*3+1:(i-1)*3+3)
        name(i) = nameguess(z(i))
     end do
-    
+
     ! clean up
     deallocate(xat)
 
@@ -556,7 +556,7 @@ contains
     lp = 1
     word1 = lgetword(line,lp)
     word2 = lgetword(line,lp)
-    isang = (trim(lower(word2)) == "(angs)".or.trim(lower(word2)) == "(ang)") 
+    isang = (trim(lower(word2)) == "(angs)".or.trim(lower(word2)) == "(ang)")
 
     ! read the atomic numbers and positions
     do i = 1, n
@@ -617,14 +617,14 @@ contains
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
- 
+
     lu = fopen_read(file)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
     end if
     errmsg = "Error reading file."
- 
+
     n = 0
     allocate(x(3,10),z(10),name(10))
     do while (getline_raw(lu,line))
@@ -686,14 +686,14 @@ contains
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
- 
+
     lu = fopen_read(file)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
     end if
     errmsg = "Error reading file."
- 
+
     n = 0
     allocate(x(3,10),z(10),name(10))
     do while (getline_raw(lu,line))
@@ -757,14 +757,14 @@ contains
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
- 
+
     lu = fopen_read(file)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
     end if
     errmsg = "Error reading file."
- 
+
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
@@ -798,7 +798,7 @@ contains
     call fclose(lu)
 
   end subroutine wfn_read_pgout_geometry
-  
+
   !> Read the molecular geometry from an orca output file (.out).
   module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess
@@ -894,14 +894,14 @@ contains
     read (luwfn,101) orbtyp, f%nmoocc, f%npri, nat
     f%nmoall = f%nmoocc
     f%nalpha_virt = 0
- 
+
     ! atomic positions and numbers
     do i = 1, nat
        read(luwfn,106) elem, x, zreal
        iz = zatguess(elem)
        if (iz /= nint(zreal)) f%useecp = .true.
     end do
- 
+
     ! center assignments, types of primitives
     if (allocated(f%icenter)) deallocate(f%icenter)
     allocate(f%icenter(f%npri),stat=istat)
@@ -920,14 +920,14 @@ contains
     allocate(f%e(f%npri),stat=istat)
     if (istat /= 0) call ferror('read_wfn','could not allocate memory for exponents',faterr)
     read(luwfn,103) (f%e(i),i=1,f%npri)
- 
+
     ! deal with ecps
     dums=""
     do while (dums.ne."MO")
        read (luwfn,'(A2)') dums
     enddo
     backspace(luwfn)
- 
+
     ! occupations and orbital coefficients
     if (allocated(f%occ)) deallocate(f%occ)
     allocate(f%occ(f%nmoocc),stat=istat)
@@ -959,7 +959,7 @@ contains
        ene0 = ene
     end do
     read(luwfn,*) dum1
- 
+
     ! determine the type of wavefunction
     ! 0 - restricted, 1 - unrestricted, 2 - fractional
     if (isfrac) then
@@ -1038,7 +1038,7 @@ contains
           endif
        endif
     enddo
-    
+
     if (f%nmoocc == 0) call ferror("read_wfx","Number of Occupied Molecular Orbitals tag not found",faterr)
     if (f%npri == 0) call ferror("read_wfx","Number of Primitives tag not found",faterr)
     if (ncore > 0) f%useecp = .true.
@@ -1132,7 +1132,7 @@ contains
        f%wfntyp = wfn_rohf
        f%nalpha = num2
     endif
-    
+
     ! done
     call fclose(luwfn)
 
@@ -1175,9 +1175,9 @@ contains
     ! fchk:     s   x y z   xx yy zz xy xz yz   xxx yyy zzz xyy xxy xxz xzz yzz yyz xyz
     ! critic2:  s   x y z   xx yy zz xy xz yz   xxx yyy zzz xxy xxz yyz xyy xzz yzz xyz
     !
-    !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35   
+    !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35
     ! fchk:     zzzz yzzz yyzz yyyz yyyy xzzz xyzz xyyz xyyy xxzz xxyz xxyy xxxz xxxy xxxx
-    ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz 
+    ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz
     ! reorder the primitives within the same shell
     ! typtrans(fchk) = critic2
     integer, parameter :: typtrans(35) = (/&
@@ -1265,7 +1265,7 @@ contains
        f%nalpha = nalpha
        nmoread = (nmoalla+nmoallb)
        namoread = nmoalla
-    else 
+    else
        if (nalpha == nbeta) then
           f%wfntyp = wfn_rhf
           f%nmoocc = nelec / 2
@@ -1430,7 +1430,7 @@ contains
        nbassph = nbassph + nshlt(ityp)
        f%npri = f%npri + nshlt(abs(ishlt(i))) * ishlpri(i)
     enddo
-    
+
     ! Convert spherical basis functions to Cartesian and build the
     ! mocoef.  The spherical coeffs are used in libCINT, so keep the
     ! original coeffs around. Deallocate the temporary motemp.
@@ -1487,7 +1487,7 @@ contains
 
           ! normalize primitive coefficients
           do k = 1, ishlpri(i)
-             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k)) 
+             cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k))
           end do
 
           ! normalize basis function
@@ -1503,7 +1503,7 @@ contains
     end do
     deallocate(cnorm)
 
-    ! Build the information for the libCINT interface - calculation of 
+    ! Build the information for the libCINT interface - calculation of
     ! molecular integrals.
 #ifdef HAVE_CINT
     ! For now, only for restricted wavefunctions, although the
@@ -1595,11 +1595,11 @@ contains
                 elseif (ityp >= 14 .and. ityp <= 19) then ! f (xyy xxy xxz xzz yzz yyz)
                    norm = sqrt(35d0) / (2d0 * sqpi)
                 elseif (ityp == 20) then ! f (xyz)
-                   norm = sqrt(105d0) / (2d0 * sqpi) 
+                   norm = sqrt(105d0) / (2d0 * sqpi)
                 elseif (ityp >= 21 .and. ityp <= 23) then ! g (xxxx yyyy zzzz)
-                   norm = sqrt(9d0) / (2d0 * sqpi)  
+                   norm = sqrt(9d0) / (2d0 * sqpi)
                 elseif (ityp >= 24 .and. ityp <= 29) then ! g (xxxy xxxz xyyy yyyz xzzz yzzz)
-                   norm = sqrt(63d0) / (2d0 * sqpi) 
+                   norm = sqrt(63d0) / (2d0 * sqpi)
                 elseif (ityp >= 30 .and. ityp <= 32) then ! g (xxyy xxzz yyzz)
                    norm = sqrt(105d0) / (2d0 * sqpi)
                 elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
@@ -1618,7 +1618,7 @@ contains
 99  continue
 #endif
     deallocate(mosph)
-    
+
     ! Build the wavefunction coefficients for the primitives
     nn = 0
     nm = 0
@@ -1703,7 +1703,7 @@ contains
     !   m%wfntyp = type of wavefunction (0 = closed, 1 = open)
     !   m%charge = charge
     !   m%mult = multiplicity
-    ! 
+    !
     ! For STOs, ncshel = nshel = m%npri = number of basis functions.
     ! The ishlt has a special meaning - the exponents for x, y, z, and r
     ! are packed with a 100 stride factor.
@@ -1713,9 +1713,9 @@ contains
     ! molden:   s   x y z   xx yy zz xy xz yz   xxx yyy zzz xyy xxy xxz xzz yzz yyz xyz
     ! critic2:  s   x y z   xx yy zz xy xz yz   xxx yyy zzz xxy xxz yyz xyy xzz yzz xyz
     !
-    !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35   
+    !             21   22   23   24   25   26   27   28   29   30   31   32   33   34   35
     ! molden:   xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz
-    ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz 
+    ! critic2:  xxxx yyyy zzzz xxxy xxxz xyyy yyyz xzzz yzzz xxyy xxzz yyzz xxyz xyyz xyzz
     !
     ! h primitives and higher not supported in molden format.
     !
@@ -1757,7 +1757,7 @@ contains
           ok = getline_raw(luwfn,line,.false.)
           if (index(line,"created by orca_2mkl") > 0) isorca = .true.
        else if (trim(keyword) == "atoms") then
-          ! read the number of atoms 
+          ! read the number of atoms
           ok = getline_raw(luwfn,line,.true.)
           do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
              nat = nat + 1
@@ -1856,7 +1856,7 @@ contains
        elseif (trim(keyword) == "9g") then
           is9g = .true.
           ok = getline_raw(luwfn,line,.false.)
-       else 
+       else
           ! must be a keyword I don't know about -> skip
           ok = getline_raw(luwfn,line,.false.)
        end if
@@ -1869,7 +1869,7 @@ contains
        is7f = .true.
        is9g = .true.
     end if
-    
+
     if (isgto.and.issto) then
        call ferror('read_molden','Both [GTO] and [STO] blocks are present',faterr)
     else if (.not.isgto.and..not.issto) then
@@ -1931,7 +1931,7 @@ contains
        allocate(exppri(nshel),ccontr(nshel),stat=istat)
        if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
 
-       ! Basis set specification 
+       ! Basis set specification
        do while(getline_raw(luwfn,line,.true.))
           if (trim(lower(line)) == "[gto]") exit
        end do
@@ -2018,7 +2018,7 @@ contains
           if (trim(lower(line)) == "[sto]") exit
        end do
 
-       ! Basis set specification 
+       ! Basis set specification
        f%ixmaxsto = 0
        do i = 1, f%npri
           ok = getline_raw(luwfn,line,.true.)
@@ -2064,7 +2064,7 @@ contains
           lp = 1
           word1 = lgetword(line,lp)
           ok = isreal(rdum,line,lp)
-          if (.not.ok) & 
+          if (.not.ok) &
              call ferror("read_molden","error reading mo block",faterr)
           idum = nint(rdum)
           isocc = (idum > 0)
@@ -2121,7 +2121,7 @@ contains
           end do
        end do
        deallocate(motemp,ccontr)
-       
+
        ! prune repeated primitives
        call prune_primitives(f)
 
@@ -2317,7 +2317,7 @@ contains
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
     real*8 :: rhoc, gradc(3), hhc(6), hhval(6,3)
-    
+
     ! initialize and calculate the environment of the point
     rho = 0d0
     rhoval = 0d0
@@ -2351,7 +2351,7 @@ contains
 
     ! Calculate the (valence) density, etc.
     do imo = 1, f%nmoocc
-       aocc = f%occ(imo) 
+       aocc = f%occ(imo)
        rhosum = aocc * phi(imo,1) * phi(imo,1)
        rho(1) = rho(1) + rhosum
        if (f%wfntyp == wfn_uhf) then
@@ -2366,7 +2366,7 @@ contains
              rho(3) = rho(3) + rhosum
        end if
        if (nder>0) then
-          gradsum = 2 * aocc * phi(imo,1) * phi(imo,2:4) 
+          gradsum = 2 * aocc * phi(imo,1) * phi(imo,2:4)
           gkinsum = aocc * (phi(imo,2)*phi(imo,2) + phi(imo,3)*phi(imo,3) + phi(imo,4)*phi(imo,4))
           grad(:,1) = grad(:,1) + gradsum
           gkin(1) = gkin(1) + gkinsum
@@ -2510,7 +2510,7 @@ contains
     end do
 
   end subroutine rho2
-  
+
   !> Calculate the molecular electrostatic potential at point xpos (Cartesian).
   module function mep(f,xpos)
     use tools_io, only: faterr, ferror
@@ -2693,7 +2693,7 @@ contains
 #endif
   end subroutine uslater
 
-  !> Calculate the exchange hole at position xpos (Cartesian) and 
+  !> Calculate the exchange hole at position xpos (Cartesian) and
   !> reference point xref (Cartesian). Return the value in xhole.
   module subroutine xhole(f,xpos,xref,xh)
     use tools_io, only: ferror, faterr
@@ -2716,7 +2716,7 @@ contains
 
     ! calculate the density and the MO values at the reference point
     call f%rho2(xref,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmor)
-    
+
     ! calculate the 1-DM (assume real orbitals)
     gam1 = 0d0
     do imo = 1, f%nmoocc
@@ -2735,7 +2735,7 @@ contains
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(out) :: phi !< MO value
     character*(*), intent(in) :: fder !< lower bound for phi
-    
+
     integer :: imo, lp
     logical :: ok
     real*8 :: phi_(1,1), rho, grad(3), hh(6)
@@ -2896,9 +2896,9 @@ contains
 
              ! MO value
              fprod = 0d0
-             f0r = exc * dx(4,ixx(4)) 
+             f0r = exc * dx(4,ixx(4))
              fprod(0,0,0) = dx(1,ixx(1)) * dx(2,ixx(2)) * dx(3,ixx(3))
-             phi(phimo,1) = phi(phimo,1) + fprod(0,0,0) * f0r 
+             phi(phimo,1) = phi(phimo,1) + fprod(0,0,0) * f0r
              if (nder < 1) cycle
              fprod(-1,0,0) = dx(1,ixx(1)-1) * dx(2,ixx(2)) * dx(3,ixx(3))
              fprod(0,-1,0) = dx(1,ixx(1)) * dx(2,ixx(2)-1) * dx(3,ixx(3))
@@ -2922,35 +2922,35 @@ contains
 
              ! xx=5, yy=6, zz=7
              phi(phimo,5) = phi(phimo,5) + ixx(1) * (ixx(1)-1) * fprod(-2,0,0) * f0r &
-                + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r & 
+                + 2d0 * ixx(1) * fprod(-1,0,0) * xratio(1) * f1r &
                 + (1 - xratio(1)*xratio(1)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
                 + fprod(0,0,0) * xratio(1)*xratio(1) * f2r
              phi(phimo,6) = phi(phimo,6) + ixx(2) * (ixx(2)-1) * fprod(0,-2,0) * f0r &
-                + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r & 
+                + 2d0 * ixx(2) * fprod(0,-1,0) * xratio(2) * f1r &
                 + (1 - xratio(2)*xratio(2)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
                 + fprod(0,0,0) * xratio(2)*xratio(2) * f2r
              phi(phimo,7) = phi(phimo,7) + ixx(3) * (ixx(3)-1) * fprod(0,0,-2) * f0r &
-                + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r & 
+                + 2d0 * ixx(3) * fprod(0,0,-1) * xratio(3) * f1r &
                 + (1 - xratio(3)*xratio(3)) * fprod(0,0,0) * f1r / max(dx(4,1),stoeps) &
                 + fprod(0,0,0) * xratio(3)*xratio(3) * f2r
 
              ! xy=8, xz=9, yz=10
              phi(phimo,8) = phi(phimo,8) + ixx(1) * ixx(2) * fprod(-1,-1,0) * f0r &
-                + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r & 
-                + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r & 
+                + ixx(1) * fprod(-1,0,0) * xratio(2) * f1r &
+                + ixx(2) * fprod(0,-1,0) * xratio(1) * f1r &
                 + fprod(0,0,0) * xratio(1)*xratio(2) * (f2r - f1r / max(dx(4,1),stoeps))
              phi(phimo,9) = phi(phimo,9) + ixx(1) * ixx(3) * fprod(-1,0,-1) * f0r &
-                + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r & 
-                + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r & 
+                + ixx(1) * fprod(-1,0,0) * xratio(3) * f1r &
+                + ixx(3) * fprod(0,0,-1) * xratio(1) * f1r &
                 + fprod(0,0,0) * xratio(1)*xratio(3) * (f2r - f1r / max(dx(4,1),stoeps))
              phi(phimo,10) = phi(phimo,10) + ixx(2) * ixx(3) * fprod(0,-1,-1) * f0r &
-                + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r & 
-                + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r & 
+                + ixx(2) * fprod(0,-1,0) * xratio(3) * f1r &
+                + ixx(3) * fprod(0,0,-1) * xratio(2) * f1r &
                 + fprod(0,0,0) * xratio(2)*xratio(3) * (f2r - f1r / max(dx(4,1),stoeps))
           enddo ! imo = imo0, imo1
        end do ! j = f%iprilo(iat), f%iprihi(iat)
     end do ! i = 1, nenv
-    
+
   end subroutine calculate_mo_sto
 
   !> Calculate the MO values at position xpos (Cartesian). GTO version.
@@ -2974,7 +2974,7 @@ contains
     real*8 :: al, ex, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
     integer :: i, j
-    
+
     integer, parameter :: imax(0:2) = (/1,4,10/)
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
@@ -3063,7 +3063,7 @@ contains
     end do ! i = 1, nenv
 
   end subroutine calculate_mo_gto
-  
+
   subroutine calculate_edf(f,xpos,rhoc,gradc,hc,nder,nenv,eid,dist)
     type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
@@ -3182,34 +3182,34 @@ contains
     else if (type >= 8 .and. type <= 10) then
        ! 7  8  9
        ! xy xz yz
-       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0) 
+       N = 2**(11d0/4d0) * a**(7d0/4d0) / pi**(3d0/4d0)
     else if (type >= 11 .and. type <= 13) then
        ! 11  12  13
        ! xxx yyy zzz
        N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
     else if (type >= 14 .and. type <= 19) then
-       ! 14  15  16  17  18  19  
-       ! xyy xxy xxz xzz yzz yyz 
+       ! 14  15  16  17  18  19
+       ! xyy xxy xxz xzz yzz yyz
        N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
     else if (type == 20) then
        ! 20
        ! xyz
        N = 2**(15d0/4d0) * a**(9d0/4d0) / pi**(3d0/4d0)
     else if (type >= 21 .and. type <= 23) then
-       ! 21   22   23   
-       ! xxxx yyyy zzzz 
+       ! 21   22   23
+       ! xxxx yyyy zzzz
        N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(105d0)
     else if (type >= 24 .and. type <= 29) then
-       ! 24   25   26   27   28   29  
+       ! 24   25   26   27   28   29
        ! xxxy xxxz xyyy yyyz xzzz yzzz
        N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(15d0)
     else if (type >= 30 .and. type <= 32) then
-       ! 30   31   32  
+       ! 30   31   32
        ! xxyy xxzz yyzz
        N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(9d0)
     else if (type >= 33 .and. type <= 35) then
-       ! 33   34   35   
-       ! xxyz xyyz xyzz 
+       ! 33   34   35
+       ! xxyz xyyz xyzz
        N = 2**(19d0/4d0) * a**(11d0/4d0) / pi**(3d0/4d0) / sqrt(3d0)
     else
        call ferror("gnorm","fixme: primitive type not supported",faterr)
@@ -3283,8 +3283,8 @@ contains
        dfac = 15d0
        l = 3
     else if (type >= 14 .and. type <= 19) then
-       ! 14  15  16  17  18  19  
-       ! xyy xxy xxz xzz yzz yyz 
+       ! 14  15  16  17  18  19
+       ! xyy xxy xxz xzz yzz yyz
        dfac = 3d0
        l = 3
     else if (type == 20) then
@@ -3293,23 +3293,23 @@ contains
        dfac = 1d0
        l = 3
     else if (type >= 21 .and. type <= 23) then
-       ! 21   22   23   
-       ! xxxx yyyy zzzz 
+       ! 21   22   23
+       ! xxxx yyyy zzzz
        dfac = 105d0
        l = 4
     else if (type >= 24 .and. type <= 29) then
-       ! 24   25   26   27   28   29  
+       ! 24   25   26   27   28   29
        ! xxxy xxxz xyyy yyyz xzzz yzzz
        dfac = 15d0
        l = 4
     else if (type >= 30 .and. type <= 32) then
-       ! 30   31   32  
+       ! 30   31   32
        ! xxyy xxzz yyzz
        dfac = 9d0
        l = 4
     else if (type >= 33 .and. type <= 35) then
-       ! 33   34   35   
-       ! xxyz xyyz xyzz 
+       ! 33   34   35
+       ! xxyz xyyz xyzz
        dfac = 3d0
        l = 4
     else
@@ -3415,7 +3415,7 @@ contains
   end function wfx_read_reals1
 
   !> Prune primitives with the same exponent and center. This routine
-  !> must be used before the order mapping and range arrays are 
+  !> must be used before the order mapping and range arrays are
   !> calculated (i.e. before complete_struct).
   subroutine prune_primitives(f)
     use tools, only: qcksort
@@ -3531,7 +3531,7 @@ contains
        if (f%iprilo(iat) == 0) f%iprilo(iat) = i
        f%iprihi(iat) = i
     end do
-    
+
     ! core arrays
     if (f%nedf > 0) then
        if (allocated(f%dran_edf)) deallocate(f%dran_edf)
@@ -3573,7 +3573,7 @@ contains
     nullify(f%env)
     if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
        ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway. 
+       ! The environment contains all the atoms in molecules anyway.
        f%isealloc = .true.
        nullify(f%env)
        allocate(f%env)

@@ -1327,7 +1327,7 @@ contains
     class(crystal), intent(inout) :: c
 
     integer :: mmax, i, j, nat
-    integer, allocatable :: iord(:,:), midx(:,:)
+    integer, allocatable :: midx(:,:)
 
     ! 3d molecular crystals calculations
     c%ismol3d = all(c%mol(1:c%nmol)%discrete).and..not.c%ismolecule
@@ -1345,18 +1345,16 @@ contains
 
        ! sort the atomic indices
        allocate(midx(mmax,c%nmol))
-       allocate(iord(mmax,c%nmol))
        do i = 1, c%nmol
           nat = c%mol(i)%nat
           do j = 1, nat
              midx(j,i) = c%mol(i)%at(j)%idx
-             iord(j,i) = j
           end do
-          call qcksort(midx(1:nat,i),iord(1:nat,i),1,c%mol(i)%nat)
+          call qcksort(midx(1:nat,i))
 
           ! check if the molecule is fractional
           do j = 1, c%mol(i)%nat-1
-             if (midx(iord(j,i),i) == midx(iord(j+1,i),i)) then
+             if (midx(j,i) == midx(j+1,i)) then
                 c%idxmol(i) = -1
                 exit
              end if
@@ -1369,13 +1367,13 @@ contains
           if (c%idxmol(i) < 0) cycle
           do j = 1, i-1
              if (c%idxmol(j) < 0) cycle
-             if (all(midx(iord(1:nat,i),i) == midx(iord(1:nat,j),j))) then
+             if (all(midx(1:nat,i) == midx(1:nat,j))) then
                 c%idxmol(i) = j
                 exit
              end if
           end do
        end do
-       deallocate(midx,iord)
+       deallocate(midx)
     end if
 
   end subroutine calculate_molecular_equivalence
@@ -1779,8 +1777,6 @@ contains
     integer :: hmax
     integer, allocatable :: multp(:)
     integer, allocatable :: io(:)
-    real*8, allocatable :: th2p_(:), ip_(:)
-    integer, allocatable :: hvecp_(:,:)
 
     integer, parameter :: mp = 20
     real*8, parameter :: ieps = 1d-5
@@ -1941,21 +1937,15 @@ contains
     deallocate(multp)
 
     ! sort the peaks
-    allocate(io(np),th2p_(np),ip_(np),hvecp_(3,np))
+    allocate(io(np))
     do i = 1, np
        io(i) = i
     end do
     call qcksort(th2p,io,1,np)
-    do ii = 1, np
-       i = io(ii)
-       th2p_(ii) = th2p(i)
-       ip_(ii) = ip(i)
-       hvecp_(:,ii) = hvecp(:,i)
-    end do
-    th2p = th2p_
-    ip = ip_
-    hvecp = hvecp_
-    deallocate(th2p_,ip_,hvecp_,io)
+    th2p = th2p(io)
+    ip = ip(io)
+    hvecp = hvecp(:,io)
+    deallocate(io)
 
   end subroutine powder
 

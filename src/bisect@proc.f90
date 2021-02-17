@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -65,7 +65,7 @@ contains
   !> polar (theta) angle. outputm, the output method: "off", geomview
   !> OFF file; "bas", basin file; "dbs", dbasin file. npts is the
   !> number of points along each ray in the dbasin output mode.
-  !> cpid is the CP basin (equivalent CP list) to be represented. 
+  !> cpid is the CP basin (equivalent CP list) to be represented.
   module subroutine basinplot(line)
     use systemmod, only: sy
     use surface, only: minisurf
@@ -200,30 +200,30 @@ contains
     ! print header to stdout
     write (uout,'("* Attraction basins plot (BASINPLOT)")')
     if (method == "bcb") then
-       write (uout,'("  Starting polyhedron: cube ")') 
+       write (uout,'("  Starting polyhedron: cube ")')
        write (uout,'("  Subdivision level: ",A)') string(level)
     else if (method == "btr") then
-       write (uout,'("  Starting polyhedron: octahedron ")') 
+       write (uout,'("  Starting polyhedron: octahedron ")')
        write (uout,'("  Subdivision level: ",A)') string(level)
     else
-       write (uout,'("  Starting polyhedron: tesselated sphere ")') 
+       write (uout,'("  Starting polyhedron: tesselated sphere ")')
        write (uout,'("  n_theta: ",A)') string(ntheta)
        write (uout,'("  n_phi: ",A)') string(nphi)
     end if
     write (uout,'("  IAS precision: ",A)') string(prec,'e',decimal=6)
     if (outputm == "off") then
-       write (uout,'("  Output file format: OFF")') 
+       write (uout,'("  Output file format: OFF")')
     elseif (outputm == "obj") then
-       write (uout,'("  Output file format: OBJ")') 
+       write (uout,'("  Output file format: OBJ")')
     elseif (outputm == "ply") then
-       write (uout,'("  Output file format: PLY")') 
+       write (uout,'("  Output file format: PLY")')
     else if (outputm == "bas") then
-       write (uout,'("  Output file format: BASIN")') 
-    else 
+       write (uout,'("  Output file format: BASIN")')
+    else
        write (uout,'("  Output file format: DBASIN with ",A," radial points")') string(npts)
     end if
     if (.not.sy%c%ismolecule) then
-       write (uout,'("+ List of CP basins to be plotted (cryst. coord.): ")') 
+       write (uout,'("+ List of CP basins to be plotted (cryst. coord.): ")')
     else
        write (uout,'("+ List of CP basins to be plotted (",A,"): ")') iunitname0(iunit)
     endif
@@ -268,7 +268,7 @@ contains
     end if
 
     call srf%init(m,nf)
-    
+
     if (cpid <= 0) then
        linmin = 1
        linmax = sy%f(sy%iref)%ncpcel
@@ -277,7 +277,7 @@ contains
        linmax = cpid
     end if
     neqdone = .false.
-    
+
     ! run over selected non-eq. CPs, only the same type as nuclei
     do i = linmin, linmax
        cpn = sy%f(sy%iref)%cpcel(i)%idx
@@ -287,7 +287,7 @@ contains
 
        write (uout,'("  Plotting CP number (cp/ncp): ",A,"/",A)') string(i), string(cpn)
 
-       ! clean the surface 
+       ! clean the surface
        call srf%clean()
 
        ! tesselate the unit sphere and set all the rays to unsurfed
@@ -380,7 +380,7 @@ contains
     nphi = 5
     outputm = 'obj'
     npts = 11
-    surfile = trim(fileroot) // '-bundle' 
+    surfile = trim(fileroot) // '-bundle'
     prec = 1d-5
     expr = ""
 
@@ -478,28 +478,28 @@ contains
     end do
 
     ! print header to stdout
-    write (uout,'("* Primary bundle plot")') 
+    write (uout,'("* Primary bundle plot")')
     if (method == "bcb") then
-       write (uout,'("  Starting polyhedron: cube")') 
+       write (uout,'("  Starting polyhedron: cube")')
        write (uout,'("  Subdivision level: ",A)') string(level)
     else if (method == "btr") then
-       write (uout,'("  Starting polyhedron: octahedron ")') 
+       write (uout,'("  Starting polyhedron: octahedron ")')
        write (uout,'("  Subdivision level: ",A)') string(level)
     else
-       write (uout,'("  Starting polyhedron: tesselated sphere ")') 
+       write (uout,'("  Starting polyhedron: tesselated sphere ")')
        write (uout,'("  n_theta: ",A)') string(ntheta)
        write (uout,'("  n_phi:   ",A)') string(nphi)
     end if
     write (uout,'("  IAS precision: ",A)') string(prec,'e',decimal=6)
     if (outputm == "off") then
-       write (uout,'("  Output file format: OFF")') 
+       write (uout,'("  Output file format: OFF")')
     elseif (outputm == "obj") then
-       write (uout,'("  Output file format: OBJ")') 
+       write (uout,'("  Output file format: OBJ")')
     elseif (outputm == "ply") then
-       write (uout,'("  Output file format: PLY")') 
+       write (uout,'("  Output file format: PLY")')
     else if (outputm == "bas") then
-       write (uout,'("  Output file format: BASIN")') 
-    else 
+       write (uout,'("  Output file format: BASIN")')
+    else
        write (uout,'("  Output file format: DBASIN with ",A," radial points")') string(npts)
     end if
     write (uout,'("  Primary bundle seed: ",3(A,X))') (string(x0(j),'e',decimal=6),j=1,3)
@@ -518,7 +518,7 @@ contains
 
     call srf%init(m,nf)
 
-    ! clean the surface 
+    ! clean the surface
     call srf%clean()
 
     ! tesselate the unit sphere and set all the rays to unsurfed
@@ -553,7 +553,7 @@ contains
        file = trim(file) // '.basin'
        call minisurf_writebasin(srf,file,.true.)
     else if (outputm == 'dbs') then
-       file = trim(file) // '.dbasin' 
+       file = trim(file) // '.dbasin'
        call minisurf_writedbasin(srf,npts,file)
     end if
     write (uout,'("+ Written file : ",A)') string(file)
@@ -664,7 +664,7 @@ contains
     !
     write (uout,'("+ ANGULAR integration")')
     if (meth == INT_gauleg) then
-       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Polar angle (theta) num. of nodes: ",A)') string(ntheta)
        write (uout,'("  Azimuthal angle (phi) num. of nodes: ",A)') string(nphi)
     else if (meth == INT_lebedev) then
@@ -673,20 +673,20 @@ contains
     end if
     write (uout,'("  Target attractors (0 = all): ",A)') string(cpid)
     !
-    write (uout,'("+ RADIAL integration")')       
+    write (uout,'("+ RADIAL integration")')
     if (INT_radquad_type == INT_gauleg) then
-       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Number of radial nodes: ",A)') string(INT_radquad_nr)
     else if (INT_radquad_type == INT_qags) then
-       write (uout,'("  Method : quadpack QAGS ")')       
+       write (uout,'("  Method : quadpack QAGS ")')
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
     else if (INT_radquad_type == INT_qng) then
-       write (uout,'("  Method : quadpack QNG ")')       
+       write (uout,'("  Method : quadpack QNG ")')
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
     else if (INT_radquad_type == INT_qag) then
-       write (uout,'("  Method : quadpack QAG ")')       
+       write (uout,'("  Method : quadpack QAG ")')
        write (uout,'("  Number of radial nodes: ",A)') string(INT_radquad_nr)
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
@@ -697,7 +697,7 @@ contains
     if (INT_radquad_type == INT_qags .or. &
        INT_radquad_type == INT_qags .or. &
        INT_radquad_type == INT_qags) then
-       write (uout,'("+ Using the QUADPACK library ")') 
+       write (uout,'("+ Using the QUADPACK library ")')
        write (uout,'("  R. Piessens, E. deDoncker-Kapenga, C. Uberhuber and D. Kahaner,")')
        write (uout,'("  Quadpack: a subroutine package for automatic integration, Springer-Verlag 1983.")')
     end if
@@ -792,10 +792,10 @@ contains
     use systemmod, only: sy
     use surface, only: minisurf
     use integration, only: gauleg_mquad
-    
+
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: ntheta, nphi
-    real*8, intent(out) :: sprop(sy%npropi) 
+    real*8, intent(out) :: sprop(sy%npropi)
     real*8, intent(out) :: abserr
     integer, intent(out) :: neval, meaneval
 
@@ -828,10 +828,10 @@ contains
     use systemmod, only: sy
     use integration, only: lebedev_mquad
     use surface, only: minisurf
-    
+
     real*8, intent(in) :: x0(3), rad
     integer, intent(in) :: nleb
-    real*8, intent(out) :: sprop(sy%npropi) 
+    real*8, intent(out) :: sprop(sy%npropi)
     real*8, intent(out) :: abserr
     integer, intent(out) :: neval, meaneval
 
@@ -1099,7 +1099,7 @@ contains
     enddo
     xmed = 0.5d0 * (xin_ + xfin_)
 
-    ! check if it is on the surface of a beta-sphere 
+    ! check if it is on the surface of a beta-sphere
     xpoint = sy%c%c2x(xmed)
 
     ! check if it is inside a beta-sphere
@@ -1159,7 +1159,7 @@ contains
        tstep = tstep + nstep
        if (ier == 3) then
           inbundle = .false.
-       else 
+       else
           if (ier > 0) nwarn = nwarn + 1
           xpoint = xpoint - xup
           rr2 = dot_product(xpoint,xpoint)
@@ -1331,8 +1331,8 @@ contains
 
        ! possible initial radii for outer point
        rtry(1) = min(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! very poor
-       rtry(2) = 0.99d0 * rminsame      ! 99% to nearest same type CP 
-       rtry(3) = 0.75d0 * rminsame      ! 75% to nearest same type CP 
+       rtry(2) = 0.99d0 * rminsame      ! 99% to nearest same type CP
+       rtry(3) = 0.75d0 * rminsame      ! 75% to nearest same type CP
        if (idone > 0) then
           rtry(4) = 1.01d0 * rfarmax       ! 101% of the farthest initial point up to now
           rtry(5) = rfarsum / real(idone,8)  ! mean of the out-basin initial points up to now
@@ -1340,22 +1340,22 @@ contains
           rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3)) ! really, REALLY poor
        else
           rtry(4) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  ! VERY poor
-          rtry(5) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
-          rtry(6) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
-          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))  
+          rtry(5) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))
+          rtry(6) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))
+          rtry(7) = max(sy%c%aa(1),sy%c%aa(2),sy%c%aa(3))
        end if
        itry = (/ (k,k=1,ntries) /)       ! sort from smaller to larger
        call qcksort(rtry,itry,1,ntries)
        id2 = 0
        raprox = rother
        do k = 1,ntries                   ! find best initial point
-          ! If I already have a bracket, the try must be better than a bisection step. 
-          ! Note that raprox is initialized to VBIG, so in case I do not have a bracket, 
+          ! If I already have a bracket, the try must be better than a bisection step.
+          ! Note that raprox is initialized to VBIG, so in case I do not have a bracket,
           ! all the rtrys are tested
           raprox = rtry(itry(k))
           if (raprox > (rother+riaprox) / 2d0 .or. raprox < riaprox) then
              raprox = rother
-             cycle  
+             cycle
           end if
           xfin = xcar + raprox * unit
           xtemp = xfin
@@ -1406,7 +1406,7 @@ contains
           !$omp end critical (IO)
        end if
 
-       ! accumulate 
+       ! accumulate
        !$omp ATOMIC
        nwarn0 = nwarn0 + nwarn
        !$omp ATOMIC
@@ -1491,7 +1491,7 @@ contains
        write (uout,*)
        write (uout,'("  (",A5,"/",A5,") ",A12,1X,A12,2X,A12,1X,A8)') &
           "nray","mray","r_inner","r_ias","r_outer","nstep"
-       write (uout,'(64("-"))') 
+       write (uout,'(64("-"))')
     end if
 
     rmin = VBIG
@@ -1623,10 +1623,10 @@ contains
 
   end subroutine bundle_msurface
 
-  !> Integrate the atomic basin of the non-equivalent CP cpid 
+  !> Integrate the atomic basin of the non-equivalent CP cpid
   !> using a fixed 2d Gauss-Legendre quadrature with n1 = ntheta
   !> and n2 = nphi. If usefiles, read and/or write the .int files
-  !> containing the ZFS description for each atom. 
+  !> containing the ZFS description for each atom.
   subroutine integrals_gauleg(atprop,n1,n2,cpid,usefiles,verbose)
     use systemmod, only: sy
     use surface, only: minisurf
@@ -1679,17 +1679,17 @@ contains
           end if
        end if
     end if
-       
-    ! bisect the surface 
+
+    ! bisect the surface
     if (.not.(usefiles .and. existfile)) then
        ! bisect the surface
        call bisect_msurface(srf,cpid,INT_iasprec,verbose)
     end if
-       
+
     ! beta-sphere... skip:
     ! 1. by user's request
     ! 2. the scalar field has shells and this is an effective nucleus
-    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
+    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv))
 
     if (verbose) then
        write (uout,'(a)') " Integrating the sphere..."
@@ -1732,7 +1732,7 @@ contains
        write (uout,*)
     end if
 
-    ! sum 
+    ! sum
     atprop = atprop + sprop
 
     if (usefiles) then
@@ -1786,7 +1786,7 @@ contains
     xnuc = sy%c%x2c(sy%f(sy%iref)%cp(cpid)%x)
     srf%n = xnuc
     srf%r = -1d0
-       
+
     ! Read the input file
     if (usefiles .and. allocated(intfile)) then
        ! Name of the input / output file
@@ -1801,16 +1801,16 @@ contains
        end if
     end if
 
-    ! bisect the surface 
+    ! bisect the surface
     ! 1. It is not loaded from an int file
     ! 2. This is not a 'spheres-only' block run
     if (.not.(usefiles .and. existfile)) then
        ! bisect the surface
        call bisect_msurface(srf,cpid,INT_iasprec,verbose)
     end if
-    
+
     ! beta-sphere integration
-    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv)) 
+    r_betaint = 0.95d0 * minval(srf%r(1:srf%nv))
     if (verbose) then
        write (uout,'(a)') " Integrating the sphere..."
     end if
@@ -1853,8 +1853,8 @@ contains
        end do
        write (uout,*)
     end if
-       
-    ! sum 
+
+    ! sum
     atprop = atprop + sprop
 
     if (usefiles) then
@@ -1883,35 +1883,35 @@ contains
     logical :: existfile
     integer :: i, linmin, linmax
 
-    write (uout,'("* Integration of basin properties by bisection")')       
+    write (uout,'("* Integration of basin properties by bisection")')
     write (uout,'("  Basins of the scalar field: ",A)') string(sy%iref)
     write (uout,'("  Attractor signature: ",A)') string(sy%f(sy%iref)%typnuc)
     !
-    write (uout,'("+ ANGULAR integration")')       
+    write (uout,'("+ ANGULAR integration")')
     if (meth == INT_gauleg) then
-       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Polar angle (theta) num. of nodes: ",A)') string(ntheta)
        write (uout,'("  Azimuthal angle (phi) num. of nodes: ",A)') string(nphi)
     else if (meth == INT_lebedev) then
-       write (uout,'("  Method: Lebedev, non-adaptive quadrature ")')       
+       write (uout,'("  Method: Lebedev, non-adaptive quadrature ")')
        write (uout,'("  Number of nodes: ",A)') string(np)
     end if
     write (uout,'("  Target attractors (0 = all): ",A)') string(cpid)
     !
-    write (uout,'("+ RADIAL integration")')       
+    write (uout,'("+ RADIAL integration")')
     if (INT_radquad_type == INT_gauleg) then
-       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Number of radial nodes: ",A)') string(INT_radquad_nr)
     else if (INT_radquad_type == INT_qags) then
-       write (uout,'("  Method: quadpack QAGS ")')       
+       write (uout,'("  Method: quadpack QAGS ")')
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
     else if (INT_radquad_type == INT_qng) then
-       write (uout,'("  Method: quadpack QNG ")')       
+       write (uout,'("  Method: quadpack QNG ")')
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
     else if (INT_radquad_type == INT_qag) then
-       write (uout,'("  Method: quadpack QAG ")')       
+       write (uout,'("  Method: quadpack QAG ")')
        write (uout,'("  Number of radial nodes: ",A)') string(INT_radquad_nr)
        write (uout,'("  Required absolute error: ",A)') string(INT_radquad_abserr,'e',decimal=4)
        write (uout,'("  Required relative error: ",A)') string(INT_radquad_relerr,'e',decimal=4)
@@ -1920,18 +1920,18 @@ contains
     if (INT_radquad_type == INT_qags .or. &
        INT_radquad_type == INT_qags .or. &
        INT_radquad_type == INT_qags) then
-       write (uout,'("+ Using the QUADPACK library ")') 
+       write (uout,'("+ Using the QUADPACK library ")')
        write (uout,'("  R. Piessens, E. deDoncker-Kapenga, C. Uberhuber and D. Kahaner,")')
        write (uout,'("  Quadpack: a subroutine package for automatic integration, Springer-Verlag 1983.")')
     end if
 
-    write (uout,'("+ IAS determination")')          
+    write (uout,'("+ IAS determination")')
     write (uout,'("  Bisection precision: ",A)') string(INT_iasprec,'e',decimal=4)
     write (uout,'("  Use of precomputed files: ",L)') usefiles
 
-    write (uout,'("+ BETA sphere integration details")')          
+    write (uout,'("+ BETA sphere integration details")')
     if (bs_spherequad_type == INT_gauleg) then
-       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method: Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Polar angle (theta) num. of nodes: ",A)') string(bs_spherequad_ntheta)
        write (uout,'("  Azimuthal angle (phi) num. of nodes: ",A)') string(bs_spherequad_nphi)
     else if (bs_spherequad_type == INT_lebedev) then
@@ -1940,7 +1940,7 @@ contains
     end if
 
     if (usefiles .and. allocated(intfile)) then
-       write (uout,'("+ FILES connected for integration")') 
+       write (uout,'("+ FILES connected for integration")')
        write (uout,'(A3,A25)') "CP", "       INT file (exists?) "
        if (cpid /= 0) then
           inquire(file=intfile(cpid),exist=existfile)
@@ -1992,7 +1992,7 @@ contains
        do i = 1, s%nv
           x(1) = s%n(1) + s%r(i) * sin(s%th(i)) * cos(s%ph(i))
           x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
-          x(3) = s%n(3) + s%r(i) * cos(s%th(i))             
+          x(3) = s%n(3) + s%r(i) * cos(s%th(i))
           call sy%f(sy%iref)%grd(x,0,res)
           fsurf(i) = sy%eval(expr,.true.,iok,x)
        end do
@@ -2032,13 +2032,13 @@ contains
 
     x = sy%c%c2x(s%n)
     write (lud,'("# POS(cryst) ",3(E22.14,X))') x
-    write (lud,'("# CRYS2CART ")') 
+    write (lud,'("# CRYS2CART ")')
     rr = 0d0
     do i = 1, 3
        write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_x2c(i,1:3), rr
     end do
     write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
-    write (lud,'("# CART2CRYS ")') 
+    write (lud,'("# CART2CRYS ")')
     rr = 0d0
     do i = 1, 3
        write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_c2x(i,1:3), rr
@@ -2119,7 +2119,7 @@ contains
        do j = 1, npoint
           xxx(1) = s%n(1) + rdelta * j * sin(s%th(i)) * cos(s%ph(i))
           xxx(2) = s%n(2) + rdelta * j * sin(s%th(i)) * sin(s%ph(i))
-          xxx(3) = s%n(3) + rdelta * j * cos(s%th(i))             
+          xxx(3) = s%n(3) + rdelta * j * cos(s%th(i))
           call sy%f(sy%iref)%grd(xxx,0,res)
           fpoint(j) = res%f
        end do
@@ -2141,7 +2141,7 @@ contains
 
   end subroutine minisurf_writedbasin
 
-  !> Transform the points in the minisurface s using the symmetry operation op 
+  !> Transform the points in the minisurface s using the symmetry operation op
   !> and the translation vector tvec.
   subroutine minisurf_transform(s,op,tvec)
     use systemmod, only: sy
@@ -2163,7 +2163,7 @@ contains
        x = sy%c%x2c(matmul(sy%c%rotm(:,1:3,op),x) + sy%c%rotm(:,4,op) + tvec)
        x = x - n
        r = sqrt(dot_product(x,x))
-       s%th(i) = acos(x(3)/r) 
+       s%th(i) = acos(x(3)/r)
        s%ph(i) = atan2(x(2),x(1))
     end do
     s%n = n

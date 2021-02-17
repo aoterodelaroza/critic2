@@ -1,4 +1,4 @@
-!> Part of the following code has been adapted from the elk distribution, 
+!> Part of the following code has been adapted from the elk distribution,
 !> version 1.3.2.
 !> Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
 !> Distributed under the terms of the GNU General Public License.
@@ -7,18 +7,18 @@
 
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -51,7 +51,7 @@ contains
 
   end subroutine elkwfn_end
 
-  !> Read a elkwfn scalar field from an OUT file 
+  !> Read a elkwfn scalar field from an OUT file
   module subroutine read_out(f,env,file,file2,file3)
     class(elkwfn), intent(inout) :: f
     type(environ), intent(in), target :: env
@@ -193,7 +193,7 @@ contains
           frho = frho + fac1
           if (nder <= 0) cycle
           fac2 = dble(f%rhok(ifg)*cmplx(-st1,ct1,8))
-          gfrho = gfrho + fac2 * f%vgc(:,ig) 
+          gfrho = gfrho + fac2 * f%vgc(:,ig)
           if (nder <= 1) cycle
           do i = 1, 3
              do j = i, 3
@@ -364,7 +364,7 @@ contains
     if (allocated(f%spr_b)) deallocate(f%spr_b)
     allocate(f%spr(nrmtmax,nspecies),f%spr_a(nspecies),f%spr_b(nspecies))
 
-    ! read elk-2.1.25 
+    ! read elk-2.1.25
     if (isnewer(2,1,22)) then
        read(lu) nrcmtmax ! nrcmtmax
        if (allocated(rcmt)) deallocate(rcmt)

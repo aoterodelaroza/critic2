@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,7 +28,7 @@ submodule (environmod) proc
   ! function unpackoffset(ip,nr,nr21) result(ioff)
 
 contains
-  
+
   !xx! environ class methods
   !> Free allocated arrays and nullify variables
   module subroutine environ_end(e)
@@ -51,7 +51,7 @@ contains
     e%rs_nreg = 0
 
   end subroutine environ_end
-  
+
   !> Build an environment from molecular or crystal data. ismol = true
   !> if the environment is for a molecule (false = crystal). nspc =
   !> number of species.  spc = species. n = number of atoms in the
@@ -502,7 +502,7 @@ contains
     real*8, intent(out), optional :: dist
     real*8, intent(in), optional :: distmax
     integer :: identify_atom
-    
+
     real*8 :: eps, dist0
     integer :: ierr, lvec0(3)
     logical :: zeroallowed
@@ -514,7 +514,7 @@ contains
        eps = distmax
        zeroallowed = (distmax < e%dmax0)
     end if
-    
+
     call e%nearest_atom_short(x0,icrd,eps,identify_atom,lvec0,dist0,ierr)
     if (ierr == 0 .or. (ierr == 1 .and. zeroallowed)) goto 999
 
@@ -584,7 +584,7 @@ contains
     call e%nearest_atom_dumb(xp,icrd,nid,lvec0,dist,cidx0,idx0,is0,nozero)
 
   end subroutine nearest_atom
-  
+
   !> Given point x0 (with icrd input coordinates), translate to the
   !> main cell if the environment is from a crystal. Then, calculate
   !> the environment atom closest to x0 up to a distance of
@@ -621,7 +621,7 @@ contains
     real*8 :: xp(3), x0r(3), x1r(3), d2, d2min, eps2, x(3), d0, rlvec(3)
     integer :: ireg0(3), imin(3), imax(3), i, j, k, i1, i2, i3
     integer :: ireg(3), idx, kmin
-    
+
     ! initialize
     d0 = min(distmax,0.5d0 * e%boxsize - 1d-10)
     dist = 0d0
@@ -749,7 +749,7 @@ contains
     xp = x0
     call e%y2z_center(xp,icrd,icrd_cart,lvec)
     ireg0 = e%c2p(xp)
-    
+
     ! run over regions sorted by distance
     kmin = 0
     d2min = 1d40
@@ -760,7 +760,7 @@ contains
        rcut2 = e%rs_rcut(i) * e%rs_rcut(i)
        if (d2min < rcut2 .or. eps2 < rcut2) exit
        idxreg = e%p2i(ireg)
-       
+
        do j = e%nrlo(idxreg), e%nrhi(idxreg)
           k = e%imap(j)
           if (present(cidx0)) then
@@ -842,7 +842,7 @@ contains
     ! Transfer to the main cell if this is a crystal; convert to Cartesian
     xp = x0
     call e%y2z_center(xp,icrd,icrd_cart,lvec)
-    
+
     ! run over all atoms in the environment (in a molecule this is equal
     ! to the number of atoms in the molecule)
     dist = VBIG
@@ -856,7 +856,7 @@ contains
        if (present(is0)) then
           if (e%at(i)%is /= is0) cycle
        end if
-       
+
        x = e%at(i)%r - xp
        d2 = x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
        if (present(nozero)) then
@@ -1065,7 +1065,7 @@ contains
        end if
     end do
 
-    ! Rearrange the arrays 
+    ! Rearrange the arrays
     if (nat > 0) then
        ! First reallocation
        if (present(eid)) call realloc(eid,nat)
@@ -1166,13 +1166,13 @@ contains
       end if
       if (doshell .and. nat > size(ishell,1)) call realloc(ishell,2*nat)
 
-      ! Update the up2n rcut, distance to farthest known atom in the initial 1->up2n list.  
+      ! Update the up2n rcut, distance to farthest known atom in the initial 1->up2n list.
       ! The final (ordered) list will have its farthest atom at a distance less than rcutn.
       if (present(up2n)) then
          if (nat <= up2n) rcutn = max(dist0,rcutn)
       end if
     end subroutine add_atom_to_output_list
-    
+
     subroutine add_shell_to_output_list()
       use tools_io, only: string
       integer :: lthis, l
@@ -1212,7 +1212,7 @@ contains
     end subroutine add_shell_to_output_list
 
   end subroutine list_near_atoms
-    
+
   !> Translate the point x0 to the main cell if the environment is
   !> from a crystal. Then, calculate the core (if zpsp is present) or
   !> promolecular densities at a point x0 (coord format given by icrd)
@@ -1359,7 +1359,7 @@ contains
     use param, only: atmcov
     class(environ), intent(in) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
-    
+
     integer :: i, j
     real*8 :: x0(3), dist2, ri, rj, r2
     integer :: p0(3), p1(3), idx1
@@ -1389,7 +1389,7 @@ contains
        do j = i, e%nspc
           if (e%spc(j)%z <= 0) cycle
           rj = atmcov(e%spc(j)%z)
-          
+
           r2 = (ri+rj) * bondfactor
           rij2(i,j,2) = r2*r2
           rij2(j,i,2) = rij2(i,j,2)
@@ -1462,14 +1462,14 @@ contains
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in) :: rtable(:)
     real*8, intent(in) :: factor
-    
+
     integer :: i, j, iz, ierr, lvec(3), nat
     real*8, allocatable :: d0sp(:), dsp(:,:)
     integer, allocatable :: eid(:)
 
     if (allocated(nstar)) deallocate(nstar)
     allocate(nstar(e%ncell))
-    
+
     ! build the table of radii for the species
     allocate(d0sp(e%nspc),dsp(e%nspc,2))
     d0sp = 0d0
@@ -1534,7 +1534,7 @@ contains
        (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)
     write (uout,'("    Search offsets: ",A)') string(e%rs_nreg)
     write (uout,'("    Maximum search offset: ",A)') string(e%rs_imax)
-    
+
     idavg = 0
     idmax = 0
     do j = 1, e%nregion
@@ -1596,7 +1596,7 @@ contains
           end do
        end do
     end do
-    
+
     write (*,*) "all tests passed!"
     stop 1
 
