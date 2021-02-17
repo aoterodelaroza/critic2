@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -62,7 +62,7 @@ contains
     use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
        ucopy, getword, lower
     use param, only: jmlcol
-    
+
     type flxorder
        character*3 :: id, method
        real*8 :: x(3)
@@ -460,7 +460,7 @@ contains
     deallocate(order)
 
   contains
-    
+
     function check_no_extra_word()
       character(len=:), allocatable :: aux2
       logical :: check_no_extra_word
@@ -506,7 +506,7 @@ contains
        write (luout,'(X,A)') "endfreehand"
        ! print formats
        if (molmotif) then
-          write (luout,'(X,"molmotif allmaincell")') 
+          write (luout,'(X,"molmotif allmaincell")')
        end if
        write (luout,'(X,"vrml ",A,".wrl")') trim(adjustl(fileroot))
        write (luout,'(X,"# povray ",A,".pov")') trim(adjustl(fileroot))
@@ -692,17 +692,15 @@ contains
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
        luout = fopen_write(outfile)
     elseif (outfmt=="obj" .or. outfmt=="ply" .or. outfmt=="off") then
-       ! connect and initialize obj/ply/off file 
+       ! connect and initialize obj/ply/off file
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call sy%c%write_3dmodel(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
-          .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),gr)
+       call sy%c%write_3dmodel(outfile,outfmt,doborder0=.true.,docell0=.true.,domolcell0=.true.,gr0=gr)
     elseif (outfmt=="cml") then
-       ! connect and initialize cml file 
+       ! connect and initialize cml file
        outfile = trim(fileroot) // "_flux." // outfmt
        write (uout,'(A,A/)') "* Writing paths to file: ", trim(outfile)
-       call sy%c%write_mol(outfile,outfmt,(/1,1,1/),.true.,.false.,.false.,&
-          .false.,0d0,.false.,1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),luout)
+       call sy%c%write_mol(outfile,outfmt,doborder0=.true.,luout=luout)
     endif
 
   end subroutine flx_initialize
@@ -758,7 +756,7 @@ contains
 
        write (luout,'("# ",A,X,a)') string(flx_title), str
        write (luout,'("# number of points: ",A)') string(flx_n)
-       write (luout,'("# ---- origin of the path ---- ")') 
+       write (luout,'("# ---- origin of the path ---- ")')
        write (luout,'("# name: ",A,X,A," ncp: ",A," ncpcel: ",A)') &
           string(cpname(1)), string(cptype(1)), string(cpid(1)), string(flx_cpcelid(1))
        write (luout,'("# rho: ",A," grad: ",A," lap: ",A)') &
@@ -769,7 +767,7 @@ contains
           (string((flx_cpos(i,1)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
        write (luout,'("# starting path direction (",A,"): ",3(A,X))') iunitname0(iunit), &
           (string(flx_direction(i)*dunit0(iunit),'f',12,8),i=1,3)
-       write (luout,'("# ---- end of the path ---- ")') 
+       write (luout,'("# ---- end of the path ---- ")')
        write (luout,'("# name: ",A,X,A," ncp: ",A," ncpcel: ",A)') &
           string(cpname(2)), string(cptype(2)), string(cpid(2)), string(flx_cpcelid(2))
        write (luout,'("# rho: ",A," grad: ",A," lap: ",A)') &
@@ -778,7 +776,7 @@ contains
        write (luout,'("# end position (cryst.): ",3(A,X))') (string(flx_xpos(i,2),'f',12,8),i=1,3)
        write (luout,'("# end position (",A,"): ",3(A,X))') iunitname0(iunit), &
           (string((flx_cpos(i,2)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
-       write (luout,'("# ",A)') 
+       write (luout,'("# ",A)')
 
        if (.not.sy%c%ismolecule) then
           maux = 0d0
@@ -807,7 +805,7 @@ contains
        write (luout,'(A/)') "# End gradient path"
 
     elseif (outfmt == "tss") then
-       write (luout,'("# ")') 
+       write (luout,'("# ")')
        write (luout,'(2X,A)') "curve balls type 6"
        do i=1,flx_n
           write (luout,'(3X,3(E20.12,X))') flx_path(i)%x
@@ -961,7 +959,7 @@ contains
     if (flx_n > 0) then
        call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= cpeps) goto 999
-       
+
        flx_cpcelid(2) = sy%c%identify_atom(flx_path(flx_n)%x,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
        if (flx_cpcelid(2) > 0) then
           if (dist < nuceps) goto 999
@@ -1127,7 +1125,7 @@ contains
     real*8, dimension(npoints) :: thetavec
     integer :: ier, ircp, n
     type(scalar_value) :: res
-    
+
     if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
 
     if (sy%f(sy%iref)%cpcel(id)%typ == -1) then
@@ -1411,7 +1409,7 @@ contains
                 end if
              end do
           end do
-          
+
        ! bcp
        ! bond paths for the bcp
        else if (sy%f(sy%iref)%cpcel(cpid)%typ == -1) then
@@ -1510,18 +1508,18 @@ contains
 
   end subroutine flx_findthetagrid
 
-  !> Given the complete or reduced list index of a CP, 
+  !> Given the complete or reduced list index of a CP,
   !> output the appropriate ball radius.
   function ball_radius(i,cel)
     use systemmod, only: sy
     use param, only: maxzat
-    
+
     integer, intent(in) :: i
     logical, intent(in) :: cel
     real*8 :: ball_radius
 
     integer :: typ, z
-    
+
     z = 0
     if (cel) then
        if (sy%f(sy%iref)%cpcel(i)%isnuc) then
