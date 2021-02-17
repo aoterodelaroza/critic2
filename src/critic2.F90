@@ -41,7 +41,7 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys, struct_order_molecules
+     struct_makemols_neighcrys, struct_molreorder
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -50,7 +50,6 @@ program critic
   use arithmetic, only: listvariables, listlibxc
   use grid1mod, only: grid1_clean_grids
   use config, only: getstring, istring_datadir
-  use tools, only: mergesort
   use tools_io, only: uout, ucopy, uin, lgetword, equal, faterr,&
      ferror, getword, string, nwarns, ncomms, history_init, history_end, stdargs,&
      tictac, start_clock, print_clock, isinteger, isreal, getline
@@ -71,7 +70,6 @@ program critic
 #ifdef HAVE_LIBXC
   logical :: doref, doname, doflags
 #endif
-  integer :: temp(10)
 
   ! initialize parameters
   call start_clock()
@@ -497,12 +495,12 @@ program critic
         call struct_identify(sy,line,lp)
 
         ! makemols_neighcrys
-     elseif (equal(word,'makemols_neighcrys')) then
+     elseif (equal(word,'makemolsnc')) then
         call struct_makemols_neighcrys(line,lp)
 
         ! order_molecules
-     elseif (equal(word,'order_molecules')) then
-        call struct_order_molecules(line,lp)
+     elseif (equal(word,'molreorder')) then
+        call struct_molreorder(line,lp)
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&

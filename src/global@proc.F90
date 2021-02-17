@@ -229,7 +229,7 @@ contains
     character(len=:), allocatable :: word, var
     logical :: ok
     real*8 :: rdum
-    integer :: idum, lp2, iz
+    integer :: lp2, iz
     logical :: iok, iscov
 
     word = lgetword(line,lp)

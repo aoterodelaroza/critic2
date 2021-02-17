@@ -1769,7 +1769,7 @@ contains
     real*8, allocatable, intent(inout) :: ip(:)
     integer, allocatable, intent(inout) :: hvecp(:,:)
 
-    integer :: i, ii, np, hcell, h, k, l, iz, idx
+    integer :: i, np, hcell, h, k, l, iz, idx
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac

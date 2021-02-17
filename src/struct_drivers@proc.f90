@@ -2886,7 +2886,7 @@ contains
   end subroutine struct_makemols_neighcrys
 
   !> Put the atoms of one molecule in the same order as another.
-  module subroutine struct_order_molecules(line,lp)
+  module subroutine struct_molreorder(line,lp)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
@@ -2900,13 +2900,13 @@ contains
     type(crystal) :: cref, cx
     type(crystal), allocatable :: c(:)
     type(crystalseed) :: seed
-    character*1024, allocatable :: fname(:)
+    character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
     integer :: i, j, n, is, ns, lp, nat
     real*8, allocatable :: t(:), iha(:,:), ihat(:,:,:)
     real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
     real*8 :: xdiff, h, eps, rms1, rms2
-    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:), itperm(:)
+    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:)
     integer, allocatable :: cidxorig(:,:)
     real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
@@ -2928,7 +2928,6 @@ contains
     ns = 0
     eps = eps_default
     wfile = ""
-    allocate(fname(2))
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -3104,6 +3103,7 @@ contains
        end do
        isperm(:,is) = idmult(:,1)
     end do main
+    deallocate(iha,ihat,ihatrefsave,idmult,nid,nidold,intpeak)
 
     ! get the rmsd from walker
     allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
@@ -3128,6 +3128,7 @@ contains
           rmsd(is) = rms2
        end if
     end do
+    deallocate(c,x1,x2)
 
     ! report on the results
     write (uout,'("+ Reference structure: ",A)') string(cref%file)
@@ -3160,6 +3161,7 @@ contains
        end if
     end do
     write (uout,*)
+    deallocate(isuse,rmsd,isinv)
 
     ! write the final structure
     if (len_trim(wfile) > 0) then
@@ -3178,7 +3180,8 @@ contains
        call cx%wholemols()
        call cx%write_simple_driver(wfile)
     end if
+    deallocate(isperm,cidxorig)
 
-  end subroutine struct_order_molecules
+  end subroutine struct_molreorder
 
 end submodule proc

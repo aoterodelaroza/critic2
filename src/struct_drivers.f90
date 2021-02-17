@@ -44,7 +44,7 @@ module struct_drivers
   public :: struct_molcell
   public :: struct_identify
   public :: struct_makemols_neighcrys
-  public :: struct_order_molecules
+  public :: struct_molreorder
 
   interface
      module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
@@ -127,10 +127,10 @@ module struct_drivers
        character*(*), intent(in) :: line0
        integer, intent(inout) :: lp
      end subroutine struct_makemols_neighcrys
-     module subroutine struct_order_molecules(line,lp)
+     module subroutine struct_molreorder(line,lp)
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp
-     end subroutine struct_order_molecules
+     end subroutine struct_molreorder
   end interface
 
 end module struct_drivers
