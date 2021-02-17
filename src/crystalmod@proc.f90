@@ -4003,7 +4003,6 @@ contains
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
 
-    integer, allocatable :: imol(:)
     logical, allocatable :: ismap(:,:), ldone(:)
     integer :: i, j, k, l, id
     real*8 :: x0(3)
@@ -4122,17 +4121,6 @@ contains
     sgroup = sgroup(:,idxi)
     deallocate(iorder,idxi)
 
-    ! record to which fragment each atom belongs (imol)
-    allocate(imol(c%ncel))
-    imol = 0
-    do i = 1, c%nmol
-       do j = 1, c%mol(i)%nat
-          imol(c%mol(i)%at(j)%cidx) = i
-       end do
-    end do
-    if (any(imol == 0)) &
-       call ferror('wholemols','some atoms could not be assigned to molecules',faterr)
-
     ! identify the largest known subgroup with whole molecules in the asymmetric unit
     allocate(ismap(c%ncv,c%neqv),ldone(c%nneq))
     ig = 0
@@ -4152,7 +4140,7 @@ contains
                 if (id == 0) &
                    call ferror('wholemols','error identifying rotated atom',faterr)
 
-                if (imol(k) == imol(id)) &
+                if (c%idatcelmol(k) == c%idatcelmol(id)) &
                    ismap(j,i) = .true.
                 ldone(c%atcel(k)%idx) = .true.
              end do
@@ -4164,7 +4152,7 @@ contains
           exit
        end if
     end do
-    deallocate(imol,ldone,ismap)
+    deallocate(ldone,ismap)
 
     ! calculate the asymmetric unit for the new group, write it down in the seed
     allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel))

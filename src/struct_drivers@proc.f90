@@ -3185,7 +3185,7 @@ contains
              1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
        else
           call cx%write_espresso("new.scf.in")
-          call cx%write_res(wfile,.true.)
+          ! call cx%write_res(wfile,.true.)
        end if
     end if
 
