@@ -142,6 +142,7 @@ contains
     c%nlvac = 0
     c%lvac = 0
     c%lcon = 0
+    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
 
     ! no 3d molecular crystals
     c%ismol3d = .false.
@@ -170,6 +171,7 @@ contains
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
     call c%env%end()
     c%isinit = .false.
     c%havesym = 0
@@ -1139,6 +1141,7 @@ contains
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
     if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
 
     ! initizialize
     allocate(used(c%ncel))
@@ -1300,6 +1303,16 @@ contains
        end if
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if
+
+    ! fill the mapping between atoms and molecules
+    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
+    allocate(c%idatcelmol(c%ncel))
+    c%idatcelmol = 0
+    do i = 1, c%nmol
+       do j = 1, c%mol(i)%nat
+          c%idatcelmol(c%mol(i)%at(j)%cidx) = i
+       end do
+    end do
 
   end subroutine fill_molecular_fragments
 
@@ -2999,21 +3012,33 @@ contains
 
           write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
-          write (uout,'("# name = atomic name (symbol). Z = atomic number.")')
-          write (uout,'("# ",7(A,X))') string("at",3,ioj_center),&
+          write (uout,'("# name = atomic name (symbol). Z = atomic number. nat = non-equivalent atom id.")')
+          if (allocated(c%mol) .and. c%nmol > 0) then
+             write (uout,'("# mol = molecular fragment.")')
+             str1 = string("mol",3,ioj_center)
+          else
+             str1 = ""
+          end if
+          write (uout,'("# ",99(A,X))') string("at",3,ioj_center),&
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
-             string("Z",3,ioj_center)
+             string("Z",3,ioj_center), string("nat",3,ioj_center), str1
           do i=1,c%ncel
              is = c%atcel(i)%is
-             write (uout,'(2x,7(A,X))') &
+             if (allocated(c%mol) .and. c%nmol > 0) then
+                str1 = string(c%idatcelmol(i),3,ioj_center)
+             else
+                str1 = ""
+             end if
+             write (uout,'(2x,99(A,X))') &
                 string(i,3,ioj_center),&
                 string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),&
                 string(is,3,ioj_center),&
                 string(c%spc(is)%name,7,ioj_center),&
-                string(c%spc(is)%z,3,ioj_center)
+                string(c%spc(is)%z,3,ioj_center),&
+                string(c%atcel(i)%idx,3,ioj_center), str1
           enddo
           write (uout,*)
 
@@ -3029,17 +3054,30 @@ contains
        write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
        write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
        write (uout,'("# name = atomic name (symbol). Z = atomic number. dnn = nearest-neighbor distance.")')
+       if (allocated(c%mol) .and. c%nmol > 0) then
+          write (uout,'("# nat = non-equivalent atom id. mol = molecular fragment.")')
+          str1 = string("mol",3,ioj_center)
+       else
+          write (uout,'("# nat = non-equivalent atom id. ")')
+          str1 = ""
+       end if
        write (uout,'("# ",99(A,X))') string("at",3,ioj_center), &
           string("x",16,ioj_center), string("y",16,ioj_center),&
           string("z",16,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
-          string("Z",3,ioj_center), string("dnn",10,ioj_center)
+          string("Z",3,ioj_center), string("dnn",10,ioj_center), string("nat",3,ioj_center), str1
        do i=1,c%ncel
           is = c%atcel(i)%is
+          if (allocated(c%mol) .and. c%nmol > 0) then
+             str1 = string(c%idatcelmol(i),3,ioj_center)
+          else
+             str1 = ""
+          end if
           write (uout,'(2x,99(A,X))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center),&
-             string(c%spc(is)%z,3,ioj_center), string(2d0*c%at(c%atcel(i)%idx)%rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4)
+             string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center), string(c%spc(is)%z,3,ioj_center),&
+             string(2d0*c%at(c%atcel(i)%idx)%rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4), &
+             string(c%atcel(i)%idx,3,ioj_center), str1
        enddo
        write (uout,*)
 
@@ -4095,7 +4133,7 @@ contains
     if (any(imol == 0)) &
        call ferror('wholemols','some atoms could not be assigned to molecules',faterr)
 
-    ! identify the largest known subroup with whole molecules in the asymmetric unit
+    ! identify the largest known subgroup with whole molecules in the asymmetric unit
     allocate(ismap(c%ncv,c%neqv),ldone(c%nneq))
     ig = 0
     do l = ngroup,1,-1

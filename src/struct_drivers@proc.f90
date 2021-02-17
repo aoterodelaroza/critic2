@@ -2889,6 +2889,7 @@ contains
   module subroutine struct_order_molecules(line,lp)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
+    use tools, only: qcksort
     use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools_io, only: getword, string, ferror, faterr, lower, equal, isreal, uout, string
     use types, only: realloc
@@ -2906,6 +2907,7 @@ contains
     real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
     real*8 :: xdiff, h, eps, rms1, rms2
     integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:), itperm(:)
+    integer, allocatable :: cidxorig(:,:), iorder(:)
     real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     logical :: ok
@@ -2985,6 +2987,19 @@ contains
        if (cref%nneq /= c(i)%nneq) isuse(i) = isuse_different_nat
     end do
     nat = cref%nneq
+
+    ! make the mapping between structure+atom and the original cidx
+    ! sort because the from_fragment routine also sorts
+    allocate(cidxorig(nat,ns),iorder(nat))
+    do is = 1, ns
+       do i = 1, nat
+          iorder(i) = i
+          cidxorig(i,is) = cx%mol(is)%at(i)%cidx
+       end do
+       call qcksort(cidxorig(:,is),iorder,1,nat)
+       cidxorig(:,is) = cidxorig(iorder,is)
+    end do
+    deallocate(iorder)
 
     ! allocate space for the RDFs
     allocate(iha(npts0,ns),ihat(npts0,nat,ns),ihatrefsave(npts0,nat))
@@ -3158,17 +3173,19 @@ contains
        do is = 1, ns
           do i = 1, nat
              n = n + 1
-             seed%x(:,n) = c(is)%at(isperm(i,is))%x
-             seed%is(n) = c(is)%at(isperm(i,is))%is
+             seed%x(:,n) = cx%atcel(cidxorig(isperm(i,is),is))%x
+             seed%is(n) = cx%atcel(cidxorig(isperm(i,is),is))%is
           end do
        end do
        call cx%struct_new(seed,.true.)
+!       call cx%wholemols()
 
        if (cx%ismolecule) then
           call cx%write_mol(wfile,'xyz',(/1,1,1/),.false.,.false.,.false.,.false.,0d0,.false.,&
              1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
        else
-          call cx%write_espresso(wfile)
+          call cx%write_espresso("new.scf.in")
+          call cx%write_res(wfile,.true.)
        end if
     end if
 

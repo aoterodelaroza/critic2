@@ -8,12 +8,12 @@
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,8 +31,8 @@ module gui_interface
 
   ! C-interoperable atom type
   type, bind(c) :: c_atom
-     real(c_float) :: x(3) !< atom position (crystallographic) 
-     real(c_float) :: r(3) !< atom position (Cartesian, bohr) 
+     real(c_float) :: x(3) !< atom position (crystallographic)
+     real(c_float) :: r(3) !< atom position (Cartesian, bohr)
      integer(c_int) :: is !< atom species
      integer(c_int) :: z !< atomic number
      character(kind=c_char,len=1) :: zsymb(3) !< atomic symbol
@@ -41,7 +41,7 @@ module gui_interface
      integer(c_int) :: cidx !< index from the complete list
      integer(c_int) :: flvec(3) !< lvec to the position in the fragment
      integer(c_int) :: ifrag !< which fragment this atom belongs to
-     real(c_float) :: rad !< ball radius (bohr) 
+     real(c_float) :: rad !< ball radius (bohr)
      real(c_float) :: rgb(4) !< color (0 to 1)
      integer(c_int) :: ncon !< number of neighbors
   end type c_atom
@@ -102,7 +102,7 @@ module gui_interface
   integer(c_int), bind(c) :: nsc = 0 ! Number of scenes
   type(scene), allocatable, target :: sc(:) ! Information about the loaded scenes
   integer :: ilastfile = 0 ! Integer pointer to the last file
-  
+
   ! Error message container to pass errors to the GUI
   character(kind=c_char,len=1), target :: errmsg_c(512)
   type(c_ptr), bind(c) :: errmsg
@@ -215,7 +215,7 @@ contains
 
     ! transform to fortran string
     file = c_string_value(file0)
-    
+
     ! read all seeds from the line
     call read_seeds_from_file(file,ismolecule,nseed,seed,errmsg_,iafield)
 
@@ -419,7 +419,7 @@ contains
     mncon = size(sc(isc)%idcon,1)
     idcon = c_loc(sc(isc)%idcon)
     lcon = c_loc(sc(isc)%lcon)
-    
+
     nmol = sc(isc)%nmol
     moldiscrete = c_loc(sc(isc)%moldiscrete)
 
@@ -463,13 +463,13 @@ contains
 
     ! kill atomic grids
     call grid1_clean_grids()
-    
+
     ! final message
     write (uout,'("CRITIC2 ended successfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
        string(nwarns), string(ncomms)
     call print_clock()
     call tictac('CRITIC2')
-    
+
   end subroutine gui_end
 
   !> Adapt the size of an allocatable 1D type(scene) array

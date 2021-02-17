@@ -114,6 +114,7 @@ module crystalmod
      ! variables for 3d molecular crystals
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
+     integer, allocatable :: idatcelmol(:) !< cell atom i belongs to idatcelmol(i) molecule
 
      !! Initialization level: isewald !!
      ! ewald data

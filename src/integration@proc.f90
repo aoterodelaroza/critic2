@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -76,7 +76,7 @@ contains
     type(grid3) :: faux
     type(int_result), allocatable :: res(:)
     type(basindat) :: bas
-    
+
     ! only grids
     if (.not.sy%isinit) then
        call ferror("intgrid_integrate","system not initialized",faterr)
@@ -225,7 +225,7 @@ contains
     endif
 
     ! Reorder the attractors
-    call int_reorder_gridout(sy%f(sy%iref),bas) 
+    call int_reorder_gridout(sy%f(sy%iref),bas)
     write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
     write (uout,*)
 
@@ -240,7 +240,7 @@ contains
 
     ! Prepare for the calculation of properties
     allocate(res(sy%npropi))
-    write (uout,'("+ Integrating atomic properties"/)') 
+    write (uout,'("+ Integrating atomic properties"/)')
 
     ! Integrate scalar fields and multipoles
     call intgrid_fields(bas,res)
@@ -436,7 +436,7 @@ contains
           vidx(i,j) = v
        end do
     end do
-    
+
     !$omp parallel do &
     !$omp private(realnphi,nneval,pprop,perr,piaserr,lerr,v,rprop,rerr,leval,riaserr,ierr) &
     !$omp firstprivate(ppoints,pweights)
@@ -669,7 +669,7 @@ contains
              if (idxmol(1,j) /= i) cycle
              call assign_strings(j,bas%icp(j),usesym,scp,sncp,sname,smult,sz)
              x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
-             write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') & 
+             write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') &
                 string(j,4,ioj_left), scp, (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
                 sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
           end do
@@ -769,7 +769,7 @@ contains
              end do
           end do jlo
        end do
-       
+
        ! List of integrated properties in the molecules
        write (uout,'("* Integrated molecular properties")')
        write (uout,'("# (See key above for interpretation of column headings.)")')
@@ -815,7 +815,7 @@ contains
                 write (uout,'(2X,99(A,X))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
              end if
           end do
-          write (uout,*) 
+          write (uout,*)
        end do
        deallocate(idxmol)
     end if
@@ -933,9 +933,9 @@ contains
        ! write the new data to a new scratch file
        luw2 = fopen_scratch()
        write (luw2) nattr0, nn, nvec
-       write (luw2) nlo 
+       write (luw2) nlo
        write (luw2) ibasin2
-       write (luw2) iio 
+       write (luw2) iio
        write (luw2) inear
        write (luw2) fnear
        call flush(luw2)
@@ -945,7 +945,7 @@ contains
        deallocate(nlo,ibasin,ibasin2,iio,inear,fnear)
     end if
     deallocate(assigned)
-    
+
     if (allocated(bas%xattr)) deallocate(bas%xattr)
     call realloc(xattr,3,bas%nattr)
     call move_alloc(xattr,bas%xattr)
@@ -965,7 +965,7 @@ contains
     use types, only: basindat, int_result, out_mpoles, out_field
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
-    
+
     integer :: i1, i2, i3
     integer :: i, k, m, fid, ntot, lmax, ix
     real*8, allocatable :: fint(:,:,:), w(:,:,:), rrlm(:)
@@ -1023,7 +1023,7 @@ contains
 
           if (.not.allocated(fint)) &
              allocate(fint(bas%n(1),bas%n(2),bas%n(3)))
-          
+
           ! copy the grid if it is available
           fillgrd = .false.
           ok = (sy%f(fid)%type == type_grid)
@@ -1069,7 +1069,7 @@ contains
              end do
              !$omp end parallel do
           end if
-          
+
           if (.not.sy%propi(k)%itype == itype_mpoles) then
              ! all types of integration except for multipoles
              if (allocated(res(k)%psum)) deallocate(res(k)%psum)
@@ -1169,7 +1169,7 @@ contains
     if (bas%imtype == imtype_yt) then
        call ytdata_clean(dat)
     end if
-    
+
   contains
     subroutine run_first_pass()
       ! YT, get the data
@@ -1221,7 +1221,7 @@ contains
        if (sy%propi(l)%itype /= itype_deloc_wnr.and.sy%propi(l)%itype /= itype_deloc_psink.and.&
           sy%propi(l)%itype /= itype_deloc_sijchk.and.sy%propi(l)%itype /= itype_deloc_fachk) cycle
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
-          
+
        ! check consistency of the field, if applicable
        ! assign checkpoints
        if (sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink) then
@@ -1271,8 +1271,8 @@ contains
              ok = (sy%propi(l)%itype == itype_deloc_psink) .or. all(nbndw == sy%f(fid)%grid%qe%nbndw)
              ok = ok .and. all(nlat == sy%f(fid)%grid%qe%nk)
              ok = ok .and. (nlattot == sy%f(fid)%grid%qe%nks)
-             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin) 
-             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd) 
+             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin)
+             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd)
              ok = ok .and. (natt1 == bas%nattr)
              ok = ok .and. (isijtype == res(l)%sijtype)
              if (ok) then
@@ -1314,8 +1314,8 @@ contains
              ok = (sy%propi(l)%itype == itype_deloc_psink) .or. all(nbndw == sy%f(fid)%grid%qe%nbndw)
              ok = ok .and. all(nlat == sy%f(fid)%grid%qe%nk)
              ok = ok .and. (nlattot == sy%f(fid)%grid%qe%nks)
-             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin) 
-             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd) 
+             ok = ok .and. (nspin == sy%f(fid)%grid%qe%nspin)
+             ok = ok .and. (nbnd == sy%f(fid)%grid%qe%nbnd)
              ok = ok .and. (natt1 == bas%nattr)
              ok = ok .and. (isijtype == res(l)%sijtype)
              if (ok) then
@@ -1390,7 +1390,7 @@ contains
              call yt_weights(luw=bas%luw,dout=dat)
              first = .false.
           end if
-          
+
           ! Recalculate the number of attractors without cell translation symmetry.
           ! Calculate basin spreads.
           write (uout,'(99(A,X))') "  Attractors before remapping =", string(bas%nattr)
@@ -1413,7 +1413,7 @@ contains
           write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
           if (sy%propi(l)%itype == itype_deloc_wnr) then
              write (uout,'(99(A,X))') "  Calculating overlaps using Wannier functions (wan)"
-             if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then 
+             if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then
                 write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
                    string(sy%propi(l)%wancut,'f',5,2)
              else
@@ -1495,7 +1495,7 @@ contains
        !       write (*,*) i, sum(res(l)%fa(i,:,:,is)), sum(res(l)%fa(:,i,:,is))
        !    end do
        ! end do
-       
+
        ! write the checkpoint file
        if (sy%propi(l)%fachk) then
           write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
@@ -1539,7 +1539,7 @@ contains
     write (lu) occ
     write (lu) sij
     call fclose(lu)
-    
+
   end subroutine write_sijchk
 
   !> Write the Fa checkpoint file DI integration).
@@ -1555,7 +1555,7 @@ contains
     write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     write (lu) fa
     call fclose(lu)
-    
+
   end subroutine write_fachk
 
   !> Read the header for the Sij/Fa checkpoint file (DI
@@ -1678,7 +1678,7 @@ contains
     allocate(f1(n(1),n(2),n(3),nlat))
     allocate(f2(n(1),n(2),n(3),nlat))
     allocate(lovrlp(0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1,0:nwan(1)-1,0:nwan(2)-1,0:nwan(3)-1))
-    
+
     ! the big loop
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
@@ -1808,7 +1808,7 @@ contains
                 string(ibnd1), string(ibnd2), string(nbndw(is)), string(is), string(nspin),&
                 string(ncalc), string(natt1*nlat*nlat)
           end do ! ibnd2
-       end do ! ibnd1 
+       end do ! ibnd1
     end do ! is
 
     ! clean up
@@ -1865,7 +1865,7 @@ contains
     ! check consistency
     if (any(n /= sy%f(fid)%grid%n)) &
        call ferror("calc_sij_psink","inconsistent grid sizes",faterr)
-    
+
     ! open the pwc file
     luc = fopen_read(sy%f(fid)%grid%qe%fpwc,form="unformatted")
 
@@ -1908,7 +1908,7 @@ contains
              evcall(1:sy%f(fid)%grid%qe%ngk(ik1),ibnd1,ik1,is)
           psi1 = reshape(rseq,shape(psi1))
           call cfftnd(3,n,+1,psi1)
-          
+
           !$omp parallel do private(ibnd2,ik2,kdif,p,x,xs,d2) &
           !$omp             firstprivate(rseq,psi2,psic,w,wmask)
           do imo2 = imo1, nmo
@@ -1921,7 +1921,7 @@ contains
                 evcall(1:sy%f(fid)%grid%qe%ngk(ik2),ibnd2,ik2,is)
              psi2 = reshape(rseq,shape(psi2))
              call cfftnd(3,n,+1,psi2)
-             
+
              psic = conjg(psi1) * psi2
              kdif = sy%f(fid)%grid%qe%kpt(:,ik1) - sy%f(fid)%grid%qe%kpt(:,ik2)
              do m3 = 1, n(3)
@@ -1993,7 +1993,7 @@ contains
 
     ! scale
     sij = sij / (n(1)*n(2)*n(3))
-    
+
   end subroutine calc_sij_psink
 
   !> Calculate the Fa matrix from the Sij matrix, wannier version
@@ -2001,7 +2001,7 @@ contains
     use types, only: int_result
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
-    
+
     integer :: i, j, is, k, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb, nlattot
     real*8 :: fatemp
 
@@ -2042,7 +2042,7 @@ contains
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
     real*8, intent(in) :: kpt(:,:), occ(:,:,:)
-    
+
     integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
     real*8 :: fatemp, kdif(3), fspin
     integer :: nlattot
@@ -2061,7 +2061,7 @@ contains
        !$omp parallel do private(k,fatemp,imo1,ibnd1,ik1,imo2,ibnd2,ik2,kdif)
        do i = 1, nattr
           do j = 1, nattr
-             
+
              k = 0
              do ia = 0, nlat(1)-1
                 do ja = 0, nlat(2)-1
@@ -2107,7 +2107,7 @@ contains
     if (res%sijtype /= sijtype_wnr) return
 
     ! translations for Sij from wannier functions
-    
+
     ! Wannier functions:
     !     S_{nR,n'R'}^{A+R''} = S_{nR-R'',n'R'-R''}^{A}
     ! !! S(imo,1) translated by lattice vector k is S(imap(imo,k),1) !!
@@ -2139,12 +2139,12 @@ contains
     type(int_result), intent(in) :: res
     type(qedat), intent(in) :: qe
     integer, intent(in) :: nspin, nmo, nbnd, nlat(3), nlattot
-    
+
     integer :: is, imo, jmo, k, l1, l2, l3
     integer :: ik1, ibnd1, ik2, ibnd2
     real*8 :: fspin, kdif(3), delta(3)
     complex*16 :: asum, saux
-    
+
     ! set the spin multiplier
     if (nspin == 1) then
        fspin = 2d0
@@ -2167,7 +2167,7 @@ contains
              end do
           end do
        end do
-       
+
        ! sum_i sum_A Sii^A = N
        do is = 1, nspin
           asum = 0d0
@@ -2189,7 +2189,7 @@ contains
                    do ibnd2 = 1, nbnd
                       jmo = jmo + 1
 
-                      kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1) 
+                      kdif = qe%kpt(:,ik2) - qe%kpt(:,ik1)
 
                       saux = 0d0
                       do l1 = 1, nlat(1)
@@ -2200,8 +2200,8 @@ contains
                             end do
                          end do
                       end do
-                      saux = saux 
-                      
+                      saux = saux
+
                       asum = sum(res%sijc(imo,jmo,:,is)) * saux / real(nlat(1)*nlat(2)*nlat(3),8)
                       write (*,*) is, imo, jmo, asum
                    end do
@@ -2209,7 +2209,7 @@ contains
              end do
           end do
        end do
-       
+
        ! sum_i sum_A Sii^A = N
        do is = 1, nspin
           asum = 0d0
@@ -2251,14 +2251,14 @@ contains
     use types, only: basindat, int_result, out_mpoles
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
-    
+
     integer :: i, j, k, l, nn, fid, lmax
     ! integer :: i, j, k, nn, n, l, lmax, fid
     integer, allocatable :: l_(:), m_(:)
     character(len=:), allocatable :: lbl
     character*3 :: ls, ms
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
-    
+
     do l = 1, sy%npropi
        if (.not.res(l)%done .or. res(l)%outmode /= out_mpoles) cycle
        fid = sy%propi(l)%fid
@@ -2282,7 +2282,7 @@ contains
              m_(nn) = j
           end do
        end do
-       
+
        ! pretty output
        nn = (lmax+1)**2/5
        if (mod((lmax+1)**2,5) /= 0) nn = nn + 1
@@ -2386,7 +2386,7 @@ contains
        else
           fspin = 1d0
        end if
-       
+
        ! localization indices
        write (uout,'("+ Localization indices")')
        write (uout,'("# Id   cp   ncp   Name  Z       LI(A)           N(A)")')
@@ -2419,7 +2419,7 @@ contains
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
        do i = 1, natt
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
-          write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') & 
+          write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
           write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI")')
 
@@ -2484,7 +2484,7 @@ contains
                 end do
              end do jlo
           end do
-          
+
           ! assign DIs to molecules
           allocate(dimol(sy%c%nmol,sy%c%nmol,0:nlat(1)-1,0:nlat(2)-1,0:nlat(3)-1),limol(sy%c%nmol),namol(sy%c%nmol))
           dimol = 0d0
@@ -2529,11 +2529,11 @@ contains
           write (uout,'("+ Localization indices")')
           write (uout,'("# Mol       LI(A)           N(A)")')
           do i = 1, sy%c%nmol
-             write (uout,'(2X,99(A,X))') & 
+             write (uout,'(2X,99(A,X))') &
                 string(i,4,ioj_left), string(limol(i),'f',15,8,4), string(namol(i),'f',12,8,4)
           end do
           write (uout,*)
-          
+
           ! centers of mass
           allocate(xcm(3,sy%c%nmol))
           do i = 1, sy%c%nmol
@@ -2548,7 +2548,7 @@ contains
                 (string(xcm(j,i),'f',10,6,3),j=1,3)
              write (uout,'("# Mol   Latt. vec.    ---- Center of mass (cryst) ----      Distance      LI/DI")')
 
-             m = 0 
+             m = 0
              do ic = 0, nlat(1)-1
                 do jc = 0, nlat(2)-1
                    do kc = 0, nlat(3)-1
@@ -2587,7 +2587,7 @@ contains
           end do
           deallocate(dimol,limol,namol,idxmol,xcm)
        end if
-       
+
        ! clean up
        call cr1%end()
        deallocate(dist,io,diout,ilvec,idat)
@@ -2604,7 +2604,7 @@ contains
     character*(*), intent(in) :: file
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
-    
+
     integer :: lu, fid, nprop
     integer :: i, j, k, l
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
@@ -2616,20 +2616,20 @@ contains
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("{")')
-    write (lu,'(2X,"""units"": ","""bohr"",")') 
-    write (lu,'(2X,"""structure"": {")') 
+    write (lu,'(2X,"""units"": ","""bohr"",")')
+    write (lu,'(2X,"""structure"": {")')
     call sy%c%struct_write_json(lu,"  ")
     write (lu,'(2X,"},")')
-    write (lu,'(2X,"""field"": {")') 
+    write (lu,'(2X,"""field"": {")')
     call sy%f(sy%iref)%write_json(lu,"  ")
     write (lu,'(2X"},")')
 
     ! the JSON report, beginning
-    write (lu,'(2X,"""integration"": {")') 
+    write (lu,'(2X,"""integration"": {")')
     if (bas%imtype == imtype_yt) then
-       write (lu,'(2X,"  ""type"": ""yt"",")') 
+       write (lu,'(2X,"  ""type"": ""yt"",")')
     elseif (bas%imtype == imtype_bader) then
-       write (lu,'(2X,"  ""type"": ""bader"",")') 
+       write (lu,'(2X,"  ""type"": ""bader"",")')
     endif
     write (lu,'(2X,"  ""grid_npoints"": [",2(A,","),A,"]",",")') (string(bas%n(j)),j=1,3)
 
@@ -2687,7 +2687,7 @@ contains
           write (lu,'(2X,"  },{")')
     end do
     write (lu,'(2X,"  }],")')
-    
+
     ! list of molecules and positions
     if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
        allocate(idxmol(2,bas%nattr))
@@ -2704,14 +2704,14 @@ contains
              end do
           end do jlo
        end do
-       
+
        allocate(sump(nprop))
        do k = 1, sy%c%nmol
           do i = 1, bas%nattr
              if (idxmol(1,i) /= k) cycle
           end do
        end do
-       
+
        ! list of molecules and associated attractors
        write (lu,'(2X,"  ""number_of_molecules"": ",A,",")') string(sy%c%nmol)
        write (lu,'(2X,"  ""molecules"": [{")')
@@ -2742,7 +2742,7 @@ contains
              write (lu,'(2X,"      ""atomic_number"": ",A,",")') string(sz)
              write (lu,'(2X,"      ""fractional_coordinates"": [",2(A,","),A,"]")') &
                 (string(x(k),'f',decimal=14),k=1,3)
-             
+
              do k = 1, nprop
                 sump(k) = sump(k) + res(nacprop(k))%psum(j)
              end do
@@ -2751,7 +2751,7 @@ contains
                 write (lu,'(2X,"    },{")')
           end do
           write (lu,'(2X,"    }],")')
-          
+
           write (lu,'(2X,"    ""integrals"": [")')
           do k = 1, nprop
              if (k < nprop) then
@@ -2768,12 +2768,12 @@ contains
 
        deallocate(nacprop,idxmol,sump)
     end if
-    
+
     ! integration options
     if (bas%atexist) then
-       write (lu,'(2X,"  ""noatoms"": false,")') 
+       write (lu,'(2X,"  ""noatoms"": false,")')
     else
-       write (lu,'(2X,"  ""noatoms"": true,")') 
+       write (lu,'(2X,"  ""noatoms"": true,")')
     end if
     if (len_trim(bas%expr) > 0) &
        write (lu,'(2X,"  ""discard"": ",A,",")') string(bas%expr)
@@ -2824,7 +2824,7 @@ contains
        sz = "--"
     end if
     if (.not.usesym) smult = " -- "
-    
+
   end subroutine assign_strings
 
   !> Plot the atomic basins found by YT or BADER to graphical files.
