@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,8 +28,10 @@ module tools
   public :: uniqc
   public :: qcksort
   public :: mergesort
-  
+
   interface qcksort
+     module procedure qcksort_r8_inplace
+     module procedure qcksort_i4_inplace
      module procedure qcksort_r8
      module procedure qcksort_i4
   end interface qcksort
@@ -49,14 +51,20 @@ module tools
        real*8, dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: first
-       integer, intent(in) :: last 
+       integer, intent(in) :: last
      end subroutine qcksort_r8
      module subroutine qcksort_i4(iarr, iord, first, last)
        integer, dimension(:), intent(in) :: iarr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: first
-       integer, intent(in) :: last 
+       integer, intent(in) :: last
      end subroutine qcksort_i4
+     module subroutine qcksort_r8_inplace(arr)
+       real*8, intent(inout) :: arr(:)
+     end subroutine qcksort_r8_inplace
+     module subroutine qcksort_i4_inplace(arr)
+       integer, intent(inout) :: arr(:)
+     end subroutine qcksort_i4_inplace
      module subroutine mergesort_r8(arr,iord,ini,n)
        real*8, dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord

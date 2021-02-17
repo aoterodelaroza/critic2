@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,15 +31,15 @@ contains
     integer, intent(inout) :: nfin !< End index
     real*8, intent(inout), dimension(3,*) :: v !< The initial and final array
     real*8, intent(in) :: eps
-  
+
     real*8 :: eps2, x(3), dist2
     integer :: i, j, nfin0
     logical :: found(nini:nfin)
-  
+
     if (nfin < nini) return
-  
+
     eps2 = eps * eps
-  
+
     found = .false.
     !$omp parallel do private(x,dist2)
     do i = nini, nfin
@@ -70,7 +70,7 @@ contains
        end if
     end do
     nfin = nfin0
-  
+
   end subroutine uniqc
 
   !xx! sorting
@@ -125,7 +125,7 @@ contains
        a=arr(na)
        iord(iq)=iord(l)
 20     continue
-21     if (j.ge.first) then 
+21     if (j.ge.first) then
           if (a.lt.arr(iord(j))) then
              j=j-1
              goto 21
@@ -152,7 +152,7 @@ contains
        j=j-1
        go to 20
 30     jstack=jstack+2
-       if(jstack.gt.nstack) call ferror ('qcksort','Increase nstack',faterr) 
+       if(jstack.gt.nstack) call ferror ('qcksort','Increase nstack',faterr)
        if(ir-i.ge.i-l)then
           istack(jstack)=ir
           istack(jstack-1)=i+1
@@ -173,7 +173,7 @@ contains
   !> order in the array arr. This sort is not stable.
   module subroutine qcksort_i4(iarr, iord, first, last)
     use tools_io, only: ferror, faterr
-    
+
     integer, dimension(:), intent(in) :: iarr !< Array to be sorted
     integer, dimension(:), intent(inout) :: iord !< Permutation array
     integer, intent(in) :: first !< First index
@@ -213,7 +213,7 @@ contains
        a=iarr(na)
        iord(iq)=iord(l)
 20     continue
-21     if (j.ge.first) then 
+21     if (j.ge.first) then
           if (a.lt.iarr(iord(j))) then
              j=j-1
              goto 21
@@ -225,7 +225,7 @@ contains
        endif
        iord(i)=iord(j)
        i=i+1
-22     if (i.le.last) then 
+22     if (i.le.last) then
           if (a.gt.iarr(iord(i))) then
              i=i+1
              goto 22
@@ -240,7 +240,7 @@ contains
        j=j-1
        go to 20
 30     jstack=jstack+2
-       if(jstack.gt.nstack) call ferror ('qcksort','Increase nstack',faterr) 
+       if(jstack.gt.nstack) call ferror ('qcksort','Increase nstack',faterr)
        if(ir-i.ge.i-l)then
           istack(jstack)=ir
           istack(jstack-1)=i+1
@@ -253,7 +253,43 @@ contains
     endif
     go to 10
   end subroutine qcksort_i4
-  
+
+  !> Apply quicksort in-place, real*8 version
+  module subroutine qcksort_r8_inplace(arr)
+    real*8, intent(inout) :: arr(:)
+
+    integer :: i, n
+    integer, allocatable :: iord(:)
+
+    n = size(arr,1)
+    allocate(iord(n))
+    do i = 1, n
+       iord(i) = i
+    end do
+    call qcksort_r8(arr,iord,1,n)
+    arr = arr(iord)
+    deallocate(iord)
+
+  end subroutine qcksort_r8_inplace
+
+  !> Apply quicksort in-place, integer*4 version
+  module subroutine qcksort_i4_inplace(arr)
+    integer, intent(inout) :: arr(:)
+
+    integer :: i, n
+    integer, allocatable :: iord(:)
+
+    n = size(arr,1)
+    allocate(iord(n))
+    do i = 1, n
+       iord(i) = i
+    end do
+    call qcksort_i4(arr,iord,1,n)
+    arr = arr(iord)
+    deallocate(iord)
+
+  end subroutine qcksort_i4_inplace
+
   !> Sort a real*8 array (arr(ini:n)) in ascending order by
   !> mergesort. Returns the ordering permutation in array iord
   !> (normally, iord = ini:n). This sort is stable and uses n
