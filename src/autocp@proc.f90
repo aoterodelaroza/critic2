@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -48,7 +48,7 @@ submodule (autocp) proc
   real*8 :: x0clip(3), x1clip(3), rclip
 
   ! variables that control the CP search
-  integer :: dograph = 1 !< attempt build the topological graph after CP search. 
+  integer :: dograph = 1 !< attempt build the topological graph after CP search.
 
 contains
 
@@ -101,7 +101,7 @@ contains
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
     logical :: cpdebug, seedobj
-    integer :: nseed 
+    integer :: nseed
     integer :: i, j, k, i1, i2, i3, lp, lpo, n0, nrun
     integer :: m, nf, ntheta, nphi, nr
     type(seed_), allocatable :: seed(:), saux(:)
@@ -361,7 +361,7 @@ contains
 
           if (seed(i)%rad > 0) call scale_ws(seed(i)%rad,seed(i)%x0,ntetrag,tetrag)
           ! Recursively subdivide each tetrahedron
-          do nt = 1, ntetrag     
+          do nt = 1, ntetrag
              do j = 1, 4
                 xdum = tetrag(:,j,nt)
                 iniv(j,:) = sy%c%x2c(xdum)
@@ -499,7 +499,7 @@ contains
           call srf%end()
        elseif (seed(i)%typ == styp_mesh) then
           call meshseed%gen(sy%c,mesh_type,mesh_level)
-          
+
           call realloc(xseed,3,nn+meshseed%n)
           do j = 1, meshseed%n
              nn = nn + 1
@@ -516,7 +516,7 @@ contains
     end do
     call realloc(xseed,3,nn)
 
-    ! write the header to the output 
+    ! write the header to the output
     write (uout,'("* Automatic determination of CPs")')
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
        string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
@@ -666,7 +666,7 @@ contains
 
     ! write the seeds to an obj file
     if (seedobj) then
-       str = trim(fileroot) // "_seeds.obj" 
+       str = trim(fileroot) // "_seeds.obj"
        write (uout,'("+ Writing seeds to file: ",A)') str
        call sy%c%write_3dmodel(str,"obj",(/1,1,1/),.true.,.false.,.false.,&
           .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/),gr)
@@ -713,7 +713,7 @@ contains
                    ! sphere
                    x = x - x0clip
                    x = sy%c%x2c(x)
-                   ok = .not.(norm2(x) >= rclip) 
+                   ok = .not.(norm2(x) >= rclip)
                 end if
              end if
 
@@ -1007,7 +1007,7 @@ contains
                 if (abs(d2 - dist(i,l)) < 1d-8) then
                    nneig(i,l) = nneig(i,l) + 1
                    exit
-                else if (d2 < dist(i,l)) then 
+                else if (d2 < dist(i,l)) then
                    dist(i,l+1:shmax) = dist(i,l:shmax-1)
                    nneig(i,l+1:shmax) = nneig(i,l:shmax-1)
                    wcp(i,l+1:shmax) = wcp(i,l:shmax-1)
@@ -1063,7 +1063,7 @@ contains
     character(len=:), allocatable :: cpfile
     integer :: lucp, i
 
-    cpfile = trim(fileroot) // ".chk_cps" 
+    cpfile = trim(fileroot) // ".chk_cps"
 
     write (uout,'("* Writing CP file : ",A)') string(cpfile)
     write (uout,*)
@@ -1087,12 +1087,12 @@ contains
     character(len=:), allocatable :: cpfile
     logical :: existcpfile
 
-    cpfile = trim(fileroot) // ".chk_cps" 
+    cpfile = trim(fileroot) // ".chk_cps"
 
     inquire(file=cpfile,exist=existcpfile)
     if (existcpfile) then
        write (uout,'("* Reading checkpoint file : ",A)') string(cpfile)
-       write (uout,*) 
+       write (uout,*)
 
        lucp = fopen_write(cpfile,"unformatted")
        read (lucp) sy%f(sy%iref)%ncp, sy%f(sy%iref)%ncpcel
@@ -1301,7 +1301,7 @@ contains
     sizestack = (2**d-1) + (6**d-1) / 5 + (24**d-1) / 23
     allocate(barstack(sizestack,4,3))
     allocate(depstack(sizestack))
-    barstack = 0 
+    barstack = 0
     nstack = 0
 
     ! dim = 1 (vertex of the tetrahedron)
@@ -1582,7 +1582,7 @@ contains
 
     if (sy%c%ismolecule) return
 
-    ! Symmetry information 
+    ! Symmetry information
     write (uout,'("* Complete CP list")')
     write (uout,'("# (x symbols are the non-equivalent representative atoms)")')
     write (uout,'("#  cp   ncp  typ      position (cryst. coords.)        op.    (lvec+cvec)")')
@@ -1602,7 +1602,7 @@ contains
     end do
     write (uout,*)
 
-    ! graph information 
+    ! graph information
     write (uout,'("* Complete CP list, bcp and rcp connectivity table")')
     write (uout,'("# (cp(end)+lvec connected to bcp/rcp)")')
     write (uout,'("#cp  ncp   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
@@ -1683,25 +1683,25 @@ contains
     do k = 1, 2
        isbcp = (k==1)
        if (isbcp) then
-          write (uout,'("* Analysis of system bonds")') 
-          write (uout,'("# ncp is the bond from the non-equivalent CP list.")') 
-          write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")') 
-          write (uout,'("#   CP list (index in parentheses).")') 
-          write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")') 
-          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")') 
-          write (uout,'("# p1 and p2 are the bond path lengths.")') 
+          write (uout,'("* Analysis of system bonds")')
+          write (uout,'("# ncp is the bond from the non-equivalent CP list.")')
+          write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")')
+          write (uout,'("#   CP list (index in parentheses).")')
+          write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")')
+          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")')
+          write (uout,'("# p1 and p2 are the bond path lengths.")')
           write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
              string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
              string(iunitname0(iunit))
 
        else
-          write (uout,'("* Analysis of system rings")') 
-          write (uout,'("# ncp is the ring from the non-equivalent CP list.")') 
-          write (uout,'("# End-1 and End-2 are the ring path terminator from the non-equivalent")') 
-          write (uout,'("#   CP list (index in parentheses).")') 
-          write (uout,'("# r1 and r2 are the geometric distances between ring and terminators.")') 
-          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")') 
-          write (uout,'("# p1 and p2 are the ring path lengths.")') 
+          write (uout,'("* Analysis of system rings")')
+          write (uout,'("# ncp is the ring from the non-equivalent CP list.")')
+          write (uout,'("# End-1 and End-2 are the ring path terminator from the non-equivalent")')
+          write (uout,'("#   CP list (index in parentheses).")')
+          write (uout,'("# r1 and r2 are the geometric distances between ring and terminators.")')
+          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")')
+          write (uout,'("# p1 and p2 are the ring path lengths.")')
           write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
              string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
              string(iunitname0(iunit))
@@ -1745,7 +1745,7 @@ contains
     type(scalar_value) :: res
     logical :: iok
     real*8 :: xp(3), fres
-    
+
     ! non-equivalent CPs
     write (lu,'(A,"  ""number_of_nonequivalent_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
     write (lu,'(A,"  ""nonequivalent_cps"": [{")') prfx
@@ -1918,7 +1918,7 @@ contains
       xdis = 0d0
       xplen = 0d0
 
-      ! run over known non-equivalent cps  
+      ! run over known non-equivalent cps
       !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen)
       do i = 1, f%ncp
          ! BCP/RCP paths
@@ -1949,7 +1949,7 @@ contains
                call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j),pathini=f%cp(i)%r)
             end do
             !$omp critical (xdis1)
-            f%cp(i)%brvec = xx 
+            f%cp(i)%brvec = xx
             xdis(:,:,i) = xdtemp
             xplen(:,i) = plen
             !$omp end critical (xdis1)
@@ -1979,7 +1979,7 @@ contains
          end if
       end do
 
-      ! run over known non-equivalent cps  
+      ! run over known non-equivalent cps
       do i = 1, f%ncp
          ! BCP paths
          if (abs(f%cp(i)%typ) == 1) then
@@ -2039,7 +2039,7 @@ contains
   end subroutine makegraph
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
-  !> rad. 
+  !> rad.
   subroutine scale_ws(rad,wso,ntetrag,tetrag)
     use systemmod, only: sy
     real*8, intent(in) :: rad
@@ -2079,14 +2079,14 @@ contains
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("{")')
-    write (lu,'(2X,"""units"": ","""bohr"",")') 
-    write (lu,'(2X,"""structure"": {")') 
+    write (lu,'(2X,"""units"": ","""bohr"",")')
+    write (lu,'(2X,"""structure"": {")')
     call sy%c%struct_write_json(lu,"  ")
     write (lu,'(2X,"},")')
-    write (lu,'(2X,"""field"": {")') 
+    write (lu,'(2X,"""field"": {")')
     call sy%f(sy%iref)%write_json(lu,"  ")
     write (lu,'(2X"},")')
-    write (lu,'(2X,"""critical_points"": {")') 
+    write (lu,'(2X,"""critical_points"": {")')
     call cp_json_report(lu,"  ")
     write (lu,'(2X"}")')
     write (lu,'("}")')
@@ -2114,7 +2114,7 @@ contains
 
     ! non-equivalent CPs
     write (lu,'("number_of_nonequivalent_cps: ",A)') string(sy%f(sy%iref)%ncp)
-    write (lu,'("nonequivalent_cps: ")') 
+    write (lu,'("nonequivalent_cps: ")')
     do i = 1, sy%f(sy%iref)%ncp
        write (lu,'("id: ",A)') string(i)
        write (lu,'("multiplicity: ",A)') string(sy%f(sy%iref)%cp(i)%mult)
@@ -2171,9 +2171,9 @@ contains
        end if
 
        if (res%isnuc) then
-          write (lu,'("is_nucleus: true")') 
+          write (lu,'("is_nucleus: true")')
        else
-          write (lu,'("is_nucleus: false")') 
+          write (lu,'("is_nucleus: false")')
        end if
     end do
     call fclose(lu)

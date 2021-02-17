@@ -117,9 +117,10 @@ module crystalseedmod
        logical, intent(in) :: mol
        logical, intent(out) :: oksyn
      end subroutine read_library
-     module subroutine from_fragment(seed,fr)
+     module subroutine from_fragment(seed,fr,order_by_cidx0)
        class(crystalseed), intent(inout) :: seed
        type(fragment), intent(in) :: fr
+       logical, intent(in), optional :: order_by_cidx0
      end subroutine from_fragment
      module subroutine read_cif(seed,file,dblock,mol,errmsg)
        class(crystalseed), intent(inout) :: seed

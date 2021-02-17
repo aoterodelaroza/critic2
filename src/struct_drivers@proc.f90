@@ -2901,20 +2901,19 @@ contains
     type(crystalseed) :: seed
     character*1024, allocatable :: fname(:)
     character(len=:), allocatable :: word, lword, wfile, msg
-    integer :: i, j, is, ns, lp, nat, idx0, idx1
+    integer :: i, j, n, is, ns, lp, nat
     real*8, allocatable :: t(:), iha(:,:), ihat(:,:,:)
     real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
     real*8 :: xdiff, h, eps, rms1, rms2
-    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:)
+    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:), itperm(:)
     real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
-    logical :: ok, mol2nd
+    logical :: ok
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
     integer, parameter :: isuse_different_rdf = 2
-    integer, parameter :: isuse_equivalent_to_other = 3
-    integer, parameter :: isuse_could_not_assign = 4
+    integer, parameter :: isuse_could_not_assign = 3
 
     real*8, parameter :: rend0 = 25d0
     real*8, parameter :: sigma0 = 0.05d0
@@ -2926,6 +2925,7 @@ contains
     ! read the input
     ns = 0
     eps = eps_default
+    wfile = ""
     allocate(fname(2))
     do while(.true.)
        word = getword(line,lp)
@@ -2952,51 +2952,33 @@ contains
     call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
     if (.not.cref%isinit) &
        call ferror("struct_order_molecules","could not load structure" // string(fname(1)),faterr)
-    allocate(c(1))
     if (.not.cref%ismolecule) &
        call ferror("struct_order_molecules","the first structure is not a molecule",faterr)
+    if (cref%nmol > 1) &
+       call ferror("struct_order_molecules","the first structure contains more than one molecule",faterr)
 
     ! get the other structures
-    do i = 2, ns
-       call struct_crystal_input(fname(i),-1,.false.,.false.,cr0=c(i-1))
-       if (.not.c(i-1)%isinit) &
-          call ferror("struct_order_molecules","could not load structure" // string(fname(i)),faterr)
-    end do
-
-    ! if the second structure is a crystal, load all the fragments
-    if (.not.c(1)%ismolecule) then
-       if (.not.c(1)%ismol3d) &
-          call ferror("struct_order_molecules","the second structure is not a molecular crystal",faterr)
-       if (any(c(1)%idxmol(1:c(1)%nmol) < 0)) &
-          call ferror("struct_order_molecules","the second structure must have whole molecules",faterr)
-
-       ! save the crystal in cx
-       cx = c(1)
-
-       ! read the fragments from cx into structures
-       deallocate(c)
-       allocate(c(cx%nmol))
-       do i = 1, cx%nmol
-          call seed%from_fragment(cx%mol(i))
-          call c(i)%struct_new(seed,.true.)
-       end do
-       ns = cx%nmol
-       mol2nd = .false.
-    else
-       ns = 1
-       mol2nd = .true.
+    call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
+    if (.not.cx%isinit) &
+       call ferror("struct_order_molecules","could not load structure" // string(fname(2)),faterr)
+    if (.not.cx%ismolecule) then
+       if (.not.cx%ismol3d) &
+          call ferror("struct_order_molecules","the target structure is not a molecular crystal",faterr)
+       if (any(cx%idxmol(1:cx%nmol) < 0)) &
+          call ferror("struct_order_molecules","the target structure must have whole molecules",faterr)
     end if
+
+    ! read the fragments from cx into structures
+    ns = cx%nmol
+    allocate(c(ns))
+    do i = 1, ns
+       call seed%from_fragment(cx%mol(i),.true.)
+       call c(i)%struct_new(seed,.true.)
+    end do
 
     ! allocate the use and permutation arrays
     allocate(isuse(ns),isperm(cref%nneq,ns))
     isuse = isuse_valid
-
-    ! do not process equivalent molecules
-    if (.not.mol2nd) then
-       do i = 1, ns
-          if (cx%idxmol(i) > 0) isuse(i) = isuse_equivalent_to_other
-       end do
-    end if
 
     ! check that the number of atoms are equal
     do i = 1, ns
@@ -3138,8 +3120,8 @@ contains
     ! report on the results
     write (uout,'("+ Reference structure: ",A)') string(cref%file)
     write (uout,'("+ Target structure: ",A)') string(fname(2))
-    if (mol2nd) then
-       write (uout,'("  The target structure is a molecule.")')
+    if (cx%ismolecule) then
+       write (uout,'("  The target structure is a molecule with ",A," fragments.")') string(ns)
     else
        write (uout,'("  The target structure is a molecular crystal with ",A," fragments.")') string(ns)
     end if
@@ -3150,8 +3132,6 @@ contains
           msg = "the target and reference structures have different number of atoms"
        elseif (isuse(is) == isuse_different_rdf) then
           msg = "the target and reference structures have different total RDFs"
-       elseif (isuse(is) == isuse_equivalent_to_other) then
-          msg = "the target structure is equivalent to another target structure in the crystal"
        elseif (isuse(is) == isuse_could_not_assign) then
           msg = "could not assign some atoms in the target structure"
        else
@@ -3168,6 +3148,29 @@ contains
        end if
     end do
     write (uout,*)
+
+    ! write the final structure
+    if (len_trim(wfile) > 0) then
+       write (uout,'("* WRITE file: ",A/)') string(wfile)
+
+       call cx%makeseed(seed,.false.)
+       n = 0
+       do is = 1, ns
+          do i = 1, nat
+             n = n + 1
+             seed%x(:,n) = c(is)%at(isperm(i,is))%x
+             seed%is(n) = c(is)%at(isperm(i,is))%is
+          end do
+       end do
+       call cx%struct_new(seed,.true.)
+
+       if (cx%ismolecule) then
+          call cx%write_mol(wfile,'xyz',(/1,1,1/),.false.,.false.,.false.,.false.,0d0,.false.,&
+             1,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
+       else
+          call cx%write_espresso(wfile)
+       end if
+    end if
 
   end subroutine struct_order_molecules
 

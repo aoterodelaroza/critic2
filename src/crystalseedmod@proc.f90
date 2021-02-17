@@ -652,19 +652,27 @@ contains
 
   end subroutine read_library
 
-  !> Create a crystal seed from a molecular fragment
-  module subroutine from_fragment(seed,fr)
+  !> Create a crystal seed from a molecular fragment. If order_by_cidx0
+  !> is present and .true., order the resulting seed in increasing value of
+  !> cidx from the fragment.
+  module subroutine from_fragment(seed,fr,order_by_cidx0)
     use global, only: rborder_def
+    use tools, only: qcksort
     use tools_io, only: ferror, faterr
     class(crystalseed), intent(inout) :: seed
     type(fragment), intent(in) :: fr
+    logical, intent(in), optional :: order_by_cidx0
 
     integer :: i
+    logical :: order_by_cidx
+    integer, allocatable :: iord(:), midx(:)
 
     if (fr%nat==0) &
        call ferror('from_fragment','fragment has zero atoms',faterr)
     if (.not.fr%discrete) &
        call ferror('from_fragment','cannot handle non-discrete fragments',faterr)
+    order_by_cidx = .false.
+    if (present(order_by_cidx0)) order_by_cidx = order_by_cidx0
 
     ! copy species
     seed%nspc = fr%nspc
@@ -672,14 +680,28 @@ contains
     allocate(seed%spc(seed%nspc))
     seed%spc = fr%spc
 
+    ! determine the final order
+    allocate(iord(fr%nat))
+    do i = 1, fr%nat
+       iord(i) = i
+    end do
+    if (order_by_cidx) then
+       allocate(midx(fr%nat))
+       do i = 1, fr%nat
+          midx(i) = fr%at(i)%cidx
+       end do
+       call qcksort(midx,iord,1,fr%nat)
+       deallocate(midx)
+    end if
+
     ! copy atoms
     seed%nat = fr%nat
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
     do i = 1, seed%nat
-       seed%x(:,i) = fr%at(i)%r
-       seed%is(i) = fr%at(i)%is
+       seed%x(:,i) = fr%at(iord(i))%r
+       seed%is(i) = fr%at(iord(i))%is
     end do
 
     ! rest of the info

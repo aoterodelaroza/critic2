@@ -166,6 +166,7 @@ module crystalmod
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
      procedure :: makeseed !< make a crystal seed from a crystal
+     procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
 
      ! unit cell transformations
      procedure :: newcell !< Change the unit cell and rebuild the crystal
@@ -457,6 +458,10 @@ module crystalmod
        type(crystalseed), intent(out) :: seed
        logical, intent(in) :: copysym
      end subroutine makeseed
+     module subroutine reorder_atoms(c,iperm)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iperm(:)
+     end subroutine reorder_atoms
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
