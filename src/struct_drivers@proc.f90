@@ -3164,10 +3164,10 @@ contains
        end if
     end do
     write (uout,*)
-    deallocate(isuse,rmsd,isinv)
+    deallocate(rmsd,isinv)
 
     ! write the final structure
-    if (len_trim(wfile) > 0) then
+    if (len_trim(wfile) > 0 .and. all(isuse == isuse_valid)) then
        write (uout,'("* WRITE file: ",A/)') string(wfile)
 
        call cx%makeseed(seed,.false.)
@@ -3183,7 +3183,7 @@ contains
        call cx%wholemols()
        call cx%write_simple_driver(wfile)
     end if
-    deallocate(isperm,cidxorig)
+    deallocate(isperm,cidxorig,isuse)
 
   end subroutine struct_molreorder
 
