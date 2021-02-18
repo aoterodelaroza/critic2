@@ -3059,24 +3059,22 @@ contains
              end do
           end do
 
-          if (any(nid == 0)) then
+          if (all(nid == 1)) then
+             ! all done
+             exit
+          elseif (any(nid == 0)) then
              ! some atoms could not be assigned
              isuse(is) = isuse_could_not_assign
              cycle main
           elseif (all(nid == nidold)) then
-             if (all(nid == 1)) then
-                ! all done
-                exit
-             else
-                ! Did not change and all nids are positive and some are > 1. Must be because of symmetry
-                ! so we arbitrarily assign a pair of atoms and continue
-                do i = 1, nat
-                   if (nid(i) > 1) then
-                      nid(i) = 1
-                      exit
-                   end if
-                end do
-             end if
+             ! Did not change and all nids are positive and some are > 1. Must be because of symmetry
+             ! so we arbitrarily assign a pair of atoms and continue
+             do i = 1, nat
+                if (nid(i) > 1) then
+                   nid(i) = 1
+                   exit
+                end if
+             end do
           end if
 
           ! re-do the reference structure and assign peak intensity to unique atoms
