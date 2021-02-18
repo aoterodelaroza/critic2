@@ -2887,7 +2887,6 @@ contains
 
   !> Put the atoms of one molecule in the same order as another.
   module subroutine struct_molreorder(line,lp)
-    use global, only: doguess
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
@@ -2908,13 +2907,12 @@ contains
     real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
     real*8 :: xdiff, h, eps, rms1, rms2
     integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:)
-    integer, allocatable :: cidxorig(:,:)
-    real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
+    integer, allocatable :: cidxorig(:,:), iord(:)
+    real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:), diffmult(:,:)
     logical, allocatable :: isinv(:)
     logical :: ok
-    integer :: doguess_save
-    real*8 :: rend
-    integer :: npts
+    real*8 :: rend, mindifmult
+    integer :: npts, idmin
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
@@ -3037,7 +3035,7 @@ contains
     end do
 
     ! identify equivalent atoms
-    allocate(idmult(2,nat),nid(nat),nidold(nat),intpeak(nat))
+    allocate(idmult(2,nat),diffmult(2,nat),iord(2),nid(nat),nidold(nat),intpeak(nat))
     main: do is = 1, ns
        if (isuse(is) /= isuse_valid) cycle
 
@@ -3051,6 +3049,8 @@ contains
 
           ! recalculate the differences
           idmult = 0
+          mindifmult = 1d40
+          idmin = 1
           do i = 1, nat
              do j = 1, nat
                 if (cref%spc(cref%at(i)%is)%z /= c(is)%spc(c(is)%at(j)%is)%z) cycle
@@ -3058,11 +3058,27 @@ contains
                 xdiff = max(1d0 - crosscorr_triangle(h,ihatref(:,i),ihat(:,j,is),1d0),0d0)
                 if (xdiff < eps) then
                    nid(i) = nid(i) + 1
-                   if (nid(i) > size(idmult,1)) &
+                   if (nid(i) > size(idmult,1)) then
                       call realloc(idmult,2*nid(i),nat)
+                      call realloc(diffmult,2*nid(i),nat)
+                      call realloc(iord,2*nid(i))
+                   end if
                    idmult(nid(i),i) = j
+                   diffmult(nid(i),i) = xdiff
+                   iord(nid(i)) = nid(i)
                 end if
              end do
+
+             ! reorder by xdiff
+             if (nid(i) > 1) then
+                call qcksort(diffmult(1:nid(i),i),iord(1:nid(i)),1,nid(i))
+                idmult(1:nid(i),i) = idmult(iord(1:nid(i)),i)
+                diffmult(1:nid(i),i) = diffmult(iord(1:nid(i)),i)
+                if (diffmult(1,i) < mindifmult) then
+                   idmin = i
+                   mindifmult = diffmult(1,i)
+                end if
+             end if
           end do
 
           if (all(nid == 1)) then
@@ -3075,12 +3091,7 @@ contains
           elseif (all(nid == nidold)) then
              ! Did not change and all nids are positive and some are > 1. Must be because of symmetry
              ! so we arbitrarily assign a pair of atoms and continue
-             do i = 1, nat
-                if (nid(i) > 1) then
-                   nid(i) = 1
-                   exit
-                end if
-             end do
+             nid(idmin) = 1
           end if
 
           ! re-do the reference structure and assign peak intensity to unique atoms
