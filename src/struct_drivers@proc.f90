@@ -3031,7 +3031,7 @@ contains
     end do
 
     ! identify equivalent atoms
-    allocate(idmult(nat,2),nid(nat),nidold(nat),intpeak(nat))
+    allocate(idmult(2,nat),nid(nat),nidold(nat),intpeak(nat))
     main: do is = 1, ns
        if (isuse(is) /= isuse_valid) cycle
 
@@ -3052,9 +3052,9 @@ contains
                 xdiff = max(1d0 - crosscorr_triangle(h,ihatref(:,i),ihat(:,j,is),1d0),0d0)
                 if (xdiff < eps) then
                    nid(i) = nid(i) + 1
-                   if (nid(i) > size(idmult,2)) &
-                      call realloc(idmult,nat,2*nid(i))
-                   idmult(i,nid(i)) = j
+                   if (nid(i) > size(idmult,1)) &
+                      call realloc(idmult,2*nid(i),nat)
+                   idmult(nid(i),i) = j
                 end if
              end do
           end do
@@ -3097,14 +3097,14 @@ contains
              intpeak(i) = c(is)%spc(c(is)%at(i)%is)%z
           end do
           do i = 1, nat
-             if (nid(i) == 1) intpeak(idmult(i,1)) = maxzat0 + i
+             if (nid(i) == 1) intpeak(idmult(1,i)) = maxzat0 + i
           end do
           call c(is)%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihataux,intpeak=intpeak)
           do j = 1, nat
              ihat(:,j,is) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
           end do
        end do
-       isperm(:,is) = idmult(:,1)
+       isperm(:,is) = idmult(1,:)
     end do main
     deallocate(iha,ihat,ihatrefsave,idmult,nid,nidold,intpeak)
 
