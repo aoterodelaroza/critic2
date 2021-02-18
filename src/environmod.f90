@@ -36,7 +36,7 @@ module environmod
   !> in the molecule.  The unit cell is inscribed in a sphere of
   !> radius e%rsph_uc. The environment is contained in a sphere of
   !> radius e%rsph_env (with e%rsph_env >= e%rsph_uc).
-  !> 
+  !>
   !> The atomic environment is covered by a box that is divided into
   !> regions to enable constant-time distance searches. There are
   !> e%nregion regions, e%nreg in each direction, with indices between
@@ -48,7 +48,7 @@ module environmod
   !> In addition to Cartesian (c), crystallographic (x), and reduced
   !> crystallographic (rx), we define two additional sets of
   !> coordinates:
-  !>   region partition (p): three integer indices that give the region to which a point belongs. 
+  !>   region partition (p): three integer indices that give the region to which a point belongs.
   !>   region index (i): the integer index (1..e%nregion) of the encompassing region
   !> The routine c2p, c2i, and p2i convert between Cartesian and these
   !> two sets of coordinates. The origin of the c2p transformation is
@@ -71,7 +71,7 @@ module environmod
   !> from 1 to e%n, c2i(at(imap(k))%r) is in ascending order. If l is
   !> a region, k1 = nrlo(l) and k2 = nrup(l) give the slice of the
   !> c2i(at(imap(1:n))%r) array corresponding to region l.
-  !> 
+  !>
   !> A number of region offsets (e%nregs) are stored. The offsets cover
   !> the entire environment.  If l is an offset index, e%iaddregs(l)
   !> contains a packed index for the region offset (the
@@ -104,7 +104,7 @@ module environmod
      real*8 :: m_xr2c(3,3) !< reduced cryst. -> cart.
      real*8 :: m_c2x(3,3) !< cart. -> cryst.
      real*8 :: m_x2c(3,3) !< cryst. -> cart.
-     ! atom/region mappings 
+     ! atom/region mappings
      integer, allocatable :: imap(:) !< atoms ordered by region, c2i(at(imap(1->n))%r) is ordered
      integer, allocatable :: nrlo(:) !< nrlo(ireg) = i, at(imap(i)) is the first atom in region ireg
      integer, allocatable :: nrhi(:) !< nrlo(ireg) = i, at(imap(i)) is the last atom in region ireg
@@ -326,13 +326,13 @@ module environmod
      module subroutine promolecular(e,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        use fragmentmod, only: fragment
        class(environ), intent(in) :: e
-       real*8, intent(in) :: x0(3) 
+       real*8, intent(in) :: x0(3)
        integer, intent(in) :: icrd
        real*8, intent(out) :: f
        real*8, intent(out) :: fp(3)
        real*8, intent(out) :: fpp(3,3)
        integer, intent(in) :: nder
-       integer, intent(in), optional :: zpsp(:) 
+       integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
      module subroutine find_asterisms_covalent(e,nstar)

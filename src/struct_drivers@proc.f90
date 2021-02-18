@@ -2913,15 +2913,16 @@ contains
     logical, allocatable :: isinv(:)
     logical :: ok
     integer :: doguess_save
+    real*8 :: rend
+    integer :: npts
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
     integer, parameter :: isuse_different_rdf = 2
     integer, parameter :: isuse_could_not_assign = 3
 
-    real*8, parameter :: rend0 = 25d0
     real*8, parameter :: sigma0 = 0.05d0
-    integer, parameter :: npts0 = 201
+    integer, parameter :: npts0 = 1001
     real*8, parameter :: eps_default = 1d-4
 
     write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
@@ -2975,10 +2976,14 @@ contains
     ! read the fragments from cx into structures
     ns = cx%nmol
     allocate(c(ns))
+    rend = 0d0
     do i = 1, ns
        call seed%from_fragment(cx%mol(i),.true.)
+       seed%border = 0d0
        call c(i)%struct_new(seed,.true.)
+       rend = max(rend,maxval(c(i)%aa))
     end do
+    npts = max(min(nint(rend * 21),npts0),10)
 
     ! allocate the use and permutation arrays
     allocate(isuse(ns),isperm(cref%nneq,ns))
@@ -3001,13 +3006,13 @@ contains
     end do
 
     ! allocate space for the RDFs
-    allocate(iha(npts0,ns),ihat(npts0,nat,ns),ihatrefsave(npts0,nat))
+    allocate(iha(npts,ns),ihat(npts,nat,ns),ihatrefsave(npts,nat))
     iha = 0d0
     ihat = 0d0
 
     ! get the RDF for the reference structure and save it
-    h = rend0 / real(npts0-1,8)
-    call cref%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihref,ihat=ihatref)
+    h = rend / real(npts-1,8)
+    call cref%rdf(0d0,rend,sigma0,.false.,npts,t,ihref,ihat=ihatref)
     ihref = ihref / sqrt(abs(crosscorr_triangle(h,ihref,ihref,1d0)))
     do j = 1, nat
        ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
@@ -3019,7 +3024,7 @@ contains
        if (isuse(i) /= isuse_valid) cycle
 
        ! calculate the RDFs
-       call c(i)%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihataux)
+       call c(i)%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihataux)
        iha(:,i) = ihaux / sqrt(abs(crosscorr_triangle(h,ihaux,ihaux,1d0)))
        do j = 1, nat
           ihat(:,j,i) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
@@ -3085,7 +3090,7 @@ contains
                 intpeak(i) = cref%spc(cref%at(i)%is)%z
              end if
           end do
-          call cref%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihatref,intpeak=intpeak)
+          call cref%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihatref,intpeak=intpeak)
           do j = 1, nat
              ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
           end do
@@ -3097,7 +3102,7 @@ contains
           do i = 1, nat
              if (nid(i) == 1) intpeak(idmult(1,i)) = maxzat0 + i
           end do
-          call c(is)%rdf(0d0,rend0,sigma0,.false.,npts0,t,ihaux,ihat=ihataux,intpeak=intpeak)
+          call c(is)%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihataux,intpeak=intpeak)
           do j = 1, nat
              ihat(:,j,is) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
           end do

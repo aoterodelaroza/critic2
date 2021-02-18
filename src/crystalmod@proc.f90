@@ -210,7 +210,7 @@ contains
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
     logical :: good, clearsym
     integer :: i, j, k, iat
     real*8, allocatable :: atpos(:,:)
@@ -231,6 +231,7 @@ contains
     ! copy the atomic information
     c%nspc = seed%nspc
     c%nneq = seed%nat
+    border = max(seed%border,1d-6)
     if (c%nneq > 0) then
        if (allocated(c%at)) deallocate(c%at)
        allocate(c%at(c%nneq))
@@ -246,19 +247,17 @@ contains
        if (seed%ismolecule) then
           xmax = -1d40
           xmin =  1d40
-          xcm = 0d0
           do i = 1, seed%nat
              do j = 1, 3
-                xmax(j) = max(seed%x(j,i)+seed%border,xmax(j))
-                xmin(j) = min(seed%x(j,i)-seed%border,xmin(j))
+                xmax(j) = max(seed%x(j,i)+border,xmax(j))
+                xmin(j) = min(seed%x(j,i)-border,xmin(j))
              end do
-             xcm = xcm + seed%x(:,i)
           end do
-          xcm = xcm / seed%nat
           if (seed%cubic) then
              xmin = minval(xmin)
              xmax = maxval(xmax)
           end if
+          xcm = xmin + 0.5d0 * (xmax-xmin)
        end if
     else
        xmax = 1d0
@@ -332,7 +331,7 @@ contains
           ! choose the molecular cell as the minimal encompassing cell for the molecule
           ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell
           ! can not exceed the actual unit cell
-          c%molborder = max(seed%border - max(2d0,0.8d0 * seed%border),0d0) / (xmax - xmin)
+          c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / (xmax - xmin)
        else
           if (any(abs(c%bb - 90d0) > 1d-3)) then
              if (crashfail) then
@@ -2084,9 +2083,9 @@ contains
        end if
        iz = c%spc(c%at(i)%is)%z
        if (localenv) then
-          call le%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
+          call le%list_near_atoms(c%at(i)%r,icrd_cart,.true.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        else
-          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
+          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.true.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
        end if
 
        do j = 1, nat
