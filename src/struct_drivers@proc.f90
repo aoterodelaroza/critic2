@@ -2921,8 +2921,9 @@ contains
     integer, parameter :: isuse_different_rdf = 2
     integer, parameter :: isuse_could_not_assign = 3
 
-    real*8, parameter :: sigma0 = 0.05d0
+    real*8, parameter :: sigma0 = 0.1d0
     integer, parameter :: npts0 = 1001
+    integer, parameter :: npth = 21
     real*8, parameter :: eps_default = 1d-4
 
     write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
@@ -2983,7 +2984,7 @@ contains
        call c(i)%struct_new(seed,.true.)
        rend = max(rend,maxval(c(i)%aa))
     end do
-    npts = max(min(nint(rend * 21),npts0),10)
+    npts = max(min(nint(rend * npth),npts0),10)
 
     ! allocate the use and permutation arrays
     allocate(isuse(ns),isperm(cref%nneq,ns))
