@@ -1127,13 +1127,14 @@ contains
     use fragmentmod, only: realloc_fragment
     use tools_math, only: lattice_direction
     use tools_io, only: ferror, faterr
+    use tools, only: qcksort
     use types, only: realloc
     class(crystal), intent(inout) :: c
 
     integer :: i, j, k, l, jid, newid, newl(3)
     integer :: nat, nlvec, lwork, info
     logical :: found, fdisc
-    integer, allocatable :: id(:), lvec(:,:)
+    integer, allocatable :: id(:), lvec(:,:), iord(:), icidx(:)
     logical, allocatable :: ldone(:), used(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
@@ -1249,6 +1250,16 @@ contains
        end do
        if (c%mol(c%nmol)%nlvec > 0) &
           call realloc(c%mol(c%nmol)%lvec,3,c%mol(c%nmol)%nlvec)
+
+       ! reorder the fragment in order of increasing cidx
+       allocate(iord(nat),icidx(nat))
+       do j = 1, nat
+          iord(j) = j
+          icidx(j) = c%mol(c%nmol)%at(j)%cidx
+       end do
+       call qcksort(icidx,iord,1,nat)
+       c%mol(c%nmol)%at = c%mol(c%nmol)%at(iord)
+       deallocate(iord,icidx)
     end do
     call realloc_fragment(c%mol,c%nmol)
     deallocate(used)
@@ -4536,7 +4547,7 @@ contains
        call c%write_tessel(file)
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
        call c%write_critic(file)
-    elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
+    elseif (equal(wext,'cif')) then
        call c%write_cif(file,.true.)
     elseif (equal(wext,'d12').or.equal(wext,'34')) then
        call c%write_d12(file,.true.)

@@ -2887,6 +2887,7 @@ contains
 
   !> Put the atoms of one molecule in the same order as another.
   module subroutine struct_molreorder(line,lp)
+    use global, only: doguess
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
@@ -2911,6 +2912,7 @@ contains
     real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     logical :: ok
+    integer :: doguess_save
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
@@ -2920,7 +2922,7 @@ contains
     real*8, parameter :: rend0 = 25d0
     real*8, parameter :: sigma0 = 0.05d0
     integer, parameter :: npts0 = 201
-    real*8, parameter :: eps_default = 1d-6
+    real*8, parameter :: eps_default = 1d-4
 
     write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
 
@@ -2958,13 +2960,14 @@ contains
     if (cref%nmol > 1) &
        call ferror("struct_order_molecules","the first structure contains more than one molecule",faterr)
 
-    ! get the other structures
+    ! get the other structure (do not guess the symmetry)
     call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
     if (.not.cx%isinit) &
        call ferror("struct_order_molecules","could not load structure" // string(fname(2)),faterr)
     if (.not.cx%ismolecule) then
        if (.not.cx%ismol3d) &
           call ferror("struct_order_molecules","the target structure is not a molecular crystal",faterr)
+       call cx%wholemols()
        if (any(cx%idxmol(1:cx%nmol) < 0)) &
           call ferror("struct_order_molecules","the target structure must have whole molecules",faterr)
     end if
