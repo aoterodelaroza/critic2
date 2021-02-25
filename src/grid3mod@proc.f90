@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -33,8 +33,8 @@ submodule (grid3mod) proc
   !
   ! - An element of this array is:
   !     igfft = j3*n(2)*n(1)+j2*n(1)+j1+1
-  !   where jx: 1 -> nx. 
-  ! 
+  !   where jx: 1 -> nx.
+  !
   ! - The jx: 1 -> nx are recentered to ix: -nx+nx/2+1 -> nx/2 via
   !   the operation:
   !   jx = modulo(ix,n(x))
@@ -64,7 +64,7 @@ submodule (grid3mod) proc
   ! - To transform the ix back to the ig index:
   !   ig = i3-1+n(3)-n(3)/2 + (i2-1+n(2)-n(2)/2) * n(3) + (i1-1+n(1)-n(1)/2) * n(3) * n(2) + 1
   !
-  
+
 
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
@@ -348,7 +348,7 @@ contains
     allocate(f%f(n(1),n(2),n(3)))
     call eval_grid(n,expr,sptr,f%f,iok)
     if (.not.iok) call f%end()
-    
+
   end subroutine new_eval
 
   module subroutine grid_end(f)
@@ -371,7 +371,7 @@ contains
     if (allocated(f%qe%center)) deallocate(f%qe%center)
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
-    
+
   end subroutine grid_end
 
   !> Set the interpolation mode. The possible modes arenearest,
@@ -380,9 +380,9 @@ contains
     use tools_io, only: equal, lower
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: mode
-    
+
     character(len=:), allocatable :: lmode
-    
+
     lmode = lower(mode)
     if (equal(lmode,'tricubic')) then
        f%mode = mode_tricubic
@@ -406,7 +406,7 @@ contains
 
     f%f = f%f / (sum(f%f) * omega / real(product(f%n),8)) * norm
     if (allocated(f%c2)) deallocate(f%c2)
-    
+
   end subroutine normalize
 
   !> Build a grid field from a three-dimensional array
@@ -445,8 +445,8 @@ contains
     call f%end()
     luc = fopen_read(file)
 
-    read (luc,*) 
-    read (luc,*) 
+    read (luc,*)
+    read (luc,*)
     read (luc,*,iostat=istat) nat
     ismo = (nat < 0)
     nat = abs(nat)
@@ -763,7 +763,7 @@ contains
     if (.not.found) call ferror('read_xsf','BEGIN_DATAGRID_3D... not found',faterr,file)
 
     ! grid dimension
-    read (luc,*,iostat=istat) n 
+    read (luc,*,iostat=istat) n
     if (istat /= 0) &
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
     f%n = n - 1
@@ -798,7 +798,7 @@ contains
   !> info. Calculates the electron density from the Bloch states.
   !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
   !> ikpt = use only the indicated k-points. ibnd = use only the
-  !> indicated bands. emin,emax: only the bands in the energy range. 
+  !> indicated bands. emin,emax: only the bands in the energy range.
   module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax)
     use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
@@ -808,14 +808,14 @@ contains
     integer, intent(in), allocatable :: ikpt(:)
     integer, intent(in), allocatable :: ibnd(:)
     real*8, intent(in) :: emin, emax
-    
+
     integer :: i, is, ik, ib, iver
     integer :: luc
     integer :: npwx, ngms, nkstot, nsp, nat
     real*8 :: at(3,3), fspin, alat
     complex*16, allocatable :: raux(:,:,:), rseq(:), evc(:)
     logical :: ok1, ok2
-    
+
     real*8, parameter :: epsocc = 1d-6
 
     ! initialize
@@ -834,7 +834,7 @@ contains
 
     read (luc) nsp, nat, alat ! nsp, nat, alat
     read (luc) ! atm
-    read (luc) ! ityp 
+    read (luc) ! ityp
     read (luc) ! tau
     read (luc) at
     at = at * alat
@@ -1042,18 +1042,18 @@ contains
     ! header and number of bands
     do is = nspin, 1, -1
        read(lu(is)) header
-       read(lu(is)) nbnd 
-       read(lu(is)) jbnd 
+       read(lu(is)) nbnd
+       read(lu(is)) jbnd
        if (jbnd > 0) &
           call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
        if (nbnd /= f%qe%nbnd .and. nspin == 1) &
           call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
-       read(lu(is)) (idum,i=1,jbnd) 
+       read(lu(is)) (idum,i=1,jbnd)
 
        ! real and reciprocal lattice
        read(lu(is)) ((rlatt(i,j),i=1,3),j=1,3)
        read(lu(is)) ((rclatt(i,j),i=1,3),j=1,3)
-    
+
        ! number of k-points
        read(lu(is)) nks
        read(lu(is)) nk
@@ -1066,7 +1066,7 @@ contains
     ! k-points
     allocate(kpt(3,nks))
     do is = nspin, 1, -1
-       read(lu(is)) ((kpt(i,j),i=1,3),j=1,nks) 
+       read(lu(is)) ((kpt(i,j),i=1,3),j=1,nks)
        do i = 1, nks
           ik1 = nint(kpt(1,i) * nk(1))
           ik2 = nint(kpt(2,i) * nk(2))
@@ -1100,10 +1100,10 @@ contains
        ! checkpoint position and disentanglement
        read(lu(is)) chkpt1
        read(lu(is)) have_disentangled
-       if (have_disentangled) & 
+       if (have_disentangled) &
           call ferror("read_wannier_chk","cannot handle disentangled wannier functions",faterr)
     end do
-    
+
     ! rest of the file: u and m matrices, wannier centers and spreads
     jbnd = maxval(f%qe%nbndw(1:nspin))
     if (allocated(f%qe%u)) deallocate(f%qe%u)
@@ -1111,6 +1111,8 @@ contains
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     allocate(f%qe%u(jbnd,jbnd,nks,nspin))
     allocate(f%qe%center(3,jbnd,nspin),f%qe%spread(jbnd,nspin))
+    f%qe%center = 0d0
+    f%qe%spread = 0d0
     do is = nspin, 1, -1
        read(lu(is)) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
        read(lu(is)) ! m matrix
@@ -1118,7 +1120,7 @@ contains
        read(lu(is)) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
        call fclose(lu(is))
     end do
-    
+
     ! convert centers to crystallographic and spread to bohr
     rlatti = rlatt
     call matinv(rlatti,3)
@@ -1147,7 +1149,7 @@ contains
   !> Interpolate the function value, first and second derivative at
   !> point x0 (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.
-  module subroutine interp(f,xi,y,yp,ypp) 
+  module subroutine interp(f,xi,y,yp,ypp)
     class(grid3), intent(inout) :: f !< Grid to interpolate
     real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
@@ -1178,7 +1180,7 @@ contains
 
   !> Given the grid field in frho calculate the laplacian or Hessian
   !> derivatives of frho with FFT and save them in flap. x2c is the
-  !> crystallographic to Cartesian matrix for this grid. ix can be 
+  !> crystallographic to Cartesian matrix for this grid. ix can be
   !> one of 0 (lap), 1 (hxx), 2 (hyy), 3 (hzz).
   module subroutine laplacian_hxx(flap,frho,x2c,ix)
     use tools_io, only: ferror, faterr
@@ -1199,7 +1201,7 @@ contains
        call ferror('grid_laplacian','no density grid',faterr)
 
     ! allocate slot
-    n = frho%n    
+    n = frho%n
     flap%n = n
     flap%isinit = .true.
     flap%mode = mode_default
@@ -1268,7 +1270,7 @@ contains
        call ferror('grid_gradgrho','no density grid',faterr)
 
     ! allocate slot
-    n = frho%n    
+    n = frho%n
     fgrho%n = n
     fgrho%isinit = .true.
     fgrho%mode = mode_default
@@ -1342,7 +1344,7 @@ contains
        call ferror('grid_pot','no density grid',faterr)
 
     ! allocate slot
-    n = frho%n    
+    n = frho%n
     fpot%n = n
     fpot%isinit = .true.
     fpot%mode = mode_default
@@ -1604,7 +1606,7 @@ contains
           ik3 = mod(nint(xkpt(3) * f%qe%nk(3)),f%qe%nk(3))
           ilat = 1 + ik3 + f%qe%nk(3) * (ik2 + f%qe%nk(2) * ik1)
           raux2 = raux * exp(-tpi*img*(f%qe%kpt(1,ik0)*ik1+f%qe%kpt(2,ik0)*ik2+f%qe%kpt(3,ik0)*ik3))
-          if (ilat < 1 .or. ilat > f%qe%nks) then 
+          if (ilat < 1 .or. ilat > f%qe%nks) then
              !$omp critical (ioerror)
              write (uout,*) "kpoint number ", ikk
              write (uout,*) "kpoint coords ", f%qe%kpt(:,ikk)
@@ -1628,9 +1630,9 @@ contains
 
     ! normalize
     fout = fout / real(f%qe%nks,8) / sqrt(omega)
- 
+
  end subroutine get_qe_wnr
-  
+
   !> Build the Wannier functions for band ibnd and spin ispin from QEs
   !> Bloch coefficients, standalone version. Returns the Wannier
   !> function for lattice vector inr in cell grid fout. This version
@@ -1655,7 +1657,7 @@ contains
        call ferror("get_qe_wnr_standalone","inconsistent grid size",faterr)
     if (any(abs(f%qe%wk - f%qe%wk(1)) > 1d-5)) &
        call ferror("get_qe_wnr_standalone","wannier transformation only possible with uniform grids (no symmetry)",faterr)
-       
+
     ! open the pwc file
     luc = fopen_read(f%qe%fpwc,form="unformatted")
 
@@ -1665,7 +1667,7 @@ contains
     else
        ireg = 17
     end if
-    
+
     ! read the psik coefficients from the file and perform the rotation; calculates evc
     allocate(evcaux(maxval(f%qe%ngk(1:f%qe%nks))))
     allocate(evc(maxval(f%qe%ngk(1:f%qe%nks)),f%qe%nks))
@@ -1732,7 +1734,7 @@ contains
     fout = fout / real(f%qe%nks,8) / sqrt(omega)
 
   end subroutine get_qe_wnr_standalone
-  
+
   !> Build the unk(r) functions on a real grid for band ibnd, k-point
   !> ik, and spin ispin from QEs Bloch coefficients, standalone
   !> version. Returns the unk(r) in cell grid fout. omega is the cell
@@ -1765,7 +1767,7 @@ contains
     else
        ireg = 17
     end if
-    
+
     ! read the psik coefficients from the file; calculates evc
     allocate(evc(f%qe%ngk(ik)),evcaux(maxval(f%qe%ngk(1:f%qe%nks))))
     evc = 0d0
@@ -1793,7 +1795,7 @@ contains
     fout = reshape(rseq,shape(fout))
     call cfftnd(3,f%n,+1,fout)
     deallocate(rseq)
-    
+
     ! the phase factor for this k-point (e(ik*r))
     if (usephase) then
        do k = 1, f%n(3)
@@ -1809,7 +1811,7 @@ contains
 
     ! the phase factor for this lattice vector (e(-ik*R))
     fout = fout * exp(-tpi*img*(f%qe%kpt(1,ik)*inr(1)+f%qe%kpt(2,ik)*inr(2)+f%qe%kpt(3,ik)*inr(3)))
-    
+
     ! normalize
     fout = fout / sqrt(omega)
 
@@ -2333,7 +2335,7 @@ contains
 
   end subroutine grinterp_tricubic
 
-  !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in 
+  !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in
   !> orthogonal grids).
   function grid_near(f,x) result(res)
     class(grid3), intent(in) :: f !< Input grid
@@ -2375,8 +2377,8 @@ contains
     allocate(l(nmax,nmax))
     allocate(fg(nmax))
 
-    ! cholesky decomposition of the matrix: 
-    ! A = 
+    ! cholesky decomposition of the matrix:
+    ! A =
     !  ( 4 1 0 ... 0 1 )
     !  ( 1 4 1 ... 0 0 )
     !  ( 0 1 4 ... 0 0 )
