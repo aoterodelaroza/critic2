@@ -521,7 +521,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
  ciftbx warning: ../zz_source/cif/allspg/007f_dervillite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -584,7 +584,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/007i_dervillite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -605,7 +605,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/008a_up4o12.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -1067,7 +1067,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/009n_tilasite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -1340,7 +1340,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/012c_calaverite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -1466,7 +1466,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/012i_calaverite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -1949,7 +1949,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/015e_coesite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -1970,7 +1970,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/015f_coesite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -2033,7 +2033,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
  ciftbx warning: ../zz_source/cif/allspg/015i_coesite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -9068,7 +9068,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/147_na2so3.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -9278,7 +9278,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
  ciftbx warning: ../zz_source/cif/allspg/156_pbi2.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -9530,7 +9530,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/166a_cdcl2.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -9698,7 +9698,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/172_c8h4f6n4zn.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -9971,7 +9971,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
  ciftbx warning: ../zz_source/cif/allspg/185_iceih.cif data_stdin line:     10
   Category key _space_group_id not given for space_group
@@ -10349,7 +10349,7 @@
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
  ciftbx warning: ../zz_source/cif/allspg/203a_tychite.cif data_stdin line:     10
   Category key _space_group_id not given for space_group

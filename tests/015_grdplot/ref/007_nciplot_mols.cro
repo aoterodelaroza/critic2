@@ -29,9 +29,9 @@
   RDG cutoff (for dat file): 2.000000
   Density plot cutoff: 0.100000
   RDG plot cutoff: 0.500000
-+ Cube origin (crystal coord.): 0.084693 0.094624 0.092949
-  Cube end (crystal coord.): 0.915307 0.905376 0.907051
-  Cube nodes in each direction: 20 18 18
-  Cube steps in each direction: 1.889726 1.889726 1.889726
-  Cube side lengths in each direction (ang_): 20.0000 18.0000 18.0000
++ Cube origin (crystal coord.): 0.000000 0.000000 0.000000
+  Cube end (crystal coord.): 1.000000 1.000000 1.000000
+  Cube nodes in each direction: 69 22 29
+  Cube steps in each direction: 0.100000 0.100000 0.100000
+  Cube side lengths in each direction (ang_): 3.6513 1.1642 1.5346
 
