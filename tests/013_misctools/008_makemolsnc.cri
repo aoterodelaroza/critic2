@@ -1,0 +1,5 @@
+## check: 008_makemolsnc.mols -a1e-10
+## delete: 008_makemolsnc.cro
+## labels: regression quick
+
+makemolsnc ../zz_source/dmacrys-2.3.0/urea/fort.21 008_makemolsnc.mols

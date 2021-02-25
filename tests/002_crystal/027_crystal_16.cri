@@ -1,5 +1,5 @@
 ## delete: 027_crystal_16.cro
 ## check: 027_crystal_16_gen.cri -a1e-10
 ## labels: regression quick
-crystal ../zz_source/dmacrys-2.3.0/BTXXII/BTXXII.16
+crystal ../zz_source/dmacrys-2.3.0/urea/fort.16
 write 027_crystal_16_gen.cri

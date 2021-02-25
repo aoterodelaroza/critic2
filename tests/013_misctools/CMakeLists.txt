@@ -7,12 +7,13 @@ endif()
 
 set(TESTS
   ${TESTS}
-  002_stm_current  ## stm, constant current  
-  003_stm_height   ## stm, constant height  
+  002_stm_current  ## stm, constant current
+  003_stm_height   ## stm, constant height
   004_xdm_qe       ## xdm, qe keyword
   005_xdm_postg    ## xdm, postg keyword
   006_xdm_wfn      ## xdm, wavefunction calculation
   007_xdm_grid     ## xdm, grid keyword
+  008_makemolsnc   ## makemols for neighcrys
   )
 
 runtests(${TESTS})

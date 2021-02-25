@@ -1,0 +1,5 @@
+## delete: 030_crystal_dmain.cro
+## check: 030_crystal_dmain_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/dmacrys-2.3.0/urea/urea.dmain
+write 030_crystal_dmain_gen.cri

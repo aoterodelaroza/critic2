@@ -28,6 +28,7 @@ set(TESTS
   027_crystal_16           ## from a dmacrys fort.16 file
   028_crystal_21           ## from a dmacrys/neighcrys fort.21 file
   029_crystal_cifnoxyz     ## cif without xyz symops
+  030_crystal_dmain        ## from a dmacrys input file
   )
 
 runtests(${TESTS})
