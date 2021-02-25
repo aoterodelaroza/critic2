@@ -3,13 +3,13 @@
 ## test data package info
 set(TEST_PACKAGE_NAME "zz_source.tar.xz")
 set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
-#set(TEST_URL 
+#set(TEST_URL
 #  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
 #  )
-set(TEST_SHA1_HASH 315e976169f3da2365e54ceed692121b386e6053)
+set(TEST_SHA1_HASH 973f01163cdfa31b37f8ab0e79c2ed5070fa6de1)
 
 ## list of test bundles
-set(TESTDIRS 
+set(TESTDIRS
   001_io        ## input and output; arithmetics
   002_crystal   ## reading a crystal structure (CRYSTAL)
   003_molecule  ## reading a molecular structure (MOLECULE)
@@ -45,7 +45,7 @@ macro (runtests)
 
     ## gen test
     add_test(
-      NAME "GEN:${curdir}/${test}" 
+      NAME "GEN:${curdir}/${test}"
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       CONFIGURATIONS gen
@@ -56,20 +56,20 @@ macro (runtests)
     set(_check_list "")
     if (check_list)
       foreach (i IN LISTS check_list)
-        string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
-        string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
-        list(GET llist 0 file)
+	string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
+	string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+	list(GET llist 0 file)
 	list(APPEND _check_list "${file}")
       endforeach()
       list(TRANSFORM _check_list PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
       string(REPLACE ";" " " check_string "${_check_list}")
 
       add_test(
-        NAME "GEN-COPY-:${curdir}/${test}" 
-        COMMAND sh -c "${CMAKE_COMMAND} -E copy ${check_string} ${CMAKE_CURRENT_SOURCE_DIR}/ref/"
-        WORKING_DIRECTORY ""
-        CONFIGURATIONS gen
-        )
+	NAME "GEN-COPY-:${curdir}/${test}"
+	COMMAND sh -c "${CMAKE_COMMAND} -E copy ${check_string} ${CMAKE_CURRENT_SOURCE_DIR}/ref/"
+	WORKING_DIRECTORY ""
+	CONFIGURATIONS gen
+	)
       set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
       set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY DEPENDS "GEN:${curdir}/${test}")
     endif()
@@ -78,8 +78,8 @@ macro (runtests)
     if (_check_list OR delete_list)
       set(_delete_list "")
       foreach (i IN LISTS delete_list)
-        string(REGEX REPLACE "^ *#.*delete *:" "" i "${i}")
-        string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+	string(REGEX REPLACE "^ *#.*delete *:" "" i "${i}")
+	string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
 	list(APPEND _delete_list "${llist}")
       endforeach()
       list(TRANSFORM _delete_list PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
@@ -87,18 +87,18 @@ macro (runtests)
       string(REPLACE ";" " " delete_string "${_delete_list}")
 
       add_test(
-        NAME "GEN-CLEAN-:${curdir}/${test}" 
-        COMMAND sh -c "${CMAKE_COMMAND} -E remove ${delete_string}"
-        WORKING_DIRECTORY ""
-        CONFIGURATIONS gen
-        )
+	NAME "GEN-CLEAN-:${curdir}/${test}"
+	COMMAND sh -c "${CMAKE_COMMAND} -E remove ${delete_string}"
+	WORKING_DIRECTORY ""
+	CONFIGURATIONS gen
+	)
       set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
       set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY DEPENDS "GEN-COPY:${curdir}/${test}")
     endif()
 
     ## run test
     add_test(
-      NAME "-RUN-:${curdir}/${test}" 
+      NAME "-RUN-:${curdir}/${test}"
       COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       )
@@ -107,18 +107,18 @@ macro (runtests)
     ## check tests
     if (NUMDIFF_FOUND AND check_list)
       foreach (i IN LISTS check_list)
-        string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
-        string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
+	string(REGEX REPLACE "^ *#.*check *:" "" i "${i}")
+	string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)"  llist "${i}")
 	list(LENGTH llist nn)
-        list(GET llist 0 file)
+	list(GET llist 0 file)
 	if ("${nn}" GREATER 1)
-          list(GET llist 1 numdiff_opts)
+	  list(GET llist 1 numdiff_opts)
 	endif()
-        add_test(
-          NAME "CHECK:${curdir}/ref/${file}" 
-          COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
-          WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-          )
+	add_test(
+	  NAME "CHECK:${curdir}/ref/${file}"
+	  COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
+	  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+	  )
 	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY LABELS "${label_list}")
 	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY DEPENDS "-RUN-:${curdir}/${test}")
       endforeach()
@@ -143,7 +143,7 @@ if(NOT "${TEST_PACKAGE_FOUND}")
   #   endif()
   #   message(STATUS "package: ${TEST_PACKAGE_TARGET}")
   #   file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
-  #     TIMEOUT 60 
+  #     TIMEOUT 60
   #     TLS_VERIFY ON
   #     SHOW_PROGRESS
   #     STATUS status
@@ -152,8 +152,8 @@ if(NOT "${TEST_PACKAGE_FOUND}")
   #   if(NOT "${error_code}")
   #     file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
   #     if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
-  # 	set(TEST_PACKAGE_FOUND "YES")
-  # 	break()
+  #	set(TEST_PACKAGE_FOUND "YES")
+  #	break()
   #     endif()
   #   endif()
   # endforeach()
