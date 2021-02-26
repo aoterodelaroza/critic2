@@ -1624,6 +1624,170 @@ contains
 
   end function fdamp_bj
 
+  !> Use the Hungarian (Munkres) algorithm to create the assignment matrix
+  !> associated with the cost matrix c that yields the minimalt cost. The
+  !> cost is returned as an additional argument.
+  module subroutine munkres(n,c,a,cost)
+    integer, intent(in) :: n
+    real*8, intent(in) :: c(n,n)
+    integer, intent(out) :: a(n,n)
+    real*8, intent(out), optional :: cost
+
+    real*8, allocatable :: cwork(:,:)
+    integer :: i, j, i0, j0, jk, k0, z0, z1, z2
+    logical, allocatable :: zs(:,:), zp(:,:)
+    logical, allocatable :: covercol(:), coverrow(:), primez(:,:), rowz(:)
+    logical :: done
+    real*8 :: xmin, xcost
+
+    ! initialize
+    if (present(cost)) cost = 0d0
+    a = 0
+
+    ! subtract the minimum of each row from each row
+    allocate(cwork(n,n))
+    cwork = c
+    do i = 1, n
+       cwork(i,:) = cwork(i,:) - minval(cwork(i,:))
+    end do
+
+    ! star zeroes in such a way that they are the only star in their
+    ! row and column
+    allocate(zs(n,n),zp(n,n),coverrow(n),covercol(n),primez(n,n),rowz(n))
+    zs = .false.
+    zp = (cwork == 0d0)
+    main: do while(any(zp))
+       do i = 1, n
+          do j = 1, n
+             if (zp(i,j)) then
+                zs(i,j) = .true.
+                zp(i,:) = .false.
+                zp(:,j) = .false.
+             end if
+          end do
+       end do
+       exit
+    end do main
+
+    do while (.true.)
+       ! Check if all the columns contain a star. If they do, we are done.
+       do i = 1, n
+          covercol(i) = any(zs(:,i))
+       end do
+       if (all(covercol)) exit
+       coverrow = .false.
+       primez = .false.
+
+       do while (.true.)
+          ! find uncovered zeros
+          zp = .false.
+          do i = 1, n
+             do j = 1, n
+                zp(i,j) = (.not.coverrow(i).and..not.covercol(j).and.(cwork(i,j) == 0d0))
+             end do
+          end do
+
+          ! while there are uncovered zeros
+          done = .false.
+          do while (any(zp))
+             ! find an uncovered zero
+             loopi: do i = 1, n
+                do j = 1, n
+                   if (zp(i,j)) then
+                      i0 = i
+                      j0 = j
+                      exit loopi
+                   end if
+                end do
+             end do loopi
+
+             ! prime the zero
+             primez(i0,j0) = .true.
+
+             ! if there is no star in the row containing the primed zero, we are done
+             done = .not.any(zs(i0,:))
+             if (done) exit
+
+             ! cover the row and uncover the column containing the star
+             coverrow(i0) = .true.
+             do j = 1, n
+                if (zs(i0,j)) then
+                   jk = j
+                   exit
+                end if
+             end do
+             covercol(jk) = .true.
+             zp(i0,:) = .false.
+             do i = 1, n
+                do j = 1, n
+                   if (.not.coverrow(i).and.zs(i0,j)) zp(i,j) = (cwork(i,j) == 0d0)
+                end do
+             end do
+          end do
+
+          ! if we are done, terminate the loop
+          if (done) exit
+
+          ! get the minimum from the uncovered rows and columns
+          xmin = huge(1d0)
+          do i = 1, n
+             do j = 1, n
+                if (.not.coverrow(i).and..not.covercol(j)) then
+                   xmin = min(xmin,cwork(i,j))
+                end if
+             end do
+          end do
+
+          ! add to the covered rows and subtract from uncovered columns
+          do i = 1, n
+             do j = 1, n
+                if (coverrow(i)) cwork(i,j) = cwork(i,j) + xmin
+                if (.not.covercol(j)) cwork(i,j) = cwork(i,j) - xmin
+             end do
+          end do
+       end do
+
+       ! z0 is the primed zero. z1 is the starred zero in the column
+       ! of z0. The next z0 is the primed zero in the row of
+       ! z1. Unstar the starred zero and star each primed zero. Repeat
+       ! until having there are no more starred zeros.
+       z0 = j0
+       rowz = zs(:,z0)
+       zs(i0,j0) = .true.
+       do while (any(rowz))
+          do i = 1, n
+             if (rowz(i)) then
+                z1 = i
+                exit
+             end if
+          end do
+          zs(z1,z0) = .false.
+          do j = 1, n
+             if (primez(z1,j)) then
+                z0 = j
+                exit
+             end if
+          end do
+          rowz = zs(:,z0)
+          zs(z1,z0) = .true.
+       end do
+    end do
+
+    xcost = 0d0
+    do i = 1, n
+       do j = 1, n
+          if (zs(i,j)) then
+             a(i,j) = 1
+             xcost = xcost + c(i,j)
+          else
+             a(i,j) = 0
+          end if
+       end do
+    end do
+    if (present(cost)) cost = xcost
+
+  end subroutine munkres
+
   !xx! private procedures
 
   !< RHS of the BR hole equation, and derivative.

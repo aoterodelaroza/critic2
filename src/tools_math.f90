@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -56,6 +56,7 @@ module tools_math
   public :: xlnorm
   public :: fdamp_tt
   public :: fdamp_bj
+  public :: munkres
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -66,7 +67,7 @@ module tools_math
   integer, parameter, public :: niso_log = 2
   integer, parameter, public :: niso_atan = 3
   integer, parameter, public :: niso_bader = 4
-  
+
   ! overloaded functions
   interface gcd
      module procedure gcd2
@@ -288,6 +289,12 @@ module tools_math
        integer, intent(in) :: n
        real*8 :: fdamp_bj
      end function fdamp_bj
+     module subroutine munkres(n,c,a,cost)
+       integer, intent(in) :: n
+       real*8, intent(in) :: c(n,n)
+       integer, intent(out) :: a(n,n)
+       real*8, intent(out), optional :: cost
+     end subroutine munkres
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts
