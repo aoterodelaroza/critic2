@@ -852,7 +852,7 @@ contains
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     real*8, intent(inout) :: mat(n0,n0)
-    real*8, intent(out), optional :: eval(n0)
+    real*8, intent(out) :: eval(n0)
 
     real*8 :: onework(1)
     integer :: lwork, info, n
@@ -881,8 +881,8 @@ contains
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     real*8, intent(inout) :: mat(n0,n0)
-    real*8, intent(out), optional :: eval(n0)
-    real*8, intent(out), optional :: evali(n0)
+    real*8, intent(out) :: eval(n0)
+    real*8, intent(out) :: evali(n0)
 
     real*8 :: onework(1)
     real*8, allocatable :: ares(:,:), work(:)
@@ -1624,13 +1624,14 @@ contains
 
   end function fdamp_bj
 
-  !> Use the Hungarian (Munkres) algorithm to create the assignment matrix
-  !> associated with the cost matrix c that yields the minimalt cost. The
-  !> cost is returned as an additional argument.
-  module subroutine munkres(n,c,a,cost)
+  !> Use the Hungarian (Munkres) algorithm to create the assignment
+  !> associated with the cost matrix c that yields the minimal
+  !> cost. The cost is returned as an additional argument.
+  !> For every row i, as(i) gives the assigned column.
+  module subroutine munkres(n,c,as,cost)
     integer, intent(in) :: n
     real*8, intent(in) :: c(n,n)
-    integer, intent(out) :: a(n,n)
+    integer, intent(out) :: as(n)
     real*8, intent(out), optional :: cost
 
     real*8, allocatable :: cwork(:,:)
@@ -1642,7 +1643,7 @@ contains
 
     ! initialize
     if (present(cost)) cost = 0d0
-    a = 0
+    as = 0
 
     ! subtract the minimum of each row from each row
     allocate(cwork(n,n))
@@ -1773,20 +1774,51 @@ contains
        end do
     end do
 
+    ! calculate the final assignment matrix and cost
     xcost = 0d0
     do i = 1, n
        do j = 1, n
           if (zs(i,j)) then
-             a(i,j) = 1
+             as(i) = j
              xcost = xcost + c(i,j)
-          else
-             a(i,j) = 0
           end if
        end do
     end do
     if (present(cost)) cost = xcost
 
   end subroutine munkres
+
+  ! Umeyama's weighted graph matching algorithm. Given two adjacency matrices
+  ! ag and ah (for weighted graphs), calculate the permutation perm that
+  ! brings the two graphs into the best matching order. Works with zero or
+  ! non-zero elements in the diagonals of ag and ah. The ag and ah
+  ! matrices have to be symmetric and their contents are overwritten.
+  ! From:
+  !   Umeyama, S., "An eigendecomposition approach to weighted graph matching problems". IEEE PAMI, 10 (1988) 695-703.
+  !   http://dx.doi.org/10.1109/34.6778
+  module subroutine umeyama_graph_matching(n,ag,ah,perm)
+    integer, intent(in) :: n
+    real*8, intent(inout) :: ag(n,n)
+    real*8, intent(inout) :: ah(n,n)
+    integer, intent(out) :: perm(n)
+
+    real*8 :: eval(n), cost
+
+    ! diagonalize both matrices
+    call eigsym(ag,n,eval)
+    call eigsym(ah,n,eval)
+
+    ! calculate the absolute values
+    ag = abs(ag)
+    ah = abs(ah)
+
+    ! calculate the ah*ag product (we want to maximize later on, so minus)
+    ag = -matmul(ah,transpose(ag))
+
+    ! use the Hungarian method to get the best assignment
+    call munkres(n,ag,perm,cost)
+
+  end subroutine umeyama_graph_matching
 
   !xx! private procedures
 

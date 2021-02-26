@@ -57,6 +57,7 @@ module tools_math
   public :: fdamp_tt
   public :: fdamp_bj
   public :: munkres
+  public :: umeyama_graph_matching
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -188,13 +189,13 @@ module tools_math
      module subroutine eigsym(mat,n0,eval)
        integer, intent(in) :: n0
        real*8, intent(inout) :: mat(n0,n0)
-       real*8, intent(out), optional :: eval(n0)
+       real*8, intent(out) :: eval(n0)
      end subroutine eigsym
      module subroutine eig(mat,n0,eval,evali)
        integer, intent(in) :: n0
        real*8, intent(inout) :: mat(n0,n0)
-       real*8, intent(out), optional :: eval(n0)
-       real*8, intent(out), optional :: evali(n0)
+       real*8, intent(out) :: eval(n0)
+       real*8, intent(out) :: evali(n0)
      end subroutine eig
      module subroutine rsindex(mat,ehess,r,s,eps)
        real*8, intent(inout)  :: mat(3,3)
@@ -289,12 +290,18 @@ module tools_math
        integer, intent(in) :: n
        real*8 :: fdamp_bj
      end function fdamp_bj
-     module subroutine munkres(n,c,a,cost)
+     module subroutine munkres(n,c,as,cost)
        integer, intent(in) :: n
        real*8, intent(in) :: c(n,n)
-       integer, intent(out) :: a(n,n)
+       integer, intent(out) :: as(n)
        real*8, intent(out), optional :: cost
      end subroutine munkres
+     module subroutine umeyama_graph_matching(n,ag,ah,perm)
+       integer, intent(in) :: n
+       real*8, intent(inout) :: ag(n,n)
+       real*8, intent(inout) :: ah(n,n)
+       integer, intent(out) :: perm(n)
+     end subroutine umeyama_graph_matching
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts
