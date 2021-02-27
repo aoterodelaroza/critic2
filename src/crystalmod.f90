@@ -149,6 +149,7 @@ module crystalmod
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
      procedure :: get_kpoints !< k-point grid for a given rklength
+     procedure :: distmatrix !< calculate the distance matrix (molecules only)
 
      ! molecular environments and neighbors
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
@@ -366,6 +367,10 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
+     module subroutine distmatrix(c,d)
+       class(crystal), intent(in) :: c
+       real*8, allocatable, intent(inout) :: d(:,:)
+     end subroutine distmatrix
      module subroutine build_env(c,dmax0)
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: dmax0

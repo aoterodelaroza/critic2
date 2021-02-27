@@ -2890,10 +2890,9 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
-    use tools_math, only: crosscorr_triangle, rmsd_walker
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, isreal, uout, string
     use types, only: realloc
-    use param, only: maxzat0
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -2902,43 +2901,28 @@ contains
     type(crystalseed) :: seed
     character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
-    integer :: i, j, n, is, ns, lp, nat
-    real*8, allocatable :: t(:), iha(:,:), ihat(:,:,:)
-    real*8, allocatable :: ihaux(:), ihataux(:,:), ihref(:), ihatref(:,:), ihatrefsave(:,:)
-    real*8 :: xdiff, h, eps, rms1, rms2
-    integer, allocatable :: nidold(:), idmult(:,:), nid(:), isuse(:), isperm(:,:)
-    integer, allocatable :: cidxorig(:,:), iord(:)
-    real*8, allocatable :: intpeak(:), x1(:,:), x2(:,:), rmsd(:), diffmult(:,:)
+    integer :: i, n, is, ns, lp, nat
+    real*8 :: rms1, rms2
+    integer, allocatable :: isuse(:), isperm(:,:)
+    integer, allocatable :: cidxorig(:,:)
+    real*8, allocatable :: x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
-    logical :: ok
-    real*8 :: rend, mindifmult
-    integer :: npts, idmin
+    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
-    integer, parameter :: isuse_different_rdf = 2
-    integer, parameter :: isuse_could_not_assign = 3
-
-    real*8, parameter :: sigma0 = 0.1d0
-    integer, parameter :: npts0 = 1001
-    integer, parameter :: npth = 21
-    real*8, parameter :: eps_default = 1d-4
+    integer, parameter :: isuse_incompatible_z = 1
 
     write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
 
     ! read the input
     ns = 0
-    eps = eps_default
     wfile = ""
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
        if (equal(lword,'write')) then
           wfile = getword(line,lp)
-       elseif (equal(lword,'eps')) then
-          ok = isreal(eps,line,lp)
-          if (.not.ok) &
-             call ferror("struct_order_molecules","error reading eps",faterr)
        elseif (len_trim(word) == 0) then
           exit
        else
@@ -2975,14 +2959,11 @@ contains
     ! read the fragments from cx into structures
     ns = cx%nmol
     allocate(c(ns))
-    rend = 0d0
     do i = 1, ns
        call seed%from_fragment(cx%mol(i),.true.)
        seed%border = 0d0
        call c(i)%struct_new(seed,.true.)
-       rend = max(rend,maxval(c(i)%aa))
     end do
-    npts = max(min(nint(rend * npth),npts0),10)
 
     ! allocate the use and permutation arrays
     allocate(isuse(ns),isperm(cref%nneq,ns))
@@ -3004,124 +2985,18 @@ contains
        call qcksort(cidxorig(:,is))
     end do
 
-    ! allocate space for the RDFs
-    allocate(iha(npts,ns),ihat(npts,nat,ns),ihatrefsave(npts,nat))
-    iha = 0d0
-    ihat = 0d0
+    ! allocate space and get reference distance matrix
+    allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
+    call cref%distmatrix(dref)
 
-    ! get the RDF for the reference structure and save it
-    h = rend / real(npts-1,8)
-    call cref%rdf(0d0,rend,sigma0,.false.,npts,t,ihref,ihat=ihatref)
-    ihref = ihref / sqrt(abs(crosscorr_triangle(h,ihref,ihref,1d0)))
-    do j = 1, nat
-       ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
+    ! calculate the permutations
+    do is = 1, ns
+       ddg = dref
+       call c(is)%distmatrix(ddh)
+       call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
+       if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
+          isuse(is) = isuse_incompatible_z
     end do
-    ihatrefsave = ihatref
-
-    ! check the total RDF of each fragment matches the reference
-    do i = 1, ns
-       if (isuse(i) /= isuse_valid) cycle
-
-       ! calculate the RDFs
-       call c(i)%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihataux)
-       iha(:,i) = ihaux / sqrt(abs(crosscorr_triangle(h,ihaux,ihaux,1d0)))
-       do j = 1, nat
-          ihat(:,j,i) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
-       end do
-
-       ! check that the molecules are identical
-       xdiff = max(1d0 - crosscorr_triangle(h,ihref,iha(:,i),1d0),0d0)
-       if (xdiff > eps) isuse(i) = isuse_different_rdf
-    end do
-
-    ! identify equivalent atoms
-    allocate(idmult(2,nat),diffmult(2,nat),iord(2),nid(nat),nidold(nat),intpeak(nat))
-    main: do is = 1, ns
-       if (isuse(is) /= isuse_valid) cycle
-
-       intpeak = 0
-       nidold = -1
-       nid = 0
-       ihatref = ihatrefsave
-       do while (.true.)
-          nidold = nid
-          nid = 0
-
-          ! recalculate the differences
-          idmult = 0
-          mindifmult = 1d40
-          idmin = 1
-          do i = 1, nat
-             do j = 1, nat
-                if (cref%spc(cref%at(i)%is)%z /= c(is)%spc(c(is)%at(j)%is)%z) cycle
-
-                xdiff = max(1d0 - crosscorr_triangle(h,ihatref(:,i),ihat(:,j,is),1d0),0d0)
-                if (xdiff < eps) then
-                   nid(i) = nid(i) + 1
-                   if (nid(i) > size(idmult,1)) then
-                      call realloc(idmult,2*nid(i),nat)
-                      call realloc(diffmult,2*nid(i),nat)
-                      call realloc(iord,2*nid(i))
-                   end if
-                   idmult(nid(i),i) = j
-                   diffmult(nid(i),i) = xdiff
-                   iord(nid(i)) = nid(i)
-                end if
-             end do
-
-             ! reorder by xdiff
-             if (nid(i) > 1) then
-                call qcksort(diffmult(1:nid(i),i),iord(1:nid(i)),1,nid(i))
-                idmult(1:nid(i),i) = idmult(iord(1:nid(i)),i)
-                diffmult(1:nid(i),i) = diffmult(iord(1:nid(i)),i)
-                if (diffmult(1,i) < mindifmult) then
-                   idmin = i
-                   mindifmult = diffmult(1,i)
-                end if
-             end if
-          end do
-
-          if (all(nid == 1)) then
-             ! all done
-             exit
-          elseif (any(nid == 0)) then
-             ! some atoms could not be assigned
-             isuse(is) = isuse_could_not_assign
-             cycle main
-          elseif (all(nid == nidold)) then
-             ! Did not change and all nids are positive and some are > 1. Must be because of symmetry
-             ! so we arbitrarily assign a pair of atoms and continue
-             nid(idmin) = 1
-          end if
-
-          ! re-do the reference structure and assign peak intensity to unique atoms
-          do i = 1, nat
-             if (nid(i) == 1) then
-                intpeak(i) = maxzat0 + i
-             else
-                intpeak(i) = cref%spc(cref%at(i)%is)%z
-             end if
-          end do
-          call cref%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihatref,intpeak=intpeak)
-          do j = 1, nat
-             ihatref(:,j) = ihatref(:,j) / sqrt(abs(crosscorr_triangle(h,ihatref(:,j),ihatref(:,j),1d0)))
-          end do
-
-          ! re-do the target structure and assign peak intensity to unique atoms
-          do i = 1, nat
-             intpeak(i) = c(is)%spc(c(is)%at(i)%is)%z
-          end do
-          do i = 1, nat
-             if (nid(i) == 1) intpeak(idmult(1,i)) = maxzat0 + i
-          end do
-          call c(is)%rdf(0d0,rend,sigma0,.false.,npts,t,ihaux,ihat=ihataux,intpeak=intpeak)
-          do j = 1, nat
-             ihat(:,j,is) = ihataux(:,j) / sqrt(abs(crosscorr_triangle(h,ihataux(:,j),ihataux(:,j),1d0)))
-          end do
-       end do
-       isperm(:,is) = idmult(1,:)
-    end do main
-    deallocate(iha,ihat,ihatrefsave,idmult,nid,nidold,intpeak)
 
     ! get the rmsd from walker
     allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
@@ -3161,10 +3036,8 @@ contains
     do is = 1, ns
        if (isuse(is) == isuse_different_nat) then
           msg = "the target and reference structures have different number of atoms"
-       elseif (isuse(is) == isuse_different_rdf) then
-          msg = "the target and reference structures have different total RDFs"
-       elseif (isuse(is) == isuse_could_not_assign) then
-          msg = "could not assign some atoms in the target structure"
+       elseif (isuse(is) == isuse_incompatible_z) then
+          msg = "the target and reference structures have different atomic types"
        else
           msg = ""
           do i = 1, nat

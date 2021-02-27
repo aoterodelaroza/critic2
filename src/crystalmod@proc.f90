@@ -977,6 +977,26 @@ contains
 
   end subroutine get_kpoints
 
+  !> Calculate the distance matrix (molecules only)
+  module subroutine distmatrix(c,d)
+    class(crystal), intent(in) :: c
+    real*8, allocatable, intent(inout) :: d(:,:)
+
+    integer :: i, j
+
+    if (.not.c%ismolecule) return
+    if (allocated(d)) deallocate(d)
+    allocate(d(c%ncel,c%ncel))
+    d = 0d0
+    do i = 1, c%ncel
+       do j = i+1, c%ncel
+          d(i,j) = norm2(c%atcel(i)%r - c%atcel(j)%r)
+          d(j,i) = d(i,j)
+       end do
+    end do
+
+  end subroutine distmatrix
+
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   module function listatoms_cells(c,nx,doborder) result(fr)

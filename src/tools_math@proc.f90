@@ -1627,7 +1627,7 @@ contains
   !> Use the Hungarian (Munkres) algorithm to create the assignment
   !> associated with the cost matrix c that yields the minimal
   !> cost. The cost is returned as an additional argument.
-  !> For every row i, as(i) gives the assigned column.
+  !> For every column i, as(i) gives the assigned row.
   module subroutine munkres(n,c,as,cost)
     integer, intent(in) :: n
     real*8, intent(in) :: c(n,n)
@@ -1779,7 +1779,7 @@ contains
     do i = 1, n
        do j = 1, n
           if (zs(i,j)) then
-             as(i) = j
+             as(j) = i
              xcost = xcost + c(i,j)
           end if
        end do
@@ -1793,6 +1793,7 @@ contains
   ! brings the two graphs into the best matching order. Works with zero or
   ! non-zero elements in the diagonals of ag and ah. The ag and ah
   ! matrices have to be symmetric and their contents are overwritten.
+  ! Node i in graph G matches node perm(i) in H.
   ! From:
   !   Umeyama, S., "An eigendecomposition approach to weighted graph matching problems". IEEE PAMI, 10 (1988) 695-703.
   !   http://dx.doi.org/10.1109/34.6778
