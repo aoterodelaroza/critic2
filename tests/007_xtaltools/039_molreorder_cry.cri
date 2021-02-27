@@ -1,0 +1,7 @@
+## check: 039_molreorder_cry.cro -a1e-10
+## check: 039_molreorder_cry_ordered.res -a1e-10
+## labels: regression quick
+
+molreorder ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz \
+           ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res \
+	   write 039_molreorder_cry_ordered.res

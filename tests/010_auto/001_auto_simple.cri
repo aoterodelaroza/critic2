@@ -1,4 +1,4 @@
-## check: 001_auto_simple.test -a1e-10
+## check: 001_auto_simple.test -a1e-2
 ## delete: 001_auto_simple.cro
 ## labels: regression quick
 

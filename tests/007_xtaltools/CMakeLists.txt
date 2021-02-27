@@ -17,7 +17,7 @@ set(TESTS
   016_rdf_options            ## rdf keyword, options
   017_compare_crystals       ## compare keyword, crystals
   018_compare_crystals_opts  ## compare keyword, crystals with options
-  019_compare_molecules      ## compare keyword, molecules 
+  019_compare_molecules      ## compare keyword, molecules
   020_compare_molecules_opts ## compare keyword, molecules with options
   021_atomlabel              ## atomlabel keyword
   022_bondfactor             ## bondfactor keyword
@@ -36,6 +36,8 @@ set(TESTS
   035_compare_reduce         ## compare keyword, reduce option
   036_radii                  ## radii keyword
   037_polyhedra              ## polyhedra keyword
+  038_molreorder_mol         ## molreorder keyword, molecule target
+  039_molreorder_cry         ## molreorder keyword, crystal target
   )
 
 runtests(${TESTS})

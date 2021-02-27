@@ -1,0 +1,13 @@
+* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
++ Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
++ Target structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
+  The target structure is a molecular crystal with 4 fragments.
+# List of reordered structures (4)
+#id -- Reorder result --
+ 1  success (rmse=1.2183E-07,inv=No,perm=22 21 34 25 24 32 7 18 1 6 17 37 20 40 28 12 36 11 3 38 9 4 29 5 39 27 13 8 35 26 16 15 33 2 10 30 23 41 14 19 31)
+ 2  success (rmse=1.2183E-07,inv=No,perm=22 21 34 25 24 32 7 18 1 6 17 37 20 40 28 12 36 11 3 38 9 4 29 5 39 27 13 8 35 26 16 15 33 2 10 30 23 41 14 19 31)
+ 3  success (rmse=1.2183E-07,inv=No,perm=22 21 34 25 24 32 7 18 1 6 17 37 20 40 28 12 36 11 3 38 9 4 29 5 39 27 13 8 35 26 16 15 33 2 10 30 23 41 14 19 31)
+ 4  success (rmse=1.2183E-07,inv=No,perm=22 21 34 25 24 32 7 18 1 6 17 37 20 40 28 12 36 11 3 38 9 4 29 5 39 27 13 8 35 26 16 15 33 2 10 30 23 41 14 19 31)
+
+* WRITE file: 039_molreorder_cry_ordered.res
+
