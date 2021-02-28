@@ -2902,12 +2902,13 @@ contains
     character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
     integer :: i, n, is, ns, lp, nat
-    real*8 :: rms1, rms2
+    real*8 :: rms1, rms2, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
     integer, allocatable :: isuse(:), isperm(:,:)
     integer, allocatable :: cidxorig(:,:)
     real*8, allocatable :: x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
-    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
+    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:), mrot(:,:,:)
+    logical :: moveatoms
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
@@ -2918,11 +2919,14 @@ contains
     ! read the input
     ns = 0
     wfile = ""
+    moveatoms = .false.
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
        if (equal(lword,'write')) then
           wfile = getword(line,lp)
+       elseif (equal(lword,'moveatoms')) then
+          moveatoms = .true.
        elseif (len_trim(word) == 0) then
           exit
        else
@@ -2998,8 +3002,9 @@ contains
           isuse(is) = isuse_incompatible_z
     end do
 
-    ! get the rmsd from walker
+    ! Get the rmsd from walker. If moveatoms, also save the rotation.
     allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
+    if (moveatoms) allocate(mrot(3,3,ns))
     do i = 1, nat
        x1(:,i) = cref%at(i)%r
     end do
@@ -3010,18 +3015,20 @@ contains
        do i = 1, nat
           x2(:,i) = c(is)%at(isperm(i,is))%r
        end do
-       rms1 = rmsd_walker(x1,x2)
+       rms1 = rmsd_walker(x1,x2,q1)
        x2 = -x2
-       rms2 = rmsd_walker(x1,x2)
+       rms2 = rmsd_walker(x1,x2,q2)
        if (rms1 <= rms2) then
           isinv(is) = .false.
           rmsd(is) = rms1
+          if (moveatoms) mrot(:,:,is) = q1
        else
           isinv(is) = .true.
           rmsd(is) = rms2
+          if (moveatoms) mrot(:,:,is) = q2
        end if
     end do
-    deallocate(c,x1,x2)
+    deallocate(x1,x2)
 
     ! report on the results
     write (uout,'("+ Reference structure: ",A)') string(cref%file)
@@ -3058,20 +3065,32 @@ contains
     if (len_trim(wfile) > 0 .and. all(isuse == isuse_valid)) then
        write (uout,'("* WRITE file: ",A/)') string(wfile)
 
+       xcm1 = cref%mol(1)%cmass(.false.)
+
        call cx%makeseed(seed,.false.)
        n = 0
        do is = 1, ns
+          xcm2 = cx%mol(is)%cmass(.false.)
           do i = 1, nat
              n = n + 1
-             seed%x(:,n) = cx%atcel(cidxorig(isperm(i,is),is))%x
+             if (moveatoms) then
+                xnew = cref%mol(1)%at(i)%r - xcm1
+                xnew = matmul(mrot(:,:,is),xnew)
+                xnew = xnew + xcm2
+                xnew = cx%c2x(xnew)
+             else
+                xnew = cx%atcel(cidxorig(isperm(i,is),is))%x
+             end if
+             seed%x(:,n) = xnew
              seed%is(n) = cx%atcel(cidxorig(isperm(i,is),is))%is
           end do
        end do
+
        call cx%struct_new(seed,.true.)
        call cx%wholemols()
        call cx%write_simple_driver(wfile)
     end if
-    deallocate(isperm,cidxorig,isuse)
+    deallocate(isperm,cidxorig,isuse,c)
 
   end subroutine struct_molreorder
 

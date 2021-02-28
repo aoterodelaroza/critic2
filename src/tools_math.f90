@@ -257,8 +257,9 @@ module tools_math
        integer :: m, n
        integer :: nchoosek
      end function nchoosek
-     module function rmsd_walker(x1o,x2o) result(rmsd)
+     module function rmsd_walker(x1o,x2o,mrot) result(rmsd)
        real*8, intent(in) :: x1o(:,:), x2o(:,:)
+       real*8, intent(out), optional :: mrot(3,3)
        real*8 :: rmsd
      end function rmsd_walker
      module subroutine gauleg (x1,x2,x,w,n)

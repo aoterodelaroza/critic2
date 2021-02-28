@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -23,32 +23,32 @@ contains
   !> Initialize a fragment
   module subroutine fragment_init(fr)
     class(fragment), intent(inout) :: fr
-    
+
     if (allocated(fr%at)) deallocate(fr%at)
     if (allocated(fr%spc)) deallocate(fr%spc)
     allocate(fr%at(1))
     fr%nat = 0
     allocate(fr%spc(1))
     fr%nspc = 0
-    
+
   end subroutine fragment_init
 
   !> Merge two or more fragments, delete repeated atoms. If fr already
   !> has a fragment, then add to it if add = .true. (default: .true.).
   !> Assumes all fragments have the same atomic species.
-  module subroutine merge_array(fr,fra,add) 
+  module subroutine merge_array(fr,fra,add)
     use tools_io, only: equal, ferror, faterr
     use types, only: realloc
     class(fragment), intent(inout) :: fr
     type(fragment), intent(in) :: fra(:)
     logical, intent(in), optional :: add
-    
+
     real*8, parameter :: eps = 1d-10
 
     integer :: i, j, k, nat0, nat1
     real*8 :: x(3)
     logical :: found, add0, ok
-    
+
     add0 = .true.
     if (present(add)) add0 = add
 
@@ -94,22 +94,22 @@ contains
        fr%nat = nat0
     end do
     call realloc(fr%at,fr%nat)
-    
+
   end subroutine merge_array
 
-  !> Append a fragment to the current fragment, delete repeated atoms.  
-  module subroutine append(fr,fra) 
+  !> Append a fragment to the current fragment, delete repeated atoms.
+  module subroutine append(fr,fra)
     use tools_io, only: ferror, faterr, equal
     use types, only: realloc
     class(fragment), intent(inout) :: fr
     class(fragment), intent(in) :: fra
-    
+
     real*8, parameter :: eps = 1d-10
 
     integer :: j, k, nat0, nat1
     real*8 :: x(3)
     logical :: found, ok
-    
+
     if (.not.allocated(fr%at)) then
        allocate(fr%at(fra%nat))
        allocate(fr%spc(fra%nspc))
@@ -145,7 +145,7 @@ contains
     end do
     fr%nat = nat0
     call realloc(fr%at,fr%nat)
-    
+
   end subroutine append
 
   !> Returns the center of mass (in Cartesian coordinates).  If
@@ -204,7 +204,7 @@ contains
 
   end subroutine writexyz
 
-  !> Write a cml file (molecule) from an array of atomic coordinates. 
+  !> Write a cml file (molecule) from an array of atomic coordinates.
   module subroutine writecml(fr,file,r,luout)
     use tools_math, only: matinv
     use tools_io, only: fopen_write, string, nameguess, fclose
@@ -227,7 +227,7 @@ contains
        call matinv(ri,3)
        g = matmul(transpose(r),r)
        do i = 1, 3
-          aa(i) = sqrt(g(i,i)) 
+          aa(i) = sqrt(g(i,i))
        end do
        bb(1) = acos(g(2,3) / aa(2) / aa(3)) * 180d0 / pi
        bb(2) = acos(g(1,3) / aa(1) / aa(3)) * 180d0 / pi

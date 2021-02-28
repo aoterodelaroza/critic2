@@ -1313,9 +1313,10 @@ contains
   !> positions. This routine uses Walker's algorithm based on
   !> quaternion algebra. (Walker et al., CVGIP-Imag. Understan. 54
   !> (1991) 358.)
-  module function rmsd_walker(x1o,x2o) result(rmsd)
+  module function rmsd_walker(x1o,x2o,mrot) result(rmsd)
     use tools_io, only: ferror, faterr
     real*8, intent(in) :: x1o(:,:), x2o(:,:)
+    real*8, intent(out), optional :: mrot(3,3)
     real*8 :: rmsd
 
     integer :: n, i, idx
@@ -1363,6 +1364,7 @@ contains
     x1 = matmul(q(1:3,1:3),x1)
     rmsd = sqrt(sum((x1 - x2)**2) / n)
     deallocate(x1,x2)
+    if (present(mrot)) mrot = q(1:3,1:3)
 
   contains
     ! the W and Q functions (eqs. 15 and 16)
