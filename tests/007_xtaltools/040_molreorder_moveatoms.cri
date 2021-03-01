@@ -1,0 +1,21 @@
+## check: 040_molreorder_moveatoms.cro -a1e-10
+## delete: 040_molreorder_moveatoms_ordered.xyz
+## delete: 040_molreorder_moveatoms_gen_1.xyz
+## delete: 040_molreorder_moveatoms_gen_2.xyz
+## delete: 040_molreorder_moveatoms_gen_3.xyz
+## delete: 040_molreorder_moveatoms_gen_4.xyz
+## delete: 040_molreorder_moveatoms_ordered.res
+## labels: regression quick
+
+## labels: regression quick
+
+crystal ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
+write 040_molreorder_moveatoms_gen.xyz onemotif nmer 1
+molreorder ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz 040_molreorder_moveatoms_gen_1.xyz \
+	   write 040_molreorder_moveatoms_ordered.xyz moveatoms
+molreorder ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz 040_molreorder_moveatoms_ordered.xyz
+
+molreorder ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz \
+           ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res \
+	   write 040_molreorder_moveatoms_ordered.res moveatoms
+molreorder ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz 040_molreorder_moveatoms_ordered.res
