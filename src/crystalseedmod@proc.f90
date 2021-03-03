@@ -3613,7 +3613,7 @@ contains
 
   end subroutine read_axsf
 
-  !> Read an FHI aims input file.
+  !> Read an FHIaims input file.
   module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
        getword, zatguess
