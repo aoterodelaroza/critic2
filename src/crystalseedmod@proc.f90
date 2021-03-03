@@ -3887,7 +3887,7 @@ contains
 
     ! if the "final atomic structure" is not found but "updated atomic structure"
     ! was, this must be an aborted run; read the last geometry
-    if (.not.isfinal) then
+    if (.not.isfinal.and.nupdate > 0) then
        rewind(lu)
        iup = 0
        do while (getline_raw(lu,line))
@@ -3898,30 +3898,32 @@ contains
        end do
     end if
 
-    ! read the block
-    nlat = 0
-    iat = 0
-    ok = getline_raw(lu,line)
-    if (.not.ok) goto 999
-    do while (getline_raw(lu,line))
-       if (line == "  Fractional coordinates:" .or. line(1:4) == "----") exit
-       if (len_trim(line) == 0) cycle
-       lp = 1
-       word = lgetword(line,lp)
-       if (word == "lattice_vector") then
-          nlat = nlat + 1
-          ok = isreal(rlat(1,nlat),line,lp)
-          ok = ok .and. isreal(rlat(2,nlat),line,lp)
-          ok = ok .and. isreal(rlat(3,nlat),line,lp)
-          if (.not.ok) goto 999
-       elseif (word == "atom") then
-          iat = iat + 1
-          ok = isreal(seed%x(1,iat),line,lp)
-          ok = ok .and. isreal(seed%x(2,iat),line,lp)
-          ok = ok .and. isreal(seed%x(3,iat),line,lp)
-          isfrac(iat) = .false.
-       end if
-    end do
+    ! read the last geometry block
+    if (isfinal.or.nupdate > 0) then
+       nlat = 0
+       iat = 0
+       ok = getline_raw(lu,line)
+       if (.not.ok) goto 999
+       do while (getline_raw(lu,line))
+          if (line == "  Fractional coordinates:" .or. line(1:4) == "----") exit
+          if (len_trim(line) == 0) cycle
+          lp = 1
+          word = lgetword(line,lp)
+          if (word == "lattice_vector") then
+             nlat = nlat + 1
+             ok = isreal(rlat(1,nlat),line,lp)
+             ok = ok .and. isreal(rlat(2,nlat),line,lp)
+             ok = ok .and. isreal(rlat(3,nlat),line,lp)
+             if (.not.ok) goto 999
+          elseif (word == "atom") then
+             iat = iat + 1
+             ok = isreal(seed%x(1,iat),line,lp)
+             ok = ok .and. isreal(seed%x(2,iat),line,lp)
+             ok = ok .and. isreal(seed%x(3,iat),line,lp)
+             isfrac(iat) = .false.
+          end if
+       end do
+    end if
 
     ! handle the molecule/crystal expectation/contents of the file
     if (is_file_mol) then
@@ -4002,7 +4004,7 @@ contains
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,ismol,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
-       isformat_f21, isformat_qein, isformat_xyz,&
+       isformat_f21, isformat_xyz,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&

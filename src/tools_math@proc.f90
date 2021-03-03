@@ -1637,7 +1637,7 @@ contains
     real*8, intent(out), optional :: cost
 
     real*8, allocatable :: cwork(:,:)
-    integer :: i, j, i0, j0, jk, k0, z0, z1, z2
+    integer :: i, j, i0, j0, jk, z0, z1
     logical, allocatable :: zs(:,:), zp(:,:)
     logical, allocatable :: covercol(:), coverrow(:), primez(:,:), rowz(:)
     logical :: done

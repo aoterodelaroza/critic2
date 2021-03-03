@@ -1187,6 +1187,7 @@ contains
        23, 29, 32, 27, 22, 28, 35, 34, 26, 31, 33, 30, 25, 24, 21&
        /)
 
+#ifdef HAVE_CINT
     ! Delta for reordering the MO coefficients when interfacing with libCINT (Cartesian):
     ! cint:  s   x y z   xx xy xz yy yz zz   xxx xxy xxz xyy xyz xzz yyy yyz yzz zzz
     !        1   2 3 4    5  6  7  8  9 10    11  12  13  14  15  16  17  18  19  20
@@ -1212,6 +1213,7 @@ contains
     integer, parameter :: icintsph(25) = (/&
        0, 0, 0, 0, 2, 2, -1, 1, -4, 3, 3, 0, 2, -3, 1, -6, 4, 4, 1, 3, -2, 2, -5, 1, -8 /)
     !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
+#endif
 
     ! no ecps for now
     f%molden_type = molden_type_unknown
