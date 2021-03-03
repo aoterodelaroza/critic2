@@ -36,7 +36,7 @@ contains
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_dmain
+       isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin
     use crystalseedmod, only: crystalseed, struct_detect_format
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -79,9 +79,9 @@ contains
     else
        call ferror("struct_crystal_input","unknown mol0",faterr)
     end if
+    docube = .false.
+    rborder = rborder_def
     if (ismol) then
-       docube = .false.
-       rborder = rborder_def
        do while(.true.)
           if (equal(word2,'cubic').or.equal(word2,'cube')) then
              docube = .true.
@@ -211,6 +211,9 @@ contains
 
     elseif (isformat == isformat_dmain) then
        call seed%read_dmain(word,mol,errmsg)
+
+    elseif (isformat == isformat_aimsin) then
+       call seed%read_aimsin(word,mol,rborder,docube,errmsg)
 
     else if (equal(lower(word),'library')) then
        call seed%read_library(subline,mol,ok)

@@ -7,7 +7,7 @@ Contributors to the critic2 code:
   <joseluiscasalssainz@gmail.com>:
   Merge-sort routine in tools.f90
 
-* Enrico Benassi at the Scuola Normale Superiore di Pisa, Italy 
+* Enrico Benassi at the Scuola Normale Superiore di Pisa, Italy
   <ebenassi3@gmail.com>:
   The STM module is based on one of Enrico's program, who also
   provided guidance and encouragement.
@@ -20,14 +20,14 @@ Critic2 contains code from the following sources. The complete
 copyright notice is included in the corresponding files.
 
 * ciftbx: fortran routines for CIF data, by Sydney R. Hall and Herbert
-  J. Bernstein. 
+  J. Bernstein.
 
   http://www.bernstein-plus-sons.com/software/ciftbx/
 
   The ciftbx package is included in critic2. It is invoked when the
   crystal structure is given as a cif file. ciftbx is distributed
   under the GNU/GPL v2.
-  
+
 * abinit: electronic structure of periodic solids under the
   pseudopotentials/plane-waves approximation. The lead developers are
   X. Gonze and D. C. Allan, with contributions from many people (see
@@ -49,8 +49,8 @@ copyright notice is included in the corresponding files.
   Modified versions of the routines dealing with the elk file formats
   and densities are in elk_private.f90. Also, the cfftnd.f90 file is
   an almost exact copy of the equivalent file in elk, which in turn is
-  part of the fftpack5 library by P. Swarztrauber and Richard Valent. 
-  
+  part of the fftpack5 library by P. Swarztrauber and Richard Valent.
+
   elk is distributed under the GNU/GPL v3.
 
 * spglib: the spglib library is used to calculate symmetry information
@@ -78,7 +78,7 @@ copyright notice is included in the corresponding files.
 
 * Part of the LAPACK (and BLAS) library are included in the oldlibs/
   directory, by J. Dongarra and others. LAPACK is under the BSD-new
-  license. 
+  license.
 
 * A modified version of the quadpack library is used (quadpack.f90)
   for vectorial 1D integration. Quadpack was written by R. Piessens,
@@ -93,7 +93,7 @@ copyright notice is included in the corresponding files.
   program was written by Wenjie Tang, Andri Arnaldsson, Samuel T.
   Chill, and Graeme Henkelman, and distributed under a free license
   (GNU/GPL). See the copyright notice in src/bader.f90 for more
-  details. 
+  details.
 
 * The qhull library is used to calculate the vertices and faces of the
   Wigner-Seitz cell, which is an essential component in several parts
@@ -115,7 +115,7 @@ copyright notice is included in the corresponding files.
 
 * The part of the grid_read_unk routine that reads wannnier90
   checkpoints has been adapted from wannier90, version
-  2.0.1. Wannier90 is authored by Jonathan Yates, Arash Mostofi,       
+  2.0.1. Wannier90 is authored by Jonathan Yates, Arash Mostofi,
   Giovanni Pizzi, Young-Su Lee, Nicola Marzari, Ivo Souza, and David
   Vanderbilt. Distributed under the GNU/GPL v2.
 
@@ -130,5 +130,4 @@ copyright notice is included in the corresponding files.
   versions of basic functions from the C library and some other
   wrappers around the intrinsic iso_c_binding module. It comes from
   the Fortran wiki
-  (http://fortranwiki.org/fortran/show/c_interface_module). 
-
+  (http://fortranwiki.org/fortran/show/c_interface_module).
