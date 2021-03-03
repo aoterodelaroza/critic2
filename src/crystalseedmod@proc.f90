@@ -5738,6 +5738,7 @@ contains
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
+       if (len_trim(line) == 0) cycle
        lp = 1
        word = lgetword(line,lp)
        if (word(1:1) == "#") cycle
