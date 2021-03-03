@@ -10,6 +10,8 @@ set(TESTS
   009_molecule-library   ## from the molecule structure library
   010_molcell            ## molcell keyword
   011_molecule-orca      ## read molecule structure from orca output
+  012_molecule-aimsin    ## read molecule structure from FHIamis input
+  013_molecule-aimsout   ## read molecule structure from FHIamis output
   )
 
 runtests(${TESTS})

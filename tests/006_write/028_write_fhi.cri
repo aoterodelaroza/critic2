@@ -1,0 +1,9 @@
+## delete: 028_write_fhi.cro
+## check: 028_write_fhi_1.fhi -a1e-10
+## check: 028_write_fhi_2.fhi -a1e-10
+## labels: regression quick
+crystal library uracil
+write 028_write_fhi_1.fhi
+
+molecule library benzene
+write 028_write_fhi_2.fhi

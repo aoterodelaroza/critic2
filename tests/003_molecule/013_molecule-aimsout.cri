@@ -1,0 +1,17 @@
+## delete: 013_molecule-aimsout.cro
+## check: 013_molecule-aimsout_gen_1.cri -a1e-10
+## check: 013_molecule-aimsout_gen_2.cri -a1e-10
+## check: 013_molecule-aimsout_gen_3.cri -a1e-10
+## check: 013_molecule-aimsout_gen_4.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/fhiaims-210223/h2o/h2o_sp.out
+write 013_molecule-aimsout_gen_1.cri
+
+molecule ../zz_source/fhiaims-210223/h2o/h2o-aborted.out
+write 013_molecule-aimsout_gen_2.cri
+
+molecule ../zz_source/fhiaims-210223/h2o/h2o.out
+write 013_molecule-aimsout_gen_3.cri
+
+molecule ../zz_source/fhiaims-210223/h2o/h2o.own
+write 013_molecule-aimsout_gen_4.cri

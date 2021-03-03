@@ -1,0 +1,9 @@
+## delete: 012_molecule-aimsin.cro
+## check: 012_molecule-aimsin_gen_1.cri -a1e-10
+## check: 012_molecule-aimsin_gen_2.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/fhiaims-210223/h2o/geometry.in
+write 012_molecule-aimsin_gen_1.cri
+
+molecule ../zz_source/fhiaims-210223/h2o/geometry.in.next_step
+write 012_molecule-aimsin_gen_2.cri

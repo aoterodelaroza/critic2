@@ -29,6 +29,9 @@ set(TESTS
   028_crystal_21           ## from a dmacrys/neighcrys fort.21 file
   029_crystal_cifnoxyz     ## cif without xyz symops
   030_crystal_dmain        ## from a dmacrys input file
+  031_crystal_aimsin       ## from an FHIaims input file
+  032_crystal_aimsout      ## from an FHIaims output file
+  033_crystal_aimsmol      ## from an FHIaims molecule
   )
 
 runtests(${TESTS})

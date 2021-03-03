@@ -1,0 +1,14 @@
+## delete: 032_crystal_aimsout.cro
+## check: 032_crystal_aimsout_gen_1.cri -a1e-10
+## check: 032_crystal_aimsout_gen_2.cri -a1e-10
+## check: 032_crystal_aimsout_gen_3.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/fhiaims-210223/fcc-al/fcc_Al.out
+write 032_crystal_aimsout_gen_1.cri
+
+crystal ../zz_source/fhiaims-210223/fcc-al/fcc_Al.relax-aborted.out
+write 032_crystal_aimsout_gen_2.cri
+
+crystal ../zz_source/fhiaims-210223/fcc-al/fcc_Al.relax_cell.out
+write 032_crystal_aimsout_gen_3.cri
+

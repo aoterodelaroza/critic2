@@ -1,0 +1,5 @@
+## delete: 033_crystal_aimsmol.cro
+## check: 033_crystal_aimsmol_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/fhiaims-210223/h2o/geometry.in
+write 033_crystal_aimsmol_gen.cri
