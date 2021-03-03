@@ -3763,6 +3763,215 @@ contains
 
   end subroutine read_aimsin
 
+  !> Read an FHI aims output file.
+  module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg)
+    use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
+       getword, zatguess
+    use tools_math, only: matinv
+    use types, only: realloc
+    use hashmod, only: hash
+    use param, only: bohrtoa
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: docube
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, lp, nlat, i, j, idx, ier, nupdate, iup, iat
+    logical :: is_file_mol, ok, isfinal
+    character*1 :: cdum
+    character*10 :: dum1, dum2, splbl
+    character(len=:), allocatable :: line, word
+    real*8 :: rlat(3,3)
+    logical, allocatable :: isfrac(:)
+    type(hash) :: usespc
+
+    ! open
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+    call usespc%init()
+
+    ! allocate atoms
+    allocate(isfrac(10),seed%x(3,10),seed%is(10))
+
+    ! advance until we are at the "Input geometry" line
+    ok = .false.
+    do while (getline_raw(lu,line))
+       if (line == "  Input geometry:") then
+          ok = .true.
+          exit
+       end if
+    end do
+    if (.not.ok) then
+       errmsg = "Failed to locate the Input geometry block in the FHIaims output file"
+       goto 999
+    end if
+
+    ! get the cell geometry
+    ok = getline_raw(lu,line)
+    if (.not.ok) goto 999
+    if (index(line,"Unit cell:") > 0) then
+       do i = 1, 3
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          read (line,*,err=999) cdum, (rlat(j,i),j=1,3)
+       end do
+       is_file_mol = .false.
+    elseif (index(line,"No unit cell requested.") > 0) then
+       is_file_mol = .true.
+    else
+       goto 999
+    end if
+
+    ! get the atomic positions
+    seed%nspc = 0
+    seed%nat = 0
+    ok = getline_raw(lu,line)
+    ok = ok .and. getline_raw(lu,line)
+    do while (getline_raw(lu,line))
+       if (len_trim(line) == 0) exit
+
+       seed%nat = seed%nat + 1
+       if (seed%nat > size(isfrac,1)) then
+          call realloc(isfrac,2*seed%nat)
+          call realloc(seed%x,3,2*seed%nat)
+          call realloc(seed%is,2*seed%nat)
+       end if
+       read(line,*,err=999) cdum, dum1, dum2, splbl, (seed%x(j,seed%nat),j=1,3)
+       isfrac(seed%nat) = .false.
+
+       word = trim(adjustl(splbl))
+       if (.not.usespc%iskey(word)) then
+          seed%nspc = seed%nspc + 1
+          call usespc%put(word,seed%nspc)
+          seed%is(seed%nat) = seed%nspc
+       else
+          seed%is(seed%nat) = usespc%get(word,1)
+       end if
+    end do
+    call realloc(isfrac,seed%nat)
+    call realloc(seed%x,3,seed%nat)
+    call realloc(seed%is,seed%nat)
+
+    ! fill the species array
+    allocate(seed%spc(seed%nspc))
+    do i = 1, seed%nspc
+       word = usespc%getkey(i)
+       idx = usespc%get(word,1)
+       seed%spc(idx)%name = word
+       seed%spc(idx)%z = zatguess(word)
+       if (seed%spc(idx)%z <= 0) then
+          errmsg = "unknown atom type: " // word
+          goto 999
+       end if
+    end do
+
+    ! read the rest of the file and search for "Updated atomic structure"
+    ! or "Final atomic structure" blocks
+    nupdate = 0
+    isfinal = .false.
+    do while (getline_raw(lu,line))
+       if (trim(line) == "  Updated atomic structure:") then
+          nupdate = nupdate + 1
+       elseif (trim(line) == "  Final atomic structure:") then
+          isfinal = .true.
+          exit
+       end if
+    end do
+
+    ! if the "final atomic structure" is not found but "updated atomic structure"
+    ! was, this must be an aborted run; read the last geometry
+    if (.not.isfinal) then
+       rewind(lu)
+       iup = 0
+       do while (getline_raw(lu,line))
+          if (trim(line) == "  Updated atomic structure:") then
+             iup = iup + 1
+             if (iup == nupdate) exit
+          end if
+       end do
+    end if
+
+    ! read the block
+    nlat = 0
+    iat = 0
+    ok = getline_raw(lu,line)
+    if (.not.ok) goto 999
+    do while (getline_raw(lu,line))
+       if (line == "  Fractional coordinates:" .or. line(1:4) == "----") exit
+       if (len_trim(line) == 0) cycle
+       lp = 1
+       word = lgetword(line,lp)
+       if (word == "lattice_vector") then
+          nlat = nlat + 1
+          ok = isreal(rlat(1,nlat),line,lp)
+          ok = ok .and. isreal(rlat(2,nlat),line,lp)
+          ok = ok .and. isreal(rlat(3,nlat),line,lp)
+          if (.not.ok) goto 999
+       elseif (word == "atom") then
+          iat = iat + 1
+          ok = isreal(seed%x(1,iat),line,lp)
+          ok = ok .and. isreal(seed%x(2,iat),line,lp)
+          ok = ok .and. isreal(seed%x(3,iat),line,lp)
+          isfrac(iat) = .false.
+       end if
+    end do
+
+    ! handle the molecule/crystal expectation/contents of the file
+    if (is_file_mol) then
+       seed%ismolecule = .true.
+       seed%useabr = 0
+       seed%m_x2c = 0d0
+    else
+       if (mol) then
+          errmsg = "tried to load a crystal as a molecule; use the CRYSTAL keyword"
+          goto 999
+       end if
+       seed%ismolecule = .false.
+       seed%useabr = 2
+       rlat = rlat / bohrtoa
+       seed%m_x2c = rlat
+       call matinv(rlat,3,ier)
+       if (ier /= 0) then
+          errmsg = "Error inverting lattice vector matrix"
+          goto 999
+       end if
+    end if
+
+    ! convert the atomic coordinates
+    do i = 1, seed%nat
+       if (.not.isfrac(i)) then
+          seed%x(:,i) = seed%x(:,i) / bohrtoa
+          if (.not.is_file_mol) seed%x(:,i) = matmul(rlat,seed%x(:,i))
+       end if
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%cubic = docube
+    seed%border = rborder
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+  end subroutine read_aimsout
+
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
     use tools_io, only: ferror, faterr
@@ -3798,7 +4007,7 @@ contains
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
-       isformat_dmain, isformat_aimsin
+       isformat_dmain, isformat_aimsin, isformat_aimsout
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -3868,8 +4077,14 @@ contains
        ismol = .false.
     elseif (equal(wextdot,'out')) then
        call which_out_format(file,isformat,ismol)
+    elseif (equal(wextdot,'own')) then
+       call which_out_format(file,isformat,ismol)
+       if (isformat /= isformat_aimsout) goto 999
     elseif (equal(wextdot,'in')) then
        call which_in_format(file,isformat,ismol)
+    elseif (equal(wextdot2,'in.next_step')) then
+       call which_in_format(file,isformat,ismol)
+       if (isformat /= isformat_aimsin) goto 999
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
        ismol = .true.
@@ -4035,7 +4250,7 @@ contains
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       isformat_dmain, isformat_aimsin, dirsep
+       isformat_dmain, isformat_aimsin, isformat_aimsout, dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -4160,6 +4375,10 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg)
+    elseif (isformat == isformat_aimsout) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
@@ -5442,13 +5661,14 @@ contains
   !> from a crystal, quantum espresso, or orca calculation.
   subroutine which_out_format(file,isformat,ismol)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
-    use param, only: isformat_qeout, isformat_crystal, isformat_orca
+    use param, only: isformat_qeout, isformat_crystal, isformat_orca, isformat_aimsout
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
 
     integer :: lu
     character(len=:), allocatable :: line
+    logical :: ok
 
     isformat = 0
     ismol = .true.
@@ -5468,8 +5688,31 @@ contains
           isformat = isformat_qeout
           ismol = .false.
           exit
+       elseif (index(line,"Invoking FHI-aims ...") > 0) then
+          isformat = isformat_aimsout
+          exit
        end if
     end do
+
+    ! determine whether the aims output contains a molecule or a crystal
+    if (isformat == isformat_aimsout) then
+       ismol = .false.
+       isformat = 0
+       do while(getline_raw(lu,line))
+          if (adjustl(trim(line)) == "Input geometry:") then
+             isformat = isformat_aimsout
+             ok = getline_raw(lu,line)
+             if (.not.ok) then
+                isformat = 0
+             else if (index(line,"Unit cell:") > 0) then
+                ismol = .false.
+             elseif (index(line,"No unit cell requested.") > 0) then
+                ismol = .true.
+             endif
+             exit
+          end if
+       end do
+    end if
     call fclose(lu)
 
   end subroutine which_out_format
