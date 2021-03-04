@@ -1614,7 +1614,7 @@ contains
     enddo
     !$omp end parallel do
 
-    if (nwarn0 > 0) then
+    if (nwarn0 > 0 .and. verbose) then
        write (uout,'("* nwarns = ",A)') string(nwarn0)
        ! call ferror('bundle_msurface',"Some gradient paths were not terminated",warning)
     end if
