@@ -2914,7 +2914,7 @@ contains
     type(crystalseed) :: seed
     character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
-    integer :: i, n, is, ns, lp, nat
+    integer :: i, n, is, ns, nat
     real*8 :: rms1, rms2, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
     integer, allocatable :: isuse(:), isperm(:,:)
     integer, allocatable :: cidxorig(:,:)
