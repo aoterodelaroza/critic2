@@ -953,7 +953,11 @@ contains
     end if
 
     ! allocate space for results
-    n = linmax - linmin + 1
+    n = 0
+    do i = linmin, linmax
+       if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
+       n = n + 1
+    end do
     allocate(atprop(sy%npropi,n))
     atprop = 0d0
     bas%nattr = n
