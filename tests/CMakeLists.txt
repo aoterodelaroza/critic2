@@ -56,6 +56,7 @@ macro (runtests)
       CONFIGURATIONS gen
       )
     set_property(TEST "GEN:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
+    set_property(TEST "GEN:${curdir}/${test}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
 
     ## gen_copy test
     set(_check_list "")
@@ -77,6 +78,7 @@ macro (runtests)
 	)
       set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
       set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY DEPENDS "GEN:${curdir}/${test}")
+      set_property(TEST "GEN-COPY-:${curdir}/${test}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
     endif()
 
     ## gen_clean test
@@ -99,6 +101,7 @@ macro (runtests)
 	)
       set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY LABELS "gen ${label_list}")
       set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY DEPENDS "GEN-COPY:${curdir}/${test}")
+      set_property(TEST "GEN-CLEAN-:${curdir}/${test}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
     endif()
 
     ## run test
@@ -108,6 +111,7 @@ macro (runtests)
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       )
     set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY LABELS "${label_list}")
+    set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
 
     ## check tests
     if (NUMDIFF_FOUND AND check_list)
@@ -126,6 +130,7 @@ macro (runtests)
 	  )
 	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY LABELS "${label_list}")
 	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY DEPENDS "-RUN-:${curdir}/${test}")
+	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
       endforeach()
     endif()
   endforeach()
