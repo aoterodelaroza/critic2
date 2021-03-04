@@ -1216,7 +1216,12 @@ contains
        ok = (len_trim(word)>0)  .and. lp.le.ll
 
        if (equal(word,'files').or.equal(word,'root').or.equal(word,'oname')) then
-          rootname = line(lp:)
+          ! skip spaces
+          i=lp
+          do while (line(i:i)==" ")
+             i=i+1
+          enddo
+          rootname = line(i:)
           datafile = trim(rootname) // ".dat" 
 
        else if (equal(word,'plane')) then
