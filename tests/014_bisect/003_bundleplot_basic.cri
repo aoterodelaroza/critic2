@@ -1,6 +1,6 @@
 ## check: 003_bundleplot_basic.cro -a1e-4
-## delete: 003_bundleplot_basic-bundle.obj
-## delete: 003_bundleplot_basic-bundle.mtl
+## check: 003_bundleplot_basic-bundle.obj -a1e-1
+## check: 003_bundleplot_basic-bundle.mtl -a1e-1
 ## labels: regression quick nodata
 
 crystal library mgo
