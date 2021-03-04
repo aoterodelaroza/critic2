@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -169,7 +169,7 @@ contains
     end do
 
     return
-    
+
 998 continue
     call ferror('critic','error reading file in POINT keyword',faterr,line,syntax=.true.)
     return
@@ -218,7 +218,7 @@ contains
     nti = 0
     prop = ""
     id = sy%iref
-    outfile = "" 
+    outfile = ""
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'file')) then
@@ -547,7 +547,7 @@ contains
     id = sy%iref
     useexpr = .false.
     outform = outform_cube
-    outfile = trim(fileroot) // ".cube" 
+    outfile = trim(fileroot) // ".cube"
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'file')) then
@@ -857,7 +857,7 @@ contains
        return
     end if
 
-    ! at least two points 
+    ! at least two points
     nx = max(nx,2)
     ny = max(ny,2)
 
@@ -875,7 +875,7 @@ contains
     dorelief = .false.
     docolormap = .false.
     id = sy%iref
-    outfile = trim(fileroot) // "_plane.dat" 
+    outfile = trim(fileroot) // "_plane.dat"
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'file')) then
@@ -1056,7 +1056,7 @@ contains
     if (nti == 0) then
        nder = 0
     elseif (nti >= 1 .and. nti <= 4) then
-       nder = 1 
+       nder = 1
     else
        nder = 2
     end if
@@ -1187,7 +1187,7 @@ contains
     grphcutoff = 1.0d-3
     grpproj = 1
     rootname = trim(fileroot)
-    datafile = trim(fileroot) // ".dat" 
+    datafile = trim(fileroot) // ".dat"
     autocheck = .false.
     norig = 0
     newncriticp = 0
@@ -1217,12 +1217,8 @@ contains
 
        if (equal(word,'files').or.equal(word,'root').or.equal(word,'oname')) then
           ! skip spaces
-          i=lp
-          do while (line(i:i)==" ")
-             i=i+1
-          enddo
-          rootname = line(i:)
-          datafile = trim(rootname) // ".dat" 
+          rootname = adjustl(line(lp:))
+          datafile = trim(rootname) // ".dat"
 
        else if (equal(word,'plane')) then
           ok = eval_next (r0(1), line, lp)
@@ -1697,9 +1693,9 @@ contains
     root0 = rootname
 
     ! name files
-    fichgnu = trim(root0) // '-contour.gnu' 
-    fichiso = trim(root0) // '.iso' 
-    fichiso1 = trim(root0) // '.neg.iso' 
+    fichgnu = trim(root0) // '-contour.gnu'
+    fichiso = trim(root0) // '.iso'
+    fichiso1 = trim(root0) // '.neg.iso'
 
     ! connect units for writing.
     lud = fopen_write(fichiso)
@@ -1904,8 +1900,8 @@ contains
     write (lu,'("")')
 
     if (dolabels) then
-       fichlabel = trim(rootname) // "-label.gnu" 
-       write (lu,'("load ''",A,"''")') string(fichlabel) 
+       fichlabel = trim(rootname) // "-label.gnu"
+       write (lu,'("load ''",A,"''")') string(fichlabel)
        call write_fichlabel(rootname)
     end if
 
@@ -2124,7 +2120,7 @@ contains
                       endif
                    else
 
-                      ! none of the points is in the grid. points are 
+                      ! none of the points is in the grid. points are
                       si1 = zero
                       sj1 = zero
                       if (dabs(pi1-dint(pi1)).le.eps) si1 = one
@@ -2337,7 +2333,7 @@ contains
     write (uout,*)
 
     ! write the data file header
-    write (udat,'("# Gradient path information")') 
+    write (udat,'("# Gradient path information")')
     write (udat,'("# u(",A,") v(",A,") x(",A,") y(",A,") z(",A,") color")') (trim(iunitname0(iunit)),j=1,5)
 
     write (uout,'("+ List of gradient paths traced")')
@@ -2573,8 +2569,8 @@ contains
     type(scalar_value) :: res
     real*8 :: rp0(3)
 
-    ! 
-    write (uout,'("+ List of candidate in-plane CPs")') 
+    !
+    write (uout,'("+ List of candidate in-plane CPs")')
     write (uout,'("# cp       x           y           z")')
     do i = 1, newncriticp
        newcriticp(:,i) = newcriticp(:,i) - floor(newcriticp(:,i))
@@ -2600,7 +2596,7 @@ contains
        enddo
     enddo
 
-    write (uout,'("+ Pruning actions on the in-plane CP list")') 
+    write (uout,'("+ Pruning actions on the in-plane CP list")')
     do i = 1, newncriticp
        xp = newcriticp(:,i)
 
@@ -2698,7 +2694,7 @@ contains
     real*8 :: xp(3), xxx, yyy, zzz, uu, vv, hh, u, v
     character*2 :: cpletter
 
-    fichlabel = trim(rootname) // "-label.gnu" 
+    fichlabel = trim(rootname) // "-label.gnu"
 
     write (uout,'("* Name of the labels file: ",a)') string(fichlabel)
     write (uout,*)
@@ -2776,11 +2772,11 @@ contains
     real*8 :: dd
 
     dd = dunit0(iunit)
-    fichgnu = trim(rootname) // '.gnu' 
-    fichlabel = trim(rootname) // "-label.gnu" 
-    fichiso = trim(rootname) // ".iso" 
-    fichiso1 = trim(rootname) // ".neg.iso" 
-    fichgrd = trim(rootname) // ".dat" 
+    fichgnu = trim(rootname) // '.gnu'
+    fichlabel = trim(rootname) // "-label.gnu"
+    fichiso = trim(rootname) // ".iso"
+    fichiso1 = trim(rootname) // ".neg.iso"
+    fichgrd = trim(rootname) // ".dat"
 
     write (uout,'("* Name of the gnuplot script file: ",a/)') string(fichgnu)
 

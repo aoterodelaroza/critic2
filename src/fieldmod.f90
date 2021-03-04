@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,7 +31,7 @@ module fieldmod
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
-  
+
   private
 
   public :: realloc_field
@@ -112,7 +112,7 @@ module fieldmod
      procedure :: addcp !< Add a new CP to the CP list
      procedure :: sortcps !< Sort the CP list by field value
      procedure :: gradient !< Calculate a gradient path
-  end type field 
+  end type field
   public :: field
 
   integer, parameter :: ndif_jmax = 10
@@ -135,7 +135,7 @@ module fieldmod
      end subroutine field_set_options
      module subroutine field_new(f,seed,c,id,sptr,errmsg)
        class(field), intent(inout) :: f
-       type(fieldseed), intent(in) :: seed 
+       type(fieldseed), intent(in) :: seed
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        type(c_ptr), intent(in) :: sptr
@@ -281,5 +281,5 @@ module fieldmod
        real*8, intent(in), optional :: pathini(3)
      end subroutine gradient
   end interface
-  
+
 end module fieldmod
