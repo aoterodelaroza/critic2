@@ -5,7 +5,7 @@
 ## check: 006_nciplot_fragment-pdens.cube -a1e-10
 ## check: 006_nciplot_fragment.dat -a1e-10
 ## check: 006_nciplot_fragment_cell.xyz -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 nciplot

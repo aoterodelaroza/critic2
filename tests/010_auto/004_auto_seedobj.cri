@@ -1,7 +1,7 @@
 ## delete: 004_auto_seedobj.cro
 ## check: 004_auto_seedobj_seeds.obj -a1e-10
 ## check: 004_auto_seedobj_seeds.mtl -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

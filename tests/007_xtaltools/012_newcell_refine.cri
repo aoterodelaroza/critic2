@@ -2,9 +2,9 @@
 ## check: 012_newcell_refine_gen_2.cri -a1e-10
 ## check: 012_newcell_refine_gen_3.cri -a1e-10
 ## delete: 012_newcell_refine.cro
-## labels: regression quick
+## labels: regression quick nodata
 
-crystal 
+crystal
  spg P 63/m m c
  cell 2.456 2.456 6.696 90 90 119.99 ang
  C 0.0001   0   1/4
@@ -14,23 +14,22 @@ newcell 2 2 2
 newcell standard refine
 write 012_newcell_refine_gen_1.cri
 
-crystal 
+crystal
  spg F m -3 m
  cell 4.211 4.211 4.211 90 90 90.1 ang
  neq 0.0001 0 0 Mg
- neq 1/2 1/2 1/2 O 
+ neq 1/2 1/2 1/2 O
 endcrystal
 newcell 2 2 2
 newcell primitive refine
 write 012_newcell_refine_gen_2.cri
 
-crystal 
+crystal
  spg F m -3 m
  cell 4.211 4.211 4.211 90 90 90.1 ang
  neq 0.0001 0 0 Mg
- neq 1/2 1/2 1/2 O 
+ neq 1/2 1/2 1/2 O
 endcrystal
 newcell 2 2 2
 newcell primstd refine
 write 012_newcell_refine_gen_3.cri
-

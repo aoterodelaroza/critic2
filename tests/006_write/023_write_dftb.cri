@@ -3,7 +3,7 @@
 ## check: 023_write_dftb_1.hsd -a1e-10
 ## check: 023_write_dftb_2.gen -a1e-10
 ## check: 023_write_dftb_2.hsd -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 023_write_dftb_1.gen
 write 023_write_dftb_1.hsd

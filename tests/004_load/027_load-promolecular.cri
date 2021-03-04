@@ -2,7 +2,7 @@
 ## check: 027_load-promolecular.cro -a1e-10
 ## check: 027_load-promolecular.line1 -a1e-10
 ## check: 027_load-promolecular.line2 -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 027_load-promolecular.xyz onemotif nmer 1
 load promolecular name pro

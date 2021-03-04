@@ -3,7 +3,7 @@
 ## check: 001_basinplot_basic-1.mtl -a1e-10
 ## check: 001_basinplot_basic-5.obj -a1e-2
 ## check: 001_basinplot_basic-5.mtl -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 basinplot cube 1 prec 1e-8

@@ -1,6 +1,6 @@
 ## delete: 001_fluxprint_basic.cro
 ## delete: 001_fluxprint_basic_flux.cml
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 auto

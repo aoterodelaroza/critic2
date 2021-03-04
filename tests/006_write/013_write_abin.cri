@@ -1,5 +1,5 @@
 ## delete: 013_write_abin.cro
 ## check: 013_write_abin.abin -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library graphite
 write 013_write_abin.abin

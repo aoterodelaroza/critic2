@@ -14,7 +14,7 @@
 ## delete: 009_cpreport_xyz_3.cml
 ## delete: 009_cpreport_xyz_4.cml
 ## delete: 009_cpreport_xyz_5.cml
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

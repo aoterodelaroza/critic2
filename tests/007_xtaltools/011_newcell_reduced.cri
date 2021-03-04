@@ -1,9 +1,9 @@
 ## check: 011_newcell_reduced_gen_1.cri -a1e-10
 ## check: 011_newcell_reduced_gen_2.cri -a1e-10
 ## delete: 011_newcell_reduced.cro
-## labels: regression quick
+## labels: regression quick nodata
 
-crystal 
+crystal
  cell 10 3 20 101 120 130
  H 0 0 0
  H 1/2 1/2 1/2
@@ -11,11 +11,10 @@ endcrystal
 newcell niggli
 write 011_newcell_reduced_gen_1.cri
 
-crystal 
+crystal
  cell 10 3 20 101 120 130
  H 0 0 0
  H 1/2 1/2 1/2
 endcrystal
 newcell delaunay
 write 011_newcell_reduced_gen_2.cri
-

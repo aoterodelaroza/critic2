@@ -1,8 +1,8 @@
 ## check: 032_sym_refine.cro -a1e-10
 ## check: 032_sym_refine_gen.cif -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
-crystal 
+crystal
  cell 2.456 2.456 6.696 90 90 119. ang
  C 0.01 0.0 1/4
  C 0.99 0.0 3/4

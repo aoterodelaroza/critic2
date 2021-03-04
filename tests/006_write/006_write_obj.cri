@@ -1,6 +1,6 @@
 ## delete: 006_write_obj.cro
 ## check: 006_write_obj.obj -a1e-10
 ## check: 006_write_obj.mtl -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 006_write_obj.obj onemotif

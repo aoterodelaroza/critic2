@@ -1,7 +1,7 @@
 ## delete: 022_write_siesta.cro
 ## check: 022_write_siesta.fdf -a1e-10
 ## check: 022_write_siesta.STRUCT_IN -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 022_write_siesta.fdf
 write 022_write_siesta.STRUCT_IN

@@ -1,6 +1,6 @@
 ## delete: 031_load-promolecular2_1.xyz 031_load-promolecular2_2.xyz
 ## check: 031_load-promolecular2.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 031_load-promolecular2.xyz onemotif nmer 1
 

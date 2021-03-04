@@ -47,7 +47,7 @@
 ## delete: 022_bondfactor_gen_46.xyz
 ## delete: 022_bondfactor_gen_47.xyz
 ## delete: 022_bondfactor_gen_48.xyz
-## labels: quick regression
+## labels: quick regression nodata
 
 bondfactor 0.5
 crystal library uracil

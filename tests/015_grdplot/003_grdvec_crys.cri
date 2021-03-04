@@ -1,10 +1,10 @@
-## delete: 003_grdvec_crys.cro 
-## delete: 003_grdvec_crys-gen.neg.iso 
-## delete: 003_grdvec_crys-gen.iso 
-## delete: 003_grdvec_crys-gen-label.gnu 
-## delete: 003_grdvec_crys-gen.gnu 
-## delete: 003_grdvec_crys-gen.dat 
-## labels: regression quick
+## delete: 003_grdvec_crys.cro
+## delete: 003_grdvec_crys-gen.neg.iso
+## delete: 003_grdvec_crys-gen.iso
+## delete: 003_grdvec_crys-gen-label.gnu
+## delete: 003_grdvec_crys-gen.gnu
+## delete: 003_grdvec_crys-gen.dat
+## labels: regression quick nodata
 
 crystal library mgo
 auto

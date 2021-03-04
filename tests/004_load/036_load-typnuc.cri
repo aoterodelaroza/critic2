@@ -1,5 +1,5 @@
 ## check: 036_load-typnuc.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 load as "-$0" typnuc 3
 cpreport short

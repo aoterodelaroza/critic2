@@ -5,13 +5,13 @@
 ## delete: 002_fluxprint_opts_flux.tess
 ## delete: 002_fluxprint_opts_flux.obj
 ## delete: 002_fluxprint_opts_flux.mtl
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 auto
 fluxprint
  graph 2
- color 0 0 255 
+ color 0 0 255
  ply
  nosym
 end
@@ -31,4 +31,3 @@ fluxprint
  bcp 9 0 2
  obj
 end
-

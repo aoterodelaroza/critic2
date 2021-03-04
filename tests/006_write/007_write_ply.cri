@@ -1,5 +1,5 @@
 ## delete: 007_write_ply.cro
 ## check: 007_write_ply.ply -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 molecule library benzene
 write 007_write_ply.ply molcell cell

@@ -1,6 +1,6 @@
 ## check: 006_crystalenv-tricky3_gen.cri -a1e-10
 ## delete: 006_crystalenv-tricky3.cro
-## labels: regression quick
+## labels: regression quick nodata
 crystal
   cell  22.08657600000  22.08652623146  60.76840000000  90.00000  90.00000 119.99986
   neq   0.99999432   0.99999796   0.99999877         AU

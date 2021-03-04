@@ -1,7 +1,7 @@
 ## check: 017_compare_crystals.cro -a1e-10
 ## delete: 017_compare_crystals_gen.scf.in
 ## delete: 017_compare_crystals_gen.cif
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library uracil
 write 017_compare_crystals_gen.scf.in

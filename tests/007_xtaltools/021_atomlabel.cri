@@ -1,5 +1,5 @@
 ## check: 021_atomlabel.cro -a1e-10
-## labels: quick regression
+## labels: quick regression nodata
 
 crystal library urea
 atomlabel %S-%l-%s-%id-%aid

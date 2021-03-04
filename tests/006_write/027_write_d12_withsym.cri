@@ -1,6 +1,6 @@
 ## delete: 027_write_d12_withsym.cro
 ## check: 027_write_d12_withsym.d12 -a1e-10
 ## check: 027_write_d12_withsym.fort.34 -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 027_write_d12_withsym.d12

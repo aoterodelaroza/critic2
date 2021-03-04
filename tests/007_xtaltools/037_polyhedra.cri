@@ -1,5 +1,5 @@
 ## check: 037_polyhedra.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 polyhedra mg o 0 5.5

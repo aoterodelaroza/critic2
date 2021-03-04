@@ -1,5 +1,5 @@
 ## delete: 009_molecule-library.cro
 ## check: 009_molecule-library_gen.cri -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 molecule library crotonaldehyde
 write 009_molecule-library_gen.cri

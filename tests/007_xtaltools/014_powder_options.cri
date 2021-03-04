@@ -1,7 +1,7 @@
 ## check: 014_powder_options.cro -a1e-10
 ## check: 014_powder_options_gen.gnu -a1e-10
 ## check: 014_powder_options_gen.dat -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 powder th2ini 10 th2end 21.95 sigma 0.1 lambda 1.5 fpol 0.95 npts 100 root 014_powder_options_gen hard

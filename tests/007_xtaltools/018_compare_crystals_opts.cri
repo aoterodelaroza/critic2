@@ -1,6 +1,6 @@
 ## check: 018_compare_crystals_opts.cro -a1e-10
 ## delete: 018_compare_crystals_opts_gen.scf.in
-## labels: regression
+## labels: regression nodata
 
 crystal library uracil
 write 018_compare_crystals_opts_gen.scf.in

@@ -13,7 +13,7 @@
 ## check: 013_cube_simple_12.cube -a1e-10
 ## check: 013_cube_simple_13.cube -a1e-10
 ## check: 013_cube_simple_14.cube -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 
 cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 file 013_cube_simple_01.cube

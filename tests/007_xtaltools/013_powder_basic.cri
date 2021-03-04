@@ -1,7 +1,7 @@
 ## check: 013_powder_basic.cro -a1e-10
 ## check: 013_powder_basic_xrd.dat -a1e-10
 ## check: 013_powder_basic_xrd.gnu -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 powder

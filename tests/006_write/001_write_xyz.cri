@@ -4,7 +4,7 @@
 ## check: 001_write_xyz_03.xyz -a1e-10
 ## check: 001_write_xyz_04.xyz -a1e-10
 ## check: 001_write_xyz_05.xyz -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 001_write_xyz_01.xyz sphere 20 0.5 0.5 0.5
 write 001_write_xyz_02.xyz cube 20 0.5 0.5 0.5

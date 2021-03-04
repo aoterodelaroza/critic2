@@ -1,5 +1,5 @@
 ## check: 005_integrals_basic.cro -a1e-3
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 integrals gauleg 2 2 cp 1

@@ -1,7 +1,7 @@
 ## delete: 007_auto_seed.cro
 ## check: 007_auto_seed_seeds.obj -a1e-10
 ## check: 007_auto_seed_seeds.mtl -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 molecule library benzene
 

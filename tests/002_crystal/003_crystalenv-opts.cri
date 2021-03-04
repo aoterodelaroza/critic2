@@ -5,7 +5,7 @@
 ## check: 003_crystalenv-opts_gen_05.cri -a1e-10
 ## check: 003_crystalenv-opts_gen_06.cri -a1e-10
 ## delete: 003_crystalenv-opts.cro
-## labels: regression quick
+## labels: regression quick nodata
 a = 4.213
 b = a / 0.529
 

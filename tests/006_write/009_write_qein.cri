@@ -1,6 +1,6 @@
 ## check: 009_write_qein.cro -a1e-10
 ## check: 009_write_qein.scf.in -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 009_write_qein.scf.in 40
 compare 009_write_qein.scf.in .

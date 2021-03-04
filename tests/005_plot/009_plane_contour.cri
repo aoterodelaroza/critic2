@@ -24,7 +24,7 @@
 ## check: 009_plane_contour_05-label.gnu -a1e-10
 ## check: 009_plane_contour_05.neg.iso -a1e-10
 ## check: 009_plane_contour_05.iso -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library mgo
 
 plane 0 0 0 1 0 0 0 1 0 101 101 field "$0:l" \

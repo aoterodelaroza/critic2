@@ -1,6 +1,6 @@
 ## delete: 009_ode_mode.cro
 ## delete: 009_ode_mode_flux.ply
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 auto
@@ -10,6 +10,6 @@ ode_mode method bs maxstep 0.1
 ode_mode method rkck maxstep 0.1 maxerr 0.1 gradeps 1e-6
 ode_mode method dp maxstep 0.1
 fluxprint
- ncp 1 5 5 
+ ncp 1 5 5
  ply
 end

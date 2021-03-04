@@ -3,7 +3,7 @@
 ## check: 009_newcell_manual_gen_3.cri -a1e-10
 ## check: 009_newcell_manual_gen_4.cri -a1e-10
 ## delete: 009_newcell_manual.cro
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 newcell 1/2 1/2 0   1/2 0 1/2   0 1/2 1/2

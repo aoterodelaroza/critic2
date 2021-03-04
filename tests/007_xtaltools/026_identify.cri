@@ -1,5 +1,5 @@
 ## check: 026_identify.cro -a1e-10
-## labels: quick regression
+## labels: quick regression nodata
 
 crystal library uracil
 identify ang

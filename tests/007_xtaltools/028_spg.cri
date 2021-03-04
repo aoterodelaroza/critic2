@@ -1,4 +1,4 @@
 ## check: 028_spg.cro -a1e-10
-## labels: quick regression
+## labels: quick regression nodata
 
 spg

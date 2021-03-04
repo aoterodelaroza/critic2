@@ -1,5 +1,5 @@
 ## delete: 021_write_lammps.cro
 ## check: 021_write_lammps.lammps -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
-write 021_write_lammps.lammps 
+write 021_write_lammps.lammps

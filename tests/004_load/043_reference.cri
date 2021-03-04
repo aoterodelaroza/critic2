@@ -1,5 +1,5 @@
 ## check: 043_reference.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

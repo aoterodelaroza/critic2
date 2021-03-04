@@ -3,7 +3,7 @@
 ## check: 002_basinplot_opts-1.ply -a1e-3
 ## check: 002_basinplot_opts-1.basin -a1e-3
 ## check: 002_basinplot_opts-1.dbasin -a1e-3
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 basinplot triang 1 off cp 1 verbose

@@ -1,5 +1,5 @@
 ## check: 008_clear.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 a = 2
 b = 3

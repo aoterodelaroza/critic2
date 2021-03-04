@@ -4,7 +4,7 @@
 ## check: 005_nciplot_basic-gen-dens.cube -a1e-10
 ## check: 005_nciplot_basic-gen.dat -a1e-10
 ## check: 005_nciplot_basic-gen_cell.xyz -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 nciplot

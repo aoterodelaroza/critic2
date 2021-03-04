@@ -1,9 +1,9 @@
 ## check: 030_sym_large.cro -a1e-10
 ## delete: 030_sym_large_gen.scf.in
-## labels: regression 
+## labels: regression nodata
 
 sym -1
-crystal 
+crystal
  cell 2.456 2.456 6.696 90 90 119.99 ang
  C 0.0001 0.0 1/4
  C 0.9999 0.0 3/4

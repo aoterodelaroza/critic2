@@ -1,7 +1,7 @@
 ## delete: 002_write_xyz_border.cro
 ## check: 002_write_xyz_border_01.xyz -a1e-10
 ## check: 002_write_xyz_border_02.xyz -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library mgo
 write 002_write_xyz_border_01.xyz border
 write 002_write_xyz_border_02.xyz border 2 2 2

@@ -1,6 +1,6 @@
 ## delete: 011_cpreport_graph.cro
 ## delete: 011_cpreport_graph.xyz
-## labels: regression quick
+## labels: regression quick nodata
 
 molecule library benzene
 

@@ -1,6 +1,6 @@
 ## check: 001_auto_simple.test -a1e-2
 ## delete: 001_auto_simple.cro
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

@@ -1,11 +1,11 @@
 * VDW
 + Requested sigma_{Vvdw}/Vvdw: 1.0000E-02
-+ Van der Waals volume (Vvdw): 2126.657419 +- 21.266574
-+ Interstitial volume (outside vdw spheres): 1072.525409 +- 21.266574
++ Van der Waals volume (Vvdw): 2114.090814 +- 21.140908
++ Interstitial volume (outside vdw spheres): 1085.092013 +- 21.140908
 + Cell volume: 3199.182827
-+ Packing ratio (%): 66.475020 +- 0.664750
++ Packing ratio (%): 66.082213 +- 0.660822
 
 * VDW
 + Requested sigma_{Vvdw}/Vvdw: 1.0000E-02
-+ Van der Waals volume (Vvdw): 534.875635 +- 5.348756
++ Van der Waals volume (Vvdw): 518.676920 +- 5.186769
 

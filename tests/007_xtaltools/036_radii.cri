@@ -1,7 +1,7 @@
 ## check: 036_radii.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 radii
-radii cov C 2.0 
+radii cov C 2.0
 radii vdw N 10.0
 radii

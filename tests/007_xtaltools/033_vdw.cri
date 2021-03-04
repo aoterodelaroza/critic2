@@ -1,5 +1,5 @@
 ## check: 033_vdw.cro -r0.5
-## labels: quick regression
+## labels: quick regression nodata
 
 crystal library benzene
 vdw prec 0.01

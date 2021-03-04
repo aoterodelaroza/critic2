@@ -1,5 +1,5 @@
 ## check: 004_ewald.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 ## nacl
 a = 10

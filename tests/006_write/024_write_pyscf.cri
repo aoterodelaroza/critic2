@@ -1,7 +1,7 @@
 ## delete: 024_write_pyscf.cro
 ## check: 024_write_pyscf_1.pyscf -a1e-10
 ## check: 024_write_pyscf_2.pyscf -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 024_write_pyscf_1.pyscf
 

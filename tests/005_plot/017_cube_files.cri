@@ -2,7 +2,7 @@
 ## check: 017_cube_files.cube -a1e-10
 ## check: 017_cube_files.CHGCAR -a1e-10
 ## check: 017_cube_files.xsf -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 
 load as "$0" 10 10 10

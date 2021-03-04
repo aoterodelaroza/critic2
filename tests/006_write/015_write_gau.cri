@@ -1,5 +1,5 @@
 ## delete: 015_write_gau.cro
 ## check: 015_write_gau.gau -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library graphite
 write 015_write_gau.gau

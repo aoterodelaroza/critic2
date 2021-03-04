@@ -1,5 +1,5 @@
 ## check: 011_run_system.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 run echo abc
 system echo def

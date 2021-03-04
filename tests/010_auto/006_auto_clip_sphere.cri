@@ -1,7 +1,7 @@
 ## delete: 006_auto_clip_sphere.cro
 ## check: 006_auto_clip_sphere_seeds.obj -a1e-10
 ## check: 006_auto_clip_sphere_seeds.mtl -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

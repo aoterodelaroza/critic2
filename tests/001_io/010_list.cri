@@ -1,5 +1,5 @@
 ## check: 010_list.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 list
 reset

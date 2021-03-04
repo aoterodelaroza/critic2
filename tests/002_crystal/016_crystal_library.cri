@@ -1,5 +1,5 @@
 ## check: 016_crystal_library_gen.cri -a1e-10
 ## delete: 016_crystal_library.cro
-## labels: regression quick
+## labels: regression quick nodata
 crystal library graphite
 write 016_crystal_library_gen.cri

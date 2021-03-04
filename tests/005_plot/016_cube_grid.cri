@@ -1,7 +1,7 @@
 ## delete: 016_cube_grid.cro
 ## check: 016_cube_grid_01.cube -a1e-10
 ## check: 016_cube_grid_02.cube -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 
 load as "$0" 10 10 10

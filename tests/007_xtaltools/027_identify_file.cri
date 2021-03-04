@@ -3,7 +3,7 @@
 ## delete: 027_identify_file_gen_2.xyz
 ## delete: 027_identify_file_gen_3.xyz
 ## delete: 027_identify_file_gen_4.xyz
-## labels: quick regression
+## labels: quick regression nodata
 
 crystal library uracil
 write 027_identify_file_gen.xyz onemotif nmer 1

@@ -15,6 +15,6 @@
 ## check: 003_write_xyz_nmer_2_8.xyz -a1e-10
 ## check: 003_write_xyz_nmer_1.xyz -a1e-10
 ## check: 003_write_xyz_nmer_2.xyz -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 write 003_write_xyz_nmer.xyz molmotif nmer 2

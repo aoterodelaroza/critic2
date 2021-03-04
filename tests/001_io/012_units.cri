@@ -1,5 +1,5 @@
 ## check: 012_units.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 units bohr
 units au

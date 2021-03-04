@@ -1,10 +1,10 @@
-## delete: 004_grdvec_mols.cro 
-## delete: 004_grdvec_mols-gen.neg.iso 
-## delete: 004_grdvec_mols-gen.iso 
-## delete: 004_grdvec_mols-gen-label.gnu 
-## delete: 004_grdvec_mols-gen.gnu 
-## delete: 004_grdvec_mols-gen.dat 
-## labels: regression quick
+## delete: 004_grdvec_mols.cro
+## delete: 004_grdvec_mols-gen.neg.iso
+## delete: 004_grdvec_mols-gen.iso
+## delete: 004_grdvec_mols-gen-label.gnu
+## delete: 004_grdvec_mols-gen.gnu
+## delete: 004_grdvec_mols-gen.dat
+## labels: regression quick nodata
 
 molecule library pyridine
 auto

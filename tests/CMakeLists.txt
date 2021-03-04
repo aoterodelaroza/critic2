@@ -43,6 +43,11 @@ macro (runtests)
     endif()
     string(REGEX REPLACE "^ *#.*labels *:" "" label_list "${label_list}")
 
+    ## skip tests if we have no package unless they are self-contained
+    if (NOT "${TEST_PACKAGE_FOUND}" AND NOT ${label_list} MATCHES nodata)
+      continue()
+    endif()
+
     ## gen test
     add_test(
       NAME "GEN:${curdir}/${test}"
@@ -134,31 +139,6 @@ if (EXISTS "${TEST_PACKAGE_TARGET}")
   endif()
 endif()
 
-## fetch the test data package, if necessary - verify the hash
-if(NOT "${TEST_PACKAGE_FOUND}")
-  message(FATAL_ERROR "A package file with the correct sha1sum could not be found.")
-  # foreach(url ${TEST_URL})
-  #   if (EXISTS "${TEST_PACKAGE_TARGET}")
-  #     file(REMOVE "${TEST_PACKAGE_TARGET}")
-  #   endif()
-  #   message(STATUS "package: ${TEST_PACKAGE_TARGET}")
-  #   file(DOWNLOAD "${url}" "${TEST_PACKAGE_TARGET}"
-  #     TIMEOUT 60
-  #     TLS_VERIFY ON
-  #     SHOW_PROGRESS
-  #     STATUS status
-  #     )
-  #   list(GET status 0 error_code)
-  #   if(NOT "${error_code}")
-  #     file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
-  #     if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
-  #	set(TEST_PACKAGE_FOUND "YES")
-  #	break()
-  #     endif()
-  #   endif()
-  # endforeach()
-endif()
-
 ## unpack data for the tests (source)
 if ("${TEST_PACKAGE_FOUND}")
   if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/")
@@ -171,11 +151,11 @@ if ("${TEST_PACKAGE_FOUND}")
     message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
     execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
   endif()
-
-  ## process all subdirectories
-  foreach(dir ${TESTDIRS})
-    add_subdirectory(${dir})
-  endforeach()
 else()
   message(STATUS "Skipping tests because test data package could not be found or downloaded.")
 endif()
+
+## process all subdirectories
+foreach(dir ${TESTDIRS})
+  add_subdirectory(${dir})
+endforeach()

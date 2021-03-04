@@ -1,6 +1,6 @@
 ## delete: 008_moleculeenv-simple.cro
 ## check: 008_moleculeenv-simple_gen.cri -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 aa = 0.529177
 molecule
 neq 0.000000 1.393557 0.000000 C

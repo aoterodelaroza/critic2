@@ -1,5 +1,5 @@
 ## check: 006_integrals_radial.cro -a1e-3
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 int_radial type qags nr 20 abserr 1e-3 relerr 1e-3 prec 1d-4

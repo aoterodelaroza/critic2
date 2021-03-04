@@ -17,7 +17,7 @@
 ## delete: 008_cpreport.hsd
 ## delete: 008_cpreport.gen
 ## delete: 008_cpreport.json
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library urea
 

@@ -1,5 +1,5 @@
 ## check: 003_dosinput.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 two = 2
 three = 3
 three + two*pi

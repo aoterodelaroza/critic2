@@ -1,7 +1,7 @@
 ## delete: 020_write_gulp.cro
 ## check: 020_write_gulp_1.gin -a1e-10
 ## check: 020_write_gulp_2.gin -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 020_write_gulp_1.gin
 write 020_write_gulp_2.gin dreiding

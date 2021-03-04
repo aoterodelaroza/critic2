@@ -1,5 +1,5 @@
 ## check: 001_meshtype.cro -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 
 crystal library mgo
 meshtype franchini amazing

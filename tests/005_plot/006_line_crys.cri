@@ -1,9 +1,9 @@
 ## check: 006_line_crys.cro -a1e-10
 ## check: 006_line_crys.line1 -a1e-10
 ## check: 006_line_crys.line2 -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library mgo
-line 0 0 0 1 1 1 101 
+line 0 0 0 1 1 1 101
 line 0 0 0 1 1 1 101 gx
 line 0 0 0 1 1 1 101 gy
 line 0 0 0 1 1 1 101 gz

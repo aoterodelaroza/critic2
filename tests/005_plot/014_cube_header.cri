@@ -1,6 +1,6 @@
 ## delete: 014_cube_header.cro
 ## check: 014_cube_header.cube -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library urea
 
 cube 0.2 0.2 0.2 0.8 0.8 0.8 10 10 10 file 014_cube_header.cube header

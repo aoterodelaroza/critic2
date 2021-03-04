@@ -19,7 +19,7 @@
 ## delete: 010_cpreport_obj_3.off
 ## delete: 010_cpreport_obj_4.off
 ## delete: 010_cpreport_obj_5.off
-## labels: regression
+## labels: regression nodata
 
 crystal library urea
 

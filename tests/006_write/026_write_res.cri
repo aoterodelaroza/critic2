@@ -1,7 +1,7 @@
 ## delete: 026_write_res.cro
 ## check: 026_write_res_crys.res -a1e-10
 ## check: 026_write_res_mol.res -a1e-10
-## labels: regression quick
+## labels: regression quick nodata
 crystal library uracil
 write 026_write_res_crys.res nosymm
 

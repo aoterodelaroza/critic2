@@ -1,5 +1,5 @@
 ## check: 024_coord_opts.cro -a1e-10
-## labels: quick regression
+## labels: quick regression nodata
 
 crystal library urea
 coord dist 2.0
