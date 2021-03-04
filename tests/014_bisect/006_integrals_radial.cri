@@ -1,4 +1,4 @@
-## check: 006_integrals_radial.cro -a1e-3
+## check: 006_integrals_radial.cro -a1e-1
 ## labels: regression quick nodata
 
 crystal library mgo

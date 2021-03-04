@@ -1,5 +1,5 @@
 ## check: 003_bundleplot_basic.cro -a1e-4
-## check: 003_bundleplot_basic-bundle.obj -a1e-3
+## check: 003_bundleplot_basic-bundle.obj -a1e-1
 ## check: 003_bundleplot_basic-bundle.mtl -a1e-10
 ## labels: regression quick nodata
 
