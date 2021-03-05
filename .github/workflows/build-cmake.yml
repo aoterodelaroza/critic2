@@ -3,9 +3,6 @@ name: build-cmake
 on: [push, pull_request, workflow_dispatch]
 
 env:
-  CMAKE_BUILD_PARALLEL_LEVEL: "2"
-  CTEST_OUTPUT_ON_FAILURE: "ON"
-  CTEST_PARALLEL_LEVEL: "2"
   HOMEBREW_DISPLAY_INSTALL_TIMES: "ON"
   HOMEBREW_NO_ANALYTICS: "ON"
   HOMEBREW_NO_AUTO_UPDATE: "ON"
@@ -19,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        ver: [7, 8, 9, 10]
+        ver: [10] # 7, 8, 9
 
     runs-on: ${{ matrix.os }}
 
