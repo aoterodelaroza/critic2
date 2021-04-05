@@ -2530,15 +2530,15 @@ contains
 
        else if (equal(word,'atomic_positions')) then
           word = getword(line,lp)
-          if (equal(word,"crystal")) then
-             iunit = icrystal
-          elseif (equal(word,"crystal_sg")) then
+          if (index(word,"crystal_sg") > 0) then
              iunit = icrystalsg
-          elseif (equal(word,"bohr")) then
+          elseif (index(word,"crystal") > 0) then
+             iunit = icrystal
+          elseif (index(word,"bohr") > 0) then
              iunit = ibohr
-          elseif (equal(word,"angstrom")) then
+          elseif (index(word,"angstrom") > 0) then
              iunit = iang
-          elseif (equal(word,"alat")) then
+          elseif (index(word,"alat") > 0) then
              iunit = ialat
           else
              iunit = ialat
@@ -2564,11 +2564,11 @@ contains
        elseif (equal(word,'cell_parameters')) then
           word = getword(line,lp)
           cunit = ialat
-          if (equal(word,"bohr")) then
+          if (index(word,"bohr") > 0) then
              cunit = ibohr
-          elseif (equal(word,"angstrom")) then
+          elseif (index(word,"angstrom") > 0) then
              cunit = iang
-          elseif (equal(word,"alat")) then
+          elseif (index(word,"alat") > 0) then
              cunit = ialat
           elseif (len_trim(word) == 0) then
              cunit = ialat
