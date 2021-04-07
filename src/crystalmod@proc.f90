@@ -6264,7 +6264,7 @@ contains
     use tools_io, only: fopen_write, fclose
     use param, only: eye
     class(crystal), intent(in) :: c
-    real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in), allocatable :: g(:,:,:)
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
     logical, intent(in) :: binary
@@ -6277,9 +6277,13 @@ contains
     real*8 :: xd(3,3), x0(3), rshift(3)
 
     ! grid size
-    do i = 1, 3
-       n(i) = size(g,i)
-    end do
+    if (onlyheader.and..not.allocated(g)) then
+       n = 1
+    else
+       do i = 1, 3
+          n(i) = size(g,i)
+       end do
+    end if
 
     ! process optional arguments
     ishift = 0
@@ -6360,7 +6364,7 @@ contains
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
-    real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in), allocatable :: g(:,:,:)
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
     integer, intent(in), optional :: ishift0(3)
@@ -6370,9 +6374,13 @@ contains
     real*8 :: xshift(3)
 
     ! grid size
-    do i = 1, 3
-       n(i) = size(g,i)
-    end do
+    if (onlyheader.and..not.allocated(g)) then
+       n = 1
+    else
+       do i = 1, 3
+          n(i) = size(g,i)
+       end do
+    end if
 
     ! process optional arguments
     ishift = 0
@@ -6434,7 +6442,7 @@ contains
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
-    real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in), allocatable :: g(:,:,:)
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
     integer, intent(in), optional :: ishift0(3)
@@ -6447,9 +6455,13 @@ contains
     end if
 
     ! grid size
-    do i = 1, 3
-       n(i) = size(g,i)
-    end do
+    if (onlyheader .and..not.allocated(g)) then
+       n = 1
+    else
+       do i = 1, 3
+          n(i) = size(g,i)
+       end do
+    end if
 
     ! process optional arguments
     ishift = 0

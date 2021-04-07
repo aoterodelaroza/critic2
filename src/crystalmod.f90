@@ -675,7 +675,7 @@ module crystalmod
      end subroutine write_fhi
      module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
        class(crystal), intent(in) :: c
-       real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
        logical, intent(in) :: binary
@@ -685,14 +685,14 @@ module crystalmod
      end subroutine writegrid_cube
      module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0)
        class(crystal), intent(in) :: c
-       real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
        integer, intent(in), optional :: ishift0(3)
      end subroutine writegrid_vasp
      module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0)
        class(crystal), intent(in) :: c
-       real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
        integer, intent(in), optional :: ishift0(3)
