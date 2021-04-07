@@ -1,0 +1,7 @@
+## check: 041_kpoints.cro -a1e-10
+## labels: regression quick nodata
+
+crystal library uracil
+kpoints
+kpoints rkmax 20
+kpoints 35
