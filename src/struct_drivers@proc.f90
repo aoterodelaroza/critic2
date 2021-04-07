@@ -3109,12 +3109,13 @@ contains
 
   !> Calculate k-point grid to a certain Rk using VASP's recipe.
   module subroutine struct_kpoints(s,line)
-    use tools_io, only: lgetword, equal, isreal, ferror, faterr, string, uout
+    use tools_io, only: lgetword, equal, isreal, ferror, faterr, string, uout,&
+       ioj_right
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp, nk(3), nkold(3), i
-    real*8 :: rk, rkmax
+    real*8 :: rk, rkold, rkmax
     character(len=:), allocatable :: word
     logical :: ok
 
@@ -3149,24 +3150,23 @@ contains
        write (uout,'("+ Rk = ",A," | kpts = ",3(A,X))') string(rk,'f',decimal=1),&
           (string(nk(i)),i=1,3)
     elseif (rkmax > 0d0) then
-       rk = 0d0
-       nkold = 0
-       do while (.true.)
+       write (uout,'("# ---  Rk  ---   -- kpts --")')
+       rkold = rkmax_step
+       call s%c%get_kpoints(rkold,nkold)
+       do while (rk < rkmax)
           rk = rk + rkmax_step
-
           call s%c%get_kpoints(rk,nk)
           if (any(nk /= nkold)) then
-             write (uout,'("Rk = ",A," | kpts = ",3(A,X))') string(rk,'f',decimal=1), (string(nk(i)),i=1,3)
+             write (uout,'(A," -> ",A,4X,3(A,X))') string(rkold,'f',5,1,ioj_right), &
+                string(rk-rkmax_step,'f',5,1,ioj_right), (string(nkold(i),2),i=1,3)
              nkold = nk
+             rkold = rk
           end if
-
-          if (rk > rkmax) exit
        end do
+       write (uout,'(A," -> ",A,4X,3(A,X))') string(rkold,'f',5,1,ioj_right), &
+          string(rk-rkmax_step,'f',5,1,ioj_right), (string(nkold(i),2),i=1,3)
     end if
     write (uout,*)
-
-    ! KPOINTS [rk] [RKMAX rkmax.r]
-    ! module subroutine get_kpoints(c,rk,nk)
 
   end subroutine struct_kpoints
 
