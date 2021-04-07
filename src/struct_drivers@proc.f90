@@ -2904,7 +2904,7 @@ contains
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
-    use tools_io, only: getword, string, ferror, faterr, lower, equal, isreal, uout, string
+    use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
@@ -3106,5 +3106,68 @@ contains
     deallocate(isperm,cidxorig,isuse,c)
 
   end subroutine struct_molreorder
+
+  !> Calculate k-point grid to a certain Rk using VASP's recipe.
+  module subroutine struct_kpoints(s,line)
+    use tools_io, only: lgetword, equal, isreal, ferror, faterr, string, uout
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    integer :: lp, nk(3), nkold(3), i
+    real*8 :: rk, rkmax
+    character(len=:), allocatable :: word
+    logical :: ok
+
+    real*8 :: rkmax_def = 100d0
+    real*8 :: rkmax_step = 0.1d0
+
+    rk = -1d0
+    rkmax = rkmax_def
+    lp = 1
+    do while (.true.)
+       word = lgetword(line,lp)
+       if (len_trim(word) == 0) then
+          exit
+       elseif (equal(word,"rkmax")) then
+          ok = isreal(rkmax,line,lp)
+          if (.not.ok) then
+             call ferror('struct_kpoints','Syntax error in KPOINTS/RKMAX',faterr,syntax=.true.)
+             return
+          end if
+       elseif (isreal(rk,word)) then
+          exit
+       else
+          call ferror('struct_kpoints','Unknown keyword in KPOINTS',faterr,syntax=.true.)
+          return
+       endif
+    end do
+
+    write (uout,'("* KPOINTS: calculate dimensions of uniform k-point grid.")')
+    write (uout,*)
+    if (rk > 0d0) then
+       call s%c%get_kpoints(rk,nk)
+       write (uout,'("+ Rk = ",A," | kpts = ",3(A,X))') string(rk,'f',decimal=1),&
+          (string(nk(i)),i=1,3)
+    elseif (rkmax > 0d0) then
+       rk = 0d0
+       nkold = 0
+       do while (.true.)
+          rk = rk + rkmax_step
+
+          call s%c%get_kpoints(rk,nk)
+          if (any(nk /= nkold)) then
+             write (uout,'("Rk = ",A," | kpts = ",3(A,X))') string(rk,'f',decimal=1), (string(nk(i)),i=1,3)
+             nkold = nk
+          end if
+
+          if (rk > rkmax) exit
+       end do
+    end if
+    write (uout,*)
+
+    ! KPOINTS [rk] [RKMAX rkmax.r]
+    ! module subroutine get_kpoints(c,rk,nk)
+
+  end subroutine struct_kpoints
 
 end submodule proc

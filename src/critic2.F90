@@ -41,7 +41,7 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys, struct_molreorder
+     struct_makemols_neighcrys, struct_molreorder, struct_kpoints
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -464,7 +464,7 @@ program critic
         if (.not.ok) cycle
         call struct_coord(sy,line(lp:))
 
-        ! coord
+        ! polyhedra
      elseif (equal(word,'polyhedra')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
@@ -498,9 +498,15 @@ program critic
      elseif (equal(word,'makemolsnc')) then
         call struct_makemols_neighcrys(line,lp)
 
-        ! order_molecules
+        ! molreorder
      elseif (equal(word,'molreorder')) then
         call struct_molreorder(line,lp)
+
+        ! kpoints
+     elseif (equal(word,'kpoints')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call struct_kpoints(sy,line(lp:))
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&
