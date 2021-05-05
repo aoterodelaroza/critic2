@@ -5509,6 +5509,7 @@ contains
     integer :: lu, holo, laue
     integer :: i, j, k, l
     real*8 :: x(3)
+    real*8 :: dum(3,3)
 
     lu = fopen_write(file)
     write (lu,'("Title")')
@@ -5554,8 +5555,9 @@ contains
        write (lu,'(A)') string(c%neqv*c%ncv)
        do i = 1, c%neqv
           do j = 1, c%ncv
+             dum = transpose(matmul(matmul(c%m_x2c,c%rotm(1:3,1:3,i)),c%m_c2x))
              do k = 1, 3
-                write (lu,'(3(X,E19.12))') (c%rotm(k,l,i),l=1,3)
+                write (lu,'(3(X,E19.12))') (dum(l,k),l=1,3)
              end do
              x = c%rotm(:,4,i)+c%cen(:,j)
              x = c%x2c(x)
