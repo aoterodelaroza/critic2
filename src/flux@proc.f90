@@ -941,7 +941,7 @@ contains
     cpeps = 1d-2
 
     ! fill the easy stuff
-    flx_cpos(:,2) = x
+    flx_cpos(:,1) = x
     flx_xpos(:,1) = sy%c%c2x(x)
     flx_title = title
     flx_n = size(flx_path,1)
