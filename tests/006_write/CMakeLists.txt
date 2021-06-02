@@ -27,6 +27,7 @@ set(TESTS
   026_write_res        ## write res files
   027_write_d12_withsym ## write d12 file, with symmetry
   028_write_fhi        ## write FHIaims input files
+  029_write_tinkerfrac ## write TINKER frac format
   )
 
 runtests(${TESTS})

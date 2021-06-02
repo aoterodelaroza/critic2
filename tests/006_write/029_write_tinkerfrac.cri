@@ -1,0 +1,5 @@
+## delete: 029_write_tinkerfrac.cro
+## check: 029_write_tinkerfrac.frac -a1e-10
+## labels: regression quick nodata
+crystal library uracil
+write 029_write_tinkerfrac.frac
