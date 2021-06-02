@@ -408,4 +408,109 @@ contains
 
   end subroutine mergesort_i4
 
+  !> Return the atom type for TINKER's tiny force field (see tiny.prm
+  !> in the TINKER distribution). iz is the atomic number and nn is
+  !> the number of neighbors. Return 0 if the atom is unknown.
+  module function tiny_atom_type(iz,nn)
+    integer, intent(in) :: iz, nn
+    integer :: tiny_atom_type
+
+    if (iz == 1 .and. nn == 0) then
+       tiny_atom_type = 10 ! atom 10 H "H Atom" 1 1.000 0
+    elseif (iz == 1 .and. nn == 1) then
+       tiny_atom_type = 11 ! atom 11 H "H Monovalent" 1 1.000 1
+    elseif (iz == 1 .and. nn == 2) then
+       tiny_atom_type = 12 ! atom 12 H "H Divalent" 1 1.000 2
+    elseif (iz == 2 .and. nn == 0) then
+       tiny_atom_type = 20 ! atom 20 He "He Atom" 2 4.000 0
+    elseif (iz == 5 .and. nn == 3) then
+       tiny_atom_type = 53 ! atom 53 B "B Trivalent" 5 10.800 3
+    elseif (iz == 5 .and. nn == 4) then
+       tiny_atom_type = 54 ! atom 54 B "B Tetravalent" 5 10.800 4
+    elseif (iz == 6 .and. nn == 2) then
+       tiny_atom_type = 62 ! atom 62 C "C Divalent" 6 12.000 2
+    elseif (iz == 6 .and. nn == 3) then
+       tiny_atom_type = 63 ! atom 63 C "C Trivalent" 6 12.000 3
+    elseif (iz == 6 .and. nn == 4) then
+       tiny_atom_type = 64 ! atom 64 C "C Tetravalent" 6 12.000 4
+    elseif (iz == 7 .and. nn == 1) then
+       tiny_atom_type = 71 ! atom 71 N "N Monovalent" 7 14.000 1
+    elseif (iz == 7 .and. nn == 2) then
+       tiny_atom_type = 72 ! atom 72 N "N Divalent" 7 14.000 2
+    elseif (iz == 7 .and. nn == 3) then
+       tiny_atom_type = 73 ! atom 73 N "N Trivalent" 7 14.000 3
+    elseif (iz == 7 .and. nn == 4) then
+       tiny_atom_type = 74 ! atom 74 N "N+ Tetravalent" 7 14.000 4
+    elseif (iz == 8 .and. nn == 1) then
+       tiny_atom_type = 81 ! atom 81 O "O Monovalent" 8 16.000 1
+    elseif (iz == 8 .and. nn == 2) then
+       tiny_atom_type = 82 ! atom 82 O "O Divalent" 8 16.000 2
+    elseif (iz == 8 .and. nn == 3) then
+       tiny_atom_type = 83 ! atom 83 O "O+ Trivalent" 8 16.000 3
+    elseif (iz == 9 .and. nn == 0) then
+       tiny_atom_type = 90 ! atom 90 F "F- Ion" 9 18.000 0
+    elseif (iz == 9 .and. nn == 1) then
+       tiny_atom_type = 91 ! atom 91 F "F Monovalent" 9 18.000 1
+    elseif (iz == 10 .and. nn == 0) then
+       tiny_atom_type = 100 ! atom 100 Ne "Ne Atom" 10 20.200 0
+    elseif (iz == 11 .and. nn == 0) then
+       tiny_atom_type = 110 ! atom 110 Na "Na+ Ion" 11 23.000 0
+    elseif (iz == 12 .and. nn == 0) then
+       tiny_atom_type = 120 ! atom 120 Mg "Mg+2 Ion" 12 24.300 0
+    elseif (iz == 13 .and. nn == 0) then
+       tiny_atom_type = 130 ! atom 130 Al "Al+3 Ion" 13 27.000 0
+    elseif (iz == 14 .and. nn == 4) then
+       tiny_atom_type = 144 ! atom 144 Si "Si Tetravalent" 14 28.100 4
+    elseif (iz == 15 .and. nn == 3) then
+       tiny_atom_type = 153 ! atom 153 P "P Trivalent" 15 31.000 3
+    elseif (iz == 15 .and. nn == 4) then
+       tiny_atom_type = 154 ! atom 154 P "P Tetravalent" 15 31.000 4
+    elseif (iz == 15 .and. nn == 5) then
+       tiny_atom_type = 155 ! atom 155 P "P Pentavalent" 15 31.000 5
+    elseif (iz == 16 .and. nn == 1) then
+       tiny_atom_type = 161 ! atom 161 S "S Monovalent" 16 32.000 1
+    elseif (iz == 16 .and. nn == 2) then
+       tiny_atom_type = 162 ! atom 162 S "S Divalent" 16 32.000 2
+    elseif (iz == 16 .and. nn == 3) then
+       tiny_atom_type = 163 ! atom 163 S "S Trivalent" 16 32.000 3
+    elseif (iz == 16 .and. nn == 4) then
+       tiny_atom_type = 164 ! atom 164 S "S Tetravalent" 16 32.000 4
+    elseif (iz == 16 .and. nn == 6) then
+       tiny_atom_type = 166 ! atom 166 S "S Hexavalent" 16 32.000 6
+    elseif (iz == 17 .and. nn == 0) then
+       tiny_atom_type = 170 ! atom 170 Cl "Cl- Ion" 17 35.500 0
+    elseif (iz == 17 .and. nn == 1) then
+       tiny_atom_type = 171 ! atom 171 Cl "Cl Monovalent" 17 35.500 1
+    elseif (iz == 18 .and. nn == 0) then
+       tiny_atom_type = 180 ! atom 180 Ar "Ar Atom" 18 39.900 0
+    elseif (iz == 19 .and. nn == 0) then
+       tiny_atom_type = 190 ! atom 190 K "K Ion" 19 39.100 0
+    elseif (iz == 20 .and. nn == 0) then
+       tiny_atom_type = 200 ! atom 200 Ca "Ca+2 Ion" 20 40.100 0
+    elseif (iz == 35 .and. nn == 0) then
+       tiny_atom_type = 350 ! atom 350 Br "Br- Ion" 35 79.000 0
+    elseif (iz == 35 .and. nn == 1) then
+       tiny_atom_type = 351 ! atom 351 Br "Br Monovalent" 35 79.000 1
+    elseif (iz == 36 .and. nn == 0) then
+       tiny_atom_type = 360 ! atom 360 Kr "Kr Atom" 36 83.800 0
+    elseif (iz == 37 .and. nn == 0) then
+       tiny_atom_type = 370 ! atom 370 Rb "Rb+ Ion" 37 85.500 0
+    elseif (iz == 38 .and. nn == 0) then
+       tiny_atom_type = 380 ! atom 380 Sr "Sr+2 Ion" 38 87.600 0
+    elseif (iz == 53 .and. nn == 0) then
+       tiny_atom_type = 530 ! atom 530 I "I- Ion" 53 126.900 0
+    elseif (iz == 53 .and. nn == 1) then
+       tiny_atom_type = 531 ! atom 531 I "I Monovalent" 53 126.900 1
+    elseif (iz == 54 .and. nn == 0) then
+       tiny_atom_type = 540 ! atom 540 Xe "Xe Atom" 54 131.300 0
+    elseif (iz == 55 .and. nn == 0) then
+       tiny_atom_type = 550 ! atom 550 Cs "Cs+ Ion" 55 132.900 0
+    elseif (iz == 56 .and. nn == 0) then
+       tiny_atom_type = 560 ! atom 560 Ba "Ba+2 Ion" 56 137.300 0
+    else
+       tiny_atom_type = 0
+    endif
+
+  end function tiny_atom_type
+
 end submodule proc

@@ -28,6 +28,7 @@ module tools
   public :: uniqc
   public :: qcksort
   public :: mergesort
+  public :: tiny_atom_type
 
   interface qcksort
      module procedure qcksort_r8_inplace
@@ -75,6 +76,10 @@ module tools
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_i4
+     module function tiny_atom_type(iz,nn)
+       integer, intent(in) :: iz, nn
+       integer :: tiny_atom_type
+     end function tiny_atom_type
   end interface
 
 end module tools

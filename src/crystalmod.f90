@@ -219,6 +219,7 @@ module crystalmod
      procedure :: write_dftbp_gen
      procedure :: write_pyscf
      procedure :: write_fhi
+     procedure :: write_tinkerfrac
 
      ! grid writers
      procedure :: writegrid_cube
@@ -673,6 +674,10 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_fhi
+     module subroutine write_tinkerfrac(c,file)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+     end subroutine write_tinkerfrac
      module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)

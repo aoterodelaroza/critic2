@@ -697,6 +697,12 @@ contains
        call s%c%write_fhi(file)
        ok = check_no_extra_word()
        if (.not.ok) return
+    elseif (equal(wext,'frac')) then
+       ! abinit
+       write (uout,'("* WRITE TINKER frac file: ",A)') string(file)
+       call s%c%write_tinkerfrac(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     else
        call ferror('struct_write','unrecognized file format',faterr,line,syntax=.true.)
        return
