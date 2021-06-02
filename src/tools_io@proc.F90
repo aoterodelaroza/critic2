@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -33,7 +33,7 @@ contains
   !> Initialize the LU array.
   module subroutine lualloc_init()
     use iso_fortran_env, only: error_unit, input_unit, output_unit
-    
+
     alloc = .false.
     alloc(error_unit) = .true.
     alloc(input_unit) = .true.
@@ -54,7 +54,7 @@ contains
 
     integer, parameter :: arglen = 1024
 
-    integer :: n 
+    integer :: n
     integer :: argc, idx
     character(len=arglen) :: argv, aux
     logical :: local
@@ -77,15 +77,15 @@ contains
     argc = command_argument_count()
     if (argc > 0) then
        n=0
-       do while (n < argc) 
+       do while (n < argc)
           n=n+1
-          call getarg(n,argv)    
+          call getarg(n,argv)
           argv = adjustl(argv)
 
           if (argv(1:1) == "-") then
              if (trim(argv(2:2)) == "r") then
                 n = n + 1
-                call getarg(n,argv)    
+                call getarg(n,argv)
                 ghome = trim(adjustl(argv))
              elseif (trim(argv(2:2)) == "l") then
                 local = .true.
@@ -142,10 +142,10 @@ contains
     logical :: ispad
     character*(maxlen) :: aux, fmt
     integer :: i, ialen, ipad, ialen0
-    
+
     if (present(pad0)) then
        ispad = pad0
-    else 
+    else
        ispad = .false.
     end if
     ialen = 0
@@ -226,10 +226,10 @@ contains
     logical :: ispad
     character*(maxlen) :: aux, fmt
     integer :: i, ialen, ipad, ialen0
-    
+
     if (present(pad0)) then
        ispad = pad0
-    else 
+    else
        ispad = .false.
     end if
     ialen = 0
@@ -313,7 +313,7 @@ contains
     character*(maxlen) :: aux, fmt
     integer :: i, ialen, ipad, ipad0, idx, dec
     logical :: islen, first
-    
+
     islen = .false.
     if (present(length)) islen = (length > 0)
     if (present(decimal)) then
@@ -400,7 +400,7 @@ contains
     integer, intent(in), optional :: decimal
     integer, intent(in), optional :: justify
     integer, intent(in), optional :: padspace
-    
+
     s = string_real8(real(a,8),desc,length,decimal,justify,padspace)
 
   end function string_real4
@@ -419,7 +419,7 @@ contains
     integer, intent(in), optional :: padspace
 
     integer :: i, ialen, ipad, i2len
-    
+
     i2len = len_trim(adjustl(a))
     ialen = i2len
     if (present(length)) then
@@ -442,7 +442,7 @@ contains
           s(i+ialen+1:) = ""
        endif
     end if
-    
+
     if (present(padspace)) then
        if (padspace >= 0) then
           do ipad = padspace,0,-1
@@ -550,7 +550,7 @@ contains
              exit
           endif
        end do
-          
+
        ! exit if eof
        if (.not.ok) then
           if (present(eofstop)) then
@@ -619,10 +619,10 @@ contains
          type(c_ptr), value :: line
        end subroutine add_history
     end interface
-    
+
     type(c_ptr) :: line_c, prompt_c
     integer(c_size_t) :: ll
-#endif 
+#endif
     character(len=:), allocatable :: aux
     integer :: ios, nread, i
 
@@ -658,7 +658,7 @@ contains
        return
     end if
 #endif
-    
+
     ! write the prompt
     if (u == input_unit) then
        if (present(nprompt)) then
@@ -716,7 +716,7 @@ contains
        'MD', 'NO', 'LR', 'RF', 'DB', 'SG', 'BH', 'HS', 'MT', 'DS',& ! 101-110
        'RG', 'CN', 'NH', 'FL', 'MC', 'LV', 'TS', 'OG',& ! 111-118
        'XN', 'XB', 'XR', 'XC', 'XZ'& ! 119-123
-       /)                           
+       /)
 
     aux = adjustl(atname)
     atsymbol = aux(1:min(2,len(aux)))
@@ -747,7 +747,7 @@ contains
 
   end function zatguess
 
-  !> The reverse of zatguess. Given the atomic number, return the 
+  !> The reverse of zatguess. Given the atomic number, return the
   !> chemical symbol of the atom, or XX if it is not in range.
   !> If nounderscore is true, use blanks instead of underscores to pad
   !> the symbol.
@@ -755,7 +755,7 @@ contains
     use param, only: maxzat0
     integer, intent(in) :: zat !< Input atomic number
     logical, intent(in), optional :: nounderscore !< Use blanks instead of underscore to fill
-    character*(2) :: nameguess !< Output atomic symbol 
+    character*(2) :: nameguess !< Output atomic symbol
 
     character*(2), parameter :: an(1:maxzat0) =(/&
        'H_', 'He', 'Li', 'Be', 'B_', 'C_', 'N_', 'O_', 'F_', 'Ne',& ! 1-10
@@ -771,7 +771,7 @@ contains
        'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',& ! 101-110
        'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og',& ! 111-118
        'Xn', 'Xb', 'Xr', 'Xc', 'Xz'& ! 119-123
-       /) 
+       /)
 
     if (zat == 0) then
        nameguess = 'Bq'
@@ -785,7 +785,7 @@ contains
           if (nameguess(2:2) == "_") nameguess(2:2) = " "
        end if
     end if
-    
+
   end function nameguess
 
   !> Convert a string to uppercase, portable.
@@ -968,7 +968,7 @@ contains
     enddo
     if (line(i:i) == '+' .or. line(i:i) == '-') i=i+1
     if (i > len0) goto 999
-    if (isdigit(line(i:i))) then 
+    if (isdigit(line(i:i))) then
        do while (isdigit(line(i:i)))
           if (i >= len0) exit
           i=i+1
@@ -986,7 +986,7 @@ contains
     if (present(lp0)) lp0 = lp
 
   end function isinteger
-  
+
   !> Read a list of integers from a line, starting at pointer lp0. Returns
   !> the number of integers read (n), the integers (ix), and updates the
   !> position of the pointer.
@@ -1022,7 +1022,7 @@ contains
   end subroutine readintegers
 
   !> Get a real number from line and sets rval to it. If a valid real
-  !> number is not found, isreal returns .false. and rval is not changed. 
+  !> number is not found, isreal returns .false. and rval is not changed.
   module function isreal(rval, line, lp0)
     real*8, intent(out) :: rval !< Real value read
     character*(*), intent(in) :: line !< Input string
@@ -1054,11 +1054,11 @@ contains
 
     ! sign
     matched = .false.
-    if (line(i:i) == '+' .or. line(i:i) == '-') i = i + 1 
+    if (line(i:i) == '+' .or. line(i:i) == '-') i = i + 1
     if (i > len0) return
 
     ! first sequence of digits
-    if (isdigit(line(i:i))) then 
+    if (isdigit(line(i:i))) then
        matched = .true.
        do while (isdigit(line(i:i)))
           i=i+1
@@ -1067,13 +1067,13 @@ contains
     end if
 
     ! decimal point
-    if (line(i:i) == '.') then 
+    if (line(i:i) == '.') then
        i=i+1
        if (i > len0) goto 10
     end if
 
     ! second sequence of digits
-    if (isdigit(line(i:i))) then 
+    if (isdigit(line(i:i))) then
        matched = .true.
        do while (isdigit(line(i:i)))
           i=i+1
@@ -1091,7 +1091,7 @@ contains
 
        if (line(i:i)=='+' .or. line(i:i)=='-') then
           if (index(lexponents,line(i-1:i-1)) > 0) then
-             i = i+1 
+             i = i+1
              if (i > len0) return
           else
              return
@@ -1165,7 +1165,7 @@ contains
     ! is expression...
     isexpression_or_word = isexpression(word,line,lp0)
     if (isexpression_or_word) return
-    
+
     ! ... or word?
     word0 = getword(line,lp0)
     if (len_trim(word0) > 0) then
@@ -1230,7 +1230,7 @@ contains
     isassignment = .true.
   end function isassignment
 
-  !> Initialize file system and connect standard units. 
+  !> Initialize file system and connect standard units.
   !> Use this before falloc and fdealloc.
   module subroutine history_init()
 #ifdef HAVE_READLINE
@@ -1243,7 +1243,7 @@ contains
          type(c_ptr), value :: file
        end function read_history
     end interface
-    
+
     character(len=1024) :: home
     type(c_ptr) :: file_c
     integer(c_int) :: istat
@@ -1261,7 +1261,7 @@ contains
 #endif
   end subroutine history_init
 
-  !> If readline is used and the run is interactive, write the history file. 
+  !> If readline is used and the run is interactive, write the history file.
   module subroutine history_end()
 #ifdef HAVE_READLINE
     use iso_c_binding, only: c_int, c_ptr
@@ -1288,7 +1288,7 @@ contains
           call c_free(file_c)
        end if
     end if
-#endif    
+#endif
   end subroutine history_end
 
   !> Open a file for reading. The argument form controls the
@@ -1303,7 +1303,7 @@ contains
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
     integer :: lu
-    
+
     integer :: ios
     character(len=:), allocatable :: ofile
     logical :: abspath, errstop_
@@ -1340,7 +1340,7 @@ contains
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
     integer :: lu
-    
+
     integer :: ios
     character(len=:), allocatable :: ofile
     logical :: abspath, errstop_
@@ -1375,7 +1375,7 @@ contains
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
     integer :: lu
-    
+
     integer :: ios
     character(len=:), allocatable :: ofile
     logical :: abspath, errstop_
@@ -1407,7 +1407,7 @@ contains
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: errstop
     integer :: lu
-    
+
     integer :: ios
     logical :: errstop_
 
@@ -1450,7 +1450,7 @@ contains
     if (alloc(falloc)) &
        call ferror("falloc","could not allocate logical unit",faterr)
     alloc(falloc) = .true.
-    
+
   end function falloc
 
   !> Deallocate a logical unit
@@ -1511,18 +1511,18 @@ contains
   module subroutine tictac(mesg)
     character*(*), intent(in) :: mesg !< Prefix message
     integer :: values(8)
-    
+
     character(len=:), allocatable :: output
 
     call date_and_time(values=values)
 
     output = string(mesg)
     output = output // "--" // string(values(1))
-    output = output // "/" // string(values(2)) 
+    output = output // "/" // string(values(2))
     output = output // "/" // string(values(3))
-    output = output // ", " // string(values(5),2,pad0=.true.) 
+    output = output // ", " // string(values(5),2,pad0=.true.)
     output = output // ":" // string(values(6),2,pad0=.true.)
-    output = output // ":" // string(values(7),2,pad0=.true.)  
+    output = output // ":" // string(values(7),2,pad0=.true.)
     output = output // "." // string(values(8),3,pad0=.true.)
     write (uout,'(A)') output
 
@@ -1535,10 +1535,10 @@ contains
     call cpu_time(ctime0)
 
   end subroutine start_clock
-  
+
   !> Print the elapsed time to output
   module subroutine print_clock()
-    
+
     integer*8 :: irate, imax
     real :: ctime
     integer*8 :: stime

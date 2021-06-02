@@ -124,6 +124,7 @@ module param
   integer, parameter, public :: isformat_dmain = 27
   integer, parameter, public :: isformat_aimsin = 28
   integer, parameter, public :: isformat_aimsout = 29
+  integer, parameter, public :: isformat_tinkerfrac = 30
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.

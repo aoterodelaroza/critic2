@@ -86,6 +86,7 @@ module crystalseedmod
      procedure :: read_axsf
      procedure :: read_aimsin
      procedure :: read_aimsout
+     procedure :: read_tinkerfrac
   end type crystalseed
   public :: crystalseed
 
@@ -264,6 +265,12 @@ module crystalseedmod
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_aimsout
+     module subroutine read_tinkerfrac(seed,file,mol,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_tinkerfrac
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

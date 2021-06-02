@@ -3973,6 +3973,94 @@ contains
 
   end subroutine read_aimsout
 
+  !> Read the structure from a TINKER frac file (must have cell
+  !> parameters in the second line).
+  module subroutine read_tinkerfrac(seed,file,mol,errmsg)
+    use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
+    use param, only: bohrtoa, maxzat
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, lp, i, iz, idum
+    logical :: ok
+    character(len=:), allocatable :: line
+    character*30 :: atsym
+    integer, allocatable :: imap(:)
+
+    ! open the file
+    errmsg = "Error reading file."
+    lu = fopen_read(file)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    seed%file = file
+
+    ! line 1: number of atoms and name of the seed
+    lp = 1
+    ok = getline_raw(lu,line,.false.)
+    ok = ok .and. isinteger(seed%nat,line,lp)
+    if (.not.ok) goto 999
+    seed%name = trim(adjustl(line(lp:)))
+    if (len_trim(seed%name) == 0) &
+       seed%name = seed%file
+
+    ! line 2: cell parameters
+    read (lu,*,err=999) seed%aa, seed%bb
+    seed%aa = seed%aa / bohrtoa
+    seed%useabr = 1
+
+    ! atoms
+    seed%nspc = 0
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%spc(2),imap(maxzat))
+    imap = 0
+    do i = 1, seed%nat
+       read(lu,*,err=999) idum, atsym, seed%x(:,i)
+       iz = zatguess(atsym)
+       if (iz <= 0 .or. iz > maxzat) then
+          errmsg = "Unknown atomic symbol."
+          goto 999
+       endif
+       if (imap(iz) == 0) then
+          seed%nspc = seed%nspc + 1
+          if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
+          seed%spc(seed%nspc)%name = nameguess(iz,.true.)
+          seed%spc(seed%nspc)%z = iz
+          seed%spc(seed%nspc)%qat = 0d0
+          imap(iz) = seed%nspc
+       endif
+       seed%is(i) = imap(iz)
+    end do
+    call realloc(seed%spc,seed%nspc)
+    call realloc(seed%x,3,seed%nat)
+    call realloc(seed%is,seed%nat)
+    deallocate(imap)
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! molecule
+    seed%ismolecule = mol
+    seed%havex0 = .true.
+    seed%molx0 = 0d0
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%cubic = .false.
+    seed%border = 0d0
+
+  end subroutine read_tinkerfrac
+
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
     use tools_io, only: ferror, faterr
@@ -4008,7 +4096,7 @@ contains
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
-       isformat_dmain, isformat_aimsin, isformat_aimsout
+       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4167,6 +4255,9 @@ contains
     elseif (equal(wextdot,'dat')) then
        isformat = isformat_dat
        ismol = .true.
+    elseif (equal(wextdot,'frac')) then
+       isformat = isformat_tinkerfrac
+       ismol = .false.
     elseif (isvasp) then
        isformat = isformat_vasp
        ismol = .false.
@@ -4251,7 +4342,8 @@ contains
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       isformat_dmain, isformat_aimsin, isformat_aimsout, dirsep
+       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
+       dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
@@ -4382,6 +4474,10 @@ contains
        nseed = 1
        allocate(seed(1))
        call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg)
+    elseif (isformat == isformat_tinkerfrac) then
+       nseed = 1
+       allocate(seed(1))
+       call seed(1)%read_tinkerfrac(file,mol,errmsg)
     elseif (isformat == isformat_xsf) then
        nseed = 1
        allocate(seed(1))
