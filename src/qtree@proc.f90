@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,7 +28,7 @@ submodule (qtree) proc
   integer, parameter :: INT_spherequad_nleb = 170 !< number of lebedev nodes
 
 contains
-  
+
   !> Main driver for the QTREE integration.
   module subroutine qtree_driver(line)
     use systemmod, only: sy
@@ -220,7 +220,7 @@ contains
 
     ! run qtree
     call qtree_integration(level,plevel)
-    
+
   end subroutine qtree_driver
 
   !> Main routine for the QTREE integration.
@@ -285,23 +285,23 @@ contains
     if (sy%c%ismolecule) then
        call ferror("qtree","QTREE only available for crystals",faterr)
     end if
-    
+
     ! consistency warnings
     if (plot_mode > 0 .and. color_allocate == 0) then
        call ferror('qtree','Non zero PLOT_MODE is not compatible with a single color array',warning)
-       write (uout,'("* PLOT mode is set to 0.")') 
+       write (uout,'("* PLOT mode is set to 0.")')
        write (uout,*)
        plot_mode = 0
     end if
     !$ if (docontacts) then
     !$    call ferror('qtree','DOCONTACTS is not compatible with multi-threaded calculations.',warning)
-    !$    write (uout,'("* The contacts are NOT going to be used.")') 
+    !$    write (uout,'("* The contacts are NOT going to be used.")')
     !$    write (uout,*)
     !$    docontacts = .false.
     !$ end if
     if (docontacts .and. color_allocate == 0) then
        call ferror('qtree','DOCONTACTS is not compatible with a single color array',warning)
-       write (uout,'("* The contacts are NOT going to be used.")') 
+       write (uout,'("* The contacts are NOT going to be used.")')
        write (uout,*)
        docontacts = .false.
     end if
@@ -318,7 +318,7 @@ contains
        call qtree_setsph2(.false.)
     end if
 
-    write (uout,'("+ Initializing QTREE")') 
+    write (uout,'("+ Initializing QTREE")')
     call qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,.false.)
     l2 = 2**maxl
     nterm = 0
@@ -369,7 +369,7 @@ contains
     write (uout,'("  Abs. error in ODE integration: ",A)') string(ode_abserr,'e',decimal=6)
     write (uout,'("  PROPERTY calculation level: ",A)') string(prop_mode)
     write (uout,'("  INTEGRATION scheme: ",A)') string(integ_scheme)
-    write (uout,'("  INTEGRATION modes, per level: ")') 
+    write (uout,'("  INTEGRATION modes, per level: ")')
     do i = minl+1, maxl
        write (uout,'("  Level ",A,": ",A)') string(i), string(integ_mode(i))
     end do
@@ -377,7 +377,7 @@ contains
     write (uout,'("  PLOT mode : ",A)') string(plot_mode)
 
     if (any(integ_mode(minl+1:maxl) >= 1 .and. integ_mode(minl+1:maxl) <= 10)) then
-       write (uout,'("+ Using the KEAST library ")') 
+       write (uout,'("+ Using the KEAST library ")')
        write (uout,'("  P. Keast, Comput. Meth. Appl. Mech. 55 (1986) 339-348.")')
        call getkeast()
        do i = 1, 10
@@ -385,7 +385,7 @@ contains
           call keast_rule(i,korder(i),kxyz(:,:,i),kw(:,i))
        end do
     else if (any(integ_mode(minl+1:maxl) == 12)) then
-       write (uout,'("+ Using the CUBPACK library ")') 
+       write (uout,'("+ Using the CUBPACK library ")')
        write (uout,'("  R. Cools and A. Haegemans, ACM Trans. Math. Softw. 29 (2003) 287-296.")')
        call cubpack_info(uout)
     end if
@@ -399,11 +399,11 @@ contains
     end if
     write (uout,'("+ BETA sphere integration details")')
     if (INT_spherequad_type == INT_gauleg) then
-       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')       
+       write (uout,'("  Method : Gauss-Legendre, non-adaptive quadrature ")')
        write (uout,'("  Polar angle (theta) num. of nodes: ",A)') string(INT_spherequad_ntheta)
        write (uout,'("  Azimuthal angle (phi) num. of nodes: ",A)') string(INT_spherequad_nphi)
     else if (INT_spherequad_type == INT_lebedev) then
-       write (uout,'("  Method : Lebedev, non-adaptive quadrature ")')       
+       write (uout,'("  Method : Lebedev, non-adaptive quadrature ")')
        write (uout,'("  Number of nodes: ",A)') string(INT_spherequad_nleb)
     end if
     if (any(sphfactor(1:nnuc) < -1d-12)) then
@@ -412,7 +412,7 @@ contains
     if (INT_radquad_type == INT_qags .or. &
         INT_radquad_type == INT_qags .or. &
         INT_radquad_type == INT_qags) then
-       write (uout,'("  Using the QUADPACK library ")') 
+       write (uout,'("  Using the QUADPACK library ")')
        write (uout,'("  R. Piessens, E. deDoncker-Kapenga, C. Uberhuber and D. Kahaner,")')
        write (uout,'("  Quadpack: a subroutine package for automatic integration, Springer-Verlag 1983.")')
     end if
@@ -420,9 +420,9 @@ contains
     write (uout,'("+ Initial number of tetrahedra in IWS: ",A)') string(nt_orig)
 
     if (ws_scale > 0d0) then
-       vtotal = sy%c%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3
     else
-       vtotal = sy%c%omega 
+       vtotal = sy%c%omega
     end if
     write (uout,'("  Volume of the primitive unit cell: ",A)') string(sy%c%omega,'f',decimal=6)
     write (uout,'("  Volume of the integration region: ",A)') string(vtotal,'f',decimal=6)
@@ -476,7 +476,7 @@ contains
     nalloc = size(trm,2)
     siz = size(trm,1)
     ! write (uout,'("* The COLOR_ALLOCATE flag is: ",A)') string(color_allocate)
-    ! write (uout,'("* Color vectors (trm):")')     
+    ! write (uout,'("* Color vectors (trm):")')
     ! write (uout,'("  + Number allocated: ",A)') string(nalloc)
     ! write (uout,'("  + Elements per vector: ",A)') string(siz)
     ! write (uout,'("  + Integer kind of elements: ",A)') string(qtreei)
@@ -496,7 +496,7 @@ contains
     ! write (uout,'("* F vector in memory?: ",L)') savefgr
     ! write (uout,'("* DEL2F vector in memory?: ",L)') savelapgr
     ! write (uout,'("* CORNER VOLUME vector in memory?: ",L)') allocated(vgr)
-    ! write (uout,'("* Real vectors (fgr, lapgr, vgr): ")')     
+    ! write (uout,'("* Real vectors (fgr, lapgr, vgr): ")')
     ! write (uout,'("  + Number allocated: ",A)') string(ralloc)
     ! write (uout,'("  + Elements per vector: ",A)') string(siz)
     ! write (uout,'("  + Real kind of elements: ",A)') string(qtreer)
@@ -586,12 +586,12 @@ contains
     atprop = 0d0
 
     ! header
-    write (uout,'("th | Task")')  
-    write (uout,'("-------------------------------------------------------")')  
+    write (uout,'("th | Task")')
+    write (uout,'("-------------------------------------------------------")')
 
     ! integrate recursively each IWST
     ! allocatable arrays in private -> openmp 3.0 specs
-    !$omp parallel do private(acum_atprop,iv0) firstprivate(trm,fgr,lapgr,vgr) 
+    !$omp parallel do private(acum_atprop,iv0) firstprivate(trm,fgr,lapgr,vgr)
     do tt = 1, nt_orig
 
        !$omp critical (IO)
@@ -628,7 +628,7 @@ contains
        iv0(:,2) = (/ 1, 0, 0 /)
        iv0(:,3) = (/ 0, 1, 0 /)
        iv0(:,4) = (/ 0, 0, 1 /)
-       
+
        ! testing gradient_mode, parallelization does not enter these.
        if (gradient_mode == -1) then
           ndiff = 0
@@ -672,7 +672,7 @@ contains
           write (uout,'(A,I7,A,I7)') "* Number of term. differences : ", ndiff, " of ", siz
           write (uout,'(A,I7)') "* ngrd of method 1 : ", ngrd1
           write (uout,'(A,I7)') "* ngrd of method 2 : ", ngrd2
-          write (uout,*) 
+          write (uout,*)
        end if
 
        ! Copy trm, fgr and lapgr across tetrahedron faces. Only single-thread.
@@ -734,24 +734,24 @@ contains
              ! Determine end face
              if (ffo == 1) then
                 xface_end(:,1) = 0d0
-                xface_end(:,2) = xface_end(:,1) + bvec(:,1,tto) * l2 
-                xface_end(:,3) = xface_end(:,1) + bvec(:,2,tto) * l2 
+                xface_end(:,2) = xface_end(:,1) + bvec(:,1,tto) * l2
+                xface_end(:,3) = xface_end(:,1) + bvec(:,2,tto) * l2
              else if (ffo == 2) then
                 xface_end(:,1) = 0d0
-                xface_end(:,2) = xface_end(:,1) + bvec(:,1,tto) * l2 
-                xface_end(:,3) = xface_end(:,1) + bvec(:,3,tto) * l2 
+                xface_end(:,2) = xface_end(:,1) + bvec(:,1,tto) * l2
+                xface_end(:,3) = xface_end(:,1) + bvec(:,3,tto) * l2
              else if (ffo == 3) then
                 xface_end(:,1) = 0d0
-                xface_end(:,2) = xface_end(:,1) + bvec(:,2,tto) * l2 
-                xface_end(:,3) = xface_end(:,1) + bvec(:,3,tto) * l2 
+                xface_end(:,2) = xface_end(:,1) + bvec(:,2,tto) * l2
+                xface_end(:,3) = xface_end(:,1) + bvec(:,3,tto) * l2
              else
                 xp = 0d0
-                xface_end(:,1) = xp + bvec(:,1,tto) * l2 
-                xface_end(:,2) = xp + bvec(:,2,tto) * l2 
-                xface_end(:,3) = xp + bvec(:,3,tto) * l2 
+                xface_end(:,1) = xp + bvec(:,1,tto) * l2
+                xface_end(:,2) = xp + bvec(:,2,tto) * l2
+                xface_end(:,3) = xp + bvec(:,3,tto) * l2
              end if
              rface_end = matmul(cmat(:,:,tto),xface_end)
-             
+
              do i = 1, 3
                 xface_end(:,i) = sy%c%c2x(xface_end(:,i))
                 xface_end(:,i) = xface_end(:,i) + torig(:,tto)
@@ -778,7 +778,7 @@ contains
                 end do
                 write (uout,'(" xface_end : ")')
                 do i = 1, 3
-                   write (uout,'(4X,1p,3(E20.12,2X))') xface_end(:,i) 
+                   write (uout,'(4X,1p,3(E20.12,2X))') xface_end(:,i)
                 end do
                 call ferror('qtree','faces in contact have non-consistent coordinates',warning)
                 cycle
@@ -815,7 +815,7 @@ contains
     end do ! tetrahedra color assign
     !$omp end parallel do
 
-    write (uout,'("-------------------------------------------------------"/)')  
+    write (uout,'("-------------------------------------------------------"/)')
 
     ! close the differences tess file
     if (gradient_mode < 0) then
@@ -854,7 +854,7 @@ contains
        end if
     end if
 
-    ! scale integrals and sum spheres 
+    ! scale integrals and sum spheres
     do i = 1, nnuc
        atprop(i,:) = atprop(i,:) * leqvf / sy%f(sy%iref)%cp(i)%mult
        atprop(i,2:sy%npropi) = atprop(i,2:sy%npropi) + sphereprop(2:sy%npropi,i)
@@ -895,7 +895,7 @@ contains
 
   !xx! private procedures
 
-  !> Set sphere sizes according to user's input or, alternatively, calculate them 
+  !> Set sphere sizes according to user's input or, alternatively, calculate them
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph1(lvl,verbose)
     use systemmod, only: sy
@@ -907,7 +907,7 @@ contains
     use fieldmod, only: type_elk, type_wien
     use global, only: rbetadef
     use tools_io, only: ferror, faterr, uout, string
-    
+
     integer, intent(in) :: lvl
     logical, intent(in) :: verbose
 
@@ -924,7 +924,7 @@ contains
     integer(qtreei), allocatable :: trm(:,:)
     real(qtreer), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, allocatable :: acum_atprop(:,:)
-    
+
     real*8, parameter :: initial_f = 1.0d0
     real*8, parameter :: shrink = 0.95d0
     integer, parameter :: miter = 400
@@ -1085,7 +1085,7 @@ contains
        write (uout,*)
     end if
 
-    ! recover the color allocate 
+    ! recover the color allocate
     color_allocate = icolor
 
     ! clean up
@@ -1097,10 +1097,10 @@ contains
     if (allocated(lapgr)) deallocate(lapgr)
     if (allocated(vgr)) deallocate(vgr)
     if (allocated(acum_atprop)) deallocate(acum_atprop)
-    
+
   end subroutine qtree_setsph1
 
-  !> Set sphere sizes according to user's input or, alternatively, calculate them 
+  !> Set sphere sizes according to user's input or, alternatively, calculate them
   !> by analyzing the system at a smaller level (lvl).
   subroutine qtree_setsph2(verbose)
     use systemmod, only: sy

@@ -1,23 +1,23 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 submodule (wien_private) proc
   implicit none
-  
+
   !xx! private procedures
   ! subroutine wien_read_struct(f,file)
   ! subroutine readslm(f,lu)
@@ -50,7 +50,7 @@ submodule (wien_private) proc
   integer :: K1(3), NST, ISTG(3,NSYM)
 
   ! for wien_read_struct and rotdef
-  character*4 :: lattic 
+  character*4 :: lattic
 
   ! pw cutoff
   real*8, parameter :: pwcutoff = 1d-30
@@ -85,7 +85,7 @@ contains
 
   module subroutine wien_end(f)
     class(wienwfn), intent(inout) :: f
-    
+
     if (allocated(f%lm)) deallocate(f%lm)
     if (allocated(f%lmmax)) deallocate(f%lmmax)
     if (allocated(f%slm)) deallocate(f%slm)
@@ -147,7 +147,7 @@ contains
     use tools_io, only: fopen_read, fclose
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
-    
+
     integer :: lu, ntot, i, j
 
     ! load field data from the struct file and save it in f
@@ -155,7 +155,7 @@ contains
 
     ! read the clmsum
     lu = fopen_read(file)
-    
+
     call readslm(f,lu)
     call readk(f,lu)
     call fclose(lu)
@@ -508,7 +508,7 @@ contains
     lut = fopen_read(file)
     READ(lut,102) TITEL
     READ(lut,103) LATTIC,f%NAT,cform
-    f%ishlat = (lattic.eq.'H   ') 
+    f%ishlat = (lattic.eq.'H   ')
 
 102 FORMAT(A80)
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
@@ -704,7 +704,7 @@ contains
     allocate (f%pos(3,f%ndat))
     f%iatnr(:) = temp_iatnr(1:f%ndat)
     f%pos(:,:) = temp_pos(:,1:f%ndat)
-    deallocate(temp_iatnr,temp_pos) 
+    deallocate(temp_iatnr,temp_pos)
 
     !.read number of symmetry operations, sym. operations
     READ(lut,114) f%nIORD
@@ -924,7 +924,7 @@ contains
 
   ! PRIVATE from wien2k
   ! The following routines have been adapted from the WIEN2k source by
-  ! P. Blaha, K. Schwarz et al. 
+  ! P. Blaha, K. Schwarz et al.
   subroutine gbass(rbas,gbas)
     real*8, dimension(3,3) :: rbas, gbas
     real*8 :: det
@@ -1349,7 +1349,7 @@ contains
     complex*16, dimension(6) :: yhess, yhess1, yhess2, yhesstemp
 
     complex*16, dimension((lmax2+1)**2) :: yl !< spherical harmonics
-    
+
     sqin2=1d0/sqrt(2d0)
 
     !.obtain all spherical harmonics and derivatives needed.
@@ -1692,7 +1692,7 @@ contains
           roc = cmplx(aro,aroi,8)
           roc = roc * cmplx(f%tauk(i),f%tauki(i),8)
           roc = roc * cmplx(cos(tpiarg),sin(tpiarg),8)
-          
+
           rhoexpo=real(roc,8)
           chg=chg+rhoexpo
           if (nder <= 0) cycle

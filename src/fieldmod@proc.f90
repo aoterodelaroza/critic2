@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,7 +31,7 @@ submodule (fieldmod) proc
 
   ! numerical differentiation parameters
   real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
-  
+
 contains
 
   !> Adapt the size of an allocatable 1D type(field) array
@@ -43,7 +43,7 @@ contains
 
     type(field), allocatable :: temp(:)
     integer :: l1, u1
-    
+
     if (.not.allocated(a)) &
        call ferror('realloc_field','array not allocated',faterr)
     l1 = lbound(a,1)
@@ -186,7 +186,7 @@ contains
              lp2 = lp
              word2 = getword(line,lp)
              if (len_trim(word2) > 0 .and. len_trim(word2) <= 2) then
-                iz = zatguess(word2) 
+                iz = zatguess(word2)
                 if (iz > 0) then
                    aux = getword(line,lp)
                    if (.not.isinteger(iq,aux)) then
@@ -217,7 +217,7 @@ contains
 
   !> Load a new field using the given field seed, the crystal
   !> structure pointer, the ID of the new field in the system (id)
-  !> and the parent system's C pointer (sptr). If an error was 
+  !> and the parent system's C pointer (sptr). If an error was
   !> found, returns a non-zero-length error message (errmsg).
   !> Some new fields are handled at system level (see load_field_string).
   module subroutine field_new(f,seed,c,id,sptr,errmsg)
@@ -238,7 +238,7 @@ contains
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
     class(field), intent(inout) :: f !< Input field
-    type(fieldseed), intent(in) :: seed 
+    type(fieldseed), intent(in) :: seed
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
     type(c_ptr), intent(in) :: sptr
@@ -514,9 +514,9 @@ contains
     f%id = id
     f%isinit = .true.
     f%type = type_ghost
-    f%usecore = .false. 
-    f%numerical = .true. 
-    f%exact = .false. 
+    f%usecore = .false.
+    f%numerical = .true.
+    f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
     f%zpsp = c%zpsp
@@ -548,9 +548,9 @@ contains
     else
        f%type = type_promol
     end if
-    f%usecore = .false. 
-    f%numerical = .false. 
-    f%exact = .false. 
+    f%usecore = .false.
+    f%numerical = .false.
+    f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
@@ -611,9 +611,9 @@ contains
     elseif (ityp == ifformat_as_resample) then
        call f%grid%resample(g,n)
     end if
-    f%usecore = .false. 
-    f%numerical = .false. 
-    f%exact = .false. 
+    f%usecore = .false.
+    f%numerical = .false.
+    f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
@@ -635,7 +635,7 @@ contains
     use tools_io, only: ferror, faterr
     use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
-    real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates 
+    real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates
     integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
     type(scalar_value), intent(out) :: res !< Output density and related scalar properties
     character*(*), intent(in), optional :: fder !< modifier for the special field
@@ -653,7 +653,7 @@ contains
 
     if (.not.f%isinit) call ferror("grd","field not initialized",faterr)
 
-    ! initialize output quantities 
+    ! initialize output quantities
     call res%clear()
     res%avail_der1 = (nder > 0)
     res%avail_der2 = (nder > 1)
@@ -726,11 +726,11 @@ contains
     else
        if (.not.f%c%ismolecule) &
           call ferror("grd","non-periodic calculation in a crystal",faterr)
-       ! if outside the main cell and the field is limited to a certain region of 
+       ! if outside the main cell and the field is limited to a certain region of
        ! space, nullify the result and exit
-       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
+       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. &
           f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
-          f%type == type_pi) then 
+          f%type == type_pi) then
           return
        end if
     end if
@@ -891,7 +891,7 @@ contains
     real*8 :: rhox(3), rhov(3), gkinx(3)
     logical :: iok, per
 
-    ! initialize 
+    ! initialize
     if (present(periodic)) then
        per = periodic
     else
@@ -913,11 +913,11 @@ contains
     else
        if (.not.f%c%ismolecule) &
           call ferror("grd","non-periodic calculation in a crystal",faterr)
-       ! if outside the main cell and the field is limited to a certain region of 
+       ! if outside the main cell and the field is limited to a certain region of
        ! space, nullify the result and exit
-       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. & 
+       if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. &
           f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
-          f%type == type_pi) then 
+          f%type == type_pi) then
           return
        end if
     end if
@@ -1000,14 +1000,14 @@ contains
           f0 = f%grd0(x+dir*hh,periodic)
           pool(nh+1) = f0
        else
-          f0 = pool(nh+1) 
+          f0 = pool(nh+1)
        end if
        fp = f0
        if (pool(-nh-1) == 0d0) then
           f0 = f%grd0(x-dir*hh,periodic)
           pool(-nh-1) = f0
        else
-          f0 = pool(-nh-1) 
+          f0 = pool(-nh-1)
        end if
        fm = f0
        n(1,j) = (fp - fm) / (hh+hh)
@@ -1336,7 +1336,7 @@ contains
              write (uout,'("  Number of MOs (occupied): ",A," (alpha=",A,",beta=",A,")")') &
                 string(f%wfn%nmoocc), string(f%wfn%nalpha), string(f%wfn%nmoocc-f%wfn%nalpha)
           elseif (f%wfn%wfntyp == wfn_frac) then
-             write (uout,'("  Wavefunction type: fractional occupation")') 
+             write (uout,'("  Wavefunction type: fractional occupation")')
              write (uout,'("  Number of MOs: ",A)') string(f%wfn%nmoocc)
              write (uout,'("  Number of electrons: ",A)') string(nint(sum(f%wfn%occ(1:f%wfn%nmoocc))))
           end if
@@ -1394,7 +1394,7 @@ contains
        end if
 
        write (uout,*)
-       write (uout,'("+ Plane-wave Kohn-Sham states for this field")') 
+       write (uout,'("+ Plane-wave Kohn-Sham states for this field")')
        write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
           string(f%grid%qe%nbnd)
        do i = 1, f%grid%qe%nks
@@ -1412,7 +1412,7 @@ contains
 
     if (f%grid%iswan) then
        write (uout,*)
-       write (uout,'("+ Wannier functions information for this field")') 
+       write (uout,'("+ Wannier functions information for this field")')
        write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
        write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
@@ -1450,7 +1450,7 @@ contains
   end subroutine write_json
 
   !> Initialize the critical point list with the atoms in the crystal
-  !> structure. 
+  !> structure.
   module subroutine init_cplist(f)
     use global, only: rbetadef, atomeps
     class(field), intent(inout) :: f
@@ -1521,7 +1521,7 @@ contains
 
     if (.not.f%fcp_deferred) return
     f%fcp_deferred = .false.
-    
+
     do i = 1, f%c%nneq
        call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
        f%cp(i)%s%r = 3
@@ -2039,7 +2039,7 @@ contains
     f%cp(n)%name = smallnamecrit(f%cp(n)%typind) // string(num)
 
     ! Add positions to the complete CP list
-    call f%c%symeqv(f%cp(n)%x,f%cp(n)%mult,sympos,symrotm,symcenv,cpeps) 
+    call f%c%symeqv(f%cp(n)%x,f%cp(n)%mult,sympos,symrotm,symcenv,cpeps)
     do i = 1, f%cp(n)%mult
        f%ncpcel = f%ncpcel + 1
        if (f%ncpcel >= size(f%cpcel)) then
@@ -2093,7 +2093,7 @@ contains
     ! Rewrite the complete CP list
     f%ncpcel = 0
     do i = 1, f%ncp
-       call f%c%symeqv(f%cp(i)%x,mi,sympos,symrotm,symcenv,cpeps) 
+       call f%c%symeqv(f%cp(i)%x,mi,sympos,symrotm,symcenv,cpeps)
        do j = 1, mi
           f%ncpcel = f%ncpcel + 1
           f%cpcel(f%ncpcel) = f%cp(i)
@@ -2118,7 +2118,7 @@ contains
   !> stop when reaching a beta-sphere. plen, length of the gradient
   !> path. If path is present, return the gradient path. If prune is
   !> present, prune the gradient path to have point-to-point distances
-  !> equal to prune. prune also sets the maximum step size. If pathini is 
+  !> equal to prune. prune also sets the maximum step size. If pathini is
   !> present, initialize the output path with this point (Cartesian).
   module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
@@ -2204,7 +2204,7 @@ contains
                 if (prune0 < 0d0) then
                    call addtopath(nstep,xcart,xpoint,res)
                 else
-                   do while (dd > prune0) 
+                   do while (dd > prune0)
                       xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
                       xxaux = fid%c%c2x(xcaux)
                       call fid%grd(xcaux,2,resaux)
@@ -2250,7 +2250,7 @@ contains
           end do
        end if
 
-       ! is it a nuclear position? 
+       ! is it a nuclear position?
        ok = .false.
        ! beta-sphere if up2beta is activated
        if (up2beta .and. idcp/=0) then
@@ -2308,7 +2308,7 @@ contains
        xlast = xpoint
        ok = adaptive_stepper(fid,xpoint,h0,hini,NAV_gradeps,res)
 
-       ! add to the trajectory angle history, terminate the gradient if the 
+       ! add to the trajectory angle history, terminate the gradient if the
        ! trajectory bounces around mhist times
        nhist = mod(nhist,mhist) + 1
        scalhist(nhist) = dot_product(xlast-xlast2,xpoint-xlast)
@@ -2446,24 +2446,24 @@ contains
 
   !> Euler stepper.
   subroutine stepper_euler1(xpoint,grdt,h0,xout)
-    
+
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3)
-  
+
     xout = xpoint + h0 * grdt
-  
+
   end subroutine stepper_euler1
 
   !> Heun stepper.
   subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
     use types, only: scalar_value
     use param, only: vsmall
-    
+
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3)
     type(scalar_value), intent(inout) :: res
-    
+
     real*8 :: ak2(3)
 
     xout = xpoint + h0 * grdt
@@ -2471,14 +2471,14 @@ contains
     call fid%grd(xout,2,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
-  
+
   end subroutine stepper_heun
 
   !> Bogacki-Shampine embedded 2(3) method, fsal
   subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
-    
+
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3), xerr(3)
@@ -2508,7 +2508,7 @@ contains
   subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
-    
+
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
     real*8, intent(out) :: xout(3), xerr(3)
@@ -2522,7 +2522,7 @@ contains
          C1=37.d0/378.d0, C3=250.d0/621.d0, C4=125.d0/594.d0, C6=512.d0/1771.d0,&
          DC1=C1-2825.d0/27648.d0, DC3=C3-18575.d0/48384.d0, DC4=C4-13525.d0/55296.d0, DC5=-277.d0/14336.d0, DC6=C6-.25d0
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6
-    
+
     xout = xpoint + h0*B21*grdt
 
     call fid%grd(xout,2,res)
@@ -2552,7 +2552,7 @@ contains
   subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
     use types, only: scalar_value
     use param, only: vsmall
-    
+
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
     real*8, intent(out) :: xout(3), xerr(3)

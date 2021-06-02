@@ -325,7 +325,7 @@ contains
                   is0 = CINT1e_nuc_cart(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
                end if
                hmn(ioff+1:ioff+di,joff+1:joff+dj) = hmn(ioff+1:ioff+di,joff+1:joff+dj) + buf1e(:,:,1)
-               
+
                ! overlap
                if (cint%lsph) then
                   is0 = CINT1e_ovlp_sph(buf1e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env)
@@ -348,7 +348,7 @@ contains
       ! make the 1-dm
       pmn = matmul(transpose(cint%moc),cint%moc) * 2d0
 
-      ! fixme: use the ERI symmetries 
+      ! fixme: use the ERI symmetries
       jmn = 0d0
       kmn = 0d0
       ioff = 0

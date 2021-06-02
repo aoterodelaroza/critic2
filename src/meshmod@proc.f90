@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -71,7 +71,7 @@ contains
     end if
     m%type = tmesh
     m%lvl = lmesh
-    
+
   end subroutine genmesh
 
   !> Generate a Becke-style molecular mesh. Only for molecules.
@@ -93,7 +93,7 @@ contains
 
     if (.not.c%ismolecule) &
        call ferror("genmesh_becke","Becke mesh only for molecules",faterr)
-    
+
     ! reset the arrays
     call m%end()
 
@@ -110,7 +110,7 @@ contains
     ! allocate space for the mesh
     m%n = 0
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
     enddo
@@ -120,7 +120,7 @@ contains
     mr = -1
     mang = -1
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang(iz,lvl))
        mr = max(mr,z2nr(iz,lvl))
@@ -130,14 +130,14 @@ contains
     if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for radial meshes',faterr)
     allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
     if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for angular meshes',faterr)
-    
+
     ! Precompute the mesh weights with multiple threads. The job has to be
-    ! split in two because the nodes have to be positioned in the array in 
-    ! the correct order 
+    ! split in two because the nodes have to be positioned in the array in
+    ! the correct order
     !$omp parallel do private(nr,nang,ir,r,il,x,j,k,r1,r2,hypr,&
     !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
 
        ! radial mesh
@@ -156,10 +156,10 @@ contains
           do il = 1, nang
              x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
              do j = 2, c%ncel
-                iz = c%spc(c%atcel(j)%is)%z 
+                iz = c%spc(c%atcel(j)%is)%z
                 if (iz < 1 .or. iz > maxzat) cycle
                 do k = 1, j-1
-                   iz2 = c%spc(c%atcel(k)%is)%z 
+                   iz2 = c%spc(c%atcel(k)%is)%z
                    if (iz2 < 1 .or. iz2 > maxzat) cycle
                    r1 = sqrt((x(1)-c%atcel(j)%r(1))**2+(x(2)-c%atcel(j)%r(2))**2+(x(3)-c%atcel(j)%r(3))**2)
                    r2 = sqrt((x(1)-c%atcel(k)%r(1))**2+(x(2)-c%atcel(k)%r(2))**2+(x(3)-c%atcel(k)%r(3))**2)
@@ -177,12 +177,12 @@ contains
              vp0 = 1d0
              vpsum = 0d0
              do j = 1, c%ncel
-                iz = c%spc(c%atcel(j)%is)%z 
+                iz = c%spc(c%atcel(j)%is)%z
                 if (iz < 1 .or. iz > maxzat) cycle
                 vp0=vp0*cutoff(i,j)
                 vpi=1d0
                 do k = 1, c%ncel
-                   iz2 = c%spc(c%atcel(k)%is)%z 
+                   iz2 = c%spc(c%atcel(k)%is)%z
                    if (iz2 < 1 .or. iz2 > maxzat) cycle
                    vpi = vpi * cutoff(j,k)
                 enddo
@@ -208,7 +208,7 @@ contains
     ! fill the 3d mesh
     kk = 0
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr(iz,lvl)
        nang = z2nang(iz,lvl)
@@ -227,7 +227,7 @@ contains
   !> J. Comput. Chem. 34 (2013) 1819.
   !> The lvl parameter controls the quality:
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
-  !> This mesh is good for periodic systems because the calculation of the 
+  !> This mesh is good for periodic systems because the calculation of the
   !> weights does not involve a double sum over atoms.
   module subroutine genmesh_franchini(m,c,lvl)
     use crystalmod, only: crystal
@@ -257,7 +257,7 @@ contains
     ! allocate space for the mesh
     m%n = 0
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
     enddo
@@ -269,7 +269,7 @@ contains
     mr = -1
     mang = -1
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        mang = max(mang,z2nang(iz,lvl))
        nr = z2nr(iz,lvl)
@@ -283,7 +283,7 @@ contains
     if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for radial meshes',faterr)
     allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
     if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for angular meshes',faterr)
-    
+
     ! calculate the maximum r
     call rmesh_franchini(mr,izmr,rads,wrads)
     rmax = max(rads(mr),rthres)
@@ -297,17 +297,17 @@ contains
        ! keep a pointer to the environment
        isealloc = .false.
     end if
-    
+
     ! Precompute the mesh weights with multiple threads. The job has to be
-    ! split in two because the nodes have to be positioned in the array in 
-    ! the correct order 
+    ! split in two because the nodes have to be positioned in the array in
+    ! the correct order
     !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat,ierr) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
        xnuc = xnuc - floor(xnuc)
        xnuc = c%xr2c(xnuc)
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) then
           cycle
        elseif (iz == 1) then
@@ -347,9 +347,9 @@ contains
              vpsum = 0d0
              do j = 1, nat
                 if (isealloc) then
-                   iz2 = c%spc(env%at(eid(j))%is)%z 
+                   iz2 = c%spc(env%at(eid(j))%is)%z
                 else
-                   iz2 = c%spc(c%env%at(eid(j))%is)%z 
+                   iz2 = c%spc(c%env%at(eid(j))%is)%z
                 end if
                 if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
@@ -361,7 +361,7 @@ contains
                 vpsum = vpsum + fscal2 * exp(-2d0 * dist(j)) / max(dist(j),1d-10)**3
              enddo
              vpsum = max(vp0,vpsum)
-                
+
              !$omp critical (mmesh)
              meshrl(il,ir,i) = vp0/max(vpsum,1d-40) * wrads(ir) * wang(il)
              meshx(:,il,ir,i) = x
@@ -383,7 +383,7 @@ contains
     ! fill the 3d mesh
     kk = 0
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z 
+       iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
        nr = z2nr(iz,lvl)
        nang = z2nang(iz,lvl)
@@ -415,7 +415,7 @@ contains
     type(field), intent(inout) :: ff
     integer, intent(in) :: prop(:)
     logical, intent(in) :: periodic
-    
+
     type(scalar_value) :: res
     integer :: i, j, n, nder
     real*8 :: fval, rhos, laps, tau, drhos2, dsigs, quads, br_b, br_alf, br_a
@@ -492,7 +492,7 @@ contains
   module subroutine report(m)
     use tools_io, only: uout, string
     class(mesh), intent(inout) :: m
-    
+
     write (uout,'(2X,"Mesh size      ",A)') string(m%n)
     if (m%type == mesh_type_becke) then
        write (uout,'(2X,"Mesh type      Becke")')
@@ -579,7 +579,7 @@ contains
 
   end subroutine rmesh_franchini
 
-  !> Atomic number to radial point number. 
+  !> Atomic number to radial point number.
   !> After Franchini et al., J. Comput. Chem. 34 (2013) 1819.
   !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
   !> Some changes to the choice of ni0
@@ -635,7 +635,7 @@ contains
     else
        call ferror("z2nang","unknown accuracy level",faterr)
     end if
-       
+
   endfunction z2nang
 
 end submodule proc

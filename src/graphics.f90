@@ -19,7 +19,7 @@
 module graphics
   use param, only: mlen
   implicit none
-  
+
   private
 
   type grhandle

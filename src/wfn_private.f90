@@ -6,18 +6,18 @@
 
 ! Copyright (c) 2009-2017 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -25,7 +25,7 @@
 module wfn_private
   use environmod, only: environ
   implicit none
-  
+
   private
 
   ! Molecular basis set information for libCINT integral calculations
@@ -57,7 +57,7 @@ module wfn_private
      integer, allocatable :: bas(:,:) !< shell information
      real*8, allocatable :: env(:) !< double data (coordinates, exponents, coefficients)
   end type cintdata
-  
+
   ! Molecular wavefunction type
   ! Order of the orbitals:
   ! Restricted wavefunctions (wfntyp = wfn_rhf):
@@ -79,12 +79,12 @@ module wfn_private
   ! | ......... | ......... | ......... | ......... |
   ! 1         nalpha      nmoocc     nmoocc+      nmoall
   !                                nalpha_virt
-  ! 
-  ! Fractional wavefunctions (wfntyp = wfn_frac): 
-  ! 
+  !
+  ! Fractional wavefunctions (wfntyp = wfn_frac):
+  !
   ! | ............................................. |
   ! 1                                         nmoall = nmoocc
-  ! 
+  !
   ! In rhf and uhf wavefunctions, the virtual orbitals (nmoocc to
   ! nmoall) are only available if hasvirtual = .true.
   type molwfn
@@ -98,7 +98,7 @@ module wfn_private
      logical :: issto !< are the primitives GTOs or STOs?
      logical :: hasvirtual !< are the virtual orbitals known?
      integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
-     integer :: molden_type !< type of source molden file 
+     integer :: molden_type !< type of source molden file
      integer, allocatable :: icenter(:) !< primitive center
      integer, allocatable :: icord(:) !< icenter(icord(1:nprim)) is ordered
      integer, allocatable :: iprilo(:) !< atom i has primitives from iprilo(i) to iprihi(i)
@@ -154,7 +154,7 @@ module wfn_private
   integer, parameter, public :: wfn_uhf = 1
   integer, parameter, public :: wfn_rohf = 2
   integer, parameter, public :: wfn_frac = 3
-  
+
   ! molden types
   integer, parameter, public :: molden_type_unknown = 0
   integer, parameter, public :: molden_type_psi4 = 1
@@ -263,7 +263,7 @@ module wfn_private
      module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
-       integer, intent(in) :: nder 
+       integer, intent(in) :: nder
        real*8, intent(out) :: rho(3)
        real*8, intent(out) :: rhoval(3)
        real*8, intent(out) :: grad(3,3)

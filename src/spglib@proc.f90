@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -194,7 +194,7 @@ contains
     use c_interface_module, only: c_f_string
     integer, intent(in) :: hall_number
     type(SpglibSpaceGroupType) :: tp
-    
+
     type, bind(c) :: SpglibSpaceGroupType_c
        integer(c_int) :: number
        character(kind=c_char) :: international_short(11)
@@ -218,7 +218,7 @@ contains
     end interface
 
     type(SpglibSpaceGroupType_c) :: tpc
-    
+
     tpc = spg_get_spacegroup_type_c(hall_number)
     tp%number = tpc%number
     tp%arithmetic_crystal_class_number = tpc%arithmetic_crystal_class_number
@@ -231,9 +231,9 @@ contains
     call c_f_string(tpc%pointgroup_international,tp%pointgroup_international)
     call c_f_string(tpc%pointgroup_schoenflies,tp%pointgroup_schoenflies)
     call c_f_string(tpc%arithmetic_crystal_class_symbol,tp%arithmetic_crystal_class_symbol)
-    
+
   end function spg_get_spacegroup_type
-  
+
   ! Return the hall number corresponding to a space group symbol.
   ! Returns -1 if not found.
   module function spg_get_hall_number_from_symbol(symbol0) result(hnum)
@@ -304,7 +304,7 @@ contains
     integer, intent(out) :: ncv
     real*8, intent(inout), allocatable :: rot(:,:,:)
     real*8, intent(inout), allocatable :: cv(:,:)
-    
+
     integer(c_int) :: rot0(3,3,192)
     real(c_double) :: cv0(3,192)
     integer :: nop, i, j, k
@@ -421,10 +421,10 @@ contains
     use tools_io, only: deblank, stripchar, string, uout, ioj_left
     type(SpglibSpaceGroupType) :: sa
     integer :: i
-    
+
     character(len=:), allocatable :: strs, strf, strcs
 
-    write (uout,'("* LIST of space group types")') 
+    write (uout,'("* LIST of space group types")')
     write (uout,'("# Hall = Hall space group number. ITA = International space group number.")')
     write (uout,'("# HM-short = short Hermann-Mauguin symbol. HM-long = long H-M symbol.")')
     write (uout,'("# choice = origin/setting choice. crys.-syst. = crystal system.")')

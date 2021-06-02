@@ -1,4 +1,4 @@
-! Part of the following code has been adapted from the elk distribution, 
+! Part of the following code has been adapted from the elk distribution,
 ! version 1.3.2.
 ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
 ! Distributed under the terms of the GNU General Public License.
@@ -12,18 +12,18 @@
 
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -127,9 +127,9 @@ subroutine cfftmi ( n, wsave, lensav )
 !
 !  Discussion:
 !
-!    CFFTMI initializes array WSAVE for use in its companion routines 
-!    CFFTMB and CFFTMF.  CFFTMI must be called before the first call 
-!    to CFFTMB or CFFTMF, and after whenever the value of integer N changes. 
+!    CFFTMI initializes array WSAVE for use in its companion routines
+!    CFFTMB and CFFTMF.  CFFTMI must be called before the first call
+!    to CFFTMB or CFFTMF, and after whenever the value of integer N changes.
 !
 !  License:
 !
@@ -160,11 +160,11 @@ subroutine cfftmi ( n, wsave, lensav )
 !
 !  Parameters:
 !
-!    Input, integer N, the length of each sequence to be transformed. 
-!    The transform is most efficient when N is a product of small primes. 
+!    Input, integer N, the length of each sequence to be transformed.
+!    The transform is most efficient when N is a product of small primes.
 !
 !    Input, integer LENSAV, the dimension of the WSAVE array.  LENSAV must be
-!    at least 2*N + INT(LOG(REAL(N))) + 4. 
+!    at least 2*N + INT(LOG(REAL(N))) + 4.
 !
 !    Output, real WSAVE(LENSAV), containing the prime factors of N and
 !    also containing certain trigonometric values which will be used in
@@ -1866,7 +1866,7 @@ subroutine cmf5kf ( lot, ido, l1, na, cc, im1, in1, ch, im2, in2, wa )
   else if ( na == 1 ) then
 
     sn = 1.0E+00_8 / real ( 5 * l1, 8 )
- 
+
     do k = 1, l1
       m2 = m2s
       do m1 = 1, m1d, im1
@@ -2235,7 +2235,7 @@ subroutine cmfgkf ( lot, ido, ip, l1, lid, na, cc, cc1, im1, in1, &
   integer im2
   integer ipp2
   integer ipph
-  integer j 
+  integer j
   integer jc
   integer k
   integer ki

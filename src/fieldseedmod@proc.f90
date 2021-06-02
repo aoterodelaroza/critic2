@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -73,11 +73,11 @@ contains
     character*(*) :: line
     logical, intent(in) :: withoptions
     integer, intent(inout), optional :: lp0
-    
+
     character(len=:), allocatable :: file, lfile, extdot, extdot2, extund, word, lword
     integer :: lp, nfile, i, lpo, lpo2
     logical :: ok, nofoundexit, savemid
-    
+
     lp = 1
     if (present(lp0)) lp = lp0
     call f%end()
@@ -241,7 +241,7 @@ contains
     elseif (f%iff == ifformat_cube .or. f%iff == ifformat_bincube .or.&
        f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspnov .or. f%iff == ifformat_qub .or.&
-       f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.& 
+       f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.&
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
        f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
        ! formats for which only one file is needed
@@ -485,7 +485,7 @@ contains
        call f%parse_options(line,lp)
        if (len_trim(f%errmsg) > 0) return
     end if
-  
+
     if (present(lp0)) lp0 = lp
 
   contains
@@ -546,7 +546,7 @@ contains
        word = getword(line,lp)
        if (len_trim(word) < 1) exit
        lword = lower(word)
-       
+
        if (equal(lword,'nearest').or.equal(lword,'trilinear').or.equal(lword,'trispline').or.&
           equal(lword,'tricubic').or.equal(lword,'exact').or.equal(lword,'approximate').or.&
           equal(lword,'rhonorm').or.equal(lword,'vnorm').or.equal(lword,'core').or.&
@@ -680,7 +680,7 @@ contains
           return
        end if
     end do
-    
+
     if (present(lp0)) lp0 = lp
 
   end subroutine fieldseed_parse_options

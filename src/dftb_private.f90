@@ -1,17 +1,17 @@
 ! Copyright (c) 2016 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -20,9 +20,9 @@ module dftb_private
   use grid1mod, only: grid1
   use environmod, only: environ
   implicit none
-  
+
   private
-  
+
   !> atomic basis set information in dftb fields
   type dftbbasis
      character*10 :: name  !< name of the atom
@@ -31,13 +31,13 @@ module dftb_private
      integer :: l(4) !< orbital angular momentum
      real*8 :: occ(4) !< orbital occupations
      real*8 :: cutoff(4) !< orbital cutoffs
-     integer :: nexp(4) !< number of exponents 
+     integer :: nexp(4) !< number of exponents
      real*8 :: eexp(5,4) !< exponents
      integer :: ncoef(5,4) !< number of coefficients
      real*8 :: coef(5,5,4) !< coefficients (icoef,iexp,iorb)
      type(grid1), allocatable :: orb(:) !< radial component of the orbitals (grid)
   end type dftbbasis
-  
+
   type dftbwfn
      logical :: isreal
      integer :: nkpt
@@ -82,7 +82,7 @@ module dftb_private
        class(dftbwfn), intent(inout) :: f
        real*8, intent(in) :: xpos(3)
        logical, intent(in) :: exact
-       integer, intent(in) :: nder 
+       integer, intent(in) :: nder
        real*8, intent(out) :: rho
        real*8, intent(out) :: grad(3)
        real*8, intent(out) :: h(3,3)

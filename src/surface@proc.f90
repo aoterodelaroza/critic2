@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -27,7 +27,7 @@ contains
   module subroutine minisurf_begin(s,m,f)
     class(minisurf), intent(inout) :: s
     integer, intent(in) :: m, f
-    
+
     if (allocated(s%r)) deallocate(s%r)
     if (allocated(s%th)) deallocate(s%th)
     if (allocated(s%ph)) deallocate(s%ph)
@@ -48,13 +48,13 @@ contains
   !> Destroy a minisurface
   module subroutine minisurf_close(s)
     class(minisurf), intent(inout) :: s
-    
+
     if (allocated(s%r)) deallocate(s%r)
     if (allocated(s%th)) deallocate(s%th)
     if (allocated(s%ph)) deallocate(s%ph)
     if (allocated(s%f)) deallocate(s%f)
     s%isinit = 0
-    
+
   end subroutine minisurf_close
 
   !> Clean the information in the minisurface.
@@ -86,13 +86,13 @@ contains
     class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: ntheta, nphi
-    
+
     real*8 :: delta_theta, delta_phi, theta, phi
     integer :: nvertex, nphiact
     integer :: i, j, nn, npoints, first, second
 
     call s%clean()
-    
+
     ! Fill origin
     s%n = xnuc
 
@@ -105,7 +105,7 @@ contains
     if (s%nf > s%mf) then
        call ferror('spheresphere','maximum number of faces exceeded',faterr)
     end if
-    
+
     nvertex = 1
     delta_theta=pi/two/ntheta
 
@@ -121,16 +121,16 @@ contains
        phi = zero
        do j = 1, nphiact
           nvertex = nvertex + 1
-          s%th(nvertex) = theta 
+          s%th(nvertex) = theta
           s%ph(nvertex) = phi
           s%r(nvertex) = 1d0
-          
+
           phi=phi+delta_phi
        end do
        theta = theta + delta_theta
        nphiact = nphiact + nphiact
     end do
-    
+
     ! lower semisphere
     nn = s%nv / 2
     do i = 1,nn
@@ -267,20 +267,20 @@ contains
     class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
-    
+
     integer, parameter :: mlevel = 7
 
-    integer :: nvert               
-    integer :: nface(0:1)          
+    integer :: nvert
+    integer :: nface(0:1)
     integer :: iface(3,s%mf,0:1)
-    integer :: ix(s%mv), iy(s%mv), iz(s%mv) 
+    integer :: ix(s%mv), iy(s%mv), iz(s%mv)
     integer :: i1, i2, i3, i4, i5, i6, ilev
     integer :: ix4, iy4, iz4, ix5, iy5, iz5, ix6, iy6, iz6
-    integer :: isw0, isw1          
+    integer :: isw0, isw1
     integer :: nf1
     logical :: new
     integer :: i
-    
+
     call s%clean()
 
     ! Fill origin
@@ -458,7 +458,7 @@ contains
           nface(isw1) = nf1 + 4
        enddo
     enddo
-    
+
     ! Save vertex information
     s%nv = nvert
 
@@ -466,7 +466,7 @@ contains
     !     sin(theta)sin(phi), sin(theta)cos(phi), and cos(theta):
     do i = 1, s%nv
        s%r(i) = sqrt(real(ix(i)*ix(i)+iy(i)*iy(i)+iz(i)*iz(i),8))
-       s%th(i) = acos(real(iz(i),8) /s%r(i)) 
+       s%th(i) = acos(real(iz(i),8) /s%r(i))
        s%ph(i) = atan2(real(iy(i),8), real(ix(i),8))
        s%r(i) = 1d0
     enddo
@@ -495,20 +495,20 @@ contains
     class(minisurf), intent(inout) :: s
     real*8, dimension(3), intent(in) :: xnuc
     integer, intent(in) :: level
-    
+
     integer, parameter :: mlevel = 7
 
-    integer :: nvert               
-    integer :: nface(0:1)          
+    integer :: nvert
+    integer :: nface(0:1)
     integer :: iface(4,s%mf,0:1)
-    integer :: ix(s%mv), iy(s%mv), iz(s%mv) 
+    integer :: ix(s%mv), iy(s%mv), iz(s%mv)
     integer :: ix5, iy5, iz5, ix6, iy6, iz6
     integer :: ix7, iy7, iz7, ix8, iy8, iz8, ix9, iy9, iz9
     integer :: i, i1, i2, i3, i4, i5, i6, i7, i8, i9, ilev
-    integer :: isw0, isw1          
+    integer :: isw0, isw1
     integer :: nf1
     logical :: new
-    
+
     call s%clean()
 
     ! Fill origin
@@ -764,7 +764,7 @@ contains
           nface(isw1) = nf1 + 4
        enddo
     enddo
-    
+
     ! Save vertex information
     s%nv = nvert
 
@@ -772,8 +772,8 @@ contains
     !     sin(theta)sin(phi), sin(theta)cos(phi), and cos(theta):
     do i = 1, s%nv
        s%r(i) = sqrt(real(ix(i)*ix(i)+iy(i)*iy(i)+iz(i)*iz(i),8))
-       s%th(i) = acos(real(iz(i),8) /s%r(i)) 
-       s%ph(i) = atan2(real(iy(i),8), real(ix(i),8)) 
+       s%th(i) = acos(real(iz(i),8) /s%r(i))
+       s%ph(i) = atan2(real(iy(i),8), real(ix(i),8))
        s%r(i) = 1d0
     enddo
 
@@ -803,7 +803,7 @@ contains
     class(minisurf), intent(inout) :: s
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile
-    
+
     integer :: lud
     integer :: i
 
@@ -827,7 +827,7 @@ contains
     integer, intent(in) :: n1, n2, meth
     character*(*), intent(in) :: offfile
     integer, intent(out) :: ierr
-    
+
     integer :: lud
     integer :: n1_, n2_, method_
     real*8 :: xn(3)
@@ -838,13 +838,13 @@ contains
 
     read (lud,'(I10,x,I10,x,I2)') n1_, n2_, method_
     if (n1 /= n1_ .or. meth /= method_ .or. (meth == INT_gauleg .and. n2 /= n2_)) then
-       call ferror ('readint', 'Wrong ntheta, nphi or method',warning,string(offfile)) 
+       call ferror ('readint', 'Wrong ntheta, nphi or method',warning,string(offfile))
        ierr = 1
        return
     end if
     read (lud,'(3(E23.15,x))') xn
     if (any(abs(xn - s%n) > 1d-13)) then
-       call ferror ('readint', 'Wrong CP position in integrals file',warning,string(offfile)) 
+       call ferror ('readint', 'Wrong CP position in integrals file',warning,string(offfile))
        ierr = 1
        return
     end if

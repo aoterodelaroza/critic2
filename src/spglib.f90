@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -125,7 +125,7 @@ module spglib
        import c_int
        integer(c_int) :: spg_get_micro_version
      end function spg_get_micro_version
-     
+
      ! ## spglib.h
      ! int spg_standardize_cell(double lattice[3][3],double position[][3],int types[],
      !                          const int num_atom,const int to_primitive,const int no_idealize,
@@ -161,7 +161,7 @@ module spglib
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_standardize_cell
      end function spgat_standardize_cell
-     
+
      ! ## spglib.h
      ! int spg_get_symmetry(int rotation[][3][3], double translation[][3], const int max_size,
      !                      SPGCONST double lattice[3][3], SPGCONST double position[][3],
@@ -196,7 +196,7 @@ module spglib
        integer(c_int) :: spgat_get_symmetry
      end function spgat_get_symmetry
 
-     
+
      !  int spg_get_symmetry_with_collinear_spin(int rotation[][3][3], double translation[][3], int equivalent_atoms[],
      !                                           const int max_size, SPGCONST double lattice[3][3], SPGCONST double position[][3],
      !                                           const int types[], const double spins[], const int num_atom, const double symprec);
@@ -265,7 +265,7 @@ module spglib
        real(c_double), intent(in), value :: symprec
        integer(c_int) :: spg_get_hall_number_from_symmetry
      end function spg_get_hall_number_from_symmetry
-     
+
      ! int spg_delaunay_reduce(double lattice[3][3], const double symprec);
      ! Delaunay reduction for this cell. The result is overwritten in lattice.
      function spg_delaunay_reduce(lattice, symprec) bind(c)
@@ -305,7 +305,7 @@ module spglib
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_find_primitive
      end function spgat_find_primitive
-     
+
      ! int spg_get_international(char symbol[11],SPGCONST double lattice[3][3],SPGCONST double position[][3],
      !                           const int types[],const int num_atom,const double symprec);
      ! Determine the space group international table symbol from the crystal geometry.
@@ -331,7 +331,7 @@ module spglib
 
      ! int spg_get_schoenflies(char symbol[7],SPGCONST double lattice[3][3],SPGCONST double position[][3],
      !                         const int types[],const int num_atom,const double symprec);
-     ! Determine the Schoenflies space group symbol from the crystal geometry.     
+     ! Determine the Schoenflies space group symbol from the crystal geometry.
      function spg_get_schoenflies( symbol, lattice, position, types, num_atom, symprec) bind(c)
        import c_char, c_int, c_double
        character(kind=c_char), intent(out) :: symbol(7)
@@ -351,7 +351,7 @@ module spglib
        real(c_double), intent(in), value :: symprec, angle_tolerance
        integer(c_int) :: spgat_get_schoenflies ! the number corresponding to 'symbol'. 0 on failure
      end function spgat_get_schoenflies
-     
+
      ! int spg_get_pointgroup(char symbol[6],int trans_mat[3][3],
      !                        SPGCONST int rotations[][3][3],const int num_rotations);
      ! Point group symbol from the rotational part of the symmetry operations.
@@ -363,7 +363,7 @@ module spglib
        integer(c_int), intent(in), value :: num_rotations
        integer(c_int) :: spg_get_pointgroup
      end function spg_get_pointgroup
-     
+
      ! int spg_refine_cell(double lattice[3][3],double position[][3],int types[],
      !                     const int num_atom,const double symprec);
      ! Idealize atomic positions from input lattice vectors. The arrays need to be
@@ -400,7 +400,7 @@ module spglib
        integer(kind(SPGLIB_SUCCESS)) :: spglib_error
        character(len=32) :: spg_get_error_message
      end function spg_get_error_message
-       
+
      ! SpglibDataset* spg_get_dataset(SPGCONST double lattice[3][3],SPGCONST double position[][3],
      !                                const int types[], const int num_atom, const double symprec);
      ! SpglibDataset* spg_get_dataset_with_hall_number(SPGCONST double lattice[3][3],SPGCONST double position[][3],
@@ -432,7 +432,7 @@ module spglib
        character(len=*), intent(in) :: symbol0
        integer(c_int) :: spg_get_hall_number_from_symbol
      end function spg_get_hall_number_from_symbol
-     
+
      ! Return the symmetry operations from the hall number.
      module subroutine spg_get_symmetry_from_database(hnum,nrot,ncv,rot,cv)
        integer, intent(in) :: hnum

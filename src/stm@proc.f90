@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -190,7 +190,7 @@ contains
           !$omp end parallel do
        endif
 
-       ! Write the data to a file 
+       ! Write the data to a file
        fname = trim(fileroot) // "_stm.dat"
        write (uout,'("+ Name of the STM data file: ",A)') string(fname)
        fid = fopen_write(fname)
@@ -291,7 +291,7 @@ contains
           xx(ip1) = x0(1) + (x1(1)-x0(1)) * real(i-1,8) / (nn-1)
           xx(ip2) = x0(2) + (x1(2)-x0(2)) * real(i-1,8) / (nn-1)
           if (iscur) then
-             ! constant-current 
+             ! constant-current
              xx(ix) = rtop + 0.2d0 / axlen
              faux = (stm_bisect(xx,ix,rcur) - rtop0 * axlen) * bohrtoa
           else
@@ -305,7 +305,7 @@ contains
        end do
        !$omp end parallel do
 
-       ! Write the line to a file 
+       ! Write the line to a file
        fname = trim(fileroot) // "_stm_line.dat"
        write (uout,'("+ Name of the STM data file (line): ",A)') string(fname)
        fid = fopen_write(fname)
@@ -426,7 +426,7 @@ contains
     xbra(1) = x0(ix)
     fbra(1) = ff
 
-    ! bracket 
+    ! bracket
     xx = x0
     do while(abs(xx(ix)-x0(ix)) < 0.5d0*axlen)
        xx(ix) = xx(ix) + step
@@ -465,10 +465,10 @@ contains
   !> Find the grid point in the ix direction whose density is closest
   !> to rho0, then do a linear interpolation to find the fractional
   !> coordinate corresponding to that point. ip1 and ip2 are the indices
-  !> for the other two crystallographic axes. The ix-line is given 
+  !> for the other two crystallographic axes. The ix-line is given
   !> by grid points i1 (ip1-axis) and i2 (ip2-axis) and the search starts
   !> at iz. The output z is in cartesian. The reference field is
-  !> assumed to be locally monotonic along ix. 
+  !> assumed to be locally monotonic along ix.
   function stm_bisect_grid(i1,i2,iz,ip1,ip2,ix,rho0) result(z)
     use systemmod, only: sy
     use fieldmod, only: type_grid

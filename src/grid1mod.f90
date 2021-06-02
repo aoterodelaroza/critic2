@@ -32,8 +32,8 @@ module grid1mod
      real*8, allocatable :: r(:) !< Node positions
      real*8, allocatable :: f(:) !< Grid values, f = 4*pi*r^2*rho
      real*8, allocatable :: fp(:) !< First derivative of f
-     real*8, allocatable :: fpp(:) !< Second derivative of f 
-     integer :: z 
+     real*8, allocatable :: fpp(:) !< Second derivative of f
+     integer :: z
      integer :: qat
    contains
      procedure :: read_db !< Read a one-dimesional grid from the density tables
@@ -47,7 +47,7 @@ module grid1mod
   public :: grid1_register_core
   public :: grid1_register_ae
   public :: grid1_clean_grids
-  
+
   interface
      module subroutine grid1_end(g)
        class(grid1), intent(inout) :: g

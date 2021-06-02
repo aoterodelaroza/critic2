@@ -1,4 +1,4 @@
-! This file comes from the fortran wiki, 
+! This file comes from the fortran wiki,
 !   http://fortranwiki.org/fortran/show/c_interface_module
 ! PURPOSE: Supplement ISO-C-Binding to provide type aliases and interfaces
 !          to common ISO-C string functions to aid working with strings.
@@ -12,7 +12,7 @@
 !
 ! Entity names all have the "C_" prefix, as with ISO-C-Binding, with a
 ! few exceptions.
-! 
+!
 module c_interface_module
   use, intrinsic :: ISO_C_Binding, &
      ! C type aliases for pointer derived types:
@@ -45,7 +45,7 @@ module c_interface_module
   ! have limited support for different character kinds. UTF encoding
   ! adds more complexity. This should be updated as Fortran compilers
   ! include support for more character types.
-  ! 
+  !
 
   ! Fortran does not (yet) support unsigned types.
   integer, parameter :: &
@@ -254,7 +254,7 @@ module c_interface_module
 
 contains
 
-  ! HACK: For some reason, C_associated was not defined as pure. 
+  ! HACK: For some reason, C_associated was not defined as pure.
   pure logical function C_associated_pure(ptr) result(associated)
     type(C_ptr), intent(in) :: ptr
     integer(C_intptr_t) :: iptr

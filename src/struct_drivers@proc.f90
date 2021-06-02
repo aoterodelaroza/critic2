@@ -2689,12 +2689,13 @@ contains
 
       integer :: lu, nat, i
       real*8 :: x0(3)
+      character*20 :: atsym
 
       lu = fopen_read(word)
       read(lu,*) nat
       read(lu,*)
       do i = 1, nat
-         read(lu,*) word, x0
+         read(lu,*) atsym, x0
          x0 = s%c%c2x(x0 / bohrtoa - s%c%molx0)
          n = n + 1
          if (n > size(pointlist,2)) then

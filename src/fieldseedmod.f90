@@ -18,7 +18,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Field seed class. 
+! Field seed class.
 module fieldseedmod
   use wfn_private, only: molden_type_unknown
   use param, only: ifformat_unknown, mlen, mmlen
@@ -51,7 +51,7 @@ module fieldseedmod
      integer :: pwcspin = 0 !< read which spin (0=all,1=up,2=dn)
      integer, allocatable :: pwcikpt(:) !< read which kpts
      integer, allocatable :: pwcibnd(:) !< read which bands
-     real*8 :: pwcemin = -1d40 !< read minimum of energy range 
+     real*8 :: pwcemin = -1d40 !< read minimum of energy range
      real*8 :: pwcemax = 1d40 !< read maximum of energy range
    contains
      procedure :: end => fieldseed_end !< Terminate a fieldseed; set the type to unknown
@@ -59,7 +59,7 @@ module fieldseedmod
      procedure :: parse_options => fieldseed_parse_options !< Parse field options from a command
   end type fieldseed
   public :: fieldseed
-  
+
   interface
      module subroutine fieldseed_end(f)
        class(fieldseed), intent(inout) :: f

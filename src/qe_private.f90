@@ -14,11 +14,11 @@ module qe_private
   implicit none
 
   private
-  
+
   public :: qe_latgen
   public :: sup_spacegroup
   public :: nattot, tautot, extfortot, ityptot, if_postot
-  
+
   integer, parameter :: dp = selected_real_kind(14,200)
   integer :: nattot
   real(dp), allocatable :: tautot(:,:), extfortot(:,:)

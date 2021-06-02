@@ -1000,12 +1000,14 @@ contains
   !> Read the wavefunction from a wfx file
   module subroutine read_wfx(f,file,env)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
+    use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
 
     integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
     character(len=:), allocatable :: line
+    character(len=mlen) :: mline
     logical :: isfrac
 
     f%molden_type = molden_type_unknown
@@ -1068,9 +1070,11 @@ contains
     ! second pass
     rewind(luwfn)
     do while (.true.)
-       read(luwfn,'(A)',end=20) line
-       line = adjustl(line)
-       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+       read(luwfn,'(A)',end=20) mline
+       line = adjustl(mline)
+       if (len_trim(line) < 2) then
+          cycle
+       else if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri)
           elseif (trim(line) == "<Primitive Types>") then
@@ -1661,6 +1665,7 @@ contains
   module subroutine read_molden(f,file,molden_type,readvirtual,env)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
+    use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     integer, intent(in) :: molden_type !< Type of molden file
@@ -1668,6 +1673,7 @@ contains
     type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: line, keyword, word, word1
+    character(len=mlen) :: mword
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca
     integer :: luwfn, istat, ityp
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
@@ -1776,8 +1782,7 @@ contains
              ok = getline_raw(luwfn,line,.true.)
              ok = getline_raw(luwfn,line,.true.)
              do while (index(line,".") /= 0)
-                word = ""
-                read (line,*) word, idum, rdum
+                read (line,*) mword, idum, rdum
                 ncshel = ncshel + 1
                 nshel = nshel + idum
                 do j = 1, idum
@@ -1821,8 +1826,7 @@ contains
 
                 ! occupation
                 ok = getline_raw(luwfn,line,.true.)
-                word = ""
-                read (line,*) word, rdum
+                read (line,*) mword, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) then
                    write (uout,'("Fractional occupations are not supported yet for molden files.")')

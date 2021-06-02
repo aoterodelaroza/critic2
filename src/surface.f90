@@ -1,21 +1,21 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Surface and mini-surface user-defined types and tools to work with them. 
+!> Surface and mini-surface user-defined types and tools to work with them.
 module surface
   implicit none
 
@@ -28,7 +28,7 @@ module surface
   end type miniface
 
   !> Surface type
-  type minisurf 
+  type minisurf
      integer :: isinit !< was initialized? 0 no, 1 only v, 2 all
      integer :: rgb(3) !< optionally used for global color
      real*8 :: n(3)  !< center on which the surface is based
@@ -53,7 +53,7 @@ module surface
      procedure :: lebedev_nodes
   end type minisurf
   public :: minisurf
-  
+
   interface
      module subroutine minisurf_begin(s,m,f)
        class(minisurf), intent(inout) :: s
@@ -94,7 +94,7 @@ module surface
      module subroutine gauleg_nodes(srf,ntheta,nphi)
        class(minisurf), intent(inout) :: srf
        integer, intent(in) :: ntheta
-       integer, intent(in) :: nphi  
+       integer, intent(in) :: nphi
      end subroutine gauleg_nodes
      module subroutine lebedev_nodes(srf,npts)
        class(minisurf), intent(inout) :: srf

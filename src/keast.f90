@@ -1,23 +1,23 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Keast library: cubatures of a tetrahedron
 !  Licensing:
-!    This code is distributed under the GNU LGPL license. 
+!    This code is distributed under the GNU LGPL license.
 !  Modified:
 !    02 July 2008
 !  Author:
@@ -51,7 +51,7 @@ module keast
   public :: keast_rule_num
 
 contains
-  
+
   subroutine comp_next ( n, k, a, more, h, t )
 
     !*****************************************************************************80
@@ -74,7 +74,7 @@ contains
     !    are desired, call again, and again.  Each time, the routine will
     !    return with a new composition.
     !
-    !    However, when the LAST composition in the sequence is computed 
+    !    However, when the LAST composition in the sequence is computed
     !    and returned, the routine will reset MORE to FALSE, signaling that
     !    the end of the sequence has been reached.
     !
@@ -121,7 +121,7 @@ contains
     !
     !  Licensing:
     !
-    !    This code is distributed under the GNU LGPL license. 
+    !    This code is distributed under the GNU LGPL license.
     !
     !  Modified:
     !
@@ -448,17 +448,17 @@ contains
     else if ( rule == 3 ) then
        degree = 2
     else if ( rule == 4 ) then
-       degree = 3 
+       degree = 3
     else if ( rule == 5 ) then
        degree = 4
     else if ( rule == 6 ) then
-       degree = 4 
+       degree = 4
     else if ( rule == 7 ) then
-       degree = 5 
+       degree = 5
     else if ( rule == 8 ) then
-       degree = 6 
+       degree = 6
     else if ( rule == 9 ) then
-       degree = 7 
+       degree = 7
     else if ( rule == 10 ) then
        degree = 8
     else
@@ -655,7 +655,7 @@ contains
           !    C, A, A
           !    A, C, A
           !    A, A, C
-          !   
+          !
           !    A, B, C
           !    B, C, A
           !    C, A, B
@@ -700,7 +700,7 @@ contains
 
           write ( *, '(a)' ) ' '
           write ( *, '(a)' ) 'KEAST_RULE - Fatal error!'
-          write ( *, '(a,i8,a,i8)' ) '  Illegal SUBORDER(', s, ') = ', suborder(s) 
+          write ( *, '(a,i8,a,i8)' ) '  Illegal SUBORDER(', s, ') = ', suborder(s)
           write ( *, '(a,i8)' ) '  RULE =    ', rule
           write ( *, '(a,i8)' ) '  ORDER_NUM = ', order_num
           stop
@@ -909,7 +909,7 @@ contains
     !
     !    Input, integer ( kind = 4 ) RULE, the index of the rule.
     !
-    !    Input, integer ( kind = 4 ) SUBORDER_NUM, the number of suborders 
+    !    Input, integer ( kind = 4 ) SUBORDER_NUM, the number of suborders
     !    of the rule.
     !
     !    Output, real ( kind = 8 ) SUBORDER_XYZZ(4,SUBORDER_NUM),
@@ -1049,7 +1049,7 @@ contains
           0.00803571428571428248D+00  &
           /)
 
-    else if ( rule == 9 ) then 
+    else if ( rule == 9 ) then
 
        suborder_xyzz(1:4,1:suborder_num) = reshape ( (/ &
           0.250000000000000000D+00,    0.250000000000000000D+00,  &

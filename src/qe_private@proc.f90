@@ -298,10 +298,10 @@ contains
     INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(IN) :: ityp
     INTEGER, DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: if_pos
     INTEGER :: i,k,l,sym_n
-    INTEGER,DIMENSION(:),allocatable :: msym_n 
+    INTEGER,DIMENSION(:),allocatable :: msym_n
     character(LEN=1) :: unique
     REAL(DP), DIMENSION(:,:), ALLOCATABLE :: inco
-    REAL(DP), DIMENSION(:,:,:), ALLOCATABLE :: outco   
+    REAL(DP), DIMENSION(:,:,:), ALLOCATABLE :: outco
 
 
     ALLOCATE(inco(3,not_eq))
@@ -530,7 +530,7 @@ contains
        DO i=1, sym_n
           DO j=1,3
              !
-             ! bring everything to the -0.5:+0.5 interval 
+             ! bring everything to the -0.5:+0.5 interval
              !
              outco(j,i,k)=outco(j,i,k)-NINT(outco(j,i,k))
              !
@@ -597,10 +597,10 @@ contains
 
   SUBROUTINE sym_brav(space_group_number,sym_n,ibrav)
 
-    ! Sym_brav ->   
+    ! Sym_brav ->
     ! input    spacegroup number
     ! output   sym_n = symmetries number
-    !          ibrav = Bravais lattice number 
+    !          ibrav = Bravais lattice number
 
     INTEGER, INTENT(IN) :: space_group_number
     INTEGER, INTENT(OUT) :: sym_n,ibrav
@@ -1058,7 +1058,7 @@ contains
     CASE (149)
        sym_n=6
        ibrav=4
-    CASE (150) 
+    CASE (150)
        sym_n=6
        ibrav=4
     CASE (151)
@@ -1079,7 +1079,7 @@ contains
     CASE (156)
        sym_n=6
        ibrav=4
-    CASE (157) 
+    CASE (157)
        sym_n=6
        ibrav=4
     CASE (158)
@@ -12700,7 +12700,7 @@ contains
     outco(1,12,i)=-inco(2,i)+0.5_DP
     outco(2,12,i)=-inco(3,i)
     outco(3,12,i)=inco(1,i)+0.5_DP
-    
+
   END SUBROUTINE find_equiv_199
 
   SUBROUTINE find_equiv_200( i, inco, outco )

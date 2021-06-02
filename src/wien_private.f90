@@ -1,20 +1,20 @@
 !> This module contains routines  adapted (with permission) from the WIEN2k
-!> source by P. Blaha, K. Schwarz et al. 
+!> source by P. Blaha, K. Schwarz et al.
 
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -56,7 +56,7 @@ module wien_private
      integer :: niord
      integer, allocatable :: iz(:,:,:)
      real*8, allocatable :: tau(:,:)
-     integer :: npos 
+     integer :: npos
      real*8  :: atp(3,343)
      integer :: nwav
      real*8, allocatable :: krec(:,:)
@@ -71,7 +71,7 @@ module wien_private
      procedure :: tolap
   end type wienwfn
   public :: wienwfn
-  
+
   interface
      module subroutine wien_end(f)
        class(wienwfn), intent(inout) :: f

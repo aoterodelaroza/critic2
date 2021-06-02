@@ -836,7 +836,7 @@ contains
   !> atoms is not correctly identified, return 0.
   module function identify_fragment_from_xyz(c,file) result(fr)
     use tools_io, only: fopen_read, string, ferror, faterr, fclose
-    use param, only: bohrtoa, icrd_cart
+    use param, only: bohrtoa, icrd_cart, mlen
     use types, only: realloc
 
     class(crystal), intent(in) :: c
@@ -846,7 +846,7 @@ contains
     integer :: lu, nat
     integer :: id, i
     real*8 :: x0(3)
-    character(len=:), allocatable :: word
+    character(len=mlen) :: word
 
     lu = fopen_read(file)
     read(lu,*,err=999) nat
@@ -858,7 +858,6 @@ contains
     allocate(fr%spc(fr%nspc))
     fr%spc = c%spc
     do i = 1, nat
-       word = ""
        read(lu,*,err=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,icrd_cart)

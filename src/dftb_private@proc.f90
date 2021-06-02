@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,13 +28,13 @@ submodule (dftb_private) proc
   ! subroutine build_interpolation_grid1(ff)
   ! subroutine calculate_rl(ff,it,iorb,r0,f,fp,fpp)
   ! subroutine realloc_dftbbasis(a,nnew)
-  
+
   ! minimum distance (bohr)
   real*8, parameter :: mindist = 1d-6
 
 contains
 
-  !> Deallocate data 
+  !> Deallocate data
   module subroutine dftb_end(f)
     class(dftbwfn), intent(inout) :: f
 
@@ -148,7 +148,7 @@ contains
     n = 0
     do while(next_hsd_atom(lu,at))
        if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
-       n = n + 1 
+       n = n + 1
        if (n > size(f%bas)) call realloc_dftbbasis(f%bas,2*n)
        f%bas(n) = at
     end do
@@ -209,7 +209,7 @@ contains
     nullify(f%e)
     if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
        ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway. 
+       ! The environment contains all the atoms in molecules anyway.
        f%isealloc = .true.
        nullify(f%e)
        allocate(f%e)
@@ -236,7 +236,7 @@ contains
     integer, intent(in) :: nder  !< Number of derivatives
     real*8, intent(out) :: rho !< Density
     real*8, intent(out) :: grad(3) !< Gradient
-    real*8, intent(out) :: h(3,3) !< Hessian 
+    real*8, intent(out) :: h(3,3) !< Hessian
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
     integer :: ion, it, is, istate, ik, iorb, i, l, m, lmax
@@ -256,7 +256,7 @@ contains
     integer :: nenv, lvec(3), ierr, lenv(3)
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
-    
+
     ! calculate the environment of the input point
     rho = 0d0
     grad = 0d0
@@ -543,7 +543,7 @@ contains
     character(len=:), allocatable :: line, key, aux
     integer :: idx, idxn, idxy
     logical :: found, ok, lastpass
-    
+
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     ! lowercase and build key
@@ -574,7 +574,7 @@ contains
           found = .true.
           next = (idxy < idxn)
        end if
-       
+
        ! exit if found or if this was the last pass (after a </key> was read)
        if (found .or. lastpass) exit
 
@@ -608,9 +608,9 @@ contains
     integer :: next
 
     character(len=:), allocatable :: line, key, aux
-    integer :: idx, lp 
+    integer :: idx, lp
     logical :: found, ok, lastpass
-    
+
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     ! lowercase and build key
@@ -629,9 +629,9 @@ contains
     lastpass = .false.
     next = 0
     do while (.true.)
-       ! are there any integers in this line? 
+       ! are there any integers in this line?
        found = isinteger(next,line,lp)
-       
+
        ! exit if found or if this was the last pass (after a </key> was read)
        if (found .or. lastpass) exit
 
@@ -687,7 +687,7 @@ contains
 
     if (.not.found) &
        call ferror("read_kpointsandweights","could not parse xml file",faterr)
-    
+
   end subroutine read_kpointsandweights
 
   !> Read the occupations from the xml.
@@ -731,7 +731,7 @@ contains
 
     if (.not.found) &
        call ferror("read_occupations","could not parse xml file",faterr)
-    
+
   end subroutine read_occupations
 
   !> Read a list of n reals from a logical unit.
@@ -811,7 +811,7 @@ contains
              elseif (equal(word,"orbital")) then
                 nb = nb + 1
                 at%norb = at%norb + 1
-                ! read the keywords at this level: 
+                ! read the keywords at this level:
                 ! angularmomentum, occupation, cutoff, exponents, coefficients
                 do while(getline(lu,line,.true.))
                    lp = 1
@@ -871,7 +871,7 @@ contains
                       end do
                       if (mod(n,at%nexp(at%norb)) /= 0) &
                          call ferror('next_hsd_atom','inconsistent number of coefficients',faterr)
-                         
+
                       k = 0
                       do i = 1, at%nexp(at%norb)
                          at%ncoef(i,at%norb) = n / at%nexp(at%norb)

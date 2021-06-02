@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -36,7 +36,7 @@ contains
     ! call trick_check_shortest()
     ! call trick_test_environment()
     ! write (*,*) "no tricks for now"
-    
+
   end subroutine trick
 
   ! !> Test for the calculation of energies using a sphere plus grid approach.
@@ -187,12 +187,12 @@ contains
   !   use tools_io, only: faterr, ferror, uout, string
   !   use param, only: bohrtoa, pi
   !   character*(*), intent(in) :: line
-    
+
   !   ! parameters for input
   !   integer, parameter :: nang = 30
   !   integer, parameter :: nline = 30
   !   real*8, parameter :: rho0_def = 0.01d0
-  !   real*8, parameter :: zeronorm = 1d-10 ! zero norm 
+  !   real*8, parameter :: zeronorm = 1d-10 ! zero norm
   !   real*8, parameter :: dmax = 10d0 ! maximum distance
   !   ! bracketing and bisection
   !   real*8, parameter :: bstep0 = 0.05d0
@@ -248,25 +248,25 @@ contains
 
   !      ! find a vector normal to x-x0
   !      ok = .false.
-  !      do j = 1, 3 
+  !      do j = 1, 3
   !         a2 = 0d0
   !         a2(j) = 1d0
   !         xp1 = cross(a1,a2)
   !         if (norm(xp1) > zeronorm) then
   !            ok = .true.
-  !            exit 
+  !            exit
   !         end if
   !      end do
   !      if (.not.ok) &
   !         call ferror('trick_stephens_nnm_channel','could not find a vector orthogonal to the line',faterr)
   !      xp1 = xp1 / norm(xp1)
-       
+
   !      ! find the other normal vector
   !      xp2 = cross(a1,xp1)
   !      if (norm(xp2) < zeronorm) &
   !         call ferror('trick_stephens_nnm_channel','could not find the second orthogonal vector',faterr)
   !      xp2 = xp2 / norm(xp2)
-       
+
   !      ! run over the angles
   !      mindist = 1d30
   !      maxdist = 0d0
@@ -345,7 +345,7 @@ contains
 
   ! end subroutine trick_stephens_nnm_channel
 
-  ! !> Calculate the cell integral of the reference field using 
+  ! !> Calculate the cell integral of the reference field using
   ! !> Franchini et al.'s Becke-style mesh
   ! subroutine trick_cell_integral()
   !   use fields, only: f
@@ -402,7 +402,7 @@ contains
   !   end do
   !   write (uout,*)
 
-  !   write (uout,'("Testing points")') 
+  !   write (uout,'("Testing points")')
   !   nnok = 0
   !   do i = 1, npts
   !      do j = 1, npts
@@ -443,7 +443,7 @@ contains
   !   use global, only: atomeps
   !   use tools_io, only: uout, string, tictac
   !   use param, only: icrd_cart, icrd_crys, icrd_rcrys, atmcov, bohrtoa
-    
+
   !   integer :: i, j
   !   real*8 :: xx(3), x(3), dist1, dist2
   !   real*8 :: f1, fp1(3), fpp1(3,3)

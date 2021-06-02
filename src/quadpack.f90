@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -1288,7 +1288,7 @@ contains
       if(keyf.eq.1) neval = 30*neval+15
   999 return
   end subroutine dqage
-  
+
   subroutine dqag(f,unit,xnuc,a,b,epsabs,epsrel,key,result,abserr,neval,ier,&
          limit,lenw,last,iwork,work)
     use systemmod, only: sy
@@ -4186,7 +4186,7 @@ contains
       if(m1.ne.0.0d+00.and.abserr.ne.0.0d+00) &
          abserr = m1*dmin1(0.1d+01,(0.2d+03*abserr/m1)**1.5d+00)
       if (m2.gt.uflow/(0.5d+02*epmach)) &
-         abserr = dmax1((epmach*0.5d+02)*m2,abserr) 
+         abserr = dmax1((epmach*0.5d+02)*m2,abserr)
       if (abserr.le.dmax1(epsabs,epsrel*m3)) ier = 0
 ! ***jump out of do-loop
       if (ier.eq.0) go to 999

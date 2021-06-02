@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -436,7 +436,7 @@ contains
           write (uout,'(1p,G22.14)') rdum
        endif
     end if
-    
+
   contains
     subroutine check_no_extra_word(ok)
       character(len=:), allocatable :: aux2
@@ -482,9 +482,9 @@ contains
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
     real*8, intent(out) :: res
-    
+
     integer :: lp
-    character(len=:), allocatable :: word 
+    character(len=:), allocatable :: word
 
     res = 0d0
     lp = lp0
@@ -494,7 +494,7 @@ contains
        res = eval(string(word),.false.,eval_next_real)
        if (eval_next_real) lp0 = lp
     endif
-          
+
   end function eval_next_real
 
   !> Evaluate next expression of word in line and return an integer.
@@ -506,8 +506,8 @@ contains
     character*(*), intent(in) :: line !< Input line
     integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
     integer, intent(out) :: res
-    
-    character(len=:), allocatable :: word 
+
+    character(len=:), allocatable :: word
     integer :: lp
     real*8 :: rdum
 
@@ -528,7 +528,7 @@ contains
           res = nint(rdum)
        endif
     endif
-          
+
   end function eval_next_int
 
   !> Write to standard output the list of atomic radii

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,14 +31,14 @@ contains
        cindex, nnuc, tvol, periodic, intcorner_deferred, maxl, minl, integ_mode,&
        plot_mode, checkbeta, plotsticks, color_allocate
     use tools_io, only: uout, faterr, ferror
-    
+
     integer, intent(in) :: base_t
     integer, intent(in) :: iiv(3,4)
     integer, intent(in) :: il
     integer(qtreei), intent(inout) :: trm(:,:)
     real(qtreer), intent(inout), allocatable :: fgr(:,:), lapgr(:,:), vgr(:)
     real*8, intent(inout) :: acum_atprop(:,:)
-    
+
     integer :: i, j, unk, ats(4)
     integer :: ts(4)
     integer(qtreeidx) :: idxx(4)
@@ -51,7 +51,7 @@ contains
     integer :: iv(3,4)
     integer :: l, lrest, imin, imax
     real*8 :: xp(3,4)
-    
+
     sn = 1
     s_iv(:,:,1) = iiv
     s_l(1) = il
@@ -87,7 +87,7 @@ contains
           idxx(i) = cindex(iv(:,i),l)
           trm(idxx(i),base_to) = int(ts(i),1)
        end  do
-       
+
        ats = abs(ts)
        if (all(ats(2:4) == ats(1)) .and. l > minl) then
           if (any(ts > 0) .and. l < maxl) then
@@ -99,7 +99,7 @@ contains
                 acum_atprop(ats(1),1) = acum_atprop(ats(1),1) + tvol(base_t) / 8**l
                 cycle
              else if (integ_mode(l) >= 1 .and. integ_mode(l) <= 10) then
-                ! keast 
+                ! keast
                 call integ_inner_keast(base_t,iv,l,ts(1),integ_mode(l),acum_atprop)
                 cycle
              else if (integ_mode(l) == 11) then
@@ -237,7 +237,7 @@ contains
 
   end subroutine tetrah_subdivide
 
-  !> Determines the color of a given grid point, if it is not known. 
+  !> Determines the color of a given grid point, if it is not known.
   module function term_rec(base_t,iver,l,trm,fgr,lapgr)
     use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreer, qtreeidx, cindex, maxl,&
@@ -477,7 +477,7 @@ contains
     end if
     lrest = 2**(maxl-l)
     l2 = 2**maxl
-    
+
     hmin = minval(iv(1,:)) * lrest
     hmax = maxval(iv(1,:)) * lrest
     kmin = minval(iv(2,:)) * lrest
@@ -677,7 +677,7 @@ contains
     out1 = 0
     out2 = 0
     if (any(ts < 0)) then
-       ! a sphere-interior boundary. all the abs(ts) are the same 
+       ! a sphere-interior boundary. all the abs(ts) are the same
        its = abs(ts(1))
        acum_atprop(its,1) = acum_atprop(its,1) + tvol(base_t) / l8
 
@@ -716,7 +716,7 @@ contains
              xdot(i,j) = dot_product(xvec(:,i)-xnuc,xvec(:,j)-xnuc)
              xdot(j,i) = xdot(i,j)
           end do
-          if (xdot(i,i) < r2) then 
+          if (xdot(i,i) < r2) then
              ins = ins + 1
              in(i) = .true.
           end if
@@ -748,7 +748,7 @@ contains
           end do
           lvol = abs(mixed(vvec(:,1),vvec(:,2),vvec(:,3)) / 6d0)
 
-          ! integrate 
+          ! integrate
           do i = 1, korder(klvl)
              ccrd(1:3) = kxyz(:,i,klvl)
              ccrd(4) = 1 - sum(ccrd(1:3))
@@ -801,7 +801,7 @@ contains
           end do
           lvol = abs(mixed(vvec(:,1),vvec(:,2),vvec(:,3)) / 6d0)
 
-          ! integrate 
+          ! integrate
           do i = 1, korder(klvl)
              ccrd(1:3) = kxyz(:,i,klvl)
              ccrd(4) = 1 - sum(ccrd(1:3))
@@ -851,7 +851,7 @@ contains
              xint(:,k) = (1-dcoef)*xvec(:,out2) + dcoef*xvec(:,i)
           end do
 
-          ! integrate 
+          ! integrate
           do i = 1, korder(klvl)
              ccrd(1:3) = kxyz(:,i,klvl)
              ccrd(4) = 1 - sum(ccrd(1:3))
@@ -1016,7 +1016,7 @@ contains
              xdot(i,j) = dot_product(xvec(:,i)-xnuc,xvec(:,j)-xnuc)
              xdot(j,i) = xdot(i,j)
           end do
-          if (xdot(i,i) < r2) then 
+          if (xdot(i,i) < r2) then
              ins = ins + 1
              in(i) = .true.
           end if
@@ -1112,7 +1112,7 @@ contains
           end do
           lvol = abs(mixed(vvec(:,1),vvec(:,2),vvec(:,3)) / 6d0)
 
-          ! integrate 
+          ! integrate
           vert(:,:,1) = xvec
           ier = 1
           lprop = 0d0
@@ -1166,7 +1166,7 @@ contains
              xint(:,k) = (1-dcoef)*xvec(:,out2) + dcoef*xvec(:,i)
           end do
 
-          ! integrate 
+          ! integrate
           ! add out1-1-2-3
           vert(:,1,1) = xvec(:,out1)
           vert(:,2,1) = xint(:,1)
@@ -1415,12 +1415,12 @@ contains
        cindex, prop_mode, color_allocate
     use tools_io, only: ferror, faterr
     use types, only: scalar_value
-    
+
     integer, intent(in) :: base_t
     integer(qtreei), intent(inout) :: trm(:,:)
     real(qtreer), intent(inout), allocatable :: vgr(:)
     real*8, intent(inout) :: acum_atprop(:,:)
-    
+
     integer :: i, j, k, l2, vin(3)
     real*8 :: xx(3), lprop(sy%npropi), vfac
     integer :: ts, base_to
@@ -1478,7 +1478,7 @@ contains
 
   end subroutine integ_corner_sum
 
-  !> Paint grid points from one IWST that are inside a beta-sphere. 
+  !> Paint grid points from one IWST that are inside a beta-sphere.
   module subroutine paint_inside_spheres(tt,tto,trm)
     use systemmod, only: sy
     use qtree_basic, only: qtreei, qtreeidx, torig, tvec, maxl, r_betagp, cindex,&
@@ -1515,7 +1515,7 @@ contains
           end do
        end do
     end do
-    
+
   end subroutine paint_inside_spheres
 
   !xx! private procedures
@@ -1533,7 +1533,7 @@ contains
 
     call sy%grdall(x,lprop)
     value = lprop(2:sy%npropi)
-    
+
   end function cubpack_f
 
 end submodule proc

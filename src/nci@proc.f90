@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -78,7 +78,7 @@ contains
     real*8 :: rhoparam, rhoparam2
     ! rthres
     real*8 :: rthres, srhorange(2)
-    ! Cartesian matrix for the vmd coordinate system 
+    ! Cartesian matrix for the vmd coordinate system
     real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3), delta(3)
     logical :: isortho
 
@@ -113,7 +113,7 @@ contains
        0d0, 1d0, 1d0,&
        1d0, 0d0, 1d0,&
        1d0, 1d0, 0d0/),shape(xlist1))
-       
+
 
     ! default values
     isden = .not.(sy%iref == 0)
@@ -215,7 +215,7 @@ contains
           end if
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
-          
+
           srhorange(1) = min(rdum1,rdum2)
           srhorange(2) = max(rdum1,rdum2)
        elseif (equal(word,'void')) then
@@ -397,7 +397,7 @@ contains
        xx1 = max(x0,x1)
        x0 = xx0
        x1 = xx1
-       
+
        if (istep == 0 .or. istep == -1) then
           nstep = ceiling(abs(x1 - x0) / xinc)
        else
@@ -432,7 +432,7 @@ contains
     write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A,X))') &
        iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit0(iunit),'f',decimal=4),j=1,3)
     write(uout,*)
-    
+
     ! allocate logical units and open files
     lugc = fopen_write(trim(oname)//"-grad.cube")
     ludc = fopen_write(trim(oname)//"-dens.cube")
@@ -486,7 +486,7 @@ contains
            call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx2)
            call fxx(3)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx3)
            ! Set trilinear interpolation to prevent wonky negative values in the derivatives
-           ! of the field in the low-density regions (which may have been noisy to begin with). 
+           ! of the field in the low-density regions (which may have been noisy to begin with).
            call fgrho%grid%setmode("trilinear")
            call fxx(1)%grid%setmode("trilinear")
            call fxx(2)%grid%setmode("trilinear")
@@ -519,10 +519,10 @@ contains
                     endif
                  else
                     ! strangely enough, eig takes about the same time as counting the signs
-                    ! and using sylvester's law of inertia. 
+                    ! and using sylvester's law of inertia.
                     call sy%f(sy%iref)%grd(x,2,res)
                     call eigsym(res%hf,3,ehess)
-                    dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)           
+                    dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)
                  end if
 
                  ! promolecular density
@@ -589,7 +589,7 @@ contains
                  endif
               endif
 
-              ! apply cutoffs and write the dat file 
+              ! apply cutoffs and write the dat file
               if ((abs(crho(k,j,i)) < rhocut*100d0) .and. (cgrad(k,j,i) < dimcut) .and. inter) then
                  write(ludat,'(1p,E15.7,E15.7)') crho(k,j,i)/100d0, cgrad(k,j,i)
               end if
@@ -691,7 +691,7 @@ contains
      rchol = transpose(matmul(rchol,xmati))
 
      ! VMD screw-up log, entry #3:
-     ! The origin of the isosurface box is translated by -1/2 of 
+     ! The origin of the isosurface box is translated by -1/2 of
      ! a step in each direction. Translate the atoms and the cell
      ! by this delta
      delta = -0.5d0 * (xmat(:,1) + xmat(:,2) + xmat(:,3))
@@ -956,7 +956,7 @@ contains
        end if
     end do
     call realloc(fr%at,fr%nat)
-    
+
   end function read_fragment
 
   !> Write the NCI checkpoint file. x0, xmat, and nstep are checks to
@@ -980,8 +980,8 @@ contains
     real*8 :: xxx(3)
     integer :: ixx(3), nfrag0
 
-    chkfile = trim(oname) // ".chk_nci" 
-    
+    chkfile = trim(oname) // ".chk_nci"
+
     inquire(file=chkfile,exist=lchk)
 
     if (lchk) then
@@ -1041,7 +1041,7 @@ contains
     integer :: luchk
 
     ! open the file
-    chkfile = trim(oname) // ".chk_nci" 
+    chkfile = trim(oname) // ".chk_nci"
     write(uout,'("  Writing the checkpoint file: ",A/)') trim(chkfile)
     luchk = fopen_write(chkfile,"unformatted")
 

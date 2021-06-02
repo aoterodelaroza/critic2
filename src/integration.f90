@@ -71,7 +71,7 @@ module integration
   public :: lebedev_mquad
   public :: int_output_header
   public :: int_output_fields
-  
+
   interface
      module subroutine intgrid_driver(line)
        character*(*), intent(in) :: line

@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -98,7 +98,7 @@ module systemmod
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
      "Laplcn (v)","Expression","Multipoles","Deloc indx","Deloc indx",&
      "Deloc indx","Deloc indx"/)
-  
+
   interface
      module subroutine systemmod_init(isy)
        integer, intent(in) :: isy
@@ -198,7 +198,7 @@ module systemmod
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
-     module function system_eval_expression(s,expr,hardfail,iok,x0) 
+     module function system_eval_expression(s,expr,hardfail,iok,x0)
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
        logical, intent(in) :: hardfail

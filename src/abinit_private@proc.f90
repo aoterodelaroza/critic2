@@ -9,18 +9,18 @@
 
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -180,7 +180,7 @@ submodule (abinit_private) proc
   ! subroutine pawrhoij_io(pawrhoij,unitfi,nspden_in,typat,headform,errmsg)
 
 contains
-  
+
   ! Driver to choose which version of hdr_io to use.
   module subroutine hdr_io(fform,hdr,rdwr,unitfi,errmsg)
     use tools_io, only: string
@@ -210,7 +210,7 @@ contains
           errmsg = "Can not handle headform: " // string(headform_2) // &
              ". The version of abinit you are using is not supported &
              &by critic2. Please, e-mail the critic2 developer this &
-             &message and the version of abinit you are using." 
+             &message and the version of abinit you are using."
           return
        end if
        if (allocated(hdr%xred)) deallocate(hdr%xred)
@@ -245,13 +245,13 @@ contains
   end subroutine hdr_io
 
   !xx! private subroutines
-  
+
   ! The following functions are from ABINIT
   ! Copyright (C) 2007-2009 ABINIT group (MT)
   ! This file is distributed under the terms of the
   ! GNU General Public License, see ~ABINIT/Infos/copyright
   ! or http://www.gnu.org/copyleft/gpl.txt .
-  
+
   !> The hdr_io subroutine from abinit.
   subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
     use tools_io, only: string
@@ -338,7 +338,7 @@ contains
     real(dp) :: acell(3)
     real(dp), allocatable :: buffer(:)
     ! *************************************************************************
-    
+
     headform_1 = 0
     ! Reading the first record of the file ------------------------------------
 
@@ -363,7 +363,7 @@ contains
        !  Format beyond 22 have a different first line, so need reading again the first line
        backspace (unitfi)
        read (unitfi)   codvsn,headform,fform
-       
+
        if(headform/=23 .and. &
           headform/=34 .and. &
           headform/=40 .and. &
@@ -720,7 +720,7 @@ contains
        hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
        hdr%typat(:), hdr%kptns(:,:), occ3d, &
        hdr%tnons(:,:), hdr%znucltypat(:), hdr%wtk(:)
-    
+
     ii = 0
     do spin=1,hdr%nsppol
        do ikpt=1,hdr%nkpt

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -39,7 +39,7 @@ contains
     real*8, parameter :: brak_max = 10d0
     real*8, parameter :: range_max = 50d0
     real*8, parameter :: bisect_eps = 1d-5
-    
+
     real*8 :: minv, xp(3), uvec(3), isoval
     real*8 :: xc(3), xx(3), u, v, th, ph, xl(3)
     real*8 :: umat(3,3), rat, rini, rfin, rmid, mep, maxang
@@ -154,7 +154,7 @@ contains
           v = (real(iv-1,8) / real(nv-1,8)) * (1-minv) + minv
           ph = acos(2*v-1)
           th = 2*pi*u
-          xl(1) = cos(th)*sin(ph) 
+          xl(1) = cos(th)*sin(ph)
           xl(2) = sin(th)*sin(ph)
           xl(3) = cos(ph)
           uvec = xl(1) * umat(:,1) + xl(2) * umat(:,2) + xl(3) * umat(:,3)
@@ -208,7 +208,7 @@ contains
           v = (real(iv-1,8) / real(nv-1,8)) * (1-minv) + minv
           ph = acos(2*v-1)
           th = 2*pi*u
-          xl(1) = cos(th)*sin(ph) 
+          xl(1) = cos(th)*sin(ph)
           xl(2) = sin(th)*sin(ph)
           xl(3) = cos(ph)
           xl = xl * rval(iu,iv)
@@ -270,7 +270,7 @@ contains
        do iu = 1, nu
           iunext = modulo(iu-1 +1,nu)+1
           iuprev = modulo(iu-1 -1,nu)+1
-          
+
           if (mval(iu,iv) > mval(iunext,iv) .and. mval(iu,iv) > mval(iuprev,iv) .and.&
              mval(iu,iv) > mval(iu,iv-1) .and. mval(iu,iv) > mval(iu,iv+1)) then
              nmax = nmax + 1
@@ -292,7 +292,7 @@ contains
        v = (real(iv-1,8) / real(nv-1,8)) * (1-minv) + minv
        ph = acos(2*v-1)
        th = 2*pi*u
-       xl(1) = cos(th)*sin(ph) 
+       xl(1) = cos(th)*sin(ph)
        xl(2) = sin(th)*sin(ph)
        xl(3) = cos(ph)
        uvec = xl(1) * umat(:,1) + xl(2) * umat(:,2) + xl(3) * umat(:,3)
@@ -415,7 +415,7 @@ contains
        end if
        deallocate(ival)
     end if
-    
+
     ! calculate size
     ss = 0d0
     do i = 1, nmax
@@ -437,7 +437,7 @@ contains
     write (uout,'("+ List of sigma-holes found (",A,"): ")') string(nmax)
     write (uout,'("# See Kolar and Hobza, Chem. Rev. 116 (2016) 5155. doi:10.1021/acs.chemrev.5b00560 (Figure 7)")')
     write (uout,'("# dist = distance between X and the sigma-hole (",A,")")') iunitname0(iunit)
-    write (uout,'("# ls (linearity) = base-X-sigma_hole angle (degree)")') 
+    write (uout,'("# ls (linearity) = base-X-sigma_hole angle (degree)")')
     write (uout,'("# ms (magnitude) = value of the MEP at the sigma-hole (a.u.)")')
     write (uout,'("# rs (range) = distance between X and the point at which the MEP changes sign (",A,")")') iunitname0(iunit)
     write (uout,'("# ss (size) = average aperture angle for MEP-positive region on isosurface (",A,"^2)")') iunitname0(iunit)

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -37,7 +37,7 @@ submodule (qtree_basic) proc
   !
   ! The step is calculated with the b (not b2) formula
   !
-  !! Euler method 
+  !! Euler method
   integer, target :: euler_o = 1
   real*8, target :: euler_c(1) = (/0d0/)
   real*8, target :: euler_a(1,1) = reshape((/1d0/),shape(euler_a))
@@ -75,9 +75,9 @@ submodule (qtree_basic) proc
   real*8, target :: heul_a(2,2) = reshape((/0d0, 0d0,&
      1d0, 0d0/),shape(heul_a))
   real*8, target :: heul_b2(2) = (/0.5d0, 0.5d0/)
-  real*8, target :: heul_b(2) = (/1.0d0, 0.0d0/) 
+  real*8, target :: heul_b(2) = (/1.0d0, 0.0d0/)
   integer, target :: heul_type = 1
-  !! Bogacki-Shampine embedded method 
+  !! Bogacki-Shampine embedded method
   !! 3th order, 5th order error est., 3(4) evals
   !! Local extrapolation, fsal
   integer, target :: bs_o = 4
@@ -92,7 +92,7 @@ submodule (qtree_basic) proc
   real*8, target :: bs_b(4) = (/2d0/9d0, 1d0/3d0, 4d0/9d0, 0d0/)
   real*8, target :: bs_b2(4) = (/7d0/24d0, 1d0/4d0, 1d0/3d0, 1d0/8d0/)
   integer, target :: bs_type = 1
-  !! Runge-Kutta-Cash-Karp embedded method 
+  !! Runge-Kutta-Cash-Karp embedded method
   !! 4th order, 5th order error est., 6 evals
   integer, target :: rkck_o = 6
   integer, target :: rkck_o2 = 4
@@ -109,7 +109,7 @@ submodule (qtree_basic) proc
      277d0/14336d0, 1d0/4d0 /)
   real*8, target :: rkck_b2(6) = (/ 37d0/378d0, 0d0, 250d0/621d0, 125d0/594d0, 0d0, 512d0/1771d0 /)
   integer, target :: rkck_type = 1
-  !! Dormand-Prince embedded method 
+  !! Dormand-Prince embedded method
   !! 4th order, 5th order error est., 6(7) evals
   !! Local extrapolation, fsal
   integer, target :: dp_o = 7
@@ -222,14 +222,14 @@ contains
     end if
     if (plot_mode > 0 .and. color_allocate == 0) then
        write (uout,'("* COLOR_ALLOCATE has been set to 0.")')
-       write (uout,'("* PLOT mode is set to 0.")') 
+       write (uout,'("* PLOT mode is set to 0.")')
        call ferror('qtree','Non zero PLOT_MODE is not compatible with a single color array',warning)
        write (uout,*)
        plot_mode = 0
     end if
     if (docontacts .and. color_allocate == 0) then
        write (uout,'("* COLOR_ALLOCATE has been set to 0.")')
-       write (uout,'("* The contacts are NOT going to be used.")') 
+       write (uout,'("* The contacts are NOT going to be used.")')
        call ferror('qtree','DOCONTACTS is not compatible with a single color array',warning)
        write (uout,*)
        docontacts = .false.
@@ -238,7 +238,7 @@ contains
     ! Determine local point group
     call sy%c%getiws(ws_origin,ntetrag=ntetrag,tetrag=tetrag)
     periodic = .true.
-       
+
     ! Pre-split level
     if (verbose .and. plvl > 0) &
        write (uout,'("* Splitting the initial tetrahedra, ",I2," times."/)') plvl
@@ -255,10 +255,10 @@ contains
     ! Tetrahedra initialization
     do i = 1, nt_orig
        ! vertex in crystallographic coordinates
-       torig(:,i) = tetrag(:,1,i) 
-       tvec(:,1,i) = tetrag(:,2,i) - torig(:,i) 
-       tvec(:,2,i) = tetrag(:,3,i) - torig(:,i) 
-       tvec(:,3,i) = tetrag(:,4,i) - torig(:,i) 
+       torig(:,i) = tetrag(:,1,i)
+       tvec(:,1,i) = tetrag(:,2,i) - torig(:,i)
+       tvec(:,2,i) = tetrag(:,3,i) - torig(:,i)
+       tvec(:,3,i) = tetrag(:,4,i) - torig(:,i)
        if (ws_scale > 0d0) then
           tvec(:,1:3,i) = tvec(:,1:3,i) / ws_scale
           periodic = .false.
@@ -309,7 +309,7 @@ contains
 
        ! fill cartesian / 2**maxl vectors
        borig(:,i) = sy%c%x2c(torig(:,i))
-       bvec(:,1,i) = xp1 
+       bvec(:,1,i) = xp1
        bvec(:,2,i) = xp2
        bvec(:,3,i) = xp3
        bvec(:,:,i) = bvec(:,:,i) / l2
@@ -318,11 +318,11 @@ contains
 
     ! total volume and maximum and minimum lengths
     if (ws_scale > 0d0) then
-       vtotal = sy%c%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3
     else
-       vtotal = sy%c%omega 
+       vtotal = sy%c%omega
     end if
-    
+
     if (verbose) then
        write (uout,'("* Cell list of tetrahedra (cryst. coord.) contains : ",I3)') ntetrag
        sumi = 0d0
@@ -402,9 +402,9 @@ contains
     real*8 :: vtotal
 
     if (ws_scale > 0d0) then
-       vtotal = sy%c%omega / ws_scale**3 
+       vtotal = sy%c%omega / ws_scale**3
     else
-       vtotal = sy%c%omega 
+       vtotal = sy%c%omega
     end if
 
     sumi = 0d0
@@ -421,10 +421,10 @@ contains
     if (allocated(atprop)) deallocate(atprop)
     if (allocated(torig)) deallocate(torig)
     if (allocated(borig)) deallocate(borig)
-    if (allocated(tvec)) deallocate(tvec) 
+    if (allocated(tvec)) deallocate(tvec)
     if (allocated(tvol)) deallocate(tvol)
     if (allocated(tcontact)) deallocate(tcontact)
-    if (allocated(bvec)) deallocate(bvec) 
+    if (allocated(bvec)) deallocate(bvec)
     if (allocated(cmat)) deallocate(cmat)
     if (allocated(dmat)) deallocate(dmat)
 
@@ -456,7 +456,7 @@ contains
     call srf%init(100,100)
     call srf%clean()
     call srf%spherecub(xnuc,2)
-    
+
     accept = .false.
     do while(.not.accept)
        accept = .true.
@@ -466,7 +466,7 @@ contains
              cos(srf%th(i)) /)
           x = xnuc + unit * rbeta
           call sy%f(sy%iref)%grd(x,1,res)
-          accept = accept .and. (dot_product(-res%gf/res%gfmod,unit) >= angle) 
+          accept = accept .and. (dot_product(-res%gf/res%gfmod,unit) >= angle)
           if (.not.accept) then
              rbeta = rbeta * shrink
              exit
@@ -556,7 +556,7 @@ contains
           ode_abserr = 1d-4
        else if (odem == 7) then
           ode_abserr = 1d-4
-       else 
+       else
           ode_abserr = 1d-4
        end if
     end if
@@ -576,8 +576,8 @@ contains
     n1 = (i(1) + i(2) + i(3)) * 2**(maxl-lvl) - 1
     n2 = (i(2) + i(3)) * 2**(maxl-lvl) - 1
     n3 = i(3) * 2**(maxl-lvl) - 1
-    
-    cindex = 3 + n1 * (12+(n1+1)*(10+2*n1)) / 12 + (n2+1)*(n2+2)/2 + n3 
+
+    cindex = 3 + n1 * (12+(n1+1)*(10+2*n1)) / 12 + (n2+1)*(n2+2)/2 + n3
     ! (n1+1)*(n1+2)*(n1+3)/6 + (n2+1)*(n2+2)/2 + (n3+1) + 1
 
   end function cindex
@@ -616,7 +616,7 @@ contains
     real*8, intent(out) :: rver(3)
     integer, intent(out) :: lrot
 
-    integer :: i, h1, h2 ,h3 
+    integer :: i, h1, h2 ,h3
     real*8 :: xi(3), xic(3), xic0(3)
     real*8 :: eps
 
@@ -717,7 +717,7 @@ contains
 
   end subroutine neargp
 
-  !> Calculate the maximum and minimum lengths of the grid 
+  !> Calculate the maximum and minimum lengths of the grid
   !> at the highest subdivision level.
   module subroutine get_tlengths(minlen,maxlen)
 
@@ -741,7 +741,7 @@ contains
     s_l(1) = 0
     minlen = 1d20
     maxlen = 0d0
-    do while(sn > 0) 
+    do while(sn > 0)
        iv = s_iv(:,:,sn)
        l = s_l(sn)
        sn = sn - 1
@@ -868,7 +868,7 @@ contains
        do f = 1, 4
           ! skip known faces
           if (tcontact(t,f) /= tcontact_void) cycle
-          
+
           cont = .false.
           t1: do op = 1, leqv
              c = 1
@@ -926,7 +926,7 @@ contains
   end subroutine find_tetrah_contacts
 
   !> Calculate the inverse of a tetrahedron face transformation, given
-  !> by a rotation (op), a centering translation (c) and a permutation of the 
+  !> by a rotation (op), a centering translation (c) and a permutation of the
   !> vertex (p).
   subroutine inverse_operation(p,op,c,invp,invop,invc)
     use systemmod, only: sy
@@ -985,67 +985,67 @@ contains
           tsave = tetrag(1:3,:,i)
 
           ! 1, 1-2, 1-3, 1-4
-          tetrag(:,1,i) = tsave(:,0) 
+          tetrag(:,1,i) = tsave(:,0)
           tetrag(:,2,i) = tsave(:,0) + tsave(:,1)
           tetrag(:,3,i) = tsave(:,0) + tsave(:,2)
           tetrag(:,4,i) = tsave(:,0) + tsave(:,3)
-          tetrag(:,2:4,i) = 0.5d0 * tetrag(:,2:4,i) 
+          tetrag(:,2:4,i) = 0.5d0 * tetrag(:,2:4,i)
 
           ! 2, 1-2, 2-3, 2-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,1) 
+          tetrag(:,1,ntetrag) = tsave(:,1)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,4,ntetrag) = tsave(:,1) + tsave(:,3)
-          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag)
 
           ! 3, 1-3, 2-3, 3-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,2) 
+          tetrag(:,1,ntetrag) = tsave(:,2)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,2)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
-          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag)
 
           ! 4, 1-4, 2-4, 3-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,3) 
+          tetrag(:,1,ntetrag) = tsave(:,3)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,3)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,3)
           tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
-          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag) 
+          tetrag(:,2:4,ntetrag) = 0.5d0 * tetrag(:,2:4,ntetrag)
 
           ! 2-3, 1-2, 1-3, 1-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2) 
+          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
           tetrag(:,3,ntetrag) = tsave(:,0) + tsave(:,2)
           tetrag(:,4,ntetrag) = tsave(:,0) + tsave(:,3)
-          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
+          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag)
 
           ! 1-4, 1-2, 2-3, 2-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3) 
+          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,1)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,4,ntetrag) = tsave(:,1) + tsave(:,3)
-          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
+          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag)
 
           ! 1-4, 1-3, 2-3, 3-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3) 
+          tetrag(:,1,ntetrag) = tsave(:,0) + tsave(:,3)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,2)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
-          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
+          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag)
 
           ! 2-3, 1-4, 2-4, 3-4
           ntetrag = ntetrag + 1
-          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2) 
+          tetrag(:,1,ntetrag) = tsave(:,1) + tsave(:,2)
           tetrag(:,2,ntetrag) = tsave(:,0) + tsave(:,3)
           tetrag(:,3,ntetrag) = tsave(:,1) + tsave(:,3)
           tetrag(:,4,ntetrag) = tsave(:,2) + tsave(:,3)
-          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag) 
+          tetrag(:,:,ntetrag) = 0.5d0 * tetrag(:,:,ntetrag)
        end do
     end do
 

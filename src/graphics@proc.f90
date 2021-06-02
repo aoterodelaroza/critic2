@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -105,7 +105,7 @@ contains
 
     if (g%fmt == ifmt_obj) then
        call obj_close(g)
-    elseif (g%fmt == ifmt_ply) then 
+    elseif (g%fmt == ifmt_ply) then
        call ply_close(g)
     elseif (g%fmt == ifmt_off) then
        call off_close(g)
@@ -221,7 +221,7 @@ contains
 
   ! initialize the icosahedron vertices and faces
   subroutine graphics_init()
-    
+
     ! fill the icosahedron models
     vsph = 0d0
     fsph = 0
@@ -279,7 +279,7 @@ contains
         8, 11, 12,&
         4,  7,  8,&
        12,  4,  8/),(/3,20/))
-    
+
     ! lvl 2 -- a subdivided icosahedron (aka Edward Carnby's head)
     nvsph(2) = 42
     vsph(1:3,1:42,2) = reshape((/&
@@ -430,7 +430,7 @@ contains
         0.00000d0,  1.00000d0,  1.00000d0,&
         0.00000d0,  0.00000d0,  0.00000d0,&
         0.00000d0,  0.00000d0,  1.00000d0/),(/3,14/))
-    
+
     nfcyl(0) = 24
     fcyl(1:3,1:24,0) = reshape((/&
        13,  1,  2,&
@@ -457,7 +457,7 @@ contains
        14, 12,  7,&
         6,  1, 12,&
         7, 12,  1/),(/3,24/))
-       
+
     ! lvl 1 -- hexadecagonal
     nvcyl(1) = 34
     vcyl(1:3,1:34,1) = reshape((/&
@@ -495,7 +495,7 @@ contains
        -0.00000,  1.00000,  1.00000,&
         0.00000,  0.00000,  0.00000,&
         0.00000,  0.00000,  1.00000/),(/3,34/))
-       
+
     nfcyl(1) = 64
     fcyl(1:3,1:64,1) = reshape((/&
        33,  1,  2,&
@@ -610,7 +610,7 @@ contains
 
     integer :: i
 
-    ! write the mtl 
+    ! write the mtl
     do i = 1, g%nmtl
        write (g%lumtl,'("newmtl mat",A)') string(i)
        write (g%lumtl,'("Ns 96.078")')
@@ -700,7 +700,7 @@ contains
     g%nv = g%nv + n
 
   end subroutine obj_polygon
-  
+
   !> Write a stick to the obj file
   subroutine obj_stick(g,x1,x2,rgb,r)
     use tools_io, only: ferror, string
@@ -724,7 +724,7 @@ contains
     xd = x2 - x1
     dist = norm2(xd)
     if (dist < 1d-6) return
-    
+
     ! local coordinates of the tube
     if (abs(xd(1)) > 1d-6) then
        v1 = (/-xd(2)/xd(1), 1d0, 0d0/)
@@ -755,7 +755,7 @@ contains
     g%nv = g%nv + nvcyl(lvl)
 
   end subroutine obj_stick
-  
+
   !> Write a surface to the obj file
   subroutine obj_surf(g,srf,fsurf)
     use surface, only: minisurf
@@ -894,7 +894,7 @@ contains
 
   end subroutine ply_open
 
-  !> Close a ply file 
+  !> Close a ply file
   subroutine ply_close(g)
     use tools_io, only: ferror, getline_raw, fopen_write, string, fclose
     type(grhandle), intent(inout) :: g
@@ -946,7 +946,7 @@ contains
     ! clear the database
     g%nv = 0
     g%nf = 0
-    
+
   end subroutine ply_close
 
   !> Write a ball to the ply file
@@ -967,7 +967,7 @@ contains
     else
        lvl = 0
     endif
-    
+
     ! write the ball to the ply
     do i = 1, nvsph(lvl)
        write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x + r * vsph(:,i,lvl), &
@@ -981,7 +981,7 @@ contains
     g%nf = g%nf + nfsph(lvl)
 
   end subroutine ply_ball
-  
+
   !> Write a polygon to the ply file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
   subroutine ply_polygon(g,x,rgb)
@@ -1036,12 +1036,12 @@ contains
     else
        lvl = 0
     endif
-    
+
     ! kill degenerate sticks
     xd = x2 - x1
     dist = norm2(xd)
     if (dist < 1d-6) return
-    
+
     ! local coordinates of the tube
     if (abs(xd(1)) > 1d-6) then
        v1 = (/-xd(2)/xd(1), 1d0, 0d0/)
@@ -1070,7 +1070,7 @@ contains
     g%nf = g%nf + nfcyl(lvl)
 
   end subroutine ply_stick
-  
+
   !> Write a surface to the ply file
   subroutine ply_surf(g,srf,fsurf)
     use surface, only: minisurf
@@ -1084,7 +1084,7 @@ contains
 
     integer :: i, j, rgb(3)
     real*8 :: x(3), maxf, minf, xrgb(3), z
-    
+
     if (srf%isinit <= 1) &
        call ferror ('ply_surf','No face information in minisurf',faterr)
 
@@ -1178,7 +1178,7 @@ contains
 
   end subroutine off_open
 
-  !> Close a off file 
+  !> Close a off file
   subroutine off_close(g)
     use tools_io, only: ferror, getline_raw, string, fopen_write, fclose
     type(grhandle), intent(inout) :: g
@@ -1218,7 +1218,7 @@ contains
     ! clear the database
     g%nv = 0
     g%nf = 0
-    
+
   end subroutine off_close
 
   !> Write a ball to the off file
@@ -1240,7 +1240,7 @@ contains
     else
        lvl = 0
     endif
-    
+
     ! write the ball to the off
     do i = 1, nvsph(lvl)
        xrgb = real(rgb,8) / 255d0
@@ -1255,7 +1255,7 @@ contains
     g%nf = g%nf + nfsph(lvl)
 
   end subroutine off_ball
-  
+
   !> Write a polygon to the off file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
   subroutine off_polygon(g,x,rgb)
@@ -1311,12 +1311,12 @@ contains
     else
        lvl = 0
     endif
-    
+
     ! kill degenerate sticks
     xd = x2 - x1
     dist = norm2(xd)
     if (dist < 1d-6) return
-    
+
     ! local coordinates of the tube
     if (abs(xd(1)) > 1d-6) then
        v1 = (/-xd(2)/xd(1), 1d0, 0d0/)
@@ -1346,7 +1346,7 @@ contains
     g%nf = g%nf + nfcyl(lvl)
 
   end subroutine off_stick
-  
+
   !> Write a surface to the off file
   subroutine off_surf(g,srf,fsurf)
     use surface, only: minisurf
@@ -1422,7 +1422,7 @@ contains
        maxf = maxval(xrho)
        minf = minval(xrho)
     endif
-    
+
     xrgb = real(rgb_default,8) / 255d0
     do i = 1, nv
        if (present(xrho)) then

@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -22,7 +22,7 @@ submodule (arithmetic) proc
   implicit none
 
   !xx! private procedures
-  ! function tokenize(expr,ntok,toklist,lpexit,syl) 
+  ! function tokenize(expr,ntok,toklist,lpexit,syl)
   ! function iprec(c)
   ! function iassoc(c)
   ! function istype(c,type,iwantarg)
@@ -171,9 +171,9 @@ submodule (arithmetic) proc
   integer, parameter :: token_comma = 6
   integer, parameter :: token_field = 7
   integer, parameter :: token_structvar = 8
-  
+
 contains
-  
+
   !> Evaluate an arithmetic expression expr. If the expression
   !> contains fields ($), use x0 as the evaluation point
   !> (Cartesian). If hardfail is true, stop with error if the
@@ -339,7 +339,7 @@ contains
   contains
     subroutine dofail(errmsg)
       character*(*), intent(in), optional :: errmsg
-      
+
       iok = .false.
       if (hardfail) then
          if (present(errmsg)) then
@@ -393,7 +393,7 @@ contains
     nq = 0
     ns = 0
     allocate(q(n(1),n(2),n(3),1))
-    
+
     ! The grid version of the arithmetic evaluator does not support
     ! certain types of operators (xc, chemfunction) or structural
     ! variables. Check that the grid fields are all correct
@@ -644,7 +644,7 @@ contains
     character(len=:), allocatable :: str, aux
 
     ! header and some libxc info
-    write (uout,'("* LIST of libxc functionals")') 
+    write (uout,'("* LIST of libxc functionals")')
     nfun = xc_f90_number_of_functionals()
     allocate(idlist(nfun))
     call xc_f90_available_functional_numbers(idlist(1)) ! hack
@@ -715,11 +715,11 @@ contains
           if (iand(iflags,XC_FLAGS_NEEDS_LAPLACIAN) /= 0) aux = aux // "LAP-"
           str = str // " " // string(aux,25,ioj_left)
        end if
-          
+
        if (doname) then
           str = str // " " // trim(longname)
        end if
-       
+
        if (doref) then
           iref = 0
           do while (iref >= 0)
@@ -750,7 +750,7 @@ contains
   !> toklist and the number of tokens in ntok, and advance the string
   !> pointer lpexit. syl = calling system. This routine is
   !> thread-safe.
-  function tokenize(expr,ntok,toklist,lpexit,syl) 
+  function tokenize(expr,ntok,toklist,lpexit,syl)
     use systemmod, only: system
     use tools_io, only: lower, isinteger
     use param, only: vh
@@ -888,7 +888,7 @@ contains
           end if
           wasop = .false.
        else
-          goto 999 
+          goto 999
        end if
     end do main
 
@@ -1061,7 +1061,7 @@ contains
     logical :: isspecialfield
 
     isspecialfield = (trim(fid) == "ewald")
-    
+
   end function isspecialfield
 
   !> If this identifier corresponds to a structural variable, return
@@ -1074,7 +1074,7 @@ contains
     character*(*), intent(in) :: fder
     logical :: isstructvar
     logical :: fderallow
-    
+
     isstructvar = .true.
     select case (trim(lower(fid)))
     case("dnuc")
@@ -1128,7 +1128,7 @@ contains
     case default
        isstructvar = .false.
     end select
-    
+
     fderallow = (c==svar_dnuc).or.(c==svar_xnucx).or.(c==svar_ynucx).or.(c==svar_znucx).or.&
        (c==svar_xnucc).or.(c==svar_ynucc).or.(c==svar_znucc).or.(c==svar_rho0nuc)
 
@@ -1136,7 +1136,7 @@ contains
 
   end function isstructvar
 
-  !> Evaluate field with identifier fid and field flag fder at 
+  !> Evaluate field with identifier fid and field flag fder at
   !> point x0. syl = calling system. fcheck checks whether
   !> the field is sane. feval is the evaluation function. If periodic
   !> is true, evaluate the field under pbc.
@@ -1925,7 +1925,7 @@ contains
           fail = .true.
           return
        endif
-    
+
        ! Consume the extra arguments for this function
        if (iwantarg > 1) then
           allocate(args(iwantarg-1))
@@ -2134,16 +2134,16 @@ contains
     real*8 :: q, xref(3)
     logical, intent(in), optional :: periodic
     type(system), intent(inout), optional :: syl
-  
+
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
     real*8 :: br_b, br_alf, br_a, raux(3), ux
     integer :: idx
     logical :: dohole, use1, use2
-  
+
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
-  
+
     q = 0d0
     if (.not.present(syl)) return
     if (.not.syl%isinit) return
@@ -2256,7 +2256,7 @@ contains
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        f0 = max(res%f,1d-30)
-       g0 = ctf * f0**(5d0/3d0) 
+       g0 = ctf * f0**(5d0/3d0)
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = g0 / g
        q = q / (1d0+q)
@@ -2269,7 +2269,7 @@ contains
        !  A.D. Becke and M.R. Roussel, Phys. Rev. A 39 (1989) 3761
        ! - xhcurv: curvature of the spherically averaged exchange
        ! hole at the reference point. (Q_sigma)
-       ! - dsigs: leading coefficient of the same-spin pair density 
+       ! - dsigs: leading coefficient of the same-spin pair density
        ! (D_sigma).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
        dohole = (c==fun_brhole_a1).or.(c==fun_brhole_a2).or.(c==fun_brhole_a).or.&
@@ -2280,7 +2280,7 @@ contains
 
        if (dohole .and..not.res%avail_gkin) &
           call die("Tried to calculate BR hole with a field that cannot provide the kinetic energy density.")
-       
+
        if (res%avail_spin .and. res%spinpol) then
           if (use1) then
              call assign_bhole_variables(res%fspinval(1),res%lapspin(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
@@ -2348,7 +2348,7 @@ contains
           call syl%f(idx)%wfn%xhole(x0,xref,q)
        end if
     end select
-  
+
   contains
     subroutine assign_bhole_variables(rhos_,laps_,tau_,gfmod_,dohalf)
       real*8, intent(in) :: rhos_, laps_, tau_, gfmod_
@@ -2388,7 +2388,7 @@ contains
        xp = syl%c%c2x(x0)
        res = syl%c%ewald_pot(xp)
     end if
-    
+
   end function specialfieldeval
 
 end submodule proc

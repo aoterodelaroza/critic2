@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -67,7 +67,7 @@ contains
 
     real*8, parameter :: az = exp(-6d0)
     real*8, parameter :: b = 0.002
-    real*8, parameter :: pi_cutdens = 1d-12 
+    real*8, parameter :: pi_cutdens = 1d-12
 
     errmsg = ""
     ! restart and allocate all fields
@@ -112,7 +112,7 @@ contains
     nullify(f%e)
     if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
        ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway. 
+       ! The environment contains all the atoms in molecules anyway.
        f%isealloc = .true.
        nullify(f%e)
        allocate(f%e)
@@ -129,7 +129,7 @@ contains
        ! determine cutoff radius (crad)
        crad = cutrad(env%spc(i)%z)
        call rhoex1(f,i,crad,rrho,rrho1,rrho2)
-       do while (rrho > pi_cutdens) 
+       do while (rrho > pi_cutdens)
           crad = crad * 1.05d0
           call rhoex1(f,i,crad,rrho,rrho1,rrho2)
        end do
@@ -191,7 +191,7 @@ contains
     if (exact) then
        ! calculate exactly the contribution of each atom
        !.....recorre todos los iones de la red
-       do ion= 1, nenv 
+       do ion= 1, nenv
           ni = f%e%at(eid(ion))%is
           if (.not.f%bas(ni)%pi_used) cycle
           rhop = 0d0
@@ -207,7 +207,7 @@ contains
              !.r powers
              rion1=one/rion
              rion2=rion1*rion1
-             !.x powers 
+             !.x powers
              xr=xion*rion1
              yr=yion*rion1
              zr=zion*rion1
@@ -242,7 +242,7 @@ contains
                 do j = 1, f%bas(ni)%nsto(l)
                    j1 = j + f%bas(ni)%nasto(l)
                    n0 = f%bas(ni)%nn(j1)
-                   nm1 = n0-1   
+                   nm1 = n0-1
                    nm2 = n0-2
                    zj = f%bas(ni)%z(j1)
                    or=ep(rion,nm1)*exp(-zj*rion)*f%bas(ni)%c(j,norb1)
@@ -384,7 +384,7 @@ contains
     if (f%bas(ni)%nsym.gt.msa) stop 'pi(leerion): nsym > msa !'
     if (f%bas(ni)%nsym.lt.0) stop 'pi(leerion): nsym < 0 !'
     read (lui,*,err=999) (f%bas(ni)%nsto(i),i=1,f%bas(ni)%nsym)
-    f%bas(ni)%nasto(1)=0  
+    f%bas(ni)%nasto(1)=0
     ntsto=0
     do i=1,f%bas(ni)%nsym
        ntsto=ntsto+f%bas(ni)%nsto(i)
@@ -401,7 +401,7 @@ contains
 
     !.....Leer informacion orbital:
     read (lui,*,err=999) (f%bas(ni)%naos(i),i=1,f%bas(ni)%nsym)
-    f%bas(ni)%naaos(1)=0  
+    f%bas(ni)%naaos(1)=0
     ntaos=0
     do i=1,f%bas(ni)%nsym
        ntaos=ntaos+f%bas(ni)%naos(i)
@@ -554,7 +554,7 @@ contains
        if (entero(word,j)) then
           ! an integer parameter:
           nipar=nipar+1
-          if (nipar.gt.mpar) then 
+          if (nipar.gt.mpar) then
              return
           end if
           ipar(nipar)=j

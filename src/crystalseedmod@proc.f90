@@ -1179,7 +1179,7 @@ contains
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg)
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess
-    use param, only: bohrtoa, maxzat0
+    use param, only: bohrtoa, maxzat0, mlen
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
@@ -1187,7 +1187,8 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu
-    character(len=:), allocatable :: line, dum
+    character(len=:), allocatable :: line
+    character(len=mlen) :: dum
     character*15 :: str
     character*1 :: latt
     logical :: ok
@@ -1774,7 +1775,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, mlen
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1783,6 +1784,7 @@ contains
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
+    character(len=mlen) :: mline
     logical :: ok, iscar
 
     integer :: i, j, ier

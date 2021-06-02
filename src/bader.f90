@@ -1,7 +1,7 @@
 ! This module contains Bader integration-on-a-grid as proposed by
 ! Henkelman and collaborators. The code in this module has been
 ! adapted from the 'bader' program (version 0.28a, 07/12/12), that
-! can be located at the Henkelman's group webpage: 
+! can be located at the Henkelman's group webpage:
 !    http://theory.cm.utexas.edu/
 !    http://theory.cm.utexas.edu/vasp/bader/
 ! The authors of bader are Wenjie Tang, Andri Arnaldsson, Samuel T.
@@ -21,18 +21,18 @@
 
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module bader
@@ -43,7 +43,7 @@ module bader
 
   public :: bader_integrate
   public :: bader_remap
-  
+
   interface
      module subroutine bader_integrate(s,bas,iref)
        use types, only: basindat

@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -31,7 +31,7 @@ module global
 
   ! Distance cutoffs
   real*8, parameter :: atomeps = 1d-2 !< Minimum distance to consider two atoms different
-  real*8, parameter :: atomeps2 = atomeps*atomeps 
+  real*8, parameter :: atomeps2 = atomeps*atomeps
 
   ! Beta-sphere default radius (bohr)
   real*8, parameter :: rbetadef = 0.1d0
@@ -47,10 +47,10 @@ module global
   ! atom.
   real*8, parameter :: cutrad(maxzat0) = (/&
      2.149886192475d+01, 1.169139170668d+01, 3.430831385801d+01,& !001-003 H,  He, Li
-     2.502075396007d+01, 2.801001395722d+01, 2.167675592180d+01,& !004-006 Be, B,  C 
-     1.749805708313d+01, 1.465173060207d+01, 1.263885024136d+01,& !007-009 N,  O,  F 
+     2.502075396007d+01, 2.801001395722d+01, 2.167675592180d+01,& !004-006 Be, B,  C
+     1.749805708313d+01, 1.465173060207d+01, 1.263885024136d+01,& !007-009 N,  O,  F
      1.110521599057d+01, 3.523728402162d+01, 2.763528367271d+01,& !010-012 Ne, Na, Mg
-     3.395549316507d+01, 2.847261278601d+01, 2.487715217494d+01,& !013-015 Al, Si, P 
+     3.395549316507d+01, 2.847261278601d+01, 2.487715217494d+01,& !013-015 Al, Si, P
      2.222930087269d+01, 2.022231415676d+01, 1.857150175607d+01,& !016,018 S,  Cl, Ar
      3.884428729523d+01, 3.144587224767d+01, 2.970981796151d+01,& !019-021 K,  Ca, Sc
      2.864438811442d+01, 2.784088946336d+01, 2.925194799711d+01,& !022-024 Ti, V,  Cr
@@ -58,7 +58,7 @@ module global
      2.517359152887d+01, 2.691554955610d+01, 2.435659411320d+01,& !028-030 Ni, Cu, Zn
      3.467478603212d+01, 2.914443825602d+01, 2.572575006996d+01,& !031-033 Ga, Ge, As
      2.323452863278d+01, 2.134146595122d+01, 1.981582897591d+01,& !034-036 Se, Br, Kr
-     3.976877622180d+01, 3.266858263171d+01, 3.027851405458d+01,& !037-039 Rb, Sr, Y 
+     3.976877622180d+01, 3.266858263171d+01, 3.027851405458d+01,& !037-039 Rb, Sr, Y
      2.899491720657d+01, 2.967865003580d+01, 2.914637014504d+01,& !040-042 Zr, Nb, Mo
      2.697201600611d+01, 2.844039136970d+01, 2.814409350112d+01,& !043-045 Tc, Ru, Rh
      1.659926809140d+01, 2.771163603049d+01, 2.519886588880d+01,& !046-048 Pd, Ag, Cd
@@ -152,7 +152,7 @@ module global
   ! mesh type and quality for molecular integrations
   integer :: mesh_type !< type of mesh for molecular integrations (see meshmod)
   integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
-  
+
   interface
      module subroutine global_init(ghome,datadir)
        character*(*) :: ghome, datadir

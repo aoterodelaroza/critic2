@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -169,7 +169,7 @@ contains
              exit
           end if
        end do
-       
+
        ! Prepare a fragment with this atom
        fr%at(1)%x = sy%c%atcel(cidx)%x
        fr%at(1)%r = sy%c%atcel(cidx)%r
@@ -186,7 +186,7 @@ contains
        ! turns into a sum over periodic copies of the atom.
        prop(1) = im_rho
        call mat%fill(fat,prop,.not.sy%c%ismolecule)
-       
+
        ! hirshfeld weights (with mesh weights)
        mat%f(:,1) = mat%f(:,1) / max(m0%f(:,1),VSMALL) * mrho%w
 

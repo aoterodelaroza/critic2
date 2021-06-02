@@ -1,17 +1,17 @@
 ! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -39,14 +39,14 @@ module qtree_basic
   ! nuclear and nonnuclear maxima
   integer, public :: nnuc
 
-  ! eps 
+  ! eps
   real*8, parameter, public :: eps_v_warn = 1d-10        ! volume assert, warn
   real*8, parameter, public :: eps_v_periodic = 1d-6     ! volume assert, deact. periodic
   real*8, parameter, public :: eps_v_strict = 1d-3       ! volume assert, strict
   real*8, parameter, public :: eps_tetrah_contact = 1d-5 ! tetrah contact
   real*8, parameter, public :: tetra_eps_strict = 1d-2   ! x in tetrah, strict
   real*8, parameter, public :: tetra_eps_warn = 1d-5     ! x in tetrah, warn
-  real*8, public :: crys2convex_eps, crys2convex_eps1 
+  real*8, public :: crys2convex_eps, crys2convex_eps1
 
   ! symmetry operations of the (0,0,0) local group
   integer, public :: leqv
@@ -54,7 +54,7 @@ module qtree_basic
   real*8, public :: lrotm(3,3,48)
 
   ! number of initial tetrahedra
-  integer, public :: nt_orig 
+  integer, public :: nt_orig
 
   ! origin, edge vectors and volume of the initial tetrahedra (cryst. coords.)
   real*8, allocatable, public :: tvol(:), cmat(:,:,:), dmat(:,:,:)
@@ -74,15 +74,15 @@ module qtree_basic
   real*8, allocatable, public :: sphfactor(:)
   real*8, allocatable, public :: sphintfactor(:)
   integer, public :: gradient_mode
-  integer, public :: qtree_ode_mode    
+  integer, public :: qtree_ode_mode
   real*8, public :: stepsize
   real*8, public :: ode_abserr
   integer, public :: integ_mode(20)
   integer, public :: integ_scheme
   integer, public :: keastnum
   integer, public :: plot_mode
-  integer, public :: prop_mode 
-  integer, public :: mpstep 
+  integer, public :: prop_mode
+  integer, public :: mpstep
   real*8, public :: qtreefac
   real*8, public :: cub_abs
   real*8, public :: cub_rel
@@ -157,7 +157,7 @@ module qtree_basic
      0, 1, 0,&  ! 2 1 3
      1, 0, 0,&
      0, 0, 1 /),shape(perm3))
-  
+
   interface
      module subroutine qtree_initialize(lvl,plvl,acum_atprop,trm,fgr,lapgr,vgr,verbose)
        integer, intent(in) :: lvl, plvl

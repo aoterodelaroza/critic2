@@ -1,7 +1,7 @@
 ! This module contains Bader integration-on-a-grid as proposed by
 ! Henkelman and collaborators. The code in this module has been
 ! adapted from the 'bader' program (version 0.28a, 07/12/12), that
-! can be located at the Henkelman's group webpage: 
+! can be located at the Henkelman's group webpage:
 !    http://theory.cm.utexas.edu/
 !    http://theory.cm.utexas.edu/vasp/bader/
 ! The authors of bader are Wenjie Tang, Andri Arnaldsson, Samuel T.
@@ -21,18 +21,18 @@
 
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -232,7 +232,7 @@ contains
     if (allocated(path)) deallocate(path)
 
   end subroutine bader_integrate
-  
+
   !> Remap the attractors from a bader calculation
   module subroutine bader_remap(s,bas,nattn,idg1,ilvec,iatt)
     use types, only: realloc, basindat
@@ -240,7 +240,7 @@ contains
     type(basindat), intent(in) :: bas
     integer, intent(out) :: nattn
     integer, allocatable, intent(inout) :: iatt(:), ilvec(:,:), idg1(:,:,:)
-    
+
     integer :: i, m1, m2, m3, p(3)
     real*8 :: x(3), xs(3), d2
     logical :: found
@@ -332,7 +332,7 @@ contains
                 p = (/n1,n2,n3/)
                 ! change for calculating the vacuum volume
                 if (volnum(n1,n2,n3) == nbasin+1) cycle
-                
+
                 if(volnum(n1,n2,n3) < 0 .and. known(n1,n2,n3) /=-1) then
                    do d1 = -1,1
                       do d2 = -1,1
@@ -341,7 +341,7 @@ contains
                             call pbc(pt)
                             ! change for calculating the vacuum volume
                             if (volnum(pt(1),pt(2),pt(3)) == nbasin+1) cycle
-                            if(.not.is_max(f,pt)) then 
+                            if(.not.is_max(f,pt)) then
                                if(volnum(pt(1),pt(2),pt(3)) > 0) then
                                   volnum(pt(1),pt(2),pt(3)) = -volnum(pt(1),pt(2),pt(3))
                                   known(pt(1),pt(2),pt(3)) = -1
@@ -356,7 +356,7 @@ contains
                    end do
                    num_check = num_check - 1
                    if (known(pt(1),pt(2),pt(3)) /= -2) then
-                      volnum(p(1),p(2),p(3)) = abs(volnum(p(1),p(2),p(3)))         
+                      volnum(p(1),p(2),p(3)) = abs(volnum(p(1),p(2),p(3)))
                    end if
                    ! end of mark
                 end if
@@ -427,7 +427,7 @@ contains
     use types, only: realloc
     real*8, intent(in) :: f(:,:,:)
     integer, dimension(3), intent(inout) :: p
-    
+
     pnum = 1
     path(:,pnum) = p
 
@@ -443,13 +443,13 @@ contains
        path(:,pnum) = p
 
        ! quit at a known point
-       if (known(p(1),p(2),p(3)) == 2) exit 
+       if (known(p(1),p(2),p(3)) == 2) exit
     end do
 
   end subroutine max_neargrid
 
   ! step_neargrid
-  ! Do a single iteration of a maximization on the charge density 
+  ! Do a single iteration of a maximization on the charge density
   ! grid from the point (px,py,pz).
   subroutine step_neargrid(f,p)
     real*8, intent(in) :: f(:,:,:)
@@ -462,7 +462,7 @@ contains
     if (pnum == 1) then
       dr = 0d0
     end if
-    gradrl = rho_grad_dir(f,p) 
+    gradrl = rho_grad_dir(f,p)
 
     if (maxval(abs(gradrl)) < 1d-30) then
        dr = 0d0
@@ -493,15 +493,15 @@ contains
   end subroutine step_neargrid
 
   ! step_ongrid
-  ! Do a single iteration of a maximization on the charge density 
-  ! grid from the point (px,py,pz).  Return a logical indicating 
+  ! Do a single iteration of a maximization on the charge density
+  ! grid from the point (px,py,pz).  Return a logical indicating
   ! if the current  point is a charge density maximum.
   subroutine step_ongrid(f,p)
     real*8, intent(in) :: f(:,:,:)
     integer, intent(inout) :: p(3)
 
     integer :: pm(3), pt(3)
-    real*8 :: rho_max, rho_tmp, rho_ctr 
+    real*8 :: rho_max, rho_tmp, rho_ctr
     integer :: d1, d2, d3
 
     pm = p
@@ -542,7 +542,7 @@ contains
     p3 = p(3)
 
     rho000 = rho_val(f,p1,p2,p3)
-    rho001 = rho_val(f,p1,p2,p3+1) 
+    rho001 = rho_val(f,p1,p2,p3+1)
     rho010 = rho_val(f,p1,p2+1,p3)
     rho100 = rho_val(f,p1+1,p2,p3)
     rho00_1 = rho_val(f,p1,p2,p3-1)
@@ -574,8 +574,8 @@ contains
 
     real*8 :: rho
     integer :: d1, d2, d3, p1, p2, p3
-  
-    is_max=.true. 
+
+    is_max=.true.
     p1 = p(1)
     p2 = p(2)
     p3 = p(3)
@@ -667,7 +667,7 @@ contains
 
     pt = p + (/1,0,0/)
     call pbc(pt)
-    if (known(pt(1),pt(2),pt(3)) /= 2) then 
+    if (known(pt(1),pt(2),pt(3)) /= 2) then
        call known_volnum_ongrid(pt)
     end if
     pt = p + (/-1,0,0/)
@@ -708,7 +708,7 @@ contains
 
     p1 = p(1)
     p2 = p(2)
-    p3 = p(3)     
+    p3 = p(3)
 
     volnum_ = volnum_val(p1,p2,p3)
     if(volnum_ <= 0) return
@@ -742,7 +742,7 @@ contains
              volnbr = volnum(pt(1),pt(2),pt(3))
              if (abs(volnbr) /= abs(volnum_)) then
                 is_vol_edge = .true.
-                exit neighborloop  
+                exit neighborloop
              end if
           end do
        end do

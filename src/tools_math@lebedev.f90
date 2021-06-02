@@ -1,29 +1,29 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 !   These subroutines are part of a set of subroutines that generate
-!   Lebedev grids [1-6] for integration on a sphere. The original 
-!   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+!   Lebedev grids [1-6] for integration on a sphere. The original
+!   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
 !   translated into fortran by Dr. Christoph van Wuellen.
 !   This subroutine was translated using a C to fortran77 conversion
 !   tool written by Dr. Christoph van Wuellen.
 !
 !   Users of this code are asked to include reference [1] in their
-!   publications, and in the user- and programmers-manuals 
+!   publications, and in the user- and programmers-manuals
 !   describing their codes.
 !
 !   This code was distributed through CCL (http://www.ccl.net/).
@@ -36,23 +36,23 @@
 !   [2] V.I. Lebedev
 !       "A quadrature formula for the sphere of 59th algebraic
 !        order of accuracy"
-!       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+!       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
 !
 !   [3] V.I. Lebedev, and A.L. Skorokhodov
 !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-!       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+!       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
 !
 !   [4] V.I. Lebedev
 !       "Spherical quadrature formulas exact to orders 25-29"
-!       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+!       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
 !
 !   [5] V.I. Lebedev
 !       "Quadratures on a sphere"
 !       Computational Mathematics and Mathematical Physics, Vol. 16,
-!       1976, pp. 10-24. 
+!       1976, pp. 10-24.
 !
 !   [6] V.I. Lebedev
-!       "Values of the nodes and weights of ninth to seventeenth 
+!       "Values of the nodes and weights of ninth to seventeenth
 !        order Gauss-Markov quadrature formulae invariant under the
 !        octahedron group with inversion"
 !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -60,7 +60,7 @@
 !
 submodule (tools_math) lebedev
   implicit none
-  
+
   !xx! private procedures
   ! subroutine gen_oh(code, num, x, y, z, w, a, b, v)
   ! SUBROUTINE LD0006(X,Y,Z,W,N)
@@ -122,7 +122,7 @@ contains
   end subroutine good_lebedev
 
   !> Given a number of nodes n, returns xleb, ylbe, zleb and wleb
-  !> corresponding to a lebedev quadrature. 
+  !> corresponding to a lebedev quadrature.
   module subroutine select_lebedev(npts,xleb,yleb,zleb,wleb)
     use tools_io, only: ferror, faterr
     use param, only: pi
@@ -130,7 +130,7 @@ contains
     real*8, intent(out) :: xleb(:), yleb(:), zleb(:), wleb(:)
 
     integer :: n
-    
+
     n = npts
     select case(n)
     case(6)
@@ -237,7 +237,7 @@ contains
 
     goto (1,2,3,4,5,6) code
     write (6,*) 'Gen_Oh: Invalid Code'
-    stop 
+    stop
 1   continue
     a=1.0d0
     x(1) =  a
@@ -266,7 +266,7 @@ contains
     w(6) =  v
     num=num+6
     return
-    
+
 2   continue
     a=sqrt(0.5d0)
     x( 1) =  0d0
@@ -319,7 +319,7 @@ contains
     w(12) =  v
     num=num+12
     return
-    
+
 3   continue
     a = sqrt(1d0/3d0)
     x(1) =  a
@@ -356,7 +356,7 @@ contains
     w(8) =  v
     num=num+8
     return
-    
+
 4   continue
     b = sqrt(1d0 - 2d0*a*a)
     x( 1) =  a
@@ -457,7 +457,7 @@ contains
     w(24) =  v
     num=num+24
     return
-    
+
 5   continue
     b=sqrt(1d0-a*a)
     x( 1) =  a
@@ -558,7 +558,7 @@ contains
     w(24) =  v
     num=num+24
     return
-    
+
 6   continue
     c=sqrt(1d0 - a*a - b*b)
     x( 1) =  a
@@ -759,7 +759,7 @@ contains
 
   !>
   !> Lebedev quadrature, 6 points
-  !> 
+  !>
   SUBROUTINE LD0006(X,Y,Z,W,N)
     DOUBLE PRECISION X(   6)
     DOUBLE PRECISION Y(   6)
@@ -773,14 +773,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -793,23 +793,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -824,7 +824,7 @@ contains
 
   !>
   !> Lebedev quadrature, 14 points
-  !> 
+  !>
   SUBROUTINE LD0014(X,Y,Z,W,N)
     DOUBLE PRECISION X(  14)
     DOUBLE PRECISION Y(  14)
@@ -838,14 +838,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -858,23 +858,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -891,7 +891,7 @@ contains
 
   !>
   !> Lebedev quadrature, 26 points
-  !> 
+  !>
   SUBROUTINE LD0026(X,Y,Z,W,N)
     DOUBLE PRECISION X(  26)
     DOUBLE PRECISION Y(  26)
@@ -905,14 +905,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -925,23 +925,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -960,7 +960,7 @@ contains
 
   !>
   !> Lebedev quadrature, 38 points
-  !> 
+  !>
   SUBROUTINE LD0038(X,Y,Z,W,N)
     DOUBLE PRECISION X(  38)
     DOUBLE PRECISION Y(  38)
@@ -974,14 +974,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -994,23 +994,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1030,7 +1030,7 @@ contains
 
   !>
   !> Lebedev quadrature, 50 points
-  !> 
+  !>
   SUBROUTINE LD0050(X,Y,Z,W,N)
     DOUBLE PRECISION X(  50)
     DOUBLE PRECISION Y(  50)
@@ -1044,14 +1044,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1064,23 +1064,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1102,7 +1102,7 @@ contains
 
   !>
   !> Lebedev quadrature, 74 points
-  !> 
+  !>
   SUBROUTINE LD0074(X,Y,Z,W,N)
     DOUBLE PRECISION X(  74)
     DOUBLE PRECISION Y(  74)
@@ -1116,14 +1116,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1136,23 +1136,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1177,7 +1177,7 @@ contains
 
   !>
   !> Lebedev quadrature, 86 points
-  !> 
+  !>
   SUBROUTINE LD0086(X,Y,Z,W,N)
     DOUBLE PRECISION X(  86)
     DOUBLE PRECISION Y(  86)
@@ -1191,14 +1191,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1211,23 +1211,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1253,7 +1253,7 @@ contains
 
   !>
   !> Lebedev quadrature, 110 points
-  !> 
+  !>
   SUBROUTINE LD0110(X,Y,Z,W,N)
     DOUBLE PRECISION X( 110)
     DOUBLE PRECISION Y( 110)
@@ -1267,14 +1267,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1287,23 +1287,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1332,7 +1332,7 @@ contains
 
   !>
   !> Lebedev quadrature, 146 points
-  !> 
+  !>
   SUBROUTINE LD0146(X,Y,Z,W,N)
     DOUBLE PRECISION X( 146)
     DOUBLE PRECISION Y( 146)
@@ -1346,14 +1346,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1366,23 +1366,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1414,7 +1414,7 @@ contains
 
   !>
   !> Lebedev quadrature, 170 points
-  !> 
+  !>
   SUBROUTINE LD0170(X,Y,Z,W,N)
     DOUBLE PRECISION X( 170)
     DOUBLE PRECISION Y( 170)
@@ -1428,14 +1428,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1448,23 +1448,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1499,7 +1499,7 @@ contains
 
   !>
   !> Lebedev quadrature, 194 points
-  !> 
+  !>
   SUBROUTINE LD0194(X,Y,Z,W,N)
     DOUBLE PRECISION X( 194)
     DOUBLE PRECISION Y( 194)
@@ -1513,14 +1513,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1533,23 +1533,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1587,7 +1587,7 @@ contains
 
   !>
   !> Lebedev quadrature, 230 points
-  !> 
+  !>
   SUBROUTINE LD0230(X,Y,Z,W,N)
     DOUBLE PRECISION X( 230)
     DOUBLE PRECISION Y( 230)
@@ -1601,14 +1601,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1621,23 +1621,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1679,7 +1679,7 @@ contains
 
   !>
   !> Lebedev quadrature, 266 points
-  !> 
+  !>
   SUBROUTINE LD0266(X,Y,Z,W,N)
     DOUBLE PRECISION X( 266)
     DOUBLE PRECISION Y( 266)
@@ -1693,14 +1693,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1713,23 +1713,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1774,7 +1774,7 @@ contains
 
   !>
   !> Lebedev quadrature, 302 points
-  !> 
+  !>
   SUBROUTINE LD0302(X,Y,Z,W,N)
     DOUBLE PRECISION X( 302)
     DOUBLE PRECISION Y( 302)
@@ -1788,14 +1788,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1808,23 +1808,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1873,7 +1873,7 @@ contains
 
   !>
   !> Lebedev quadrature, 350 points
-  !> 
+  !>
   SUBROUTINE LD0350(X,Y,Z,W,N)
     DOUBLE PRECISION X( 350)
     DOUBLE PRECISION Y( 350)
@@ -1887,14 +1887,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -1907,23 +1907,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -1976,7 +1976,7 @@ contains
 
   !>
   !> Lebedev quadrature, 434 points
-  !> 
+  !>
   SUBROUTINE LD0434(X,Y,Z,W,N)
     DOUBLE PRECISION X( 434)
     DOUBLE PRECISION Y( 434)
@@ -1990,14 +1990,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2010,23 +2010,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2088,7 +2088,7 @@ contains
 
   !>
   !> Lebedev quadrature, 590 points
-  !> 
+  !>
   SUBROUTINE LD0590(X,Y,Z,W,N)
     DOUBLE PRECISION X( 590)
     DOUBLE PRECISION Y( 590)
@@ -2102,14 +2102,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2122,23 +2122,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2215,7 +2215,7 @@ contains
 
   !>
   !> Lebedev quadrature, 770 points
-  !> 
+  !>
   SUBROUTINE LD0770(X,Y,Z,W,N)
     DOUBLE PRECISION X( 770)
     DOUBLE PRECISION Y( 770)
@@ -2229,14 +2229,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2249,23 +2249,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2359,7 +2359,7 @@ contains
 
   !>
   !> Lebedev quadrature, 974 points
-  !> 
+  !>
   SUBROUTINE LD0974(X,Y,Z,W,N)
     DOUBLE PRECISION X( 974)
     DOUBLE PRECISION Y( 974)
@@ -2373,14 +2373,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2393,23 +2393,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2522,7 +2522,7 @@ contains
 
   !>
   !> Lebedev quadrature, 1202 points
-  !> 
+  !>
   SUBROUTINE LD1202(X,Y,Z,W,N)
     DOUBLE PRECISION X(1202)
     DOUBLE PRECISION Y(1202)
@@ -2536,14 +2536,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2556,23 +2556,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2706,7 +2706,7 @@ contains
 
   !>
   !> Lebedev quadrature, 1454 points
-  !> 
+  !>
   SUBROUTINE LD1454(X,Y,Z,W,N)
     DOUBLE PRECISION X(1454)
     DOUBLE PRECISION Y(1454)
@@ -2720,14 +2720,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2740,23 +2740,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -2913,28 +2913,28 @@ contains
 
   !>
   !> Lebedev quadrature, 1730 points
-  !> 
+  !>
   SUBROUTINE LD1730(X,Y,Z,W,N)
     DOUBLE PRECISION X(1730)
     DOUBLE PRECISION Y(1730)
     DOUBLE PRECISION Z(1730)
     DOUBLE PRECISION W(1730)
     INTEGER N
-    
+
     DOUBLE PRECISION A,B,V
     !
     !    LEBEDEV 1730-POINT ANGULAR GRID
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -2947,23 +2947,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -3145,28 +3145,28 @@ contains
 
   !>
   !> Lebedev quadrature, 2030 points
-  !> 
+  !>
   SUBROUTINE LD2030(X,Y,Z,W,N)
     DOUBLE PRECISION X(2030)
     DOUBLE PRECISION Y(2030)
     DOUBLE PRECISION Z(2030)
     DOUBLE PRECISION W(2030)
     INTEGER N
-    
+
     DOUBLE PRECISION A,B,V
     !
     !    LEBEDEV 2030-POINT ANGULAR GRID
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -3179,23 +3179,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -3404,7 +3404,7 @@ contains
 
   !>
   !> Lebedev quadrature, 2354 points
-  !> 
+  !>
   SUBROUTINE LD2354(X,Y,Z,W,N)
     DOUBLE PRECISION X(2354)
     DOUBLE PRECISION Y(2354)
@@ -3418,14 +3418,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -3438,23 +3438,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -3692,7 +3692,7 @@ contains
 
   !>
   !> Lebedev quadrature, 2702 points
-  !> 
+  !>
   SUBROUTINE LD2702(X,Y,Z,W,N)
     DOUBLE PRECISION X(2702)
     DOUBLE PRECISION Y(2702)
@@ -3706,14 +3706,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -3726,23 +3726,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -4011,7 +4011,7 @@ contains
 
   !>
   !> Lebedev quadrature, 3074 points
-  !> 
+  !>
   SUBROUTINE LD3074(X,Y,Z,W,N)
     DOUBLE PRECISION X(3074)
     DOUBLE PRECISION Y(3074)
@@ -4025,14 +4025,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -4045,23 +4045,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -4363,7 +4363,7 @@ contains
 
   !>
   !> Lebedev quadrature, 3470 points
-  !> 
+  !>
   SUBROUTINE LD3470(X,Y,Z,W,N)
     DOUBLE PRECISION X(3470)
     DOUBLE PRECISION Y(3470)
@@ -4377,14 +4377,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -4397,23 +4397,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -4750,7 +4750,7 @@ contains
 
   !>
   !> Lebedev quadrature, 3890 points
-  !> 
+  !>
   SUBROUTINE LD3890(X,Y,Z,W,N)
     DOUBLE PRECISION X(3890)
     DOUBLE PRECISION Y(3890)
@@ -4764,14 +4764,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -4784,23 +4784,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -5174,7 +5174,7 @@ contains
 
   !>
   !> Lebedev quadrature, 4334 points
-  !> 
+  !>
   SUBROUTINE LD4334(X,Y,Z,W,N)
     DOUBLE PRECISION X(4334)
     DOUBLE PRECISION Y(4334)
@@ -5188,14 +5188,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -5208,23 +5208,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -5637,7 +5637,7 @@ contains
 
   !>
   !> Lebedev quadrature, 4802 points
-  !> 
+  !>
   SUBROUTINE LD4802(X,Y,Z,W,N)
     DOUBLE PRECISION X(4802)
     DOUBLE PRECISION Y(4802)
@@ -5651,14 +5651,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -5671,23 +5671,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -6141,7 +6141,7 @@ contains
 
   !>
   !> Lebedev quadrature, 5294 points
-  !> 
+  !>
   SUBROUTINE LD5294(X,Y,Z,W,N)
     DOUBLE PRECISION X(5294)
     DOUBLE PRECISION Y(5294)
@@ -6155,14 +6155,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -6175,23 +6175,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,
@@ -6688,7 +6688,7 @@ contains
 
   !>
   !> Lebedev quadrature, 5810 points
-  !> 
+  !>
   SUBROUTINE LD5810(X,Y,Z,W,N)
     DOUBLE PRECISION X(5810)
     DOUBLE PRECISION Y(5810)
@@ -6702,14 +6702,14 @@ contains
     !
     !
     !   This subroutine is part of a set of subroutines that generate
-    !   Lebedev grids [1-6] for integration on a sphere. The original 
-    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and 
+    !   Lebedev grids [1-6] for integration on a sphere. The original
+    !   C-code [1] was kindly provided by Dr. Dmitri N. Laikov and
     !   translated into fortran by Dr. Christoph van Wuellen.
     !   This subroutine was translated using a C to fortran77 conversion
     !   tool written by Dr. Christoph van Wuellen.
     !
     !   Users of this code are asked to include reference [1] in their
-    !   publications, and in the user- and programmers-manuals 
+    !   publications, and in the user- and programmers-manuals
     !   describing their codes.
     !
     !   This code was distributed through CCL (http://www.ccl.net/).
@@ -6722,23 +6722,23 @@ contains
     !   [2] V.I. Lebedev
     !       "A quadrature formula for the sphere of 59th algebraic
     !        order of accuracy"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 50, 1995, pp. 283-286.
     !
     !   [3] V.I. Lebedev, and A.L. Skorokhodov
     !       "Quadrature formulas of orders 41, 47, and 53 for the sphere"
-    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592. 
+    !       Russian Acad. Sci. Dokl. Math., Vol. 45, 1992, pp. 587-592.
     !
     !   [4] V.I. Lebedev
     !       "Spherical quadrature formulas exact to orders 25-29"
-    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107. 
+    !       Siberian Mathematical Journal, Vol. 18, 1977, pp. 99-107.
     !
     !   [5] V.I. Lebedev
     !       "Quadratures on a sphere"
     !       Computational Mathematics and Mathematical Physics, Vol. 16,
-    !       1976, pp. 10-24. 
+    !       1976, pp. 10-24.
     !
     !   [6] V.I. Lebedev
-    !       "Values of the nodes and weights of ninth to seventeenth 
+    !       "Values of the nodes and weights of ninth to seventeenth
     !        order Gauss-Markov quadrature formulae invariant under the
     !        octahedron group with inversion"
     !       Computational Mathematics and Mathematical Physics, Vol. 15,

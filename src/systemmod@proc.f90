@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -77,12 +77,12 @@ contains
   !> Initialize a system (allocate the crystal structure)
   module subroutine system_init(s)
     class(system), intent(inout) :: s
-    
+
     call s%end()
     allocate(s%c)
 
   end subroutine system_init
-  
+
   !< Clear symmetry in the system's structure and the CP list
   module subroutine clearsym(s)
     use types, only: realloc
@@ -116,7 +116,7 @@ contains
   end subroutine clearsym
 
   !> Reset the fields, properties, and aliases to the promolecular
-  !> density.  
+  !> density.
   module subroutine reset_fields(s)
     class(system), intent(inout) :: s
 
@@ -155,7 +155,7 @@ contains
     if (id < 0 .or. id > size(s%f)) return
     if (.not.s%goodfield(id)) return
     if (maybe .and. s%refset) return
-    
+
     s%iref = id
     s%refset = .true.
 
@@ -250,7 +250,7 @@ contains
                    write (uout,'("  Alias for this field (",A,"):",A)') string(nal), str
              end if
              if (s%iref == i) then
-                write (uout,'("  This is the REFERENCE field.")') 
+                write (uout,'("  This is the REFERENCE field.")')
              end if
              write (uout,*)
           end if
@@ -330,7 +330,7 @@ contains
     end if
 
     if (lzpsp .and. allocated(s%f)) then
-       write (uout,'("* List of core and pseudopotential charges for each field")') 
+       write (uout,'("* List of core and pseudopotential charges for each field")')
        write (uout,'("# id  type   core?  ZPSP")')
        do i = 0, s%nf
           if (s%f(i)%isinit) then
@@ -385,7 +385,7 @@ contains
     integer, intent(in) :: id
     integer, intent(out) :: nal
     character(len=:), allocatable, intent(out) :: str
-    
+
     integer :: nn, j, val
     character(len=:), allocatable :: key, aux
 
@@ -403,16 +403,16 @@ contains
     end do
     aux = str(1:len_trim(str)-1)
     str = trim(aux)
-    
+
   end subroutine aliasstring
 
   !> Set up a new system using the information contained in a crystal
-  !> seed. 
+  !> seed.
   module subroutine new_from_seed(s,seed)
     use crystalseedmod, only: crystalseed
     class(system), intent(inout) :: s
     type(crystalseed), intent(in) :: seed
-    
+
     call s%init()
     call s%c%struct_new(seed,.true.)
 
@@ -452,7 +452,7 @@ contains
     character(len=:), allocatable :: str, aux
     character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
-    
+
     ! is the environment sane?
     id = -1
     if (.not.s%isinit) then
@@ -488,12 +488,12 @@ contains
           ok = ok.and.s%goodfield(key=idlist(i))
           if (.not.ok) exit
           idx = s%fieldname_to_idx(idlist(i))
-          ok = ok .and. (idx > 0 .and. idx <= s%nf) 
+          ok = ok .and. (idx > 0 .and. idx <= s%nf)
           if (.not.ok) exit
           ok = ok .and. (s%f(idx)%type == type_grid)
           if (.not.ok) exit
           if (any(n < 0)) then
-             n = s%f(idx)%grid%n 
+             n = s%f(idx)%grid%n
           else
              ok = ok .and. all(s%f(idx)%grid%n == n)
              if (.not.ok) exit
@@ -720,7 +720,7 @@ contains
 
     fid = -1
     oid = trim(adjustl(id))
-    if (s%fh%iskey(oid)) then 
+    if (s%fh%iskey(oid)) then
        fid = s%fh%get(oid,fid)
     else
        read(oid,*,iostat=ierr) fid
@@ -753,7 +753,7 @@ contains
        s%nf = s%nf + 1
        id = s%nf
     end if
-    
+
   end function getfieldnum
 
   !> Copy a field from one slot to another
@@ -850,7 +850,7 @@ contains
           inpsijchk = .true.
        elseif (equal(word,'deloc_fachk')) then
           inpfachk = .true.
-       else 
+       else
           lp = lpold
           if (isexpression_or_word(expr,line,lp)) then
              useexpr = .true.
@@ -931,7 +931,7 @@ contains
              s%propi(s%npropi)%wancut = 4d0
              s%propi(s%npropi)%sijchkfile = ""
              s%propi(s%npropi)%fachkfile = ""
-             
+
              do while (.true.)
                 lp2 = lp
                 word = lgetword(line,lp)
@@ -1125,9 +1125,9 @@ contains
     if (allocated(idlist)) deallocate(idlist)
 
   end subroutine new_pointprop_string
-  
-  !> Evaluate an arithmetic expression using the system's fields  
-  module function system_eval_expression(s,expr,hardfail,iok,x0) 
+
+  !> Evaluate an arithmetic expression using the system's fields
+  module function system_eval_expression(s,expr,hardfail,iok,x0)
     use arithmetic, only: eval
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
@@ -1178,7 +1178,7 @@ contains
 
     if (verbose) then
        if (res%isnuc) then
-          write (uout,'("  Type : nucleus")') 
+          write (uout,'("  Type : nucleus")')
        else
           write (uout,'("  Type : (",a,",",a,")")') string(res%r), string(res%s)
        end if
@@ -1325,7 +1325,7 @@ contains
     real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
-    
+
     real*8 :: fval
     logical :: ok
 
@@ -1339,5 +1339,5 @@ contains
     call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,itype)
 
   end subroutine addcp
-  
+
 end submodule proc

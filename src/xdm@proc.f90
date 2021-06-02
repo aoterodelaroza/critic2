@@ -1,23 +1,23 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 submodule (xdm) proc
   implicit none
-  
+
   !xx! private procedures
   ! subroutine xdm_grid(line)
   ! subroutine xdm_from_file(line0)
@@ -33,7 +33,7 @@ submodule (xdm) proc
   ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
-  
+
   integer, parameter :: chf_blyp = -1
   integer, parameter :: chf_b3lyp = -2
   integer, parameter :: chf_bhahlyp = -3
@@ -75,11 +75,11 @@ contains
   module subroutine xdm_driver(line)
     use global, only: eval_next
     use tools_io, only: uout, lgetword, equal, ferror, faterr
-    
+
     character*(*), intent(inout) :: line
 
     character(len=:), allocatable :: word, chfw
-    integer :: lp 
+    integer :: lp
     real*8 :: a1, a2, chf
     logical :: ok
 
@@ -506,7 +506,7 @@ contains
 
     ! allocate space for the atomic properties
     allocate(ml(3,sy%c%nneq),avol(sy%c%nneq))
-    
+
     ! check more grid sizes
     if (any(sy%f(ipdens)%grid%n /= n)) &
        call ferror("xdm_driver","incongruent sizes of rho and pdens",faterr)
@@ -542,7 +542,7 @@ contains
                    rhot = sy%f(irho)%grid%f(i,j,k)
                    wei = rhofree * rhot / max(sy%f(ipdens)%grid%f(i,j,k),1d-14)
                    db = max(ri-sy%f(ib)%grid%f(i,j,k),0d0)
-                   
+
                    ri2 = 1d0
                    db2 = 1d0
                    do l = 1, 3
@@ -558,7 +558,7 @@ contains
                    endif
                    avoll = avoll + wei * ri**3
                 end do ! i
-             end do ! j 
+             end do ! j
           end do ! k
        end do ! ll
        !$omp critical(write)
@@ -619,7 +619,7 @@ contains
           c10 = 2 * alpha(i)*alpha(j) * (ml(1,i)*ml(3,j) + ml(3,i)*ml(1,j)) /&
              (ml(1,i)*alpha(j) + ml(1,j)*alpha(i)) + 21d0/5d0 * alpha(i)*alpha(j)*&
              ml(2,i)*ml(2,j) / (alpha(j)*ml(1,i)+alpha(i)*ml(1,j))
-          
+
           rc(i,j) = (sqrt(c8/c6) + sqrt(c10/c8) + (c10/c6)**(0.25d0)) / 3
           rc(j,i) = rc(i,j)
           rvdw = a1 * rc(i,j) + a2
@@ -633,7 +633,7 @@ contains
              string(rvdw,'e',decimal=10,length=18,justify=5)
        end do
     end do
-    if (.true.) then 
+    if (.true.) then
        write (uout,*)
        write (uout,'("# i   j   k             C9")')
        do ii = 1, sy%c%ncel
@@ -727,8 +727,8 @@ contains
              end do
           end do
        end do ! jj
-       etotal = etotal + eat 
-       sigma = sigma + sat 
+       etotal = etotal + eat
+       sigma = sigma + sat
     end do ! ii
     etotal= - 0.5d0 * etotal
     sigma = - 0.5d0 * sigma / sy%c%omega
@@ -736,7 +736,7 @@ contains
     if (allocated(eid)) deallocate(eid)
     if (allocated(dist)) deallocate(dist)
     if (isealloc) deallocate(lenv)
-     
+
     write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
        string(etotal,'e',decimal=10), string(etotal*2,'e',decimal=10)
     do nn = 6, 10, 2
@@ -765,7 +765,7 @@ contains
     write (uout,'("                    ",3(A,X)," ")') (string(sigma(2,j)*autogpa,'e',decimal=10),j=1,3)
     write (uout,'("                    ",3(A,X)," ")') (string(sigma(3,j)*autogpa,'e',decimal=10),j=1,3)
     write (uout,*)
-    
+
 999 continue
 
     ! cleanup
@@ -792,7 +792,7 @@ contains
     logical :: ok, inbetween
     integer :: nfrom, nto
     integer, allocatable :: ifrom(:), ito(:)
-    
+
     ! allocate space for the XDM info
     p%nat = sy%c%ncel
     allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
@@ -947,7 +947,7 @@ contains
     else
        call xdm_read_postg(file,p)
     end if
-    
+
     ! calculate and print out the energy
     call calc_edisp(p)
 
@@ -961,7 +961,7 @@ contains
     use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(xdmparams), intent(inout) :: p
-    
+
     integer :: lu
     logical :: ok, good
     integer :: i, j, idx, idx1, idx2
@@ -1044,7 +1044,7 @@ contains
     use param, only: bohrtoa
     character*(*), intent(in) :: file
     type(xdmparams), intent(inout) :: p
-    
+
     integer :: lu, lp
     integer :: i, j, idx1, idx2
     real*8 :: rdum
@@ -1128,7 +1128,7 @@ contains
     integer :: i, j, k
 
     if (.not.p%usec9) return
-    
+
     ! calculate the c9 coefficients
     if (allocated(p%c9)) deallocate(p%c9)
     allocate(p%c9(sy%c%ncel,sy%c%ncel,sy%c%ncel))
@@ -1138,7 +1138,7 @@ contains
              mra = mm(1,i) / (v(i) / vfree(i) * alpha_free(sy%c%spc(sy%c%atcel(i)%is)%z))
              mrb = mm(1,j) / (v(j) / vfree(j) * alpha_free(sy%c%spc(sy%c%atcel(j)%is)%z))
              mrc = mm(1,k) / (v(k) / vfree(k) * alpha_free(sy%c%spc(sy%c%atcel(k)%is)%z))
-             p%c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc) 
+             p%c9(i,j,k) = mm(1,i) * mm(1,j) * mm(1,k) * (mra+mrb+mrc) / (mra+mrb) / (mra+mrc) / (mrb+mrc)
              p%c9(j,k,i) = p%c9(i,j,k)
              p%c9(k,i,j) = p%c9(i,j,k)
              p%c9(i,k,j) = p%c9(i,j,k)
@@ -1149,7 +1149,7 @@ contains
     end do
 
   end subroutine xdm_calculate_c9
-    
+
 
   !> Calculate XDM from the information in a QE output
   subroutine xdm_excitation(line0)
@@ -1166,7 +1166,7 @@ contains
     real*8 :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1), mm(3,sy%c%ncel,0:1)
     logical :: haveit(sy%c%ncel,0:1)
     integer :: lvec(3,sy%c%ncel,0:1)
-    
+
     write (uout,'("* XDM dispersion for ground and excited states in a crystal")')
 
     lp = 1
@@ -1175,7 +1175,7 @@ contains
     if (.not.ok) &
        call ferror("xdm_excitation","wrong a1 or a2 in XDM EXCITATION",faterr)
     a2 = a2 / bohrtoa
-    
+
     ! read the inputs
     haveit = .false.
     v = 0d0
@@ -1235,7 +1235,7 @@ contains
     real*8, intent(inout) :: mm(3,sy%c%ncel,0:1)
     integer, intent(inout) :: lvec(3,sy%c%ncel,0:1)
     integer, intent(in) :: inow
-    
+
     logical :: ok
     integer :: lu, i, nat, lp, id, idx, idmap(sy%c%ncel)
     character(len=:), allocatable :: line, w1, w2
@@ -1283,7 +1283,7 @@ contains
     use global, only: mesh_type, mesh_level
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
     use param, only: bohrtoa, im_rho, im_null, im_b, icrd_cart
-    
+
     real*8, intent(in) :: a1o, a2o
     real*8, intent(in) :: chf
 
@@ -1299,7 +1299,7 @@ contains
     allocate(mm(3,sy%c%ncel),v(sy%c%ncel))
     allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
     allocate(p%rvdw(sy%c%ncel,sy%c%ncel))
-    
+
     ! only for wfn or dftb
     if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb) &
        call ferror("xdm_wfn","molecular XDM only for wfn and dftb fields",faterr)
@@ -1347,11 +1347,11 @@ contains
     call m%gen(sy%c,mesh_type,mesh_level)
     call m%report()
 
-    ! properties to calculate 
+    ! properties to calculate
     prop(1) = im_rho
     prop(2) = im_null ! for promolecular / hirshfeld weights
     prop(3) = im_null ! for the atomic density contribution
-    prop(4) = im_b    
+    prop(4) = im_b
 
     ! fill the mesh with those properties
     call m%fill(sy%f(sy%iref),prop(1:4),.not.sy%c%ismolecule)
@@ -1667,23 +1667,23 @@ contains
     ! special cases
     if (chf < 0d0 .and. (z<19.or.z>20.and.z<37)) then ! up to Kr except K and Ca
        select case(nint(chf))
-       case(chf_blyp) 
+       case(chf_blyp)
           frevol = frevol_blyp(z)
-       case(chf_b3lyp) 
+       case(chf_b3lyp)
           frevol = frevol_b3lyp(z)
-       case(chf_bhahlyp) 
+       case(chf_bhahlyp)
           frevol = frevol_bhahlyp(z)
-       case(chf_camb3lyp) 
+       case(chf_camb3lyp)
           frevol = frevol_camb3lyp(z)
-       case(chf_pbe) 
+       case(chf_pbe)
           frevol = frevol_pbe(z)
-       case(chf_pbe0) 
+       case(chf_pbe0)
           frevol = frevol_pbe0(z)
-       case(chf_lcwpbe) 
+       case(chf_lcwpbe)
           frevol = frevol_lcwpbe(z)
-       case(chf_pw86) 
+       case(chf_pw86)
           frevol = frevol_pw86(z)
-       case(chf_b971) 
+       case(chf_b971)
           frevol = frevol_b971(z)
        case default
           call ferror("frevol","unknown functional",faterr)
@@ -1692,23 +1692,23 @@ contains
        ! general hybrid
        if (chf < 0d0) then
           select case(nint(chf))
-          case(chf_blyp) 
+          case(chf_blyp)
              rchf = 0d0
-          case(chf_b3lyp) 
+          case(chf_b3lyp)
              rchf = 0.2d0
-          case(chf_bhahlyp) 
+          case(chf_bhahlyp)
              rchf = 0.5d0
-          case(chf_camb3lyp) 
+          case(chf_camb3lyp)
              rchf = 0.2d0
-          case(chf_pbe) 
+          case(chf_pbe)
              rchf = 0.0d0
-          case(chf_pbe0) 
+          case(chf_pbe0)
              rchf = 0.25d0
-          case(chf_lcwpbe) 
+          case(chf_lcwpbe)
              rchf = 0.25d0
-          case(chf_pw86) 
+          case(chf_pw86)
              rchf = 0.0d0
-          case(chf_b971) 
+          case(chf_b971)
              rchf = 0.21d0
           case default
              call ferror("frevol","unknown functional",faterr)
@@ -1793,7 +1793,7 @@ contains
           if (i < j) cycle
           if (lenv%spc(lenv%at(eid(jj))%is)%z < 1) cycle
           if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
-          
+
           d = dist(jj)
           if (i > j) then
              div = 1d0
@@ -1805,7 +1805,7 @@ contains
           if (p%usec10) e10 = e10 - p%c10(i,j) / (p%rvdw(i,j)**10 + d**10) / div
        end do
     end do
-    
+
     ! calculate the energies and derivatives
     e9 = 0d0
     if (p%usec9) then
@@ -1863,7 +1863,7 @@ contains
                 ci = min(max(dot_product(xij,xik) / dij / dik,-1d0),1d0)
                 cj = min(max(dot_product(-xij,xjk) / dij / djk,-1d0),1d0)
                 ck = min(max(dot_product(-xik,-xjk) / dik / djk,-1d0),1d0)
-                
+
                 bij = p%a91 * ((sqrt(p%c8(i,j)/p%c6(i,j)) + sqrt(p%c10(i,j)/p%c8(i,j)) + &
                    (p%c10(i,j)/p%c6(i,j))**(0.25d0)) / 3d0) + p%a92
                 bik = p%a91 * ((sqrt(p%c8(i,k)/p%c6(i,k)) + sqrt(p%c10(i,k)/p%c8(i,k)) + &
@@ -2009,7 +2009,7 @@ contains
           c10 = 2 * alpha1*alpha0 * (ml1(1)*ml0(3) + ml1(3)*ml0(1)) /&
              (ml1(1)*alpha0 + ml0(1)*alpha1) + 21d0/5d0 * alpha1*alpha0*&
              ml1(2)*ml0(2) / (alpha0*ml1(1)+alpha1*ml0(1))
-        
+
           rc = (sqrt(c8/c6) + sqrt(c10/c8) + (c10/c6)**(0.25d0)) / 3
           rvdw = a1 * rc + a2
 
@@ -2058,7 +2058,7 @@ contains
 
     ! coefficients and distances
     write (uout,'("coefficients (a.u.)")')
-    write (uout,'("# i  j       C6               C8               C10              Rc           Rvdw")') 
+    write (uout,'("# i  j       C6               C8               C10              Rc           Rvdw")')
     do i = 1, sy%c%ncel
        iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
@@ -2119,7 +2119,7 @@ contains
     igrad = sy%getfieldnum()
     call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
     sy%f(igrad)%isinit = .true.
-    
+
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
     g = sqrt(1d0 / max(min(sy%f(ielf)%grid%f,1d0),1d-14) - 1d0)
     g = g * (ctf * max(sy%f(irho)%grid%f,0d0)**(5d0/3d0))

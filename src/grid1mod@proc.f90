@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -51,7 +51,7 @@ contains
     if (allocated(g%f)) deallocate(g%f)
     if (allocated(g%fp)) deallocate(g%fp)
     if (allocated(g%fpp)) deallocate(g%fpp)
-    
+
   end subroutine grid1_end
 
   !> Read a density core file from the database.
@@ -139,7 +139,7 @@ contains
   module subroutine grid1_register_core(iz,iq)
     use param, only: maxzat0, maxzat
     integer, intent(in) :: iz, iq
-    
+
     integer :: i, j
 
     if (iz <= 0 .or. iz > maxzat) return
@@ -161,13 +161,13 @@ contains
     call cgrid(iz,iq)%read_db(iz,iq)
 
   end subroutine grid1_register_core
-    
+
   !> Read the all-electron density from the internal density tables
   !> for atom with Z = iz.
   module subroutine grid1_register_ae(iz)
     use param, only: maxzat0, maxzat
     integer, intent(in) :: iz
-    
+
     integer :: i
 
     if (iz <= 0 .or. iz > maxzat) return
@@ -187,7 +187,7 @@ contains
     call agrid(iz)%read_db(iz,0)
 
   end subroutine grid1_register_ae
-    
+
   !> Deallocate the core and all-electron density grid
   module subroutine grid1_clean_grids()
 

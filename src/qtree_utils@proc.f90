@@ -1,17 +1,17 @@
 ! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
-! <victor@fluor.quimica.uniovi.es>. 
+! <victor@fluor.quimica.uniovi.es>.
 !
 ! critic2 is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or (at
 ! your option) any later version.
-! 
+!
 ! critic2 is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -140,7 +140,7 @@ contains
        write (luo,'(2X,A,I4,A,F10.6,A,3(F6.2,X))') &
           "type ", 2*i, " pointrad ", diab, " pointrgb ", real(JMLcol2(:,zz),8)/255d0
     end do
-    
+
     if (plot_mode == 3 .or. plot_mode == 4 .or. plot_mode == 5) then
        lend = leqv
     else
@@ -310,7 +310,7 @@ contains
 
     diab = minlen / 2**maxl / 3d0
     write (ludif,'(A,F10.6,A)') "type 1 pointrad ", diab, " pointrgb 0.8 0.8 0.8"
-    
+
   end subroutine open_difftess
 
   !> Write the ending and close a tessel input file.
@@ -338,11 +338,11 @@ contains
   module subroutine getkeast()
     use keast, only: keast_rule_num, keast_order_num
     use tools_io, only: uout
-    
+
     integer*4 :: num
     integer*4 :: i, order
     integer, parameter :: kprec(10) = (/0, 1, 2, 3, 4, 4, 5, 6, 7, 8/)
-    
+
     call keast_rule_num(num)
 
     write (uout,'("* KEAST integration routines, by J. Burkardt et al. (see keast/)")')
