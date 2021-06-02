@@ -4,7 +4,5 @@
 ## labels: regression quick
 crystal ../zz_source/fhiaims-210223/pbs2/geometry.in
 write 031_crystal_aimsin_gen_1.cri
-write bleh.scf.in
 crystal ../zz_source/fhiaims-210223/sioh/geometry.in
 write 031_crystal_aimsin_gen_2.cri
-write bleh2.scf.in

@@ -6,7 +6,7 @@ set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
 #set(TEST_URL
 #  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
 #  )
-set(TEST_SHA1_HASH 3c949eef730bd092ad8930be3d106b37802b46bb)
+#set(TEST_SHA1_HASH 3c949eef730bd092ad8930be3d106b37802b46bb)
 
 ## list of test bundles
 set(TESTDIRS
@@ -44,7 +44,7 @@ macro (runtests)
     string(REGEX REPLACE "^ *#.*labels *:" "" label_list "${label_list}")
 
     ## skip tests if we have no package unless they are self-contained
-    if (NOT "${TEST_PACKAGE_FOUND}" AND NOT ${label_list} MATCHES nodata)
+    if (NOT "${TEST_DIR_FOUND}" AND NOT ${label_list} MATCHES nodata)
       continue()
     endif()
 
@@ -136,28 +136,21 @@ macro (runtests)
   endforeach()
 endmacro()
 
-## if the file exists, calculate the hash and verify
-if (EXISTS "${TEST_PACKAGE_TARGET}")
-  file(SHA1 "${TEST_PACKAGE_TARGET}" _hash)
-  if ("${_hash}" STREQUAL "${TEST_SHA1_HASH}")
-    set(TEST_PACKAGE_FOUND "YES")
-  endif()
+## unpack the package if necessary
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/" AND EXISTS "${TEST_PACKAGE_TARGET}")
+  message(STATUS "Unpacking the data for tests in ${CMAKE_CURRENT_SOURCE_DIR}/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "${TEST_PACKAGE_TARGET}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
-## unpack data for the tests (source)
-if ("${TEST_PACKAGE_FOUND}")
-  if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source/")
-    message(STATUS "Unpacking the data for tests in ${CMAKE_CURRENT_SOURCE_DIR}/")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar "xJf" "${TEST_PACKAGE_TARGET}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-  endif()
+## create symlink for the test data (build)
+if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
+  message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
+endif()
 
-  ## create symlink for the test data (build)
-  if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/zz_source/")
-    message(STATUS "Creating symlink for tests in ${CMAKE_CURRENT_BINARY_DIR}/")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/zz_source" "${CMAKE_CURRENT_BINARY_DIR}/zz_source")
-  endif()
-else()
-  message(STATUS "Skipping tests because test data package could not be found or downloaded.")
+## set the flag
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/zz_source")
+  set(TEST_DIR_FOUND "YES")
 endif()
 
 ## process all subdirectories
