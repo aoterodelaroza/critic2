@@ -2473,12 +2473,16 @@ contains
     w = matmul(phi,flist)
     
     ! sum the contributions
-    x1 = caux%x2c(x0 * f%n - i0)
+    x1 = caux%x2c(x0 * f%n - i0 + 1)
     y = 0d0
     do i = 1, nlist
        xh = x1 - xlist(:,i)
        dd = dot_product(xh,xh)
-       ff = dd * dd * log(sqrt(dd))
+       if (dd > 1d-15) then
+          ff = dd * dd * log(sqrt(dd))
+       else
+          ff = 0d0
+       end if
        y = y + w(i) * ff
     end do
     y = y + w(nlist+1) + w(nlist+2) * x1(1) + w(nlist+3) * x1(2) + w(nlist+4) * x1(3)
