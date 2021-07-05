@@ -53,6 +53,7 @@ module grid3mod
      logical :: iswan = .false. !< does it have wannier info?
      integer :: mode !< interpolation mode
      integer :: n(3) !< number of grid points in each direction
+     real*8 :: x2c(3,3) !< the crystallographic to Cartesian conversion matrix
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
      type(qedat) :: qe !< QE band states and Wannier function transformation
@@ -88,15 +89,17 @@ module grid3mod
   integer, parameter :: mode_trilinear = 2 !< interpolation mode: trilinear
   integer, parameter :: mode_trispline = 3 !< interpolation mode: trispline
   integer, parameter :: mode_tricubic = 4 !< interpolation mode: tricubic
+  integer, parameter :: mode_test = 5 !< testing
   integer, parameter :: mode_default = mode_tricubic
 
   interface
-     module subroutine new_eval(f,sptr,n,expr)
+     module subroutine new_eval(f,sptr,n,expr,x2c)
        use iso_c_binding, only: c_ptr
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: sptr
        integer, intent(in) :: n(3)
        character(*), intent(in) :: expr
+       real*8, intent(in) :: x2c(3,3)
      end subroutine new_eval
      module subroutine grid_end(f)
        class(grid3), intent(inout) :: f
@@ -109,51 +112,61 @@ module grid3mod
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: norm, omega
      end subroutine normalize
-     module subroutine from_array3(f,g)
+     module subroutine from_array3(f,g,x2c)
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in) :: x2c(3,3)
      end subroutine from_array3
-     module subroutine read_cube(f,file)
+     module subroutine read_cube(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_cube
-     module subroutine read_bincube(f,file)
+     module subroutine read_bincube(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_bincube
-     module subroutine read_siesta(f,file)
+     module subroutine read_siesta(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_siesta
-     module subroutine read_abinit(f,file)
+     module subroutine read_abinit(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_abinit
-     module subroutine read_vasp(f,file,omega,ibl)
+     module subroutine read_vasp(f,file,x2c,vscal,ibl)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
-       real*8, intent(in) :: omega !< Cell volume
+       real*8, intent(in) :: x2c(3,3)
+       logical, intent(in) :: vscal
        integer, intent(in), optional :: ibl !< grid block to read
      end subroutine read_vasp
-     module subroutine read_qub(f,file)
+     module subroutine read_qub(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_qub
-     module subroutine read_xsf(f,file)
+     module subroutine read_xsf(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_xsf
-     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax)
+     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)
        integer, intent(in) :: ispin
        integer, intent(in), allocatable :: ikpt(:)
        integer, intent(in), allocatable :: ibnd(:)
        real*8, intent(in) :: emin, emax
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_pwc
-     module subroutine read_elk(f,file)
+     module subroutine read_elk(f,file,x2c)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file !< Input file
+       real*8, intent(in) :: x2c(3,3)
      end subroutine read_elk
      module subroutine read_wannier_chk(f,fileup,filedn)
        class(grid3), intent(inout) :: f
@@ -167,21 +180,18 @@ module grid3mod
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
      end subroutine interp
-     module subroutine laplacian_hxx(flap,frho,x2c,ix)
+     module subroutine laplacian_hxx(flap,frho,ix)
        class(grid3), intent(inout) :: flap
        type(grid3), intent(in) :: frho
-       real*8, intent(in) :: x2c(3,3)
        integer, intent(in) :: ix
      end subroutine laplacian_hxx
-     module subroutine gradrho(fgrho,frho,x2c)
+     module subroutine gradrho(fgrho,frho)
        class(grid3), intent(inout) :: fgrho
        type(grid3), intent(in) :: frho
-       real*8, intent(in) :: x2c(3,3)
      end subroutine gradrho
-     module subroutine pot(fpot,frho,x2c,isry)
+     module subroutine pot(fpot,frho,isry)
        class(grid3), intent(inout) :: fpot
        type(grid3), intent(in) :: frho
-       real*8, intent(in) :: x2c(3,3)
        logical, intent(in) :: isry
      end subroutine pot
      module subroutine resample(frs,frho,n2)

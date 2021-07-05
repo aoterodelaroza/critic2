@@ -330,7 +330,7 @@ contains
 
   !> Build a 3d grid of dimension n using an arithmetic expression
   !> (expr). sptr = C pointer to the associated system.
-  module subroutine new_eval(f,sptr,n,expr)
+  module subroutine new_eval(f,sptr,n,expr,x2c)
     use arithmetic, only: eval_grid
     use types, only: realloc
     use iso_c_binding, only: c_ptr
@@ -338,11 +338,13 @@ contains
     type(c_ptr), intent(in) :: sptr
     integer, intent(in) :: n(3)
     character(*), intent(in) :: expr
+    real*8, intent(in) :: x2c(3,3)
 
     logical :: iok
 
     call f%end()
     f%n = n
+    f%x2c = x2c
     f%mode = mode_default
     f%isinit = .true.
     allocate(f%f(n(1),n(2),n(3)))
@@ -384,7 +386,9 @@ contains
     character(len=:), allocatable :: lmode
 
     lmode = lower(mode)
-    if (equal(lmode,'tricubic')) then
+    if (equal(lmode,'test')) then
+       f%mode = mode_test
+    else if (equal(lmode,'tricubic')) then
        f%mode = mode_tricubic
     else if (equal(lmode,'trispline')) then
        f%mode = mode_trispline
@@ -410,10 +414,11 @@ contains
   end subroutine normalize
 
   !> Build a grid field from a three-dimensional array
-  module subroutine from_array3(f,g)
+  module subroutine from_array3(f,g,x2c)
     use tools_io, only: ferror, faterr
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: istat, n(3)
 
@@ -422,6 +427,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
+    f%x2c = x2c
     n = ubound(g) - lbound(g) + 1
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -432,10 +438,11 @@ contains
   end subroutine from_array3
 
   !> Read a grid in Gaussian CUBE format
-  module subroutine read_cube(f,file)
+  module subroutine read_cube(f,file,x2c)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc
     integer :: nat
@@ -469,6 +476,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
+    f%x2c = x2c
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -481,10 +489,11 @@ contains
   end subroutine read_cube
 
   !> Read a grid in binary CUBE format
-  module subroutine read_bincube(f,file)
+  module subroutine read_bincube(f,file,x2c)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc
     integer :: nat
@@ -513,6 +522,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
+    f%x2c = x2c
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -525,10 +535,11 @@ contains
   end subroutine read_bincube
 
   !> Read a grid in siesta RHO format
-  module subroutine read_siesta(f,file)
+  module subroutine read_siesta(f,file,x2c)
     use tools_io, only: fopen_read, faterr, ferror, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
@@ -549,6 +560,7 @@ contains
     read (luc) r
     read (luc) n, nspin
     f%n = n
+    f%x2c = x2c
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -572,11 +584,12 @@ contains
   end subroutine read_siesta
 
   !> Read a grid in abinit format
-  module subroutine read_abinit(f,file)
+  module subroutine read_abinit(f,file,x2c)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use abinit_private, only: hdr_type, hdr_io
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     character(len=:), allocatable :: errmsg
     integer :: luc
@@ -597,6 +610,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = hdr%ngfft(:)
+    f%x2c = x2c
     n = f%n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -616,13 +630,15 @@ contains
   !> cell volume used to divide the grid values (the CHGCAR contains
   !> density * omega). In CHGCAR containing more than one grid block,
   !> ibl can be used to choose which block to read (density, spin
-  !> density, etc.)
-  module subroutine read_vasp(f,file,omega,ibl)
+  !> density, etc.). If vscal, scale by volume.
+  module subroutine read_vasp(f,file,x2c,vscal,ibl)
+    use tools_math, only: det3
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
        isinteger
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
-    real*8, intent(in) :: omega !< Cell volume
+    real*8, intent(in) :: x2c(3,3)
+    logical, intent(in) :: vscal
     integer, intent(in), optional :: ibl
 
     integer :: luc
@@ -647,6 +663,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%n(:) = n
+    f%x2c = x2c
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_vasp','Error allocating grid',faterr,file)
@@ -673,16 +690,18 @@ contains
           ibcur = ibcur + 1
        end do
     end if
-    f%f(:,:,:) = f%f(:,:,:) / omega
+    if (vscal) &
+       f%f(:,:,:) = f%f(:,:,:) / det3(x2c)
     call fclose(luc)
 
   end subroutine read_vasp
 
   !> Read a grid in aimpac qub format
-  module subroutine read_qub(f,file)
+  module subroutine read_qub(f,file,x2c)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc
     integer :: istat, n(3), i, j, k
@@ -698,6 +717,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
+    f%x2c = x2c
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -711,12 +731,13 @@ contains
   end subroutine read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  module subroutine read_xsf(f,file)
+  module subroutine read_xsf(f,file,x2c)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
     use types, only: realloc
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc
     integer :: istat, n(3), lp, i, j, k
@@ -767,6 +788,7 @@ contains
     if (istat /= 0) &
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
     f%n = n - 1
+    f%x2c = x2c
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -799,7 +821,7 @@ contains
   !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
   !> ikpt = use only the indicated k-points. ibnd = use only the
   !> indicated bands. emin,emax: only the bands in the energy range.
-  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax)
+  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c)
     use tools_math, only: det3
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
@@ -808,6 +830,7 @@ contains
     integer, intent(in), allocatable :: ikpt(:)
     integer, intent(in), allocatable :: ibnd(:)
     real*8, intent(in) :: emin, emax
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: i, is, ik, ib, iver
     integer :: luc
@@ -823,6 +846,7 @@ contains
     f%qe%fpwc = fpwc
     f%isqe = .true.
     f%iswan = .false.
+    f%x2c = x2c
 
     ! open file
     luc = fopen_read(fpwc,form="unformatted")
@@ -955,10 +979,11 @@ contains
   end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  module subroutine read_elk(f,file)
+  module subroutine read_elk(f,file,x2c)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
 
     integer :: luc, ios
     integer :: n(3), i, j, k
@@ -974,6 +999,7 @@ contains
     if (ios /= 0) &
        call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
 
+    f%x2c = x2c
     f%n = n
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
@@ -1174,21 +1200,21 @@ contains
        call grinterp_trispline(f,x0,y,yp,ypp)
     else if (f%mode == mode_tricubic) then
        call grinterp_tricubic(f,x0,y,yp,ypp)
+    else if (f%mode == mode_test) then
+       call grinterp_test(f,x0,y,yp,ypp)
     end if
 
   end subroutine interp
 
   !> Given the grid field in frho calculate the laplacian or Hessian
-  !> derivatives of frho with FFT and save them in flap. x2c is the
-  !> crystallographic to Cartesian matrix for this grid. ix can be
+  !> derivatives of frho with FFT and save them in flap. ix can be
   !> one of 0 (lap), 1 (hxx), 2 (hyy), 3 (hzz).
-  module subroutine laplacian_hxx(flap,frho,x2c,ix)
+  module subroutine laplacian_hxx(flap,frho,ix)
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
     use param, only: pi
     class(grid3), intent(inout) :: flap
     type(grid3), intent(in) :: frho
-    real*8, intent(in) :: x2c(3,3)
     integer, intent(in) :: ix
 
     integer :: n(3), i1, i2, i3, ntot, igfft
@@ -1203,15 +1229,16 @@ contains
     ! allocate slot
     n = frho%n
     flap%n = n
+    flap%x2c = frho%x2c
     flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! reciprocal lattice vectors
-    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
-    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
-    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
+    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
+    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
+    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
+    bvec = 2d0 * pi / abs(det3(frho%x2c)) * bvec
 
     ! prepare the vectors
     allocate(vgc(3,ntot))
@@ -1250,15 +1277,13 @@ contains
 
   end subroutine laplacian_hxx
 
-  !> Calculate the gradient norm of a scalar field using FFT. x2c is
-  !> the crystallographic to Cartesian matrix for this grid.
-  module subroutine gradrho(fgrho,frho,x2c)
+  !> Calculate the gradient norm of a scalar field using FFT.
+  module subroutine gradrho(fgrho,frho)
     use tools_io, only: faterr, ferror
     use tools_math, only: det3, cross
     use param, only: pi
     class(grid3), intent(inout) :: fgrho
     type(grid3), intent(in) :: frho
-    real*8, intent(in) :: x2c(3,3)
 
     integer :: n(3), i, i1, i2, i3, ntot, igfft
     complex*16, allocatable :: zaux(:)
@@ -1272,15 +1297,16 @@ contains
     ! allocate slot
     n = frho%n
     fgrho%n = n
+    fgrho%x2c = frho%x2c
     fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! reciprocal lattice vectors
-    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
-    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
-    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
+    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
+    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
+    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
+    bvec = 2d0 * pi / abs(det3(frho%x2c)) * bvec
 
     ! prepare the vectors
     allocate(vgc(3,ntot))
@@ -1320,18 +1346,16 @@ contains
   end subroutine gradrho
 
   !> Given the grid field in frho, calculate the electrostatic
-  !> (Hartree) potential generated by it in fpot using FFT. x2c is the
-  !> crystallographic to Cartesian matrix for this grid.  The k=0
+  !> (Hartree) potential generated by it in fpot using FFT. The k=0
   !> coefficient of the potential Fourier expansion (and thus the
   !> average potential) is set to zero. If isry is .true., then the
   !> output potential is in Ry; otherwise in Hartree.
-  module subroutine pot(fpot,frho,x2c,isry)
+  module subroutine pot(fpot,frho,isry)
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
     use param, only: pi
     class(grid3), intent(inout) :: fpot
     type(grid3), intent(in) :: frho
-    real*8, intent(in) :: x2c(3,3)
     logical, intent(in) :: isry
 
     integer :: n(3), i1, i2, i3, ntot, igfft
@@ -1346,15 +1370,16 @@ contains
     ! allocate slot
     n = frho%n
     fpot%n = n
+    fpot%x2c = frho%x2c
     fpot%isinit = .true.
     fpot%mode = mode_default
     ntot = n(1) * n(2) * n(3)
 
     ! reciprocal lattice vectors
-    bvec(:,1) = cross(x2c(:,3),x2c(:,2))
-    bvec(:,2) = cross(x2c(:,1),x2c(:,3))
-    bvec(:,3) = cross(x2c(:,2),x2c(:,1))
-    bvec = 2d0 * pi / abs(det3(x2c)) * bvec
+    bvec(:,1) = cross(frho%x2c(:,3),frho%x2c(:,2))
+    bvec(:,2) = cross(frho%x2c(:,1),frho%x2c(:,3))
+    bvec(:,3) = cross(frho%x2c(:,2),frho%x2c(:,1))
+    bvec = 2d0 * pi / abs(det3(frho%x2c)) * bvec
 
     ! prepare the vectors
     allocate(vgc(3,ntot))
@@ -1414,6 +1439,7 @@ contains
 
     ! allocate slot
     frs%n = n2
+    frs%x2c = frho%x2c
     frs%isinit = .true.
     frs%mode = mode_default
 
@@ -2334,6 +2360,167 @@ contains
     end do
 
   end subroutine grinterp_tricubic
+
+  !> Testing
+  subroutine grinterp_test(f,xi,y,yp,ypp)
+    class(grid3), intent(inout), target :: f !< Input grid
+    real*8, intent(in) :: xi(3) !< Target point
+    real*8, intent(out) :: y !< Interpolated value
+    real*8, intent(out) :: yp(3) !< First derivative
+    real*8, intent(out) :: ypp(3,3) !< Second derivative
+
+    ! initialize
+    y = 0d0
+    yp = 0d0
+    ypp = 0d0
+
+    ! ! fetch values at the cube vertices
+    ! x = modulo(xi,1d0)
+    ! idx = grid_floor(f,x)
+    ! do i = -1, 2
+    !    do j = -1, 2
+    !       do k = -1, 2
+    !          iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
+    !          g(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
+    !       end do
+    !    end do
+    ! end do
+
+    ! ! Fill the values in the b-vector (see Lekien and Marsden)
+    ! ! f
+    ! b(1) = g(0,0,0)
+    ! b(2) = g(1,0,0)
+    ! b(3) = g(0,1,0)
+    ! b(4) = g(1,1,0)
+    ! b(5) = g(0,0,1)
+    ! b(6) = g(1,0,1)
+    ! b(7) = g(0,1,1)
+    ! b(8) = g(1,1,1)
+
+    ! ! fx
+    ! b(9)  = 0.5d0*(g(1,0,0)-g(-1,0,0))
+    ! b(10) = 0.5d0*(g(2,0,0)-g(0,0,0))
+    ! b(11) = 0.5d0*(g(1,1,0)-g(-1,1,0))
+    ! b(12) = 0.5d0*(g(2,1,0)-g(0,1,0))
+    ! b(13) = 0.5d0*(g(1,0,1)-g(-1,0,1))
+    ! b(14) = 0.5d0*(g(2,0,1)-g(0,0,1))
+    ! b(15) = 0.5d0*(g(1,1,1)-g(-1,1,1))
+    ! b(16) = 0.5d0*(g(2,1,1)-g(0,1,1))
+
+    ! ! fy
+    ! b(17) = 0.5d0*(g(0,1,0)-g(0,-1,0))
+    ! b(18) = 0.5d0*(g(1,1,0)-g(1,-1,0))
+    ! b(19) = 0.5d0*(g(0,2,0)-g(0,0,0))
+    ! b(20) = 0.5d0*(g(1,2,0)-g(1,0,0))
+    ! b(21) = 0.5d0*(g(0,1,1)-g(0,-1,1))
+    ! b(22) = 0.5d0*(g(1,1,1)-g(1,-1,1))
+    ! b(23) = 0.5d0*(g(0,2,1)-g(0,0,1))
+    ! b(24) = 0.5d0*(g(1,2,1)-g(1,0,1))
+
+    ! ! fz
+    ! b(25) = 0.5d0*(g(0,0,1)-g(0,0,-1))
+    ! b(26) = 0.5d0*(g(1,0,1)-g(1,0,-1))
+    ! b(27) = 0.5d0*(g(0,1,1)-g(0,1,-1))
+    ! b(28) = 0.5d0*(g(1,1,1)-g(1,1,-1))
+    ! b(29) = 0.5d0*(g(0,0,2)-g(0,0,0))
+    ! b(30) = 0.5d0*(g(1,0,2)-g(1,0,0))
+    ! b(31) = 0.5d0*(g(0,1,2)-g(0,1,0))
+    ! b(32) = 0.5d0*(g(1,1,2)-g(1,1,0))
+
+    ! ! fxy
+    ! b(33) = 0.25d0*(g(1,1,0)-g(-1,1,0)-g(1,-1,0)+g(-1,-1,0))
+    ! b(34) = 0.25d0*(g(2,1,0)-g(0,1,0)-g(2,-1,0)+g(0,-1,0))
+    ! b(35) = 0.25d0*(g(1,2,0)-g(-1,2,0)-g(1,0,0)+g(-1,0,0))
+    ! b(36) = 0.25d0*(g(2,2,0)-g(0,2,0)-g(2,0,0)+g(0,0,0))
+    ! b(37) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1))
+    ! b(38) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1))
+    ! b(39) = 0.25d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1))
+    ! b(40) = 0.25d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1))
+
+    ! ! fxz
+    ! b(41) = 0.25d0*(g(1,0,1)-g(-1,0,1)-g(1,0,-1)+g(-1,0,-1))
+    ! b(42) = 0.25d0*(g(2,0,1)-g(0,0,1)-g(2,0,-1)+g(0,0,-1))
+    ! b(43) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,1,-1)+g(-1,1,-1))
+    ! b(44) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,1,-1)+g(0,1,-1))
+    ! b(45) = 0.25d0*(g(1,0,2)-g(-1,0,2)-g(1,0,0)+g(-1,0,0))
+    ! b(46) = 0.25d0*(g(2,0,2)-g(0,0,2)-g(2,0,0)+g(0,0,0))
+    ! b(47) = 0.25d0*(g(1,1,2)-g(-1,1,2)-g(1,1,0)+g(-1,1,0))
+    ! b(48) = 0.25d0*(g(2,1,2)-g(0,1,2)-g(2,1,0)+g(0,1,0))
+
+    ! ! fyz
+    ! b(49) = 0.25d0*(g(0,1,1)-g(0,-1,1)-g(0,1,-1)+g(0,-1,-1))
+    ! b(50) = 0.25d0*(g(1,1,1)-g(1,-1,1)-g(1,1,-1)+g(1,-1,-1))
+    ! b(51) = 0.25d0*(g(0,2,1)-g(0,0,1)-g(0,2,-1)+g(0,0,-1))
+    ! b(52) = 0.25d0*(g(1,2,1)-g(1,0,1)-g(1,2,-1)+g(1,0,-1))
+    ! b(53) = 0.25d0*(g(0,1,2)-g(0,-1,2)-g(0,1,0)+g(0,-1,0))
+    ! b(54) = 0.25d0*(g(1,1,2)-g(1,-1,2)-g(1,1,0)+g(1,-1,0))
+    ! b(55) = 0.25d0*(g(0,2,2)-g(0,0,2)-g(0,2,0)+g(0,0,0))
+    ! b(56) = 0.25d0*(g(1,2,2)-g(1,0,2)-g(1,2,0)+g(1,0,0))
+
+    ! ! fxyz
+    ! b(57) = 0.125d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1)-g(1,1,-1)+g(-1,1,-1)+g(1,-1,-1)-g(-1,-1,-1))
+    ! b(58) = 0.125d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1)-g(2,1,-1)+g(0,1,-1)+g(2,-1,-1)-g(0,-1,-1))
+    ! b(59) = 0.125d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1)-g(1,2,-1)+g(-1,2,-1)+g(1,0,-1)-g(-1,0,-1))
+    ! b(60) = 0.125d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1)-g(2,2,-1)+g(0,2,-1)+g(2,0,-1)-g(0,0,-1))
+    ! b(61) = 0.125d0*(g(1,1,2)-g(-1,1,2)-g(1,-1,2)+g(-1,-1,2)-g(1,1,0)+g(-1,1,0)+g(1,-1,0)-g(-1,-1,0))
+    ! b(62) = 0.125d0*(g(2,1,2)-g(0,1,2)-g(2,-1,2)+g(0,-1,2)-g(2,1,0)+g(0,1,0)+g(2,-1,0)-g(0,-1,0))
+    ! b(63) = 0.125d0*(g(1,2,2)-g(-1,2,2)-g(1,0,2)+g(-1,0,2)-g(1,2,0)+g(-1,2,0)+g(1,0,0)-g(-1,0,0))
+    ! b(64) = 0.125d0*(g(2,2,2)-g(0,2,2)-g(2,0,2)+g(0,0,2)-g(2,2,0)+g(0,2,0)+g(2,0,0)-g(0,0,0))
+
+    ! ! calculate the coefficient vector
+    ! a = matmul(c,b)
+
+    ! ! interpolation in integer coordinates
+    ! x = (x * f%n - (idx-1))
+
+    ! l = 1 ! packed coefficient vector index
+    ! do k = 0, 3
+    !    do j = 0, 3
+    !       ! horner's rule on x
+    !       bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
+    !       bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
+    !       bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
+
+    !       ! advance
+    !       l = l + 4
+    !    end do
+    !    ! horner's rule on y
+    !    aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
+
+    !    aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
+    !    aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
+    !    aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
+
+    !    aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
+    !    aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
+    ! end do
+
+    ! ! field value
+    ! y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
+
+    ! ! gradient
+    ! yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
+    ! yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
+    ! yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
+
+    ! ! hessian
+    ! ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
+    ! ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
+    ! ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
+    ! ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
+    ! ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
+    ! ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
+
+    ! ! transform back to fractional coordinates and fill the Hessian
+    ! do i = 1, 3
+    !    yp(i) = yp(i) * f%n(i)
+    !    do j = i, 3
+    !       ypp(i,j) = ypp(i,j) * f%n(i) * f%n(j)
+    !       ypp(j,i) = ypp(i,j)
+    !    end do
+    ! end do
+
+  end subroutine grinterp_test
 
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in
   !> orthogonal grids).

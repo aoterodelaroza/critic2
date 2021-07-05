@@ -548,7 +548,8 @@ contains
        lword = lower(word)
 
        if (equal(lword,'nearest').or.equal(lword,'trilinear').or.equal(lword,'trispline').or.&
-          equal(lword,'tricubic').or.equal(lword,'exact').or.equal(lword,'approximate').or.&
+          equal(lword,'tricubic').or.equal(lword,'test').or.&
+          equal(lword,'exact').or.equal(lword,'approximate').or.&
           equal(lword,'rhonorm').or.equal(lword,'vnorm').or.equal(lword,'core').or.&
           equal(lword,'nocore').or.equal(lword,'numerical').or.equal(lword,'analytical')) then
           ! single-word elsewhere options

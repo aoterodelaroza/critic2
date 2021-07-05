@@ -124,8 +124,10 @@ contains
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
+       write (*,*) "here: ", word
        if (equal(word,'tricubic') .or. equal(word,'trispline') .or. &
-          equal(word,'trilinear') .or. equal(word,'nearest')) then
+          equal(word,'trilinear') .or. equal(word,'nearest') .or. &
+          equal(word,'test')) then
           call ff%grid%setmode(word)
        else if (equal(word,'exact')) then
           ff%exact = .true.
@@ -281,7 +283,7 @@ contains
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
           call f%grid%end()
-          call f%grid%read_elk(seed%file(1))
+          call f%grid%read_elk(seed%file(1),c%m_x2c)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
@@ -307,55 +309,49 @@ contains
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
-       call f%grid%read_cube(seed%file(1))
+       call f%grid%read_cube(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        call f%grid%end()
-       call f%grid%read_bincube(seed%file(1))
+       call f%grid%read_bincube(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        call f%grid%end()
-       call f%grid%read_abinit(seed%file(1))
+       call f%grid%read_abinit(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
-    elseif (seed%iff == ifformat_vasp) then
+    elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),f%c%omega,seed%vaspblk)
-       f%type = type_grid
-       f%file = seed%file(1)
-
-    elseif (seed%iff == ifformat_vaspnov) then
-       call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),1d0,seed%vaspblk)
+       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
        call f%grid%end()
-       call f%grid%read_qub(seed%file(1))
+       call f%grid%read_qub(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        call f%grid%end()
-       call f%grid%read_xsf(seed%file(1))
+       call f%grid%read_xsf(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
        call f%grid%end()
-       call f%grid%read_elk(seed%file(1))
+       call f%grid%read_elk(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
        call f%grid%end()
-       call f%grid%read_siesta(seed%file(1))
+       call f%grid%read_siesta(seed%file(1),c%m_x2c)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -371,7 +367,7 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax)
+          seed%pwcemin,seed%pwcemax,c%m_x2c)
        if (seed%nfile == 2) then
           call f%grid%read_wannier_chk(seed%file(2))
        elseif (seed%nfile == 3) then
@@ -440,7 +436,7 @@ contains
        f%type = type_grid
        f%file = ""
        n = seed%n
-       call f%grid%new_eval(sptr,n,seed%expr)
+       call f%grid%new_eval(sptr,n,seed%expr,c%m_x2c)
        if (.not.f%grid%isinit) then
           call f%grid%end()
           f%grid%n = n
@@ -597,17 +593,17 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (ityp == ifformat_as_lap) then
-       call f%grid%laplacian_hxx(g,c%m_x2c,0)
+       call f%grid%laplacian_hxx(g,0)
     elseif (ityp == ifformat_as_grad) then
-       call f%grid%gradrho(g,c%m_x2c)
+       call f%grid%gradrho(g)
     elseif (ityp == ifformat_as_pot) then
-       call f%grid%pot(g,c%m_x2c,isry)
+       call f%grid%pot(g,isry)
     elseif (ityp == ifformat_as_hxx1) then
-       call f%grid%laplacian_hxx(g,c%m_x2c,1)
+       call f%grid%laplacian_hxx(g,1)
     elseif (ityp == ifformat_as_hxx2) then
-       call f%grid%laplacian_hxx(g,c%m_x2c,2)
+       call f%grid%laplacian_hxx(g,2)
     elseif (ityp == ifformat_as_hxx3) then
-       call f%grid%laplacian_hxx(g,c%m_x2c,3)
+       call f%grid%laplacian_hxx(g,3)
     elseif (ityp == ifformat_as_resample) then
        call f%grid%resample(g,n)
     end if

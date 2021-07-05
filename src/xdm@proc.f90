@@ -392,7 +392,7 @@ contains
     if (ilap < 0 .and. ib < 0) then
        ilap = sy%getfieldnum()
        write (uout,'("+ Calculating Laplacian of rho")')
-       call sy%f(ilap)%grid%laplacian_hxx(sy%f(irho)%grid,sy%c%m_x2c,0)
+       call sy%f(ilap)%grid%laplacian_hxx(sy%f(irho)%grid,0)
        sy%f(ilap)%isinit = .true.
        ! write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
        ! call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
@@ -402,7 +402,7 @@ contains
     if (igrad < 0 .and. ib < 0) then
        igrad = sy%getfieldnum()
        write (uout,'("+ Calculating gradient of rho")')
-       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
+       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
        sy%f(igrad)%isinit = .true.
        ! write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
        ! call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
@@ -2117,7 +2117,7 @@ contains
 
     ! allocate a temporary field for the gradient
     igrad = sy%getfieldnum()
-    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid,sy%c%m_x2c)
+    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
     sy%f(igrad)%isinit = .true.
 
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
