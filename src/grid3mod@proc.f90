@@ -2363,162 +2363,125 @@ contains
 
   !> Testing
   subroutine grinterp_test(f,xi,y,yp,ypp)
+    use crystalseedmod, only: crystalseed
+    use crystalmod, only: crystal
+    use environmod, only: environ
+    use tools_math, only: matinvsym
+    use types, only: realloc
+    use param, only: icrd_crys
     class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
 
+    integer :: i, j
+    logical :: again
+    real*8 :: x0(3), x1(3), xh(3), dist0, dist02
+    integer :: i0(3), ih(3), nlat, kmax, i1, i2, i3
+    real*8 :: rvec(3), dd, ff
+    integer, allocatable :: ilist(:,:)
+    real*8, allocatable :: d2list(:), flist(:), xlist(:,:)
+    real*8, allocatable :: phi(:,:), w(:)
+    integer :: nlist
+    type(crystalseed) :: cseed
+    type(crystal) :: caux
+    type(environ) :: env
+
     ! initialize
-    y = 0d0
     yp = 0d0
     ypp = 0d0
 
-    ! ! fetch values at the cube vertices
-    ! x = modulo(xi,1d0)
-    ! idx = grid_floor(f,x)
-    ! do i = -1, 2
-    !    do j = -1, 2
-    !       do k = -1, 2
-    !          iidx = modulo(idx+(/i,j,k/)-1,f%n)+1
-    !          g(i,j,k) = f%f(iidx(1),iidx(2),iidx(3))
-    !       end do
-    !    end do
-    ! end do
+    ! locate the point
+    x0 = modulo(xi,1d0)
+    i0 = grid_near(f,x0)
 
-    ! ! Fill the values in the b-vector (see Lekien and Marsden)
-    ! ! f
-    ! b(1) = g(0,0,0)
-    ! b(2) = g(1,0,0)
-    ! b(3) = g(0,1,0)
-    ! b(4) = g(1,1,0)
-    ! b(5) = g(0,0,1)
-    ! b(6) = g(1,0,1)
-    ! b(7) = g(0,1,1)
-    ! b(8) = g(1,1,1)
-
-    ! ! fx
-    ! b(9)  = 0.5d0*(g(1,0,0)-g(-1,0,0))
-    ! b(10) = 0.5d0*(g(2,0,0)-g(0,0,0))
-    ! b(11) = 0.5d0*(g(1,1,0)-g(-1,1,0))
-    ! b(12) = 0.5d0*(g(2,1,0)-g(0,1,0))
-    ! b(13) = 0.5d0*(g(1,0,1)-g(-1,0,1))
-    ! b(14) = 0.5d0*(g(2,0,1)-g(0,0,1))
-    ! b(15) = 0.5d0*(g(1,1,1)-g(-1,1,1))
-    ! b(16) = 0.5d0*(g(2,1,1)-g(0,1,1))
-
-    ! ! fy
-    ! b(17) = 0.5d0*(g(0,1,0)-g(0,-1,0))
-    ! b(18) = 0.5d0*(g(1,1,0)-g(1,-1,0))
-    ! b(19) = 0.5d0*(g(0,2,0)-g(0,0,0))
-    ! b(20) = 0.5d0*(g(1,2,0)-g(1,0,0))
-    ! b(21) = 0.5d0*(g(0,1,1)-g(0,-1,1))
-    ! b(22) = 0.5d0*(g(1,1,1)-g(1,-1,1))
-    ! b(23) = 0.5d0*(g(0,2,1)-g(0,0,1))
-    ! b(24) = 0.5d0*(g(1,2,1)-g(1,0,1))
-
-    ! ! fz
-    ! b(25) = 0.5d0*(g(0,0,1)-g(0,0,-1))
-    ! b(26) = 0.5d0*(g(1,0,1)-g(1,0,-1))
-    ! b(27) = 0.5d0*(g(0,1,1)-g(0,1,-1))
-    ! b(28) = 0.5d0*(g(1,1,1)-g(1,1,-1))
-    ! b(29) = 0.5d0*(g(0,0,2)-g(0,0,0))
-    ! b(30) = 0.5d0*(g(1,0,2)-g(1,0,0))
-    ! b(31) = 0.5d0*(g(0,1,2)-g(0,1,0))
-    ! b(32) = 0.5d0*(g(1,1,2)-g(1,1,0))
-
-    ! ! fxy
-    ! b(33) = 0.25d0*(g(1,1,0)-g(-1,1,0)-g(1,-1,0)+g(-1,-1,0))
-    ! b(34) = 0.25d0*(g(2,1,0)-g(0,1,0)-g(2,-1,0)+g(0,-1,0))
-    ! b(35) = 0.25d0*(g(1,2,0)-g(-1,2,0)-g(1,0,0)+g(-1,0,0))
-    ! b(36) = 0.25d0*(g(2,2,0)-g(0,2,0)-g(2,0,0)+g(0,0,0))
-    ! b(37) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1))
-    ! b(38) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1))
-    ! b(39) = 0.25d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1))
-    ! b(40) = 0.25d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1))
-
-    ! ! fxz
-    ! b(41) = 0.25d0*(g(1,0,1)-g(-1,0,1)-g(1,0,-1)+g(-1,0,-1))
-    ! b(42) = 0.25d0*(g(2,0,1)-g(0,0,1)-g(2,0,-1)+g(0,0,-1))
-    ! b(43) = 0.25d0*(g(1,1,1)-g(-1,1,1)-g(1,1,-1)+g(-1,1,-1))
-    ! b(44) = 0.25d0*(g(2,1,1)-g(0,1,1)-g(2,1,-1)+g(0,1,-1))
-    ! b(45) = 0.25d0*(g(1,0,2)-g(-1,0,2)-g(1,0,0)+g(-1,0,0))
-    ! b(46) = 0.25d0*(g(2,0,2)-g(0,0,2)-g(2,0,0)+g(0,0,0))
-    ! b(47) = 0.25d0*(g(1,1,2)-g(-1,1,2)-g(1,1,0)+g(-1,1,0))
-    ! b(48) = 0.25d0*(g(2,1,2)-g(0,1,2)-g(2,1,0)+g(0,1,0))
-
-    ! ! fyz
-    ! b(49) = 0.25d0*(g(0,1,1)-g(0,-1,1)-g(0,1,-1)+g(0,-1,-1))
-    ! b(50) = 0.25d0*(g(1,1,1)-g(1,-1,1)-g(1,1,-1)+g(1,-1,-1))
-    ! b(51) = 0.25d0*(g(0,2,1)-g(0,0,1)-g(0,2,-1)+g(0,0,-1))
-    ! b(52) = 0.25d0*(g(1,2,1)-g(1,0,1)-g(1,2,-1)+g(1,0,-1))
-    ! b(53) = 0.25d0*(g(0,1,2)-g(0,-1,2)-g(0,1,0)+g(0,-1,0))
-    ! b(54) = 0.25d0*(g(1,1,2)-g(1,-1,2)-g(1,1,0)+g(1,-1,0))
-    ! b(55) = 0.25d0*(g(0,2,2)-g(0,0,2)-g(0,2,0)+g(0,0,0))
-    ! b(56) = 0.25d0*(g(1,2,2)-g(1,0,2)-g(1,2,0)+g(1,0,0))
-
-    ! ! fxyz
-    ! b(57) = 0.125d0*(g(1,1,1)-g(-1,1,1)-g(1,-1,1)+g(-1,-1,1)-g(1,1,-1)+g(-1,1,-1)+g(1,-1,-1)-g(-1,-1,-1))
-    ! b(58) = 0.125d0*(g(2,1,1)-g(0,1,1)-g(2,-1,1)+g(0,-1,1)-g(2,1,-1)+g(0,1,-1)+g(2,-1,-1)-g(0,-1,-1))
-    ! b(59) = 0.125d0*(g(1,2,1)-g(-1,2,1)-g(1,0,1)+g(-1,0,1)-g(1,2,-1)+g(-1,2,-1)+g(1,0,-1)-g(-1,0,-1))
-    ! b(60) = 0.125d0*(g(2,2,1)-g(0,2,1)-g(2,0,1)+g(0,0,1)-g(2,2,-1)+g(0,2,-1)+g(2,0,-1)-g(0,0,-1))
-    ! b(61) = 0.125d0*(g(1,1,2)-g(-1,1,2)-g(1,-1,2)+g(-1,-1,2)-g(1,1,0)+g(-1,1,0)+g(1,-1,0)-g(-1,-1,0))
-    ! b(62) = 0.125d0*(g(2,1,2)-g(0,1,2)-g(2,-1,2)+g(0,-1,2)-g(2,1,0)+g(0,1,0)+g(2,-1,0)-g(0,-1,0))
-    ! b(63) = 0.125d0*(g(1,2,2)-g(-1,2,2)-g(1,0,2)+g(-1,0,2)-g(1,2,0)+g(-1,2,0)+g(1,0,0)-g(-1,0,0))
-    ! b(64) = 0.125d0*(g(2,2,2)-g(0,2,2)-g(2,0,2)+g(0,0,2)-g(2,2,0)+g(0,2,0)+g(2,0,0)-g(0,0,0))
-
-    ! ! calculate the coefficient vector
-    ! a = matmul(c,b)
-
-    ! ! interpolation in integer coordinates
-    ! x = (x * f%n - (idx-1))
-
-    ! l = 1 ! packed coefficient vector index
-    ! do k = 0, 3
-    !    do j = 0, 3
-    !       ! horner's rule on x
-    !       bb(j) = a(l) + x(1) * (a(l+1) + x(1) * (a(l+2) + x(1) * a(l+3)))
-    !       bbx(j) = a(l+1) + x(1) * (2d0 * a(l+2) +  x(1) * 3d0 * a(l+3))
-    !       bbxx(j) = 2d0 * a(l+2) + 6d0 * x(1) * a(l+3)
-
-    !       ! advance
-    !       l = l + 4
-    !    end do
-    !    ! horner's rule on y
-    !    aa(k) = bb(0) + x(2) * (bb(1) + x(2) * (bb(2) + x(2) * bb(3)))
-
-    !    aax(k) = bbx(0) + x(2) * (bbx(1) + x(2) * (bbx(2) + x(2) * bbx(3)))
-    !    aay(k) = bb(1) + x(2) * (2d0 * bb(2) + x(2) * 3d0 * bb(3))
-    !    aaxy(k) = bbx(1) + x(2) * (2d0 * bbx(2) + x(2) * 3d0 * bbx(3))
-
-    !    aaxx(k) = bbxx(0) + x(2) * (bbxx(1) + x(2) * (bbxx(2) + x(2) * bbxx(3)))
-    !    aayy(k) = 2d0 * bb(2) + 6d0 * x(2) * bb(3)
-    ! end do
-
-    ! ! field value
-    ! y = aa(0) + x(3) * (aa(1) + x(3) * (aa(2) + x(3) * aa(3)))
-
-    ! ! gradient
-    ! yp(1) = aax(0) + x(3) * (aax(1) + x(3) * (aax(2) + x(3) * aax(3)))
-    ! yp(2) = aay(0) + x(3) * (aay(1) + x(3) * (aay(2) + x(3) * aay(3)))
-    ! yp(3) = aa(1) + x(3) * (2d0 * aa(2) + x(3) * 3d0 * aa(3))
-
-    ! ! hessian
-    ! ypp(1,1) = aaxx(0) + x(3) * (aaxx(1) + x(3) * (aaxx(2) + x(3) * aaxx(3)))
-    ! ypp(1,2) = aaxy(0) + x(3) * (aaxy(1) + x(3) * (aaxy(2) + x(3) * aaxy(3)))
-    ! ypp(1,3) = aax(1) + x(3) * (2d0 * aax(2) + x(3) * 3d0 * aax(3))
-    ! ypp(2,2) = aayy(0) + x(3) * (aayy(1) + x(3) * (aayy(2) + x(3) * aayy(3)))
-    ! ypp(2,3) = aay(1) + x(3) * (2d0 * aay(2) + x(3) * 3d0 * aay(3))
-    ! ypp(3,3) = 2d0 * aa(2) + 6d0 * x(3) * aa(3)
-
-    ! ! transform back to fractional coordinates and fill the Hessian
-    ! do i = 1, 3
-    !    yp(i) = yp(i) * f%n(i)
-    !    do j = i, 3
-    !       ypp(i,j) = ypp(i,j) * f%n(i) * f%n(j)
-    !       ypp(j,i) = ypp(i,j)
-    !    end do
-    ! end do
+    ! build the crystal seed - this will go in seed from lattice
+    ! or crystal from lattice. maybe special crystal for lattices only
+    ! if ncel = 0. environ should also work with lattices.
+    cseed%isused = .true.
+    cseed%m_x2c = f%x2c
+    cseed%m_x2c(:,1) = cseed%m_x2c(:,1) / f%n(1)
+    cseed%m_x2c(:,2) = cseed%m_x2c(:,2) / f%n(2)
+    cseed%m_x2c(:,3) = cseed%m_x2c(:,3) / f%n(3)
+    cseed%useabr = 2
+    cseed%nat = 0
+    call caux%struct_new(cseed,.true.)
+    
+    ! build the environment up to distance dist0
+    dist0 = 0.6d0
+    dist02 = dist0 * dist0
+    again = .true.
+    kmax = -1
+    allocate(ilist(3,10),d2list(10),xlist(3,10))
+    nlist = 0
+    do while(again)
+       again = .false.
+       kmax = kmax + 1
+       do i1 = -kmax, kmax
+          do i2 = -kmax, kmax
+             do i3 = -kmax, kmax
+                if (abs(i1) /= kmax .and. abs(i2) /= kmax .and. abs(i3) /= kmax) cycle
+                rvec = (/i1,i2,i3/)
+                rvec = caux%xr2c(rvec)
+                dd = dot_product(rvec,rvec)
+                if (dd < dist02) then
+                   nlist = nlist + 1
+                   if (nlist > size(ilist,2)) then
+                      call realloc(ilist,3,2*nlist)
+                      call realloc(d2list,2*nlist)
+                      call realloc(xlist,3,2*nlist)
+                   end if
+                   xlist(:,nlist) = rvec
+                   ilist(:,nlist) = nint(caux%c2x(rvec))
+                   d2list(nlist) = dd
+                   again = .true.
+                end if
+             end do
+          end do
+       end do
+    end do
+    
+    ! get the values at those points
+    allocate(flist(nlist+4))
+    do i = 1, nlist
+       ih = i0 + ilist(:,i) - 1
+       ih = modulo(ih,f%n) + 1
+       flist(i) = f%f(ih(1),ih(2),ih(3))
+    end do
+    flist(nlist+1:) = 0d0
+    
+    ! calculate the phi matrix
+    allocate(phi(nlist+4,nlist+4))
+    phi = 0d0
+    do i = 1, nlist
+       do j = i+1, nlist
+          xh = xlist(:,i) - xlist(:,j)
+          dd = dot_product(xh,xh)
+          phi(i,j) = dd * dd * log(sqrt(dd))
+          phi(j,i) = phi(i,j)
+       end do
+       phi(i,nlist+1) = 1d0
+       phi(nlist+1,i) = 1d0
+       phi(nlist+2:nlist+4,i) = xlist(:,i)
+       phi(i,nlist+2:nlist+4) = xlist(:,i)
+    end do
+    
+    ! solve the system of equations
+    allocate(w(nlist+4))
+    call matinvsym(phi,nlist+4)
+    w = matmul(phi,flist)
+    
+    ! sum the contributions
+    x1 = caux%x2c(x0 * f%n - i0)
+    y = 0d0
+    do i = 1, nlist
+       xh = x1 - xlist(:,i)
+       dd = dot_product(xh,xh)
+       ff = dd * dd * log(sqrt(dd))
+       y = y + w(i) * ff
+    end do
+    y = y + w(nlist+1) + w(nlist+2) * x1(1) + w(nlist+3) * x1(2) + w(nlist+4) * x1(3)
 
   end subroutine grinterp_test
 

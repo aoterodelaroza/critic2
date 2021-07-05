@@ -124,7 +124,6 @@ contains
     lp = 1
     do while (.true.)
        word = lgetword(line,lp)
-       write (*,*) "here: ", word
        if (equal(word,'tricubic') .or. equal(word,'trispline') .or. &
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'test')) then

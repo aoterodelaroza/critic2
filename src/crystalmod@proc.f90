@@ -458,7 +458,7 @@ contains
     ! symmetry from spglib
     clearsym = .true.
     if (.not.seed%ismolecule .and. seed%havesym == 0) then
-       if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) then
+       if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall .and. seed%nat > 0) then
           ! symmetry was not available, and I want it
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
           call c%calcsym(.true.,errmsg)
