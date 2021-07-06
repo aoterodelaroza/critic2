@@ -2379,7 +2379,7 @@ contains
     logical :: again
     real*8 :: x0(3), x1(3), xh(3), dist0, dist02
     integer :: i0(3), ih(3), nlat, kmax, i1, i2, i3
-    real*8 :: rvec(3), dd, ff
+    real*8 :: rvec(3), d, dd, ff, fp, fpp
     integer, allocatable :: ilist(:,:)
     real*8, allocatable :: d2list(:), flist(:), xlist(:,:)
     real*8, allocatable :: phi(:,:), w(:)
@@ -2407,9 +2407,9 @@ contains
     cseed%useabr = 2
     cseed%nat = 0
     call caux%struct_new(cseed,.true.)
-    
+
     ! build the environment up to distance dist0
-    dist0 = 0.6d0
+    dist0 = 0.4d0
     dist02 = dist0 * dist0
     again = .true.
     kmax = -1
@@ -2441,7 +2441,8 @@ contains
           end do
        end do
     end do
-    
+    ! write (*,*) "bleh ", nlist
+
     ! get the values at those points
     allocate(flist(nlist+4))
     do i = 1, nlist
@@ -2450,7 +2451,7 @@ contains
        flist(i) = f%f(ih(1),ih(2),ih(3))
     end do
     flist(nlist+1:) = 0d0
-    
+
     ! calculate the phi matrix
     allocate(phi(nlist+4,nlist+4))
     phi = 0d0
@@ -2458,7 +2459,8 @@ contains
        do j = i+1, nlist
           xh = xlist(:,i) - xlist(:,j)
           dd = dot_product(xh,xh)
-          phi(i,j) = dd * dd * log(sqrt(dd))
+          call kernelfun(dd,6,ff,fp,fpp)
+          phi(i,j) = ff
           phi(j,i) = phi(i,j)
        end do
        phi(i,nlist+1) = 1d0
@@ -2466,27 +2468,65 @@ contains
        phi(nlist+2:nlist+4,i) = xlist(:,i)
        phi(i,nlist+2:nlist+4) = xlist(:,i)
     end do
-    
+
     ! solve the system of equations
     allocate(w(nlist+4))
     call matinvsym(phi,nlist+4)
     w = matmul(phi,flist)
-    
+
     ! sum the contributions
     x1 = caux%x2c(x0 * f%n - i0 + 1)
     y = 0d0
+    yp = 0d0
+    ypp = 0d0
     do i = 1, nlist
        xh = x1 - xlist(:,i)
        dd = dot_product(xh,xh)
-       if (dd > 1d-15) then
-          ff = dd * dd * log(sqrt(dd))
-       else
-          ff = 0d0
-       end if
+       call kernelfun(dd,6,ff,fp,fpp)
+       d = max(sqrt(dd),1d-15)
        y = y + w(i) * ff
+       yp = yp + w(i) * fp * xh / d
+       ypp(1,1) = ypp(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
+       ypp(2,2) = ypp(2,2) + w(i) * (fpp * (xh(2)/d)**2 + fp * (1/d - xh(2)**2/d**3))
+       ypp(3,3) = ypp(3,3) + w(i) * (fpp * (xh(3)/d)**2 + fp * (1/d - xh(3)**2/d**3))
+       ypp(1,2) = ypp(1,2) + w(i) * (fpp * (xh(1)*xh(2)/d**2) - fp * xh(1)*xh(2)/d**3)
+       ypp(1,3) = ypp(1,3) + w(i) * (fpp * (xh(1)*xh(3)/d**2) - fp * xh(1)*xh(3)/d**3)
+       ypp(2,3) = ypp(2,3) + w(i) * (fpp * (xh(2)*xh(3)/d**2) - fp * xh(2)*xh(3)/d**3)
+       ypp(2,1) = ypp(1,2)
+       ypp(3,1) = ypp(1,3)
+       ypp(3,2) = ypp(2,3)
     end do
     y = y + w(nlist+1) + w(nlist+2) * x1(1) + w(nlist+3) * x1(2) + w(nlist+4) * x1(3)
+    yp(1) = yp(1) + w(nlist+2)
+    yp(2) = yp(2) + w(nlist+3)
+    yp(3) = yp(3) + w(nlist+4)
 
+  contains
+    subroutine kernelfun(r2,k,f,fp,fpp)
+      real*8, intent(in) :: r2
+      integer, intent(in) :: k
+      real*8, intent(out) :: f
+      real*8, intent(out) :: fp
+      real*8, intent(out) :: fpp
+
+      real*8 :: r
+
+      f = 0d0
+      fp = 0d0
+      fpp = 0d0
+      r = sqrt(r2)
+      if (r < 1d-15) return
+      if (mod(k,2) == 0) then
+         f = r**k * log(r)
+         fp = r**(k-1) * (k*log(r) + 1)
+         fpp = (k*(k-1)*log(r) + 2*k - 1) * r**(k-2)
+      elseif (mod(k,2) == 1) then
+         f = r**k
+         fp = k*r**(k-1)
+         fpp = k*(k-1)*r**(k-2)
+      end if
+
+    end subroutine kernelfun
   end subroutine grinterp_test
 
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in
