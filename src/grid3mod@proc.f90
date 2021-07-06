@@ -2389,12 +2389,13 @@ contains
     type(environ) :: env
 
     ! initialize
+    y = 0d0
     yp = 0d0
     ypp = 0d0
 
     ! locate the point
     x0 = modulo(xi,1d0)
-    i0 = grid_near(f,x0)
+    i0 = nint(x0 * f%n)
 
     ! build the crystal seed - this will go in seed from lattice
     ! or crystal from lattice. maybe special crystal for lattices only
@@ -2446,7 +2447,7 @@ contains
     ! get the values at those points
     allocate(flist(nlist+4))
     do i = 1, nlist
-       ih = i0 + ilist(:,i) - 1
+       ih = i0 + ilist(:,i)
        ih = modulo(ih,f%n) + 1
        flist(i) = f%f(ih(1),ih(2),ih(3))
     end do
@@ -2475,7 +2476,7 @@ contains
     w = matmul(phi,flist)
 
     ! sum the contributions
-    x1 = caux%x2c(x0 * f%n - i0 + 1)
+    x1 = caux%x2c(x0 * f%n - i0)
     y = 0d0
     yp = 0d0
     ypp = 0d0
