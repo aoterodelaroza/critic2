@@ -327,6 +327,9 @@ submodule (grid3mod) proc
     0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	 ! 49-64, 64
     /),shape(c))
 
+    real*8, parameter :: test_dist0 = 0.4d0
+    integer, parameter :: test_kkern = 6
+
 contains
 
   !> Build a 3d grid of dimension n using an arithmetic expression
@@ -2445,6 +2448,7 @@ contains
     do i = 1, f%test_nlist
        ih = i0 + f%test_ilist(:,i)
        ih = modulo(ih,f%n) + 1
+       ! flist(i) = log(f%f(ih(1),ih(2),ih(3)))
        flist(i) = f%f(ih(1),ih(2),ih(3))
     end do
     flist(f%test_nlist+1:) = 0d0
@@ -2461,7 +2465,7 @@ contains
     do i = 1, f%test_nlist
        xh = x1 - f%test_xlist(:,i)
        dd = dot_product(xh,xh)
-       call test_kernelfun(dd,6,ff,fp,fpp)
+       call test_kernelfun(dd,test_kkern,ff,fp,fpp)
        d = max(sqrt(dd),1d-15)
        y = y + w(i) * ff
        yp = yp + w(i) * fp * xh / d
@@ -2629,8 +2633,6 @@ contains
     type(crystalseed) :: cseed
     type(crystal) :: caux
 
-    real*8, parameter :: dist0 = 0.4d0
-
     if (allocated(f%test_ilist)) return
 
     ! prepare
@@ -2652,7 +2654,7 @@ contains
     call caux%struct_new(cseed,.true.)
     
     ! build the environment up to distance dist0
-    dist02 = dist0 * dist0
+    dist02 = test_dist0 * test_dist0
     again = .true.
     kmax = -1
     allocate(f%test_ilist(3,10),d2list(10),f%test_xlist(3,10))
@@ -2683,7 +2685,7 @@ contains
           end do
        end do
     end do
-    ! write (*,*) "bleh nlist = ", f%test_nlist
+    write (*,*) "bleh final nlist = ", f%test_nlist
     
     ! calculate the inverse phi matrix
     allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
@@ -2692,7 +2694,7 @@ contains
        do j = i+1, f%test_nlist
           xh = f%test_xlist(:,i) - f%test_xlist(:,j)
           dd = dot_product(xh,xh)
-          call test_kernelfun(dd,6,ff,fp,fpp)
+          call test_kernelfun(dd,test_kkern,ff,fp,fpp)
           f%test_phiinv(i,j) = ff
           f%test_phiinv(j,i) = f%test_phiinv(i,j)
        end do
