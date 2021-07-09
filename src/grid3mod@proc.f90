@@ -26,6 +26,7 @@ submodule (grid3mod) proc
   ! function grid_near(f,x) result(res)
   ! function grid_floor(f,x) result(res)
   ! subroutine init_trispline(f)
+  ! subroutine init_test(f)
 
   ! Notes about the 3D-FFT order of the array elements.
   ! - cfftnd accepts a 1D array representing the 3D array in Fortran
@@ -365,6 +366,9 @@ contains
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
+    if (allocated(f%test_ilist)) deallocate(f%test_ilist)
+    if (allocated(f%test_xlist)) deallocate(f%test_xlist)
+    if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
     if (allocated(f%qe%wk)) deallocate(f%qe%wk)
     if (allocated(f%qe%ek)) deallocate(f%qe%ek)
@@ -391,6 +395,9 @@ contains
     lmode = lower(mode)
     if (equal(lmode,'test')) then
        f%mode = mode_test
+       if (allocated(f%test_ilist)) deallocate(f%test_ilist)
+       if (allocated(f%test_xlist)) deallocate(f%test_xlist)
+       if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
     else if (equal(lmode,'tricubic')) then
        f%mode = mode_tricubic
     else if (equal(lmode,'trispline')) then
@@ -2404,10 +2411,6 @@ contains
 
   !> Testing
   subroutine grinterp_test(f,xi,y,yp,ypp)
-    use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal
-    use environmod, only: environ
-    use tools_math, only: matinvsym
     use types, only: realloc
     use param, only: icrd_crys
     class(grid3), intent(inout), target :: f !< Input grid
@@ -2417,17 +2420,16 @@ contains
     real*8, intent(out) :: ypp(3,3) !< Second derivative
 
     integer :: i, j
-    logical :: again
-    real*8 :: x0(3), x1(3), xh(3), dist0, dist02
-    integer :: i0(3), ih(3), nlat, kmax, i1, i2, i3
-    real*8 :: rvec(3), d, dd, ff, fp, fpp
-    integer, allocatable :: ilist(:,:)
-    real*8, allocatable :: d2list(:), flist(:), xlist(:,:)
-    real*8, allocatable :: phi(:,:), w(:)
-    integer :: nlist
-    type(crystalseed) :: cseed
-    type(crystal) :: caux
-    type(environ) :: env
+    real*8 :: x0(3), x1(3), xh(3)
+    integer :: i0(3), ih(3)
+    real*8 :: d, dd, ff, fp, fpp
+    real*8, allocatable :: flist(:), w(:)
+
+    !$omp critical (checkalloc)
+    if (.not.allocated(f%test_ilist)) then
+       call init_test(f)
+    end if
+    !$omp end critical (checkalloc)
 
     ! initialize
     y = 0d0
@@ -2438,93 +2440,28 @@ contains
     x0 = modulo(xi,1d0)
     i0 = nint(x0 * f%n)
 
-    ! build the crystal seed - this will go in seed from lattice
-    ! or crystal from lattice. maybe special crystal for lattices only
-    ! if ncel = 0. environ should also work with lattices.
-    cseed%isused = .true.
-    cseed%m_x2c = f%x2c
-    cseed%m_x2c(:,1) = cseed%m_x2c(:,1) / f%n(1)
-    cseed%m_x2c(:,2) = cseed%m_x2c(:,2) / f%n(2)
-    cseed%m_x2c(:,3) = cseed%m_x2c(:,3) / f%n(3)
-    cseed%useabr = 2
-    cseed%nat = 0
-    call caux%struct_new(cseed,.true.)
-
-    ! build the environment up to distance dist0
-    dist0 = 0.4d0
-    dist02 = dist0 * dist0
-    again = .true.
-    kmax = -1
-    allocate(ilist(3,10),d2list(10),xlist(3,10))
-    nlist = 0
-    do while(again)
-       again = .false.
-       kmax = kmax + 1
-       do i1 = -kmax, kmax
-          do i2 = -kmax, kmax
-             do i3 = -kmax, kmax
-                if (abs(i1) /= kmax .and. abs(i2) /= kmax .and. abs(i3) /= kmax) cycle
-                rvec = (/i1,i2,i3/)
-                rvec = caux%xr2c(rvec)
-                dd = dot_product(rvec,rvec)
-                if (dd < dist02) then
-                   nlist = nlist + 1
-                   if (nlist > size(ilist,2)) then
-                      call realloc(ilist,3,2*nlist)
-                      call realloc(d2list,2*nlist)
-                      call realloc(xlist,3,2*nlist)
-                   end if
-                   xlist(:,nlist) = rvec
-                   ilist(:,nlist) = nint(caux%c2x(rvec))
-                   d2list(nlist) = dd
-                   again = .true.
-                end if
-             end do
-          end do
-       end do
-    end do
-    ! write (*,*) "bleh ", nlist
-
-    ! get the values at those points
-    allocate(flist(nlist+4))
-    do i = 1, nlist
-       ih = i0 + ilist(:,i)
+    ! get the values at the grid points
+    allocate(flist(f%test_nlist+4))
+    do i = 1, f%test_nlist
+       ih = i0 + f%test_ilist(:,i)
        ih = modulo(ih,f%n) + 1
        flist(i) = f%f(ih(1),ih(2),ih(3))
     end do
-    flist(nlist+1:) = 0d0
-
-    ! calculate the phi matrix
-    allocate(phi(nlist+4,nlist+4))
-    phi = 0d0
-    do i = 1, nlist
-       do j = i+1, nlist
-          xh = xlist(:,i) - xlist(:,j)
-          dd = dot_product(xh,xh)
-          call kernelfun(dd,6,ff,fp,fpp)
-          phi(i,j) = ff
-          phi(j,i) = phi(i,j)
-       end do
-       phi(i,nlist+1) = 1d0
-       phi(nlist+1,i) = 1d0
-       phi(nlist+2:nlist+4,i) = xlist(:,i)
-       phi(i,nlist+2:nlist+4) = xlist(:,i)
-    end do
+    flist(f%test_nlist+1:) = 0d0
 
     ! solve the system of equations
-    allocate(w(nlist+4))
-    call matinvsym(phi,nlist+4)
-    w = matmul(phi,flist)
+    allocate(w(f%test_nlist+4))
+    w = matmul(f%test_phiinv,flist)
 
     ! sum the contributions
-    x1 = caux%x2c(x0 * f%n - i0)
+    x1 = matmul(f%test_x2cgrid,x0 * f%n - i0)
     y = 0d0
     yp = 0d0
     ypp = 0d0
-    do i = 1, nlist
-       xh = x1 - xlist(:,i)
+    do i = 1, f%test_nlist
+       xh = x1 - f%test_xlist(:,i)
        dd = dot_product(xh,xh)
-       call kernelfun(dd,6,ff,fp,fpp)
+       call test_kernelfun(dd,6,ff,fp,fpp)
        d = max(sqrt(dd),1d-15)
        y = y + w(i) * ff
        yp = yp + w(i) * fp * xh / d
@@ -2538,37 +2475,11 @@ contains
        ypp(3,1) = ypp(1,3)
        ypp(3,2) = ypp(2,3)
     end do
-    y = y + w(nlist+1) + w(nlist+2) * x1(1) + w(nlist+3) * x1(2) + w(nlist+4) * x1(3)
-    yp(1) = yp(1) + w(nlist+2)
-    yp(2) = yp(2) + w(nlist+3)
-    yp(3) = yp(3) + w(nlist+4)
+    y = y + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
+    yp(1) = yp(1) + w(f%test_nlist+2)
+    yp(2) = yp(2) + w(f%test_nlist+3)
+    yp(3) = yp(3) + w(f%test_nlist+4)
 
-  contains
-    subroutine kernelfun(r2,k,f,fp,fpp)
-      real*8, intent(in) :: r2
-      integer, intent(in) :: k
-      real*8, intent(out) :: f
-      real*8, intent(out) :: fp
-      real*8, intent(out) :: fpp
-
-      real*8 :: r
-
-      f = 0d0
-      fp = 0d0
-      fpp = 0d0
-      r = sqrt(r2)
-      if (r < 1d-15) return
-      if (mod(k,2) == 0) then
-         f = r**k * log(r)
-         fp = r**(k-1) * (k*log(r) + 1)
-         fpp = (k*(k-1)*log(r) + 2*k - 1) * r**(k-2)
-      elseif (mod(k,2) == 1) then
-         f = r**k
-         fp = k*r**(k-1)
-         fpp = k*(k-1)*r**(k-2)
-      end if
-
-    end subroutine kernelfun
   end subroutine grinterp_test
 
   !> Pseudo-nearest grid point of a x (crystallographic) (only nearest in
@@ -2702,5 +2613,126 @@ contains
     deallocate(l,fg)
 
   end subroutine init_trispline
+
+  !> Testing
+  subroutine init_test(f)
+    use crystalseedmod, only: crystalseed
+    use crystalmod, only: crystal
+    use tools_math, only: matinvsym
+    use types, only: realloc
+    class(grid3), intent(inout) :: f !< Input grid
+
+    logical :: again
+    real*8 :: dist02, rvec(3), dd, xh(3), ff, fp, fpp
+    integer :: i1, i2, i3, i, j, kmax
+    real*8, allocatable :: d2list(:)
+    type(crystalseed) :: cseed
+    type(crystal) :: caux
+
+    real*8, parameter :: dist0 = 0.4d0
+
+    if (allocated(f%test_ilist)) return
+
+    ! prepare
+    if (allocated(f%test_ilist)) deallocate(f%test_ilist)
+    if (allocated(f%test_xlist)) deallocate(f%test_xlist)
+    if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
+    f%test_nlist = 0
+
+    ! Build the crystal seed - this will go in seed from lattice
+    ! or crystal from lattice. maybe special crystal for lattices only
+    ! if ncel = 0. environ should also work with lattices.
+    cseed%isused = .true.
+    cseed%m_x2c = f%x2c
+    cseed%m_x2c(:,1) = cseed%m_x2c(:,1) / f%n(1)
+    cseed%m_x2c(:,2) = cseed%m_x2c(:,2) / f%n(2)
+    cseed%m_x2c(:,3) = cseed%m_x2c(:,3) / f%n(3)
+    cseed%useabr = 2
+    cseed%nat = 0
+    call caux%struct_new(cseed,.true.)
+    
+    ! build the environment up to distance dist0
+    dist02 = dist0 * dist0
+    again = .true.
+    kmax = -1
+    allocate(f%test_ilist(3,10),d2list(10),f%test_xlist(3,10))
+    f%test_nlist = 0
+    do while(again)
+       again = .false.
+       kmax = kmax + 1
+       do i1 = -kmax, kmax
+          do i2 = -kmax, kmax
+             do i3 = -kmax, kmax
+                if (abs(i1) /= kmax .and. abs(i2) /= kmax .and. abs(i3) /= kmax) cycle
+                rvec = (/i1,i2,i3/)
+                rvec = caux%xr2c(rvec)
+                dd = dot_product(rvec,rvec)
+                if (dd < dist02) then
+                   f%test_nlist = f%test_nlist + 1
+                   if (f%test_nlist > size(f%test_ilist,2)) then
+                      call realloc(f%test_ilist,3,2*f%test_nlist)
+                      call realloc(d2list,2*f%test_nlist)
+                      call realloc(f%test_xlist,3,2*f%test_nlist)
+                   end if
+                   f%test_xlist(:,f%test_nlist) = rvec
+                   f%test_ilist(:,f%test_nlist) = nint(caux%c2x(rvec))
+                   d2list(f%test_nlist) = dd
+                   again = .true.
+                end if
+             end do
+          end do
+       end do
+    end do
+    ! write (*,*) "bleh nlist = ", f%test_nlist
+    
+    ! calculate the inverse phi matrix
+    allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
+    f%test_phiinv = 0d0
+    do i = 1, f%test_nlist
+       do j = i+1, f%test_nlist
+          xh = f%test_xlist(:,i) - f%test_xlist(:,j)
+          dd = dot_product(xh,xh)
+          call test_kernelfun(dd,6,ff,fp,fpp)
+          f%test_phiinv(i,j) = ff
+          f%test_phiinv(j,i) = f%test_phiinv(i,j)
+       end do
+       f%test_phiinv(i,f%test_nlist+1) = 1d0
+       f%test_phiinv(f%test_nlist+1,i) = 1d0
+       f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
+       f%test_phiinv(i,f%test_nlist+2:f%test_nlist+4) = f%test_xlist(:,i)
+    end do
+    call matinvsym(f%test_phiinv,f%test_nlist+4)
+
+    ! write down the x2c of the grid crystal
+    f%test_x2cgrid = caux%m_x2c
+
+   end subroutine init_test
+   
+   !> Kernel function for testing
+   subroutine test_kernelfun(r2,k,f,fp,fpp)
+     real*8, intent(in) :: r2
+     integer, intent(in) :: k
+     real*8, intent(out) :: f
+     real*8, intent(out) :: fp
+     real*8, intent(out) :: fpp
+
+     real*8 :: r
+
+     f = 0d0
+     fp = 0d0
+     fpp = 0d0
+     r = sqrt(r2)
+     if (r < 1d-15) return
+     if (mod(k,2) == 0) then
+        f = r**k * log(r)
+        fp = r**(k-1) * (k*log(r) + 1)
+        fpp = (k*(k-1)*log(r) + 2*k - 1) * r**(k-2)
+     elseif (mod(k,2) == 1) then
+        f = r**k
+        fp = k*r**(k-1)
+        fpp = k*(k-1)*r**(k-2)
+     end if
+
+   end subroutine test_kernelfun
 
 end submodule proc

@@ -57,6 +57,11 @@ module grid3mod
      real*8 :: c2x(3,3) !< the Cartesian to crystallographic conversion matrix
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
+     integer :: test_nlist
+     integer, allocatable :: test_ilist(:,:)
+     real*8, allocatable :: test_xlist(:,:)
+     real*8, allocatable :: test_phiinv(:,:)
+     real*8 :: test_x2cgrid(3,3)
      type(qedat) :: qe !< QE band states and Wannier function transformation
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
