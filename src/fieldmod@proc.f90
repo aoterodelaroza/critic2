@@ -750,8 +750,6 @@ contains
           res%hf = 0d0
        else
           call f%grid%interp(wx,res%f,res%gf,res%hf)
-          res%gf = matmul(transpose(f%c%m_c2x),res%gf)
-          res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
        endif
 
     case(type_wien)

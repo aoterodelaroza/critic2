@@ -331,6 +331,7 @@ contains
   !> Build a 3d grid of dimension n using an arithmetic expression
   !> (expr). sptr = C pointer to the associated system.
   module subroutine new_eval(f,sptr,n,expr,x2c)
+    use tools_math, only: matinv
     use arithmetic, only: eval_grid
     use types, only: realloc
     use iso_c_binding, only: c_ptr
@@ -345,6 +346,8 @@ contains
     call f%end()
     f%n = n
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     f%mode = mode_default
     f%isinit = .true.
     allocate(f%f(n(1),n(2),n(3)))
@@ -415,6 +418,7 @@ contains
 
   !> Build a grid field from a three-dimensional array
   module subroutine from_array3(f,g,x2c)
+    use tools_math, only: matinv
     use tools_io, only: ferror, faterr
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: g(:,:,:)
@@ -428,6 +432,8 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     n = ubound(g) - lbound(g) + 1
     f%n(:) = n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -439,6 +445,7 @@ contains
 
   !> Read a grid in Gaussian CUBE format
   module subroutine read_cube(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -477,6 +484,8 @@ contains
     f%mode = mode_default
     f%n(:) = n
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -490,6 +499,7 @@ contains
 
   !> Read a grid in binary CUBE format
   module subroutine read_bincube(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -523,6 +533,8 @@ contains
     f%mode = mode_default
     f%n(:) = n
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -537,6 +549,7 @@ contains
   !> Read a grid in siesta RHO format
   module subroutine read_siesta(f,file,x2c)
     use tools_io, only: fopen_read, faterr, ferror, fclose
+    use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
@@ -561,6 +574,8 @@ contains
     read (luc) n, nspin
     f%n = n
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -585,6 +600,7 @@ contains
 
   !> Read a grid in abinit format
   module subroutine read_abinit(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use abinit_private, only: hdr_type, hdr_io
     class(grid3), intent(inout) :: f
@@ -611,6 +627,8 @@ contains
     f%mode = mode_default
     f%n(:) = hdr%ngfft(:)
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     n = f%n
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -632,7 +650,7 @@ contains
   !> ibl can be used to choose which block to read (density, spin
   !> density, etc.). If vscal, scale by volume.
   module subroutine read_vasp(f,file,x2c,vscal,ibl)
-    use tools_math, only: det3
+    use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
        isinteger
     class(grid3), intent(inout) :: f
@@ -664,6 +682,8 @@ contains
     f%mode = mode_default
     f%n(:) = n
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_vasp','Error allocating grid',faterr,file)
@@ -698,6 +718,7 @@ contains
 
   !> Read a grid in aimpac qub format
   module subroutine read_qub(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -718,6 +739,8 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     n = f%n(:)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -732,6 +755,7 @@ contains
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
   module subroutine read_xsf(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
     use types, only: realloc
@@ -789,6 +813,8 @@ contains
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
     f%n = n - 1
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -822,7 +848,7 @@ contains
   !> ikpt = use only the indicated k-points. ibnd = use only the
   !> indicated bands. emin,emax: only the bands in the energy range.
   module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c)
-    use tools_math, only: det3
+    use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
@@ -847,6 +873,8 @@ contains
     f%isqe = .true.
     f%iswan = .false.
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
 
     ! open file
     luc = fopen_read(fpwc,form="unformatted")
@@ -980,6 +1008,7 @@ contains
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
   module subroutine read_elk(f,file,x2c)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -1000,6 +1029,8 @@ contains
        call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
 
     f%x2c = x2c
+    f%c2x = f%x2c
+    call matinv(f%c2x,3)
     f%n = n
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
@@ -1204,6 +1235,12 @@ contains
        call grinterp_test(f,x0,y,yp,ypp)
     end if
 
+    ! convert the gradient and Hessian to Cartesian coordinates
+    if (f%mode /= mode_test) then
+       yp = matmul(transpose(f%c2x),yp)
+       ypp = matmul(matmul(transpose(f%c2x),ypp),f%c2x)
+    end if
+
   end subroutine interp
 
   !> Given the grid field in frho calculate the laplacian or Hessian
@@ -1230,6 +1267,7 @@ contains
     n = frho%n
     flap%n = n
     flap%x2c = frho%x2c
+    flap%c2x = frho%c2x
     flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1298,6 +1336,7 @@ contains
     n = frho%n
     fgrho%n = n
     fgrho%x2c = frho%x2c
+    fgrho%c2x = frho%c2x
     fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1371,6 +1410,7 @@ contains
     n = frho%n
     fpot%n = n
     fpot%x2c = frho%x2c
+    fpot%c2x = frho%c2x
     fpot%isinit = .true.
     fpot%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1440,6 +1480,7 @@ contains
     ! allocate slot
     frs%n = n2
     frs%x2c = frho%x2c
+    frs%c2x = frho%c2x
     frs%isinit = .true.
     frs%mode = mode_default
 

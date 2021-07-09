@@ -54,6 +54,7 @@ module grid3mod
      integer :: mode !< interpolation mode
      integer :: n(3) !< number of grid points in each direction
      real*8 :: x2c(3,3) !< the crystallographic to Cartesian conversion matrix
+     real*8 :: c2x(3,3) !< the Cartesian to crystallographic conversion matrix
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
      type(qedat) :: qe !< QE band states and Wannier function transformation
