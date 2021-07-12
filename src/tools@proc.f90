@@ -513,4 +513,103 @@ contains
 
   end function tiny_atom_type
 
+  !> Transforms the basis in x2c to the Delaunay reduced basis.
+  !> x2c(:,i) are the Cartesian coordinates of lattice vector i.
+  !> Return the four Delaunay vectors in crystallographic coordinates
+  !> (rmat) cell, see 9.1.8 in ITC. If rbas is present, it contains
+  !> the three shortest of the seven Delaunay lattice vectors that
+  !> form a cell (useful to transform to one of the delaunay reduced
+  !> cells).
+  module subroutine delaunay_reduction(x2c,rmat,rbas)
+    use tools_math, only: det3, matinv
+    use tools_io, only: faterr, ferror
+    real*8, intent(in) :: x2c(3,3)
+    real*8, intent(out) :: rmat(3,4)
+    real*8, intent(out), optional :: rbas(3,3)
+
+    integer :: i, j, k, iord(7)
+    real*8 :: c2x(3,3), sc(4,4), xstar(3,7), xlen(7), dd
+    logical :: again, ok
+
+    real*8, parameter :: eps = 1d-10
+
+    ! calculate the c2x matrix
+    c2x = x2c
+    call matinv(c2x,3)
+
+    ! build the four Delaunay vectors
+    rmat = 0d0
+    do i = 1, 3
+       rmat(i,i) = 1d0
+       rmat(:,i) = matmul(x2c,rmat(:,i))
+    end do
+    rmat(:,4) = -(rmat(:,1)+rmat(:,2)+rmat(:,3))
+
+    ! reduce until all the scalar products are negative or zero
+    again = .true.
+    sc = -1d0
+    do while(again)
+       do i = 1, 4
+          do j = i+1, 4
+             sc(i,j) = dot_product(rmat(:,i),rmat(:,j))
+             sc(j,i) = sc(i,j)
+          end do
+       end do
+
+       if (any(sc > eps)) then
+          ai: do i = 1, 4
+             aj: do j = i+1, 4
+                if (sc(i,j) > eps) exit ai
+             end do aj
+          end do ai
+          do k = 1, 4
+             if (i == k .or. j == k) cycle
+             rmat(:,k) = rmat(:,i) + rmat(:,k)
+          end do
+          rmat(:,i) = -rmat(:,i)
+       else
+          again = .false.
+       end if
+    end do
+
+    if (present(rbas)) then
+       xstar(:,1)  = rmat(:,1)
+       xstar(:,2)  = rmat(:,2)
+       xstar(:,3)  = rmat(:,3)
+       xstar(:,4)  = rmat(:,4)
+       xstar(:,5)  = rmat(:,1)+rmat(:,2)
+       xstar(:,6)  = rmat(:,1)+rmat(:,3)
+       xstar(:,7)  = rmat(:,2)+rmat(:,3)
+       do i = 1, 7
+          xlen(i) = norm2(xstar(:,i))
+          iord(i) = i
+       end do
+       call qcksort(xlen,iord,1,7)
+       rbas(:,1) = xstar(:,iord(1))
+       ok = .false.
+       iloop: do i = 2, 7
+          rbas(:,2) = xstar(:,iord(i))
+          do j = i+1, 7
+             rbas(:,3) = xstar(:,iord(j))
+             dd = det3(rbas)
+             if (abs(dd) > eps) then
+                ok = .true.
+                exit iloop
+             end if
+          end do
+       end do iloop
+       if (.not.ok) &
+          call ferror("delaunay_reduction","could not find reduced basis",faterr)
+       if (dd < 0d0) rbas = -rbas
+       do i = 1, 3
+          rbas(:,i) = matmul(c2x,rbas(:,i))
+       end do
+    end if
+
+    do i = 1, 4
+       rmat(:,i) = matmul(c2x,rmat(:,i))
+    end do
+
+  end subroutine delaunay_reduction
+
 end submodule proc

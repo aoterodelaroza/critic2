@@ -52,6 +52,214 @@ contains
 
   end subroutine environ_end
 
+  !> Build an environment from a lattice. m_xr2c = reduced
+  !> crystallographic to Cartesian matrix.  m_x2xr = crystallographic
+  !> to reduced crystallographic matrix. dmax0 = the environment will
+  !> contain all atoms within a distance dmax0 of any atom in the unit
+  !> cell/molecule.
+  module subroutine environ_build_lattice(e,m_x2c,dmax0)
+    use global, only: cutrad
+    use tools, only: qcksort, delaunay_reduction
+    use tools_math, only: matinv
+    use types, only: realloc
+    use param, only: atmcov, ctsq32
+    class(environ), intent(inout) :: e
+    real*8, intent(in) :: m_x2c(3,3)
+    real*8, intent(in) :: dmax0
+
+    logical :: dorepeat
+    real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
+    real*8 :: x0(3), x1(3), dist, rcut0, rmat(3,4)
+    integer :: i1, i2, i3, i, m, imax, i3min, nreg
+    integer, allocatable :: iord(:)
+
+    ! fill the matrices
+    e%m_x2c = m_x2c
+    e%m_c2x = m_x2c
+    call matinv(e%m_c2x,3)
+    call delaunay_reduction(m_x2c,rmat,rbas=e%m_xr2x)
+    e%m_x2xr = e%m_xr2x
+    call matinv(e%m_x2xr,3)
+    e%m_xr2c = matmul(m_x2c,e%m_xr2x)
+    e%m_c2xr = e%m_xr2c
+    call matinv(e%m_c2xr,3)
+
+    ! only one atom at the origin
+    e%n = 1
+    e%nspc = 1
+    e%ismolecule = .false.
+    if (allocated(e%spc)) deallocate(e%spc)
+    allocate(e%spc(1))
+    e%boxsize = boxsize_default
+
+    ! calculate the maximum diagonal half-length (sphmax)
+    sphmax = norm2(e%xr2c((/0d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/)))
+    sphmax = max(sphmax,norm2(e%xr2c((/1d0,0d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,1d0,0d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    sphmax = max(sphmax,norm2(e%xr2c((/0d0,0d0,1d0/) - (/0.5d0,0.5d0,0.5d0/))))
+    e%rsph_uc = sphmax
+
+    ! calculate the e%dmax0
+    e%dmax0 = dmax0 + 1d-2
+
+    ! write down the first atom
+    if (allocated(e%at)) deallocate(e%at)
+    allocate(e%at(e%n))
+    rmin = 0d0
+    rmax = 0d0
+    e%ncell = 1
+    e%at(1)%x = 0d0
+    e%at(1)%lvec = 0
+    e%at(1)%idx = 1
+    e%at(1)%is = 1
+    e%at(1)%r = 0d0
+    e%at(1)%cidx = 1
+
+    ! origin is the center of the unit cell
+    e%x0 = 0.5d0
+    e%x0 = e%xr2c(e%x0)
+
+    ! include all atoms at a distance sphmax+dmax from the center of the cell
+    dorepeat = .true.
+    imax = 0
+    do while (dorepeat)
+       dorepeat = .false.
+       imax = imax + 1
+       do i1 = -imax, imax
+          do i2 = -imax, imax
+             if (abs(i1) == imax .or. abs(i2) == imax) then
+                i3min = 0
+             else
+                i3min = imax
+             end if
+             do i3 = i3min, imax
+                call addcell(i1,i2,i3)
+                if (i3 /= 0) &
+                   call addcell(i1,i2,-i3)
+             end do
+          end do
+       end do
+    end do
+    call realloc(e%at,e%n)
+
+    ! sphere that circumscribes the environment
+    e%rsph_env = 0.5d0 * norm2(rmax-rmin)
+
+    ! cap the box size at around 100^3 boxes
+    e%boxsize = max(e%boxsize,2d0*e%rsph_env/100d0)
+
+    ! minimum and maximum region
+    e%nmin = floor((rmin - e%x0) / e%boxsize)
+    e%nmax = floor((rmax - e%x0) / e%boxsize)
+
+    ! number of regions
+    e%nreg = e%nmax - e%nmin + 1
+    e%nregion = product(e%nreg)
+
+    ! build the ordered list of atoms
+    if (allocated(e%imap)) deallocate(e%imap)
+    allocate(iord(e%n),e%imap(e%n))
+    do i = 1, e%n
+       iord(i) = e%c2i(e%at(i)%r)
+       e%imap(i) = i
+    end do
+    call qcksort(iord,e%imap,1,e%n)
+
+    ! limits for each region
+    if (allocated(e%nrlo)) deallocate(e%nrlo)
+    if (allocated(e%nrhi)) deallocate(e%nrhi)
+    allocate(e%nrlo(e%nregion),e%nrhi(e%nregion))
+    e%nrlo = 1
+    e%nrhi = 0
+    m = 0
+    do i = 1, e%n
+       if (iord(e%imap(i)) /= m) then
+          if (i > 1) e%nrhi(m) = i-1
+          e%nrlo(iord(e%imap(i))) = i
+          e%nrhi(iord(e%imap(i))) = i
+       end if
+       m = iord(e%imap(i))
+    end do
+    e%nrhi(iord(e%imap(e%n))) = e%n
+    deallocate(iord)
+
+    ! Calculate the limits of the search region. This choice of
+    ! rs_imax ensures that rs_rcut(i) > e%rsph_env and e%dmax0 for all
+    ! the regions no covered by the offsets.
+    e%rs_imax = ceiling(max(e%dmax0,e%rsph_env) / e%boxsize)
+    e%rs_2imax1 = 2 * e%rs_imax + 1
+    e%rs_nreg = e%rs_2imax1**3
+
+    ! Take a reference point and calculate regions around it. The
+    ! regions are sorted by distance to the reference point. This will
+    ! become useful for nearest neighbor searches.
+    if (allocated(e%rs_ioffset)) deallocate(e%rs_ioffset)
+    if (allocated(e%rs_rcut)) deallocate(e%rs_rcut)
+    allocate(e%rs_ioffset(e%rs_nreg),e%rs_rcut(e%rs_nreg))
+
+    nreg = 0
+    do i1 = -e%rs_imax, e%rs_imax
+       do i2 = -e%rs_imax, e%rs_imax
+          do i3 = -e%rs_imax, e%rs_imax
+             nreg = nreg + 1
+             x0 = max( ((/i1,i2,i3/) - 0.5d0),0d0)
+             x1 = max(-((/i1,i2,i3/) + 0.5d0),0d0)
+
+             ! dist = minimum distance from the origin to the (x0,x1) cube
+             ! rcut = this cube has to be included in all searches where the maximum interaction
+             !        distance is rcut or higher
+             dist = sqrt(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3)+x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3))
+             rcut0 = max(dist - ctsq32,0d0) * e%boxsize
+
+             e%rs_ioffset(nreg) = packoffset(i1,i2,i3,e%rs_imax,e%rs_2imax1)
+             e%rs_rcut(nreg) = rcut0
+          end do
+       end do
+    end do
+
+    ! sort and populate the environ arrays
+    allocate(iord(e%rs_nreg))
+    do i = 1, e%rs_nreg
+       iord(i) = i
+    end do
+    call qcksort(e%rs_rcut,iord,1,e%rs_nreg)
+    e%rs_ioffset = e%rs_ioffset(iord)
+    e%rs_rcut = e%rs_rcut(iord)
+    deallocate(iord)
+
+  contains
+    subroutine addcell(i1,i2,i3)
+      integer, intent(in) :: i1, i2, i3
+
+      integer :: p(3), px(3)
+      real*8 :: xc(3), dd, rpx(3)
+
+      p = (/i1, i2, i3/)
+      rpx = real(p,8)
+      rpx = e%xr2x(rpx)
+      px = nint(rpx)
+
+      x = p
+      xc = e%xr2c(x)
+      dd = norm2(xc - e%x0)
+      if (dd < sphmax+e%dmax0) then
+         dorepeat = .true.
+         e%n = e%n + 1
+         if (e%n > size(e%at,1)) call realloc(e%at,2*e%n)
+
+         e%at(e%n)%x = x
+         e%at(e%n)%r = xc
+         rmin = min(e%at(e%n)%r,rmin)
+         rmax = max(e%at(e%n)%r,rmax)
+         e%at(e%n)%idx = 1
+         e%at(e%n)%cidx = 1
+         e%at(e%n)%lvec = px
+         e%at(e%n)%is = 1
+      end if
+
+    end subroutine addcell
+  endsubroutine environ_build_lattice
+
   !> Build an environment from molecular or crystal data. ismol = true
   !> if the environment is for a molecule (false = crystal). nspc =
   !> number of species.  spc = species. n = number of atoms in the

@@ -216,6 +216,7 @@ contains
     real*8, allocatable :: atpos(:,:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
+    logical :: haveatoms
 
     if (.not.seed%isused) then
        if (crashfail) then
@@ -263,6 +264,17 @@ contains
        xmax = 1d0
        xcm = 0.5d0
        xmin = 0d0
+    end if
+
+    ! check if we have any atoms
+    haveatoms = .false.
+    if (seed%nat > 0) then
+       do i = 1, c%nspc
+          if (c%spc(i)%z > 0) then
+             haveatoms = .true.
+             exit
+          end if
+       end do
     end if
 
     ! basic cell and centering information
@@ -458,7 +470,7 @@ contains
     ! symmetry from spglib
     clearsym = .true.
     if (.not.seed%ismolecule .and. seed%havesym == 0) then
-       if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall .and. seed%nat > 0) then
+       if ((seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) .and. haveatoms) then
           ! symmetry was not available, and I want it
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
           call c%calcsym(.true.,errmsg)
@@ -467,10 +479,6 @@ contains
           else
              clearsym = .false.
           end if
-       else if (seed%findsym == -1 .and. seed%nat > crsmall) then
-          ! call ferror("struct_new","Symmetry not calculated: crystal has >"//string(crsmall)//" atoms",noerr)
-       else if (seed%findsym == 0) then
-          ! call ferror("struct_new","Symmetry not calculated: deactivated by user",noerr)
        end if
 
     else if (.not.seed%ismolecule .and. c%havesym > 0) then
@@ -496,7 +504,7 @@ contains
        call grid1_register_ae(c%spc(i)%z)
     end do
 
-    if (c%ncel > 0) then
+    if (haveatoms) then
        ! Build the atomic environments
        call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_xr2c,c%m_x2xr,c%m_x2c)
 
@@ -2799,101 +2807,6 @@ contains
 
   end function cell_delaunay
 
-  !> Transforms the current basis to the Delaunay reduced basis.
-  !> Return the four Delaunay vectors in crystallographic coordinates
-  !> (rmat) cell, see 9.1.8 in ITC. If rbas is present, it contains
-  !> the three shortest of the seven Delaunay lattice vectors that
-  !> form a cell (useful to transform to one of the delaunay reduced
-  !> cells).
-  module subroutine delaunay_reduction(c,rmat,rbas)
-    use tools, only: qcksort
-    use tools_math, only: det3
-    use tools_io, only: faterr, ferror
-    class(crystal), intent(in) :: c
-    real*8, intent(out) :: rmat(3,4)
-    real*8, intent(out), optional :: rbas(3,3)
-
-    integer :: i, j, k, iord(7)
-    real*8 :: sc(4,4), xstar(3,7), xlen(7), dd
-    logical :: again, ok
-
-    real*8, parameter :: eps = 1d-10
-
-    ! build the four Delaunay vectors
-    rmat = 0d0
-    do i = 1, 3
-       rmat(i,i) = 1d0
-       rmat(:,i) = c%x2c(rmat(:,i))
-    end do
-    rmat(:,4) = -(rmat(:,1)+rmat(:,2)+rmat(:,3))
-
-    ! reduce until all the scalar products are negative or zero
-    again = .true.
-    sc = -1d0
-    do while(again)
-       do i = 1, 4
-          do j = i+1, 4
-             sc(i,j) = dot_product(rmat(:,i),rmat(:,j))
-             sc(j,i) = sc(i,j)
-          end do
-       end do
-
-       if (any(sc > eps)) then
-          ai: do i = 1, 4
-             aj: do j = i+1, 4
-                if (sc(i,j) > eps) exit ai
-             end do aj
-          end do ai
-          do k = 1, 4
-             if (i == k .or. j == k) cycle
-             rmat(:,k) = rmat(:,i) + rmat(:,k)
-          end do
-          rmat(:,i) = -rmat(:,i)
-       else
-          again = .false.
-       end if
-    end do
-
-    if (present(rbas)) then
-       xstar(:,1)  = rmat(:,1)
-       xstar(:,2)  = rmat(:,2)
-       xstar(:,3)  = rmat(:,3)
-       xstar(:,4)  = rmat(:,4)
-       xstar(:,5)  = rmat(:,1)+rmat(:,2)
-       xstar(:,6)  = rmat(:,1)+rmat(:,3)
-       xstar(:,7)  = rmat(:,2)+rmat(:,3)
-       do i = 1, 7
-          xlen(i) = norm2(xstar(:,i))
-          iord(i) = i
-       end do
-       call qcksort(xlen,iord,1,7)
-       rbas(:,1) = xstar(:,iord(1))
-       ok = .false.
-       iloop: do i = 2, 7
-          rbas(:,2) = xstar(:,iord(i))
-          do j = i+1, 7
-             rbas(:,3) = xstar(:,iord(j))
-             dd = det3(rbas)
-             if (abs(dd) > eps) then
-                ok = .true.
-                exit iloop
-             end if
-          end do
-       end do iloop
-       if (.not.ok) &
-          call ferror("delaunay_reduction","could not find reduced basis",faterr)
-       if (dd < 0d0) rbas = -rbas
-       do i = 1, 3
-          rbas(:,i) = c%c2x(rbas(:,i))
-       end do
-    end if
-
-    do i = 1, 4
-       rmat(:,i) = c%c2x(rmat(:,i))
-    end do
-
-  end subroutine delaunay_reduction
-
   !> Write information about the crystal structure to the output. lcrys =
   !> information about the structure. lq = charges.
   module subroutine struct_report(c,lcrys,lq)
@@ -4242,6 +4155,7 @@ contains
     use tools_math, only: mixed, cross, matinv, mnorm2, det3
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
+    use tools, only: delaunay_reduction
     use types, only: realloc
     use param, only: pi, eye
     class(crystal), intent(inout) :: c
@@ -4277,7 +4191,7 @@ contains
     real*8 :: xlen(3), xang(3), x0(3), xred(3,3)
 
     ! delaunay reduction
-    call c%delaunay_reduction(rmat,rbas=rdel)
+    call delaunay_reduction(c%m_x2c,rmat,rbas=rdel)
 
     ! construct star of lattice vectors -> use Delaunay reduction
     ! see 9.1.8 in ITC.

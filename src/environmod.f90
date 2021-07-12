@@ -122,6 +122,7 @@ module environmod
      procedure :: end => environ_end !< Deallocate arrays and nullify variables
      ! initialization routines
      procedure :: build => environ_build !< Build an environment from a crystal/molecule
+     procedure :: build_lattice => environ_build_lattice !< Build an environment from a lattice
      procedure :: extend => environ_extend !< Extend an env to a larger env
      ! coordinate transformations
      procedure :: xr2c !< Reduced crystallographic to Cartesian
@@ -156,11 +157,13 @@ module environmod
      module subroutine environ_end(e)
        class(environ), intent(inout) :: e
      end subroutine environ_end
+     module subroutine environ_build_lattice(e,m_x2c,dmax0)
+       class(environ), intent(inout) :: e
+       real*8, intent(in) :: m_x2c(3,3)
+       real*8, intent(in) :: dmax0
+     endsubroutine environ_build_lattice
      module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,at_in_xr)
-       use global, only: cutrad
-       use tools_math, only: matinv
-       use types, only: realloc, species, celatom
-       use param, only: atmcov
+       use types, only: species, celatom
        class(environ), intent(inout) :: e
        logical, intent(in) :: ismol
        integer, intent(in) :: nspc

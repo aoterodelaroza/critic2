@@ -29,6 +29,7 @@ module tools
   public :: qcksort
   public :: mergesort
   public :: tiny_atom_type
+  public :: delaunay_reduction
 
   interface qcksort
      module procedure qcksort_r8_inplace
@@ -80,6 +81,11 @@ module tools
        integer, intent(in) :: iz, nn
        integer :: tiny_atom_type
      end function tiny_atom_type
+     module subroutine delaunay_reduction(x2c,rmat,rbas)
+       real*8, intent(in) :: x2c(3,3)
+       real*8, intent(out) :: rmat(3,4)
+       real*8, intent(out), optional :: rbas(3,3)
+     end subroutine delaunay_reduction
   end interface
 
 end module tools
