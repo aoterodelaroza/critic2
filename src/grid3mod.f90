@@ -58,6 +58,7 @@ module grid3mod
      real*8, allocatable :: f(:,:,:) !< grid values
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
      integer :: test_nlist
+     real*8 :: test_dist0
      integer, allocatable :: test_ilist(:,:)
      real*8, allocatable :: test_xlist(:,:)
      real*8, allocatable :: test_phiinv(:,:)

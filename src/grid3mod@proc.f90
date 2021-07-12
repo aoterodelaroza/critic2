@@ -327,7 +327,7 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	 ! 49-64, 64
      /),shape(c))
 
-  integer, parameter :: test_nenv = 216
+  integer, parameter :: test_nenv = 6**3
   integer, parameter :: test_kkern = 6
 
 contains
@@ -2626,8 +2626,7 @@ contains
     use param, only: icrd_cart
     class(grid3), intent(inout) :: f !< Input grid
 
-    logical :: again
-    real*8 :: dist02, rvec(3), dd, xh(3), ff, fp, fpp, x2c(3,3)
+    real*8 :: dd, xh(3), ff, fp, fpp, x2c(3,3)
     integer :: i1, i2, i3, i, j, kmax, nn, ierr
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
@@ -2652,6 +2651,8 @@ contains
     call env%build_lattice(x2c,dd*8)
     call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
+    f%test_dist0 = dlist(nn)
+    write (*,*) "bleh final ", f%test_dist0
     allocate(f%test_xlist(3,nn),f%test_ilist(3,nn))
     do i = 1, nn
        f%test_ilist(:,i) = nint(env%at(eid(i))%x)
