@@ -270,9 +270,9 @@ contains
   !> cell/molecule. If at_in_xr is present, it contains the unit cell
   !> atoms in reduced crystallographic coords with anyatom type, and
   !> at(:) is ignored (used to load from another environment).
-  module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,at_in_xr)
+  module subroutine environ_build(e,ismol,nspc,spc,n,at,m_x2c,dmax0,at_in_xr)
     use global, only: cutrad
-    use tools, only: qcksort
+    use tools, only: qcksort, delaunay_reduction
     use tools_math, only: matinv
     use types, only: realloc, species, celatom
     use param, only: atmcov, ctsq32
@@ -282,28 +282,26 @@ contains
     type(species), intent(in) :: spc(nspc)
     integer, intent(in) :: n
     type(celatom), intent(in) :: at(n)
-    real*8, intent(in) :: m_xr2c(3,3)
-    real*8, intent(in) :: m_x2xr(3,3)
     real*8, intent(in) :: m_x2c(3,3)
     real*8, intent(in), optional :: dmax0
     type(anyatom), intent(in), optional :: at_in_xr(:)
 
     logical :: dorepeat
     real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
-    real*8 :: x0(3), x1(3), dist, rcut0
+    real*8 :: x0(3), x1(3), dist, rcut0, rmat(3,4)
     integer :: i1, i2, i3, i, m, imax, i3min, nreg
     integer, allocatable :: iord(:)
 
     ! fill the matrices
-    e%m_xr2c = m_xr2c
-    e%m_c2xr = m_xr2c
-    call matinv(e%m_c2xr,3)
-    e%m_x2xr = m_x2xr
-    e%m_xr2x = m_x2xr
-    call matinv(e%m_xr2x,3)
     e%m_x2c = m_x2c
     e%m_c2x = m_x2c
     call matinv(e%m_c2x,3)
+    call delaunay_reduction(m_x2c,rmat,rbas=e%m_xr2x)
+    e%m_x2xr = e%m_xr2x
+    call matinv(e%m_x2xr,3)
+    e%m_xr2c = matmul(m_x2c,e%m_xr2x)
+    e%m_c2xr = e%m_xr2c
+    call matinv(e%m_c2xr,3)
 
     ! do nothing else if there are no atoms
     e%n = n
@@ -554,7 +552,7 @@ contains
 
     if (dmax0 > e%dmax0) then
        call e%end()
-       call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,at,e0%m_xr2c,e0%m_x2xr,e0%m_x2c,dmax0,e0%at(1:e0%ncell))
+       call e%build(e0%ismolecule,e0%nspc,e0%spc(1:e0%nspc),e0%ncell,at,e0%m_x2c,dmax0,e0%at(1:e0%ncell))
     end if
 
   end subroutine environ_extend

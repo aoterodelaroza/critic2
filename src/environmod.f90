@@ -162,7 +162,7 @@ module environmod
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in) :: dmax0
      endsubroutine environ_build_lattice
-     module subroutine environ_build(e,ismol,nspc,spc,n,at,m_xr2c,m_x2xr,m_x2c,dmax0,at_in_xr)
+     module subroutine environ_build(e,ismol,nspc,spc,n,at,m_x2c,dmax0,at_in_xr)
        use types, only: species, celatom
        class(environ), intent(inout) :: e
        logical, intent(in) :: ismol
@@ -170,8 +170,6 @@ module environmod
        type(species), intent(in) :: spc(nspc)
        integer, intent(in) :: n
        type(celatom), intent(in) :: at(n)
-       real*8, intent(in) :: m_xr2c(3,3)
-       real*8, intent(in) :: m_x2xr(3,3)
        real*8, intent(in) :: m_x2c(3,3)
        real*8, intent(in), optional :: dmax0
        type(anyatom), intent(in), optional :: at_in_xr(:)
