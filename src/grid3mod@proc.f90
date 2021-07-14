@@ -2444,17 +2444,18 @@ contains
     i0 = nint(x0 * f%n)
 
     ! get the values at the grid points
-    allocate(flist(f%test_nlist+4))
+    ! allocate(flist(f%test_nlist+4))
+    allocate(flist(f%test_nlist))
     do i = 1, f%test_nlist
        ih = i0 + f%test_ilist(:,i)
        ih = modulo(ih,f%n) + 1
-       ! flist(i) = log(f%f(ih(1),ih(2),ih(3)))
        flist(i) = f%f(ih(1),ih(2),ih(3))
     end do
-    flist(f%test_nlist+1:) = 0d0
+    ! flist(f%test_nlist+1:) = 0d0
 
     ! solve the system of equations
-    allocate(w(f%test_nlist+4))
+    ! allocate(w(f%test_nlist+4))
+    allocate(w(f%test_nlist))
     w = matmul(f%test_phiinv,flist)
 
     ! sum the contributions
@@ -2465,7 +2466,9 @@ contains
     do i = 1, f%test_nlist
        xh = x1 - f%test_xlist(:,i)
        dd = dot_product(xh,xh)
-       call test_kernelfun(dd,test_kkern,ff,fp,fpp)
+       ! call test_kernelfun(dd,test_kkern,ff,fp,fpp)
+       call test_kernelfun2(dd,f%test_dist0,ff,fp,fpp)
+       ! call test_kernelfun3(dd,f%test_dist0,ff,fp,fpp)
        d = max(sqrt(dd),1d-15)
        y = y + w(i) * ff
        yp = yp + w(i) * fp * xh / d
@@ -2478,11 +2481,13 @@ contains
        ypp(2,1) = ypp(1,2)
        ypp(3,1) = ypp(1,3)
        ypp(3,2) = ypp(2,3)
+       ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
     end do
-    y = y + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
-    yp(1) = yp(1) + w(f%test_nlist+2)
-    yp(2) = yp(2) + w(f%test_nlist+3)
-    yp(3) = yp(3) + w(f%test_nlist+4)
+    ! stop 1
+    ! y = y + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
+    ! yp(1) = yp(1) + w(f%test_nlist+2)
+    ! yp(2) = yp(2) + w(f%test_nlist+3)
+    ! yp(3) = yp(3) + w(f%test_nlist+4)
 
   end subroutine grinterp_test
 
@@ -2648,7 +2653,7 @@ contains
     do i = 1, 3
        dd = max(dd,norm2(x2c(:,i)))
     end do
-    call env%build_lattice(x2c,dd*8)
+    call env%build_lattice(x2c,dd*25) ! xxxx
     call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
     f%test_dist0 = dlist(nn)
@@ -2661,22 +2666,26 @@ contains
     call env%end()
 
     ! calculate the inverse phi matrix
-    allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
+    ! allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
+    allocate(f%test_phiinv(f%test_nlist,f%test_nlist))
     f%test_phiinv = 0d0
     do i = 1, f%test_nlist
-       do j = i+1, f%test_nlist
+       do j = i, f%test_nlist
           xh = f%test_xlist(:,i) - f%test_xlist(:,j)
           dd = dot_product(xh,xh)
-          call test_kernelfun(dd,test_kkern,ff,fp,fpp)
+          ! call test_kernelfun(dd,test_kkern,ff,fp,fpp)
+          call test_kernelfun2(dd,f%test_dist0,ff,fp,fpp)
+          ! call test_kernelfun3(dd,f%test_dist0,ff,fp,fpp)
           f%test_phiinv(i,j) = ff
           f%test_phiinv(j,i) = f%test_phiinv(i,j)
        end do
-       f%test_phiinv(i,f%test_nlist+1) = 1d0
-       f%test_phiinv(f%test_nlist+1,i) = 1d0
-       f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
-       f%test_phiinv(i,f%test_nlist+2:f%test_nlist+4) = f%test_xlist(:,i)
+       ! f%test_phiinv(i,f%test_nlist+1) = 1d0
+       ! f%test_phiinv(f%test_nlist+1,i) = 1d0
+       ! f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
+       ! f%test_phiinv(i,f%test_nlist+2:f%test_nlist+4) = f%test_xlist(:,i)
     end do
-    call matinvsym(f%test_phiinv,f%test_nlist+4)
+    ! call matinvsym(f%test_phiinv,f%test_nlist+4)
+    call matinvsym(f%test_phiinv,f%test_nlist)
 
     ! write down the x2c of the grid crystal
     f%test_x2cgrid = x2c
@@ -2696,7 +2705,7 @@ contains
      f = 0d0
      fp = 0d0
      fpp = 0d0
-     r = sqrt(r2)
+     r = sqrt(max(r2,0d0))
      if (r < 1d-15) return
      if (mod(k,2) == 0) then
         f = r**k * log(r)
@@ -2709,5 +2718,62 @@ contains
      end if
 
    end subroutine test_kernelfun
+
+   !> Kernel function for testing, 2
+   subroutine test_kernelfun2(r2,rfin0,f,fp,fpp)
+     real*8, intent(in) :: r2, rfin0
+     real*8, intent(out) :: f
+     real*8, intent(out) :: fp
+     real*8, intent(out) :: fpp
+
+     real*8 :: r, r1p, rr, rfin
+     real*8 :: alpha
+
+     f = 0d0
+     fp = 0d0
+     fpp = 0d0
+
+     rfin = 1d0
+     r = sqrt(max(r2,0d0))
+     rr = r / rfin
+     if (rr >= 1d0) return
+
+     r1p = max(1d0-rr,0d0)
+
+     f = r1p**8 * (32d0 * rr**3 + 25d0 * rr**2 + 8d0 * rr + 1d0)
+     fp = 22d0*(rr-1)**7*rr*(16d0*rr**2+7d0*rr+1d0) / rfin
+     fpp = 22d0*(rr-1)**6*(160d0*rr**3+15d0*rr**2-6d0*rr-1) / rfin / rfin
+
+     ! f = r1p**6 * (35 * rr**2 + 18d0 * rr + 3d0)
+     ! fp = (-56d0) * rr * r1p**5 * (5d0 * rr + 1d0) / rfin
+     ! fpp = 56d0*r1p**4*(35d0*rr**2-4d0*rr-1) / rfin**2
+
+     ! f = r1p**4 * (4*rr+1)
+     ! fp = -20d0 * rr * r1p**3 / rfin
+     ! fpp = 20d0 * (4*rr-1) * r1p**2 / rfin**2
+
+     ! f = r1p**2
+     ! fp = -2d0 * r1p / rfin
+     ! fpp = 2d0 / rfin**2
+
+   end subroutine test_kernelfun2
+
+   !> Kernel function for testing, 3
+   subroutine test_kernelfun3(r2,rfin,f,fp,fpp)
+     real*8, intent(in) :: r2, rfin
+     real*8, intent(out) :: f
+     real*8, intent(out) :: fp
+     real*8, intent(out) :: fpp
+
+     real*8 :: r, r1p, rr
+     real*8 :: alpha
+
+     r = sqrt(max(r2,0d0))
+     alpha = 1d0 / 8d0 / (rfin / (test_nenv)**(1d0/3d0))**2
+     f = exp(-alpha * r * r)
+     fp = -2d0 * alpha * r * f
+     fpp = -2d0 * alpha * (f + r * fp)
+
+   end subroutine test_kernelfun3
 
 end submodule proc
