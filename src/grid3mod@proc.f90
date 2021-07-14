@@ -327,7 +327,7 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	 ! 49-64, 64
      /),shape(c))
 
-  integer, parameter :: test_nenv = 6**3
+  integer, parameter :: test_nenv = 10**3
   integer, parameter :: test_kkern = 6
 
 contains
@@ -2422,11 +2422,12 @@ contains
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
 
-    integer :: i, j
-    real*8 :: x0(3), x1(3), xh(3)
+    integer :: i, j, i1, i2, i3
+    real*8 :: x0(3), x1(3), xh(3), r(3), s(3), dr(3,3), ds(3,3)
     integer :: i0(3), ih(3)
     real*8 :: d, dd, ff, fp, fpp
     real*8, allocatable :: flist(:), w(:)
+    real*8:: y_(0:2,0:2,0:2), yp_(3,0:2,0:2,0:2), ypp_(3,3,0:2,0:2,0:2)
 
     !$omp critical (checkalloc)
     if (.not.allocated(f%test_ilist)) then
@@ -2434,60 +2435,182 @@ contains
     end if
     !$omp end critical (checkalloc)
 
-    ! initialize
-    y = 0d0
-    yp = 0d0
-    ypp = 0d0
+    ! reserve memory
+    allocate(flist(f%test_nlist),w(f%test_nlist))
+    ! allocate(flist(f%test_nlist+4),w(f%test_nlist+4))
+    ! allocate(flist(f%test_nlist+10),w(f%test_nlist+10))
 
     ! locate the point
     x0 = modulo(xi,1d0)
     i0 = nint(x0 * f%n)
 
-    ! get the values at the grid points
-    ! allocate(flist(f%test_nlist+4))
-    allocate(flist(f%test_nlist))
-    do i = 1, f%test_nlist
-       ih = i0 + f%test_ilist(:,i)
-       ih = modulo(ih,f%n) + 1
-       flist(i) = f%f(ih(1),ih(2),ih(3))
-    end do
-    ! flist(f%test_nlist+1:) = 0d0
+    ! apply the stencil
+    call apply_stencil(i0,x0,y,yp,ypp)
 
-    ! solve the system of equations
-    ! allocate(w(f%test_nlist+4))
-    allocate(w(f%test_nlist))
-    w = matmul(f%test_phiinv,flist)
+    !!!! below, linear interpolation of stencils !!!!
 
-    ! sum the contributions
-    x1 = matmul(f%test_x2cgrid,x0 * f%n - i0)
-    y = 0d0
-    yp = 0d0
-    ypp = 0d0
-    do i = 1, f%test_nlist
-       xh = x1 - f%test_xlist(:,i)
-       dd = dot_product(xh,xh)
-       ! call test_kernelfun(dd,test_kkern,ff,fp,fpp)
-       call test_kernelfun2(dd,f%test_dist0,ff,fp,fpp)
-       ! call test_kernelfun3(dd,f%test_dist0,ff,fp,fpp)
-       d = max(sqrt(dd),1d-15)
-       y = y + w(i) * ff
-       yp = yp + w(i) * fp * xh / d
-       ypp(1,1) = ypp(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
-       ypp(2,2) = ypp(2,2) + w(i) * (fpp * (xh(2)/d)**2 + fp * (1/d - xh(2)**2/d**3))
-       ypp(3,3) = ypp(3,3) + w(i) * (fpp * (xh(3)/d)**2 + fp * (1/d - xh(3)**2/d**3))
-       ypp(1,2) = ypp(1,2) + w(i) * (fpp * (xh(1)*xh(2)/d**2) - fp * xh(1)*xh(2)/d**3)
-       ypp(1,3) = ypp(1,3) + w(i) * (fpp * (xh(1)*xh(3)/d**2) - fp * xh(1)*xh(3)/d**3)
-       ypp(2,3) = ypp(2,3) + w(i) * (fpp * (xh(2)*xh(3)/d**2) - fp * xh(2)*xh(3)/d**3)
-       ypp(2,1) = ypp(1,2)
-       ypp(3,1) = ypp(1,3)
-       ypp(3,2) = ypp(2,3)
-       ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
-    end do
-    ! stop 1
-    ! y = y + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
-    ! yp(1) = yp(1) + w(f%test_nlist+2)
-    ! yp(2) = yp(2) + w(f%test_nlist+3)
-    ! yp(3) = yp(3) + w(f%test_nlist+4)
+    ! i0 = floor(x0 * f%n)
+
+    ! ! apply the stencil
+    ! y_ = 0d0
+    ! yp_ = 0d0
+    ! ypp_ = 0d0
+    ! do i3 = 0, 1
+    !    do i2 = 0, 1
+    !       do i1 = 0, 1
+    !          ih = (/i0(1)+i1,i0(2)+i2,i0(3)+i3/)
+    !          call apply_stencil(ih,x0,y_(i1,i2,i3),yp_(:,i1,i2,i3),ypp_(:,:,i1,i2,i3))
+    !       end do
+    !    end do
+    ! end do
+
+    ! ! trilinear stencil interpolation
+    ! r = x0 * f%n - i0
+    ! s = 1d0 - r
+    ! dr = transpose(f%c2x)
+    ! ds = -dr
+    ! do i = 0, 1
+    !    do j = 0, 1
+    !       y_(2,j,i) = y_(0,j,i) * s(1) + y_(1,j,i) * r(1)
+    !       yp_(1,2,j,i) = yp_(1,0,j,i) * s(1) + yp_(1,1,j,i) * r(1) + y_(0,j,i) * ds(1,1) + y_(1,j,i) * dr(1,1)
+    !       yp_(2,2,j,i) = yp_(2,0,j,i) * s(1) + yp_(2,1,j,i) * r(1) + y_(0,j,i) * ds(1,2) + y_(1,j,i) * dr(1,2)
+    !       yp_(3,2,j,i) = yp_(3,0,j,i) * s(1) + yp_(3,1,j,i) * r(1) + y_(0,j,i) * ds(1,3) + y_(1,j,i) * dr(1,3)
+    !       ypp_(1,1,2,j,i) = ypp_(1,1,0,j,i) * s(1) + ypp_(1,1,1,j,i) * r(1) + &
+    !          2d0 * yp_(1,0,j,i) * ds(1,1) + 2d0 * yp_(1,1,j,i) * dr(1,1)
+    !       ypp_(2,2,2,j,i) = ypp_(2,2,0,j,i) * s(1) + ypp_(2,2,1,j,i) * r(1) + &
+    !          2d0 * yp_(2,0,j,i) * ds(1,2) + 2d0 * yp_(2,1,j,i) * dr(1,2)
+    !       ypp_(3,3,2,j,i) = ypp_(3,3,0,j,i) * s(1) + ypp_(3,3,1,j,i) * r(1) + &
+    !          2d0 * yp_(3,0,j,i) * ds(1,3) + 2d0 * yp_(3,1,j,i) * dr(1,3)
+    !       ypp_(1,2,2,j,i) = ypp_(1,2,0,j,i) * s(1) + ypp_(1,2,1,j,i) * r(1) + &
+    !          yp_(2,0,j,i) * ds(1,1) + yp_(2,1,j,i) * dr(1,1) + &
+    !          yp_(1,0,j,i) * ds(1,2) + yp_(1,1,j,i) * dr(1,2)
+    !       ypp_(1,3,2,j,i) = ypp_(1,3,0,j,i) * s(1) + ypp_(1,3,1,j,i) * r(1) + &
+    !          yp_(3,0,j,i) * ds(1,1) + yp_(3,1,j,i) * dr(1,1) + &
+    !          yp_(1,0,j,i) * ds(1,3) + yp_(1,1,j,i) * dr(1,3)
+    !       ypp_(2,3,2,j,i) = ypp_(2,3,0,j,i) * s(1) + ypp_(2,3,1,j,i) * r(1) + &
+    !          yp_(3,0,j,i) * ds(1,2) + yp_(3,1,j,i) * dr(1,2) + &
+    !          yp_(2,0,j,i) * ds(1,3) + yp_(2,1,j,i) * dr(1,3)
+    !    end do
+    !    y_(2,2,i) = y_(2,0,i) * s(2) + y_(2,1,i) * r(2)
+    !    yp_(1,2,2,i) = yp_(1,2,0,i) * s(2) + yp_(1,2,1,i) * r(2) + y_(2,0,i) * ds(2,1) + y_(2,1,i) * dr(2,1)
+    !    yp_(2,2,2,i) = yp_(2,2,0,i) * s(2) + yp_(2,2,1,i) * r(2) + y_(2,0,i) * ds(2,2) + y_(2,1,i) * dr(2,2)
+    !    yp_(3,2,2,i) = yp_(3,2,0,i) * s(2) + yp_(3,2,1,i) * r(2) + y_(2,0,i) * ds(2,3) + y_(2,1,i) * dr(2,3)
+    !    ypp_(1,1,2,2,i) = ypp_(1,1,2,0,i) * s(2) + ypp_(1,1,2,1,i) * r(2) + &
+    !       2d0 * yp_(1,2,0,i) * ds(2,1) + 2d0 * yp_(1,2,1,i) * dr(2,1)
+    !    ypp_(2,2,2,2,i) = ypp_(2,2,2,0,i) * s(2) + ypp_(2,2,2,1,i) * r(2) + &
+    !       2d0 * yp_(2,2,0,i) * ds(2,2) + 2d0 * yp_(2,2,1,i) * dr(2,2)
+    !    ypp_(3,3,2,2,i) = ypp_(3,3,2,0,i) * s(2) + ypp_(3,3,2,1,i) * r(2) + &
+    !       2d0 * yp_(3,2,0,i) * ds(2,3) + 2d0 * yp_(3,2,1,i) * dr(2,3)
+    !    ypp_(1,2,2,2,i) = ypp_(1,2,2,0,i) * s(2) + ypp_(1,2,2,1,i) * r(2) + &
+    !       yp_(2,2,0,i) * ds(2,1) + yp_(2,2,1,i) * dr(2,1) + &
+    !       yp_(1,2,0,i) * ds(2,2) + yp_(1,2,1,i) * dr(2,2)
+    !    ypp_(1,3,2,2,i) = ypp_(1,3,2,0,i) * s(2) + ypp_(1,3,2,1,i) * r(2) + &
+    !       yp_(3,2,0,i) * ds(2,1) + yp_(3,2,1,i) * dr(2,1) + &
+    !       yp_(1,2,0,i) * ds(2,3) + yp_(1,2,1,i) * dr(2,3)
+    !    ypp_(2,3,2,2,i) = ypp_(2,3,2,0,i) * s(2) + ypp_(2,3,2,1,i) * r(2) + &
+    !       yp_(3,2,0,i) * ds(2,2) + yp_(3,2,1,i) * dr(2,2) + &
+    !       yp_(2,2,0,i) * ds(2,3) + yp_(2,2,1,i) * dr(2,3)
+    ! end do
+    ! y_(2,2,2) = y_(2,2,0) * s(3) + y_(2,2,1) * r(3)
+    ! yp_(1,2,2,2) = yp_(1,2,2,0) * s(3) + yp_(1,2,2,1) * r(3) + y_(2,2,0) * ds(3,1) + y_(2,2,1) * dr(3,1)
+    ! yp_(2,2,2,2) = yp_(2,2,2,0) * s(3) + yp_(2,2,2,1) * r(3) + y_(2,2,0) * ds(3,2) + y_(2,2,1) * dr(3,2)
+    ! yp_(3,2,2,2) = yp_(3,2,2,0) * s(3) + yp_(3,2,2,1) * r(3) + y_(2,2,0) * ds(3,3) + y_(2,2,1) * dr(3,3)
+    ! ypp_(1,1,2,2,2) = ypp_(1,1,2,2,0) * s(3) + ypp_(1,1,2,2,1) * r(3) + &
+    !    2d0 * yp_(1,2,2,0) * ds(3,1) + 2d0 * yp_(1,2,2,1) * dr(3,1)
+    ! ypp_(2,2,2,2,2) = ypp_(2,2,2,2,0) * s(3) + ypp_(2,2,2,2,1) * r(3) + &
+    !    2d0 * yp_(2,2,2,0) * ds(3,2) + 2d0 * yp_(2,2,2,1) * dr(3,2)
+    ! ypp_(3,3,2,2,2) = ypp_(3,3,2,2,0) * s(3) + ypp_(3,3,2,2,1) * r(3) + &
+    !    2d0 * yp_(3,2,2,0) * ds(3,3) + 2d0 * yp_(3,2,2,1) * dr(3,3)
+    ! ypp_(1,2,2,2,2) = ypp_(1,2,2,2,0) * s(3) + ypp_(1,2,2,2,1) * r(3) + &
+    !    yp_(2,2,2,0) * ds(3,1) + yp_(2,2,2,1) * dr(3,1) + &
+    !    yp_(1,2,2,0) * ds(3,2) + yp_(1,2,2,1) * dr(3,2)
+    ! ypp_(1,3,2,2,2) = ypp_(1,3,2,2,0) * s(3) + ypp_(1,3,2,2,1) * r(3) + &
+    !    yp_(3,2,2,0) * ds(3,1) + yp_(3,2,2,1) * dr(3,1) + &
+    !    yp_(1,2,2,0) * ds(3,3) + yp_(1,2,2,1) * dr(3,3)
+    ! ypp_(2,3,2,2,2) = ypp_(2,3,2,2,0) * s(3) + ypp_(2,3,2,2,1) * r(3) + &
+    !    yp_(3,2,2,0) * ds(3,2) + yp_(3,2,2,1) * dr(3,2) + &
+    !    yp_(2,2,2,0) * ds(3,3) + yp_(2,2,2,1) * dr(3,3)
+
+    ! ypp_(2,1,2,2,2) = ypp_(1,2,2,2,2)
+    ! ypp_(3,1,2,2,2) = ypp_(1,3,2,2,2)
+    ! ypp_(3,2,2,2,2) = ypp_(2,3,2,2,2)
+
+    ! y = y_(2,2,2)
+    ! yp = yp_(:,2,2,2)
+    ! ypp = ypp_(:,:,2,2,2)
+
+  contains
+
+    subroutine apply_stencil(i0,x0,y_,yp_,ypp_)
+      integer, intent(in) :: i0(3)
+      real*8, intent(in) :: x0(3)
+      real*8, intent(out) :: y_
+      real*8, intent(out) :: yp_(3)
+      real*8, intent(out) :: ypp_(3,3)
+
+      integer :: i, ih(3)
+      real*8 :: x1(3), dd, d
+
+      ! get the values at the grid points
+      do i = 1, f%test_nlist
+         ih = i0 + f%test_ilist(:,i)
+         ih = modulo(ih,f%n) + 1
+         flist(i) = f%f(ih(1),ih(2),ih(3))
+      end do
+      ! flist(f%test_nlist+1:) = 0d0
+
+      ! solve the system of equations
+      w = matmul(f%test_phiinv,flist)
+
+      ! sum the contributions
+      x1 = matmul(f%test_x2cgrid,x0 * f%n - i0)
+      y_ = 0d0
+      yp_ = 0d0
+      ypp_ = 0d0
+      do i = 1, f%test_nlist
+         xh = x1 - f%test_xlist(:,i)
+         dd = dot_product(xh,xh)
+         d = max(sqrt(dd),1d-40)
+
+         ! call test_kernelfun(d,test_kkern,ff,fp,fpp)
+         call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
+         ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
+         ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
+         y_ = y_ + w(i) * ff
+         yp_ = yp_ + w(i) * fp * xh / d
+         ypp_(1,1) = ypp_(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
+         ypp_(2,2) = ypp_(2,2) + w(i) * (fpp * (xh(2)/d)**2 + fp * (1/d - xh(2)**2/d**3))
+         ypp_(3,3) = ypp_(3,3) + w(i) * (fpp * (xh(3)/d)**2 + fp * (1/d - xh(3)**2/d**3))
+         ypp_(1,2) = ypp_(1,2) + w(i) * (fpp * (xh(1)*xh(2)/d**2) - fp * xh(1)*xh(2)/d**3)
+         ypp_(1,3) = ypp_(1,3) + w(i) * (fpp * (xh(1)*xh(3)/d**2) - fp * xh(1)*xh(3)/d**3)
+         ypp_(2,3) = ypp_(2,3) + w(i) * (fpp * (xh(2)*xh(3)/d**2) - fp * xh(2)*xh(3)/d**3)
+         ypp_(2,1) = ypp_(1,2)
+         ypp_(3,1) = ypp_(1,3)
+         ypp_(3,2) = ypp_(2,3)
+         ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
+      end do
+      ! y_ = y_ + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
+      ! yp_(1) = yp_(1) + w(f%test_nlist+2)
+      ! yp_(2) = yp_(2) + w(f%test_nlist+3)
+      ! yp_(3) = yp_(3) + w(f%test_nlist+4)
+
+      ! y_ = y_ + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3) + &
+      !    w(f%test_nlist+5) * x1(1) * x1(1) + w(f%test_nlist+6) * x1(1) * x1(2) + w(f%test_nlist+7) * x1(1) * x1(3) + &
+      !    w(f%test_nlist+8) * x1(2) * x1(2) + w(f%test_nlist+9) * x1(2) * x1(3) + w(f%test_nlist+10) * x1(3) * x1(3)
+      ! yp_(1) = yp_(1) + w(f%test_nlist+2) + 2d0 * w(f%test_nlist+5) * x1(1) + w(f%test_nlist+6) * x1(2) + w(f%test_nlist+7) * x1(3)
+      ! yp_(2) = yp_(2) + w(f%test_nlist+3) + w(f%test_nlist+6) * x1(1) + 2d0 * w(f%test_nlist+8) * x1(2) + w(f%test_nlist+9) * x1(3)
+      ! yp_(3) = yp_(3) + w(f%test_nlist+4) + w(f%test_nlist+7) * x1(1) + w(f%test_nlist+9) * x1(2) + 2d0 * w(f%test_nlist+10) * x1(3)
+      ! ypp_(1,1) = ypp_(1,1) + 2d0 * w(f%test_nlist+5)
+      ! ypp_(1,2) = ypp_(1,2) + w(f%test_nlist+6)
+      ! ypp_(1,3) = ypp_(1,3) + w(f%test_nlist+7)
+      ! ypp_(2,2) = ypp_(2,2) + 2d0 * w(f%test_nlist+8)
+      ! ypp_(2,3) = ypp_(2,3) + w(f%test_nlist+9)
+      ! ypp_(3,3) = ypp_(3,3) + 2d0 * w(f%test_nlist+10)
+      ! ypp_(2,1) = ypp_(1,2)
+      ! ypp_(3,1) = ypp_(1,3)
+      ! ypp_(3,2) = ypp_(2,3)
+
+    end subroutine apply_stencil
 
   end subroutine grinterp_test
 
@@ -2631,7 +2754,7 @@ contains
     use param, only: icrd_cart
     class(grid3), intent(inout) :: f !< Input grid
 
-    real*8 :: dd, xh(3), ff, fp, fpp, x2c(3,3)
+    real*8 :: d, dd, xh(3), ff, fp, fpp, x2c(3,3)
     integer :: i1, i2, i3, i, j, kmax, nn, ierr
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
@@ -2653,7 +2776,7 @@ contains
     do i = 1, 3
        dd = max(dd,norm2(x2c(:,i)))
     end do
-    call env%build_lattice(x2c,dd*25) ! xxxx
+    call env%build_lattice(x2c,dd*40) ! xxxx
     call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
     f%test_dist0 = dlist(nn)
@@ -2666,26 +2789,35 @@ contains
     call env%end()
 
     ! calculate the inverse phi matrix
-    ! allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
     allocate(f%test_phiinv(f%test_nlist,f%test_nlist))
+    ! allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
+    ! allocate(f%test_phiinv(f%test_nlist+10,f%test_nlist+10))
     f%test_phiinv = 0d0
     do i = 1, f%test_nlist
        do j = i, f%test_nlist
           xh = f%test_xlist(:,i) - f%test_xlist(:,j)
           dd = dot_product(xh,xh)
-          ! call test_kernelfun(dd,test_kkern,ff,fp,fpp)
-          call test_kernelfun2(dd,f%test_dist0,ff,fp,fpp)
-          ! call test_kernelfun3(dd,f%test_dist0,ff,fp,fpp)
+          d = max(sqrt(dd),1d-40)
+          ! call test_kernelfun(d,test_kkern,ff,fp,fpp)
+          call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
+          ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
+          ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
           f%test_phiinv(i,j) = ff
           f%test_phiinv(j,i) = f%test_phiinv(i,j)
        end do
-       ! f%test_phiinv(i,f%test_nlist+1) = 1d0
        ! f%test_phiinv(f%test_nlist+1,i) = 1d0
        ! f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
-       ! f%test_phiinv(i,f%test_nlist+2:f%test_nlist+4) = f%test_xlist(:,i)
+       ! f%test_phiinv(f%test_nlist+5,i) = f%test_xlist(1,i) * f%test_xlist(1,i)
+       ! f%test_phiinv(f%test_nlist+6,i) = f%test_xlist(1,i) * f%test_xlist(2,i)
+       ! f%test_phiinv(f%test_nlist+7,i) = f%test_xlist(1,i) * f%test_xlist(3,i)
+       ! f%test_phiinv(f%test_nlist+8,i) = f%test_xlist(2,i) * f%test_xlist(2,i)
+       ! f%test_phiinv(f%test_nlist+9,i) = f%test_xlist(2,i) * f%test_xlist(3,i)
+       ! f%test_phiinv(f%test_nlist+10,i) = f%test_xlist(3,i) * f%test_xlist(3,i)
+       ! f%test_phiinv(i,f%test_nlist+1:) = f%test_phiinv(f%test_nlist+1:,i)
     end do
-    ! call matinvsym(f%test_phiinv,f%test_nlist+4)
     call matinvsym(f%test_phiinv,f%test_nlist)
+    ! call matinvsym(f%test_phiinv,f%test_nlist+4)
+    ! call matinvsym(f%test_phiinv,f%test_nlist+10)
 
     ! write down the x2c of the grid crystal
     f%test_x2cgrid = x2c
@@ -2693,8 +2825,8 @@ contains
    end subroutine init_test
 
    !> Kernel function for testing
-   subroutine test_kernelfun(r2,k,f,fp,fpp)
-     real*8, intent(in) :: r2
+   subroutine test_kernelfun(r,k,f,fp,fpp)
+     real*8, intent(in) :: r
      integer, intent(in) :: k
      real*8, intent(out) :: f
      real*8, intent(out) :: fp
@@ -2705,8 +2837,7 @@ contains
      f = 0d0
      fp = 0d0
      fpp = 0d0
-     r = sqrt(max(r2,0d0))
-     if (r < 1d-15) return
+     if (r < 1d-40) return
      if (mod(k,2) == 0) then
         f = r**k * log(r)
         fp = r**(k-1) * (k*log(r) + 1)
@@ -2720,13 +2851,13 @@ contains
    end subroutine test_kernelfun
 
    !> Kernel function for testing, 2
-   subroutine test_kernelfun2(r2,rfin0,f,fp,fpp)
-     real*8, intent(in) :: r2, rfin0
+   subroutine test_kernelfun2(r,rfin0,f,fp,fpp)
+     real*8, intent(in) :: r, rfin0
      real*8, intent(out) :: f
      real*8, intent(out) :: fp
      real*8, intent(out) :: fpp
 
-     real*8 :: r, r1p, rr, rfin
+     real*8 :: r1p, rr, rfin
      real*8 :: alpha
 
      f = 0d0
@@ -2734,7 +2865,6 @@ contains
      fpp = 0d0
 
      rfin = 1d0
-     r = sqrt(max(r2,0d0))
      rr = r / rfin
      if (rr >= 1d0) return
 
@@ -2759,21 +2889,44 @@ contains
    end subroutine test_kernelfun2
 
    !> Kernel function for testing, 3
-   subroutine test_kernelfun3(r2,rfin,f,fp,fpp)
-     real*8, intent(in) :: r2, rfin
+   subroutine test_kernelfun3(r,rfin,f,fp,fpp)
+     real*8, intent(in) :: r, rfin
      real*8, intent(out) :: f
      real*8, intent(out) :: fp
      real*8, intent(out) :: fpp
 
-     real*8 :: r, r1p, rr
+     real*8 :: r1p, rr
      real*8 :: alpha
 
-     r = sqrt(max(r2,0d0))
      alpha = 1d0 / 8d0 / (rfin / (test_nenv)**(1d0/3d0))**2
      f = exp(-alpha * r * r)
      fp = -2d0 * alpha * r * f
      fpp = -2d0 * alpha * (f + r * fp)
 
    end subroutine test_kernelfun3
+
+   !> Kernel function for testing, 4
+   subroutine test_kernelfun4(r,rfin0,f,fp,fpp)
+     real*8, intent(in) :: r, rfin0
+     real*8, intent(out) :: f
+     real*8, intent(out) :: fp
+     real*8, intent(out) :: fpp
+
+     real*8 :: r1p, rr, rfin
+     real*8 :: alpha
+
+     f = 0d0
+     fp = 0d0
+     fpp = 0d0
+
+     rfin = rfin0
+     rr = r / rfin
+     if (rr >= 1d0) return
+
+     f = 2 * rr**4 * log(rr) - 7d0/2d0 * rr**4 + 16d0/3d0 * rr**3 - 2d0 * rr**2 + 1d0/6d0
+     fp = 4*rr*(2*rr**2*log(rr)-3*rr**2+4*rr-1) / rfin
+     fpp = 4*(6*rr**2*log(rr)-7*rr**2+8*rr-1) / (rfin*rfin)
+
+   end subroutine test_kernelfun4
 
 end submodule proc
