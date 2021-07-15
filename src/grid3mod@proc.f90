@@ -327,7 +327,7 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	         ! 49-64, 64
      /),shape(c))
 
-  integer, parameter :: test_nenv = 10**3
+  integer, parameter :: test_nenv = 8**3
   integer, parameter :: test_kkern = 2
 
 contains
