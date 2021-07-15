@@ -2590,6 +2590,7 @@ contains
          ! call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
          ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
          ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
+         ! call test_kernelfun5(d,f%test_dist0,ff,fp,fpp)
          y_ = y_ + w(i) * ff
          yp_ = yp_ + w(i) * fp * xh / d
          ypp_(1,1) = ypp_(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
@@ -2816,6 +2817,7 @@ contains
           ! call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
           ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
           ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
+          ! call test_kernelfun5(d,f%test_dist0,ff,fp,fpp)
           f%test_phiinv(i,j) = ff
           f%test_phiinv(j,i) = f%test_phiinv(i,j)
        end do
@@ -2942,5 +2944,28 @@ contains
      fpp = 4*(6*rr**2*log(rr)-7*rr**2+8*rr-1) / (rfin*rfin)
 
    end subroutine test_kernelfun4
+
+   !> Kernel function for testing, 5
+   subroutine test_kernelfun5(r,rfin0,f,fp,fpp)
+     real*8, intent(in) :: r, rfin0
+     real*8, intent(out) :: f
+     real*8, intent(out) :: fp
+     real*8, intent(out) :: fpp
+
+     real*8 :: c
+
+     f = 0d0
+     fp = 0d0
+     fpp = 0d0
+
+     ! c = 0.1d0 * rfin0
+     c = 0d0
+     if (r < 1d-40) return
+
+     f = sqrt(r**2 + c**2)
+     fp = r / f
+     fpp = c**2 / (r**2 + c**2)**(3d0/2d0)
+
+   end subroutine test_kernelfun5
 
 end submodule proc
