@@ -250,11 +250,12 @@ module fieldmod
        class(field), intent(inout) :: f
        integer, intent(in) :: npts
      end subroutine benchmark
-     module subroutine newton(f,r,gfnormeps,ier)
+     module subroutine newton(f,r,gfnormeps,ier,gridtest)
        class(field), intent(inout) :: f
        real*8, dimension(3), intent(inout) :: r
        integer, intent(out) :: ier
        real*8, intent(in) :: gfnormeps
+       logical, intent(in) :: gridtest
      end subroutine newton
      module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
        class(field), intent(inout) :: f

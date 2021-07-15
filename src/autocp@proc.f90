@@ -697,8 +697,16 @@ contains
              write (uout,'("  [",A,"/",A,"]")') string(nrun), string(nn)
           end if
           !$omp end critical (progress)
+
+          ! run newton
           x0 = xseed(:,i)
-          call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
+          call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.false.)
+
+          ! if grid test, run again with grid delay
+          if (ier == 3) then
+             call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.true.)
+          end if
+
           if (ier <= 0) then
              ! Check if it's inside the sphere
              ok = .true.

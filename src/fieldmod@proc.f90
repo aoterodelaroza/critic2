@@ -1875,23 +1875,52 @@ contains
 
   !> Do a Newton-Raphson search at point r (Cartesian). A CP is found
   !> when the gradient is less than gfnormeps. ier is the exit code: 0
-  !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations).
-  module subroutine newton(f,r,gfnormeps,ier)
+  !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations),
+  !> 3 (too many iterations,bouncing)
+  module subroutine newton(f,r,gfnormeps,ier,gridtest)
+    use grid3mod, only: mode_test
     use tools_math, only: matinvsym
     use types, only: scalar_value
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
     real*8, intent(in) :: gfnormeps
+    logical, intent(in) :: gridtest
 
-    integer :: it
+    integer :: it, nid, idif(3)
+    real*8 :: wx(3), x0ref(3), x0(3), xdif(3), dist
     type(scalar_value) :: res
+    logical :: isgridtest
 
     integer, parameter :: maxit = 200
 
+    isgridtest = gridtest
+    if (isgridtest) isgridtest = (f%type == type_grid)
+    if (isgridtest) isgridtest = (f%grid%mode == mode_test)
+    x0ref = -10d0
+
     do it = 1, maxit
        ! evaluate and stop criterion
-       call f%grd(r,2,res)
+       if (.not.isgridtest) then
+          ! usual field
+          call f%grd(r,2,res)
+          wx = f%c%c2x(r)
+          ! write (*,'("xx ",I4,X,3(F14.6,X),1p,3(E14.6,X))') it, wx, res%gfmod
+       else
+          ! test interpolation
+          wx = f%c%c2x(r)
+          x0 = x0ref
+          call f%grid%grinterp_test(wx,res%f,res%gf,res%hf,x0)
+          res%gfmod = norm2(res%gf)
+
+          xdif = x0 + nint(x0ref - x0)
+          idif = abs(nint(xdif * f%grid%n) - nint(x0ref * f%grid%n))
+          if (any(idif > 1)) then
+             x0ref = x0
+          endif
+          ! write (*,'("xxre ",I4,X,3(F14.6,X),3(I4,X),1p,3(E14.6,X))') it, wx, idif, x0ref
+       end if
+
        if (res%gfmod < gfnormeps) then
           ier = 0
           return
@@ -1907,6 +1936,8 @@ contains
 
     ! too many iterations
     ier = 2
+    if (res%gfmod < 1d-3 .and.(f%type == type_grid) .and. (f%grid%mode == mode_test)) &
+       ier = 3
 
   end subroutine newton
 

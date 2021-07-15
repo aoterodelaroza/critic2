@@ -324,11 +324,11 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 1-16, 64
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   0d0,   0d0,  0d0,  0d0,   0d0,   0d0,&	 ! 17-32, 64
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  -1d0,   1d0,  0d0,  0d0,   1d0,  -1d0,&	 ! 33-48, 64
-     0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	 ! 49-64, 64
+     0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&	         ! 49-64, 64
      /),shape(c))
 
   integer, parameter :: test_nenv = 10**3
-  integer, parameter :: test_kkern = 6
+  integer, parameter :: test_kkern = 2
 
 contains
 
@@ -2413,7 +2413,7 @@ contains
   end subroutine grinterp_tricubic
 
   !> Testing
-  subroutine grinterp_test(f,xi,y,yp,ypp)
+  subroutine grinterp_test(f,xi,y,yp,ypp,x0ref)
     use types, only: realloc
     use param, only: icrd_crys
     class(grid3), intent(inout), target :: f !< Input grid
@@ -2421,6 +2421,7 @@ contains
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
+    real*8, intent(inout), optional :: x0ref(3)
 
     integer :: i, j, i1, i2, i3
     real*8 :: x0(3), x1(3), xh(3), r(3), s(3), dr(3,3), ds(3,3)
@@ -2436,16 +2437,29 @@ contains
     !$omp end critical (checkalloc)
 
     ! reserve memory
-    allocate(flist(f%test_nlist),w(f%test_nlist))
-    ! allocate(flist(f%test_nlist+4),w(f%test_nlist+4))
+    ! allocate(flist(f%test_nlist),w(f%test_nlist))
+    allocate(flist(f%test_nlist+4),w(f%test_nlist+4))
     ! allocate(flist(f%test_nlist+10),w(f%test_nlist+10))
 
     ! locate the point
     x0 = modulo(xi,1d0)
     i0 = nint(x0 * f%n)
 
+    ! maybe we have been given a reference...
+    if (present(x0ref)) then
+       if (all(x0ref >= -1d0)) then
+          x0 = x0 + nint(x0ref - x0)
+          ih = nint(x0ref * f%n)
+          x0ref = real(i0,8) / real(f%n,8)
+          i0 = ih
+       else
+          x0ref = real(i0,8) / real(f%n,8)
+       end if
+    end if
+
     ! apply the stencil
     call apply_stencil(i0,x0,y,yp,ypp)
+    ! write (*,*) "xxi0 ", x0, i0, norm2(yp)
 
     !!!! below, linear interpolation of stencils !!!!
 
@@ -2557,7 +2571,7 @@ contains
          ih = modulo(ih,f%n) + 1
          flist(i) = f%f(ih(1),ih(2),ih(3))
       end do
-      ! flist(f%test_nlist+1:) = 0d0
+      flist(f%test_nlist+1:) = 0d0
 
       ! solve the system of equations
       w = matmul(f%test_phiinv,flist)
@@ -2572,8 +2586,8 @@ contains
          dd = dot_product(xh,xh)
          d = max(sqrt(dd),1d-40)
 
-         ! call test_kernelfun(d,test_kkern,ff,fp,fpp)
-         call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
+         call test_kernelfun(d,test_kkern,ff,fp,fpp)
+         ! call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
          ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
          ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
          y_ = y_ + w(i) * ff
@@ -2589,10 +2603,10 @@ contains
          ypp_(3,2) = ypp_(2,3)
          ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
       end do
-      ! y_ = y_ + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
-      ! yp_(1) = yp_(1) + w(f%test_nlist+2)
-      ! yp_(2) = yp_(2) + w(f%test_nlist+3)
-      ! yp_(3) = yp_(3) + w(f%test_nlist+4)
+      y_ = y_ + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
+      yp_(1) = yp_(1) + w(f%test_nlist+2)
+      yp_(2) = yp_(2) + w(f%test_nlist+3)
+      yp_(3) = yp_(3) + w(f%test_nlist+4)
 
       ! y_ = y_ + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3) + &
       !    w(f%test_nlist+5) * x1(1) * x1(1) + w(f%test_nlist+6) * x1(1) * x1(2) + w(f%test_nlist+7) * x1(1) * x1(3) + &
@@ -2789,8 +2803,8 @@ contains
     call env%end()
 
     ! calculate the inverse phi matrix
-    allocate(f%test_phiinv(f%test_nlist,f%test_nlist))
-    ! allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
+    ! allocate(f%test_phiinv(f%test_nlist,f%test_nlist))
+    allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
     ! allocate(f%test_phiinv(f%test_nlist+10,f%test_nlist+10))
     f%test_phiinv = 0d0
     do i = 1, f%test_nlist
@@ -2798,25 +2812,25 @@ contains
           xh = f%test_xlist(:,i) - f%test_xlist(:,j)
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
-          ! call test_kernelfun(d,test_kkern,ff,fp,fpp)
-          call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
+          call test_kernelfun(d,test_kkern,ff,fp,fpp)
+          ! call test_kernelfun2(d,f%test_dist0,ff,fp,fpp)
           ! call test_kernelfun3(d,f%test_dist0,ff,fp,fpp)
           ! call test_kernelfun4(d,f%test_dist0,ff,fp,fpp)
           f%test_phiinv(i,j) = ff
           f%test_phiinv(j,i) = f%test_phiinv(i,j)
        end do
-       ! f%test_phiinv(f%test_nlist+1,i) = 1d0
-       ! f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
+       f%test_phiinv(f%test_nlist+1,i) = 1d0
+       f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
        ! f%test_phiinv(f%test_nlist+5,i) = f%test_xlist(1,i) * f%test_xlist(1,i)
        ! f%test_phiinv(f%test_nlist+6,i) = f%test_xlist(1,i) * f%test_xlist(2,i)
        ! f%test_phiinv(f%test_nlist+7,i) = f%test_xlist(1,i) * f%test_xlist(3,i)
        ! f%test_phiinv(f%test_nlist+8,i) = f%test_xlist(2,i) * f%test_xlist(2,i)
        ! f%test_phiinv(f%test_nlist+9,i) = f%test_xlist(2,i) * f%test_xlist(3,i)
        ! f%test_phiinv(f%test_nlist+10,i) = f%test_xlist(3,i) * f%test_xlist(3,i)
-       ! f%test_phiinv(i,f%test_nlist+1:) = f%test_phiinv(f%test_nlist+1:,i)
+       f%test_phiinv(i,f%test_nlist+1:) = f%test_phiinv(f%test_nlist+1:,i)
     end do
-    call matinvsym(f%test_phiinv,f%test_nlist)
-    ! call matinvsym(f%test_phiinv,f%test_nlist+4)
+    ! call matinvsym(f%test_phiinv,f%test_nlist)
+    call matinvsym(f%test_phiinv,f%test_nlist+4)
     ! call matinvsym(f%test_phiinv,f%test_nlist+10)
 
     ! write down the x2c of the grid crystal
@@ -2870,17 +2884,17 @@ contains
 
      r1p = max(1d0-rr,0d0)
 
-     f = r1p**8 * (32d0 * rr**3 + 25d0 * rr**2 + 8d0 * rr + 1d0)
-     fp = 22d0*(rr-1)**7*rr*(16d0*rr**2+7d0*rr+1d0) / rfin
-     fpp = 22d0*(rr-1)**6*(160d0*rr**3+15d0*rr**2-6d0*rr-1) / rfin / rfin
+     ! f = r1p**8 * (32d0 * rr**3 + 25d0 * rr**2 + 8d0 * rr + 1d0)
+     ! fp = 22d0*(rr-1)**7*rr*(16d0*rr**2+7d0*rr+1d0) / rfin
+     ! fpp = 22d0*(rr-1)**6*(160d0*rr**3+15d0*rr**2-6d0*rr-1) / rfin / rfin
 
      ! f = r1p**6 * (35 * rr**2 + 18d0 * rr + 3d0)
      ! fp = (-56d0) * rr * r1p**5 * (5d0 * rr + 1d0) / rfin
      ! fpp = 56d0*r1p**4*(35d0*rr**2-4d0*rr-1) / rfin**2
 
-     ! f = r1p**4 * (4*rr+1)
-     ! fp = -20d0 * rr * r1p**3 / rfin
-     ! fpp = 20d0 * (4*rr-1) * r1p**2 / rfin**2
+     f = r1p**4 * (4*rr+1)
+     fp = -20d0 * rr * r1p**3 / rfin
+     fpp = 20d0 * (4*rr-1) * r1p**2 / rfin**2
 
      ! f = r1p**2
      ! fp = -2d0 * r1p / rfin
@@ -2919,7 +2933,7 @@ contains
      fp = 0d0
      fpp = 0d0
 
-     rfin = rfin0
+     rfin = 1d0
      rr = r / rfin
      if (rr >= 1d0) return
 
