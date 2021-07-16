@@ -3166,4 +3166,149 @@ contains
 
   end subroutine struct_kpoints
 
+  !> Calculate and print information about the Brilloun zone.
+  module subroutine struct_bz(s,line)
+    use, intrinsic :: iso_c_binding, only: c_int, c_double
+    use global, only: iunitname0, iunit, dunit0
+    use tools_math, only: matinv
+    use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center
+    use tools, only: delaunay_reduction
+    use param, only: pi
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: xstar(3,n)
+         integer(c_int) :: nf, nv, mnfv
+       end subroutine runqhull_voronoi_step1
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: nf, nv, mnfv
+         integer(c_int) :: ivws(nf)
+         real(c_double) :: xvws(3,nv)
+         integer(c_int) :: nfvws(mnfv)
+         integer(c_int) :: fvws(mnfv)
+       end subroutine runqhull_voronoi_step2
+    end interface
+
+    real*8 :: m_x2c_r(3,3), m_c2x_r(3,3), g(3,3), aa(3), bb(3), rmat(3,4), rdel(3,3)
+    real*8 :: xstar(3,14), bz_ineighc(3,14), x0(3)
+    integer :: i, j, n
+    integer(c_int), allocatable :: ivws(:)
+    real(c_double), allocatable :: xvws(:,:)
+    integer :: bz_nf, bz_nv, bz_mnfv, bz_nside(14), bz_ineighx(3,14)
+    integer, allocatable :: bz_iside(:,:)
+    real*8, allocatable :: bz_x(:,:)
+
+    real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
+    character*2, parameter :: lvecname(3) = (/"a*","b*","c*"/)
+
+    ! header
+    write (uout,'("* BZ: calculate Brillouin-Zone geometry.")')
+
+    ! find the reduced cell in reciprocal space
+    m_x2c_r = transpose(s%c%m_x2c)
+    call matinv(m_x2c_r,3)
+    m_c2x_r = transpose(s%c%m_x2c)
+    call delaunay_reduction(m_x2c_r,rmat,rbas=rdel)
+
+    ! cell lengths and angles
+    g = matmul(transpose(m_x2c_r),m_x2c_r)
+    do i = 1, 3
+       aa(i) = sqrt(g(i,i))
+    end do
+    bb(1) = acos(g(2,3) / aa(2) / aa(3)) * 180d0 / pi
+    bb(2) = acos(g(1,3) / aa(1) / aa(3)) * 180d0 / pi
+    bb(3) = acos(g(1,2) / aa(1) / aa(2)) * 180d0 / pi
+
+    ! construct star of lattice vectors -> use Delaunay reduction
+    ! see 9.1.8 in ITC.
+    n = 14
+    xstar(:,1)  = rmat(:,1)
+    xstar(:,2)  = rmat(:,2)
+    xstar(:,3)  = rmat(:,3)
+    xstar(:,4)  = rmat(:,4)
+    xstar(:,5)  = rmat(:,1)+rmat(:,2)
+    xstar(:,6)  = rmat(:,1)+rmat(:,3)
+    xstar(:,7)  = rmat(:,2)+rmat(:,3)
+    xstar(:,8)  = -(rmat(:,1))
+    xstar(:,9)  = -(rmat(:,2))
+    xstar(:,10) = -(rmat(:,3))
+    xstar(:,11) = -(rmat(:,4))
+    xstar(:,12) = -(rmat(:,1)+rmat(:,2))
+    xstar(:,13) = -(rmat(:,1)+rmat(:,3))
+    xstar(:,14) = -(rmat(:,2)+rmat(:,3))
+    do i = 1, 14
+       xstar(:,i) = matmul(m_x2c_r,xstar(:,i))
+       if (norm2(xstar(:,i)) < eps_dnorm) &
+          call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
+    end do
+
+    call runqhull_voronoi_step1(n,xstar,bz_nf,bz_nv,bz_mnfv)
+    allocate(ivws(bz_nf),bz_iside(bz_mnfv,bz_nf),xvws(3,bz_nv))
+    bz_nside = 0
+    call runqhull_voronoi_step2(bz_nf,bz_nv,bz_mnfv,ivws,xvws,bz_nside(1:bz_nf),bz_iside)
+
+    if (allocated(bz_x)) deallocate(bz_x)
+    allocate(bz_x(3,bz_nv))
+    do i = 1, bz_nv
+       bz_x(:,i) = matmul(m_c2x_r,xvws(:,i))
+    end do
+
+    bz_ineighc = 0
+    bz_ineighx = 0
+    do i = 1, bz_nf
+       bz_ineighc(:,i) = xstar(:,ivws(i))
+       bz_ineighx(:,i) = nint(matmul(m_c2x_r,xstar(:,ivws(i))))
+    end do
+    deallocate(ivws,xvws)
+
+    write (uout,'("+ Reciprocal lattice vectors (",A,"^-1)")') iunitname0(iunit)
+    do i = 1, 3
+       write (uout,'(4X,A,": ",3(A,X))') lvecname(i),&
+          (string(m_x2c_r(j,i)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+    end do
+    write (uout,'("  Reciprocal lattice parameters (bohr^-1): ",3(A,2X))') &
+       string(aa(1),'f',decimal=6), string(aa(2),'f',decimal=6), string(aa(3),'f',decimal=6)
+    write (uout,'("  Reciprocal lattice angles (degrees): ",3(A,2X))') &
+       string(bb(1),'f',decimal=3), string(bb(2),'f',decimal=3), string(bb(3),'f',decimal=3)
+    write (uout,*)
+
+    write (uout,'("+ Vertex of the BZ in reciprocal cryst. coords. (",A,")")') string(bz_nv)
+    write (uout,'("# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (",A,"^-1).")') iunitname0(iunit)
+    write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
+       string("x",length=11,justify=ioj_center),&
+       string("y",length=11,justify=ioj_center),&
+       string("z",length=11,justify=ioj_center),&
+       string("d ("//iunitname0(iunit)//"^-1)",length=14,justify=ioj_center)
+    do i = 1, bz_nv
+       x0 = matmul(m_x2c_r,bz_x(:,i))
+       write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
+          (string(bz_x(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
+          string(norm2(x0)/dunit0(iunit),'f',length=14,decimal=8,justify=4)
+    enddo
+    write (uout,*)
+
+    write (uout,'("+ Faces of the BZ cell (",A,")")') string(bz_nf)
+    write (uout,'("# Face ID: vertexID1 vertexID2 ...")')
+    do i = 1, bz_nf
+       write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
+          (string(bz_iside(j,i),length=2),j=1,bz_nside(i))
+    end do
+    write (uout,*)
+
+    write (uout,'("+ Lattice vectors for the BZ neighbors")')
+    write (uout,'("# FaceID: Voronoi lattice vector (cryst. coords.)")')
+    do i = 1, bz_nf
+       write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+          (string(bz_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
+    end do
+    write (uout,*)
+
+  end subroutine struct_bz
+
 end submodule proc

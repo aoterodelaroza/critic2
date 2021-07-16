@@ -46,6 +46,7 @@ module struct_drivers
   public :: struct_makemols_neighcrys
   public :: struct_molreorder
   public :: struct_kpoints
+  public :: struct_bz
 
   interface
      module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
@@ -136,6 +137,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_kpoints
+     module subroutine struct_bz(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line
+     end subroutine struct_bz
   end interface
 
 end module struct_drivers

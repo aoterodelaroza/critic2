@@ -41,7 +41,7 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys, struct_molreorder, struct_kpoints
+     struct_makemols_neighcrys, struct_molreorder, struct_kpoints, struct_bz
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -507,6 +507,12 @@ program critic
         call check_structure_defined(ok)
         if (.not.ok) cycle
         call struct_kpoints(sy,line(lp:))
+
+        ! bz
+     elseif (equal(word,'bz')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call struct_bz(sy,line(lp:))
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&
