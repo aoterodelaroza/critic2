@@ -1,0 +1,5 @@
+## check: 042_bz.cro -a1e-10
+## labels: regression quick nodata
+
+crystal library hcp
+bz

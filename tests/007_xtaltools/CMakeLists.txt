@@ -40,6 +40,7 @@ set(TESTS
   039_molreorder_cry         ## molreorder keyword, crystal target
   040_molreorder_moveatoms   ## molreorder keyword, moveatoms
   041_kpoints                ## kpoints keyword
+  042_bz                     ## bz keyword
   )
 
 runtests(${TESTS})
