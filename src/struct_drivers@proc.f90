@@ -2917,7 +2917,7 @@ contains
     real*8, allocatable :: x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:), mrot(:,:,:)
-    logical :: moveatoms
+    logical :: moveatoms, doinv
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
@@ -2929,6 +2929,7 @@ contains
     ns = 0
     wfile = ""
     moveatoms = .false.
+    doinv = .true.
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -2936,6 +2937,8 @@ contains
           wfile = getword(line,lp)
        elseif (equal(lword,'moveatoms')) then
           moveatoms = .true.
+       elseif (equal(lword,'noinv')) then
+          doinv = .false.
        elseif (len_trim(word) == 0) then
           exit
        else
@@ -3027,7 +3030,7 @@ contains
        rms1 = rmsd_walker(x1,x2,q1)
        x2 = -x2
        rms2 = rmsd_walker(x1,x2,q2)
-       if (rms1 <= rms2) then
+       if (rms1 <= rms2.or..not.doinv) then
           isinv(is) = .false.
           rmsd(is) = rms1
           if (moveatoms) mrot(:,:,is) = q1
