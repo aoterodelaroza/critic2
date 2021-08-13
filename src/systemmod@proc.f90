@@ -1057,6 +1057,9 @@ contains
        elseif (equal(lword,'lol_kir')) then
           lp = 1
           line = "lol_kir(" // string(s%iref) // ")"
+       elseif (equal(lword,'rdg')) then
+          lp = 1
+          line = "rdg(" // string(s%iref) // ")"
        elseif (len_trim(lword) == 0) then
           return
        endif
