@@ -114,6 +114,7 @@ submodule (arithmetic) proc
   integer, parameter :: fun_uslater     = 71 !< Slater potential
   integer, parameter :: fun_nheff       = 72 !< Effective exchange hole normalization
   integer, parameter :: fun_xhole       = 73 !< exchange-hole
+  integer, parameter :: fun_rdg         = 74 !< reduced density gradient (RDG)
 
   ! enum for structural variables
   integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
@@ -1004,7 +1005,8 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole .or.&
+          c == fun_rdg
     elseif (type == 'chemfunction') then
        istype = &
           c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
@@ -1016,7 +1018,8 @@ contains
           c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
           c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
           c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole
+          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole .or.&
+          c == fun_rdg
        if (present(iwantarg)) then
           if (c == fun_xhole) then
              iwantarg = 4
@@ -1645,6 +1648,8 @@ contains
           c = fun_xhole
        case ("nheff")
           c = fun_nheff
+       case ("rdg")
+          c = fun_rdg
        case default
           lp = lpo
           return
@@ -2127,6 +2132,7 @@ contains
     use tools_math, only: bhole
     use tools_io, only: string
     use types, only: scalar_value
+    use param, only: pi
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
@@ -2346,6 +2352,16 @@ contains
              xref = syl%c%x2c(args)
           end if
           call syl%f(idx)%wfn%xhole(x0,xref,q)
+       end if
+    case (fun_rdg)
+       ! Reduced density gradient
+       ! s = |gradrho| / (2 * (3*pi^2)^(1/3) * rho^(4/3))
+       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
+       if (res%f < 1d-30) then
+          q = 0d0
+       else
+          f0 = max(res%f,1d-30)
+          q = res%gfmod / (2d0 * (3d0*pi*pi)**(1d0/3d0) * f0**(4d0/3d0))
        end if
     end select
 
