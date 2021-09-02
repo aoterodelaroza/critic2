@@ -640,7 +640,10 @@ contains
           call s%c%write_d12(file,dosym)
        elseif (equal(wext,'res')) then
           write (uout,'("* WRITE res file: ",A)') string(file)
-          call s%c%write_res(file,dosym)
+          if (dosym) &
+             call s%c%write_res(file,1)
+          else
+             call s%c%write_res(file,0)
        end if
        ok = check_no_extra_word()
        if (.not.ok) return
@@ -3003,12 +3006,12 @@ contains
 
     ! allocate space and get reference distance matrix
     allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
-    call cref%distmatrix(dref)
+    call cref%distmatrix(dref,conn=.true.)
 
     ! calculate the permutations
     do is = 1, ns
        ddg = dref
-       call c(is)%distmatrix(ddh)
+       call c(is)%distmatrix(ddh,conn=.true.)
        call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
        if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
           isuse(is) = isuse_incompatible_z

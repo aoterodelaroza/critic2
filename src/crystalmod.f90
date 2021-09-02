@@ -368,9 +368,11 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
-     module subroutine distmatrix(c,d)
+     module subroutine distmatrix(c,d,inverse,conn)
        class(crystal), intent(in) :: c
        real*8, allocatable, intent(inout) :: d(:,:)
+       logical, intent(in), optional :: inverse
+       logical, intent(in), optional :: conn
      end subroutine distmatrix
      module subroutine build_env(c,dmax0)
        class(crystal), intent(inout) :: c
@@ -625,7 +627,7 @@ module crystalmod
      module subroutine write_res(c,file,dosym)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
-       logical, intent(in) :: dosym
+       integer, intent(in) :: dosym
      end subroutine write_res
      module subroutine write_escher(c,file)
        class(crystal), intent(in) :: c

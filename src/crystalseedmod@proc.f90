@@ -4332,9 +4332,11 @@ contains
 
   end subroutine read_potcar
 
-  !> Read all seeds from a file. If iafield is present, then
-  !> return the seed number for which the file can be read as a
-  !> field (or 0 if none).
+  !> Read all seeds from a file. If iafield is present, then return
+  !> the seed number for which the file can be read as a field (or 0
+  !> if none). If mol0 == 1, force reading molecules, if mol0 == 0,
+  !> force reading crystals, if mol0 == -1, let the routine figure it
+  !> out.
   module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali

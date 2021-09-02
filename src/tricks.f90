@@ -24,18 +24,32 @@ module tricks
   ! private :: trick_grid_sphere
   ! private :: trick_stephens_nnm_channel
   ! private :: trick_cell_integral
+  private :: trick_uspex_unpack
 
 contains
 
   subroutine trick(line0)
+    use tools_io, only: lgetword, equal, ferror, faterr
     character*(*), intent(in) :: line0
+    character(len=:), allocatable :: word
+
+    integer :: lp
+
+    lp = 1
+    word = lgetword(line0,lp)
+
+    if (equal(word,'uspex_unpack')) then
+       call trick_uspex_unpack(line0(lp:))
+    else
+       call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
+       return
+    end if
 
     ! call trick_grid_sphere()
     ! call trick_stephens_nnm_channel(line0)
     ! call trick_cell_integral()
     ! call trick_check_shortest()
     ! call trick_test_environment()
-    ! write (*,*) "no tricks for now"
 
   end subroutine trick
 
@@ -654,5 +668,417 @@ contains
   !   end associate
 
   ! end subroutine trick_test_environment
+
+  ! Unpack uspex structures. Syntax:
+  !   TRICK USPEX_UNPACK individuals.s file.POSCAR [template.xyz]
+  subroutine trick_uspex_unpack(line0)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed, read_seeds_from_file
+    use global, only: fileroot, rborder_def
+    use tools_io, only: getword, ferror, faterr, getline_raw, fopen_read, fclose, zatguess,&
+       isinteger, string, uout
+    use tools_math, only: crosscorr_triangle, umeyama_graph_matching, rmsd_walker
+    use tools, only: mergesort, qcksort
+    use types, only: realloc
+    use param, only: bohrtoa, isformat_xyz
+    character*(*), intent(in) :: line0
+
+    character*1024 :: bleh
+    character(len=:), allocatable :: fileind, fileposcar, filexyz, fileout, line, errmsg, word
+    character(len=:), allocatable :: linespc, linensp, msg
+    integer :: lp, lu, idxb, idum, nat, is
+    integer :: ii, jj, i, j, k, iz, nst
+    integer, allocatable :: idst(:), iord(:), nsp(:)
+    real*8, allocatable :: vst(:), hst(:)
+    logical, allocatable :: active(:)
+    type(crystalseed), allocatable :: seed(:)
+    real*8 :: rdum, rprim(3,3), adv, adh
+    logical :: ok
+    character*1 :: let
+    type(crystal) :: ci, cj, templt
+    real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
+    integer, allocatable :: hvecp(:,:)
+    real*8 :: tini, tend, nor, xnormi, xnormj, diffij
+    integer :: ndigit
+    integer :: ns, n
+    type(crystal), allocatable :: mol(:)
+    type(crystalseed) :: molseed, xseed
+    logical :: usetemplate
+    integer, allocatable :: isperm(:,:), cidxorig(:,:), saveperm(:)
+    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
+    real*8, allocatable :: x1(:,:), x2(:,:), mrot(:,:,:)
+    real*8 :: xcm1(3), xcm2(3), xnew(3)
+
+    real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
+    real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
+    real*8, parameter :: powdiff_thr = 0.07d0 ! powdiff threshold
+
+    real*8, parameter :: th2ini = 5d0
+    integer, parameter :: npts = 10001
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: sigma = 0.05d0
+    real*8, parameter :: xend = 50d0
+    real*8, parameter :: h = (xend-th2ini) / real(npts-1,8)
+
+    ! read the file names
+    lp = 1
+    fileind = getword(line0,lp)
+    fileposcar = getword(line0,lp)
+    filexyz = getword(line0,lp)
+    if ((len_trim(fileind) == 0) .or. (len_trim(fileposcar) == 0)) &
+       call ferror('trick_uspex_unpack','Error: individuals or POSCAR file not found',faterr)
+
+    ! read the template
+    usetemplate = (len_trim(filexyz) /= 0)
+    if (usetemplate) then
+       call molseed%read_mol(filexyz,isformat_xyz,rborder_def,.false.,errmsg)
+       if (len_trim(errmsg) > 0) then
+          errmsg = "error reading xyz file"
+          goto 999
+       end if
+       call templt%struct_new(molseed,.true.)
+       allocate(saveperm(templt%nneq))
+    end if
+
+    ! prepare some space
+    nst = 0
+    allocate(idst(100),vst(100),hst(100))
+
+    ! read the individuals file
+    lu = fopen_read(fileind)
+    do while (getline_raw(lu,line))
+       idxb = index(line,"]")
+       if (idxb > 0) then
+          ! add a new structure
+          nst = nst + 1
+          if (nst > size(idst,1)) then
+             call realloc(idst,2*nst)
+             call realloc(vst,2*nst)
+             call realloc(hst,2*nst)
+          end if
+
+          ! read the id
+          read (line,*) idum, idst(nst)
+
+          ! read the volume and the enthalpy
+          line = line(idxb+1:)
+          read (line,*) hst(nst), vst(nst)
+       end if
+    end do
+    call fclose(lu)
+    call realloc(idst,nst)
+    call realloc(vst,nst)
+    call realloc(hst,nst)
+
+    ! calculate the number of digits for output
+    ndigit = ceiling(log10(nst+0.1d0))
+
+    ! sort first by volume, then by enthalpy
+    allocate(iord(nst))
+    do i = 1, nst
+       iord(i) = i
+    end do
+    call mergesort(hst,iord,1,nst)
+    call mergesort(vst,iord,1,nst)
+
+    ! Read all the seeds; USPEX format is expected, so this is not a
+    ! full-fledged POSCAR reader.
+    errmsg = "error reading POSCAR file"
+    allocate(seed(nst))
+    lu = fopen_read(fileposcar)
+    do i = 1, nst
+       read (lu,*,err=999) bleh
+       read (lu,*,err=999) rdum
+       if (abs(rdum - 1d0) > 1d-14) then
+          errmsg = "scale in POSCAR file different from 1"
+          goto 999
+       end if
+
+       ! read the cell vectors
+       do j = 1, 3
+          read (lu,*) rprim(1:3,j)
+       end do
+       rprim = rprim / bohrtoa
+       seed(i)%m_x2c = rprim
+       seed(i)%useabr = 2
+
+       ! read the atomic species
+       ok = getline_raw(lu,line,.false.)
+       if (i == 1) then
+          if (.not.ok) goto 999
+          lp = 1
+          seed(i)%nspc = 0
+          allocate(seed(i)%spc(2))
+          do while (.true.)
+             word = getword(line,lp)
+             if (len_trim(word) == 0) exit
+             iz = zatguess(word)
+             if (iz <= 0) then
+                errmsg = "unknown atomic symbol in POSCAR"
+                goto 999
+             end if
+
+             seed(i)%nspc = seed(i)%nspc + 1
+             if (seed(i)%nspc > size(seed(i)%spc,1)) &
+                call realloc(seed(i)%spc,2*seed(i)%nspc)
+             seed(i)%spc(seed(i)%nspc)%name = word
+             seed(i)%spc(seed(i)%nspc)%z = iz
+          end do
+          call realloc(seed(i)%spc,seed(i)%nspc)
+          linespc = line
+       elseif (line /= linespc) then
+          errmsg = "unexpected change in atomic species line in POSCAR"
+          goto 999
+       else
+          seed(i)%nspc = seed(1)%nspc
+          seed(i)%spc = seed(1)%spc
+       end if
+
+       ! read the number of atoms
+       ok = getline_raw(lu,line,.true.)
+       if (.not.ok) goto 999
+       if (i == 1) then
+          ! read the number of atoms for each species
+          allocate(nsp(seed(i)%nspc))
+          lp = 1
+          do j = 1, seed(i)%nspc
+             ok = isinteger(nsp(j),line,lp)
+             if (.not.ok) then
+                errmsg = "error reading number of atomic species in POSCAR"
+                goto 999
+             end if
+          end do
+
+          ! assign nat and species mapping
+          seed(i)%nat = 0
+          allocate(seed(i)%is(sum(nsp)))
+          do j = 1, seed(i)%nspc
+             do k = 1, nsp(j)
+                seed(i)%nat = seed(i)%nat + 1
+                seed(i)%is(seed(i)%nat) = j
+             end do
+          end do
+
+          ! deallocate and save the line
+          deallocate(nsp)
+          linensp = line
+       elseif (line /= linensp) then
+          errmsg = "unexpected change in number of atomic species line in POSCAR"
+          goto 999
+       else
+          seed(i)%nat = seed(1)%nat
+          seed(i)%is = seed(1)%is
+       end if
+
+       ! check the "direct" keyword
+       read(lu,*,err=999) let
+       if (let /= 'd' .and. let /= 'D') then
+          errmsg = "Direct keyword expected but not found in POSCAR"
+          goto 999
+       end if
+
+       ! read atomic coordinates
+       allocate(seed(i)%x(3,seed(i)%nat))
+       do j = 1, seed(i)%nat
+          read(lu,*,err=999) seed(i)%x(:,j)
+       enddo
+
+       ! symmetry
+       seed(i)%havesym = 0
+       seed(i)%findsym = -1
+       seed(i)%checkrepeats = .false.
+
+       ! rest of the seed(i) information
+       seed(i)%isused = .true.
+       seed(i)%ismolecule = .false.
+       seed(i)%cubic = .false.
+       seed(i)%border = 0d0
+       seed(i)%havex0 = .false.
+       seed(i)%molx0 = 0d0
+       seed(i)%file = fileposcar
+       seed(i)%name = ""
+    end do
+    call fclose(lu)
+
+    ! prune
+    write (uout,'("* List of pruned structures")')
+    write (uout,'("# Volume difference threshold (ang) = ",A)') string(vdiff_thr,'e',10,5)
+    write (uout,'("# Enthalpy difference threshold (eV) = ",A)') string(ediff_thr,'e',10,5)
+    write (uout,'("# POWDIFF threshold = ",A)') string(powdiff_thr,'e',10,5)
+    write (uout,'("# A structure is pruned if the three conditions hold concurrently.")')
+    write (uout,'("pruned same-as    deltaV(ang)  deltaH(eV)  POWDIFF")')
+    allocate(active(nst))
+    active = .true.
+    do ii = 1, nst
+       i = iord(ii)
+       if (.not.active(i)) cycle
+       call ci%struct_new(seed(i),.true.)
+
+       ! powder for structure i
+       call ci%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihi,th2p,ip,hvecp)
+       tini = ihi(1)*ihi(1)
+       tend = ihi(npts)*ihi(npts)
+       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+       ihi = ihi / sqrt(nor)
+       xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
+
+       ! compare with the rest of the structures
+       do jj = ii+1, nst
+          j = iord(jj)
+          if (.not.active(j)) cycle
+
+          adv = abs(vst(i)-vst(j))
+          adh = abs(hst(i)-hst(j))
+          if (adv > vdiff_thr) then
+             ! sorted by volume, so it is pointless to continue
+             exit
+          else if (adh < ediff_thr) then
+             ! make structure j
+             call cj%struct_new(seed(j),.true.)
+
+             ! powder for structure j
+             call cj%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
+             tini = ihj(1)*ihj(1)
+             tend = ihj(npts)*ihj(npts)
+             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             ihj = ihj / sqrt(nor)
+             xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
+
+             ! compare structures i and j
+             diffij = max(1d0 - crosscorr_triangle(h,ihi,ihj,1d0) / xnormi / xnormj,0d0)
+             if (diffij < powdiff_thr) then
+                active(j) = .false.
+                write (uout,'(A," (",A,") ",A," (",A,") ",99(A,X))') string(j,ndigit), string(jj,ndigit), &
+                   string(i,ndigit), string(ii,ndigit),&
+                   string(adv,'e',10,5), string(adh,'e',10,5), string(diffij,'e',10,5)
+             end if
+          end if
+       end do
+
+       ! begin applying the template
+       if (usetemplate) then
+          ! check the fragments
+          nat = templt%nneq
+          if (any(ci%mol(:)%nat /= nat)) then
+             active(i) = .false.
+             write (uout,'("! pruned structure ",A," because wrong number of atoms in fragments | V = ",A," | H = ",A," --")') &
+                string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
+             cycle
+          end if
+
+          ! read the fragments from ci into structures
+          ns = ci%nmol
+          allocate(mol(ns))
+          do j = 1, ns
+             call molseed%from_fragment(ci%mol(j),.true.)
+             molseed%border = 0d0
+             call mol(j)%struct_new(molseed,.true.)
+          end do
+
+          ! allocate the use and permutation arrays
+          allocate(isperm(templt%nneq,ns))
+
+          ! make the mapping between structure+atom and the original cidx
+          ! sort because the from_fragment routine also sorts
+          allocate(cidxorig(nat,ns))
+          do is = 1, ns
+             do j = 1, nat
+                cidxorig(j,is) = ci%mol(is)%at(j)%cidx
+             end do
+             call qcksort(cidxorig(:,is))
+          end do
+
+          ! allocate space and get reference distance matrix
+          allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
+          call templt%distmatrix(dref,conn=.true.)
+
+          ! calculate the permutations
+          do is = 1, ns
+             ddg = dref
+             call mol(is)%distmatrix(ddh,conn=.true.)
+             call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
+             if (any(templt%spc(templt%at(1:nat)%is)%z /= mol(is)%spc(mol(is)%at(isperm(1:nat,is))%is)%z)) then
+                active(i) = .false.
+                write (uout,'("! pruned structure ",A," because incompatible atoms in permutation | V = ",A," | H = ",A," --")') &
+                   string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
+                cycle
+             end if
+          end do
+          deallocate(dref,ddg,ddh)
+
+          ! Get the rmsd from walker. If moveatoms, also save the rotation.
+          allocate(x1(3,nat),x2(3,nat),mrot(3,3,ns))
+          do j = 1, nat
+             x1(:,j) = templt%at(j)%r
+          end do
+          do is = 1, ns
+             do j = 1, nat
+                x2(:,j) = mol(is)%at(isperm(j,is))%r
+             end do
+             rdum = rmsd_walker(x1,x2,mrot(:,:,is))
+          end do
+          deallocate(x1,x2,mol)
+
+          ! write the final structure
+          xcm1 = templt%mol(1)%cmass(.false.)
+          call ci%makeseed(xseed,.false.)
+          n = 0
+          do is = 1, ns
+             xcm2 = ci%mol(is)%cmass(.false.)
+             do j = 1, nat
+                n = n + 1
+
+                xnew = templt%mol(1)%at(j)%r - xcm1
+                xnew = matmul(mrot(:,:,is),xnew)
+                xnew = xnew + xcm2
+                xnew = ci%c2x(xnew)
+
+                xseed%x(:,n) = xnew
+                xseed%is(n) = ci%atcel(cidxorig(isperm(j,is),is))%is
+             end do
+          end do
+          call ci%struct_new(xseed,.true.)
+
+          ! check the permutations are always the same
+          if (ii == 1) saveperm = isperm(:,1)
+          do is = 1, ns
+             if (any(isperm(:,is) /= saveperm)) then
+                active(i) = .false.
+                write (uout,'("! pruned structure ",A," because wrong permutation | V = ",A," | H = ",A," --")') &
+                   string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
+                cycle
+             end if
+          end do
+          ! do is = 1, ns
+          !    msg = ""
+          !    do j = 1, nat
+          !       msg = msg // " " // string(isperm(j,is))
+          !    end do
+          !    write (uout,'(X,A," success (perm=",A,")")') string(is,2), string(msg)
+          ! end do
+
+          deallocate(isperm,cidxorig,mrot)
+       end if
+
+       ! this structure is active, so write it
+       fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".res"
+       ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
+       call ci%wholemols()
+       call ci%write_res(fileout,-1)
+       fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".cif"
+       call ci%write_cif(fileout,.true.)
+    end do
+    write (uout,'("+ Structures (pruned/written/total): ",A,"/",A,"/",A)') string(nst-count(active)), &
+       string(count(active)), string(nst)
+    write (uout,*)
+
+    return
+999 continue
+
+    call ferror('trick_uspex_unpack',errmsg,faterr,line,syntax=.true.)
+    return
+
+  end subroutine trick_uspex_unpack
 
 end module tricks

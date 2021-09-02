@@ -984,23 +984,49 @@ contains
 
   end subroutine get_kpoints
 
-  !> Calculate the distance matrix (molecules only)
-  module subroutine distmatrix(c,d)
+  !> Calculate the distance matrix (molecules only). If inverse,
+  !> invert the distances. If conn, return 1d10 if the atoms are
+  !> bonded, 1 if not, zero in the diagonal.
+  module subroutine distmatrix(c,d,inverse,conn)
     class(crystal), intent(in) :: c
     real*8, allocatable, intent(inout) :: d(:,:)
+    logical, intent(in), optional :: inverse
+    logical, intent(in), optional :: conn
 
     integer :: i, j
+    logical :: inv_, conn_
+
+    inv_ = .false.
+    conn_ = .false.
+    if (present(inverse)) inv_ = inverse
+    if (present(conn)) conn_ = conn
 
     if (.not.c%ismolecule) return
     if (allocated(d)) deallocate(d)
     allocate(d(c%ncel,c%ncel))
-    d = 0d0
-    do i = 1, c%ncel
-       do j = i+1, c%ncel
-          d(i,j) = norm2(c%atcel(i)%r - c%atcel(j)%r)
-          d(j,i) = d(i,j)
+
+    if (conn_) then
+       d = 1d0
+       do i = 1, c%ncel
+          do j = 1, c%nstar(i)%ncon
+             d(i,c%nstar(i)%idcon(j)) = 1d10
+             d(c%nstar(i)%idcon(j),i) = 1d10
+          end do
+          d(i,i) = 0d0
        end do
-    end do
+    else
+       d = 0d0
+       do i = 1, c%ncel
+          do j = i+1, c%ncel
+             if (inv_) then
+                d(i,j) = 1d0/norm2(c%atcel(i)%r - c%atcel(j)%r)
+             else
+                d(i,j) = norm2(c%atcel(i)%r - c%atcel(j)%r)
+             end if
+             d(j,i) = d(i,j)
+          end do
+       end do
+    end if
 
   end subroutine distmatrix
 
@@ -4484,7 +4510,7 @@ contains
     elseif (equal(wext,'d12').or.equal(wext,'34')) then
        call c%write_d12(file,.true.)
     elseif (equal(wext,'res')) then
-       call c%write_res(file,.true.)
+       call c%write_res(file,-1)
     elseif (equal(wext,'m')) then
        call c%write_escher(file)
     elseif (equal(wext,'db')) then
@@ -5493,14 +5519,15 @@ contains
 
   !> Write a shelx res file (filename = file) with the c crystal
   !> structure. If usesym0, write symmetry to the cif file; otherwise
-  !> use P1.
+  !> use P1. dosym = 0 (do not use symmetry), 1 (use symmetry), or
+  !> -1 (use symmetry only if possible, do not emit warnings)
   module subroutine write_res(c,file,dosym)
     use tools_io, only: fopen_write, fclose, string, ferror, warning, nameguess
     use tools_math, only: det3
     use param, only: bohrtoa, eye
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
-    logical, intent(in) :: dosym
+    integer, intent(in) :: dosym
 
     integer :: i, j, lu, ilatt
     character(len=mlen), allocatable :: strfin(:)
@@ -5517,7 +5544,7 @@ contains
     real*8 :: eps = 1d-5
 
     ! use symmetry?
-    usesym = dosym .and. c%spgavail
+    usesym = (dosym==1 .or. dosym==-1) .and. c%spgavail
 
 10  continue
 
@@ -5525,7 +5552,7 @@ contains
     lu = fopen_write(file)
 
     ! header
-    write (lu,'("TITL res file created by critic2.")')
+    write (lu,'("TITL critic2 | ",A)') trim(c%file)
     write (lu,'("CELL 0.71073 ",6(A,X))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
        (string(c%bb(j),'f',10,6),j=1,3)
     if (usesym) then
@@ -5565,7 +5592,8 @@ contains
           if (all(ok3)) ilatt = -4
        end if
        if (ilatt == 0) then
-          call ferror('write_res','unknown set of centering vectors',warning)
+          if (dosym == 1) &
+             call ferror('write_res','unknown set of centering vectors',warning)
           usesym = .false.
           call fclose(lu)
        end if
@@ -5589,7 +5617,8 @@ contains
           dd = det3(c%rotm(1:3,1:3,i))
           if (dd > 0d0 .or. ilatt < 0) then
              if (index(strfin(i),"not found") > 0) then
-                call ferror('write_res','unknown set of centering vectors',warning)
+                if (dosym == 1) &
+                   call ferror('write_res','unknown set of centering vectors',warning)
                 usesym = .false.
                 call fclose(lu)
                 goto 10
