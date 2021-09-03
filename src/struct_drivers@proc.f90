@@ -640,10 +640,11 @@ contains
           call s%c%write_d12(file,dosym)
        elseif (equal(wext,'res')) then
           write (uout,'("* WRITE res file: ",A)') string(file)
-          if (dosym) &
+          if (dosym) then
              call s%c%write_res(file,1)
           else
              call s%c%write_res(file,0)
+          end if
        end if
        ok = check_no_extra_word()
        if (.not.ok) return

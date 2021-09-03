@@ -1,4 +1,4 @@
-TITL res file created by critic2.
+TITL critic2 | crystal library (urea)
 CELL 0.71073 5.56500000   5.56500000   4.68400000   90.000000  90.000000  90.000000 
 ZERR 3 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001
 LATT -1
