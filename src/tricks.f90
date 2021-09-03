@@ -1066,8 +1066,6 @@ contains
        ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
        call ci%wholemols()
        call ci%write_res(fileout,-1)
-       fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".cif"
-       call ci%write_cif(fileout,.true.)
     end do
     write (uout,'("+ Structures (pruned/written/total): ",A,"/",A,"/",A)') string(nst-count(active)), &
        string(count(active)), string(nst)
