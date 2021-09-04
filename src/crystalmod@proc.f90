@@ -5596,6 +5596,7 @@ contains
              call ferror('write_res','unknown set of centering vectors',warning)
           usesym = .false.
           call fclose(lu)
+          goto 10
        end if
 
        ! identify centrosymmetry
