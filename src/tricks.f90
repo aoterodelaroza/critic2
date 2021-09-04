@@ -670,13 +670,13 @@ contains
   ! end subroutine trick_test_environment
 
   ! Unpack uspex structures. Syntax:
-  !   TRICK USPEX_UNPACK individuals.s file.POSCAR [template.xyz]
+  !   TRICK USPEX_UNPACK individuals.s file.POSCAR [template.xyz] [MAXDE maxde.r] [NONEG]
   subroutine trick_uspex_unpack(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed, read_seeds_from_file
-    use global, only: fileroot, rborder_def
-    use tools_io, only: getword, ferror, faterr, getline_raw, fopen_read, fclose, zatguess,&
-       isinteger, string, uout
+    use global, only: fileroot, rborder_def, eval_next
+    use tools_io, only: lgetword, getword, ferror, faterr, getline_raw, fopen_read,&
+       fclose, zatguess, isinteger, string, uout, equal
     use tools_math, only: crosscorr_triangle, umeyama_graph_matching, rmsd_walker
     use tools, only: mergesort, qcksort
     use types, only: realloc
@@ -692,8 +692,8 @@ contains
     real*8, allocatable :: vst(:), hst(:)
     logical, allocatable :: active(:)
     type(crystalseed), allocatable :: seed(:)
-    real*8 :: rdum, rprim(3,3), adv, adh
-    logical :: ok
+    real*8 :: rdum, rprim(3,3), adv, adh, minh
+    logical :: ok, firstpass
     character*1 :: let
     type(crystal) :: ci, cj, templt
     real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
@@ -703,11 +703,11 @@ contains
     integer :: ns, n
     type(crystal), allocatable :: mol(:)
     type(crystalseed) :: molseed, xseed
-    logical :: usetemplate
+    logical :: usetemplate, noneg
     integer, allocatable :: isperm(:,:), cidxorig(:,:), saveperm(:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
     real*8, allocatable :: x1(:,:), x2(:,:), mrot(:,:,:)
-    real*8 :: xcm1(3), xcm2(3), xnew(3)
+    real*8 :: xcm1(3), xcm2(3), xnew(3), maxde
 
     real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
     real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
@@ -728,6 +728,27 @@ contains
     filexyz = getword(line0,lp)
     if ((len_trim(fileind) == 0) .or. (len_trim(fileposcar) == 0)) &
        call ferror('trick_uspex_unpack','Error: individuals or POSCAR file not found',faterr)
+
+    ! read the options
+    noneg = .false.
+    maxde = 1d40
+    do while (.true.)
+       word = lgetword(line0,lp)
+       if (equal(word,'maxde')) then
+          ok = eval_next(maxde,line0,lp)
+          if (.not.ok) then
+             call ferror('trick_uspex_unpack','Invalid MAXDE keyword',faterr,line0,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,'noneg')) then
+          noneg = .true.
+       elseif (len_trim(word) > 0) then
+          call ferror('trick_uspex_unpack','Unknown extra keyword',faterr,line0,syntax=.true.)
+          return
+       else
+          exit
+       end if
+    end do
 
     ! read the template
     usetemplate = (len_trim(filexyz) /= 0)
@@ -901,16 +922,38 @@ contains
     end do
     call fclose(lu)
 
-    ! prune
-    write (uout,'("* List of pruned structures")')
-    write (uout,'("# Volume difference threshold (ang) = ",A)') string(vdiff_thr,'e',10,5)
-    write (uout,'("# Enthalpy difference threshold (eV) = ",A)') string(ediff_thr,'e',10,5)
-    write (uout,'("# POWDIFF threshold = ",A)') string(powdiff_thr,'e',10,5)
+    ! Prepare for the list of structures
+    write (uout,'("* List of structures")')
+    write (uout,'("# Volume difference threshold (ang) = ",A)') string(vdiff_thr,'e',decimal=5)
+    write (uout,'("# Enthalpy difference threshold (eV) = ",A)') string(ediff_thr,'e',decimal=5)
+    write (uout,'("# POWDIFF threshold = ",A)') string(powdiff_thr,'e',decimal=5)
     write (uout,'("# A structure is pruned if the three conditions hold concurrently.")')
-    write (uout,'("pruned same-as    deltaV(ang)  deltaH(eV)  POWDIFF")')
+    write (uout,'("id    fate     file or reason for pruning")')
     allocate(active(nst))
     active = .true.
+
+    ! pre-pruning
+    minh = minval(hst,.not.noneg.or.(hst > 0))
     do ii = 1, nst
+       i = iord(ii)
+       if (noneg .and. hst(i) < 0d0) then
+          active(i) = .false.
+          write (uout,'(A," pruned   because: NONEG and energy is ",A)') &
+             string(i,ndigit), string(hst(i),'f',decimal=3)
+       else
+          adh = abs(hst(i)-minh)
+          if (adh > maxde) then
+             active(i) = .false.
+             write (uout,'(A," pruned   because: MAXDE and energy is ",A,", ",A," above the minimum (",A,")")') &
+                string(i,ndigit), string(hst(i),'f',decimal=3),&
+                string(adh,'f',decimal=3), string(minh,'f',decimal=3)
+          end if
+       end if
+    end do
+
+    ! prune
+    firstpass = .true.
+    main: do ii = 1, nst
        i = iord(ii)
        if (.not.active(i)) cycle
        call ci%struct_new(seed(i),.true.)
@@ -923,52 +966,19 @@ contains
        ihi = ihi / sqrt(nor)
        xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
 
-       ! compare with the rest of the structures
-       do jj = ii+1, nst
-          j = iord(jj)
-          if (.not.active(j)) cycle
-
-          adv = abs(vst(i)-vst(j))
-          adh = abs(hst(i)-hst(j))
-          if (adv > vdiff_thr) then
-             ! sorted by volume, so it is pointless to continue
-             exit
-          else if (adh < ediff_thr) then
-             ! make structure j
-             call cj%struct_new(seed(j),.true.)
-
-             ! powder for structure j
-             call cj%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
-             tini = ihj(1)*ihj(1)
-             tend = ihj(npts)*ihj(npts)
-             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-             ihj = ihj / sqrt(nor)
-             xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
-
-             ! compare structures i and j
-             diffij = max(1d0 - crosscorr_triangle(h,ihi,ihj,1d0) / xnormi / xnormj,0d0)
-             if (diffij < powdiff_thr) then
-                active(j) = .false.
-                write (uout,'(A," (",A,") ",A," (",A,") ",99(A,X))') string(j,ndigit), string(jj,ndigit), &
-                   string(i,ndigit), string(ii,ndigit),&
-                   string(adv,'e',10,5), string(adh,'e',10,5), string(diffij,'e',10,5)
-             end if
-          end if
-       end do
-
        ! begin applying the template
        if (usetemplate) then
           ! check the fragments
           nat = templt%nneq
           if (any(ci%mol(:)%nat /= nat)) then
+             write (uout,'(A," pruned   because: molecules blew up")') string(i,ndigit)
              active(i) = .false.
-             write (uout,'("! pruned structure ",A," because wrong number of atoms in fragments | V = ",A," | H = ",A," --")') &
-                string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
-             cycle
+             cycle main
           end if
 
           ! read the fragments from ci into structures
           ns = ci%nmol
+          if (allocated(mol)) deallocate(mol)
           allocate(mol(ns))
           do j = 1, ns
              call molseed%from_fragment(ci%mol(j),.true.)
@@ -977,10 +987,12 @@ contains
           end do
 
           ! allocate the use and permutation arrays
+          if (allocated(isperm)) deallocate(isperm)
           allocate(isperm(templt%nneq,ns))
 
           ! make the mapping between structure+atom and the original cidx
           ! sort because the from_fragment routine also sorts
+          if (allocated(cidxorig)) deallocate(cidxorig)
           allocate(cidxorig(nat,ns))
           do is = 1, ns
              do j = 1, nat
@@ -999,15 +1011,16 @@ contains
              call mol(is)%distmatrix(ddh,conn=.true.)
              call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
              if (any(templt%spc(templt%at(1:nat)%is)%z /= mol(is)%spc(mol(is)%at(isperm(1:nat,is))%is)%z)) then
+                write (uout,'(A," pruned   because: atomic numbers in permutation did not match")') &
+                   string(i,ndigit)
                 active(i) = .false.
-                write (uout,'("! pruned structure ",A," because incompatible atoms in permutation | V = ",A," | H = ",A," --")') &
-                   string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
-                cycle
+                cycle main
              end if
           end do
           deallocate(dref,ddg,ddh)
 
           ! Get the rmsd from walker. If moveatoms, also save the rotation.
+          if (allocated(mrot)) deallocate(mrot)
           allocate(x1(3,nat),x2(3,nat),mrot(3,3,ns))
           do j = 1, nat
              x1(:,j) = templt%at(j)%r
@@ -1041,13 +1054,16 @@ contains
           call ci%struct_new(xseed,.true.)
 
           ! check the permutations are always the same
-          if (ii == 1) saveperm = isperm(:,1)
+          if (firstpass) then
+             saveperm = isperm(:,1)
+             firstpass = .false.
+          end if
           do is = 1, ns
              if (any(isperm(:,is) /= saveperm)) then
+                write (uout,'(A," pruned   because: permutation does not match previous structures")') &
+                   string(i,ndigit)
                 active(i) = .false.
-                write (uout,'("! pruned structure ",A," because wrong permutation | V = ",A," | H = ",A," --")') &
-                   string(i), string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
-                cycle
+                cycle main
              end if
           end do
           ! do is = 1, ns
@@ -1061,12 +1077,47 @@ contains
           deallocate(isperm,cidxorig,mrot)
        end if
 
+       ! remove duplicates from the list of structures
+       do jj = ii+1, nst
+          j = iord(jj)
+          if (.not.active(j)) cycle
+
+          adv = abs(vst(i)-vst(j))
+          adh = abs(hst(i)-hst(j))
+          if (adv > vdiff_thr) then
+             ! sorted by volume, so it is pointless to continue
+             exit
+          else if (adh < ediff_thr) then
+             ! make structure j
+             call cj%struct_new(seed(j),.true.)
+
+             ! powder for structure j
+             call cj%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
+             tini = ihj(1)*ihj(1)
+             tend = ihj(npts)*ihj(npts)
+             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             ihj = ihj / sqrt(nor)
+             xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
+
+             ! compare structures i and j
+             diffij = max(1d0 - crosscorr_triangle(h,ihi,ihj,1d0) / xnormi / xnormj,0d0)
+             if (diffij < powdiff_thr) then
+                write (uout,'(A," pruned   because: same as ",A," (deltaV=",A,",deltaH=",A,",pow=",A,")")') &
+                   string(j,ndigit), string(i), string(adv,'e',decimal=4), string(adh,'e',decimal=4),&
+                   string(diffij,'e',decimal=4)
+                active(j) = .false.
+             end if
+          end if
+       end do
+
        ! this structure is active, so write it
        fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".res"
        ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
        call ci%wholemols()
        call ci%write_res(fileout,-1)
-    end do
+       write (uout,'(A," written  ",A," (V=",A,",H=",A,")")') string(i,ndigit), string(fileout), &
+          string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
+    end do main
     write (uout,'("+ Structures (pruned/written/total): ",A,"/",A,"/",A)') string(nst-count(active)), &
        string(count(active)), string(nst)
     write (uout,*)
