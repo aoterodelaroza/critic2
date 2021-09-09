@@ -589,10 +589,11 @@ module crystalmod
        character*(*), intent(in) :: file
        real*8, intent(in), optional :: rklength
      end subroutine write_espresso
-     module subroutine write_vasp(c,file,verbose)
+     module subroutine write_vasp(c,file,verbose,append)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: verbose
+       logical, intent(in), optional :: append
      end subroutine write_vasp
      module subroutine write_abinit(c,file)
        class(crystal), intent(in) :: c

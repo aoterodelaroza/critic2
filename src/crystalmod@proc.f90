@@ -5059,25 +5059,40 @@ contains
 
   end subroutine write_espresso
 
-  !> Write a VASP POSCAR template
-  module subroutine write_vasp(c,file,verbose)
-    use tools_io, only: fopen_write, string, uout, fclose, nameguess
+  !> Write a VASP POSCAR file. If verbose, write the atom sequence
+  !> to the output. If append, append to an existing file.
+  module subroutine write_vasp(c,file,verbose,append)
+    use tools_io, only: fopen_write, fopen_append, string, uout, fclose, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: verbose
+    logical, intent(in), optional :: append
 
     character(len=:), allocatable :: lbl1, lbl2, aux, auxname
     integer :: i, j, lu, ntyp
+    logical :: append_, ok
+
+    ! whether to append
+    append_ = .false.
+    if (present(append)) append_ = append
 
     ! Cell
-    lu = fopen_write(file)
-    write (lu,'("crystal")')
+    if (append_) then
+       inquire(file=file,exist=ok)
+       if (ok) then
+          lu = fopen_append(file)
+       else
+          lu = fopen_write(file)
+       end if
+    else
+       lu = fopen_write(file)
+    end if
+    write (lu,'("critic2 | ",A)') string(c%file)
     write (lu,'("1.0")')
     do i = 1, 3
        write (lu,'(3(F15.10,X))') c%m_x2c(:,i) * bohrtoa
     end do
-
 
     ! Number of atoms per type and Direct
     lbl1 = ""
