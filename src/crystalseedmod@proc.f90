@@ -1830,7 +1830,6 @@ contains
     real*8 :: omegaa
 
     ! open
-    call seed%end()
     errmsg = "Error reading file."
     hastypes = .true.
     lu = fopen_read(file)
