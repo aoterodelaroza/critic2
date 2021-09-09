@@ -670,32 +670,35 @@ contains
   ! end subroutine trick_test_environment
 
   ! Unpack uspex structures. Syntax:
-  !   TRICK USPEX_UNPACK individuals.s file.POSCAR [template.xyz] [MAXDE maxde.r] [NONEG]
+  !   TRICK USPEX_UNPACK individuals.s file.POSCAR 
+  !         MOLECULES mol1.xyz mol2.xyz ...
+  !         PATTERN i1.i i2.i ... 
+  !         [MOVEATOMS] [MAXDE maxde.r] [NONEG] [OUTPUTPOSCAR]
   subroutine trick_uspex_unpack(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed, read_seeds_from_file
     use global, only: fileroot, rborder_def, eval_next
     use tools_io, only: lgetword, getword, ferror, faterr, getline_raw, fopen_read,&
-       fclose, zatguess, isinteger, string, uout, equal
+       fclose, zatguess, isinteger, string, uout, equal, lower
     use tools_math, only: crosscorr_triangle, umeyama_graph_matching, rmsd_walker
     use tools, only: mergesort, qcksort
     use types, only: realloc
     use param, only: bohrtoa, isformat_xyz
     character*(*), intent(in) :: line0
 
-    character*1024 :: bleh
-    character(len=:), allocatable :: fileind, fileposcar, filexyz, fileout, line, errmsg, word
-    character(len=:), allocatable :: linespc, linensp, msg
+    character*1024 :: sdum
+    character(len=:), allocatable :: fileind, fileposcar, fileout, line
+    character(len=:), allocatable :: linespc, linensp, errmsg, word, lword
     integer :: lp, lu, idxb, idum, nat, is
-    integer :: ii, jj, i, j, k, iz, nst
-    integer, allocatable :: idst(:), iord(:), nsp(:)
+    integer :: ii, jj, i, j, k, iz, nst, ntemplate, npattern, pp
+    integer, allocatable :: idst(:), iord(:), nsp(:), pattern(:)
     real*8, allocatable :: vst(:), hst(:)
     logical, allocatable :: active(:)
     type(crystalseed), allocatable :: seed(:)
     real*8 :: rdum, rprim(3,3), adv, adh, minh
-    logical :: ok, firstpass
+    logical :: ok, firstpass, outputposcar
     character*1 :: let
-    type(crystal) :: ci, cj, templt
+    type(crystal) :: ci, cj
     real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
     integer, allocatable :: hvecp(:,:)
     real*8 :: tini, tend, nor, xnormi, xnormj, diffij
@@ -703,11 +706,12 @@ contains
     integer :: ns, n
     type(crystal), allocatable :: mol(:)
     type(crystalseed) :: molseed, xseed
-    logical :: usetemplate, noneg
-    integer, allocatable :: isperm(:,:), cidxorig(:,:), saveperm(:)
-    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
-    real*8, allocatable :: x1(:,:), x2(:,:), mrot(:,:,:)
-    real*8 :: xcm1(3), xcm2(3), xnew(3), maxde
+    type(crystal), allocatable :: xtemplate(:), xaux(:)
+    logical :: noneg, inmolecules, inpattern, moveatoms
+    integer, allocatable :: iperm(:)
+    real*8, allocatable :: x1(:,:), x2(:,:)
+    real*8 :: xcm1(3), xcm2(3), xnew(3), maxde, mrot(3,3)
+    integer :: ibins(4), nbins(4)
 
     real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
     real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
@@ -725,42 +729,78 @@ contains
     lp = 1
     fileind = getword(line0,lp)
     fileposcar = getword(line0,lp)
-    filexyz = getword(line0,lp)
     if ((len_trim(fileind) == 0) .or. (len_trim(fileposcar) == 0)) &
        call ferror('trick_uspex_unpack','Error: individuals or POSCAR file not found',faterr)
 
     ! read the options
+    ntemplate = 0
+    allocate(xtemplate(1))
+    npattern = 0
+    allocate(pattern(10))
+    inmolecules = .false.
+    inpattern = .false.
     noneg = .false.
     maxde = 1d40
+    moveatoms = .false.
+    outputposcar = .false.
     do while (.true.)
-       word = lgetword(line0,lp)
-       if (equal(word,'maxde')) then
+       word = getword(line0,lp)
+       lword = lower(word)
+       if (equal(lword,'maxde')) then
           ok = eval_next(maxde,line0,lp)
           if (.not.ok) then
              call ferror('trick_uspex_unpack','Invalid MAXDE keyword',faterr,line0,syntax=.true.)
              return
           end if
-       elseif (equal(word,'noneg')) then
+          inmolecules = .false.
+          inpattern = .false.
+       elseif (equal(lword,'moveatoms')) then
+          moveatoms = .true.
+       elseif (equal(lword,'noneg')) then
           noneg = .true.
+          inmolecules = .false.
+          inpattern = .false.
+       elseif (equal(lword,'molecules')) then
+          inmolecules = .true.
+          inpattern = .false.
+       elseif (equal(lword,'pattern')) then
+          inpattern = .true.
+          inmolecules = .false.
+       elseif (equal(lword,'outputposcar')) then
+          outputposcar = .true.
        elseif (len_trim(word) > 0) then
-          call ferror('trick_uspex_unpack','Unknown extra keyword',faterr,line0,syntax=.true.)
-          return
+          if (inmolecules) then
+             ! read a molecule and prepare the structure in xtemplate
+             ntemplate = ntemplate + 1
+             if (ntemplate > size(xtemplate,1)) then
+                if (allocated(xaux)) deallocate(xaux)
+                allocate(xaux(2*ntemplate))
+                xaux(1:size(xtemplate,1)) = xtemplate
+                call move_alloc(xaux,xtemplate)
+             end if
+             call molseed%read_mol(word,isformat_xyz,rborder_def,.false.,errmsg)
+             if (len_trim(errmsg) > 0) then
+                errmsg = "error reading xyz file"
+                goto 999
+             end if
+             call xtemplate(ntemplate)%struct_new(molseed,.true.)
+          elseif (inpattern) then
+             npattern = npattern + 1
+             if (npattern > size(pattern,1)) call realloc(pattern,2*npattern)
+             ok = isinteger(pattern(npattern),word)
+             if (.not.ok) then
+                errmsg = "error reading pattern"
+                goto 999
+             end if
+          else
+             call ferror('trick_uspex_unpack','Unknown extra keyword',faterr,line0,syntax=.true.)
+             return
+          end if
        else
           exit
        end if
     end do
-
-    ! read the template
-    usetemplate = (len_trim(filexyz) /= 0)
-    if (usetemplate) then
-       call molseed%read_mol(filexyz,isformat_xyz,rborder_def,.false.,errmsg)
-       if (len_trim(errmsg) > 0) then
-          errmsg = "error reading xyz file"
-          goto 999
-       end if
-       call templt%struct_new(molseed,.true.)
-       allocate(saveperm(templt%nneq))
-    end if
+    call realloc(pattern,npattern)
 
     ! prepare some space
     nst = 0
@@ -803,13 +843,56 @@ contains
     call mergesort(hst,iord,1,nst)
     call mergesort(vst,iord,1,nst)
 
+    ! prepare the permutation for reordering the POSCAR files
+    if (npattern == 0 .or. ntemplate == 0) then
+       errmsg = "pattern or molecular templates not found"
+       goto 999
+    end if
+    nat = 0
+    nbins = 0
+    do i = 1, npattern
+       pp = pattern(i)
+       nbins(1) = nbins(1) + count(xtemplate(pp)%spc(xtemplate(pp)%atcel(1:xtemplate(pp)%ncel)%is)%z == 1)
+       nbins(2) = nbins(2) + count(xtemplate(pp)%spc(xtemplate(pp)%atcel(1:xtemplate(pp)%ncel)%is)%z == 6)
+       nbins(3) = nbins(3) + count(xtemplate(pp)%spc(xtemplate(pp)%atcel(1:xtemplate(pp)%ncel)%is)%z == 8)
+       nbins(4) = nbins(4) + count(xtemplate(pp)%spc(xtemplate(pp)%atcel(1:xtemplate(pp)%ncel)%is)%z == 7)
+       nat = nat + xtemplate(pp)%ncel
+    end do
+    if (sum(nbins) /= nat) then
+       errmsg = "inconsistent sum of atoms, maybe atoms other than H, C, O, N?"
+       goto 999
+    end if
+    allocate(iperm(nat))
+    ibins = 0
+    nat = 0
+    do i = 1, npattern
+       pp = pattern(i)
+       do j = 1, xtemplate(pp)%ncel
+          nat = nat + 1
+          if (xtemplate(pp)%spc(xtemplate(pp)%atcel(j)%is)%z == 1) then
+             ibins(1) = ibins(1) + 1
+             iperm(ibins(1)) = nat
+          else if (xtemplate(pp)%spc(xtemplate(pp)%atcel(j)%is)%z == 6) then
+             ibins(2) = ibins(2) + 1
+             iperm(nbins(1)+ibins(2)) = nat
+          else if (xtemplate(pp)%spc(xtemplate(pp)%atcel(j)%is)%z == 8) then
+             ibins(3) = ibins(3) + 1
+             iperm(nbins(1)+nbins(2)+ibins(3)) = nat
+          else if (xtemplate(pp)%spc(xtemplate(pp)%atcel(j)%is)%z == 7) then
+             ibins(4) = ibins(4) + 1
+             iperm(nbins(1)+nbins(2)+nbins(3)+ibins(4)) = nat
+          else
+          end if
+       end do
+    end do
+
     ! Read all the seeds; USPEX format is expected, so this is not a
-    ! full-fledged POSCAR reader.
+    ! full-fledged POSCAR reader. Reorder the POSCAR atoms as we go.
     errmsg = "error reading POSCAR file"
     allocate(seed(nst))
     lu = fopen_read(fileposcar)
     do i = 1, nst
-       read (lu,*,err=999) bleh
+       read (lu,*,err=999) sdum
        read (lu,*,err=999) rdum
        if (abs(rdum - 1d0) > 1d-14) then
           errmsg = "scale in POSCAR file different from 1"
@@ -870,6 +953,10 @@ contains
                 goto 999
              end if
           end do
+          if (any(nsp /= nbins)) then
+             errmsg = "inconsistent atom types in POSCAR and molecular template pattern"
+             goto 999
+          end if
 
           ! assign nat and species mapping
           seed(i)%nat = 0
@@ -877,9 +964,13 @@ contains
           do j = 1, seed(i)%nspc
              do k = 1, nsp(j)
                 seed(i)%nat = seed(i)%nat + 1
-                seed(i)%is(seed(i)%nat) = j
+                seed(i)%is(iperm(seed(i)%nat)) = j
              end do
           end do
+          if (seed(i)%nat /= size(iperm,1)) then
+             errmsg = "number of atoms in POSCAR inconsistent with template pattern"
+             goto 999
+          end if
 
           ! deallocate and save the line
           deallocate(nsp)
@@ -902,7 +993,7 @@ contains
        ! read atomic coordinates
        allocate(seed(i)%x(3,seed(i)%nat))
        do j = 1, seed(i)%nat
-          read(lu,*,err=999) seed(i)%x(:,j)
+          read(lu,*,err=999) seed(i)%x(:,iperm(j))
        enddo
 
        ! symmetry
@@ -966,116 +1057,27 @@ contains
        ihi = ihi / sqrt(nor)
        xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
 
-       ! begin applying the template
-       if (usetemplate) then
-          ! check the fragments
-          nat = templt%nneq
-          if (any(ci%mol(:)%nat /= nat)) then
-             write (uout,'(A," pruned   because: molecules blew up")') string(i,ndigit)
-             active(i) = .false.
-             cycle main
-          end if
-
-          ! read the fragments from ci into structures
-          ns = ci%nmol
-          if (allocated(mol)) deallocate(mol)
-          allocate(mol(ns))
-          do j = 1, ns
-             call molseed%from_fragment(ci%mol(j),.true.)
-             molseed%border = 0d0
-             call mol(j)%struct_new(molseed,.true.)
-          end do
-
-          ! allocate the use and permutation arrays
-          if (allocated(isperm)) deallocate(isperm)
-          allocate(isperm(templt%nneq,ns))
-
-          ! make the mapping between structure+atom and the original cidx
-          ! sort because the from_fragment routine also sorts
-          if (allocated(cidxorig)) deallocate(cidxorig)
-          allocate(cidxorig(nat,ns))
-          do is = 1, ns
-             do j = 1, nat
-                cidxorig(j,is) = ci%mol(is)%at(j)%cidx
-             end do
-             call qcksort(cidxorig(:,is))
-          end do
-
-          ! allocate space and get reference distance matrix
-          allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
-          call templt%distmatrix(dref,conn=.true.)
-
-          ! calculate the permutations
-          do is = 1, ns
-             ddg = dref
-             call mol(is)%distmatrix(ddh,conn=.true.)
-             call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
-             if (any(templt%spc(templt%at(1:nat)%is)%z /= mol(is)%spc(mol(is)%at(isperm(1:nat,is))%is)%z)) then
-                write (uout,'(A," pruned   because: atomic numbers in permutation did not match")') &
-                   string(i,ndigit)
-                active(i) = .false.
-                cycle main
-             end if
-          end do
-          deallocate(dref,ddg,ddh)
-
-          ! Get the rmsd from walker. If moveatoms, also save the rotation.
-          if (allocated(mrot)) deallocate(mrot)
-          allocate(x1(3,nat),x2(3,nat),mrot(3,3,ns))
-          do j = 1, nat
-             x1(:,j) = templt%at(j)%r
-          end do
-          do is = 1, ns
-             do j = 1, nat
-                x2(:,j) = mol(is)%at(isperm(j,is))%r
-             end do
-             rdum = rmsd_walker(x1,x2,mrot(:,:,is))
-          end do
-          deallocate(x1,x2,mol)
-
-          ! write the final structure
-          xcm1 = templt%mol(1)%cmass(.false.)
-          call ci%makeseed(xseed,.false.)
-          n = 0
-          do is = 1, ns
-             xcm2 = ci%mol(is)%cmass(.false.)
-             do j = 1, nat
-                n = n + 1
-
-                xnew = templt%mol(1)%at(j)%r - xcm1
-                xnew = matmul(mrot(:,:,is),xnew)
-                xnew = xnew + xcm2
-                xnew = ci%c2x(xnew)
-
-                xseed%x(:,n) = xnew
-                xseed%is(n) = ci%atcel(cidxorig(isperm(j,is),is))%is
-             end do
-          end do
-          call ci%struct_new(xseed,.true.)
-
-          ! check the permutations are always the same
-          if (firstpass) then
-             saveperm = isperm(:,1)
-             firstpass = .false.
-          end if
-          do is = 1, ns
-             if (any(isperm(:,is) /= saveperm)) then
-                write (uout,'(A," pruned   because: permutation does not match previous structures")') &
-                   string(i,ndigit)
-                active(i) = .false.
-                cycle main
-             end if
-          end do
-          ! do is = 1, ns
-          !    msg = ""
-          !    do j = 1, nat
-          !       msg = msg // " " // string(isperm(j,is))
-          !    end do
-          !    write (uout,'(X,A," success (perm=",A,")")') string(is,2), string(msg)
-          ! end do
-
-          deallocate(isperm,cidxorig,mrot)
+       !! begin applying the template
+       ! read the fragments from ci into structures
+       ns = ci%nmol
+       if (ns /= npattern) then
+          write (uout,'(A," pruned   because: incorrect number of fragments")') string(i,ndigit)
+          active(i) = .false.
+          cycle main
        end if
+       if (allocated(mol)) deallocate(mol)
+       allocate(mol(ns))
+       nat = 0
+       do j = 1, ns
+          do k = 1, ci%mol(j)%nat
+             nat = nat + 1
+             if (nat /= ci%mol(j)%at(k)%cidx) then
+                write (uout,'(A," pruned   because: incorrect permutation (molecules blew up?)")') string(i,ndigit)
+                active(i) = .false.
+                cycle main
+             end if
+          end do
+       end do
 
        ! remove duplicates from the list of structures
        do jj = ii+1, nst
@@ -1110,11 +1112,50 @@ contains
           end if
        end do
 
-       ! this structure is active, so write it
-       fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".res"
-       ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
+       ! move the atoms to conform with the template, if necessary
+       if (moveatoms) then
+          call ci%makeseed(xseed,.false.)
+          n = 0
+          do is = 1, ns
+             pp = pattern(is)
+             nat = xtemplate(pp)%ncel
+             allocate(x1(3,nat),x2(3,nat))
+
+             xcm1 = xtemplate(pp)%mol(1)%cmass(.false.)
+             xcm2 = ci%mol(is)%cmass(.false.)
+             do j = 1, nat
+                x1(:,j) = xtemplate(pp)%at(j)%r - xcm1
+                x2(:,j) = ci%mol(is)%at(j)%r - xcm2
+             end do
+             rdum = rmsd_walker(x1,x2,mrot)
+             do j = 1, nat
+                n = n + 1
+                xnew = xtemplate(pp)%at(j)%r - xcm1
+                xnew = matmul(mrot,xnew)
+                xnew = xnew + xcm2
+                xnew = ci%c2x(xnew)
+                xseed%x(:,n) = xnew
+             end do
+             deallocate(x1,x2)
+          end do
+          call ci%struct_new(xseed,.true.)
+       end if
+
+       ! run wholemols
        call ci%wholemols()
-       call ci%write_res(fileout,-1)
+
+       ! this structure is active, so write it
+       if (outputposcar) then
+          fileout = fileroot // "-pruned.POSCAR"
+          ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
+          call ci%write_vasp(fileout,.false.,.not.firstpass)
+          firstpass = .false.
+       else
+          fileout = fileroot // "-" // string(i,length=ndigit,pad0=.true.) // ".res"
+          ci%file = "EA" // string(i) // " V= " // string(vst(i),'f',decimal=3) // " H= " // string(hst(i),'f',decimal=3)
+          call ci%write_res(fileout,-1)
+       end if
+
        write (uout,'(A," written  ",A," (V=",A,",H=",A,")")') string(i,ndigit), string(fileout), &
           string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
     end do main
