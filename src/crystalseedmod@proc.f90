@@ -28,6 +28,34 @@ submodule (crystalseedmod) proc
 
 contains
 
+  !> Deallocate arrays in the seed
+  module subroutine seed_end(seed)
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+
+    seed%isused = .false.
+    seed%file = ""
+    seed%name = ""
+    seed%nat = 0
+    if (allocated(seed%x)) deallocate(seed%x)
+    if (allocated(seed%is)) deallocate(seed%is)
+    seed%nspc = 0
+    if (allocated(seed%spc)) deallocate(seed%spc)
+    seed%useabr = 0
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+    seed%neqv = 0
+    seed%ncv = 0
+    if (allocated(seed%cen)) deallocate(seed%cen)
+    if (allocated(seed%rotm)) deallocate(seed%rotm)
+    seed%ismolecule = .false.
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+
+  end subroutine seed_end
+
   !> Parse a crystal environment
   module subroutine parse_crystal_env(seed,lu,oksyn)
     use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
@@ -53,6 +81,7 @@ contains
     logical :: icodef(3), iok, isset
     real*8 :: icoval(3)
 
+    call seed%end()
     if (iunit_isdef) then
        iunit0 = iunit_bohr
     else
@@ -399,6 +428,7 @@ contains
     real*8 :: rborder
     logical :: ok, docube, isset
 
+    call seed%end()
     if (iunit_isdef) then
        iunit0 = iunit_ang
     else
@@ -582,6 +612,7 @@ contains
     integer :: lu, lp, lpo
 
     ! read the structure
+    call seed%end()
     oksyn = .false.
     lpo = 1
     stru = lgetword(line,lpo)
@@ -666,6 +697,7 @@ contains
     logical :: order_by_cidx
     integer, allocatable :: iord(:), midx(:)
 
+    call seed%end()
     if (fr%nat==0) &
        call ferror('from_fragment','fragment has zero atoms',faterr)
     if (.not.fr%discrete) &
@@ -831,6 +863,7 @@ contains
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
     ! file and seed name
+    call seed%end()
     seed%file = file
     seed%name = file
     errmsg = ""
@@ -1196,6 +1229,7 @@ contains
     real*8 :: rdum
 
     ! open the file for reading
+    call seed%end()
     errmsg = "Error reading file."
     lu = fopen_read(file)
     if (lu < 0) then
@@ -1365,6 +1399,7 @@ contains
     logical :: ismo, ok
     character(len=:), allocatable :: line
 
+    call seed%end()
     errmsg = "Error reading file."
     lu = fopen_read(file)
     if (lu < 0) then
@@ -1475,83 +1510,84 @@ contains
     integer :: i, j, nstep(3), nn, iz, it
     real*8 :: x0(3), rmat(3,3), rdum, rx(3)
 
-     errmsg = "Error reading file."
-     lu = fopen_read(file,form="unformatted")
-     if (lu < 0) then
-        errmsg = "Error opening file."
-        return
-     end if
+    call seed%end()
+    errmsg = "Error reading file."
+    lu = fopen_read(file,form="unformatted")
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
 
-     ! number of atoms and unit cell
-     read (lu,err=999) seed%nat, x0
+    ! number of atoms and unit cell
+    read (lu,err=999) seed%nat, x0
 
-     read (lu,err=999) nstep, rmat
-     do i = 1, 3
-        rmat(:,i) = rmat(:,i) * nstep(i)
-     end do
+    read (lu,err=999) nstep, rmat
+    do i = 1, 3
+       rmat(:,i) = rmat(:,i) * nstep(i)
+    end do
 
-     seed%m_x2c = rmat
-     rmat = transpose(rmat)
-     call matinv(rmat,3,ier)
-     if (ier /= 0) then
-        errmsg = "Error inverting matrix"
-        goto 999
-     end if
-     seed%useabr = 2
+    seed%m_x2c = rmat
+    rmat = transpose(rmat)
+    call matinv(rmat,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
+    seed%useabr = 2
 
-     ! Atomic positions.
-     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
-     allocate(seed%spc(2))
-     nn = seed%nat
-     seed%nat = 0
-     do i = 1, nn
-        read (lu,err=999) iz, rdum, rx
-        if (iz > 0) then
-           seed%nat = seed%nat + 1
-           rx = matmul(rx - x0,rmat)
-           seed%x(:,seed%nat) = rx - floor(rx)
-           it = 0
-           do j = 1, seed%nspc
-              if (seed%spc(j)%z == iz) then
-                 it = j
-                 exit
-              end if
-           end do
-           if (it == 0) then
-              seed%nspc = seed%nspc + 1
-              if (seed%nspc > size(seed%spc,1)) &
-                 call realloc(seed%spc,2*seed%nspc)
-              seed%spc(seed%nspc)%z = iz
-              seed%spc(seed%nspc)%name = nameguess(iz)
-              it = seed%nspc
-           end if
-           seed%is(seed%nat) = it
-        endif
-     end do
-     if (seed%nat /= nn) then
-        call realloc(seed%x,3,seed%nat)
-        call realloc(seed%is,seed%nat)
-     end if
-     call realloc(seed%spc,seed%nspc)
+    ! Atomic positions.
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%spc(2))
+    nn = seed%nat
+    seed%nat = 0
+    do i = 1, nn
+       read (lu,err=999) iz, rdum, rx
+       if (iz > 0) then
+          seed%nat = seed%nat + 1
+          rx = matmul(rx - x0,rmat)
+          seed%x(:,seed%nat) = rx - floor(rx)
+          it = 0
+          do j = 1, seed%nspc
+             if (seed%spc(j)%z == iz) then
+                it = j
+                exit
+             end if
+          end do
+          if (it == 0) then
+             seed%nspc = seed%nspc + 1
+             if (seed%nspc > size(seed%spc,1)) &
+                call realloc(seed%spc,2*seed%nspc)
+             seed%spc(seed%nspc)%z = iz
+             seed%spc(seed%nspc)%name = nameguess(iz)
+             it = seed%nspc
+          end if
+          seed%is(seed%nat) = it
+       endif
+    end do
+    if (seed%nat /= nn) then
+       call realloc(seed%x,3,seed%nat)
+       call realloc(seed%is,seed%nat)
+    end if
+    call realloc(seed%spc,seed%nspc)
 
-     errmsg = ""
-999  continue
-     call fclose(lu)
+    errmsg = ""
+999 continue
+    call fclose(lu)
 
-     ! no symmetry
-     seed%havesym = 0
-     seed%checkrepeats = .false.
-     seed%findsym = -1
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
 
-     ! molecule
-     seed%ismolecule = mol
-     seed%havex0 = .true.
-     seed%molx0 = x0
+    ! molecule
+    seed%ismolecule = mol
+    seed%havex0 = .true.
+    seed%molx0 = x0
 
-     ! rest of the seed information
-     seed%isused = .true.
-     seed%cubic = .false.
-     seed%border = 0d0
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%cubic = .false.
+    seed%border = 0d0
 
   end subroutine read_bincube
 
@@ -1577,6 +1613,7 @@ contains
     real*8 :: ahex, chex
 
     ! seed file
+    call seed%end()
     errmsg = "Error reading file."
     seed%file = file
 
@@ -1793,6 +1830,7 @@ contains
     real*8 :: omegaa
 
     ! open
+    call seed%end()
     errmsg = "Error reading file."
     hastypes = .true.
     lu = fopen_read(file)
@@ -1959,6 +1997,7 @@ contains
     integer :: i, iz
     real*8 :: rmat(3,3)
 
+    call seed%end()
     errmsg = ""
     lu = fopen_read(file,"unformatted",errstop=.false.)
     if (lu < 0) then
@@ -2033,6 +2072,7 @@ contains
     integer :: natoms
     logical :: ok
 
+    call seed%end()
     errmsg = "Error reading file."
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
@@ -2144,6 +2184,7 @@ contains
     character*(10), allocatable :: name(:) !< Atomic names
     integer :: i, j, it
 
+    call seed%end()
     errmsg = ""
     if (fmt == isformat_xyz) then
        ! xyz
@@ -2245,6 +2286,7 @@ contains
     type(crystalseed), allocatable :: seedaux(:)
     integer :: nseed
 
+    call seed%end()
     call read_all_qeout(nseed,seedaux,file,mol,istruct,errmsg)
     if (allocated(seedaux) .and. nseed >= 1) then
        seed = seedaux(1)
@@ -2452,6 +2494,7 @@ contains
     real*8, allocatable :: rd_for(:,:)
 
     ! initialize
+    call seed%end()
     celldm = 0d0
     ibrav = -1
     nat = 0
@@ -2700,6 +2743,7 @@ contains
     logical :: ok, iscrystal
     character*(10) :: ats
 
+    call seed%end()
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
@@ -2847,6 +2891,7 @@ contains
     real*8 :: r(3,3)
     integer :: i, idum
 
+    call seed%end()
     errmsg = ""
     ! open
     lu = fopen_read(file,errstop=.false.)
@@ -2921,6 +2966,7 @@ contains
     real*8 :: r(3,3), rlscal
     integer :: i
 
+    call seed%end()
     errmsg = ""
     ! open
     lu = fopen_read(file,errstop=.false.)
@@ -3072,6 +3118,7 @@ contains
     character(len=:), allocatable :: line, word
 
     ! open
+    call seed%end()
     molout = .false.
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
@@ -3205,6 +3252,7 @@ contains
     type(hash) :: usen
 
     ! open
+    call seed%end()
     ismol = .false.
     errmsg = ""
     lu = fopen_read(file)
@@ -3382,6 +3430,7 @@ contains
     character*3, allocatable :: atm(:)
     real*8 :: r(3,3), alat
 
+    call seed%end()
     errmsg = ""
     ! open
     lu = fopen_read(file,errstop=.false.,form="unformatted")
@@ -3470,6 +3519,7 @@ contains
     logical :: ok, ismol, didreadr, didreadx
 
     ! open
+    call seed%end()
     ismol = .false.
     errmsg = ""
     lu = fopen_read(file)
@@ -3637,6 +3687,7 @@ contains
     type(hash) :: usespc
 
     ! open
+    call seed%end()
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
@@ -3789,6 +3840,7 @@ contains
     type(hash) :: usespc
 
     ! open
+    call seed%end()
     errmsg = ""
     lu = fopen_read(file,errstop=.false.)
     if (lu < 0) then
@@ -3993,6 +4045,7 @@ contains
     integer, allocatable :: imap(:)
 
     ! open the file
+    call seed%end()
     errmsg = "Error reading file."
     lu = fopen_read(file)
     if (lu < 0) then
@@ -5258,6 +5311,7 @@ contains
 
     character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
+    call seed%end()
     ix = .false.
     iy = .false.
     iz = .false.

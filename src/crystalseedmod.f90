@@ -60,6 +60,7 @@ module crystalseedmod
      logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
      real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
    contains
+     procedure :: end => seed_end !< Deallocate arrays and nullify variables
      procedure :: parse_crystal_env
      procedure :: parse_molecule_env
      procedure :: from_fragment
@@ -104,11 +105,14 @@ module crystalseedmod
 
   ! module procedure interfaces
   interface
+     module subroutine seed_end(seed)
+       class(crystalseed), intent(inout) :: seed !< Crystal seed output
+     end subroutine seed_end
      module subroutine parse_crystal_env(seed,lu,oksyn)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu
        logical, intent(out) :: oksyn
-     end subroutine
+     end subroutine parse_crystal_env
      module subroutine parse_molecule_env(seed,lu,oksyn)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu
