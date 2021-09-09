@@ -3407,134 +3407,110 @@ contains
 
   end subroutine struct_report_symxyz
 
-  !> Write the contents of a JSON object with the structure data to
-  !> logical unit LU. Precede each line with a prefix (prfx).
-  module subroutine struct_write_json(c,lu,prfx)
-    use tools_io, only: string
+  !> Write the field info to a JSON object. The structure object to
+  !> json with root p.
+  module subroutine struct_write_json(c,json,p)
+    use json_module, only: json_value, json_core
     class(crystal), intent(in) :: c
-    integer, intent(in) :: lu
-    character*(*), intent(in) :: prfx
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
 
+    type(json_value), pointer :: s, ap, arr
+
+    integer :: i
     character(len=mlen), allocatable :: strfin(:)
-    integer :: i, j, k
 
     if (.not.c%isinit) return
+    call json%create_object(s,'structure')
+    call json%add(p,s)
 
-    write (lu,'(A,"  ""cell_lengths"": [",2(A,","),A,"]",",")') prfx, &
-       (string(c%aa(j),'f',decimal=14),j=1,3)
-    write (lu,'(A,"  ""cell_angles"": [",2(A,","),A,"]",",")') prfx, &
-       (string(c%bb(j),'f',decimal=14),j=1,3)
-    write (lu,'(A,"  ""cell_volume"": ",A,",")') prfx, string(c%omega,'f',decimal=14)
+    call json%add(s,'cell_lengths',c%aa)
+    call json%add(s,'cell_angles',c%bb)
+    call json%add(s,'cell_volume',c%omega)
+    call json%add(s,'crys_to_cart_matrix',reshape(c%m_x2c,(/9/)))
+    call json%add(s,'cart_to_crys_matrix',reshape(c%m_c2x,(/9/)))
 
-    write (lu,'(A,"  ""crys_to_cart_matrix"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
-       ((string(c%m_x2c(j,k),'f',decimal=14),k=1,3),j=1,3)
-    write (lu,'(A,"  ""cart_to_crys_matrix"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
-       ((string(c%m_c2x(j,k),'f',decimal=14),k=1,3),j=1,3)
+    call json%add(s,'is_molecule',c%ismolecule)
+    call json%add(s,'molecule_centering_vector',c%molx0)
+    call json%add(s,'molecular_cell_border',c%molborder)
+    call json%add(s,'periodicity',3-c%nlvac)
 
-    if (c%ismolecule) then
-       write (lu,'(A,"  ""is_molecule"": true,")') prfx
-       write (lu,'(A,"  ""molecule_centering_vector"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%molx0(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"  ""molecular_cell_border"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%molborder(j),'f',decimal=14),j=1,3)
-    else
-       write (lu,'(A,"  ""is_molecule"": false,")') prfx
-       if (c%nlvac == 3) then
-          write (lu,'(A,"  ""periodicity"": ""molecular (0d)"",")') prfx
-       else if (c%nlvac == 2) then
-          write (lu,'(A,"  ""periodicity"": ""polymer (1d)"",")') prfx
-       else if (c%nlvac == 1) then
-          write (lu,'(A,"  ""periodicity"": ""slab (2d)"",")') prfx
-       else
-          write (lu,'(A,"  ""periodicity"": ""condensed (3d)"",")') prfx
-       end if
-    endif
-
-    write (lu,'(A,"  ""number_of_species"": ",A,",")') prfx, string(c%nspc)
-    write (lu,'(A,"  ""species"": [{")') prfx
+    call json%add(s,'number_of_species',c%nspc)
+    call json%create_array(arr,'species')
+    call json%add(s,arr)
     do i = 1, c%nspc
-       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-       write (lu,'(A,"    ""name"": """,A,""",")') prfx, trim(c%spc(i)%name)
-       write (lu,'(A,"    ""atomic_number"": ",A)') prfx, string(c%spc(i)%z)
-       if (i < c%nspc) &
-          write (lu,'(A,"  },{")') prfx
+       call json%create_object(ap,'')
+       call json%add(ap,'id',i)
+       call json%add(ap,'name',trim(c%spc(i)%name))
+       call json%add(ap,'atomic_number',c%spc(i)%z)
+       call json%add(arr,ap)
+       nullify(ap)
     end do
-    write (lu,'(A,"  }],")') prfx
+    nullify(arr)
 
-    write (lu,'(A,"  ""number_of_nonequivalent_atoms"": ",A,",")') prfx, string(c%nneq)
-    write (lu,'(A,"  ""nonequivalent_atoms"": [{")') prfx
+    call json%add(s,'number_of_nonequivalent_atoms',c%nneq)
+    call json%create_array(arr,'nonequivalent_atoms')
+    call json%add(s,arr)
     do i = 1, c%nneq
-       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-       write (lu,'(A,"    ""species"": ",A,",")') prfx, string(c%at(i)%is)
-       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%at(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""multiplicity"": ",A,",")') prfx, string(c%at(i)%mult)
-       write (lu,'(A,"    ""wyckoff_letter"": """,A,""",")') prfx, c%at(i)%wyc
-       write (lu,'(A,"    ""half_nn_distance"": ",A)') prfx, string(c%at(i)%rnn2,'f',decimal=14)
-       if (i < c%nneq) &
-          write (lu,'(A,"  },{")') prfx
+       call json%create_object(ap,'')
+       call json%add(ap,'id',i)
+       call json%add(ap,'species',c%at(i)%is)
+       call json%add(ap,'fractional_coordinates',c%at(i)%x(:))
+       call json%add(ap,'cartesian_coordinates',c%at(i)%r(:))
+       call json%add(ap,'multiplicity',c%at(i)%mult)
+       call json%add(ap,'wyckoff_letter',c%at(i)%wyc)
+       call json%add(ap,'half_nn_distance',c%at(i)%rnn2)
+       call json%add(arr,ap)
+       nullify(ap)
     end do
-    write (lu,'(A,"  }],")') prfx
+    nullify(arr)
 
-    write (lu,'(A,"  ""number_of_cell_atoms"": ",A,",")') prfx, string(c%ncel)
-    write (lu,'(A,"  ""cell_atoms"": [{")') prfx
+    call json%add(s,'number_of_cell_atoms',c%ncel)
+    call json%create_array(arr,'cell_atoms')
+    call json%add(s,arr)
     do i = 1, c%ncel
-       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-       write (lu,'(A,"    ""species"": ",A,",")') prfx, string(c%atcel(i)%is)
-       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(c%atcel(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""nonequivalent_id"": ",A,",")') prfx, string(c%atcel(i)%idx)
-       write (lu,'(A,"    ""symop_to_nneq"": ",A,",")') prfx, string(c%atcel(i)%ir)
-       write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(c%atcel(i)%ic)
-       write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
-          (string(c%atcel(i)%lvec(j)),j=1,3)
-       if (i < c%ncel) &
-          write (lu,'(A,"  },{")') prfx
+       call json%create_object(ap,'')
+       call json%add(ap,'id',i)
+       call json%add(ap,'species',c%atcel(i)%is)
+       call json%add(ap,'fractional_coordinates',c%atcel(i)%x(:))
+       call json%add(ap,'cartesian_coordinates',c%atcel(i)%r(:))
+       call json%add(ap,'nonequivalent_id',c%atcel(i)%idx)
+       call json%add(ap,'symop_to_nneq',c%atcel(i)%ir)
+       call json%add(ap,'centering_vector_to_nneq',c%atcel(i)%ic)
+       call json%add(ap,'lattice_vector_to_nneq',c%atcel(i)%lvec)
+       call json%add(arr,ap)
+       nullify(ap)
     end do
-    write (lu,'(A,"  }],")') prfx
+    nullify(arr)
 
     if (.not.c%ismolecule) then
-       if (c%havesym > 0) then
-          write (lu,'(A,"  ""have_symmetry"": true,")') prfx
-       else
-          write (lu,'(A,"  ""have_symmetry"": false,")') prfx
-       endif
+       call json%add(s,'have_symmetry',c%havesym > 0)
        if (c%spgavail) then
-          write (lu,'(A,"  ""space_group_hm"": """,A,""",")') prfx, string(c%spg%international_symbol)
-          write (lu,'(A,"  ""space_group_ita_number"": ",A,",")') prfx, string(c%spg%spacegroup_number)
+          call json%add(s,'space_group_hm',trim(c%spg%international_symbol))
+          call json%add(s,'space_group_ita_number',c%spg%spacegroup_number)
        end if
-       write (lu,'(A,"  ""number_of_symops"": ",A,",")') prfx, string(c%neqv)
-       write (lu,'(A,"  ""symops"": [{")') prfx
+       call json%add(s,'number_of_symops',c%neqv)
+
        allocate(strfin(c%neqv*c%ncv))
        call c%struct_report_symxyz(strfin)
+       call json%create_array(arr,'symops')
+       call json%add(s,arr)
        do i = 1, c%neqv
-          write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-          write (lu,'(A,"    ""operation"": """,A,""",")') prfx, string(strfin(i))
-          write (lu,'(A,"    ""rotation"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
-             ((string(c%rotm(j,k,i),'f',decimal=14),k=1,3),j=1,3)
-          write (lu,'(A,"    ""translation"": [",2(A,","),A,"]")') prfx, &
-             (string(c%rotm(j,4,i),'f',decimal=14),j=1,3)
-          if (i < c%neqv) &
-             write (lu,'(A,"  },{")') prfx
+          call json%create_object(ap,'')
+          call json%add(ap,'id',i)
+          call json%add(ap,'operation',trim(strfin(i)))
+          call json%add(ap,'rotation',reshape(c%rotm(1:3,1:3,i),(/9/)))
+          call json%add(ap,'translation',c%rotm(:,4,i))
+          call json%add(arr,ap)
+          nullify(ap)
        end do
-       write (lu,'(A,"  }],")') prfx
+       nullify(arr)
 
-       write (lu,'(A,"  ""number_of_centering_vectors"": ",A,",")') prfx, string(c%ncv)
-       write (lu,'(A,"  ""centering_vectors"": [")') prfx
-       do i = 1, c%ncv
-          if (i < c%ncv) then
-             write (lu,'(A,"    [",2(A,","),A,"]",",")') prfx, (string(c%cen(j,i),'f',decimal=14),j=1,3)
-          else
-             write (lu,'(A,"    [",2(A,","),A,"]")') prfx, (string(c%cen(j,i),'f',decimal=14),j=1,3)
-          end if
-       end do
-       write (lu,'(A,"  ],")') prfx
+       call json%add(s,'number_of_centering_vectors',c%ncv)
+       call json%add(s,'centering_vectors',reshape(c%cen(1:3,1:c%ncv),(/3*c%ncv/)))
     endif
-    write (lu,'(A,"  ""number_of_molecular_fragments"": ",A)') prfx, string(c%nmol)
+    call json%add(s,'number_of_molecular_fragments',c%nmol)
+    nullify(s)
 
   end subroutine struct_write_json
 

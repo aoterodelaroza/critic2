@@ -213,10 +213,11 @@ module fieldmod
        logical, intent(in) :: isload
        logical, intent(in) :: isset
      end subroutine printinfo
-     module subroutine write_json(f,lu,prfx)
+     module subroutine write_json(f,json,p)
+       use json_module, only: json_value, json_core
        class(field), intent(in) :: f
-       integer, intent(in) :: lu
-       character*(*), intent(in) :: prfx
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(inout) :: p
      end subroutine write_json
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f

@@ -508,10 +508,11 @@ module crystalmod
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
        logical, intent(in), optional :: doaxes
      end subroutine struct_report_symxyz
-     module subroutine struct_write_json(c,lu,prfx)
+     module subroutine struct_write_json(c,json,p)
+       use json_module, only: json_value, json_core
        class(crystal), intent(in) :: c
-       integer, intent(in) :: lu
-       character*(*), intent(in) :: prfx
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
      module subroutine spglib_wrap(c,spg,usenneq,errmsg)
        class(crystal), intent(in) :: c

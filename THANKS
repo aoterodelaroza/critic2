@@ -131,3 +131,9 @@ copyright notice is included in the corresponding files.
   wrappers around the intrinsic iso_c_binding module. It comes from
   the Fortran wiki
   (http://fortranwiki.org/fortran/show/c_interface_module).
+
+* The json-fortran library by Jacob Williams is used for reading and
+  writing JSON files (https://github.com/jacobwilliams/json-fortran).
+  Distributed under BSD license (see src/json-fortran/LICENSE).
+
+

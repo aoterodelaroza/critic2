@@ -98,6 +98,11 @@ add_subdirectory(spglib)
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
 #endif()
 
+## json-fortran
+add_subdirectory(json-fortran)
+include_directories("${CMAKE_BINARY_DIR}/src/json-fortran")
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
+
 ## libxc
 if (LIBXC_FOUND)
   include_directories("${LIBXC_INCLUDE_DIRS}")

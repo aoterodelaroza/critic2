@@ -1421,24 +1421,28 @@ contains
 
   end subroutine printinfo
 
-  !> Write the contents of a JSON object with the field data to
-  !> logical unit LU. Precede each line with a prefix (prfx).
-  module subroutine write_json(f,lu,prfx)
-    use tools_io, only: string
+  !> Write the field info to a JSON object. The field object to json
+  !> with root p.
+  module subroutine write_json(f,json,p)
+    use json_module, only: json_value, json_core
     class(field), intent(in) :: f
-    integer, intent(in) :: lu
-    character*(*), intent(in) :: prfx
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
+
+    type(json_value), pointer :: s
 
     if (.not.f%isinit) return
+    call json%create_object(s,'field')
+    call json%add(p,s)
 
-    write (lu,'(A,"  ""id"": ",A,",")') prfx, string(f%id)
-    write (lu,'(A,"  ""name"": """,A,""",")') prfx, trim(f%name)
+    call json%add(s,'id',f%id)
+    call json%add(s,'name',trim(f%name))
     if (len_trim(f%file) > 0) then
-       write (lu,'(A,"  ""source"": """,A,""",")') prfx, trim(f%file)
+       call json%add(s,'source',trim(f%file))
     else
-       write (lu,'(A,"  ""source"": """,A,""",")') prfx, "generated"
+       call json%add(s,'source','generated')
     end if
-    write (lu,'(A,"  ""type"": """,A,"""")') prfx, trim(f%typestring(.false.))
+    call json%add(s,'type',trim(f%typestring(.false.)))
 
   end subroutine write_json
 

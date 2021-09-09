@@ -2598,8 +2598,9 @@ contains
   !> Write a JSON file containing the structure, the reference
   !> field details, and the results of the YT/BADER integration.
   subroutine int_output_json(file,bas,res)
+    use json_module, only: json_core, json_value
     use systemmod, only: sy, itype_v, itype_mpoles, itype_expr, itype_names
-    use tools_io, only: uout, string, fopen_write, fclose
+    use tools_io, only: uout, string, fopen_write, fclose, ferror, faterr
     use types, only: basindat, int_result, out_field
     character*(*), intent(in) :: file
     type(basindat), intent(in) :: bas
@@ -2610,34 +2611,35 @@ contains
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     real*8 :: x(3), xcm(3)
     integer, allocatable :: idxmol(:,:), nacprop(:)
-    real*8, allocatable :: sump(:)
+    real*8, allocatable :: sump(:), xres(:)
+    type(json_core) :: json
+    type(json_value), pointer :: p, o1, a1, o2, a2, o3
 
     ! open and write some info about the structure and the reference field
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
-    lu = fopen_write(file)
-    write (lu,'("{")')
-    write (lu,'(2X,"""units"": ","""bohr"",")')
-    write (lu,'(2X,"""structure"": {")')
-    call sy%c%struct_write_json(lu,"  ")
-    write (lu,'(2X,"},")')
-    write (lu,'(2X,"""field"": {")')
-    call sy%f(sy%iref)%write_json(lu,"  ")
-    write (lu,'(2X"},")')
+
+    call json%initialize()
+    call json%create_object(p,'')
+    call json%add(p,'units','bohr')
+    call sy%c%struct_write_json(json,p)
+    call sy%f(sy%iref)%write_json(json,p)
 
     ! the JSON report, beginning
-    write (lu,'(2X,"""integration"": {")')
+    call json%create_object(o1,'integration')
+    call json%add(p,o1)
     if (bas%imtype == imtype_yt) then
-       write (lu,'(2X,"  ""type"": ""yt"",")')
+       call json%add(o1,'type','yt')
     elseif (bas%imtype == imtype_bader) then
-       write (lu,'(2X,"  ""type"": ""bader"",")')
-    endif
-    write (lu,'(2X,"  ""grid_npoints"": [",2(A,","),A,"]",",")') (string(bas%n(j)),j=1,3)
+       call json%add(o1,'type','bader')
+    end if
+    call json%add(o1,'grid_npoints',bas%n)
 
     ! list of properties
     nprop = count(res(1:sy%npropi)%done .and. res(1:sy%npropi)%outmode == out_field)
     allocate(nacprop(nprop))
-    write (lu,'(2X,"  ""number_of_properties"": ",A,",")') string(nprop)
-    write (lu,'(2X,"  ""properties"": [{")')
+    call json%add(o1,'number_of_properties',nprop)
+    call json%create_array(a1,'properties')
+    call json%add(o1,a1)
     l = 0
     do i = 1, sy%npropi
        fid = sy%propi(i)%fid
@@ -2645,48 +2647,50 @@ contains
        if (.not.res(i)%outmode == out_field) cycle
        l = l + 1
        nacprop(l) = i
-       write (lu,'(2X,"    ""id"": ",A,",")') string(i)
-       write (lu,'(2X,"    ""label"": """,A,""",")') string(sy%propi(i)%prop_name)
+
+       call json%create_object(o2,'')
+       call json%add(a1,o2)
+       call json%add(o2,'id',i)
+       call json%add(o2,'label',trim(sy%propi(i)%prop_name))
        if (sy%propi(i)%itype == itype_expr) then
-          write (lu,'(2X,"    ""expression"": """,A,""",")') string(sy%propi(i)%expr)
+          call json%add(o2,'expression',trim(sy%propi(i)%expr))
        elseif (sy%propi(i)%itype == itype_mpoles) then
-          write (lu,'(2X,"    ""field_id"": ",A,",")') string(fid)
-          write (lu,'(2X,"    ""lmax"": ",A,",")') string(sy%propi(i)%lmax)
+          call json%add(o2,'field_id',fid)
+          call json%add(o2,'lmax',sy%propi(i)%lmax)
        elseif (sy%propi(i)%itype /= itype_v) then
-          write (lu,'(2X,"    ""field_id"": ",A,",")') string(fid)
+          call json%add(o2,'field_id',fid)
        end if
-       write (lu,'(2X,"    ""field_name"": """,A,"""")') string(itype_names(sy%propi(i)%itype))
-
-       if (i < nprop) &
-          write (lu,'(2X,"  },{")')
+       call json%add(o2,'field_name',trim(itype_names(sy%propi(i)%itype)))
+       nullify(o2)
     end do
-    write (lu,'(2X,"  }],")')
+    nullify(a1)
 
-    ! list of attractors
-    write (lu,'(2X,"  ""number_of_attractors"": ",A,",")') string(bas%nattr)
-    write (lu,'(2X,"  ""attractors"": [{")')
+    ! List of attractors
+    call json%add(o1,'number_of_attractors',bas%nattr)
+    call json%create_array(a1,'attractors')
+    call json%add(o1,a1)
+    allocate(xres(nprop))
     do i = 1, bas%nattr
        call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
        x = bas%xattr(:,i)
-       write (lu,'(2X,"    ""id"": ",A,",")') string(i)
-       write (lu,'(2X,"    ""cell_cp"": ",A,",")') string(scp)
-       write (lu,'(2X,"    ""nonequivalent_cp"": ",A,",")') string(sncp)
-       write (lu,'(2X,"    ""name"": """,A,""",")') string(sname)
-       write (lu,'(2X,"    ""atomic_number"": ",A,",")') string(sz)
-       write (lu,'(2X,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') &
-          (string(x(j),'f',decimal=14),j=1,3)
-       write (lu,'(2X,"    ""integrals"": [")')
+       call json%create_object(o2,'')
+       call json%add(a1,o2)
+       call json%add(o2,'id',i)
+       call json%add(o2,'cell_cp',trim(scp))
+       call json%add(o2,'nonequivalent_cp',trim(sncp))
+       call json%add(o2,'name',trim(sname))
+       call json%add(o2,'atomic_number',trim(sz))
+       call json%add(o2,'fractional_coordinates',x)
+
+       xres = 0d0
        do j = 1, nprop
-          if (j < nprop) then
-             write (lu,'(2X,"      ",A,",")') string(res(nacprop(j))%psum(i),'e',15,8,4)
-          else
-             write (lu,'(2X,"      ",A,"]")') string(res(nacprop(j))%psum(i),'e',15,8,4)
-          end if
+          xres(j) = res(nacprop(j))%psum(i)
        end do
-       if (i < bas%nattr) &
-          write (lu,'(2X,"  },{")')
+       call json%add(o2,'integrals',xres)
+       nullify(o2)
     end do
-    write (lu,'(2X,"  }],")')
+    nullify(a1)
+    deallocate(xres)
 
     ! list of molecules and positions
     if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
@@ -2713,17 +2717,23 @@ contains
        end do
 
        ! list of molecules and associated attractors
-       write (lu,'(2X,"  ""number_of_molecules"": ",A,",")') string(sy%c%nmol)
-       write (lu,'(2X,"  ""molecules"": [{")')
+       call json%add(o1,'number_of_molecules',sy%c%nmol)
+       call json%create_array(a1,'molecules')
+       call json%add(o1,a1)
+       
        do i = 1, sy%c%nmol
           xcm = sy%c%mol(i)%cmass()
           xcm = sy%c%c2x(xcm)
 
-          write (lu,'(2X,"    ""id"": ",A,",")') string(i)
-          write (lu,'(2X,"    ""center_of_mass"": [",2(A,","),A,"]",",")') &
-             (string(xcm(j),'f',decimal=14),j=1,3)
-          write (lu,'(2X,"    ""number_of_atoms"": ",A,",")') string(sy%c%mol(i)%nat)
-          write (lu,'(2X,"    ""atoms"": [{")')
+          call json%create_object(o2,'')
+          call json%add(a1,o2)
+
+          call json%add(o2,'id',i)
+          call json%add(o2,'center_of_mass',xcm)
+          call json%add(o2,'number_of_atoms',sy%c%mol(i)%nat)
+          
+          call json%create_array(a2,'atoms')
+          call json%add(o2,a2)
           l = 0
           sump = 0d0
           do j = 1, bas%nattr
@@ -2732,57 +2742,39 @@ contains
              call assign_strings(j,bas%icp(j),.false.,scp,sncp,sname,smult,sz)
              x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
 
-             write (lu,'(2X,"      ""id"": ",A,",")') string(l)
-             write (lu,'(2X,"      ""attractor_id"": ",A,",")') string(j)
-             write (lu,'(2X,"      ""cell_cp"": ",A,",")') string(scp)
-             write (lu,'(2X,"      ""lvec"": [",2(A,","),A,"]",",")') &
-                (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k)),k=1,3)
-             write (lu,'(2X,"      ""nonequivalent_cp"": ",A,",")') string(sncp)
-             write (lu,'(2X,"      ""name"": """,A,""",")') string(sname)
-             write (lu,'(2X,"      ""atomic_number"": ",A,",")') string(sz)
-             write (lu,'(2X,"      ""fractional_coordinates"": [",2(A,","),A,"]")') &
-                (string(x(k),'f',decimal=14),k=1,3)
-
+             call json%create_object(o3,'')
+             call json%add(a2,o3)
+             call json%add(o3,'id',l)
+             call json%add(o3,'attractor_id',j)
+             call json%add(o3,'cell_cp',trim(scp))
+             call json%add(o3,'lvec',sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k))
+             call json%add(o3,'nonequivalent_cp',trim(sncp))
+             call json%add(o3,'name',trim(sname))
+             call json%add(o3,'atomic_number',trim(sz))
+             call json%add(o3,'fractional_coordinates',x)
              do k = 1, nprop
                 sump(k) = sump(k) + res(nacprop(k))%psum(j)
              end do
-
-             if (l < sy%c%mol(i)%nat) &
-                write (lu,'(2X,"    },{")')
           end do
-          write (lu,'(2X,"    }],")')
-
-          write (lu,'(2X,"    ""integrals"": [")')
-          do k = 1, nprop
-             if (k < nprop) then
-                write (lu,'(2X,"      ",A,",")') string(sump(k),'e',15,8,4)
-             else
-                write (lu,'(2X,"      ",A,"]")') string(sump(k),'e',15,8,4)
-             end if
-          end do
-
-          if (i < sy%c%nmol) &
-             write (lu,'(2X,"  },{")')
+          call json%add(o2,'integrals',sump)
+          nullify(a2)
+          nullify(o2)
        end do
-       write (lu,'(2X,"  }],")')
-
+       nullify(a1)
        deallocate(nacprop,idxmol,sump)
     end if
 
     ! integration options
-    if (bas%atexist) then
-       write (lu,'(2X,"  ""noatoms"": false,")')
-    else
-       write (lu,'(2X,"  ""noatoms"": true,")')
-    end if
+    call json%add(o1,'noatoms',.not.bas%atexist)
     if (len_trim(bas%expr) > 0) &
-       write (lu,'(2X,"  ""discard"": ",A,",")') string(bas%expr)
-    write (lu,'(2X,"  ""ratom"": ",A)') string(bas%ratom,'e',decimal=14)
+       call json%add(o1,'discard',trim(bas%expr))
+    call json%add(o1,'ratom',bas%ratom)
 
-    ! wrap up
-    write (lu,'(2X"}")')
-    write (lu,'("}")')
-    call fclose(lu)
+    ! print to file and finish
+    call json%print(p,file)
+    if (json%failed()) &
+       call ferror("int_output_json","error writing JSON file",faterr)
+    call json%destroy(p)
 
   end subroutine int_output_json
 

@@ -30,7 +30,7 @@ submodule (autocp) proc
   ! subroutine cp_long_report()
   ! subroutine cp_vlong_report()
   ! subroutine graph_short_report()
-  ! subroutine cp_json_report(lu,prfx)
+  ! subroutine cp_json_report(json,p)
   ! subroutine makegraph()
   ! subroutine scale_ws(rad,wso,ntetrag,tetrag)
   ! subroutine write_json_cps(file)
@@ -1740,158 +1740,159 @@ contains
 
   end subroutine graph_short_report
 
-  !> Write a JSON object containing the CP data to logical unit
-  !> LU. Precede each line with a prefix (prfx).
-  subroutine cp_json_report(lu,prfx)
+  !> Write the CP data to a JSON object with root p.
+  subroutine cp_json_report(json,p)
+    use json_module, only: json_core, json_value
     use systemmod, only: sy
-    use tools_io, only: string
     use types, only: scalar_value
-    integer, intent(in) :: lu
-    character*(*), intent(in) :: prfx
+    use tools_math, only: rsindex
+    use global, only: cp_hdegen
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
 
-    integer :: i, j, k, ip, nprop, idx, ilast
+    type(json_value), pointer :: s, arr, ap, arr2, ap2
+
+    integer :: str, sts
+    integer :: i, j, k, ip, nprop, idx
     type(scalar_value) :: res
     logical :: iok
-    real*8 :: xp(3), fres
+    real*8 :: xp(3), fres, stvec(3,3), stval(3)
 
-    ! non-equivalent CPs
-    write (lu,'(A,"  ""number_of_nonequivalent_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
-    write (lu,'(A,"  ""nonequivalent_cps"": [{")') prfx
+    call json%create_object(s,'critical_points')
+    call json%add(p,s)
+
+    call json%add(s,'number_of_nonequivalent_cps',sy%f(sy%iref)%ncp)
+    call json%create_array(arr,'nonequivalent_cps')
+    call json%add(s,arr)
     do i = 1, sy%f(sy%iref)%ncp
+       call json%create_object(ap,'')
+       call json%add(arr,ap)
+
        ! header and position info
-       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-       write (lu,'(A,"    ""name"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%name)
-       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(sy%f(sy%iref)%cp(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(sy%f(sy%iref)%cp(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""multiplicity"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(i)%mult)
-       write (lu,'(A,"    ""point_group"": """,A,""",")') prfx, string(sy%f(sy%iref)%cp(i)%pg)
-       xp = sy%f(sy%iref)%cp(i)%r
+       call json%add(ap,'id',i)
+       call json%add(ap,'name',trim(sy%f(sy%iref)%cp(i)%name))
+       call json%add(ap,'fractional_coordinates',sy%f(sy%iref)%cp(i)%x(:))
+       call json%add(ap,'cartesian_coordinates',sy%f(sy%iref)%cp(i)%r(:))
+       call json%add(ap,'multiplicity',sy%f(sy%iref)%cp(i)%mult)
+       call json%add(ap,'point_group',trim(sy%f(sy%iref)%cp(i)%pg))
 
        ! grab the evaluation at the CP
+       xp = sy%f(sy%iref)%cp(i)%r
        res = sy%f(sy%iref)%cp(i)%s
 
        ! rank, signature
-       write (lu,'(A,"    ""rank"": ",A,",")') prfx, string(res%r)
-       write (lu,'(A,"    ""signature"": ",A,",")') prfx, string(res%s)
+       call json%add(ap,'rank',res%r)
+       call json%add(ap,'signature',res%s)
 
        ! field values and derivatives
-       write (lu,'(A,"    ""field"": ",A,",")') prfx, string(res%f,'e',decimal=14)
-       write (lu,'(A,"    ""field_valence"": ",A,",")') prfx, string(res%fval,'e',decimal=14)
-       write (lu,'(A,"    ""gradient"": [",2(A,","),A,"]",",")') prfx, &
-          (string(res%gf(j),'e',decimal=14),j=1,3)
-       write (lu,'(A,"    ""hessian"": [",2("[",2(A,","),A,"],"),"[",2(A,","),A,"]],")') prfx, &
-          ((string(res%hf(j,k),'e',decimal=14),k=1,3),j=1,3)
-       write (lu,'(A,"    ""gradient_norm"": ",A,",")') prfx, string(res%gfmod,'e',decimal=14)
-       write (lu,'(A,"    ""gradient_norm_valence"": ",A,",")') prfx, string(res%gfmodval,'e',decimal=14)
+       call json%add(ap,'field',res%f)
+       call json%add(ap,'field_valence',res%fval)
+       call json%add(ap,'gradient',res%gf)
+       call json%add(ap,'hessian',reshape(res%hf,(/9/)))
+       call json%add(ap,'gradient_norm',res%gfmod)
+       call json%add(ap,'gradient_norm_valence',res%gfmodval)
        if (res%avail_gkin) then
-          write (lu,'(A,"    ""kinetic_energy_density"": ",A,",")') prfx, string(res%gkin,'e',decimal=14)
+          call json%add(ap,'kinetic_energy_density',res%gkin)
        end if
-       write (lu,'(A,"    ""laplacian"": ",A,",")') prfx, string(res%del2f,'e',decimal=14)
-       write (lu,'(A,"    ""laplacian_valence"": ",A,",")') prfx, string(res%del2fval,'e',decimal=14)
-       write (lu,'(A,"    ""hessian_eigenvalues"": [",2(A,","),A,"]",",")') prfx, &
-          (string(res%hfeval(j),'e',decimal=14),j=1,3)
+       call json%add(ap,'laplacian',res%del2f)
+       call json%add(ap,'laplacian_valence',res%del2fval)
+       call json%add(ap,'hessian_eigenvalues',res%hfeval)
 
        ! spin polarized quantities
        if (res%avail_spin .and. res%spinpol) then
-          write (lu,'(A,"    ""field_spin_up"": ",A,",")') prfx, string(res%fspin(1),'e',decimal=14)
-          write (lu,'(A,"    ""field_spin_down"": ",A,",")') prfx, string(res%fspin(2),'e',decimal=14)
-          write (lu,'(A,"    ""gradient_norm_spin_up"": ",A,",")') prfx, string(res%gfmodspin(1),'e',decimal=14)
-          write (lu,'(A,"    ""gradient_norm_spin_down"": ",A,",")') prfx, string(res%gfmodspin(2),'e',decimal=14)
-          write (lu,'(A,"    ""laplacian_spin_up"": ",A,",")') prfx, string(res%lapspin(1),'e',decimal=14)
-          write (lu,'(A,"    ""laplacian_spin_down"": ",A,",")') prfx, string(res%lapspin(2),'e',decimal=14)
+          call json%add(ap,'field_spin_up',res%fspin(1))
+          call json%add(ap,'field_spin_down',res%fspin(2))
+          call json%add(ap,'gradient_norm_spin_up',res%gfmodspin(1))
+          call json%add(ap,'gradient_norm_spin_down',res%gfmodspin(2))
+          call json%add(ap,'laplacian_norm_spin_up',res%lapspin(1))
+          call json%add(ap,'laplacian_norm_spin_down',res%lapspin(2))
           if (res%avail_gkin) then
-             write (lu,'(A,"    ""kinetic_energy_density_spin_up"": ",A,",")') prfx, string(res%gkinspin(1),'e',decimal=14)
-             write (lu,'(A,"    ""kinetic_energy_density_spin_down"": ",A,",")') prfx, string(res%gkinspin(2),'e',decimal=14)
+             call json%add(ap,'kinetic_energy_density_spin_up',res%gkinspin(1))
+             call json%add(ap,'kinetic_energy_density_spin_down',res%gkinspin(2))
           end if
        end if
 
        ! properties at points defined by the user
-       nprop = count(sy%propp(1:sy%npropp)%ispecial == 0)
+       nprop = sy%npropp
+       call json%add(ap,'number_of_pointprops',nprop)
        if (nprop > 0) then
-          write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
-          write (lu,'(A,"    ""pointprops"": [{")') prfx
-          ilast = 0
+          call json%create_array(arr2,'pointprops')
+          call json%add(ap,arr2)
           do ip = 1, sy%npropp
-             if (sy%propp(ip)%ispecial == 0) ilast = ip
-          end do
-          do ip = 1, sy%npropp
+             call json%create_object(ap2,'')
+             call json%add(arr2,ap2)
+             call json%add(ap2,'id',ip)
+             call json%add(ap2,'name',trim(sy%propp(ip)%name))
+             call json%add(ap2,'expression',trim(sy%propp(ip)%expr))
              if (sy%propp(ip)%ispecial == 0) then
                 fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
-                write (lu,'(A,"      ""id"": ",A,",")') prfx, string(ip)
-                write (lu,'(A,"      ""name"": """,A,""",")') prfx, string(sy%propp(ip)%name)
-                write (lu,'(A,"      ""expression"": """,A,""",")') prfx, string(sy%propp(ip)%expr)
-                if (ip == ilast) then
-                   write (lu,'(A,"      ""value"": ",A)') prfx, string(fres,'e',decimal=14)
-                else
-                   write (lu,'(A,"      ""value"": ",A,",")') prfx, string(fres,'e',decimal=14)
-                end if
+                call json%add(ap2,'value',fres)
+             else
+                ! stress tensor
+                call sy%f(sy%iref)%grd(xp,2,res)
+                stvec = res%stress
+                call rsindex(stvec,stval,str,sts,CP_hdegen)
+                call json%add(ap2,'stress_tensor',reshape(res%stress,(/9/)))
+                call json%add(ap2,'stress_tensor_eigenvalues',stval)
              endif
+             nullify(ap2)
           end do
-          write (lu,'(A,"    }],")') prfx
-       else
-          write (lu,'(A,"    ""number_of_pointprops"": ",A,",")') prfx, string(nprop)
+          nullify(arr2)
        end if
 
-       if (res%isnuc) then
-          write (lu,'(A,"    ""is_nucleus"": true")') prfx
-       else
-          write (lu,'(A,"    ""is_nucleus"": false")') prfx
-       end if
-       if (i < sy%f(sy%iref)%ncp) &
-          write (lu,'(A,"  },{")') prfx
+       call json%add(ap,'is_nucleus',res%isnuc)
+       nullify(ap)
     end do
-    write (lu,'(A," }],")') prfx
+    nullify(arr)
 
     ! complete cp list
-    write (lu,'(A," ""number_of_cell_cps"": ",A,",")') prfx, string(sy%f(sy%iref)%ncp)
-    write (lu,'(A," ""cell_cps"": [{")') prfx
+    call json%add(s,'number_of_cell_cps',sy%f(sy%iref)%ncp)
+    call json%create_array(arr,'cell_cps')
+    call json%add(s,arr)
+
     do i = 1, sy%f(sy%iref)%ncpcel
+       call json%create_object(ap,'')
+       call json%add(arr,ap)
+
        idx = sy%f(sy%iref)%cpcel(i)%idx
        res = sy%f(sy%iref)%cp(idx)%s
-       write (lu,'(A,"    ""id"": ",A,",")') prfx, string(i)
-       write (lu,'(A,"    ""rank"": ",A,",")') prfx, string(res%r)
-       write (lu,'(A,"    ""signature"": ",A,",")') prfx, string(res%s)
-       write (lu,'(A,"    ""fractional_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(sy%f(sy%iref)%cpcel(i)%x(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""cartesian_coordinates"": [",2(A,","),A,"]",",")') prfx, &
-          (string(sy%f(sy%iref)%cpcel(i)%r(j),'f',decimal=14),j=1,3)
-       write (lu,'(A,"    ""nonequivalent_id"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%idx)
+       call json%add(ap,'id',i)
+       call json%add(ap,'rank',res%r)
+       call json%add(ap,'signature',res%s)
+       call json%add(ap,'fractional_coordinates',sy%f(sy%iref)%cpcel(i)%x)
+       call json%add(ap,'cartesian_coordinates',sy%f(sy%iref)%cpcel(i)%r)
+       call json%add(ap,'nonequivalent_id',sy%f(sy%iref)%cpcel(i)%idx)
 
        ! connectivity
        if (res%s == 1 .or. res%s == -1) then
           if (res%s == -1) then
-             write (lu,'(A,"    ""attractor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brang,'e',decimal=14)
-             write (lu,'(A,"    ""attractor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cp(idx)%brvec(j),'f',decimal=14),j=1,3)
-             write (lu,'(A,"    ""attractors"": [{")') prfx
+             call json%add(ap,'attractor_angle',sy%f(sy%iref)%cp(idx)%brang)
+             call json%add(ap,'attractor_eigenvec',sy%f(sy%iref)%cp(idx)%brvec)
+             call json%create_array(arr2,'attractors')
           else
-             write (lu,'(A,"    ""repulsor_angle"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brang,'e',decimal=14)
-             write (lu,'(A,"    ""repulsor_eigenvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cp(idx)%brvec(j),'f',decimal=14),j=1,3)
-             write (lu,'(A,"    ""repulsors"": [{")') prfx
+             call json%add(ap,'repulsor_angle',sy%f(sy%iref)%cp(idx)%brang)
+             call json%add(ap,'repulsor_eigenvec',sy%f(sy%iref)%cp(idx)%brvec)
+             call json%create_array(arr2,'repulsors')
           endif
+          call json%add(ap,arr2)
           do k = 1, 2
-             write (lu,'(A,"      ""cell_id"": """,A,""",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ipath(k))
-             write (lu,'(A,"      ""lvec"": [",2(A,","),A,"]",",")') prfx, &
-                (string(sy%f(sy%iref)%cpcel(i)%ilvec(j,k)),j=1,3)
-             write (lu,'(A,"      ""distance"": ",A,",")') prfx, string(sy%f(sy%iref)%cp(idx)%brdist(k),'e',decimal=14)
-             write (lu,'(A,"      ""path_length"": ",A)') prfx, string(sy%f(sy%iref)%cp(idx)%brpathlen(k),'e',decimal=14)
-             if (k == 1) &
-                write (lu,'(A,"    },{")') prfx
+             call json%create_object(ap2,'')
+             call json%add(arr2,ap2)
+             call json%add(ap2,'cell_id',sy%f(sy%iref)%cpcel(i)%ipath(k))
+             call json%add(ap2,'lvec',sy%f(sy%iref)%cpcel(i)%ilvec(1:3,k))
+             call json%add(ap2,'distance',sy%f(sy%iref)%cp(idx)%brdist(k))
+             call json%add(ap2,'path_length',sy%f(sy%iref)%cp(idx)%brpathlen(k))
+             nullify(ap2)
           end do
-          write (lu,'(A,"    }],")') prfx
+          nullify(arr2)
        end if
 
-       write (lu,'(A,"    ""symop_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ir)
-       write (lu,'(A,"    ""centering_vector_to_nneq"": ",A,",")') prfx, string(sy%f(sy%iref)%cpcel(i)%ic)
-       write (lu,'(A,"    ""lattice_vector_to_nneq"": [",2(A,","),A,"]")') prfx, &
-          (string(sy%f(sy%iref)%cpcel(i)%lvec(j)),j=1,3)
-       if (i < sy%f(sy%iref)%ncpcel) &
-          write (lu,'(A,"  },{")') prfx
+       call json%add(ap,'symop_to_nneq',sy%f(sy%iref)%cpcel(i)%ir)
+       call json%add(ap,'centering_vector_to_nneq',sy%f(sy%iref)%cpcel(i)%ic)
+       call json%add(ap,'lattice_vector_to_nneq',sy%f(sy%iref)%cpcel(i)%lvec)
     end do
-    write (lu,'(A,"  }]")') prfx
+    nullify(arr)
+    nullify(s)
 
   end subroutine cp_json_report
 
@@ -2078,27 +2079,30 @@ contains
 
   !> Write a json file containing the CPs.
   subroutine write_json_cps(file)
+    use json_module, only: json_core, json_value
     use systemmod, only: sy
-    use tools_io, only: uout, fopen_write, fclose, string
+    use tools_io, only: uout, fopen_write, fclose, string, ferror, faterr
     character*(*), intent(in) :: file
 
     integer :: lu
+    type(json_core) :: json
+    type(json_value), pointer :: p
 
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
-    lu = fopen_write(file)
-    write (lu,'("{")')
-    write (lu,'(2X,"""units"": ","""bohr"",")')
-    write (lu,'(2X,"""structure"": {")')
-    call sy%c%struct_write_json(lu,"  ")
-    write (lu,'(2X,"},")')
-    write (lu,'(2X,"""field"": {")')
-    call sy%f(sy%iref)%write_json(lu,"  ")
-    write (lu,'(2X"},")')
-    write (lu,'(2X,"""critical_points"": {")')
-    call cp_json_report(lu,"  ")
-    write (lu,'(2X"}")')
-    write (lu,'("}")')
-    call fclose(lu)
+    call json%initialize()
+    call json%create_object(p,'')
+
+    call json%add(p,'units','bohr')
+    call sy%c%struct_write_json(json,p)
+    call sy%f(sy%iref)%write_json(json,p)
+    call cp_json_report(json,p)
+
+    call json%print(p,file)
+    if (json%failed()) &
+       call ferror("write_json_cps","error writing JSON file",faterr)
+       
+    call json%destroy(p)
+       
 
   end subroutine write_json_cps
 
