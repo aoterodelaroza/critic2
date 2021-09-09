@@ -1,4 +1,4 @@
-TITL res file created by critic2.
+TITL critic2 | ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
 CELL 0.71073 5.33000000   6.01500000   5.43600000   90.000000  115.830000 90.000000 
 ZERR 2 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001
 LATT -1

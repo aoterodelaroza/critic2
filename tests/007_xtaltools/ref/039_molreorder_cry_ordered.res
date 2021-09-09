@@ -1,4 +1,4 @@
-TITL res file created by critic2.
+TITL critic2 | ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
 CELL 0.71073 7.30650530   12.82660624  17.02619837  90.000000  90.000000  90.000000 
 ZERR 4 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001
 LATT -1
