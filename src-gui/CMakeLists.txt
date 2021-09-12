@@ -33,7 +33,7 @@ target_link_libraries(gcritic2 PRIVATE
   )
 
 ## the critic2 libraries
-target_link_libraries(gcritic2 PRIVATE lcritic2 cubpack ciftbx)
+target_link_libraries(gcritic2 PRIVATE lcritic2 cubpack ciftbx json-fortran)
 
 ## the dynamic linking library
 target_link_libraries(gcritic2 PRIVATE ${CMAKE_DL_LIBS})
