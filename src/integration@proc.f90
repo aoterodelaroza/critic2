@@ -2678,7 +2678,7 @@ contains
        call json%add(o2,'id',i)
        call json%add(o2,'cell_cp',trim(scp))
        call json%add(o2,'nonequivalent_cp',trim(sncp))
-       call json%add(o2,'name',trim(sname))
+       call json%add(o2,'name',trim(adjustl(sname)))
        call json%add(o2,'atomic_number',trim(sz))
        call json%add(o2,'fractional_coordinates',x)
 
