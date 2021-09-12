@@ -61,16 +61,16 @@ if GUI
 endif
 
 # Library subdirectories
-SUBDIRS = oldlibs ciftbx cubpack qhull spglib
+SUBDIRS = oldlibs ciftbx cubpack qhull spglib json-fortran
 
 # Static libraries
 critic2_LDADD=$(top_builddir)/src/oldlibs/libmisc.a $(top_builddir)/src/ciftbx/libciftbx.a \
 	$(top_builddir)/src/cubpack/libcubpack.a $(top_builddir)/src/spglib/libspglib.a \
-	$(top_builddir)/src/qhull/libqhull_critic.a
+	$(top_builddir)/src/qhull/libqhull_critic.a $(top_builddir)/src/json-fortran/libjsonfortran.a
 critic2_DEPENDENCIES=$(critic2_LDADD)
 
 # Include the subdirectories with the modules
-AM_FCFLAGS= -I$(top_builddir)/src/cubpack
+AM_FCFLAGS= -I$(top_builddir)/src/cubpack -I$(top_builddir)/src/json-fortran
 AM_CFLAGS= -I$(top_srcdir)/src/qhull
 
 # Data directory
