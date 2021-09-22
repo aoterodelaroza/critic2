@@ -1824,16 +1824,15 @@ contains
   end subroutine umeyama_graph_matching
 
   !> Invert a permutation iperm(1:n). The values of iperm must all be
-  !> different and be between 1 and n.
+  !> different and between 1 and n.
   module function invert_permutation(iperm)
     integer, intent(in) :: iperm(:)
-    integer :: invert_permutation(size(iperm,1))
+    integer :: invert_permutation !(size(iperm,1))
 
-    integer :: i, n
+    integer :: i
 
-    n = size(iperm,1)
     invert_permutation = 0
-    do i = 1, n
+    do i = 1, size(iperm,1)
        invert_permutation(iperm(i)) = i
     end do
 
