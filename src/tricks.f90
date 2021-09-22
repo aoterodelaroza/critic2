@@ -998,7 +998,7 @@ contains
 
        ! symmetry
        seed(i)%havesym = 0
-       seed(i)%findsym = -1
+       seed(i)%findsym = 0
        seed(i)%checkrepeats = .false.
 
        ! rest of the seed(i) information
@@ -1115,6 +1115,7 @@ contains
        ! move the atoms to conform with the template, if necessary
        if (moveatoms) then
           call ci%makeseed(xseed,.false.)
+          xseed%findsym = 0
           n = 0
           do is = 1, ns
              pp = pattern(is)
