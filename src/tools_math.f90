@@ -58,6 +58,7 @@ module tools_math
   public :: fdamp_bj
   public :: munkres
   public :: umeyama_graph_matching
+  public :: invert_permutation
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -303,6 +304,10 @@ module tools_math
        real*8, intent(inout) :: ah(n,n)
        integer, intent(out) :: perm(n)
      end subroutine umeyama_graph_matching
+     module function invert_permutation(iperm)
+       integer, intent(in) :: iperm(:)
+       integer :: invert_permutation(size(iperm,1))
+     end function invert_permutation
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts
