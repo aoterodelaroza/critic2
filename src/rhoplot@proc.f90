@@ -532,7 +532,7 @@ contains
              call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line,syntax=.true.)
              return
           end if
-          rgr = rgr * dunit0(iunit)
+          rgr = rgr / dunit0(iunit)
           nn = nint(dd / rgr) + 1
        else
           do i = 1, 3
