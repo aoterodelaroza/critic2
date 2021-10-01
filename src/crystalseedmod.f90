@@ -65,6 +65,7 @@ module crystalseedmod
      procedure :: parse_molecule_env
      procedure :: from_fragment
      procedure :: read_library
+     procedure :: read_any_file
      procedure :: read_cif
      procedure :: read_shelx
      procedure :: read_f21
@@ -129,6 +130,12 @@ module crystalseedmod
        type(fragment), intent(in) :: fr
        logical, intent(in), optional :: order_by_cidx0
      end subroutine from_fragment
+     module subroutine read_any_file(seed,file,mol0,errmsg)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       integer, intent(in) :: mol0
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine read_any_file
      module subroutine read_cif(seed,file,dblock,mol,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

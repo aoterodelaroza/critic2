@@ -1252,7 +1252,7 @@ contains
        end if
 
        ! read and build the crystal structure
-       call seed%read_qein(file,.false.,errmsg)
+       call seed%read_any_file(file,0,errmsg)
        seed%havesym = 0
        seed%findsym = 0
        if (len_trim(errmsg) > 0) goto 999

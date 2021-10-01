@@ -752,6 +752,136 @@ contains
 
   end subroutine from_fragment
 
+  !> Detect the file format of a file from the extension and read a
+  !> crystal seed from it. If mol0 == 1, force a molecule. If mol0 ==
+  !> 0, force a crystal. If mol0 == -1, let the format detection
+  !> decide.  If the read was successful, return an empty error
+  !> message
+  module subroutine read_any_file(seed,file,mol0,errmsg)
+    use global, only: rborder_def
+    use tools_io, only: ferror, faterr
+    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
+       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
+       isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
+       isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
+       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
+       isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
+       isformat_aimsout, isformat_tinkerfrac
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    integer, intent(in) :: mol0
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: isformat
+    logical :: ismol, mol, hastypes
+
+    ! detect the format for this file
+    errmsg = ""
+    call struct_detect_format(file,isformat,ismol)
+
+    ! is this a crystal or a molecule?
+    if (mol0 == 1) then
+       mol = .true.
+    elseif (mol0 == 0) then
+       mol = .false.
+    elseif (mol0 == -1) then
+       mol = ismol
+    else
+       call ferror("read_any_file","unknown mol0",faterr)
+    end if
+
+    ! build the seed
+    if (isformat == isformat_cif) then
+       call seed%read_cif(file," ",mol,errmsg)
+
+    elseif (isformat == isformat_shelx) then
+       call seed%read_shelx(file,mol,errmsg)
+
+    elseif (isformat == isformat_f21) then
+       call seed%read_f21(file,mol,errmsg)
+
+    elseif (isformat == isformat_cube) then
+       call seed%read_cube(file,mol,errmsg)
+
+    elseif (isformat == isformat_bincube) then
+       call seed%read_bincube(file,mol,errmsg)
+
+    elseif (isformat == isformat_struct) then
+       call seed%read_wien(file,mol,errmsg)
+
+    elseif (isformat == isformat_vasp) then
+       call seed%read_vasp(file,mol,hastypes,errmsg)
+       if (len_trim(errmsg) == 0 .and..not.hastypes) then
+          errmsg = "Atom types not found in VASP file"
+          return
+       end if
+
+    elseif (isformat == isformat_abinit) then
+       call seed%read_abinit(file,mol,errmsg)
+
+    elseif (isformat == isformat_elk) then
+       call seed%read_elk(file,mol,errmsg)
+
+    elseif (isformat == isformat_qeout) then
+       call seed%read_qeout(file,mol,0,errmsg)
+
+    elseif (isformat == isformat_crystal) then
+       call seed%read_crystalout(file,mol,errmsg)
+
+    elseif (isformat == isformat_qein) then
+       call seed%read_qein(file,mol,errmsg)
+
+    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
+       isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
+       isformat == isformat_dat.or.isformat == isformat_pgout.or.&
+       isformat == isformat_orca) then
+       call seed%read_mol(file,isformat,rborder_def,.false.,errmsg)
+
+    elseif (isformat == isformat_siesta) then
+       call seed%read_siesta(file,mol,errmsg)
+
+    elseif (isformat == isformat_xsf) then
+       call seed%read_xsf(file,rborder_def,.false.,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_gen) then
+       call seed%read_dftbp(file,rborder_def,.false.,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_pwc) then
+       call seed%read_pwc(file,mol,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_axsf) then
+       call seed%read_axsf(file,1,0d0,rborder_def,.false.,errmsg)
+       if (mol0 /= -1) &
+          seed%ismolecule = mol
+
+    elseif (isformat == isformat_dmain) then
+       call seed%read_dmain(file,mol,errmsg)
+
+    elseif (isformat == isformat_aimsin) then
+       call seed%read_aimsin(file,mol,rborder_def,.false.,errmsg)
+
+    elseif (isformat == isformat_aimsout) then
+       call seed%read_aimsout(file,mol,rborder_def,.false.,errmsg)
+
+    elseif (isformat == isformat_tinkerfrac) then
+       call seed%read_tinkerfrac(file,mol,errmsg)
+
+    else
+       errmsg = "unrecognized file format"
+       return
+    end if
+
+  end subroutine read_any_file
+
   !> Read the structure from a CIF file (uses ciftbx) and returns a
   !> crystal seed.
   module subroutine read_cif(seed,file,dblock,mol,errmsg)
