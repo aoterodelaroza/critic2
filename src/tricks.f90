@@ -25,6 +25,7 @@ module tricks
   ! private :: trick_stephens_nnm_channel
   ! private :: trick_cell_integral
   private :: trick_uspex_unpack
+  private :: trick_reduce
 
 contains
 
@@ -40,6 +41,8 @@ contains
 
     if (equal(word,'uspex_unpack')) then
        call trick_uspex_unpack(line0(lp:))
+    else if (equal(word,'reduce')) then
+       call trick_reduce(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -1171,5 +1174,179 @@ contains
     return
 
   end subroutine trick_uspex_unpack
+
+  ! Reduce a list of structures by pruning the identical crystals. Syntax:
+  !   TRICK REDUCE list.s
+  subroutine trick_reduce(line0)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: getword, ferror, faterr, getline, fopen_read,&
+       fclose, string, uout, isreal, ioj_center
+    use tools_math, only: crosscorr_triangle
+    use tools, only: mergesort
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: line0
+
+    character*1024 :: sdum
+    character(len=:), allocatable :: line, errmsg, filelist, file
+    integer :: lu, lp, i, ii, j, jj
+    integer :: nst
+    integer, allocatable :: iord(:)
+    real*8, allocatable :: vst(:), hst(:)
+    type(crystalseed) :: seed
+    type(crystal), allocatable :: st(:), staux(:)
+    logical :: ok
+    logical, allocatable :: active(:)
+
+    real*8 :: adv, adh
+    real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
+    integer, allocatable :: hvecp(:,:)
+    real*8 :: tini, tend, nor, xnormi, xnormj, diffij
+    integer :: ndigit, maxlen
+
+    real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
+    real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
+    real*8, parameter :: powdiff_thr = 0.07d0 ! powdiff threshold
+
+    real*8, parameter :: th2ini = 5d0
+    integer, parameter :: npts = 10001
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: sigma = 0.05d0
+    real*8, parameter :: xend = 50d0
+    real*8, parameter :: h = (xend-th2ini) / real(npts-1,8)
+
+    ! initialize
+    errmsg = ""
+
+    ! read the file name
+    filelist = line0
+    if ((len_trim(filelist) == 0)) &
+       call ferror('trick_reduce','Error: list file not found',faterr)
+
+    ! read the list file
+    nst = 0
+    maxlen = 0
+    allocate(vst(10),hst(10),st(10))
+    lu = fopen_read(filelist)
+    do while (getline(lu,line))
+       ! skip blank lines
+       if (len_trim(line) == 0) cycle
+
+       ! read this line's contents
+       nst = nst + 1
+       if (nst > size(vst,1)) then
+          call realloc(vst,2*nst)
+          call realloc(hst,2*nst)
+          allocate(staux(2*nst))
+          staux(1:size(st,1)) = st
+          call move_alloc(staux,st)
+       end if
+       lp = 1
+       file = getword(line,lp)
+       ok = isreal(hst(nst),line,lp)
+       if (.not.ok .or. len_trim(file) == 0) then
+          errmsg = "Error reading list file"
+          goto 999
+       end if
+
+       ! read and build the crystal structure
+       call seed%read_qein(file,.false.,errmsg)
+       seed%havesym = 0
+       seed%findsym = 0
+       if (len_trim(errmsg) > 0) goto 999
+       call st(nst)%struct_new(seed,.true.)
+       vst(nst) = st(nst)%omega/real(st(nst)%nmol,8)
+       maxlen = max(maxlen,len_trim(st(nst)%file))
+    end do
+    ! final realloc
+    call fclose(lu)
+    call realloc(vst,nst)
+    call realloc(hst,nst)
+    allocate(staux(nst))
+    staux = st(1:nst)
+    call move_alloc(staux,st)
+
+    ! calculate the number of digits for output
+    ndigit = ceiling(log10(nst+0.1d0))
+
+    ! sort first by volume, then by enthalpy
+    allocate(iord(nst))
+    do i = 1, nst
+       iord(i) = i
+    end do
+    call mergesort(hst,iord,1,nst)
+    call mergesort(vst,iord,1,nst)
+
+    ! header for the list of structures
+    write (uout,'("* List of structures")')
+    write (uout,'("# Volume difference threshold (ang) = ",A)') string(vdiff_thr,'e',decimal=5)
+    write (uout,'("# Enthalpy difference threshold (eV) = ",A)') string(ediff_thr,'e',decimal=5)
+    write (uout,'("# POWDIFF threshold = ",A)') string(powdiff_thr,'e',decimal=5)
+    write (uout,'("# A structure is pruned if the three conditions hold concurrently.")')
+    write (uout,'("id    fate     file or reason for pruning")')
+    write (uout,'(A,"  decision    reason")') string("name",maxlen,ioj_center)
+
+    ! prune
+    allocate(active(nst))
+    active = .true.
+    main: do ii = 1, nst
+       i = iord(ii)
+       if (.not.active(i)) cycle
+
+       ! powder for structure i
+       call st(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihi,th2p,ip,hvecp)
+       tini = ihi(1)*ihi(1)
+       tend = ihi(npts)*ihi(npts)
+       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+       ihi = ihi / sqrt(nor)
+       xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
+
+       ! remove duplicates from the list of structures
+       do jj = ii+1, nst
+          j = iord(jj)
+          if (.not.active(j)) cycle
+
+          adv = abs(vst(i)-vst(j)) * bohrtoa**3    ! to ang^3
+          adh = abs(hst(i)-hst(j)) * 0.043364104d0 ! to eV
+          if (adv > vdiff_thr) then
+             ! sorted by volume, so it is pointless to continue
+             exit
+          else if (adh < ediff_thr) then
+             ! powder for structure j
+             call st(j)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
+             tini = ihj(1)*ihj(1)
+             tend = ihj(npts)*ihj(npts)
+             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             ihj = ihj / sqrt(nor)
+             xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
+
+             ! compare structures i and j
+             diffij = max(1d0 - crosscorr_triangle(h,ihi,ihj,1d0) / xnormi / xnormj,0d0)
+             if (diffij < powdiff_thr) then
+                write (uout,'(A,"  PRUNED  because: same as ",A," (deltaV=",A,",deltaH=",A,",pow=",A,")")') &
+                   string(st(j)%file,maxlen), string(st(i)%file), string(adv,'e',decimal=4),&
+                   string(adh,'e',decimal=4), string(diffij,'e',decimal=4)
+                active(j) = .false.
+             end if
+          end if
+       end do
+
+       ! this structure is active, so write it
+       write (uout,'(A,"   KEPT  with: (V=",A,",H=",A,")")') string(st(j)%file,maxlen), &
+          string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
+    end do main
+    write (uout,'("+ Structures (pruned/written/total): ",A,"/",A,"/",A)') string(nst-count(active)), &
+       string(count(active)), string(nst)
+    write (uout,*)
+
+    return
+999 continue
+
+    call ferror('trick_reduce',errmsg,faterr,line,syntax=.true.)
+    return
+
+  end subroutine trick_reduce
 
 end module tricks
