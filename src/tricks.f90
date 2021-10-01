@@ -1334,7 +1334,7 @@ contains
        end do
 
        ! this structure is active, so write it
-       write (uout,'(A,"   KEPT  with: (V=",A,",H=",A,")")') string(st(j)%file,maxlen), &
+       write (uout,'(A,"   KEPT   with: (V=",A,",H=",A,")")') string(st(j)%file,maxlen), &
           string(vst(i),'f',decimal=3), string(hst(i),'f',decimal=3)
     end do main
     write (uout,'("+ Structures (pruned/written/total): ",A,"/",A,"/",A)') string(nst-count(active)), &
