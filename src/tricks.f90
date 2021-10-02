@@ -1177,6 +1177,9 @@ contains
 
   ! Reduce a list of structures by pruning the identical crystals. Syntax:
   !   TRICK REDUCE list.s
+  ! The list.s file contains rows of the form: structure.s energy.r
+  ! where structure.s is the file name containing the structure and
+  ! energy.r is the energy in kcal/mol per molecule.
   subroutine trick_reduce(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
