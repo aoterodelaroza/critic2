@@ -2911,7 +2911,7 @@ contains
           dens = (mass*pcamu) / (c%omega*bohr2cm**3)
           write (uout,'("  Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
           write (uout,'("  Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
-          write (uout,'("  Density (g/cm^3): ",A)') string(dens,'f',decimal=3)
+          write (uout,'("  Density (g/cm^3): ",A)') string(dens,'f',decimal=5)
           ! space group, very short report
           if (c%havesym > 0 .and. c%spgavail) then
              write(uout,'("  Space group (H-M): ",A, " (",A,")")') &
