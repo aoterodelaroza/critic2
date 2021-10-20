@@ -2725,7 +2725,7 @@ contains
 
     character(len=:), allocatable :: errmsg
     character(len=:), allocatable :: file, line, line2
-    logical :: laux, ok
+    logical :: laux, ok, isfs
     integer :: lu, i, j
     integer :: ncel, nmol, nmol2, idum, idax(3)
     integer, allocatable :: imap(:), idmol(:), iz(:)
@@ -2779,9 +2779,11 @@ contains
              call ferror("makemols_neighcrys","no atoms found in the fort.21 file",faterr)
 
           ! keep reading until we find the "crystallographic" keyword
+          isfs = .false.
           do while (.true.)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
+             if (index(line,"foreshortened") > 0) isfs = .true.
              if (index(line,"crystallographic") > 0) exit
           end do
 
@@ -2801,6 +2803,10 @@ contains
              if (len_trim(line) == 0) exit
              ok = ok .and. getline_raw(lu,line2)
              if (.not.ok) goto 999
+             if (isfs) then
+                ok = ok .and. getline_raw(lu,line2)
+                if (.not.ok) goto 999
+             end if
 
              ncel = ncel + 1
              if (ncel > size(imap,1)) then
