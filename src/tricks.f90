@@ -26,6 +26,7 @@ module tricks
   ! private :: trick_cell_integral
   private :: trick_uspex_unpack
   private :: trick_reduce
+  private :: trick_makecif_ccdc
 
 contains
 
@@ -43,6 +44,8 @@ contains
        call trick_uspex_unpack(line0(lp:))
     else if (equal(word,'reduce')) then
        call trick_reduce(line0(lp:))
+    else if (equal(word,'makecif')) then
+       call trick_makecif_ccdc(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -1191,7 +1194,6 @@ contains
     use param, only: bohrtoa
     character*(*), intent(in) :: line0
 
-    character*1024 :: sdum
     character(len=:), allocatable :: line, errmsg, filelist, file
     integer :: lu, lp, i, ii, j, jj
     integer :: nst
@@ -1351,5 +1353,189 @@ contains
     return
 
   end subroutine trick_reduce
+
+  ! Write a cif file for the current structure using the CCDC
+  ! blind test instructions
+  subroutine trick_makecif_ccdc(line0)
+    use systemmod, only: sy
+    use tools_io, only: ferror, faterr, fopen_write, fclose, string,&
+       nameguess, equal
+    use param, only: maxzat, mlen, bohrtoa
+    character*(*), intent(in) :: line0
+
+    logical :: usesym
+    integer :: i, j, idx, lu, natmol, is
+    integer, allocatable :: atc(:,:)
+    character(len=:), allocatable :: str, hmpg
+    character*2 :: sym
+    character*12 :: holo
+    real*8 :: matdum(3,3)
+    character(len=mlen), allocatable :: strfin(:)
+    integer :: datvalues(8)
+
+    ! Hill order for chemical formula. First C, then H, then all the other
+    ! elements in alphabetical order.
+    integer, parameter :: hillord(maxzat) = &
+       (/6,1,89,47,13,95,18,33,85,79,5,56,4,107,83,97,35,20,48,58,98,17,&
+       96,112,27,24,55,29,105,110,66,68,99,63,9,26,114,100,87,31,64,32,2,72,80,&
+       67,108,53,49,77,19,36,57,3,103,71,116,115,101,12,25,42,109,7,11,41,60,10,&
+       113,28,102,93,8,118,76,15,91,82,46,61,84,59,78,94,88,37,75,104,111,45,86,&
+       44,16,51,21,34,106,14,62,50,38,73,65,43,52,90,22,81,69,117,92,23,74,54,&
+       39,70,30,40/)
+
+    ! consistency checks
+    if (.not.associated(sy)) &
+       call ferror('trick_makecif_ccdc','system not defined',faterr)
+    if (.not.associated(sy%c)) &
+       call ferror('trick_makecif_ccdc','crystal structure not defined',faterr)
+    if (.not.sy%c%isinit) &
+       call ferror('trick_makecif_ccdc','crystal structure not initialized',faterr)
+    if (sy%c%ismolecule) &
+       call ferror('trick_makecif_ccdc','structure is a molecule',faterr)
+    if (.not.sy%c%ismol3d) &
+       call ferror('trick_makecif_ccdc','structure is not a molecular crystal',faterr)
+
+    ! transform to the standard cell
+    matdum = sy%c%cell_standard(.false.,.false.,.false.)
+
+    ! use symmetry?
+    usesym = sy%c%spgavail
+
+    ! open output file
+    lu = fopen_write(line0)
+
+    ! header
+    write (lu,'("data_")')
+
+    ! timestamp
+    call date_and_time(values=datvalues)
+    write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
+       (string(datvalues(i)),i=1,3)
+
+    ! chemical formula sum
+    allocate(atc(maxzat,sy%c%nmol))
+    atc = 0
+    do i = 1, sy%c%nmol
+       do j = 1, sy%c%mol(i)%nat
+          atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) = atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) + 1
+       end do
+       if (i > 2) then
+          if (any(atc(:,i) - atc(:,1) /= 0)) then
+             call ferror('trick_makecif_ccdc','inconsistent molecular fragments',faterr)
+          end if
+       end if
+    end do
+    str = ""
+    do i = 1, maxzat
+       idx = hillord(i)
+       if (atc(idx,1) > 0) then
+          sym = nameguess(idx,.true.)
+          if (atc(idx,1) > 1) then
+             str = str // trim(sym) // string(atc(idx,1)) // " "
+          else
+             str = str // trim(sym) //  " "
+          end if
+       end if
+    end do
+    natmol = sum(atc(:,1))
+    deallocate(atc)
+    str = trim(str)
+    write (lu,'("_chemical_formula_sum ''",A,"''")') str
+
+    ! cell dimensions
+    write (lu,'("_cell_length_a ",F20.10)') sy%c%aa(1)*bohrtoa
+    write (lu,'("_cell_length_b ",F20.10)') sy%c%aa(2)*bohrtoa
+    write (lu,'("_cell_length_c ",F20.10)') sy%c%aa(3)*bohrtoa
+    write (lu,'("_cell_angle_alpha ",F14.4)') sy%c%bb(1)
+    write (lu,'("_cell_angle_beta ",F14.4)') sy%c%bb(2)
+    write (lu,'("_cell_angle_gamma ",F14.4)') sy%c%bb(3)
+    write (lu,'("_cell_volume ",F20.6)') sy%c%omega * bohrtoa**3
+
+    ! number of molecules
+    if (abs(real(sy%c%ncel,8)/real(natmol,8) - sy%c%ncel/natmol) > 1d-10) &
+       call ferror('trick_makecif_ccdc','non-integer Z',faterr)
+    write (lu,'("_cell_formula_units_Z ",A)') string(sy%c%ncel/natmol)
+
+    ! get the strings for the symmetry operations
+    if (usesym) then
+       allocate(strfin(sy%c%neqv*sy%c%ncv))
+       call sy%c%struct_report_symxyz(strfin)
+       do i = 1, sy%c%neqv*sy%c%ncv
+          if (index(strfin(i),"not found") > 0) then
+             usesym = .false.
+             exit
+          end if
+       end do
+    end if
+
+    ! crystal system
+    hmpg = sy%c%spg%pointgroup_symbol
+    if (equal(hmpg,"")) then
+       holo = "unknown     "
+    elseif (equal(hmpg,"1").or.equal(hmpg,"-1")) then
+       holo = "triclinic   "
+    elseif (equal(hmpg,"2").or.equal(hmpg,"m").or.equal(hmpg,"2/m")) then
+       holo = "monoclinic  "
+    elseif (equal(hmpg,"222").or.equal(hmpg,"mm2").or.equal(hmpg,"mmm")) then
+       holo = "orthorhombic"
+    elseif (equal(hmpg,"4").or.equal(hmpg,"-4").or.equal(hmpg,"4/m").or.&
+       equal(hmpg,"422").or.equal(hmpg,"4mm").or.equal(hmpg,"-42m").or.&
+       equal(hmpg,"4/mmm")) then
+       holo = "tetragonal  "
+    elseif (equal(hmpg,"3").or.equal(hmpg,"-3").or.equal(hmpg,"32").or.&
+       equal(hmpg,"3m").or.equal(hmpg,"-3m")) then
+       holo = "trigonal    "
+    elseif (equal(hmpg,"6").or.equal(hmpg,"-6").or.equal(hmpg,"6/m").or.&
+       equal(hmpg,"622").or.equal(hmpg,"6mm").or.equal(hmpg,"-6m2").or.&
+       equal(hmpg,"6/mmm")) then
+       holo = "hexagonal   "
+    elseif (equal(hmpg,"23").or.equal(hmpg,"m-3").or.equal(hmpg,"432").or.&
+       equal(hmpg,"-43m").or.equal(hmpg,"m-3m")) then
+       holo = "cubic       "
+    end if
+
+    ! write the symmetry, if applicable
+    if (usesym) then
+       write (lu,'("_space_group_crystal_system ",A)') string(holo)
+       write (lu,'("_space_group_name_H-M_alt ''",A,"''")') string(sy%c%spg%international_symbol)
+       write (lu,'("_space_group_IT_number ",A)') string(sy%c%spg%spacegroup_number)
+
+       write (lu,'("loop_")')
+       write (lu,'("_symmetry_equiv_pos_site_id")')
+       write (lu,'("_symmetry_equiv_pos_as_xyz")')
+       do i = 1, sy%c%neqv*sy%c%ncv
+          write (lu,'(" ",A," ''",A,"''")') string(i), string(strfin(i))
+       end do
+    else
+       write (lu,'("_space_group_crystal_system triclinic")')
+       write (lu,'("_space_group_name_H-M_alt ''P 1''")')
+       write (lu,'("_space_group_IT_number 1")')
+
+       write (lu,'("loop_")')
+       write (lu,'("_symmetry_equiv_pos_site_id")')
+       write (lu,'("_symmetry_equiv_pos_as_xyz")')
+       write (lu,'(" 1 ''x,y,z''")')
+    end if
+
+    write (lu,'("loop_")')
+    write (lu,'("_atom_site_label")')
+    write (lu,'("_atom_site_type_symbol")')
+    write (lu,'("_atom_site_fract_x")')
+    write (lu,'("_atom_site_fract_y")')
+    write (lu,'("_atom_site_fract_z")')
+    if (usesym) then
+       do i = 1, sy%c%nneq
+          is = sy%c%at(i)%is
+          write (lu,'(A5,X,A3,X,3(F20.14,X))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%at(i)%x
+       end do
+    else
+       do i = 1, sy%c%ncel
+          is = sy%c%atcel(i)%is
+          write (lu,'(A5,X,A3,X,3(F20.14,X))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%atcel(i)%x
+       end do
+    end if
+    call fclose(lu)
+
+  end subroutine trick_makecif_ccdc
 
 end module tricks
