@@ -5340,17 +5340,33 @@ contains
   !> use P1.
   module subroutine write_cif(c,file,usesym0)
     use global, only: fileroot
-    use tools_io, only: fopen_write, fclose, string, nameguess, deblank
-    use param, only: bohrtoa
+    use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
+       ferror, faterr
+    use param, only: bohrtoa, maxzat
+    use tools_math, only: gcd
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: usesym0
 
-    integer :: i, iz, lu
+    integer :: i, j, iz, lu, idx, izmol, gcdz
     character(len=mlen), allocatable :: strfin(:)
-    character(len=3) :: schpg
-    integer :: holo, laue
-    logical :: usesym
+    character*2 :: sym
+    character*3 :: schpg
+    character(len=:), allocatable :: str
+    integer :: holo, laue, natmol
+    logical :: usesym, doz
+    integer :: datvalues(8)
+    integer, allocatable :: atc(:,:)
+
+    ! Hill order for chemical formula. First C, then H, then all the other
+    ! elements in alphabetical order.
+    integer, parameter :: hillord(maxzat) = &
+       (/6,1,89,47,13,95,18,33,85,79,5,56,4,107,83,97,35,20,48,58,98,17,&
+       96,112,27,24,55,29,105,110,66,68,99,63,9,26,114,100,87,31,64,32,2,72,80,&
+       67,108,53,49,77,19,36,57,3,103,71,116,115,101,12,25,42,109,7,11,41,60,10,&
+       113,28,102,93,8,118,76,15,91,82,46,61,84,59,78,94,88,37,75,104,111,45,86,&
+       44,16,51,21,34,106,14,62,50,38,73,65,43,52,90,22,81,69,117,92,23,74,54,&
+       39,70,30,40/)
 
     ! use symmetry?
     usesym = usesym0 .and. c%spgavail
@@ -5361,6 +5377,69 @@ contains
     ! header
     write (lu,'("data_",A)') string(deblank(fileroot))
     write (lu,'("_audit_creation_method ''critic2''")')
+    call date_and_time(values=datvalues)
+    write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
+       (string(datvalues(i)),i=1,3)
+
+    ! formula: count the number of element types
+    allocate(atc(maxzat,c%nmol))
+    doz = c%ismol3d
+    atc = 0
+    do i = 1, c%nmol
+       do j = 1, c%mol(i)%nat
+          atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
+       end do
+       if (i > 2) then
+          if (any(atc(:,i) - atc(:,1) /= 0)) then
+             doz = .false.
+          end if
+       end if
+    end do
+
+    ! formula
+    if (.not.doz) then
+       ! not a molecular crystal or different types of molecules,
+       ! collect all atc then calculate gdc of all non-zero
+       ! numbers. atc(:,1) is now the formula unit and gcdz = Z.
+       do i = 2, c%nmol
+          atc(:,1) = atc(:,1) + atc(:,i)
+       end do
+       gcdz = -1
+       do i = 1, maxzat
+          if (atc(i,1) > 0) then
+             if (gcdz < 0) then
+                gcdz = atc(i,1)
+             else
+                gcdz = gcd(gcdz,atc(i,1))
+             end if
+          end if
+       end do
+       atc(:,1) = atc(:,1) / gcdz
+    else
+       ! a molecular crystal with always the same molecule: gcdz = Z
+       natmol = sum(atc(:,1))
+       if (abs(real(c%ncel,8)/real(natmol,8) - c%ncel/natmol) > 1d-10) &
+          call ferror('write_cif','inconsistent number of atoms in fragment',faterr)
+       gcdz = c%ncel / natmol
+    end if
+
+    ! formula: build the molecular formula/formula unit and write to cif
+    str = ""
+    do i = 1, maxzat
+       idx = hillord(i)
+       if (atc(idx,1) > 0) then
+          sym = nameguess(idx,.true.)
+          if (atc(idx,1) > 1) then
+             str = str // trim(sym) // string(atc(idx,1)) // " "
+          else
+             str = str // trim(sym) //  " "
+          end if
+       end if
+    end do
+    str = trim(str)
+    write (lu,'("_chemical_formula_sum ''",A,"''")') str
+    write (lu,'("_cell_formula_units_Z ",A)') string(gcdz)
+    deallocate(atc)
 
     ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa
@@ -5391,9 +5470,10 @@ contains
        write (lu,'("_space_group_name_Hall ''",A,"''")') string(c%spg%hall_symbol)
 
        write (lu,'("loop_")')
-       write (lu,'("_space_group_symop_operation_xyz")')
+       write (lu,'("_symmetry_equiv_pos_site_id")')
+       write (lu,'("_symmetry_equiv_pos_as_xyz")')
        do i = 1, c%neqv*c%ncv
-          write (lu,'("  ''",A,"''")') string(strfin(i))
+          write (lu,'(" ",A," ''",A,"''")') string(i), string(strfin(i))
        end do
     else
        write (lu,'("_space_group_crystal_system triclinic")')
@@ -5402,8 +5482,9 @@ contains
        write (lu,'("_space_group_name_Hall ''P 1''")')
 
        write (lu,'("loop_")')
-       write (lu,'("_space_group_symop_operation_xyz")')
-       write (lu,'("  ''x,y,z''")')
+       write (lu,'("_symmetry_equiv_pos_site_id")')
+       write (lu,'("_symmetry_equiv_pos_as_xyz")')
+       write (lu,'(" 1 ''x,y,z''")')
     end if
     if (allocated(strfin)) deallocate(strfin)
 
