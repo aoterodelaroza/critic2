@@ -676,9 +676,9 @@ contains
   ! end subroutine trick_test_environment
 
   ! Unpack uspex structures. Syntax:
-  !   TRICK USPEX_UNPACK individuals.s file.POSCAR 
+  !   TRICK USPEX_UNPACK individuals.s file.POSCAR
   !         MOLECULES mol1.xyz mol2.xyz ...
-  !         PATTERN i1.i i2.i ... 
+  !         PATTERN i1.i i2.i ...
   !         [MOVEATOMS] [MAXDE maxde.r] [NONEG] [OUTPUTPOSCAR]
   subroutine trick_uspex_unpack(line0)
     use crystalmod, only: crystal
@@ -1355,23 +1355,26 @@ contains
   end subroutine trick_reduce
 
   ! Write a cif file for the current structure using the CCDC
-  ! blind test instructions
+  ! blind test instructions. Use:
+  !  TRICK MAKECIF file.s [irank.i]
+  ! where irank is the rank for the title of the data_ block. If
+  ! no rank is present, use just "data_".
   subroutine trick_makecif_ccdc(line0)
     use systemmod, only: sy
     use tools_io, only: ferror, faterr, fopen_write, fclose, string,&
-       nameguess, equal
+       nameguess, equal, isinteger, getword
     use param, only: maxzat, mlen, bohrtoa
     character*(*), intent(in) :: line0
 
-    logical :: usesym
-    integer :: i, j, idx, lu, natmol, is
+    logical :: usesym, ok
+    integer :: i, j, idx, lu, natmol, is, irank
     integer, allocatable :: atc(:,:)
-    character(len=:), allocatable :: str, hmpg
+    character(len=:), allocatable :: str, hmpg, file
     character*2 :: sym
     character*12 :: holo
     real*8 :: matdum(3,3)
     character(len=mlen), allocatable :: strfin(:)
-    integer :: datvalues(8)
+    integer :: datvalues(8), lp
 
     ! Hill order for chemical formula. First C, then H, then all the other
     ! elements in alphabetical order.
@@ -1402,10 +1405,21 @@ contains
     usesym = sy%c%spgavail
 
     ! open output file
-    lu = fopen_write(line0)
+    lp = 1
+    file = getword(line0,lp)
+    ok = isinteger(irank,line0,lp)
+    if (.not.ok) then
+       irank = -1
+    end if
+
+    lu = fopen_write(file)
 
     ! header
-    write (lu,'("data_")')
+    if (irank > 0) then
+       write (lu,'("data_",A)') string(irank)
+    else
+       write (lu,'("data_")')
+    end if
 
     ! timestamp
     call date_and_time(values=datvalues)
