@@ -5387,7 +5387,9 @@ contains
     atc = 0
     do i = 1, c%nmol
        do j = 1, c%mol(i)%nat
-          atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
+          if (c%mol(i)%spc(c%mol(i)%at(j)%is)%z > 0 .and. c%mol(i)%spc(c%mol(i)%at(j)%is)%z <= maxzat) then
+             atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
+          end if
        end do
        if (i > 2) then
           if (any(atc(:,i) - atc(:,1) /= 0)) then
