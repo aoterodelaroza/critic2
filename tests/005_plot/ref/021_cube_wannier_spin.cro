@@ -39,7 +39,7 @@
  Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00
   Ek(2):  -7.23   4.82   7.13   7.32   7.32   8.55   9.04   9.04   9.04
  Occ(2):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00
-# kpt  5 (-0.5000 -0.0000 -0.0000) w=6.25000000E-02
+# kpt  5 (-0.5000 0.0000 -0.0000) w=6.25000000E-02
   Ek(1):  -7.26   3.43   5.52   5.52   8.77   8.77   9.40  11.81  11.81
  Occ(1):   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00   1.00
   Ek(2):  -7.26   3.43   5.52   5.52   8.77   8.77   9.40  11.81  11.81
@@ -551,7 +551,7 @@
   Source: 021_cube_wannier_spin-2-7-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -1.076652801076E-09  3.449234746778E-04  6.827876502041E-04
+  First elements... -1.076652800780E-09  3.449234746778E-04  6.827876502041E-04
   Last elements... -1.709423782530E-02  -1.717979789257E-02  -1.418650899651E-02
   Sum of elements... 3.530744702338E+01
   Sum of squares of elements... 2.707537796479E+01
@@ -572,7 +572,7 @@
   Source: 021_cube_wannier_spin-2-2-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -1.076652805816E-09  3.452401814540E-04  6.833876070042E-04
+  First elements... -1.076652805817E-09  3.452401814540E-04  6.833876070042E-04
   Last elements... 1.477642585202E-02  1.546905030378E-02  1.309340922037E-02
   Sum of elements... -2.799228322352E+01
   Sum of squares of elements... 1.324657706508E+01
@@ -677,7 +677,7 @@
   Source: 021_cube_wannier_spin-2-4-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -4.339430344400E-08  -2.152766325705E-03  -8.401682506297E-03
+  First elements... -4.339430344370E-08  -2.152766325705E-03  -8.401682506297E-03
   Last elements... 2.007404197811E-02  1.574800043584E-02  9.314005017596E-03
   Sum of elements... -3.551955335938E+01
   Sum of squares of elements... 4.600276314839E+01
@@ -719,7 +719,7 @@
   Source: 021_cube_wannier_spin-2-7-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -4.339430343941E-08  -9.166217947768E-04  -1.948100237916E-03
+  First elements... -4.339430343970E-08  -9.166217947768E-04  -1.948100237916E-03
   Last elements... -6.958816324366E-03  -8.235538723894E-03  -7.649916136326E-03
   Sum of elements... 3.844167323358E+00
   Sum of squares of elements... 6.694579631649E+00
@@ -782,7 +782,7 @@
   Source: 021_cube_wannier_spin-2-5-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -4.339430344385E-08  3.171152468436E-03  1.018195253024E-02
+  First elements... -4.339430344340E-08  3.171152468436E-03  1.018195253024E-02
   Last elements... -1.964185037035E-02  -1.473902665146E-02  -7.650311013190E-03
   Sum of elements... 3.844064095511E+00
   Sum of squares of elements... 1.449196759895E+01
@@ -825,11 +825,11 @@
   Grid dimensions : 36  36  36
   First elements... 2.452844327207E-09  1.264156071801E-04  1.997454590226E-03
   Last elements... 8.044716379598E-03  3.687124692851E-03  2.420184613516E-04
-  Sum of elements... 5.743723639068E-15
+  Sum of elements... 6.049902332578E-15
   Sum of squares of elements... 6.169027947977E-02
   Cell integral (grid SUM) = 0.00000000
   Min: -1.21424868E-02
-  Average: 1.23107931E-19
+  Average: 1.29670403E-19
   Max: 1.32304741E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F

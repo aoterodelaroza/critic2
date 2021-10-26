@@ -1208,12 +1208,12 @@
   Grid dimensions : 36  36  36
   First elements... 1.033975765691E-25  3.388131789017E-21  0.000000000000E+00
   Last elements... -1.355252715607E-20  -2.710505431214E-20  -3.388131789017E-21
-  Sum of elements... -1.827193898014E-13
-  Sum of squares of elements... 9.861681617901E-28
+  Sum of elements... -2.727716280510E-13
+  Sum of squares of elements... 1.926292283184E-27
   Cell integral (grid SUM) = -0.00000000
-  Min: -9.58955138E-15
-  Average: -3.91631065E-18
-  Max: 4.57966998E-16
+  Min: -1.28091981E-14
+  Average: -5.84644265E-18
+  Max: 5.20417043E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
   Numerical derivatives? F
@@ -1248,12 +1248,12 @@
   Grid dimensions : 36  36  36
   First elements... -1.577721810442E-30  1.058791184068E-22  1.058791184068E-21
   Last elements... 3.896351557370E-20  0.000000000000E+00  -1.270549420881E-21
-  Sum of elements... -3.516230838586E-14
-  Sum of squares of elements... 5.704700392514E-28
+  Sum of elements... -4.162796932835E-14
+  Sum of squares of elements... 1.206388240737E-27
   Cell integral (grid SUM) = -0.00000000
-  Min: -9.00841901E-15
-  Average: -7.53650300E-19
-  Max: 6.05071548E-15
+  Min: -1.20060212E-14
+  Average: -8.92231853E-19
+  Max: 9.90874049E-15
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
   Numerical derivatives? F

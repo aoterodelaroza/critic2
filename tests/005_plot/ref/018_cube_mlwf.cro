@@ -315,7 +315,7 @@
   Source: 018_cube_mlwf-1-02-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... 1.896576292403E-06  -2.677641850903E-05  -5.876821576356E-05
+  First elements... 1.896576292402E-06  -2.677641850903E-05  -5.876821576356E-05
   Last elements... 2.432509959171E-03  2.266032567809E-03  2.091553625353E-03
   Sum of elements... 1.693419538021E+01
   Sum of squares of elements... 8.080426072592E-02
@@ -441,7 +441,7 @@
   Source: 018_cube_mlwf-1-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... 1.795501450129E-06  -2.555090279181E-06  8.400215296051E-06
+  First elements... 1.795501450129E-06  -2.555090279181E-06  8.400215296052E-06
   Last elements... 1.514646089672E-03  1.803733442708E-03  2.114762126662E-03
   Sum of elements... 1.689541522232E+01
   Sum of squares of elements... 8.042232285605E-02
@@ -631,7 +631,7 @@
   Type: grid
   Grid dimensions : 32  32  32
   First elements... -4.568556640046E-03  -5.026277008088E-03  -5.246026282976E-03
-  Last elements... -4.742381921942E-05  -2.815917014467E-05  9.260604714034E-06
+  Last elements... -4.742381921942E-05  -2.815917014467E-05  9.260604714033E-06
   Sum of elements... -8.700675438970E+00
   Sum of squares of elements... 2.578057271894E-01
   Cell integral (grid SUM) = -0.03153847
@@ -799,11 +799,11 @@
   Grid dimensions : 32  32  32
   First elements... 2.401246513868E-04  2.956962011757E-04  3.416502911897E-04
   Last elements... -3.937177640993E-05  1.479849010780E-05  7.816557980844E-05
-  Sum of elements... 1.523305407595E-13
+  Sum of elements... 1.503376958513E-13
   Sum of squares of elements... 3.336753242043E-03
   Cell integral (grid SUM) = 0.00000000
   Min: -5.71498012E-03
-  Average: 4.64875918E-18
+  Average: 4.58794238E-18
   Max: 2.88544981E-03
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F

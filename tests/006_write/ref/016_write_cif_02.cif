@@ -1,5 +1,8 @@
 data_016_write_cif
 _audit_creation_method 'critic2'
+_audit_creation_date 2021-10-26
+_chemical_formula_sum 'C'
+_cell_formula_units_Z 4
 _cell_length_a         2.4560000000
 _cell_length_b         2.4560000000
 _cell_length_c         6.6960000000
@@ -12,8 +15,9 @@ _space_group_IT_number 1
 _space_group_name_H-M_alt 'P 1'
 _space_group_name_Hall 'P 1'
 loop_
-_space_group_symop_operation_xyz
-  'x,y,z'
+_symmetry_equiv_pos_site_id
+_symmetry_equiv_pos_as_xyz
+ 1 'x,y,z'
 loop_
 _atom_site_label
 _atom_site_type_symbol

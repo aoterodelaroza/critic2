@@ -20,7 +20,7 @@
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.221245E-15
++ DIFF = 8.881784E-16
 
 * COMPARE: compare structures
   Crystal 1 : <current>

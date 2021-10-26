@@ -1,5 +1,8 @@
 data_032_sym_refine
 _audit_creation_method 'critic2'
+_audit_creation_date 2021-10-26
+_chemical_formula_sum 'C'
+_cell_formula_units_Z 4
 _cell_length_a         2.4560000000
 _cell_length_b         2.4560000000
 _cell_length_c         6.6960000000
@@ -12,31 +15,32 @@ _space_group_IT_number 194
 _space_group_name_H-M_alt 'P6_3/mmc'
 _space_group_name_Hall '-P 6c 2c'
 loop_
-_space_group_symop_operation_xyz
-  'x,y,z'
-  '-x,-y,-z'
-  'x-y,x,-2/3+z'
-  '-x+y,-x,-2/3-z'
-  '-y,x-y,z'
-  'y,-x+y,-z'
-  '-x,-y,-2/3+z'
-  'x,y,-2/3-z'
-  '-x+y,-x,z'
-  'x-y,x,-z'
-  'y,-x+y,-2/3+z'
-  '-y,x-y,-2/3-z'
-  '-y,-x,-2/3-z'
-  'y,x,-2/3+z'
-  '-x,-x+y,-z'
-  'x,x-y,z'
-  '-x+y,y,-2/3-z'
-  'x-y,-y,-2/3+z'
-  'y,x,-z'
-  '-y,-x,z'
-  'x,x-y,-2/3-z'
-  '-x,-x+y,-2/3+z'
-  'x-y,-y,-z'
-  '-x+y,y,z'
+_symmetry_equiv_pos_site_id
+_symmetry_equiv_pos_as_xyz
+ 1 'x,y,z'
+ 2 '-x,-y,-z'
+ 3 'x-y,x,-2/3+z'
+ 4 '-x+y,-x,-2/3-z'
+ 5 '-y,x-y,z'
+ 6 'y,-x+y,-z'
+ 7 '-x,-y,-2/3+z'
+ 8 'x,y,-2/3-z'
+ 9 '-x+y,-x,z'
+ 10 'x-y,x,-z'
+ 11 'y,-x+y,-2/3+z'
+ 12 '-y,x-y,-2/3-z'
+ 13 '-y,-x,-2/3-z'
+ 14 'y,x,-2/3+z'
+ 15 '-x,-x+y,-z'
+ 16 'x,x-y,z'
+ 17 '-x+y,y,-2/3-z'
+ 18 'x-y,-y,-2/3+z'
+ 19 'y,x,-z'
+ 20 '-y,-x,z'
+ 21 'x,x-y,-2/3-z'
+ 22 '-x,-x+y,-2/3+z'
+ 23 'x-y,-y,-z'
+ 24 '-x+y,y,z'
 loop_
 _atom_site_label
 _atom_site_type_symbol

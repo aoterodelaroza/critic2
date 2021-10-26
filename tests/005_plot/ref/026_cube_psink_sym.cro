@@ -766,7 +766,7 @@
   Source: 026_cube_psink_sym-2-07-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -1.228691321905E-13  -1.594705285162E-04  -3.133435254891E-04
+  First elements... -1.228691321906E-13  -1.594705285162E-04  -3.133435254891E-04
   Last elements... -3.346805049367E-04  -1.959073719639E-04  -4.967436231912E-05
   Sum of elements... -5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
@@ -787,7 +787,7 @@
   Source: 026_cube_psink_sym-2-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -1.228691321905E-13  -1.594705285162E-04  -3.133435254891E-04
+  First elements... -1.228691321906E-13  -1.594705285162E-04  -3.133435254891E-04
   Last elements... -3.346805049367E-04  -1.959073719639E-04  -4.967436231912E-05
   Sum of elements... -5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
@@ -1203,14 +1203,14 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -1.972152263053E-29  -1.308665903508E-19  5.421010862428E-20
-  Last elements... -4.175872429964E-19  -2.117582368136E-20  1.060908766436E-19
-  Sum of elements... 1.323290368388E-13
-  Sum of squares of elements... 6.483745045949E-30
+  First elements... 3.928527308001E-28  -1.308665903508E-19  5.421010862428E-20
+  Last elements... 2.329340604949E-19  -2.117582368136E-20  1.060908766436E-19
+  Sum of elements... 5.341086997530E-14
+  Sum of squares of elements... 3.444359389701E-30
   Cell integral (grid SUM) = 0.00000000
-  Min: -5.77879758E-17
-  Average: 4.03836172E-18
-  Max: 1.65015571E-16
+  Min: -1.06360233E-16
+  Average: 1.62997040E-18
+  Max: 1.65882932E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
   Numerical derivatives? F
@@ -1243,14 +1243,14 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.004563560702E-35  2.035526051370E-20  -5.241016361136E-20
-  Last elements... -6.119813043912E-20  3.388131789017E-21  -1.214962883718E-20
-  Sum of elements... 2.909150450199E-15
-  Sum of squares of elements... 4.995586609173E-30
+  First elements... -1.133176554193E-35  2.035526051370E-20  -5.241016361136E-20
+  Last elements... -1.154082390634E-19  3.388131789017E-21  -1.214962883718E-20
+  Sum of elements... 1.643431655723E-15
+  Sum of squares of elements... 3.533345120247E-30
   Cell integral (grid SUM) = 0.00000000
-  Min: -2.23779328E-16
-  Average: 8.87802261E-20
-  Max: 2.14238349E-16
+  Min: -2.21827764E-16
+  Average: 5.01535539E-20
+  Max: 2.21177243E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
   Numerical derivatives? F
