@@ -1399,7 +1399,7 @@ contains
        call ferror('trick_makecif_ccdc','structure is not a molecular crystal',faterr)
 
     ! transform to the standard cell
-    matdum = sy%c%cell_standard(.false.,.false.,.false.)
+    matdum = sy%c%cell_standard(.false.,.false.,.true.)
 
     ! use symmetry?
     usesym = sy%c%spgavail
