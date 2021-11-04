@@ -5784,14 +5784,14 @@ contains
   !> Determine whether a given input file (.in) comes from an FHIaims
   !> or a quantum espresso calculation.
   subroutine which_in_format(file,isformat,ismol)
-    use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword
+    use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
     use param, only: isformat_qein, isformat_aimsin
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     logical, intent(out) :: ismol
 
     integer :: lu, lp
-    character(len=:), allocatable :: line, word
+    character(len=:), allocatable :: line, word, lline
 
     ! parse the input file looking for mandatory keywords
     isformat = 0
@@ -5802,9 +5802,10 @@ contains
     do while(getline_raw(lu,line))
        if (len_trim(line) == 0) cycle
        lp = 1
+       lline = lower(line)
        word = lgetword(line,lp)
        if (word(1:1) == "#") cycle
-       if ((index(line,"&control") > 0) .or. (index(line,"&system") > 0)) then
+       if ((index(lline,"&control") > 0) .or. (index(lline,"&system") > 0)) then
           isformat = isformat_qein
           ismol = .false.
           exit
