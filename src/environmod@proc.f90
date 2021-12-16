@@ -1370,7 +1370,9 @@ contains
          if (nat > size(dist,1)) call realloc(dist,2*nat)
          dist(nat) = dist0
       end if
-      if (doshell .and. nat > size(ishell,1)) call realloc(ishell,2*nat)
+      if (doshell) then
+         if (nat > size(ishell,1)) call realloc(ishell,2*nat)
+      end if
 
       ! Update the up2n rcut, distance to farthest known atom in the initial 1->up2n list.
       ! The final (ordered) list will have its farthest atom at a distance less than rcutn.
