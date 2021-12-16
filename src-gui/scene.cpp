@@ -75,7 +75,6 @@ void Scene::usetext(){
 }
 
 void Scene::grabFromC2(){
-  c2::scene_initialize(iscene);
   c2::set_scene_pointers(iscene);
   ismolecule = c2::ismolecule;
   scenerad = c2::scenerad;

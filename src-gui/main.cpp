@@ -71,8 +71,6 @@ int main(int argc, char *argv[]){
 	mol = -1;
       }
     }
-    if (c2::nsc > 0)
-      c2::scene_initialize(1);
     UpdateTreeData();
   }
 

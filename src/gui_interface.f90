@@ -347,6 +347,7 @@ contains
     if (allocated(sc(isc)%lcon)) deallocate(sc(isc)%lcon)
     allocate(sc(isc)%idcon(mncon_,sc(isc)%nat))
     allocate(sc(isc)%lcon(3,mncon_,sc(isc)%nat))
+
     sc(isc)%idcon = 0
     sc(isc)%lcon = 0
     do i = 1, sc(isc)%nat
@@ -398,6 +399,7 @@ contains
     integer(c_int), value, intent(in) :: isc
     if (isc == icursc .and..not.scupdated) return
 
+    if (sc(isc)%isinit == 1) call scene_initialize(isc)
     nat = 0
     isinit = 0
     if (isc < 1 .or. isc > nsc) return
