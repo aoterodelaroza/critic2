@@ -3099,16 +3099,34 @@ contains
           write (uout,'("# Id = fragment ID. nat = number of atoms in fragment. C-o-m = center of mass (",A,").")')&
              iunitname0(iunit)
           write (uout,'("# Discrete = is this fragment finite?")')
-          write (uout,'("# Id  nat           Center of mass            Discrete  ")')
-          do i = 1, c%nmol
-             if (c%ismolecule) then
-                xcm = (c%mol(i)%cmass()+c%molx0) * dunit0(iunit)
-             else
-                xcm = c%c2x(c%mol(i)%cmass())
-             end if
-             write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
-                (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
-          end do
+
+          if (.not.c%ismolecule.and.c%ismol3d.and.allocated(c%idxmol)) then
+             ! the table with the molecular equivalence integers
+             write (uout,'("# idx = 0 (molecule is symmetry-unique), n>0 (equivalent to molecule n), -1 (symmetric to self)")')
+             write (uout,'("# Id  nat           Center of mass            Discrete idx")')
+             do i = 1, c%nmol
+                if (c%ismolecule) then
+                   xcm = (c%mol(i)%cmass()+c%molx0) * dunit0(iunit)
+                else
+                   xcm = c%c2x(c%mol(i)%cmass())
+                end if
+                write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+                   (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete), string(c%idxmol(i),3,ioj_right)
+             end do
+          else
+             ! the simple table with just the list of fragments
+             write (uout,'("# Id  nat           Center of mass            Discrete")')
+             do i = 1, c%nmol
+                if (c%ismolecule) then
+                   xcm = (c%mol(i)%cmass()+c%molx0) * dunit0(iunit)
+                else
+                   xcm = c%c2x(c%mol(i)%cmass())
+                end if
+                write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+                   (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
+             end do
+          end if
+
           if (.not.c%ismolecule) then
              if (c%ismol3d .or. c%nlvac == 3) then
                 write (uout,'(/"+ This is a molecular crystal.")')
