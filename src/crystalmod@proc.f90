@@ -2515,7 +2515,7 @@ contains
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
-    use tools_io, only: ferror, faterr, warning, string
+    use tools_io, only: ferror, faterr, warning, string, uout
     use types, only: realloc
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
@@ -2590,9 +2590,16 @@ contains
              ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
              if (ok) exit
           end do
-          if (.not.ok) &
+          if (.not.ok) then
+             write (uout,'("! Error: cell vectors are not lattice translations. This can happen for")')
+             write (uout,'("! several reasons but a common one is that the symmetry in your crystal")')
+             write (uout,'("! was not correctly calculated, or read from an external file (a cif")')
+             write (uout,'("! file) that does not have all the symmetry operations. If this is the")')
+             write (uout,'("! case, please try to run SYM RECALC before before attempting the cell")')
+             write (uout,'("! transformation.")')
              call ferror("newcell","Cell vector number " // string(i) // &
-             " is not a pure translation",faterr)
+                " is not a pure translation",faterr)
+          end if
        end do
 
        ! inverse matrix
