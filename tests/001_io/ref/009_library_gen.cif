@@ -1,6 +1,6 @@
 data_009_library
 _audit_creation_method 'critic2'
-_audit_creation_date 2021-10-26
+_audit_creation_date 2021-12-16
 _chemical_formula_sum 'Cu'
 _cell_formula_units_Z 4
 _cell_length_a         5.6402000000
