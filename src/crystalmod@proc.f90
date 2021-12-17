@@ -985,8 +985,8 @@ contains
   end subroutine get_kpoints
 
   !> Calculate the distance matrix (molecules only). If inverse,
-  !> invert the distances. If conn, return 1d10 if the atoms are
-  !> bonded, 1 if not, zero in the diagonal.
+  !> invert the distances. If conn, return the distance if the atoms
+  !> are bonded, or zero if they are not bonded and in the diagonal.
   module subroutine distmatrix(c,d,inverse,conn)
     class(crystal), intent(in) :: c
     real*8, allocatable, intent(inout) :: d(:,:)
@@ -1006,13 +1006,12 @@ contains
     allocate(d(c%ncel,c%ncel))
 
     if (conn_) then
-       d = 1d0
+       d = 0.d0
        do i = 1, c%ncel
           do j = 1, c%nstar(i)%ncon
-             d(i,c%nstar(i)%idcon(j)) = 1d10
-             d(c%nstar(i)%idcon(j),i) = 1d10
+             d(i,c%nstar(i)%idcon(j)) = norm2(c%atcel(i)%r - c%atcel(c%nstar(i)%idcon(j))%r)
+             d(c%nstar(i)%idcon(j),i) = d(i,c%nstar(i)%idcon(j))
           end do
-          d(i,i) = 0d0
        end do
     else
        d = 0d0

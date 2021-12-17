@@ -1753,7 +1753,7 @@ contains
     type(json_value), pointer :: s, arr, ap, arr2, ap2
 
     integer :: str, sts
-    integer :: i, j, k, ip, nprop, idx
+    integer :: i, k, ip, nprop, idx
     type(scalar_value) :: res
     logical :: iok
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
@@ -2084,7 +2084,6 @@ contains
     use tools_io, only: uout, fopen_write, fclose, string, ferror, faterr
     character*(*), intent(in) :: file
 
-    integer :: lu
     type(json_core) :: json
     type(json_value), pointer :: p
 
@@ -2100,9 +2099,8 @@ contains
     call json%print(p,file)
     if (json%failed()) &
        call ferror("write_json_cps","error writing JSON file",faterr)
-       
+
     call json%destroy(p)
-       
 
   end subroutine write_json_cps
 

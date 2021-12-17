@@ -45,6 +45,7 @@ module struct_drivers
   public :: struct_identify
   public :: struct_makemols_neighcrys
   public :: struct_molreorder
+  public :: struct_molmove
   public :: struct_kpoints
   public :: struct_bz
 
@@ -133,6 +134,10 @@ module struct_drivers
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp
      end subroutine struct_molreorder
+     module subroutine struct_molmove(line,lp)
+       character*(*), intent(in) :: line
+       integer, intent(inout) :: lp
+     end subroutine struct_molmove
      module subroutine struct_kpoints(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line

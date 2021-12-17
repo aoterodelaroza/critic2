@@ -2933,13 +2933,13 @@ contains
     integer, parameter :: isuse_different_nat = 1
     integer, parameter :: isuse_incompatible_z = 1
 
-    write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
+    write(uout,'("* MOLREORDER: reorder the atoms in a molecule or a molecular crystal")')
 
     ! read the input
     ns = 0
     wfile = ""
     moveatoms = .false.
-    doinv = .true.
+    doinv = .false.
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -2947,39 +2947,39 @@ contains
           wfile = getword(line,lp)
        elseif (equal(lword,'moveatoms')) then
           moveatoms = .true.
-       elseif (equal(lword,'noinv')) then
-          doinv = .false.
+       elseif (equal(lword,'inv')) then
+          doinv = .true.
        elseif (len_trim(word) == 0) then
           exit
        else
           ns = ns + 1
           if (ns > 2) &
-             call ferror("struct_order_molecules","cannot order more than two structures",faterr)
+             call ferror("struct_molreorder","cannot order more than two structures",faterr)
           fname(ns) = word
        end if
     end do
     if (ns /= 2) &
-       call ferror("struct_order_molecules","need two structures to order",faterr)
+       call ferror("struct_molreorder","need two structures to order",faterr)
 
     ! get the reference structure and check it is a molecule
     call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
     if (.not.cref%isinit) &
-       call ferror("struct_order_molecules","could not load structure" // string(fname(1)),faterr)
+       call ferror("struct_molreorder","could not load structure" // string(fname(1)),faterr)
     if (.not.cref%ismolecule) &
-       call ferror("struct_order_molecules","the first structure is not a molecule",faterr)
+       call ferror("struct_molreorder","the first structure is not a molecule",faterr)
     if (cref%nmol > 1) &
-       call ferror("struct_order_molecules","the first structure contains more than one molecule",faterr)
+       call ferror("struct_molreorder","the first structure contains more than one molecule",faterr)
 
     ! get the other structure (do not guess the symmetry)
     call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
     if (.not.cx%isinit) &
-       call ferror("struct_order_molecules","could not load structure" // string(fname(2)),faterr)
+       call ferror("struct_molreorder","could not load structure" // string(fname(2)),faterr)
     if (.not.cx%ismolecule) then
        if (.not.cx%ismol3d) &
-          call ferror("struct_order_molecules","the target structure is not a molecular crystal",faterr)
+          call ferror("struct_molreorder","the target structure is not a molecular crystal",faterr)
        call cx%wholemols()
        if (any(cx%idxmol(1:cx%nmol) < 0)) &
-          call ferror("struct_order_molecules","the target structure must have whole molecules",faterr)
+          call ferror("struct_molreorder","the target structure must have whole molecules",faterr)
     end if
 
     ! read the fragments from cx into structures
@@ -3115,6 +3115,144 @@ contains
     deallocate(isperm,cidxorig,isuse,c)
 
   end subroutine struct_molreorder
+
+  !> Move the atoms in a molecular crystal to match the atomic
+  !> positions of the given molecules.
+  module subroutine struct_molmove(line,lp)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use fragmentmod, only: fragment
+    use tools, only: qcksort
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
+    use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
+    use types, only: realloc
+    character*(*), intent(in) :: line
+    integer, intent(inout) :: lp
+
+    integer :: i, j, n, ns, nat, idmin
+    type(crystal) :: cini, caux, cfin
+    character*1024, allocatable :: fname(:)
+    character(len=:), allocatable :: word
+    type(fragment), allocatable :: mol(:)
+    type(crystalseed) :: seed
+    real*8 :: rms, q1(3,3), xcm1(3), xcm2(3), xnew(3), dmin, dd
+    real*8, allocatable :: x1(:,:), x2(:,:)
+    integer, allocatable :: idx(:)
+    logical, allocatable :: used(:)
+    logical :: found
+
+    write(uout,'("* MOLMOVE: move the atoms in a molecule or a molecular crystal")')
+
+    ! read the input
+    ns = 0
+    allocate(fname(10))
+    do while (.true.)
+       word = getword(line,lp)
+       if (len_trim(word) == 0) exit
+
+       ns = ns + 1
+       if (ns > size(fname,1)) call realloc(fname,2*ns)
+       fname(ns) = word
+    end do
+    if (ns < 3) &
+       call ferror("struct_molmove","need more than two structures",faterr)
+
+    ! write some output
+    write (uout,'("+ Target structure: ",A)') string(fname(ns-1))
+    do i = 1, ns - 2
+    end do
+
+    ! read the target
+    call struct_crystal_input(fname(ns-1),-1,.false.,.false.,cr0=cini)
+    if (cini%ismolecule.or..not.cini%ismol3d) &
+       call ferror("struct_molmove","MOLMOVE can only be applied to molecular crystals",faterr)
+    if (cini%nmol /= ns-2) &
+       call ferror("struct_molmove","wrong number of molecules",faterr)
+
+    ! read the fragments
+    allocate(mol(ns-2))
+    do i = 1, ns-2
+       call struct_crystal_input(fname(i),1,.false.,.false.,cr0=caux)
+       if (.not.caux%ismolecule.or.caux%nmol /= 1) &
+          call ferror("struct_molmove","all fragments must be single molecules",faterr)
+       mol(i) = caux%mol(1)
+       do j = 1, caux%mol(1)%nat
+          mol(i)%at(j)%r = mol(i)%at(j)%r + caux%molx0
+       end do
+    end do
+
+    ! identify the molecules
+    allocate(idx(cini%nmol),used(cini%nmol))
+    used = .false.
+    do i = 1, cini%nmol
+       xcm1 = cini%mol(i)%cmass(.false.)
+
+       dmin = 1d40
+       do j = 1, cini%nmol
+          if (used(j)) cycle
+          xcm2 = mol(j)%cmass(.false.)
+          dd = dot_product(xcm1-xcm2,xcm1-xcm2)
+          if (dd < dmin) then
+             dmin = dd
+             idmin = j
+          end if
+       end do
+       idx(i) = idmin
+       used(idmin) = .true.
+    end do
+    deallocate(used)
+
+    ! build the final structure
+    call cini%makeseed(seed,.false.)
+    n = 0
+    do i = 1, cini%nmol
+       ! check
+       if (cini%mol(i)%nat /= mol(idx(i))%nat) &
+          call ferror("struct_molmove","for molecule "//string(i)// " the number of atoms do not match",faterr)
+
+       ! calculate the rotation matrix
+       nat = cini%mol(i)%nat
+       allocate(x1(3,nat),x2(3,nat))
+       do j = 1, nat
+          if (cini%spc(cini%mol(i)%at(j)%is)%z /= mol(idx(i))%spc(mol(idx(i))%at(j)%is)%z) &
+             call ferror("struct_molmove","for molecule "//string(i)//" atom number "//&
+             string(j)//" does not match",faterr)
+
+          x1(:,j) = cini%mol(i)%at(j)%r
+          x2(:,j) = mol(idx(i))%at(j)%r
+       end do
+       rms = rmsd_walker(x1,x2,q1)
+       deallocate(x1,x2)
+
+       ! some output
+       xcm1 = mol(idx(i))%cmass(.false.)
+       xcm2 = cini%mol(i)%cmass(.false.)
+       write (uout,'("  Molecule ",A,": ",A," with rms = ",A," bohr, d(cm) = ",A," bohr")') string(i), &
+          string(fname(idx(i))), string(rms,'f',decimal=4), string(norm2(xcm1-xcm2),'f',decimal=4)
+
+       ! move the atoms and put them in the seed
+       do j = 1, nat
+
+          xnew = mol(idx(i))%at(j)%r - xcm1
+          xnew = matmul(q1,xnew)
+          xnew = xnew + xcm2
+          xnew = cini%c2x(xnew)
+
+          n = n + 1
+          seed%x(:,n) = xnew
+          seed%is(n) = cini%mol(i)%at(j)%is
+       end do
+    end do
+    deallocate(mol,idx)
+
+    ! write the final structure
+    write (uout,'("+ Final structure: ",A)') string(fname(ns))
+    write (uout,*)
+    call cfin%struct_new(seed,.true.)
+    call cfin%write_simple_driver(fname(ns))
+    deallocate(fname)
+
+  end subroutine struct_molmove
 
   !> Calculate k-point grid to a certain Rk using VASP's recipe.
   module subroutine struct_kpoints(s,line)

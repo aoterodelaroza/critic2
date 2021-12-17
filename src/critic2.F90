@@ -41,7 +41,8 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys, struct_molreorder, struct_kpoints, struct_bz
+     struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
+     struct_kpoints, struct_bz
   use systemmod, only: systemmod_init, systemmod_end, sy
   use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
@@ -501,6 +502,10 @@ program critic
         ! molreorder
      elseif (equal(word,'molreorder')) then
         call struct_molreorder(line,lp)
+
+        ! molmove
+     elseif (equal(word,'molmove')) then
+        call struct_molmove(line,lp)
 
         ! kpoints
      elseif (equal(word,'kpoints')) then
