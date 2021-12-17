@@ -3165,7 +3165,7 @@ contains
     ! read the target
     call struct_crystal_input(fname(ns-1),-1,.false.,.false.,cr0=cini)
     if (cini%ismolecule.or..not.cini%ismol3d) &
-       call ferror("struct_molmove","MOLMOVE can only be applied to molecular crystals",faterr)
+       call ferror("struct_molmove","MOLMOVE can only be applied to molecular crystals (missing files?)",faterr)
     if (cini%nmol /= ns-2) &
        call ferror("struct_molmove","wrong number of molecules",faterr)
 

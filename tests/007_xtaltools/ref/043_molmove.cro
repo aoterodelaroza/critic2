@@ -1,0 +1,8 @@
+* MOLMOVE: move the atoms in a molecule or a molecular crystal
++ Target structure: ../zz_source/qe-6.5/large31-1/large31-1.scf.in
+  Molecule 1: ../zz_source/g16A.03/large31-1/large31-1_1.xyz with rms = 0.0523 bohr, d(cm) = 0.0000 bohr
+  Molecule 2: ../zz_source/g16A.03/large31-1/large31-1_3.xyz with rms = 0.0523 bohr, d(cm) = 0.0000 bohr
+  Molecule 3: ../zz_source/g16A.03/large31-1/large31-1_2.xyz with rms = 0.0523 bohr, d(cm) = 0.0000 bohr
+  Molecule 4: ../zz_source/g16A.03/large31-1/large31-1_4.xyz with rms = 0.0523 bohr, d(cm) = 0.0000 bohr
++ Final structure: 043_molmove_new.scf.in
+

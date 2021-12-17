@@ -41,6 +41,7 @@ set(TESTS
   040_molreorder_moveatoms   ## molreorder keyword, moveatoms
   041_kpoints                ## kpoints keyword
   042_bz                     ## bz keyword
+  043_molmove                ## molmove keyword
   )
 
 runtests(${TESTS})
