@@ -1,7 +1,7 @@
 * WRITE xyz files: 040_molreorder_moveatoms_gen_*.xyz
 + Written 4 1-mers
 
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: 040_molreorder_moveatoms_gen_1.xyz
   The target structure is a molecule with 1 fragments.
@@ -11,7 +11,7 @@
 
 * WRITE file: 040_molreorder_moveatoms_ordered.xyz
 
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: 040_molreorder_moveatoms_ordered.xyz
   The target structure is a molecule with 1 fragments.
@@ -19,7 +19,7 @@
 #id -- Reorder result --
  1  success (rmse=9.3368E-11,inv=No,perm=1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41)
 
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
   The target structure is a molecular crystal with 4 fragments.
@@ -32,7 +32,7 @@
 
 * WRITE file: 040_molreorder_moveatoms_ordered.res
 
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: 040_molreorder_moveatoms_ordered.res
   The target structure is a molecular crystal with 4 fragments.

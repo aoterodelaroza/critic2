@@ -58,17 +58,16 @@ contains
   !> contain all atoms within a distance dmax0 of any atom in the unit
   !> cell/molecule.
   module subroutine environ_build_lattice(e,m_x2c,dmax0)
-    use global, only: cutrad
     use tools, only: qcksort, delaunay_reduction
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: atmcov, ctsq32
+    use param, only: ctsq32
     class(environ), intent(inout) :: e
     real*8, intent(in) :: m_x2c(3,3)
     real*8, intent(in) :: dmax0
 
     logical :: dorepeat
-    real*8 :: sphmax, dmax, x(3), rmin(3), rmax(3)
+    real*8 :: sphmax, x(3), rmin(3), rmax(3)
     real*8 :: x0(3), x1(3), dist, rcut0, rmat(3,4)
     integer :: i1, i2, i3, i, m, imax, i3min, nreg
     integer, allocatable :: iord(:)

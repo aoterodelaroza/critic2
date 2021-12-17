@@ -825,11 +825,11 @@
   Grid dimensions : 36  36  36
   First elements... -9.889864151500E-06  -1.787904058265E-04  -1.747737008262E-03
   Last elements... -2.619170786950E-03  -2.598427240063E-04  6.947229587849E-04
-  Sum of elements... -8.504766769307E-12
+  Sum of elements... -8.502957886403E-12
   Sum of squares of elements... 1.431162223277E-01
   Cell integral (grid SUM) = -0.00000000
   Min: -1.99924923E-02
-  Average: -1.82286668E-16
+  Average: -1.82247897E-16
   Max: 2.84589615E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F

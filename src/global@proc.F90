@@ -173,6 +173,7 @@ contains
     write (uout,'("   -r: have critic2 find its data in /path/to/critic2 or /path/to/critic2/dat ")')
     write (uout,'("   -l: critic2 always generates files in the current working directory")')
     write (uout,'("   -q: quiet mode.")')
+    write (uout,'("   -t: testing mode.")')
     write (uout,'("")')
 
   end subroutine help_me

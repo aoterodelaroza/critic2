@@ -5363,7 +5363,7 @@ contains
   !> structure. If usesym0, write symmetry to the cif file; otherwise
   !> use P1.
   module subroutine write_cif(c,file,usesym0)
-    use global, only: fileroot
+    use global, only: fileroot, testing
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
        ferror, faterr
     use param, only: bohrtoa, maxzat
@@ -5372,7 +5372,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: usesym0
 
-    integer :: i, j, iz, lu, idx, izmol, gcdz
+    integer :: i, j, iz, lu, idx, gcdz
     character(len=mlen), allocatable :: strfin(:)
     character*2 :: sym
     character*3 :: schpg
@@ -5398,12 +5398,14 @@ contains
     ! open output file
     lu = fopen_write(file)
 
-    ! header
+    ! header (date and time mucks up testing)
     write (lu,'("data_",A)') string(deblank(fileroot))
     write (lu,'("_audit_creation_method ''critic2''")')
-    call date_and_time(values=datvalues)
-    write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
-       (string(datvalues(i)),i=1,3)
+    if (.not.testing) then
+       call date_and_time(values=datvalues)
+       write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
+          (string(datvalues(i)),i=1,3)
+    end if
 
     ! formula: count the number of element types
     allocate(atc(maxzat,c%nmol))

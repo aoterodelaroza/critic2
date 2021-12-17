@@ -37,6 +37,7 @@ macro (runtests)
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
       include("${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
     else()
+      file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" sed_list REGEX "^ *#.*sed *: ")
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" check_list REGEX "^ *#.*check *: ")
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" delete_list REGEX "^ *#.*delete *: ")
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" label_list REGEX "^ *#.*labels *: ")
@@ -51,7 +52,7 @@ macro (runtests)
     ## gen test
     add_test(
       NAME "GEN:${curdir}/${test}"
-      COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cro"
+      COMMAND critic2 -q -t -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       CONFIGURATIONS gen
       )
@@ -107,7 +108,7 @@ macro (runtests)
     ## run test
     add_test(
       NAME "-RUN-:${curdir}/${test}"
-      COMMAND critic2 -q -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
+      COMMAND critic2 -q -t -l "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" "${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       )
     set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY LABELS "${label_list}")

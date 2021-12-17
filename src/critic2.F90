@@ -44,7 +44,8 @@ program critic
      struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
      struct_kpoints, struct_bz
   use systemmod, only: systemmod_init, systemmod_end, sy
-  use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
+  use global, only: fileroot, quiet, testing, global_init, initial_banner, &
+     config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults, doguess, symprec
   use spglib, only: spg_list_spg
@@ -85,6 +86,7 @@ program critic
   call systemmod_init(1)
 
   ! parse global control options
+  testing = (index(optv,"t") /= 0)
   quiet = (index(optv,"q") /= 0)
   if (index(optv,"h") /= 0) then
      call initial_banner()

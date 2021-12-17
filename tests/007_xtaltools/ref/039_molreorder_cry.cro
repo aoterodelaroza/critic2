@@ -1,4 +1,4 @@
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
   The target structure is a molecular crystal with 4 fragments.

@@ -1951,7 +1951,6 @@ contains
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
-    character(len=mlen) :: mline
     logical :: ok, iscar
 
     integer :: i, j, ier
