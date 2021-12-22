@@ -986,7 +986,8 @@ contains
 
   !> Calculate the distance matrix (molecules only). If inverse,
   !> invert the distances. If conn, return the distance if the atoms
-  !> are bonded, or zero if they are not bonded and in the diagonal.
+  !> are bonded, and the inverse distance if they are not, and zero
+  !> along the diagonals.
   module subroutine distmatrix(c,d,inverse,conn)
     class(crystal), intent(in) :: c
     real*8, allocatable, intent(inout) :: d(:,:)
@@ -1007,6 +1008,12 @@ contains
 
     if (conn_) then
        d = 0.d0
+       do i = 1, c%ncel
+          do j = i+1, c%ncel
+             d(i,j) = 1d0/norm2(c%atcel(i)%r - c%atcel(j)%r)
+             d(j,i) = d(i,j)
+          end do
+       end do
        do i = 1, c%ncel
           do j = 1, c%nstar(i)%ncon
              d(i,c%nstar(i)%idcon(j)) = norm2(c%atcel(i)%r - c%atcel(c%nstar(i)%idcon(j))%r)
