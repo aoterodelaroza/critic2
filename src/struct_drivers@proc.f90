@@ -2906,6 +2906,7 @@ contains
 
   !> Put the atoms of one molecule in the same order as another.
   module subroutine struct_molreorder(line,lp)
+    use systemmod, only: sy
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
@@ -2971,7 +2972,11 @@ contains
        call ferror("struct_molreorder","need two structures to order",faterr)
 
     ! get the reference structure and check it is a molecule
-    call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
+    if (trim(fname(1)) == ".") then
+       cref = sy%c
+    else
+       call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
+    end if
     if (.not.cref%isinit) &
        call ferror("struct_molreorder","could not load structure" // string(fname(1)),faterr)
     if (.not.cref%ismolecule) &
@@ -2980,7 +2985,11 @@ contains
        call ferror("struct_molreorder","the first structure contains more than one molecule",faterr)
 
     ! get the other structure (do not guess the symmetry)
-    call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
+    if (trim(fname(2)) == ".") then
+       cx = sy%c
+    else
+       call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
+    end if
     if (.not.cx%isinit) &
        call ferror("struct_molreorder","could not load structure" // string(fname(2)),faterr)
     if (.not.cx%ismolecule) then
