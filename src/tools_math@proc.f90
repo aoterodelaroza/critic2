@@ -1823,6 +1823,169 @@ contains
 
   end subroutine umeyama_graph_matching
 
+  ! Ullmann's (sub)graph matching algorithm. Given two adjacency lists
+  ! (iz1,ncon1,idcon1) and (iz2,ncon2,idcon2), find all possible
+  ! permutations of the vertices in graph 1 that match graph 2. At
+  ! present, only permutations betwen whole graphs are searched for.
+  ! These graphs represent molecules and iz = list of atomic numbers,
+  ! ncon = list of bonded neighbors, and idcon = identity of the
+  ! bonded neighbors. iz1, ncon1, iz2, and ncon2 must all be of the
+  ! same length. On output, the list matrix has number of rows equal
+  ! to the length of iz1 and a number of columns equal to the number
+  ! of permutations found (nlist). list(:,i) contains permutation i.
+  module subroutine ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+    use tools_io, only: ferror, faterr
+    use types, only: realloc
+    integer, intent(in) :: iz1(:)
+    integer, intent(in) :: ncon1(:)
+    integer, intent(in) :: idcon1(:,:)
+    integer, intent(in) :: iz2(:)
+    integer, intent(in) :: ncon2(:)
+    integer, intent(in) :: idcon2(:,:)
+    integer, intent(out) :: nlist
+    integer, allocatable, intent(inout) :: list(:,:)
+
+    logical*1, allocatable :: passign(:,:)
+    integer, allocatable :: as(:)
+    integer :: ntot, nas
+    integer :: i, j
+
+    ! consistency check
+    ntot = size(iz1,1)
+    if (size(ncon1,1) /= ntot .or. size(idcon1,2) /= ntot .or. &
+       size(iz2,1) /= ntot .or. size(ncon2,1) /= ntot .or. size(idcon2,2) /= ntot) then
+       call ferror("ullmann_graph_matching","inconsistent sizes in input",faterr)
+    end if
+
+    ! initialize
+    nlist = 0
+    if (allocated(list)) deallocate(list)
+    allocate(list(ntot,10))
+
+    ! initial possible candidates assigned based on atomic number
+    allocate(passign(ntot,ntot))
+    passign = .false.
+    do i = 1, ntot
+       do j = 1, ntot
+          if (iz1(i) == iz2(j)) passign(i,j) = .true.
+       end do
+    end do
+
+    ! run the recursive depth-first search
+    nas = 0
+    allocate(as(ntot))
+    call ullmann_recurse(passign,nas,as)
+
+    ! wrap up
+    call realloc(list,ntot,nlist)
+
+    write (*,*) "bleh fin!"
+    do i = 1, ntot
+       write (*,*) list(:,i)
+    end do
+    stop 1
+
+  contains
+    recursive subroutine ullmann_recurse(passign,nas,as)
+      logical*1, intent(inout) :: passign(:,:)
+      integer, intent(in) :: nas
+      integer, intent(inout) :: as(ntot)
+
+      integer :: i
+      logical*1, allocatable :: passign_(:,:)
+
+      ! update the possible assignments
+      call update_passign(passign)
+
+      ! check that the edges involving the last vertex assigned in graph
+      ! 1 have an equivalent in graph 2.
+      if (nas > 0) then
+         do j = 1, ncon1(nas)
+            ! only if idcon1(i,j) has been assigned already
+            if (idcon1(j,nas) <= nas) then
+               ! edge i-j in graph 1 must have edge assign(i),assign(idcon1(i,j)) in graph 2
+               if (all(idcon2(1:ncon2(as(nas)),as(nas)) /= as(idcon1(j,nas)))) return
+            endif
+         enddo
+      endif
+
+      ! if all vertices are done, record the match and finish
+      if (nas == ntot) then
+         nlist = nlist + 1
+         if (nlist > size(list,2)) then
+            call realloc(list,ntot,2*nlist)
+         end if
+         list(:,nlist) = as(1:nas)
+         return
+      end if
+
+      ! run over possible assignments
+      allocate(passign_(ntot,ntot))
+      do i = 1, ntot
+         if (.not.passign(nas+1,i)) cycle
+         as(nas+1) = i
+
+         ! spawn a copy and update the possible assignments matrix with
+         ! the information that nas+1 has only i as candidate and that i
+         ! can only be a candidate to nas+1.
+         passign_ = passign
+         passign_(:,i) = .false.
+         passign_(nas+1,:) = .false.
+         passign_(nas+1,i) = .true.
+
+         ! recurse
+         call ullmann_recurse(passign_,nas+1,as)
+
+         ! unassign
+         as(nas+1) = 0
+
+         ! update the possible assignments matrix; eliminate the nas+1-i option.
+         passign(nas+1,i) = 0
+         call update_passign(passign)
+      end do
+
+    end subroutine ullmann_recurse
+
+    subroutine update_passign(passign)
+      logical*1, intent(inout) :: passign(:,:)
+
+      logical :: again, found
+      integer :: i, j, ix, jx
+
+      again = .true.
+      do while (again)
+         again = .false.
+
+         ! run over all the edges associated with i
+         do i = 1, ntot
+            do ix = 1, ncon1(i)
+
+               ! run over all the possible assignments for i
+               do j = 1, ntot
+                  if (.not.passign(i,j)) cycle
+                  ! then over all the edges of the candidate
+                  found = .false.
+                  do jx = 1, ncon2(j)
+                     ! check the edge in graph 2 is a possible assignment of the edge in graph 1
+                     if (passign(idcon1(ix,i),idcon2(jx,j))) then
+                        found = .true.
+                        exit
+                     end if
+                  end do
+                  if (.not.found) then
+                     ! this is not a good candidate, kill it and repeat
+                     passign(i,j) = .false.
+                     again = .true.
+                  end if
+               end do
+            end do
+         end do
+      end do
+
+    end subroutine update_passign
+
+  end subroutine ullmann_graph_matching
+
   !> Invert a permutation iperm(1:n). The values of iperm must all be
   !> different and between 1 and n.
   module function invert_permutation(iperm)
