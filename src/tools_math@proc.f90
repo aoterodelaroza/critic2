@@ -1879,12 +1879,6 @@ contains
     ! wrap up
     call realloc(list,ntot,nlist)
 
-    write (*,*) "bleh fin!"
-    do i = 1, ntot
-       write (*,*) list(:,i)
-    end do
-    stop 1
-
   contains
     recursive subroutine ullmann_recurse(passign,nas,as)
       logical*1, intent(inout) :: passign(:,:)

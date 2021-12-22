@@ -2909,7 +2909,8 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
-    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
+       ullmann_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
     character*(*), intent(in) :: line
@@ -2921,17 +2922,20 @@ contains
     character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
     integer :: i, n, is, ns, nat
-    real*8 :: rms1, rms2, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
+    real*8 :: rms1, rms2, rmsmin, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
     integer, allocatable :: isuse(:), isperm(:,:)
     integer, allocatable :: cidxorig(:,:)
     real*8, allocatable :: x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:), mrot(:,:,:)
-    logical :: moveatoms, doinv
+    logical :: moveatoms, doinv, umeyama
+    integer, allocatable :: iz1(:), iz2(:), ncon1(:), ncon2(:), idcon1(:,:), idcon2(:,:), list(:,:)
+    integer :: mcon, nlist
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
-    integer, parameter :: isuse_incompatible_z = 1
+    integer, parameter :: isuse_incompatible_z = 2
+    integer, parameter :: isuse_permutation_not_found = 3
 
     write(uout,'("* MOLREORDER: reorder the atoms in a molecule or a molecular crystal")')
 
@@ -2940,6 +2944,7 @@ contains
     wfile = ""
     moveatoms = .false.
     doinv = .false.
+    umeyama = .false.
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -2949,6 +2954,10 @@ contains
           moveatoms = .true.
        elseif (equal(lword,'inv')) then
           doinv = .true.
+       elseif (equal(lword,'umeyama')) then
+          umeyama = .true.
+       elseif (equal(lword,'ullmann')) then
+          umeyama = .false.
        elseif (len_trim(word) == 0) then
           exit
        else
@@ -2992,63 +3001,126 @@ contains
     end do
 
     ! allocate the use and permutation arrays
-    allocate(isuse(ns),isperm(cref%nneq,ns))
+    allocate(isuse(ns),isperm(cref%ncel,ns))
     isuse = isuse_valid
 
     ! check that the number of atoms are equal
     do i = 1, ns
-       if (cref%nneq /= c(i)%nneq) isuse(i) = isuse_different_nat
+       if (cref%ncel /= c(i)%ncel) isuse(i) = isuse_different_nat
     end do
-    nat = cref%nneq
+    nat = cref%ncel
+
+    ! allocate some work space
+    allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
 
     ! make the mapping between structure+atom and the original cidx
     ! sort because the from_fragment routine also sorts
     allocate(cidxorig(nat,ns))
     do is = 1, ns
+       if (isuse(is) /= isuse_valid) cycle
        do i = 1, nat
           cidxorig(i,is) = cx%mol(is)%at(i)%cidx
        end do
        call qcksort(cidxorig(:,is))
     end do
 
-    ! allocate space and get reference distance matrix
-    allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
-    call cref%distmatrix(dref,conn=.true.)
+    ! calculate the permutations (isperm) with the appropriate method.
+    ! if the permutation is not found, deactivate the structure.
+    if (umeyama) then
+       ! use the umeyama method
+       allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
+       call cref%distmatrix(dref,conn=.true.)
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+          ddg = dref
+          call c(is)%distmatrix(ddh,conn=.true.)
+          call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
+          if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
+             isuse(is) = isuse_incompatible_z
+       end do
+       deallocate(dref,ddg,ddh)
+    else
+       ! use the ullmann method
+       ! obtain the maximum number of bonds per atom
+       mcon = 0
+       do i = 1, cref%ncel
+          mcon = max(mcon,cref%nstar(i)%ncon)
+       end do
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+          do i = 1, c(is)%ncel
+             mcon = max(mcon,c(is)%nstar(i)%ncon)
+          end do
+       end do
 
-    ! calculate the permutations
-    do is = 1, ns
-       ddg = dref
-       call c(is)%distmatrix(ddh,conn=.true.)
-       call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
-       if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
-          isuse(is) = isuse_incompatible_z
-    end do
+       ! allocate work space and prepare reference arrays
+       allocate(iz1(nat),ncon1(nat),idcon1(mcon,nat),iz2(nat),ncon2(nat),idcon2(mcon,nat))
+       idcon1 = 0
+       do i = 1, nat
+          iz1(i) = cref%spc(cref%atcel(i)%is)%z
+          ncon1(i) = cref%nstar(i)%ncon
+          idcon1(1:ncon1(i),i) = cref%nstar(i)%idcon(1:ncon1(i))
+       end do
+
+       ! run over all target structures
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+
+          ! arrays for the target structure
+          idcon2 = 0
+          do i = 1, nat
+             iz2(i) = c(is)%spc(c(is)%atcel(i)%is)%z
+             ncon2(i) = c(is)%nstar(i)%ncon
+             idcon2(1:ncon2(i),i) = c(is)%nstar(i)%idcon(1:ncon2(i))
+          end do
+
+          ! run ullmann to get the list of candidates
+          call ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+          if (nlist == 0) then
+             isuse(is) = isuse_permutation_not_found
+          else
+             ! select the candidate with the lowest rms
+             rmsmin = huge(1d0)
+             do i = 1, nlist
+                call calculate_rms(is,list(:,i),.false.,rms1,q1)
+                if (rms1 < rmsmin) then
+                   isperm(:,is) = list(:,i)
+                   rmsmin = rms1
+                end if
+                if (doinv) then
+                   call calculate_rms(is,list(:,i),.true.,rms1,q1)
+                   if (rms1 < rmsmin) then
+                      isperm(:,is) = list(:,i)
+                      rmsmin = rms1
+                   end if
+                end if
+             end do
+          end if
+       end do
+
+       ! wrap up
+       deallocate(iz1,ncon1,idcon1,iz2,ncon2,idcon2)
+    end if
 
     ! Get the rmsd from walker. If moveatoms, also save the rotation.
-    allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
     if (moveatoms) allocate(mrot(3,3,ns))
-    do i = 1, nat
-       x1(:,i) = cref%at(i)%r
-    end do
-    rmsd = 0d0
+    rmsd = huge(1d0)
     isinv = .false.
     do is = 1, ns
        if (isuse(is) /= isuse_valid) cycle
-       do i = 1, nat
-          x2(:,i) = c(is)%at(isperm(i,is))%r
-       end do
-       rms1 = rmsd_walker(x1,x2,q1)
-       x2 = -x2
-       rms2 = rmsd_walker(x1,x2,q2)
-       if (rms1 <= rms2.or..not.doinv) then
-          isinv(is) = .false.
-          rmsd(is) = rms1
-          if (moveatoms) mrot(:,:,is) = q1
-       else
-          isinv(is) = .true.
-          rmsd(is) = rms2
-          if (moveatoms) mrot(:,:,is) = q2
+
+       call calculate_rms(is,isperm(:,is),.false.,rms1,q1)
+       isinv(is) = .false.
+       if (doinv) then
+          call calculate_rms(is,isperm(:,is),.true.,rms2,q2)
+          if (rms2 < rms1) then
+             isinv(is) = .true.
+             rms1 = rms2
+             q1 = q2
+          end if
        end if
+       rmsd(is) = rms1
+       if (moveatoms) mrot(:,:,is) = q1
     end do
     deallocate(x1,x2)
 
@@ -3060,6 +3132,11 @@ contains
     else
        write (uout,'("  The target structure is a molecular crystal with ",A," fragments.")') string(ns)
     end if
+    if (umeyama) then
+       write (uout,'("+ Method: umeyama")')
+    else
+       write (uout,'("+ Method: ullmann")')
+    end if
     write (uout,'("# List of reordered structures (",A,")")') string(ns)
     write (uout,'("#id -- Reorder result --")')
     do is = 1, ns
@@ -3067,6 +3144,8 @@ contains
           msg = "the target and reference structures have different number of atoms"
        elseif (isuse(is) == isuse_incompatible_z) then
           msg = "the target and reference structures have different atomic types"
+       elseif (isuse(is) == isuse_permutation_not_found) then
+          msg = "ullmann could not find an appropriate permutation for the atomic sequence"
        else
           msg = ""
           do i = 1, nat
@@ -3113,6 +3192,37 @@ contains
        call cx%write_simple_driver(wfile)
     end if
     deallocate(isperm,cidxorig,isuse,c)
+
+  contains
+
+    ! Calculate the rms between the reference molecule and the target
+    ! molecule is using permutation isperm. If inv, invert the
+    ! coordinates of the target molecule. Returns the rmsd and,
+    ! possibly, the rotation matrix. Requires nat and having x1 and x2
+    ! allocated.
+    subroutine calculate_rms(is,isperm,inv,rms,mrot)
+      integer, intent(in) :: is
+      integer, intent(in) :: isperm(nat)
+      logical, intent(in) :: inv
+      real*8, intent(out) :: rms
+      real*8, optional, intent(out) :: mrot(3,3)
+
+      integer :: i
+      real*8 :: q(3,3)
+
+      if (present(mrot)) mrot = 0d0
+      rms = huge(1d0)
+      if (isuse(is) /= isuse_valid) return
+
+      do i = 1, nat
+         x1(:,i) = cref%at(i)%r
+         x2(:,i) = c(is)%at(isperm(i))%r
+      end do
+      if (inv) x2 = -x2
+      rms = rmsd_walker(x1,x2,q)
+      if (present(mrot)) mrot = q
+
+    end subroutine calculate_rms
 
   end subroutine struct_molreorder
 
