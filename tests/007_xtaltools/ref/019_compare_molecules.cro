@@ -8,6 +8,7 @@
   Molecule 5 : ../zz_source/g16A.03/benzene/benzene.fchk
   Molecule 6 : ../zz_source/g16A.03/benzene/benzene.log
 # Using cross-correlated radial distribution functions (RDF).
+# Two structures are exactly equal if DIFF = 0.
    Molecule     molecular library (neopentane) 019_compare_molecules_gen.xyz ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk
      DIFF              1               2               3               4               5       
   molecular library (neopentane)  0.0000000       0.0000000       0.1028311       0.1028311       0.1028311     
