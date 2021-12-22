@@ -2606,7 +2606,7 @@ contains
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
 
-    integer :: lu, fid, nprop
+    integer :: fid, nprop
     integer :: i, j, k, l
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     real*8 :: x(3), xcm(3)

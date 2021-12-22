@@ -1934,7 +1934,7 @@ contains
          as(nas+1) = 0
 
          ! update the possible assignments matrix; eliminate the nas+1-i option.
-         passign(nas+1,i) = 0
+         passign(nas+1,i) = .false.
          call update_passign(passign)
       end do
 

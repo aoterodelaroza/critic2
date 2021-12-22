@@ -1942,7 +1942,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa, mlen
+    use param, only: bohrtoa
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?

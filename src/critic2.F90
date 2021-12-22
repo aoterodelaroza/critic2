@@ -519,7 +519,7 @@ program critic
      elseif (equal(word,'bz')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call struct_bz(sy,line(lp:))
+        call struct_bz(sy)
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&

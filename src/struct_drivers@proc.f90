@@ -444,7 +444,7 @@ contains
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
-       string, warning
+       string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
@@ -3366,7 +3366,6 @@ contains
     real*8, allocatable :: x1(:,:), x2(:,:)
     integer, allocatable :: idx(:)
     logical, allocatable :: used(:)
-    logical :: found
 
     write(uout,'("* MOLMOVE: move the atoms in a molecule or a molecular crystal")')
 
@@ -3545,7 +3544,7 @@ contains
   end subroutine struct_kpoints
 
   !> Calculate and print information about the Brilloun zone.
-  module subroutine struct_bz(s,line)
+  module subroutine struct_bz(s)
     use, intrinsic :: iso_c_binding, only: c_int, c_double
     use global, only: iunitname0, iunit, dunit0
     use tools_math, only: matinv
@@ -3553,7 +3552,6 @@ contains
     use tools, only: delaunay_reduction
     use param, only: pi
     type(system), intent(in) :: s
-    character*(*), intent(in) :: line
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c

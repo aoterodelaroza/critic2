@@ -686,7 +686,7 @@ contains
     use global, only: fileroot, rborder_def, eval_next
     use tools_io, only: lgetword, getword, ferror, faterr, getline_raw, fopen_read,&
        fclose, zatguess, isinteger, string, uout, equal, lower
-    use tools_math, only: crosscorr_triangle, umeyama_graph_matching, rmsd_walker
+    use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools, only: mergesort, qcksort
     use types, only: realloc
     use param, only: bohrtoa, isformat_xyz
