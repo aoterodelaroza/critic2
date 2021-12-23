@@ -41,9 +41,11 @@ program critic
      struct_sym, struct_charges, struct_atomlabel, struct_write,&
      struct_powder, struct_rdf, struct_environ, struct_coord, struct_packing,&
      struct_vdw, struct_compare, struct_identify, struct_econ, struct_polyhedra,&
-     struct_makemols_neighcrys, struct_molreorder, struct_kpoints, struct_bz
+     struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
+     struct_kpoints, struct_bz
   use systemmod, only: systemmod_init, systemmod_end, sy
-  use global, only: fileroot, quiet, global_init, initial_banner, config_write, &
+  use global, only: fileroot, quiet, testing, global_init, initial_banner, &
+     config_write, &
      help_me, iunit, iunit_isdef, iunit_ang, iunit_bohr, eval_next, &
      critic_clearvariable, critic_setvariables, global_set_defaults, doguess, symprec
   use spglib, only: spg_list_spg
@@ -84,6 +86,7 @@ program critic
   call systemmod_init(1)
 
   ! parse global control options
+  testing = (index(optv,"t") /= 0)
   quiet = (index(optv,"q") /= 0)
   if (index(optv,"h") /= 0) then
      call initial_banner()
@@ -502,6 +505,10 @@ program critic
      elseif (equal(word,'molreorder')) then
         call struct_molreorder(line,lp)
 
+        ! molmove
+     elseif (equal(word,'molmove')) then
+        call struct_molmove(line,lp)
+
         ! kpoints
      elseif (equal(word,'kpoints')) then
         call check_structure_defined(ok)
@@ -512,7 +519,7 @@ program critic
      elseif (equal(word,'bz')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call struct_bz(sy,line(lp:))
+        call struct_bz(sy)
 
         ! sum/min/max/mean/count
      elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&

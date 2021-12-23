@@ -1,10 +1,11 @@
 * WRITE xyz files: 038_molreorder_mol_gen_*.xyz
 + Written 4 1-mers
 
-* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal
+* MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
 + Target structure: 038_molreorder_mol_gen_1.xyz
   The target structure is a molecule with 1 fragments.
++ Method: ullmann
 # List of reordered structures (1)
 #id -- Reorder result --
  1  success (rmse=1.6838E-01,inv=No,perm=8 9 12 4 10 13 16 5 25 7 11 14 17 21 31 40 1 3 30 6 15 18 20 32 33 41 2 26 28 29 19 22 24 34 35 27 23 36 37 39 38)

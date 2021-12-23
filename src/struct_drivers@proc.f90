@@ -444,7 +444,7 @@ contains
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
-       string, warning
+       string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
@@ -1140,7 +1140,7 @@ contains
 
   end subroutine struct_rdf
 
-  !> Compare two crystal structures using the powder diffraction
+  !> Compare two or more structures using the powder diffraction
   !> patterns or the radial distribution functions. Uses the
   !> similarity based on cross-correlation functions proposed in
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
@@ -1149,25 +1149,28 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: struct_detect_format
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
-    use tools_math, only: crosscorr_triangle, rmsd_walker
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
+       ullmann_graph_matching
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
        ioj_left, string, lower
     use types, only: realloc
-    use param, only: isformat_unknown
+    use param, only: isformat_unknown, maxzat
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, lword, tname, difstr, diftyp
+    character(len=:), allocatable :: word, lword, tname, difstr
     integer :: doguess0
-    integer :: lp, i, j, k, n
-    integer :: ns, imol, isformat, ismoli
+    integer :: lp, i, j, k, l, n, iz, is
+    integer :: ns, imol, isformat, mcon, nlist
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
-    integer, allocatable :: hvecp(:,:)
+    real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
+    integer, allocatable :: hvecp(:,:), zcount1(:), zcount2(:), isperm(:), list(:,:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
-    logical :: ok, usedot
-    logical :: dopowder, ismol, laux, sorted
+    integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
+    logical :: ok
+    logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
     logical, allocatable :: unique(:)
 
@@ -1179,20 +1182,25 @@ contains
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
 
-    ! initialized
-    doguess0 = doguess
+    integer :: imethod
+    integer, parameter :: imethod_default = 0
+    integer, parameter :: imethod_powder = 1
+    integer, parameter :: imethod_rdf = 2
+    integer, parameter :: imethod_sorted = 3
+    integer, parameter :: imethod_umeyama = 4
+    integer, parameter :: imethod_ullmann = 5
+
+    ! initialize
+    imethod = imethod_default
     lp = 1
     ns = 0
-    dopowder = .true.
     xend = -1d0
-    allocate(fname(1))
-    sorted = .false.
+    allocate(fname(10))
     sigma = sigma0
     epsreduce = -1d0
+    imol = -1
 
     ! read the input options
-    doguess = 0
-    imol = -1
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -1215,18 +1223,19 @@ contains
              return
           end if
        elseif (equal(lword,'powder')) then
-          dopowder = .true.
+          imethod = imethod_powder
        elseif (equal(lword,'rdf')) then
-          dopowder = .false.
-          sorted = .false.
+          imethod = imethod_rdf
+       elseif (equal(lword,'ullmann')) then
+          imethod = imethod_ullmann
+       elseif (equal(lword,'umeyama')) then
+          imethod = imethod_umeyama
+       elseif (equal(lword,'sorted')) then
+          imethod = imethod_sorted
        elseif (equal(lword,'molecule')) then
           imol = 1
        elseif (equal(lword,'crystal')) then
           imol = 0
-       elseif (equal(lword,'sorted')) then
-          sorted = .true.
-       elseif (equal(lword,'unsorted')) then
-          sorted = .false.
        elseif (len_trim(word) > 0) then
           ns = ns + 1
           if (ns > size(fname)) &
@@ -1239,42 +1248,45 @@ contains
     if (ns < 2) &
        call ferror('struct_compare','At least 2 structures are needed for the comparison',faterr)
 
-    ! determine whether to use crystalmod or molecule comparison
-    ismol = .true.
-    usedot = .false.
-    do i = 1, ns
-       if (.not.equal(fname(i),".")) then
-          call struct_detect_format(fname(i),isformat,laux)
-          ismol = ismol .and. laux
-          if (isformat == isformat_unknown) &
-             call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
-          inquire(file=fname(i),exist=laux)
-          if (.not.laux) &
-             call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
-       else
-          usedot = .true.
-       end if
-    end do
+    ! no symmetry for new structures
+    doguess0 = doguess
+    doguess = 0
+
+    ! determine whether to use crystal or molecule comparison
     if (imol == 0) then
        ismol = .false.
     elseif (imol == 1) then
        ismol = .true.
-    end if
-    if (usedot) then
-       if ((s%c%ismolecule .neqv. ismol)) &
-          call ferror("struct_compare","current structure (.) incompatible with molecule/crystal in compare",faterr)
-       if (.not.s%c%isinit) &
-          call ferror('struct_compare','Current structure is not initialized.',faterr)
+    else
+       ismol = .true.
+       do i = 1, ns
+          if (.not.equal(fname(i),".")) then
+             call struct_detect_format(fname(i),isformat,laux)
+             ismol = ismol .and. laux
+             if (isformat == isformat_unknown) &
+                call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
+             inquire(file=fname(i),exist=laux)
+             if (.not.laux) &
+                call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
+          else
+             if (.not.s%c%isinit) &
+                call ferror('struct_compare','Current structure (".") is not initialized.',faterr)
+             ismol = ismol .and. s%c%ismolecule
+          end if
+       end do
+       if (ismol) then
+          imol = 1
+       else
+          imol = 0
+       end if
     end if
 
-    ! Read the structures and header
+    ! Read the structures and write header
     write (uout,'("* COMPARE: compare structures")')
     if (ismol) then
        tname = "Molecule"
-       ismoli = 1
     else
        tname = "Crystal"
-       ismoli = 0
     end if
     allocate(c(ns))
     do i = 1, ns
@@ -1283,47 +1295,78 @@ contains
           c(i) = s%c
        else
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
-          call struct_crystal_input(fname(i),ismoli,.false.,.false.,cr0=c(i))
+          call struct_crystal_input(fname(i),imol,.false.,.false.,cr0=c(i))
           if (.not.c(i)%isinit) &
              call ferror("struct_compare","could not load crystal structure" // string(fname(i)),faterr)
        end if
     end do
 
-    ! rest of the header and default variables
+    ! decide on the method, if it is not already set to a valid value
     if (ismol) then
-       diftyp = "Molecule"
-       if (sorted) then
-          difstr = "RMS"
-          write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
-       else
-          difstr = "DIFF"
-          write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
-          dopowder = .false.
-          if (xend < 0d0) xend = rend0
+       ! get the Z count and the sequence for the first molecule
+       allocate(zcount1(maxzat),zcount2(maxzat))
+       zcount1 = 0
+       do i = 1, c(1)%ncel
+          iz = c(1)%spc(c(1)%atcel(i)%is)%z
+          zcount1(iz) = zcount1(iz) + 1
+       end do
+
+       ! get the Z count for the other molecules
+       lzc = .true.
+       do is = 2, ns
+          zcount2 = 0
+          do i = 1, c(is)%ncel
+             iz = c(is)%spc(c(is)%atcel(i)%is)%z
+             zcount2(iz) = zcount2(iz) + 1
+          end do
+          lzc = lzc .and. all(zcount2 == zcount1)
+          if (.not.lzc) exit
+       end do
+       deallocate(zcount1,zcount2)
+
+       ! rdf if the atom counts are not the same, otherwise ullmann is default
+       if (.not.lzc) then
+          imethod = imethod_rdf
+       elseif (imethod == imethod_default .or. imethod == imethod_powder) then
+          imethod = imethod_ullmann
        end if
     else
-       diftyp = "Crystal"
-       difstr = "DIFF"
-       if (dopowder) then
-          write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
-          if (xend < 0d0) xend = th2end0
-       else
-          write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
-          if (xend < 0d0) xend = rend0
-       end if
+       if (imethod /= imethod_rdf) imethod = imethod_powder
+    end if
+
+    ! rest of the header and default variables
+    if (imethod == imethod_powder) then
+       write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       if (xend < 0d0) xend = th2end0
+       difstr = "DIFF"
+    elseif (imethod == imethod_rdf) then
+       write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       if (xend < 0d0) xend = rend0
+       difstr = "DIFF"
+    else
+       if (imethod == imethod_sorted) then
+          write (uout,'("# Assuming the atom sequence is the same in all molecules.")')
+       elseif (imethod == imethod_umeyama) then
+          write (uout,'("# Using Umeyama''s graph matching algorithm.")')
+       elseif (imethod == imethod_ullmann) then
+          write (uout,'("# Using Ullmann''s graph matching algorithm.")')
+       end if
+       write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
+       difstr = "RMS"
     end if
 
     ! allocate space for difference/rms values
     allocate(diff(ns,ns))
     diff = 1d0
 
-    if (.not.ismol .or. (ismol.and..not.sorted)) then
+    if (imethod == imethod_powder .or. imethod == imethod_rdf) then
        ! crystals
        allocate(iha(npts,ns))
        do i = 1, ns
           ! calculate the powder diffraction pattern
-          if (dopowder) then
+          if (imethod == imethod_powder) then
              call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
 
              ! normalize the integral of abs(ih)
@@ -1360,26 +1403,91 @@ contains
        end do
        deallocate(xnorm)
     else
-       ! molecules
+       ! molecules, ullmann, sorted, and umeyama. We have already made sure
+       ! that the atoms counts are the same, so now we need the permutation
+       ! prepare...
+       n = c(1)%ncel
+       allocate(isperm(n),x1(3,n),x2(3,n))
+       if (imethod == imethod_umeyama) then
+          allocate(dref(n,n),ddg(n,n),ddh(n,n))
+       elseif (imethod == imethod_ullmann) then
+          mcon = 0
+          do i = 1, ns
+             do j = 1, n
+                mcon = max(mcon,c(i)%nstar(j)%ncon)
+             end do
+          end do
+          allocate(iz1(n),ncon1(n),idcon1(mcon,n),iz2(n),ncon2(n),idcon2(mcon,n))
+       end if
+
+       ! run over structure pairs
        diff = 0d0
        do i = 1, ns
+          ! save the atomic coordinates to x1
+          do k = 1, n
+             x1(:,k) = c(i)%atcel(k)%r + c(i)%molx0
+          end do
+          if (imethod == imethod_umeyama) then
+             call c(i)%distmatrix(dref,conn=.true.)
+          elseif (imethod == imethod_ullmann) then
+             idcon1 = 0
+             do k = 1, n
+                iz1(k) = c(i)%spc(c(i)%atcel(k)%is)%z
+                ncon1(k) = c(i)%nstar(k)%ncon
+                idcon1(1:ncon1(k),k) = c(i)%nstar(k)%idcon(1:ncon1(k))
+             end do
+          end if
+
           do j = i+1, ns
-             if (c(i)%ncel == c(j)%ncel) then
-                n = c(i)%ncel
-                allocate(x1(3,n),x2(3,n))
+
+             if (imethod == imethod_umeyama) then
+                ddg = dref
+                call c(j)%distmatrix(ddh,conn=.true.)
+                call umeyama_graph_matching(n,ddg,ddh,isperm)
                 do k = 1, n
-                   x1(:,k) = c(i)%atcel(k)%r + c(i)%molx0
+                   x2(:,k) = c(j)%atcel(isperm(k))%r + c(j)%molx0
+                end do
+                diffmin = rmsd_walker(x1,x2)
+             elseif (imethod == imethod_ullmann) then
+                idcon2 = 0
+                do k = 1, n
+                   iz2(k) = c(j)%spc(c(j)%atcel(k)%is)%z
+                   ncon2(k) = c(j)%nstar(k)%ncon
+                   idcon2(1:ncon2(k),k) = c(j)%nstar(k)%idcon(1:ncon2(k))
+                end do
+                call ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+                diffmin = huge(1d0)
+                do k = 1, nlist
+                   isperm = list(:,k)
+                   do l = 1, n
+                      x2(:,l) = c(j)%atcel(isperm(l))%r + c(j)%molx0
+                   end do
+                   diff2 = rmsd_walker(x1,x2)
+                   if (diff2 < diffmin) diffmin = diff2
+                end do
+             else
+                do k = 1, n
                    x2(:,k) = c(j)%atcel(k)%r + c(j)%molx0
                 end do
-                diff(i,j) = rmsd_walker(x1,x2)
-                deallocate(x1,x2)
-             else
-                diff(i,j) = -1d0
+                diffmin = rmsd_walker(x1,x2)
              end if
+
+             ! calculate the RMS
+             diff(i,j) = diffmin
              diff(j,i) = diff(i,j)
           end do
        end do
        diff = diff * dunit0(iunit)
+       deallocate(isperm,x1,x2)
+       if (allocated(dref)) deallocate(dref)
+       if (allocated(ddg)) deallocate(ddg)
+       if (allocated(ddh)) deallocate(ddh)
+       if (allocated(iz1)) deallocate(iz1)
+       if (allocated(ncon1)) deallocate(ncon1)
+       if (allocated(idcon1)) deallocate(idcon1)
+       if (allocated(iz2)) deallocate(iz2)
+       if (allocated(ncon2)) deallocate(ncon2)
+       if (allocated(idcon2)) deallocate(idcon2)
     endif
 
     ! write output
@@ -1387,7 +1495,7 @@ contains
        write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
     else
        do i = 0, (ns-1)/5
-          write (uout,'(99(A,X))') string(diftyp,15,ioj_center), &
+          write (uout,'(99(A,X))') string(tname,15,ioj_center), &
              (string(c(5*i+j)%file,15,ioj_center),j=1,min(5,ns-i*5))
           write (uout,'(99(A,X))') string(difstr,15,ioj_center), &
              (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
@@ -2906,10 +3014,12 @@ contains
 
   !> Put the atoms of one molecule in the same order as another.
   module subroutine struct_molreorder(line,lp)
+    use systemmod, only: sy
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
-    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
+       ullmann_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
     character*(*), intent(in) :: line
@@ -2921,25 +3031,29 @@ contains
     character*1024 :: fname(2)
     character(len=:), allocatable :: word, lword, wfile, msg
     integer :: i, n, is, ns, nat
-    real*8 :: rms1, rms2, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
+    real*8 :: rms1, rms2, rmsmin, q1(3,3), q2(3,3), xcm1(3), xcm2(3), xnew(3)
     integer, allocatable :: isuse(:), isperm(:,:)
     integer, allocatable :: cidxorig(:,:)
     real*8, allocatable :: x1(:,:), x2(:,:), rmsd(:)
     logical, allocatable :: isinv(:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:), mrot(:,:,:)
-    logical :: moveatoms, doinv
+    logical :: moveatoms, doinv, umeyama
+    integer, allocatable :: iz1(:), iz2(:), ncon1(:), ncon2(:), idcon1(:,:), idcon2(:,:), list(:,:)
+    integer :: mcon, nlist
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
-    integer, parameter :: isuse_incompatible_z = 1
+    integer, parameter :: isuse_incompatible_z = 2
+    integer, parameter :: isuse_permutation_not_found = 3
 
-    write(uout,'("* ORDER_MOLECULES: reorder the atoms in a molecule or a molecular crystal")')
+    write(uout,'("* MOLREORDER: reorder the atoms in a molecule or a molecular crystal")')
 
     ! read the input
     ns = 0
     wfile = ""
     moveatoms = .false.
-    doinv = .true.
+    doinv = .false.
+    umeyama = .false.
     do while(.true.)
        word = getword(line,lp)
        lword = lower(word)
@@ -2947,39 +3061,51 @@ contains
           wfile = getword(line,lp)
        elseif (equal(lword,'moveatoms')) then
           moveatoms = .true.
-       elseif (equal(lword,'noinv')) then
-          doinv = .false.
+       elseif (equal(lword,'inv')) then
+          doinv = .true.
+       elseif (equal(lword,'umeyama')) then
+          umeyama = .true.
+       elseif (equal(lword,'ullmann')) then
+          umeyama = .false.
        elseif (len_trim(word) == 0) then
           exit
        else
           ns = ns + 1
           if (ns > 2) &
-             call ferror("struct_order_molecules","cannot order more than two structures",faterr)
+             call ferror("struct_molreorder","cannot order more than two structures",faterr)
           fname(ns) = word
        end if
     end do
     if (ns /= 2) &
-       call ferror("struct_order_molecules","need two structures to order",faterr)
+       call ferror("struct_molreorder","need two structures to order",faterr)
 
     ! get the reference structure and check it is a molecule
-    call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
+    if (trim(fname(1)) == ".") then
+       cref = sy%c
+    else
+       call struct_crystal_input(fname(1),-1,.false.,.false.,cr0=cref)
+    end if
     if (.not.cref%isinit) &
-       call ferror("struct_order_molecules","could not load structure" // string(fname(1)),faterr)
+       call ferror("struct_molreorder","could not load structure" // string(fname(1)),faterr)
     if (.not.cref%ismolecule) &
-       call ferror("struct_order_molecules","the first structure is not a molecule",faterr)
+       call ferror("struct_molreorder","the first structure is not a molecule",faterr)
     if (cref%nmol > 1) &
-       call ferror("struct_order_molecules","the first structure contains more than one molecule",faterr)
+       call ferror("struct_molreorder","the first structure contains more than one molecule",faterr)
 
     ! get the other structure (do not guess the symmetry)
-    call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
+    if (trim(fname(2)) == ".") then
+       cx = sy%c
+    else
+       call struct_crystal_input(fname(2),-1,.false.,.false.,cr0=cx)
+    end if
     if (.not.cx%isinit) &
-       call ferror("struct_order_molecules","could not load structure" // string(fname(2)),faterr)
+       call ferror("struct_molreorder","could not load structure" // string(fname(2)),faterr)
     if (.not.cx%ismolecule) then
        if (.not.cx%ismol3d) &
-          call ferror("struct_order_molecules","the target structure is not a molecular crystal",faterr)
+          call ferror("struct_molreorder","the target structure is not a molecular crystal",faterr)
        call cx%wholemols()
        if (any(cx%idxmol(1:cx%nmol) < 0)) &
-          call ferror("struct_order_molecules","the target structure must have whole molecules",faterr)
+          call ferror("struct_molreorder","the target structure must have whole molecules",faterr)
     end if
 
     ! read the fragments from cx into structures
@@ -2992,63 +3118,126 @@ contains
     end do
 
     ! allocate the use and permutation arrays
-    allocate(isuse(ns),isperm(cref%nneq,ns))
+    allocate(isuse(ns),isperm(cref%ncel,ns))
     isuse = isuse_valid
 
     ! check that the number of atoms are equal
     do i = 1, ns
-       if (cref%nneq /= c(i)%nneq) isuse(i) = isuse_different_nat
+       if (cref%ncel /= c(i)%ncel) isuse(i) = isuse_different_nat
     end do
-    nat = cref%nneq
+    nat = cref%ncel
+
+    ! allocate some work space
+    allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
 
     ! make the mapping between structure+atom and the original cidx
     ! sort because the from_fragment routine also sorts
     allocate(cidxorig(nat,ns))
     do is = 1, ns
+       if (isuse(is) /= isuse_valid) cycle
        do i = 1, nat
           cidxorig(i,is) = cx%mol(is)%at(i)%cidx
        end do
        call qcksort(cidxorig(:,is))
     end do
 
-    ! allocate space and get reference distance matrix
-    allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
-    call cref%distmatrix(dref,conn=.true.)
+    ! calculate the permutations (isperm) with the appropriate method.
+    ! if the permutation is not found, deactivate the structure.
+    if (umeyama) then
+       ! use the umeyama method
+       allocate(dref(nat,nat),ddg(nat,nat),ddh(nat,nat))
+       call cref%distmatrix(dref,conn=.true.)
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+          ddg = dref
+          call c(is)%distmatrix(ddh,conn=.true.)
+          call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
+          if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
+             isuse(is) = isuse_incompatible_z
+       end do
+       deallocate(dref,ddg,ddh)
+    else
+       ! use the ullmann method
+       ! obtain the maximum number of bonds per atom
+       mcon = 0
+       do i = 1, cref%ncel
+          mcon = max(mcon,cref%nstar(i)%ncon)
+       end do
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+          do i = 1, c(is)%ncel
+             mcon = max(mcon,c(is)%nstar(i)%ncon)
+          end do
+       end do
 
-    ! calculate the permutations
-    do is = 1, ns
-       ddg = dref
-       call c(is)%distmatrix(ddh,conn=.true.)
-       call umeyama_graph_matching(nat,ddg,ddh,isperm(:,is))
-       if (any(cref%spc(cref%at(1:nat)%is)%z /= c(is)%spc(c(is)%at(isperm(1:nat,is))%is)%z)) &
-          isuse(is) = isuse_incompatible_z
-    end do
+       ! allocate work space and prepare reference arrays
+       allocate(iz1(nat),ncon1(nat),idcon1(mcon,nat),iz2(nat),ncon2(nat),idcon2(mcon,nat))
+       idcon1 = 0
+       do i = 1, nat
+          iz1(i) = cref%spc(cref%atcel(i)%is)%z
+          ncon1(i) = cref%nstar(i)%ncon
+          idcon1(1:ncon1(i),i) = cref%nstar(i)%idcon(1:ncon1(i))
+       end do
+
+       ! run over all target structures
+       do is = 1, ns
+          if (isuse(is) /= isuse_valid) cycle
+
+          ! arrays for the target structure
+          idcon2 = 0
+          do i = 1, nat
+             iz2(i) = c(is)%spc(c(is)%atcel(i)%is)%z
+             ncon2(i) = c(is)%nstar(i)%ncon
+             idcon2(1:ncon2(i),i) = c(is)%nstar(i)%idcon(1:ncon2(i))
+          end do
+
+          ! run ullmann to get the list of candidates
+          call ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+          if (nlist == 0) then
+             isuse(is) = isuse_permutation_not_found
+          else
+             ! select the candidate with the lowest rms
+             rmsmin = huge(1d0)
+             do i = 1, nlist
+                call calculate_rms(is,list(:,i),.false.,rms1,q1)
+                if (rms1 < rmsmin) then
+                   isperm(:,is) = list(:,i)
+                   rmsmin = rms1
+                end if
+                if (doinv) then
+                   call calculate_rms(is,list(:,i),.true.,rms1,q1)
+                   if (rms1 < rmsmin) then
+                      isperm(:,is) = list(:,i)
+                      rmsmin = rms1
+                   end if
+                end if
+             end do
+          end if
+       end do
+
+       ! wrap up
+       deallocate(iz1,ncon1,idcon1,iz2,ncon2,idcon2)
+    end if
 
     ! Get the rmsd from walker. If moveatoms, also save the rotation.
-    allocate(rmsd(ns),x1(3,nat),x2(3,nat),isinv(ns))
     if (moveatoms) allocate(mrot(3,3,ns))
-    do i = 1, nat
-       x1(:,i) = cref%at(i)%r
-    end do
-    rmsd = 0d0
+    rmsd = huge(1d0)
     isinv = .false.
     do is = 1, ns
        if (isuse(is) /= isuse_valid) cycle
-       do i = 1, nat
-          x2(:,i) = c(is)%at(isperm(i,is))%r
-       end do
-       rms1 = rmsd_walker(x1,x2,q1)
-       x2 = -x2
-       rms2 = rmsd_walker(x1,x2,q2)
-       if (rms1 <= rms2.or..not.doinv) then
-          isinv(is) = .false.
-          rmsd(is) = rms1
-          if (moveatoms) mrot(:,:,is) = q1
-       else
-          isinv(is) = .true.
-          rmsd(is) = rms2
-          if (moveatoms) mrot(:,:,is) = q2
+
+       call calculate_rms(is,isperm(:,is),.false.,rms1,q1)
+       isinv(is) = .false.
+       if (doinv) then
+          call calculate_rms(is,isperm(:,is),.true.,rms2,q2)
+          if (rms2 < rms1) then
+             isinv(is) = .true.
+             rms1 = rms2
+             q1 = q2
+          end if
        end if
+       rmsd(is) = rms1
+       if (moveatoms) mrot(:,:,is) = q1
     end do
     deallocate(x1,x2)
 
@@ -3060,6 +3249,11 @@ contains
     else
        write (uout,'("  The target structure is a molecular crystal with ",A," fragments.")') string(ns)
     end if
+    if (umeyama) then
+       write (uout,'("+ Method: umeyama")')
+    else
+       write (uout,'("+ Method: ullmann")')
+    end if
     write (uout,'("# List of reordered structures (",A,")")') string(ns)
     write (uout,'("#id -- Reorder result --")')
     do is = 1, ns
@@ -3067,6 +3261,8 @@ contains
           msg = "the target and reference structures have different number of atoms"
        elseif (isuse(is) == isuse_incompatible_z) then
           msg = "the target and reference structures have different atomic types"
+       elseif (isuse(is) == isuse_permutation_not_found) then
+          msg = "ullmann could not find an appropriate permutation for the atomic sequence"
        else
           msg = ""
           do i = 1, nat
@@ -3114,7 +3310,175 @@ contains
     end if
     deallocate(isperm,cidxorig,isuse,c)
 
+  contains
+
+    ! Calculate the rms between the reference molecule and the target
+    ! molecule is using permutation isperm. If inv, invert the
+    ! coordinates of the target molecule. Returns the rmsd and,
+    ! possibly, the rotation matrix. Requires nat and having x1 and x2
+    ! allocated.
+    subroutine calculate_rms(is,isperm,inv,rms,mrot)
+      integer, intent(in) :: is
+      integer, intent(in) :: isperm(nat)
+      logical, intent(in) :: inv
+      real*8, intent(out) :: rms
+      real*8, optional, intent(out) :: mrot(3,3)
+
+      integer :: i
+      real*8 :: q(3,3)
+
+      if (present(mrot)) mrot = 0d0
+      rms = huge(1d0)
+      if (isuse(is) /= isuse_valid) return
+
+      do i = 1, nat
+         x1(:,i) = cref%at(i)%r
+         x2(:,i) = c(is)%at(isperm(i))%r
+      end do
+      if (inv) x2 = -x2
+      rms = rmsd_walker(x1,x2,q)
+      if (present(mrot)) mrot = q
+
+    end subroutine calculate_rms
+
   end subroutine struct_molreorder
+
+  !> Move the atoms in a molecular crystal to match the atomic
+  !> positions of the given molecules.
+  module subroutine struct_molmove(line,lp)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use fragmentmod, only: fragment
+    use tools, only: qcksort
+    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
+    use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
+    use types, only: realloc
+    character*(*), intent(in) :: line
+    integer, intent(inout) :: lp
+
+    integer :: i, j, n, ns, nat, idmin
+    type(crystal) :: cini, caux, cfin
+    character*1024, allocatable :: fname(:)
+    character(len=:), allocatable :: word
+    type(fragment), allocatable :: mol(:)
+    type(crystalseed) :: seed
+    real*8 :: rms, q1(3,3), xcm1(3), xcm2(3), xnew(3), dmin, dd
+    real*8, allocatable :: x1(:,:), x2(:,:)
+    integer, allocatable :: idx(:)
+    logical, allocatable :: used(:)
+
+    write(uout,'("* MOLMOVE: move the atoms in a molecule or a molecular crystal")')
+
+    ! read the input
+    ns = 0
+    allocate(fname(10))
+    do while (.true.)
+       word = getword(line,lp)
+       if (len_trim(word) == 0) exit
+
+       ns = ns + 1
+       if (ns > size(fname,1)) call realloc(fname,2*ns)
+       fname(ns) = word
+    end do
+    if (ns < 3) &
+       call ferror("struct_molmove","need more than two structures",faterr)
+
+    ! write some output
+    write (uout,'("+ Target structure: ",A)') string(fname(ns-1))
+    do i = 1, ns - 2
+    end do
+
+    ! read the target
+    call struct_crystal_input(fname(ns-1),-1,.false.,.false.,cr0=cini)
+    if (cini%ismolecule.or..not.cini%ismol3d) &
+       call ferror("struct_molmove","MOLMOVE can only be applied to molecular crystals (missing files?)",faterr)
+    if (cini%nmol /= ns-2) &
+       call ferror("struct_molmove","wrong number of molecules",faterr)
+
+    ! read the fragments
+    allocate(mol(ns-2))
+    do i = 1, ns-2
+       call struct_crystal_input(fname(i),1,.false.,.false.,cr0=caux)
+       if (.not.caux%ismolecule.or.caux%nmol /= 1) &
+          call ferror("struct_molmove","all fragments must be single molecules",faterr)
+       mol(i) = caux%mol(1)
+       do j = 1, caux%mol(1)%nat
+          mol(i)%at(j)%r = mol(i)%at(j)%r + caux%molx0
+       end do
+    end do
+
+    ! identify the molecules
+    allocate(idx(cini%nmol),used(cini%nmol))
+    used = .false.
+    do i = 1, cini%nmol
+       xcm1 = cini%mol(i)%cmass(.false.)
+
+       dmin = 1d40
+       do j = 1, cini%nmol
+          if (used(j)) cycle
+          xcm2 = mol(j)%cmass(.false.)
+          dd = dot_product(xcm1-xcm2,xcm1-xcm2)
+          if (dd < dmin) then
+             dmin = dd
+             idmin = j
+          end if
+       end do
+       idx(i) = idmin
+       used(idmin) = .true.
+    end do
+    deallocate(used)
+
+    ! build the final structure
+    call cini%makeseed(seed,.false.)
+    n = 0
+    do i = 1, cini%nmol
+       ! check
+       if (cini%mol(i)%nat /= mol(idx(i))%nat) &
+          call ferror("struct_molmove","for molecule "//string(i)// " the number of atoms do not match",faterr)
+
+       ! calculate the rotation matrix
+       nat = cini%mol(i)%nat
+       allocate(x1(3,nat),x2(3,nat))
+       do j = 1, nat
+          if (cini%spc(cini%mol(i)%at(j)%is)%z /= mol(idx(i))%spc(mol(idx(i))%at(j)%is)%z) &
+             call ferror("struct_molmove","for molecule "//string(i)//" atom number "//&
+             string(j)//" does not match",faterr)
+
+          x1(:,j) = cini%mol(i)%at(j)%r
+          x2(:,j) = mol(idx(i))%at(j)%r
+       end do
+       rms = rmsd_walker(x1,x2,q1)
+       deallocate(x1,x2)
+
+       ! some output
+       xcm1 = mol(idx(i))%cmass(.false.)
+       xcm2 = cini%mol(i)%cmass(.false.)
+       write (uout,'("  Molecule ",A,": ",A," with rms = ",A," bohr, d(cm) = ",A," bohr")') string(i), &
+          string(fname(idx(i))), string(rms,'f',decimal=4), string(norm2(xcm1-xcm2),'f',decimal=4)
+
+       ! move the atoms and put them in the seed
+       do j = 1, nat
+
+          xnew = mol(idx(i))%at(j)%r - xcm1
+          xnew = matmul(q1,xnew)
+          xnew = xnew + xcm2
+          xnew = cini%c2x(xnew)
+
+          n = n + 1
+          seed%x(:,n) = xnew
+          seed%is(n) = cini%mol(i)%at(j)%is
+       end do
+    end do
+    deallocate(mol,idx)
+
+    ! write the final structure
+    write (uout,'("+ Final structure: ",A)') string(fname(ns))
+    write (uout,*)
+    call cfin%struct_new(seed,.true.)
+    call cfin%write_simple_driver(fname(ns))
+    deallocate(fname)
+
+  end subroutine struct_molmove
 
   !> Calculate k-point grid to a certain Rk using VASP's recipe.
   module subroutine struct_kpoints(s,line)
@@ -3180,7 +3544,7 @@ contains
   end subroutine struct_kpoints
 
   !> Calculate and print information about the Brilloun zone.
-  module subroutine struct_bz(s,line)
+  module subroutine struct_bz(s)
     use, intrinsic :: iso_c_binding, only: c_int, c_double
     use global, only: iunitname0, iunit, dunit0
     use tools_math, only: matinv
@@ -3188,7 +3552,6 @@ contains
     use tools, only: delaunay_reduction
     use param, only: pi
     type(system), intent(in) :: s
-    character*(*), intent(in) :: line
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c

@@ -58,6 +58,7 @@ module tools_math
   public :: fdamp_bj
   public :: munkres
   public :: umeyama_graph_matching
+  public :: ullmann_graph_matching
   public :: invert_permutation
   !xx! lebedev submodule !xx!
   public :: good_lebedev
@@ -304,6 +305,16 @@ module tools_math
        real*8, intent(inout) :: ah(n,n)
        integer, intent(out) :: perm(n)
      end subroutine umeyama_graph_matching
+     module subroutine ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+       integer, intent(in) :: iz1(:)
+       integer, intent(in) :: ncon1(:)
+       integer, intent(in) :: idcon1(:,:)
+       integer, intent(in) :: iz2(:)
+       integer, intent(in) :: ncon2(:)
+       integer, intent(in) :: idcon2(:,:)
+       integer, intent(out) :: nlist
+       integer, allocatable, intent(inout) :: list(:,:)
+     end subroutine ullmann_graph_matching
      module function invert_permutation(iperm)
        integer, intent(in) :: iperm(:)
        integer :: invert_permutation(size(iperm,1))

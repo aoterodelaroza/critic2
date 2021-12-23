@@ -8,7 +8,7 @@ write 020_compare_molecules_opts_gen.xyz
 compare . 020_compare_molecules_opts_gen.xyz
 compare molecule . 020_compare_molecules_opts_gen.xyz
 compare . 020_compare_molecules_opts_gen.xyz sorted
-compare . 020_compare_molecules_opts_gen.xyz unsorted sigma 0.1 xend 30
-
-
+compare . 020_compare_molecules_opts_gen.xyz ullmann
+compare . 020_compare_molecules_opts_gen.xyz umeyama
+compare . 020_compare_molecules_opts_gen.xyz rdf sigma 0.1 xend 30
 

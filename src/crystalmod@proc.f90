@@ -985,8 +985,9 @@ contains
   end subroutine get_kpoints
 
   !> Calculate the distance matrix (molecules only). If inverse,
-  !> invert the distances. If conn, return 1d10 if the atoms are
-  !> bonded, 1 if not, zero in the diagonal.
+  !> invert the distances. If conn, return the distance if the atoms
+  !> are bonded, and the inverse distance if they are not, and zero
+  !> along the diagonals.
   module subroutine distmatrix(c,d,inverse,conn)
     class(crystal), intent(in) :: c
     real*8, allocatable, intent(inout) :: d(:,:)
@@ -1006,13 +1007,18 @@ contains
     allocate(d(c%ncel,c%ncel))
 
     if (conn_) then
-       d = 1d0
+       d = 0.d0
+       do i = 1, c%ncel
+          do j = i+1, c%ncel
+             d(i,j) = 1d0/norm2(c%atcel(i)%r - c%atcel(j)%r)
+             d(j,i) = d(i,j)
+          end do
+       end do
        do i = 1, c%ncel
           do j = 1, c%nstar(i)%ncon
-             d(i,c%nstar(i)%idcon(j)) = 1d10
-             d(c%nstar(i)%idcon(j),i) = 1d10
+             d(i,c%nstar(i)%idcon(j)) = norm2(c%atcel(i)%r - c%atcel(c%nstar(i)%idcon(j))%r)
+             d(c%nstar(i)%idcon(j),i) = d(i,c%nstar(i)%idcon(j))
           end do
-          d(i,i) = 0d0
        end do
     else
        d = 0d0
@@ -5364,7 +5370,7 @@ contains
   !> structure. If usesym0, write symmetry to the cif file; otherwise
   !> use P1.
   module subroutine write_cif(c,file,usesym0)
-    use global, only: fileroot
+    use global, only: fileroot, testing
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
        ferror, faterr
     use param, only: bohrtoa, maxzat
@@ -5373,7 +5379,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: usesym0
 
-    integer :: i, j, iz, lu, idx, izmol, gcdz
+    integer :: i, j, iz, lu, idx, gcdz
     character(len=mlen), allocatable :: strfin(:)
     character*2 :: sym
     character*3 :: schpg
@@ -5399,12 +5405,14 @@ contains
     ! open output file
     lu = fopen_write(file)
 
-    ! header
+    ! header (date and time mucks up testing)
     write (lu,'("data_",A)') string(deblank(fileroot))
     write (lu,'("_audit_creation_method ''critic2''")')
-    call date_and_time(values=datvalues)
-    write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
-       (string(datvalues(i)),i=1,3)
+    if (.not.testing) then
+       call date_and_time(values=datvalues)
+       write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
+          (string(datvalues(i)),i=1,3)
+    end if
 
     ! formula: count the number of element types
     allocate(atc(maxzat,c%nmol))

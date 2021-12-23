@@ -782,7 +782,7 @@
   Source: 021_cube_wannier_spin-2-5-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  First elements... -4.339430344370E-08  3.171152468436E-03  1.018195253024E-02
+  First elements... -4.339430344340E-08  3.171152468436E-03  1.018195253024E-02
   Last elements... -1.964185037035E-02  -1.473902665146E-02  -7.650311013190E-03
   Sum of elements... 3.844064095511E+00
   Sum of squares of elements... 1.449196759895E+01
@@ -805,7 +805,7 @@
   Grid dimensions : 36  36  36
   First elements... 4.583717601325E-03  5.133155764934E-03  5.688259742096E-03
   Last elements... -5.868322663048E-03  -4.853967625597E-03  -4.093840466426E-03
-  Sum of elements... -2.175703829342E+00
+  Sum of elements... -2.175703829341E+00
   Sum of squares of elements... 2.007881252540E+01
   Cell integral (grid SUM) = -0.00639579
   Min: -1.47385721E-01
@@ -825,11 +825,11 @@
   Grid dimensions : 36  36  36
   First elements... 2.452844327207E-09  1.264156071801E-04  1.997454590226E-03
   Last elements... 8.044716379598E-03  3.687124692851E-03  2.420184613516E-04
-  Sum of elements... 8.272950467042E-15
+  Sum of elements... 5.899848751906E-15
   Sum of squares of elements... 6.169027947977E-02
   Cell integral (grid SUM) = 0.00000000
   Min: -1.21424868E-02
-  Average: 1.77318040E-19
+  Average: 1.26454234E-19
   Max: 1.32304741E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
