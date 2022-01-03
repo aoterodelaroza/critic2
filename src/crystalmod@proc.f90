@@ -5424,7 +5424,7 @@ contains
              atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
           end if
        end do
-       if (i > 2) then
+       if (i > 1) then
           if (any(atc(:,i) - atc(:,1) /= 0)) then
              doz = .false.
           end if
