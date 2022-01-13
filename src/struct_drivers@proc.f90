@@ -1456,6 +1456,7 @@ contains
                    idcon2(1:ncon2(k),k) = c(j)%nstar(k)%idcon(1:ncon2(k))
                 end do
                 call ullmann_graph_matching(iz1,ncon1,idcon1,iz2,ncon2,idcon2,nlist,list)
+
                 diffmin = huge(1d0)
                 do k = 1, nlist
                    isperm = list(:,k)
