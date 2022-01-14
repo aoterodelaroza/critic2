@@ -449,8 +449,8 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word, wext, file, wroot
-    integer :: lp, ix(3), lp2, iaux, nmer
-    logical :: doborder, molmotif, dosym, docell, domolcell, ok
+    integer :: lp, ix(3), lp2, iaux, nmer, idx
+    logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe
     logical :: onemotif, environ, lnmer
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
 
@@ -575,13 +575,28 @@ contains
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'in')) then
+       ! quantum espresso (scf.in) and FHI aims (geometry.in)
+       idx = index(wroot,'.',.true.)
+       isqe = .false.
+       if (idx > 0) then
+          wext = lower(wroot(idx+1:))
+          isqe = equal(wext,'scf')
+       endif
+
        ! espresso
-       ok = eval_next(rk,line,lp)
-       write (uout,'("* WRITE espresso file: ",A)') string(file)
-       if (ok) then
-          call s%c%write_espresso(file,rk)
+       if (isqe) then
+          ok = eval_next(rk,line,lp)
+          write (uout,'("* WRITE espresso file: ",A)') string(file)
+          if (ok) then
+             call s%c%write_espresso(file,rk)
+          else
+             call s%c%write_espresso(file)
+          end if
        else
-          call s%c%write_espresso(file)
+          write (uout,'("* WRITE FHIaims file: ",A)') string(file)
+          call s%c%write_fhi(file)
+          ok = check_no_extra_word()
+          if (.not.ok) return
        end if
 
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
@@ -693,12 +708,6 @@ contains
        ! pyscf (python script)
        write (uout,'("* WRITE pyscf file: ",A)') string(file)
        call s%c%write_pyscf(file)
-       ok = check_no_extra_word()
-       if (.not.ok) return
-    elseif (equal(wext,'fhi')) then
-       ! elk
-       write (uout,'("* WRITE FHIaims file: ",A)') string(file)
-       call s%c%write_fhi(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'frac')) then
