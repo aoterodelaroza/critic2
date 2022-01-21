@@ -2943,7 +2943,7 @@ contains
        write (uout,'("# Q = charge. ZPSP = pseudopotential charge.")')
        write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
           string("Z",3,ioj_center), string("name",7,ioj_center),&
-          string("Q",length=4,justify=ioj_center),&
+          string("Q",length=7,justify=ioj_center),&
           string("ZPSP",length=4,justify=ioj_right)
        do i = 1, c%nspc
           str1 = " -- "
@@ -2953,7 +2953,7 @@ contains
           end if
           write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
              string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
-             string(c%spc(i)%qat,'f',length=4,decimal=1,justify=ioj_right),&
+             string(c%spc(i)%qat,'f',length=7,decimal=4,justify=ioj_right),&
              str1
        end do
        write (uout,*)
