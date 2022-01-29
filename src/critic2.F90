@@ -639,7 +639,7 @@ program critic
         ! temp, for testing
      elseif (equal(word,'temp')) then
 
-     elseif (equal(word,'end')) then
+     elseif (equal(word,'end').or.equal(word,'exit')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
         exit
