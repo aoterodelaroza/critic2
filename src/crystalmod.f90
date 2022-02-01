@@ -118,7 +118,7 @@ module crystalmod
 
      !! Initialization level: isewald !!
      ! ewald data
-     real*8 :: rcut, hcut, eta, qsum
+     real*8 :: rcut, hcut, eta, qsum, q2sum
      integer :: lrmax(3), lhmax(3)
 
    contains

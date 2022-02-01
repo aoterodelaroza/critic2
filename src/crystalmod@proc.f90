@@ -2217,7 +2217,7 @@ contains
     real*8, parameter :: eeps = 1d-12
 
     integer :: i
-    real*8 :: aux, q2sum
+    real*8 :: aux
     integer :: ia, ib, ic
     real*8 :: alrmax(3), qq
     real*8 :: rcut1, rcut2, err_real
@@ -2227,13 +2227,13 @@ contains
 
     ! calculate sum of charges and charges**2
     c%qsum = 0d0
-    q2sum = 0d0
+    c%q2sum = 0d0
     do i = 1, c%nneq
        qq = c%spc(c%at(i)%is)%qat
        if (abs(qq) < 1d-6) &
-          call ferror('ewald_energy','Some of the charges are 0',faterr)
+          call ferror('calculate_ewald_cutoffs','Some of the charges are 0',faterr)
        c%qsum = c%qsum + real(c%at(i)%mult * qq,8)
-       q2sum = q2sum + real(c%at(i)%mult * qq**2,8)
+       c%q2sum = c%q2sum + real(c%at(i)%mult * qq**2,8)
     end do
 
     ! determine shortest vector in real space
@@ -2267,11 +2267,11 @@ contains
     err_real = 1d30
     do while (err_real >= eeps)
        rcut2 = rcut2 * sgrow
-       err_real = pi * c%ncel**2 * q2sum / c%omega * c%eta**2 * erfc(rcut2 / c%eta)
+       err_real = pi * c%ncel**2 * c%q2sum / c%omega * c%eta**2 * erfc(rcut2 / c%eta)
     end do
     do while (rcut2-rcut1 >= epscut)
        c%rcut = 0.5*(rcut1+rcut2)
-       err_real = pi * c%ncel**2 * q2sum / c%omega * c%eta**2 * erfc(c%rcut / c%eta)
+       err_real = pi * c%ncel**2 * c%q2sum / c%omega * c%eta**2 * erfc(c%rcut / c%eta)
        if (err_real > eeps) then
           rcut1 = c%rcut
        else
@@ -2292,11 +2292,11 @@ contains
     err_rec = 1d30
     do while(err_rec >= eeps)
        hcut2 = hcut2 * sgrow
-       err_rec = c%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
+       err_rec = c%ncel**2 * c%q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
     end do
     do while(hcut2-hcut1 > epscut)
        c%hcut = 0.5*(hcut1+hcut2)
-       err_rec = c%ncel**2 * q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
+       err_rec = c%ncel**2 * c%q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
        if (err_rec > eeps) then
           hcut1 = c%hcut
        else
@@ -2312,20 +2312,28 @@ contains
 
   !> Calculates the Ewald electrostatic energy, using the input charges.
   module function ewald_energy(c) result(ewe)
+    use tools_io, only: uout, string
     class(crystal), intent(inout) :: c
     real*8 :: ewe
 
-    real*8 :: x(3)
+    real*8 :: x(3), pot
     integer :: i
 
     if (.not.c%isewald) &
        call c%calculate_ewald_cutoffs()
 
+    write (uout,'("+ Electrostatic potential at atomic positions")')
+    write (uout,'("#id name mult    charge         Vel(Ha/e)")')
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * c%ewald_pot(x)
+       pot = c%ewald_pot(x)
+       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
+       write (uout,'(99(A,X))') string(i,4), string(c%spc(c%at(i)%is)%name,4),&
+          string(c%at(i)%mult,4),&
+          string(c%spc(c%at(i)%is)%qat,'e',14,6,3), string(pot,'e',18,10,3)
     end do
+    write (uout,*)
     ewe = ewe / 2d0
 
   end function ewald_energy
