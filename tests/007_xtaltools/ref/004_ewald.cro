@@ -1,26 +1,36 @@
 + List of atomic species: 
 # spc = atomic species. Z = atomic number. name = atomic name (symbol).
 # Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name    Q   ZPSP
-   1  11    na     1.0  -- 
-   2  17    cl    -1.0  -- 
+# spc  Z   name      Q    ZPSP
+   1  11    na     1.0000  -- 
+   2  17    cl    -1.0000  -- 
 
 * List of core and pseudopotential charges for each field
 # id  type   core?  ZPSP
   0  promol   no  
+
++ Electrostatic potential at atomic positions
+#id name mult    charge         Vel(Ha/e)
+1    na   4     1.000000E+00  -3.4951291893E-01 
+2    cl   4    -1.000000E+00   3.4951291893E-01 
 
 * Ewald electrostatic energy (Hartree) = -1.398051675707E+00
 
 + List of atomic species: 
 # spc = atomic species. Z = atomic number. name = atomic name (symbol).
 # Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name    Q   ZPSP
-   1  11    na     1.0  -- 
-   2  17    cl    -1.0  -- 
+# spc  Z   name      Q    ZPSP
+   1  11    na     1.0000  -- 
+   2  17    cl    -1.0000  -- 
 
 * List of core and pseudopotential charges for each field
 # id  type   core?  ZPSP
   0  promol   no  
+
++ Electrostatic potential at atomic positions
+#id name mult    charge         Vel(Ha/e)
+1    na   1     1.000000E+00  -2.0353615095E-01 
+2    cl   1    -1.000000E+00   2.0353615095E-01 
 
 * Ewald electrostatic energy (Hartree) = -2.035361509452E-01
 
