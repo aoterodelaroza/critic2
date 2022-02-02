@@ -69,9 +69,10 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(out) :: oksyn
      end subroutine struct_charges
-     module subroutine struct_write(s,line)
+     module subroutine struct_write(s,line,usexyznames)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
+       logical, intent(in) :: usexyznames
      end subroutine struct_write
      module subroutine struct_atomlabel(s,line)
        type(system), intent(inout) :: s

@@ -174,7 +174,7 @@ program critic
      elseif (equal(word,'write')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call struct_write(sy,subline)
+        call struct_write(sy,subline,.false.)
 
         ! load
      elseif (equal(word,'load')) then

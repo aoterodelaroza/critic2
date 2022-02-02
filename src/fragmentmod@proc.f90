@@ -183,11 +183,12 @@ contains
   end function cmass
 
   !> write an xyz-style file from an array of atomic coordinates.
-  module subroutine writexyz(fr,file)
+  module subroutine writexyz(fr,file,usenames)
     use tools_io, only: fopen_write, nameguess, fclose
     use param, only: bohrtoa
     class(fragment), intent(in) :: fr
     character*(*), intent(in) :: file
+    logical, intent(in) :: usenames
 
     integer :: i, lu
 
@@ -197,7 +198,11 @@ contains
     write (lu,*)
     do i = 1, fr%nat
        if (fr%spc(fr%at(i)%is)%z >= 0) then
-          write (lu,'(A,3(F20.10,X))') trim(nameguess(fr%spc(fr%at(i)%is)%z,.true.)), fr%at(i)%r * bohrtoa
+          if (usenames) then
+             write (lu,'(A,3(F20.10,X))') trim(fr%spc(fr%at(i)%is)%name), fr%at(i)%r * bohrtoa
+          else
+             write (lu,'(A,3(F20.10,X))') trim(nameguess(fr%spc(fr%at(i)%is)%z,.true.)), fr%at(i)%r * bohrtoa
+          end if
        end if
     end do
     call fclose(lu)

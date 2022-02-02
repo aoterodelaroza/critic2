@@ -389,7 +389,7 @@ contains
           xmat(:,i) = x1 / real(nstep(i),8)
           xinc(i) = norm2(xmat(:,i))
        end do
-    else
+     else
        ! use the grid step
        x0 = sy%c%x2c(x0)
        x1 = sy%c%x2c(x1)
@@ -702,7 +702,7 @@ contains
      end do
 
      ! write the fragment to the file
-     call fr0%writexyz(file)
+     call fr0%writexyz(file,.false.)
 
      ! write vmd script
      write (luvmd,'("#!/usr/local/bin/vmd")')
@@ -829,7 +829,7 @@ contains
     ! vmd detects whether a cube is orthogonal or not by the (1,2) element
     ! of the Cartesian matrix only. If this value is zero, vmd will misalign
     ! the isosurface and its box, the latter being displayed correctly. To
-    ! prevent this, nudge the (1,2) element a little big if the cube is not
+    ! prevent this, nudge the (1,2) element a little bit if the cube is not
     ! orthogonal and that element happens to be zero.
     if (isortho .or. abs(xmat(1,2)) > 2.d-6) then
        write(lu,'(I5,3(F12.6))') nstep(2), xmat(:,2)

@@ -34,6 +34,8 @@ submodule (autocp) proc
   ! subroutine makegraph()
   ! subroutine scale_ws(rad,wso,ntetrag,tetrag)
   ! subroutine write_json_cps(file)
+  ! subroutine write_test_cps(file)
+  ! subroutine write_vmd_cps(file)
 
   ! private for barycentric, initialized at the beginning of auto
   integer :: nstack
@@ -797,16 +799,16 @@ contains
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist, gcpchange
-    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower
+    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
     integer :: lp, n, lp2
-    integer :: i, iup, nstep, ier
+    integer :: i, iup, nstep, ier, id
     character(len=:), allocatable :: file, word, wext, wroot
     character(len=:), allocatable :: line2, aux
     logical :: ok
-    logical :: agraph
+    logical :: agraph, writevmd
     type(crystalseed) :: seed
     type(system) :: syaux
     real*8 :: x(3), plen
@@ -845,11 +847,18 @@ contains
           lp2 = 1
           line2 = ""
           agraph = .false.
+          writevmd = .false.
+          n = 0
           do while (.true.)
              word = getword(line,lp2)
              if (equal(lower(word),'graph')) then
                 agraph = .true.
              elseif (len_trim(word) > 0) then
+                n = n + 1
+                if (n == 1 .and. equal(wext,'vmd')) then
+                   word = wroot // '.xyz'
+                   writevmd = .true.
+                end if
                 aux = line2 // " " // trim(word)
                 line2 = aux
              else
@@ -860,19 +869,46 @@ contains
           ! build the crystal structure containing the crystal points
           seed%isused = .true.
           seed%file = sy%c%file
-          seed%nspc = sy%c%nspc+5
-          allocate(seed%spc(seed%nspc))
-          seed%spc(1:sy%c%nspc) = sy%c%spc(1:sy%c%nspc)
-          seed%spc(sy%c%nspc+1)%z = 119
-          seed%spc(sy%c%nspc+2)%z = 120
-          seed%spc(sy%c%nspc+3)%z = 121
-          seed%spc(sy%c%nspc+4)%z = 122
-          seed%spc(sy%c%nspc+5)%z = 123
-          seed%spc(sy%c%nspc+1)%name = "Xn"
-          seed%spc(sy%c%nspc+2)%name = "Xb"
-          seed%spc(sy%c%nspc+3)%name = "Xr"
-          seed%spc(sy%c%nspc+4)%name = "Xc"
-          seed%spc(sy%c%nspc+5)%name = "Xz"
+          if (writevmd) then
+             ! one species for every critical point
+             seed%nspc = sy%c%nspc + (sy%f(sy%iref)%ncpcel - sy%c%ncel) + 1
+             allocate(seed%spc(seed%nspc))
+             seed%spc(1:sy%c%nspc) = sy%c%spc(1:sy%c%nspc)
+             do i = sy%c%ncel+1, sy%f(sy%iref)%ncpcel
+                id = i - sy%c%ncel + sy%c%nspc
+                if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
+                   seed%spc(id)%z = 119
+                   seed%spc(id)%name = "Xn" // string(i)
+                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
+                   seed%spc(id)%z = 120
+                   seed%spc(id)%name = "Xb" // string(i)
+                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 1) then
+                   seed%spc(id)%z = 121
+                   seed%spc(id)%name = "Xr" // string(i)
+                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 3) then
+                   seed%spc(id)%z = 122
+                   seed%spc(id)%name = "Xc" // string(i)
+                else
+                   call ferror("cpreport","unclassified critical point",faterr)
+                end if
+             end do
+             seed%spc(seed%nspc)%z = 123
+             seed%spc(seed%nspc)%name = "Xz"
+          else
+             seed%nspc = sy%c%nspc+5
+             allocate(seed%spc(seed%nspc))
+             seed%spc(1:sy%c%nspc) = sy%c%spc(1:sy%c%nspc)
+             seed%spc(sy%c%nspc+1)%z = 119
+             seed%spc(sy%c%nspc+2)%z = 120
+             seed%spc(sy%c%nspc+3)%z = 121
+             seed%spc(sy%c%nspc+4)%z = 122
+             seed%spc(sy%c%nspc+5)%z = 123
+             seed%spc(sy%c%nspc+1)%name = "Xn"
+             seed%spc(sy%c%nspc+2)%name = "Xb"
+             seed%spc(sy%c%nspc+3)%name = "Xr"
+             seed%spc(sy%c%nspc+4)%name = "Xc"
+             seed%spc(sy%c%nspc+5)%name = "Xz"
+          end if
 
           seed%nat = sy%f(sy%iref)%ncpcel
           allocate(seed%x(3,sy%f(sy%iref)%ncpcel),seed%is(sy%f(sy%iref)%ncpcel))
@@ -881,16 +917,20 @@ contains
              if (i <= sy%c%ncel) then
                 seed%is(i) = sy%c%atcel(i)%is
              else
-                if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
-                   seed%is(i) = sy%c%nspc+1
-                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
-                   seed%is(i) = sy%c%nspc+2
-                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 1) then
-                   seed%is(i) = sy%c%nspc+3
-                elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 3) then
-                   seed%is(i) = sy%c%nspc+4
+                if (writevmd) then
+                   seed%is(i) = i - sy%c%ncel + sy%c%nspc
                 else
-                   call ferror("cpreport","unclassified critical point",faterr)
+                   if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
+                      seed%is(i) = sy%c%nspc+1
+                   elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -1) then
+                      seed%is(i) = sy%c%nspc+2
+                   elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 1) then
+                      seed%is(i) = sy%c%nspc+3
+                   elseif (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == 3) then
+                      seed%is(i) = sy%c%nspc+4
+                   else
+                      call ferror("cpreport","unclassified critical point",faterr)
+                   end if
                 end if
              end if
           end do
@@ -940,8 +980,11 @@ contains
           ! write the structure to the external file
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
-          call struct_write(syaux,line2)
+          call struct_write(syaux,line2,writevmd)
           call syaux%end()
+
+          ! write the vmd script
+          if (writevmd) call write_vmd_cps(file)
           return
        else
           exit
@@ -961,7 +1004,11 @@ contains
       do i = 1, nstep
          n = n + 1
          seed%x(:,n) = xpath(i)%x
-         seed%is(n) = sy%c%nspc+5
+         if (writevmd) then
+            seed%is(n) = seed%nspc
+         else
+            seed%is(n) = sy%c%nspc+5
+         end if
       end do
       seed%nat = n
 
@@ -2189,5 +2236,176 @@ contains
     call fclose(lu)
 
   end subroutine write_test_cps
+
+  !> Write a vmd file for visualizing the CPs in an xyz file.
+  subroutine write_vmd_cps(file)
+    use systemmod, only: sy
+    use tools_io, only: uout, fopen_write, fclose, string
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+
+    integer :: lu, i, j
+    character(len=:), allocatable :: xyzfile
+    real*8 :: xx0(3), xx1(3)
+
+    real*8, parameter :: xlist0(3,12) = reshape((/&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       0d0, 1d0, 0d0,&
+       1d0, 1d0, 0d0,&
+       1d0, 0d0, 0d0,&
+       1d0, 0d0, 1d0,&
+       1d0, 1d0, 1d0,&
+       1d0, 1d0, 1d0,&
+       1d0, 1d0, 1d0/),shape(xlist0))
+    real*8, parameter :: xlist1(3,12) = reshape((/&
+       1d0, 0d0, 0d0,&
+       0d0, 1d0, 0d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       0d0, 1d0, 0d0,&
+       1d0, 1d0, 0d0,&
+       1d0, 0d0, 0d0,&
+       1d0, 0d0, 1d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       1d0, 0d0, 1d0,&
+       1d0, 1d0, 0d0/),shape(xlist1))
+
+    ! open and header
+    write (uout,'("* Writing vmd script file : ",A)') string(file)
+    lu = fopen_write(file)
+    write (lu,'("# Some display settings")')
+    write (lu,'("display projection Orthographic")')
+    write (lu,'("display nearclip set 0.000000")')
+    write (lu,'("light 0 on")')
+    write (lu,'("light 1 on")')
+    write (lu,'("color Element {H} silver")')
+    write (lu,'("color Element {C} black")')
+    write (lu,'("color Element {N} blue")')
+    write (lu,'("color Element {O} red")')
+    write (lu,'("color Element {F} green")')
+    write (lu,'("color Element {Ne} cyan")')
+    write (lu,'("color Element {Na} purple")')
+    write (lu,'("color Element {Al} iceblue")')
+    write (lu,'("color Element {Si} gray")')
+    write (lu,'("color Element {Bi} purple")')
+    write (lu,'("color Element {Se} orange3")')
+    write (lu,'("color Display {Background} white")')
+    write (lu,'("display depthcue off")')
+    write (lu,*)
+
+    ! the molecule
+    xyzfile = file(:index(file,'.',.true.)-1) // ".xyz"
+    write (lu,'("mol new ",A," type xyz first 0 last -1 step 1 filebonds 0 autobonds 0 waitfor all")') &
+       xyzfile
+    write (lu,*)
+
+    ! pbc box and vectors
+    if (.not.sy%c%ismolecule) then
+       write (lu,'("pbc set {",3(" {",3(A,X),"} "),"} -namd -all -noalignx")') &
+          ((string(sy%c%m_x2c(i,j)*bohrtoa,'f',decimal=6),i=1,3),j=1,3)
+       write (lu,'("draw color red")')
+       do i = 1, 12
+          if (i == 1) then
+             write (lu,'("draw color red")')
+          elseif (i == 2) then
+             write (lu,'("draw color green")')
+          elseif (i == 3) then
+             write (lu,'("draw color blue")')
+          elseif (i == 4) then
+             write (lu,'("draw color gray")')
+          end if
+          xx0 = sy%c%x2c(xlist0(:,i))
+          xx1 = sy%c%x2c(xlist1(:,i))
+          write (lu,'("draw cylinder ",2("{",3(A,X),"} ")," radius 0.05 resolution 20")') &
+             (string(xx0(j)*bohrtoa,'f',decimal=6),j=1,3), (string(xx1(j)*bohrtoa,'f',decimal=6),j=1,3)
+       end do
+    end if
+
+    ! define labels
+    write (lu,'("set labx 0.05")')
+    write (lu,'("set laby 0.0")')
+    write (lu,'("label delete Atoms all")')
+    write (lu,'("color Labels Atoms blue")')
+    write (lu,'("label textthickness 2.5")')
+    write (lu,'("label textsize 0.75")')
+    write (lu,*)
+
+    ! set the atom types
+    write (lu,'("set sel [atomselect top ""name \""Xn.*\""""]")')
+    write (lu,'("$sel set type ""1""")')
+    write (lu,'("set sel [atomselect top ""name \""Xb.*\""""]")')
+    write (lu,'("$sel set type ""2""")')
+    write (lu,'("set sel [atomselect top ""name \""Xr.*\""""]")')
+    write (lu,'("$sel set type ""3""")')
+    write (lu,'("set sel [atomselect top ""name \""Xc.*\""""]")')
+    write (lu,'("$sel set type ""4""")')
+    write (lu,'("set sel [atomselect top ""name \""Xz.*\""""]")')
+    write (lu,'("$sel set type ""5""")')
+    write (lu,*)
+
+    ! type colors
+    write (lu,'("color Type {1} green2")')
+    write (lu,'("color Type {2} orange3")')
+    write (lu,'("color Type {3} cyan")')
+    write (lu,'("color Type {4} red")')
+    write (lu,'("color Type {5} mauve")')
+    write (lu,*)
+
+    ! representations
+    write (lu,'("mol delrep 0 top")')
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Type")')
+    write (lu,'("mol selection {type 1}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Type")')
+    write (lu,'("mol selection {type 2}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Type")')
+    write (lu,'("mol selection {type 3}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Type")')
+    write (lu,'("mol selection {type 4}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+    write (lu,'("mol representation CPK 0.100000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Type")')
+    write (lu,'("mol selection {type 5}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+    write (lu,'("mol representation CPK 1.000000 0.300000 12.000000 12.000000")')
+    write (lu,'("mol color Element")')
+    write (lu,'("mol selection {not (type 1 or type 2 or type 3 or type 4 or type 5)}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,*)
+
+    ! label atoms
+    write (lu,'("set atomlist [[atomselect top ""not (type 1 or type 2 or type 3 or type 4 or type 5)""] list]")')
+    write (lu,'("foreach {atom} $atomlist {")')
+    write (lu,'("  label add Atoms 0/$atom")')
+    write (lu,'("  label textformat Atoms $atom {%1i}")')
+    write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
+    write (lu,'("}")')
+
+    ! wrap up
+    call fclose(lu)
+
+  end subroutine write_vmd_cps
 
 end submodule proc

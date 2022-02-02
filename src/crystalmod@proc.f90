@@ -4568,7 +4568,7 @@ contains
   !> (cryst.). If luout is present, return the LU in that argument
   !> and do not close the file.
   module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,luout)
+     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout)
     use global, only: dunit0, iunit
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
@@ -4585,6 +4585,7 @@ contains
     integer, intent(in), optional :: nmer0
     real*8, intent(in), optional :: rsph0, xsph0(3)
     real*8, intent(in), optional :: rcub0, xcub0(3)
+    logical, intent(in), optional :: usenames0
     integer, intent(out), optional :: luout
 
     type(fragment) :: fr
@@ -4600,7 +4601,7 @@ contains
     integer :: ix(3)
     logical :: doborder, onemotif, molmotif, environ
     real*8 :: renv
-    logical :: lnmer
+    logical :: lnmer, usenames
     integer :: nmer
     real*8 :: rsph, xsph(3)
     real*8 :: rcub, xcub(3)
@@ -4618,6 +4619,7 @@ contains
     xsph = 0d0
     rcub = -1d0
     xcub = 0d0
+    usenames = .false.
     if (present(ix0)) ix = ix0
     if (present(doborder0)) doborder = doborder0
     if (present(onemotif0)) onemotif = onemotif0
@@ -4630,6 +4632,7 @@ contains
     if (present(xsph0)) xsph = xsph0
     if (present(rcub0)) rcub = rcub0
     if (present(xcub0)) xcub = xcub0
+    if (present(usenames0)) usenames = usenames0
 
     ! determine the fragments
     if (onemotif) then
@@ -4822,7 +4825,7 @@ contains
       type(fragment) :: fro
 
       if (equal(fmt,"xyz")) then
-         call fro%writexyz(fileo)
+         call fro%writexyz(fileo,usenames)
       elseif (equal(fmt,"gjf")) then
          call fro%writegjf(fileo)
       elseif (equal(fmt,"cml")) then

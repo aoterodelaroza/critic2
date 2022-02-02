@@ -559,7 +559,7 @@ module crystalmod
        character*(*), intent(in) :: file
      end subroutine write_simple_driver
      module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,luout)
+        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*3, intent(in) :: fmt
@@ -570,6 +570,7 @@ module crystalmod
        integer, intent(in), optional :: nmer0
        real*8, intent(in), optional :: rsph0, xsph0(3)
        real*8, intent(in), optional :: rcub0, xcub0(3)
+       logical, intent(in), optional :: usenames0
        integer, intent(out), optional :: luout
      end subroutine write_mol
      module subroutine write_3dmodel(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&

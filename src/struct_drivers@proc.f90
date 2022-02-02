@@ -439,14 +439,16 @@ contains
 
   end subroutine struct_charges
 
-  ! Write the crystal structure to a file
-  module subroutine struct_write(s,line)
+  ! Write the crystal structure to a file. If usexyznames, use the
+  ! atom names when writing an xyz file.
+  module subroutine struct_write(s,line,usexyznames)
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
        string
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
+    logical, intent(in) :: usexyznames
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer, idx
@@ -563,7 +565,7 @@ contains
 
        if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
           call s%c%write_mol(file,wext,ix,doborder,onemotif,molmotif,&
-             environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub)
+             environ,renv,lnmer,nmer,rsph,xsph,rcub,xcub,usexyznames)
        else
           call s%c%write_3dmodel(file,wext,ix,doborder,onemotif,molmotif,&
              docell,domolcell,rsph,xsph,rcub,xcub)

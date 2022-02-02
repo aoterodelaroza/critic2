@@ -64,9 +64,10 @@ module fragmentmod
        logical, intent(in), optional :: weight0
        real*8 :: x(3)
      end function cmass
-     module subroutine writexyz(fr,file)
+     module subroutine writexyz(fr,file,usenames)
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
+       logical, intent(in) :: usenames
      end subroutine writexyz
      module subroutine writecml(fr,file,r,luout)
        class(fragment), intent(in) :: fr
