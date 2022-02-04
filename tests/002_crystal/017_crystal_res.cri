@@ -1,5 +1,0 @@
-## check: 017_crystal_res_gen.cri -a1e-10
-## delete: 017_crystal_res.cro
-## labels: regression quick
-crystal ../zz_source/shelx/mgo.res
-write 017_crystal_res_gen.cri

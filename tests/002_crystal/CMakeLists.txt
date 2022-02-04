@@ -33,6 +33,7 @@ set(TESTS
   032_crystal_aimsout      ## from an FHIaims output file
   033_crystal_aimsmol      ## from an FHIaims molecule
   034_crystal_tinkerfrac   ## from a TINKER frac file
+  035_crystal_forceformat  ## force a crystal file format
   )
 
 runtests(${TESTS})

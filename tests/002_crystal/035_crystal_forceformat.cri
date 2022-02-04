@@ -1,0 +1,63 @@
+## delete: 035_crystal_tinkerfrac.cro
+## check: 035_crystal_forceformat_gen_1.cri -a1e-10
+## check: 035_crystal_forceformat_gen_2.cri -a1e-10
+## check: 035_crystal_forceformat_gen_3.cri -a1e-10
+## check: 035_crystal_forceformat_gen_4.cri -a1e-10
+## check: 035_crystal_forceformat_gen_5.cri -a1e-10
+## check: 035_crystal_forceformat_gen_6.cri -a1e-10
+## check: 035_crystal_forceformat_gen_7.cri -a1e-10
+## check: 035_crystal_forceformat_gen_8.cri -a1e-10
+## check: 035_crystal_forceformat_gen_9.cri -a1e-10
+## check: 035_crystal_forceformat_gen_10.cri -a1e-10
+## check: 035_crystal_forceformat_gen_11.cri -a1e-10
+## check: 035_crystal_forceformat_gen_12.cri -a1e-10
+## check: 035_crystal_forceformat_gen_13.cri -a1e-10
+## check: 035_crystal_forceformat_gen_14.cri -a1e-10
+## check: 035_crystal_forceformat_gen_15.cri -a1e-10
+## check: 035_crystal_forceformat_gen_16.cri -a1e-10
+## check: 035_crystal_forceformat_gen_17.cri -a1e-10
+## check: 035_crystal_forceformat_gen_18.cri -a1e-10
+## check: 035_crystal_forceformat_gen_19.cri -a1e-10
+## check: 035_crystal_forceformat_gen_20.cri -a1e-10
+## labels: regression quick
+
+crystal cif ../zz_source/cif/allspg/186_wurtzite.cif
+write 035_crystal_forceformat_gen_1.cri
+crystal shelx ../zz_source/shelx/mgo/mgo.res
+write 035_crystal_forceformat_gen_2.cri
+crystal 21 ../zz_source/dmacrys-2.3.0/urea/fort.21
+write 035_crystal_forceformat_gen_3.cri
+crystal cube ../zz_source/qe-6.1/graphite/rho.cube
+write 035_crystal_forceformat_gen_4.cri
+crystal bincube ../zz_source/critic2/graphite/rho.bincube
+write 035_crystal_forceformat_gen_5.cri
+crystal wien ../zz_source/wien14.2/bp/bp.struct
+write 035_crystal_forceformat_gen_6.cri
+crystal abinit ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+write 035_crystal_forceformat_gen_7.cri
+crystal elk ../zz_source/elk-6.3.02/sbpo4/GEOMETRY.OUT
+write 035_crystal_forceformat_gen_8.cri
+crystal qe_in ../zz_source/qe-6.1/graphite/graph.scf.in
+write 035_crystal_forceformat_gen_9.cri
+crystal qe_out ../zz_source/qe-6.1/graphite/graph.scf.out
+write 035_crystal_forceformat_gen_10.cri
+crystal crystal ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
+write 035_crystal_forceformat_gen_11.cri
+crystal siesta ../zz_source/siesta-4.1/graphite/crystal.STRUCT_IN
+write 035_crystal_forceformat_gen_12.cri
+crystal xsf ../zz_source/xcrysden-1.5.60/graphite/graph.xsf
+write 035_crystal_forceformat_gen_13.cri
+crystal gen ../zz_source/dftb+-18.1/graphite/graphite.gen
+write 035_crystal_forceformat_gen_14.cri
+crystal vasp ../zz_source/vasp-5.3.3/agtao3/CHGCAR
+write 035_crystal_forceformat_gen_15.cri
+crystal pwc ../zz_source/qe-6.5/graphite/graph.pwc
+write 035_crystal_forceformat_gen_16.cri
+crystal axsf ../zz_source/qe-6.1/co2-stishovite/dynmat.axsf 1 0.0
+write 035_crystal_forceformat_gen_17.cri
+crystal dmain ../zz_source/dmacrys-2.3.0/urea/urea.dmain
+write 035_crystal_forceformat_gen_18.cri
+crystal fhiaims_in ../zz_source/fhiaims-210223/pbs2/geometry.in
+write 035_crystal_forceformat_gen_19.cri
+crystal fhiaims_out ../zz_source/fhiaims-210223/fcc-al/fcc_Al.out
+write 035_crystal_forceformat_gen_20.cri

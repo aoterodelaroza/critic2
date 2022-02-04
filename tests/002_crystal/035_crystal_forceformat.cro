@@ -1,0 +1,46 @@
+ ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     10
+  Category key _space_group_id not given for space_group
+ ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     16
+  Category key _space_group_symop_id not given for space_group_symop
+ ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     34
+  Category key _atom_site_aniso_label not given for atom_site
+* WRITE critic2 input file: 035_crystal_forceformat_gen_1.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_2.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_3.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_4.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_5.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_6.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_7.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_8.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_9.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_10.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_11.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_12.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_13.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_14.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_15.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_16.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_17.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_18.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_19.cri
+
+* WRITE critic2 input file: 035_crystal_forceformat_gen_20.cri
+
