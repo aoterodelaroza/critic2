@@ -12,6 +12,7 @@ set(TESTS
   011_molecule-orca      ## read molecule structure from orca output
   012_molecule-aimsin    ## read molecule structure from FHIamis input
   013_molecule-aimsout   ## read molecule structure from FHIamis output
+  014_molecule-forceformat ## force a format when using molecule
   )
 
 runtests(${TESTS})

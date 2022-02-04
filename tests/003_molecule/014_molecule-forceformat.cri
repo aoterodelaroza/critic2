@@ -1,0 +1,35 @@
+## delete: 014_molecule-forceformat.cro
+## check: 014_molecule-forceformat_gen_1.cri -a1e-10
+## check: 014_molecule-forceformat_gen_2.cri -a1e-10
+## check: 014_molecule-forceformat_gen_3.cri -a1e-10
+## check: 014_molecule-forceformat_gen_4.cri -a1e-10
+## check: 014_molecule-forceformat_gen_5.cri -a1e-10
+## check: 014_molecule-forceformat_gen_6.cri -a1e-10
+## check: 014_molecule-forceformat_gen_7.cri -a1e-10
+## check: 014_molecule-forceformat_gen_8.cri -a1e-10
+## check: 014_molecule-forceformat_gen_9.cri -a1e-10
+## check: 014_molecule-forceformat_gen_10.cri -a1e-10
+## check: 014_molecule-forceformat_gen_11.cri -a1e-10
+## labels: regression quick
+molecule xyz ../zz_source/g16A.03/benzene/benzene.xyz
+write 014_molecule-forceformat_gen_1.cri
+molecule wfn ../zz_source/g16A.03/benzene/benzene.wfn
+write 014_molecule-forceformat_gen_2.cri
+molecule wfx ../zz_source/g16A.03/benzene/benzene.wfx
+write 014_molecule-forceformat_gen_3.cri
+molecule fchk ../zz_source/g16A.03/benzene/benzene.fchk
+write 014_molecule-forceformat_gen_4.cri
+molecule molden ../zz_source/psi4-1.4/benzene/benzene_all.molden
+write 014_molecule-forceformat_gen_5.cri
+molecule gaussian ../zz_source/g16A.03/benzene/benzene.log
+write 014_molecule-forceformat_gen_6.cri
+molecule dat ../zz_source/psi4-1.4/benzene/benzene.dat
+write 014_molecule-forceformat_gen_7.cri
+molecule gen ../zz_source/dftb+-18.1/benzene/benzene.gen
+write 014_molecule-forceformat_gen_8.cri
+molecule orca ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.out
+write 014_molecule-forceformat_gen_9.cri
+molecule fhiaims_in ../zz_source/fhiaims-210223/h2o/geometry.in
+write 014_molecule-forceformat_gen_10.cri
+molecule fhiaims_out ../zz_source/fhiaims-210223/h2o/h2o_sp.out
+write 014_molecule-forceformat_gen_11.cri
