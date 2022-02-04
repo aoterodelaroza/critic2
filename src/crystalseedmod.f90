@@ -287,10 +287,9 @@ module crystalseedmod
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_crystalseed
-     module subroutine struct_detect_format(file,isformat,ismol,alsofield)
+     module subroutine struct_detect_format(file,isformat,alsofield)
        character*(*), intent(in) :: file
        integer, intent(out) :: isformat
-       logical, intent(out) :: ismol
        logical, intent(out), optional :: alsofield
      end subroutine struct_detect_format
      module subroutine struct_detect_ismol(file,isformat,ismol)

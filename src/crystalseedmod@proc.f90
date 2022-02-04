@@ -780,7 +780,7 @@ contains
 
     ! detect the format for this file
     errmsg = ""
-    call struct_detect_format(file,isformat,ismol)
+    call struct_detect_format(file,isformat)
 
     ! is this a crystal or a molecule?
     if (mol0 == 1) then
@@ -788,7 +788,7 @@ contains
     elseif (mol0 == 0) then
        mol = .false.
     elseif (mol0 == -1) then
-       mol = ismol
+       call struct_detect_ismol(file,isformat,mol)
     else
        call ferror("read_any_file","unknown mol0",faterr)
     end if
@@ -4657,7 +4657,7 @@ contains
        goto 999
     end if
 
-    call struct_detect_format(file,isformat,ismol,alsofield)
+    call struct_detect_format(file,isformat,alsofield)
     if (isformat == isformat_unknown) then
        errmsg = "Unknown file format/extension."
        goto 999
@@ -4667,7 +4667,7 @@ contains
     elseif (mol0_ == 0) then
        mol = .false.
     elseif (mol0_ == -1) then
-       mol = ismol
+       call struct_detect_ismol(file,isformat,mol)
     end if
 
     ! read all available seeds in the file

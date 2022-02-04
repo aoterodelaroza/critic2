@@ -132,7 +132,7 @@ contains
     if (isformat /= isformat_unknown) then
        word = getword(line,lp)
     else
-       call struct_detect_format(word,isformat,ismol)
+       call struct_detect_format(word,isformat)
     end if
     call struct_detect_ismol(word,isformat,ismol)
     subline = line(lp:)
@@ -1341,7 +1341,8 @@ contains
        ismol = .true.
        do i = 1, ns
           if (.not.equal(fname(i),".")) then
-             call struct_detect_format(fname(i),isformat,laux)
+             call struct_detect_format(fname(i),isformat)
+             call struct_detect_ismol(fname(i),isformat,laux)
              ismol = ismol .and. laux
              if (isformat == isformat_unknown) &
                 call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
