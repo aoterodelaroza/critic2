@@ -102,6 +102,7 @@ module crystalseedmod
 
   public :: realloc_crystalseed
   public :: struct_detect_format
+  public :: struct_detect_ismol
   public :: read_seeds_from_file
 
   ! module procedure interfaces
@@ -292,6 +293,11 @@ module crystalseedmod
        logical, intent(out) :: ismol
        logical, intent(out), optional :: alsofield
      end subroutine struct_detect_format
+     module subroutine struct_detect_ismol(file,isformat,ismol)
+       character*(*), intent(in) :: file
+       integer, intent(in) :: isformat
+       logical, intent(out) :: ismol
+     end subroutine struct_detect_ismol
      module subroutine read_potcar(seed,file,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

@@ -25,6 +25,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_log(nseed,seed,file,errmsg)
   ! subroutine read_cif_items(seed,mol,errmsg)
   ! function which_out_format(file)
+  ! subroutine which_in_format(file,isformat,ismol)
 
 contains
 
@@ -4460,6 +4461,110 @@ contains
     ismol = .false.
 
   end subroutine struct_detect_format
+
+  !> Detect whether a file with format isformat contains a molecule
+  !> (ismol=.true.)  or a crystal (.false.)
+  module subroutine struct_detect_ismol(file,isformat,ismol)
+    use tools_io, only: fopen_read, fclose, getline, equali,&
+       getline_raw, lgetword, equal, lower
+    use param, only: isformat_unknown, isformat_cif, isformat_shelx, isformat_f21,&
+       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_wfn,&
+       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
+       isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
+       isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
+       isformat_aimsout, isformat_tinkerfrac
+    character*(*), intent(in) :: file
+    integer, intent(in) :: isformat
+    logical, intent(out) :: ismol
+
+    character(len=:), allocatable :: line, word
+    integer :: lu, ios, lp, nat
+    character*1 :: isfrac
+    logical :: ok
+
+    ismol = .false.
+    select case (isformat)
+    case (isformat_cif,isformat_pwc,isformat_shelx,isformat_f21,&
+       isformat_cube,isformat_bincube,isformat_struct,isformat_abinit,&
+       isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
+       isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
+       isformat_crystal)
+       ismol = .false.
+
+    case (isformat_xyz,isformat_pgout,isformat_wfn,isformat_wfx,&
+       isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
+       isformat_orca)
+       ismol = .true.
+
+    case(isformat_aimsout)
+       lu = fopen_read(file,errstop=.false.)
+       ismol = .false.
+       do while(getline_raw(lu,line))
+          if (adjustl(trim(line)) == "Input geometry:") then
+             ok = getline_raw(lu,line)
+             if (.not.ok) then
+                return
+             else if (index(line,"Unit cell:") > 0) then
+                ismol = .false.
+             elseif (index(line,"No unit cell requested.") > 0) then
+                ismol = .true.
+             endif
+             exit
+          end if
+       end do
+       call fclose(lu)
+
+    case (isformat_aimsin)
+       ismol = .true.
+       lu = fopen_read(file,errstop=.false.)
+       if (lu < 0) return
+       do while(getline_raw(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,"lattice_vector")) then
+             ismol = .false.
+             exit
+          end if
+       end do
+       call fclose(lu)
+
+    case (isformat_gen)
+       ismol = .false.
+       lu = fopen_read(file,errstop=.false.)
+       if (lu < 0) return
+       do while (getline_raw(lu,line))
+          if (len_trim(line) > 0) exit
+       end do
+       read (line,*,iostat=ios) nat, isfrac
+       if (ios /= 0) return
+       isfrac = lower(isfrac)
+       if (equal(isfrac,"c")) then
+          ismol = .true.
+       else
+          ismol = .false.
+       end if
+       call fclose(lu)
+
+    case (isformat_xsf)
+       ismol = .false.
+       lu = fopen_read(file,errstop=.false.)
+       if (lu < 0) return
+       do while (getline(lu,line))
+          if (len_trim(line) > 0) exit
+       end do
+       if (equali(line,"atoms")) then
+          ismol = .true.
+       else
+          ismol = .false.
+       end if
+       call fclose(lu)
+
+    case default
+       ismol = .false.
+    end select
+
+  end subroutine struct_detect_ismol
 
   !> Read the species into the seed from a VASP POTCAR file.
   module subroutine read_potcar(seed,file,errmsg)

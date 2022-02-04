@@ -37,8 +37,9 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac
-    use crystalseedmod, only: crystalseed, struct_detect_format
+       isformat_aimsout, isformat_tinkerfrac, isformat_unknown
+    use crystalseedmod, only: crystalseed, struct_detect_format,&
+       struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, isreal, lower
@@ -52,8 +53,8 @@ contains
     type(crystalseed), intent(inout), optional :: seed0
 
     integer :: lp, lp2, istruct
-    character(len=:), allocatable :: word, word2, subline
-    integer :: nn, isformat
+    character(len=:), allocatable :: word, word2, lword, subline
+    integer :: nn, isformat, isformat2
     real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes
     type(crystalseed) :: seed
@@ -63,12 +64,80 @@ contains
     lp=1
     lp2=1
     word = getword(line,lp)
+
+    ! detect the format for this file; see if we the user is forcing a particular format
+    lword = lower(word)
+    isformat = isformat_unknown
+    if (equal(lword,'cif')) then
+       isformat = isformat_cif
+    elseif (equal(lword,'shelx')) then
+       isformat = isformat_shelx
+    elseif (equal(lword,'21')) then
+       isformat = isformat_f21
+    elseif (equal(lword,'cube')) then
+       isformat = isformat_cube
+    elseif (equal(lword,'bincube')) then
+       isformat = isformat_bincube
+    elseif (equal(lword,'wien')) then
+       isformat = isformat_struct
+    elseif (equal(lword,'abinit')) then
+       isformat = isformat_abinit
+    elseif (equal(lword,'elk')) then
+       isformat = isformat_elk
+    elseif (equal(lword,'qe_in')) then
+       isformat = isformat_qein
+    elseif (equal(lword,'qe_out')) then
+       isformat = isformat_qeout
+    elseif (equal(lword,'crystal')) then
+       isformat = isformat_crystal
+    elseif (equal(lword,'xyz')) then
+       isformat = isformat_xyz
+    elseif (equal(lword,'wfn')) then
+       isformat = isformat_wfn
+    elseif (equal(lword,'wfx')) then
+       isformat = isformat_wfx
+    elseif (equal(lword,'fchk')) then
+       isformat = isformat_fchk
+    elseif (equal(lword,'molden')) then
+       isformat = isformat_molden
+    elseif (equal(lword,'gaussian')) then
+       isformat = isformat_gaussian
+    elseif (equal(lword,'siesta')) then
+       isformat = isformat_siesta
+    elseif (equal(lword,'xsf')) then
+       isformat = isformat_xsf
+    elseif (equal(lword,'gen')) then
+       isformat = isformat_gen
+    elseif (equal(lword,'vasp')) then
+       isformat = isformat_vasp
+    elseif (equal(lword,'pwc')) then
+       isformat = isformat_pwc
+    elseif (equal(lword,'axsf')) then
+       isformat = isformat_axsf
+    elseif (equal(lword,'dat')) then
+       isformat = isformat_dat
+    elseif (equal(lword,'pgout')) then
+       isformat = isformat_pgout
+    elseif (equal(lword,'orca')) then
+       isformat = isformat_orca
+    elseif (equal(lword,'dmain')) then
+       isformat = isformat_dmain
+    elseif (equal(lword,'fhiaims_in')) then
+       isformat = isformat_aimsin
+    elseif (equal(lword,'fhiaims_out')) then
+       isformat = isformat_aimsout
+    elseif (equal(lword,'frac')) then
+       isformat = isformat_tinkerfrac
+    end if
+    if (isformat /= isformat_unknown) then
+       word = getword(line,lp)
+    else
+       call struct_detect_format(word,isformat,ismol)
+    end if
+    call struct_detect_ismol(word,isformat,ismol)
     subline = line(lp:)
     word2 = getword(line,lp)
     if (len_trim(word2) == 0) word2 = " "
-
-    ! detect the format for this file
-    call struct_detect_format(word,isformat,ismol)
 
     ! is this a crystal or a molecule?
     if (mol0 == 1) then
