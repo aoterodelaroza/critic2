@@ -1227,7 +1227,7 @@ contains
   module subroutine struct_compare(s,line)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use crystalseedmod, only: struct_detect_format
+    use crystalseedmod, only: struct_detect_format, struct_detect_ismol
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching

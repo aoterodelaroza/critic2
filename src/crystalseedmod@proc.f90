@@ -25,7 +25,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_log(nseed,seed,file,errmsg)
   ! subroutine read_cif_items(seed,mol,errmsg)
   ! function which_out_format(file)
-  ! subroutine which_in_format(file,isformat,ismol)
+  ! subroutine which_in_format(file,isformat)
 
 contains
 
@@ -776,7 +776,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: isformat
-    logical :: ismol, mol, hastypes
+    logical :: mol, hastypes
 
     ! detect the format for this file
     errmsg = ""
@@ -4273,7 +4273,7 @@ contains
   !> whether the file contains a molecule or crysatl is returned.
   !> If alsofield is present, then return .true. if the file also
   !> contains a scalar field.
-  module subroutine struct_detect_format(file,isformat,ismol,alsofield)
+  module subroutine struct_detect_format(file,isformat,alsofield)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
        isformat_f21, isformat_xyz,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
@@ -4286,7 +4286,6 @@ contains
     use param, only: dirsep
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
-    logical, intent(out) :: ismol
     logical, intent(out), optional :: alsofield
 
     character(len=:), allocatable :: basename, wextdot, wextdot2, wext_, line
@@ -4314,27 +4313,20 @@ contains
 
     if (equal(lower(wextdot),'cif')) then
        isformat = isformat_cif
-       ismol = .false.
     elseif (equal(wextdot,'pwc')) then
        isformat = isformat_pwc
-       ismol = .false.
     elseif (equal(wextdot,'res').or.equal(wextdot,'ins').or.equal(wextdot,'16')) then
        isformat = isformat_shelx
-       ismol = .false.
     elseif (equal(wextdot,'21')) then
        isformat = isformat_f21
-       ismol = .false.
     elseif (equal(wextdot,'cube')) then
        isformat = isformat_cube
-       ismol = .false.
        alsofield_ = .true.
     elseif (equal(wextdot,'bincube')) then
        isformat = isformat_bincube
-       ismol = .false.
        alsofield_ = .true.
     elseif (equal(wextdot,'struct')) then
        isformat = isformat_struct
-       ismol = .false.
     elseif (equal(wextdot,'DEN').or.equal(wext_,'DEN').or.equal(wextdot,'ELF').or.equal(wext_,'ELF').or.&
        equal(wextdot,'POT').or.equal(wext_,'POT').or.equal(wextdot,'VHA').or.equal(wext_,'VHA').or.&
        equal(wextdot,'VHXC').or.equal(wext_,'VHXC').or.equal(wextdot,'VXC').or.equal(wext_,'VXC').or.&
@@ -4343,66 +4335,49 @@ contains
        equal(wextdot,'KDEN').or.equal(wext_,'KDEN').or.equal(wextdot,'PAWDEN').or.equal(wext_,'PAWDEN').or.&
        equal(wextdot,'VCLMB').or.equal(wext_,'VCLMB').or.equal(wextdot,'VPSP').or.equal(wext_,'VPSP')) then
        isformat = isformat_abinit
-       ismol = .false.
        alsofield_ = .true.
     elseif (equal(wextdot,'OUT')) then
        isformat = isformat_elk
-       ismol = .false.
     elseif (equal(wextdot,'out')) then
-       call which_out_format(file,isformat,ismol)
+       call which_out_format(file,isformat)
     elseif (equal(wextdot,'own')) then
-       call which_out_format(file,isformat,ismol)
+       call which_out_format(file,isformat)
        if (isformat /= isformat_aimsout) goto 999
     elseif (equal(wextdot,'in')) then
-       call which_in_format(file,isformat,ismol)
+       call which_in_format(file,isformat)
     elseif (equal(wextdot2,'in.next_step')) then
-       call which_in_format(file,isformat,ismol)
+       call which_in_format(file,isformat)
        if (isformat /= isformat_aimsin) goto 999
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
-       ismol = .true.
     elseif (equal(wextdot,'pgout')) then
        isformat = isformat_pgout
-       ismol = .true.
     elseif (equal(wextdot,'wfn')) then
        isformat = isformat_wfn
-       ismol = .true.
        alsofield_ = .true.
     elseif (equal(wextdot,'wfx')) then
        isformat = isformat_wfx
-       ismol = .true.
        alsofield_ = .true.
     elseif (equal(wextdot,'log')) then
        isformat = isformat_gaussian
-       ismol = .true.
        alsofield_ = .false.
     elseif (equal(wextdot,'fchk')) then
        isformat = isformat_fchk
-       ismol = .true.
        alsofield_ = .true.
     elseif (equal(wextdot,'molden') .or. equal(wextdot2,'molden.input')) then
        isformat = isformat_molden
-       ismol = .true.
        alsofield_ = .true.
     elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
        isformat = isformat_siesta
-       ismol = .false.
     elseif (equal(wextdot,'dmain')) then
        isformat = isformat_dmain
-       ismol = .false.
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
-       ismol = .false.
        lu = fopen_read(file,errstop=.false.)
        if (lu < 0) goto 999
        do while (getline(lu,line))
           if (len_trim(line) > 0) exit
        end do
-       if (equali(line,"atoms")) then
-          ismol = .true.
-       else
-          ismol = .false.
-       end if
        if (present(alsofield)) then
           do while (getline(lu,line))
              if (equali(line,"begin_block_datagrid_3d")) then
@@ -4412,13 +4387,10 @@ contains
           end do
        end if
        call fclose(lu)
-       if (.not.present(alsofield)) &
-          alsofield_ = .not.ismol
     elseif (equal(wextdot,'gen')) then
        isformat = isformat_gen
 
        ! determine whether it is a molecule or crystal
-       ismol = .false.
        lu = fopen_read(file,errstop=.false.)
        if (lu < 0) goto 999
        do while (getline_raw(lu,line))
@@ -4427,24 +4399,15 @@ contains
        read (line,*,iostat=ios) nat, isfrac
        if (ios /= 0) goto 999
        isfrac = lower(isfrac)
-       if (equal(isfrac,"c")) then
-          ismol = .true.
-       else
-          ismol = .false.
-       end if
        call fclose(lu)
     elseif (equal(wextdot,'axsf')) then
        isformat = isformat_axsf
-       ismol = .false.
     elseif (equal(wextdot,'dat')) then
        isformat = isformat_dat
-       ismol = .true.
     elseif (equal(wextdot,'frac')) then
        isformat = isformat_tinkerfrac
-       ismol = .false.
     elseif (isvasp) then
        isformat = isformat_vasp
-       ismol = .false.
        alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
           (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
           (index(basename,'AECCAR2') > 0)
@@ -4458,7 +4421,6 @@ contains
     return
 999 continue
     isformat = isformat_unknown
-    ismol = .false.
 
   end subroutine struct_detect_format
 
@@ -4467,7 +4429,7 @@ contains
   module subroutine struct_detect_ismol(file,isformat,ismol)
     use tools_io, only: fopen_read, fclose, getline, equali,&
        getline_raw, lgetword, equal, lower
-    use param, only: isformat_unknown, isformat_cif, isformat_shelx, isformat_f21,&
+    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
@@ -4643,7 +4605,7 @@ contains
 
     character(len=:), allocatable :: path, ofile
     integer :: isformat, mol0_, i
-    logical :: ismol, mol, hastypes, alsofield, ok
+    logical :: mol, hastypes, alsofield, ok
 
     errmsg = ""
     alsofield = .false.
@@ -5827,34 +5789,29 @@ contains
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.
-  subroutine which_out_format(file,isformat,ismol)
+  subroutine which_out_format(file,isformat)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
     use param, only: isformat_qeout, isformat_crystal, isformat_orca, isformat_aimsout
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
-    logical, intent(out) :: ismol
 
     integer :: lu
     character(len=:), allocatable :: line
     logical :: ok
 
     isformat = 0
-    ismol = .true.
     lu = fopen_read(file)
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
        if (index(line,"--- An Ab Initio, DFT and Semiempirical electronic structure package ---") > 0) then
           isformat = isformat_orca
-          ismol = .true.
           exit
        else if (index(line,"EEEEEEEEEE STARTING  DATE") > 0) then
           isformat = isformat_crystal
-          ismol = .false.
           exit
        else if (index(line,"Program PWSCF") > 0) then
           isformat = isformat_qeout
-          ismol = .false.
           exit
        elseif (index(line,"Invoking FHI-aims ...") > 0) then
           isformat = isformat_aimsout
@@ -5864,7 +5821,6 @@ contains
 
     ! determine whether the aims output contains a molecule or a crystal
     if (isformat == isformat_aimsout) then
-       ismol = .false.
        isformat = 0
        do while(getline_raw(lu,line))
           if (adjustl(trim(line)) == "Input geometry:") then
@@ -5873,9 +5829,7 @@ contains
              if (.not.ok) then
                 isformat = 0
              else if (index(line,"Unit cell:") > 0) then
-                ismol = .false.
              elseif (index(line,"No unit cell requested.") > 0) then
-                ismol = .true.
              endif
              exit
           end if
@@ -5887,19 +5841,17 @@ contains
 
   !> Determine whether a given input file (.in) comes from an FHIaims
   !> or a quantum espresso calculation.
-  subroutine which_in_format(file,isformat,ismol)
+  subroutine which_in_format(file,isformat)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
     use param, only: isformat_qein, isformat_aimsin
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
-    logical, intent(out) :: ismol
 
     integer :: lu, lp
     character(len=:), allocatable :: line, word, lline
 
     ! parse the input file looking for mandatory keywords
     isformat = 0
-    ismol = .true.
     lu = fopen_read(file)
     if (lu < 0) return
     line = ""
@@ -5911,7 +5863,6 @@ contains
        if (word(1:1) == "#") cycle
        if ((index(lline,"&control") > 0) .or. (index(lline,"&system") > 0)) then
           isformat = isformat_qein
-          ismol = .false.
           exit
        end if
        if (equal(word,"atom").or.equal(word,"atom_frac").or.equal(word,"lattice_vector")) then
@@ -5922,13 +5873,11 @@ contains
 
     ! If this is an FHI-aims input, determine whether it is a molecule or a crystal
     if (isformat == isformat_aimsin) then
-       ismol = .true.
        rewind(lu)
        do while(getline_raw(lu,line))
           lp = 1
           word = lgetword(line,lp)
           if (equal(word,"lattice_vector")) then
-             ismol = .false.
              exit
           end if
        end do
