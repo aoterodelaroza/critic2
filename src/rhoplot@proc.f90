@@ -407,7 +407,7 @@ contains
     integer :: lp2, nder
     character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
-    logical :: ok, iok
+    logical :: ok, iok, doortho
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
@@ -444,6 +444,7 @@ contains
     integer, parameter :: nti_abs = 15
 
     ! read the points
+    doortho = .false.
     lp = 1
     lp2 = 1
     dogrid = .false.
@@ -647,6 +648,8 @@ contains
           ok = isinteger(ishift(1),line,lp)
           ok = ok .and. isinteger(ishift(2),line,lp)
           ok = ok .and. isinteger(ishift(3),line,lp)
+       else if (equal(word,'ortho')) then
+          doortho = .true.
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
           return
@@ -654,6 +657,15 @@ contains
           exit
        end if
     end do
+
+    ! re-do the lattice vectors if orthogonal vectors were requested
+    if (doortho) then
+       x1 = x0 + xd(:,1) + xd(:,2) + xd(:,3)
+       xd = 0d0
+       do i = 1, 3
+          xd(i,i) = x1(i) - x0(i)
+       end do
+    end if
 
     ! step sizes and various checks
     if (dogrid) then
@@ -678,6 +690,7 @@ contains
        end if
     end if
 
+    ! convert to one-step vectors in each direction
     do i = 1, 3
        xd(:,i) = xd(:,i) / real(nn(i),8)
     end do
