@@ -109,7 +109,7 @@ contains
     use global, only: eval_next
     use tools_io, only: string, lgetword, equal, isexpression_or_word, zatguess,&
        isinteger, getword
-    use param, only: sqfp
+    use param, only: sqfp, icrd_crys
     class(field), intent(inout) :: ff
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
@@ -118,6 +118,10 @@ contains
     integer :: lp, lp2, iz, iq
     logical :: ok
     real*8 :: norm
+    ! xxxx
+    integer :: i, j, k
+    real*8 :: xdelta(3,3), x(3)
+    real*8 :: rho, rhof(3), rhoff(3,3)
 
     errmsg = ""
     ! parse the rest of the line
@@ -128,6 +132,38 @@ contains
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'test')) then
           call ff%grid%setmode(word)
+          if (equal(word,'test')) then
+             ff%grid%test_env = ff%c%env
+             if (allocated(ff%grid%test_rho0)) deallocate(ff%grid%test_rho0)
+             allocate(ff%grid%test_rho0(ff%grid%n(1),ff%grid%n(2),ff%grid%n(3),0:9))
+             ! xxxx this should be promolecular_grid
+             do i = 1, 3
+                xdelta(:,i) = 0d0
+                xdelta(i,i) = 1d0 / real(ff%grid%n(i),8)
+             end do
+             !$omp parallel do private(x,rho,rhof,rhoff)
+             do k = 1, ff%grid%n(3)
+                do j = 1, ff%grid%n(2)
+                   do i = 1, ff%grid%n(1)
+                      x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+                      call ff%c%promolecular(x,icrd_crys,rho,rhof,rhoff,2)
+
+                      !$omp critical(write)
+                      ff%grid%test_rho0(i,j,k,0) = rho
+                      ff%grid%test_rho0(i,j,k,1:3) = rhof
+                      ff%grid%test_rho0(i,j,k,4) = rhoff(1,1)
+                      ff%grid%test_rho0(i,j,k,5) = rhoff(1,2)
+                      ff%grid%test_rho0(i,j,k,6) = rhoff(1,3)
+                      ff%grid%test_rho0(i,j,k,7) = rhoff(2,2)
+                      ff%grid%test_rho0(i,j,k,8) = rhoff(2,3)
+                      ff%grid%test_rho0(i,j,k,9) = rhoff(3,3)
+                      !$omp end critical(write)
+                   end do
+                end do
+             end do
+             !$omp end parallel do
+
+          end if
        else if (equal(word,'exact')) then
           ff%exact = .true.
        else if (equal(word,'approximate')) then

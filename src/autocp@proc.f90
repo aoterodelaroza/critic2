@@ -58,7 +58,6 @@ contains
   !> Uses the IWS, with barycentric subdivision.
   module subroutine autocritic(line)
     use systemmod, only: sy
-    use fieldmod, only: type_grid
     use meshmod, only: mesh
     use graphics, only: grhandle
     use surface, only: minisurf
@@ -144,13 +143,8 @@ contains
     iclip = 0
     CP_hdegen = 1d-8
     cpeps = 1d-2
-    if (sy%f(sy%iref)%type == type_grid) then
-       nuceps = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
-       nucepsh = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
-    else
-       nuceps = 1d-1
-       nucepsh = 2d-1
-    end if
+    nuceps = 1d-1
+    nucepsh = 2d-1
     dograph = 1
 
     ! parse the input

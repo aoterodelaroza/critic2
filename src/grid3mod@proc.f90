@@ -2427,8 +2427,11 @@ contains
     real*8 :: x0(3), x1(3), xh(3), r(3), s(3), dr(3,3), ds(3,3)
     integer :: i0(3), ih(3)
     real*8 :: d, dd, ff, fp, fpp
-    real*8, allocatable :: flist(:), w(:)
+    real*8, allocatable :: flist(:), w(:), f0list(:)
     real*8:: y_(0:2,0:2,0:2), yp_(3,0:2,0:2,0:2), ypp_(3,3,0:2,0:2,0:2)
+    real*8 :: yb, ypb(3), yppb(3,3)
+    real*8 :: y0, yp0(3), ypp0(3,3)
+    real*8 :: y0m, ybm
 
     !$omp critical (checkalloc)
     if (.not.allocated(f%test_ilist)) then
@@ -2438,7 +2441,7 @@ contains
 
     ! reserve memory
     ! allocate(flist(f%test_nlist),w(f%test_nlist))
-    allocate(flist(f%test_nlist+4),w(f%test_nlist+4))
+    allocate(flist(f%test_nlist+4),w(f%test_nlist+4),f0list(f%test_nlist+4))
     ! allocate(flist(f%test_nlist+10),w(f%test_nlist+10))
 
     ! locate the point
@@ -2459,7 +2462,29 @@ contains
 
     ! apply the stencil
     call apply_stencil(i0,x0,y,yp,ypp)
-    ! write (*,*) "xxi0 ", x0, i0, norm2(yp)
+    call f%test_env%promolecular(x0,icrd_crys,y0,yp0,ypp0,2)
+
+    yb = exp(y) * y0
+    y0m = max(y0,1d-40)
+    ybm = max(yb,1d-40)
+
+    ypb(1) = yb * (yp(1) + yp0(1) / y0m)
+    ypb(2) = yb * (yp(2) + yp0(2) / y0m)
+    ypb(3) = yb * (yp(3) + yp0(3) / y0m)
+    yppb = 0d0
+    yppb(1,1) = yb * (ypp(1,1) + ypb(1)*ypb(1) / (ybm*ybm) + ypp0(1,1) / y0m - yp0(1)*yp0(1)/(y0m*y0m))
+    yppb(1,2) = yb * (ypp(1,2) + ypb(1)*ypb(2) / (ybm*ybm) + ypp0(1,2) / y0m - yp0(1)*yp0(2)/(y0m*y0m))
+    yppb(1,3) = yb * (ypp(1,3) + ypb(1)*ypb(3) / (ybm*ybm) + ypp0(1,3) / y0m - yp0(1)*yp0(3)/(y0m*y0m))
+    yppb(2,2) = yb * (ypp(2,2) + ypb(2)*ypb(2) / (ybm*ybm) + ypp0(2,2) / y0m - yp0(2)*yp0(2)/(y0m*y0m))
+    yppb(2,3) = yb * (ypp(2,3) + ypb(2)*ypb(3) / (ybm*ybm) + ypp0(2,3) / y0m - yp0(2)*yp0(3)/(y0m*y0m))
+    yppb(3,3) = yb * (ypp(3,3) + ypb(3)*ypb(3) / (ybm*ybm) + ypp0(3,3) / y0m - yp0(3)*yp0(3)/(y0m*y0m))
+    yppb(2,1) = yppb(1,2)
+    yppb(3,1) = yppb(1,3)
+    yppb(3,2) = yppb(2,3)
+
+    y = yb
+    yp = ypb
+    ypp = yppb
 
     !!!! below, linear interpolation of stencils !!!!
 
@@ -2569,7 +2594,7 @@ contains
       do i = 1, f%test_nlist
          ih = i0 + f%test_ilist(:,i)
          ih = modulo(ih,f%n) + 1
-         flist(i) = f%f(ih(1),ih(2),ih(3))
+         flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),1d-40)/max(f%test_rho0(ih(1),ih(2),ih(3),0),1d-40))
       end do
       flist(f%test_nlist+1:) = 0d0
 
@@ -2795,7 +2820,7 @@ contains
     call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
     f%test_dist0 = dlist(nn)
-    write (*,*) "bleh final ", f%test_dist0
+    write (*,*) "bleh final ", f%test_dist0, nn
     allocate(f%test_xlist(3,nn),f%test_ilist(3,nn))
     do i = 1, nn
        f%test_ilist(:,i) = nint(env%at(eid(i))%x)

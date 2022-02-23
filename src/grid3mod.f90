@@ -17,6 +17,7 @@
 
 ! Class for 3d grids and related tools.
 module grid3mod
+  use environmod, only: environ
   use param, only: mlen
   implicit none
 
@@ -63,6 +64,8 @@ module grid3mod
      real*8, allocatable :: test_xlist(:,:)
      real*8, allocatable :: test_phiinv(:,:)
      real*8 :: test_x2cgrid(3,3)
+     real*8, allocatable :: test_rho0(:,:,:,:)
+     type(environ) :: test_env
      type(qedat) :: qe !< QE band states and Wannier function transformation
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
