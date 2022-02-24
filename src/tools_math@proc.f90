@@ -1982,15 +1982,15 @@ contains
 
   !> Invert a permutation iperm(1:n). The values of iperm must all be
   !> different and between 1 and n.
-  module function invert_permutation(iperm)
+  module function invert_permutation(iperm) result(res)
     integer, intent(in) :: iperm(:)
-    integer :: invert_permutation !(size(iperm,1))
+    integer :: res(size(iperm,1))
 
     integer :: i
 
-    invert_permutation = 0
+    res = 0
     do i = 1, size(iperm,1)
-       invert_permutation(iperm(i)) = i
+       res(iperm(i)) = i
     end do
 
   end function invert_permutation
