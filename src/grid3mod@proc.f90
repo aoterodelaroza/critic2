@@ -1929,6 +1929,7 @@ contains
     real*8 :: ff(0:2,0:2,0:2), r(3), s(3), x(3)
 
     ! compute value at the cube vertices
+    ff = 0d0
     x = modulo(x0,1d0)
     idx = grid_floor(f,x)
     do i = 0, 1
@@ -1948,11 +1949,14 @@ contains
     do i = 0, 1
        do j = 0, 1
           ff(i,j,2) = ff(i,j,0) * s(3) + ff(i,j,1) * r(3)
+          ff(i,2,j) = ff(i,0,j) * s(2) + ff(i,1,j) * r(2)
           ff(2,i,j) = ff(0,i,j) * s(1) + ff(1,i,j) * r(1)
        end do
+    end do
+    do i = 0, 1
        ff(i,2,2) = ff(i,0,2) * s(2) + ff(i,1,2) * r(2)
-       ff(2,i,2) = ff(0,i,2) * s(1) + ff(1,i,2) * r(1)
-       ff(2,2,i) = ff(2,0,i) * s(2) + ff(2,1,i) * r(2)
+       ff(2,i,2) = ff(2,i,0) * s(3) + ff(2,i,1) * r(3)
+       ff(2,2,i) = ff(0,2,i) * s(1) + ff(1,2,i) * r(1)
     end do
     ff(2,2,2) = ff(0,2,2) * s(1) + ff(1,2,2) * r(1)
     y = ff(2,2,2)
