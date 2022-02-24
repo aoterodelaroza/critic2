@@ -2413,7 +2413,7 @@ contains
   end subroutine grinterp_tricubic
 
   !> Testing
-  subroutine grinterp_test(f,xi,y,yp,ypp,x0ref)
+  module subroutine grinterp_test(f,xi,y,yp,ypp,x0ref)
     use types, only: realloc
     use param, only: icrd_crys
     class(grid3), intent(inout), target :: f !< Input grid
@@ -2872,8 +2872,6 @@ contains
      real*8, intent(out) :: f
      real*8, intent(out) :: fp
      real*8, intent(out) :: fpp
-
-     real*8 :: r
 
      f = 0d0
      fp = 0d0
