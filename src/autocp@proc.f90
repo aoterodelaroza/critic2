@@ -85,7 +85,7 @@ contains
        real*8 :: rad = -1d0  ! radius of the search
        real*8 :: dist = 15d0 ! max. distance between atom pairs
        real*8 :: x1(3) = 0d0 ! end point for LINE
-       integer :: npts = 1   ! number of points
+       integer :: npts = 5   ! number of points
        integer :: nr = 0     ! number of radial points
        integer :: ntheta = 0 ! number of theta (polar) points
        integer :: nphi = 0   ! number of phi (azimuthal) points
