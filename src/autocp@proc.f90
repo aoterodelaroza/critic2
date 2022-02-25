@@ -96,7 +96,7 @@ contains
 
     real*8  :: iniv(4,3), xdum(3)
     integer :: nt
-    logical :: ok, dryrun, dochk
+    logical :: ok, dryrun, dochk, isgrid
     character(len=:), allocatable :: word, str, discexpr
     real*8 :: gfnormeps
     integer :: ntetrag
@@ -114,7 +114,7 @@ contains
     type(minisurf) :: srf
     real*8 :: cpeps
     real*8 :: nuceps
-    real*8 :: nucepsh
+    real*8 :: nucepsh, grideps
     type(grhandle) :: gr
     type(mesh) :: meshseed
 
@@ -703,6 +703,9 @@ contains
           ! if grid test, run again with grid delay
           if (ier == 3) then
              call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.true.)
+             isgrid = .true.
+          else
+             isgrid = .false.
           end if
 
           if (ier <= 0) then
@@ -725,7 +728,15 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                if (isgrid) then
+                   grideps = 0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,1)) / sy%f(sy%iref)%grid%n(1)
+                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,2)) / sy%f(sy%iref)%grid%n(2))
+                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,3)) / sy%f(sy%iref)%grid%n(3))
+                   grideps = max(grideps,cpeps)
+                   call sy%addcp(sy%iref,x0,discexpr,grideps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                else
+                   call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                end if
                 !$omp end critical (addcp)
              end if
           end if
