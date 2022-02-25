@@ -118,6 +118,8 @@ contains
     type(grhandle) :: gr
     type(mesh) :: meshseed
 
+    real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp
+
     if (.not.quiet) then
        call tictac("Start AUTO")
        write (uout,*)
@@ -723,7 +725,7 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh)
+                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
                 !$omp end critical (addcp)
              end if
           end if

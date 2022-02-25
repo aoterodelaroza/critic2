@@ -2466,6 +2466,7 @@ contains
 
     ! apply the stencil
     call apply_stencil(i0,x0,y,yp,ypp)
+
     call f%test_env%promolecular(x0,icrd_crys,y0,yp0,ypp0,2)
 
     yb = exp(y) * y0

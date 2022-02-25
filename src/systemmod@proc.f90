@@ -1318,7 +1318,7 @@ contains
   !> the type of critical bond (-3,-1,1,3).  If discexpr has non-zero
   !> length, discard the critical point if it gives a non-zero value
   !> for this expression.
-  module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,itype)
+  module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,gfnormeps,itype)
     use tools_io, only: faterr, ferror
     class(system), intent(inout) :: s
     integer, intent(in) :: id
@@ -1327,6 +1327,7 @@ contains
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
     real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
+    real*8, intent(in) :: gfnormeps !< Discard CPs with gradient norm higher than this value
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
     real*8 :: fval
@@ -1339,7 +1340,7 @@ contains
        ok = (abs(fval) < 1d-30)
        if (.not.ok) return
     end if
-    call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,itype)
+    call s%f(id)%addcp(x0,cpeps,nuceps,nucepsh,gfnormeps,itype)
 
   end subroutine addcp
 

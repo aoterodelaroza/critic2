@@ -893,7 +893,7 @@ contains
              assigned(j) = bas%nattr
           end if
        end do
-       call ff%addcp(ff%c%x2c(xattr(:,bas%nattr)),1d-2,1d-1,2d-1,ff%typnuc)
+       call ff%addcp(ff%c%x2c(xattr(:,bas%nattr)),1d-2,1d-1,2d-1,huge(1d0),ff%typnuc)
     end do
 
     ! update the idg

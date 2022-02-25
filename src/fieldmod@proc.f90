@@ -1987,7 +1987,7 @@ contains
   !> Also, updates the complete CP list. Input x0 in Cartesian. If
   !> itype is present, assign itype as the type of critical bond
   !> (-3,-1,1,3).
-  module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,itype)
+  module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,gfnormeps,itype)
     use arithmetic, only: eval
     use tools_io, only: ferror, string
     use types, only: scalar_value, realloc
@@ -1999,9 +1999,10 @@ contains
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
     real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
+    real*8, intent(in) :: gfnormeps !< Discard CPs with gradient norm higher than this value
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
 
-    real*8 :: xc(3)
+    real*8 :: xc(3), x1(3)
     integer :: nid
     real*8 :: dist
     integer :: n, i, num
@@ -2044,6 +2045,11 @@ contains
        if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
     end if
 
+    ! density info; verify that the gradient norm is higher than the eps
+    x1 = f%c%x2c(xc)
+    call f%grd(x1,2,res)
+    if (res%gfmod >= gfnormeps) goto 999
+
     ! reallocate if more slots are needed for the new cp
     if (f%ncp >= size(f%cp)) then
        call realloc(f%cp,2*f%ncp)
@@ -2052,12 +2058,10 @@ contains
     ! Write critical point in the list
     f%ncp = f%ncp + 1
     n = f%ncp
-
     f%cp(n)%x = xc
-    f%cp(n)%r = f%c%x2c(xc)
+    f%cp(n)%r = x1
 
     ! Density info
-    call f%grd(f%cp(n)%r,2,res)
     f%cp(n)%s = res
 
     ! Symmetry info
