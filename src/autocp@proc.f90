@@ -987,7 +987,7 @@ contains
           ! write the structure to the external file
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
-          call struct_write(syaux,line2,writevmd)
+          call struct_write(syaux,line2,.not.writevmd)
           call syaux%end()
 
           ! write the vmd script
@@ -2283,7 +2283,7 @@ contains
        1d0, 1d0, 0d0/),shape(xlist1))
 
     ! open and header
-    write (uout,'("* Writing vmd script file : ",A)') string(file)
+    write (uout,'("* Writing vmd script file : ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("# Some display settings")')
     write (lu,'("display projection Orthographic")')
