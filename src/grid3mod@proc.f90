@@ -328,7 +328,7 @@ submodule (grid3mod) proc
      /),shape(c))
 
   integer, parameter :: test_nenv = 8**3
-  integer, parameter :: test_kkern = 2
+  integer, parameter :: test_kkern = 3
 
 contains
 
@@ -2469,23 +2469,29 @@ contains
 
     call f%test_env%promolecular(x0,icrd_crys,y0,yp0,ypp0,2)
 
-    yb = exp(y) * y0
-    y0m = max(y0,1d-40)
-    ybm = max(yb,1d-40)
+    if (y0 < 1d-40) then
+       yb = 0d0
+       ypb = 0d0
+       yppb = 0d0
+    else
+       yb = exp(y) * y0
+       y0m = max(y0,1d-40)
+       ybm = max(yb,1d-40)
 
-    ypb(1) = yb * (yp(1) + yp0(1) / y0m)
-    ypb(2) = yb * (yp(2) + yp0(2) / y0m)
-    ypb(3) = yb * (yp(3) + yp0(3) / y0m)
-    yppb = 0d0
-    yppb(1,1) = yb * (ypp(1,1) + ypb(1)*ypb(1) / (ybm*ybm) + ypp0(1,1) / y0m - yp0(1)*yp0(1)/(y0m*y0m))
-    yppb(1,2) = yb * (ypp(1,2) + ypb(1)*ypb(2) / (ybm*ybm) + ypp0(1,2) / y0m - yp0(1)*yp0(2)/(y0m*y0m))
-    yppb(1,3) = yb * (ypp(1,3) + ypb(1)*ypb(3) / (ybm*ybm) + ypp0(1,3) / y0m - yp0(1)*yp0(3)/(y0m*y0m))
-    yppb(2,2) = yb * (ypp(2,2) + ypb(2)*ypb(2) / (ybm*ybm) + ypp0(2,2) / y0m - yp0(2)*yp0(2)/(y0m*y0m))
-    yppb(2,3) = yb * (ypp(2,3) + ypb(2)*ypb(3) / (ybm*ybm) + ypp0(2,3) / y0m - yp0(2)*yp0(3)/(y0m*y0m))
-    yppb(3,3) = yb * (ypp(3,3) + ypb(3)*ypb(3) / (ybm*ybm) + ypp0(3,3) / y0m - yp0(3)*yp0(3)/(y0m*y0m))
-    yppb(2,1) = yppb(1,2)
-    yppb(3,1) = yppb(1,3)
-    yppb(3,2) = yppb(2,3)
+       ypb(1) = yb * (yp(1) + yp0(1) / y0m)
+       ypb(2) = yb * (yp(2) + yp0(2) / y0m)
+       ypb(3) = yb * (yp(3) + yp0(3) / y0m)
+       yppb = 0d0
+       yppb(1,1) = yb * (ypp(1,1) + ypb(1)*ypb(1) / (ybm*ybm) + ypp0(1,1) / y0m - yp0(1)*yp0(1)/(y0m*y0m))
+       yppb(1,2) = yb * (ypp(1,2) + ypb(1)*ypb(2) / (ybm*ybm) + ypp0(1,2) / y0m - yp0(1)*yp0(2)/(y0m*y0m))
+       yppb(1,3) = yb * (ypp(1,3) + ypb(1)*ypb(3) / (ybm*ybm) + ypp0(1,3) / y0m - yp0(1)*yp0(3)/(y0m*y0m))
+       yppb(2,2) = yb * (ypp(2,2) + ypb(2)*ypb(2) / (ybm*ybm) + ypp0(2,2) / y0m - yp0(2)*yp0(2)/(y0m*y0m))
+       yppb(2,3) = yb * (ypp(2,3) + ypb(2)*ypb(3) / (ybm*ybm) + ypp0(2,3) / y0m - yp0(2)*yp0(3)/(y0m*y0m))
+       yppb(3,3) = yb * (ypp(3,3) + ypb(3)*ypb(3) / (ybm*ybm) + ypp0(3,3) / y0m - yp0(3)*yp0(3)/(y0m*y0m))
+       yppb(2,1) = yppb(1,2)
+       yppb(3,1) = yppb(1,3)
+       yppb(3,2) = yppb(2,3)
+    end if
 
     y = yb
     yp = ypb
