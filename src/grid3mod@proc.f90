@@ -2828,7 +2828,6 @@ contains
     call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
     f%test_dist0 = dlist(nn)
-    write (*,*) "bleh final ", f%test_dist0, nn
     allocate(f%test_xlist(3,nn),f%test_ilist(3,nn))
     do i = 1, nn
        f%test_ilist(:,i) = nint(env%at(eid(i))%x)

@@ -98,7 +98,7 @@ contains
     integer :: nt
     logical :: ok, dryrun, dochk, isgrid
     character(len=:), allocatable :: word, str, discexpr
-    real*8 :: gfnormeps
+    real*8 :: gfnormeps, x0fin(3)
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
     logical :: cpdebug, seedobj
@@ -118,7 +118,7 @@ contains
     type(grhandle) :: gr
     type(mesh) :: meshseed
 
-    real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp
+    real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
 
     if (.not.quiet) then
        call tictac("Start AUTO")
@@ -702,6 +702,7 @@ contains
 
           ! if grid test, run again with grid delay
           if (ier == 3) then
+             x0fin = x0
              call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.true.)
              isgrid = .true.
           else
@@ -733,7 +734,11 @@ contains
                    grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,2)) / sy%f(sy%iref)%grid%n(2))
                    grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,3)) / sy%f(sy%iref)%grid%n(3))
                    grideps = max(grideps,cpeps)
-                   call sy%addcp(sy%iref,x0,discexpr,grideps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                   ! write (*,*) "final ", norm2(x0-x0fin), cpeps
+                   ! write (*,*) "added: ", (x0 + sy%c%molx0) * 0.52917720d0
+                   if (norm2(x0-x0fin) < cpeps) then
+                      call sy%addcp(sy%iref,x0,discexpr,grideps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                   endif
                 else
                    call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
                 end if
