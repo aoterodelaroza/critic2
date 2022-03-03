@@ -2466,7 +2466,7 @@ contains
 
     call f%test_env%promolecular(x0,icrd_crys,y0,yp0,ypp0,2)
 
-    if (y0 < 1d-40) then
+    if (y0 < 1d-40 .or. y > 100d0) then
        yb = 0d0
        ypb = 0d0
        yppb = 0d0
