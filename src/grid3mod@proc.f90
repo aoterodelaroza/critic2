@@ -2126,8 +2126,6 @@ contains
     ! for the speed reasons the polynomial interpolation
     ! for second derivation fields is used in this case
     ! but the last step is always done by spline interpolation.
-
-
     do ii=1,3
        do jj=-1,2
           inii(jj+2,ii)=indx(ii)+jj
@@ -2137,7 +2135,6 @@ contains
     end do
 
     ! Not very nice
-
     do ii=1,3
        select case (ii)
        case (1)

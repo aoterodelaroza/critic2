@@ -85,7 +85,7 @@ contains
        real*8 :: rad = -1d0  ! radius of the search
        real*8 :: dist = 15d0 ! max. distance between atom pairs
        real*8 :: x1(3) = 0d0 ! end point for LINE
-       integer :: npts = 1   ! number of points
+       integer :: npts = 5   ! number of points
        integer :: nr = 0     ! number of radial points
        integer :: ntheta = 0 ! number of theta (polar) points
        integer :: nphi = 0   ! number of phi (azimuthal) points
@@ -96,7 +96,7 @@ contains
 
     real*8  :: iniv(4,3), xdum(3)
     integer :: nt
-    logical :: ok, dryrun, dochk
+    logical :: ok, dryrun, dochk, isgrid
     character(len=:), allocatable :: word, str, discexpr
     real*8 :: gfnormeps
     integer :: ntetrag
@@ -114,7 +114,7 @@ contains
     type(minisurf) :: srf
     real*8 :: cpeps
     real*8 :: nuceps
-    real*8 :: nucepsh
+    real*8 :: nucepsh, grideps
     type(grhandle) :: gr
     type(mesh) :: meshseed
 
@@ -703,6 +703,9 @@ contains
           ! if grid test, run again with grid delay
           if (ier == 3) then
              call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.true.)
+             isgrid = .true.
+          else
+             isgrid = .false.
           end if
 
           if (ier <= 0) then
@@ -725,7 +728,15 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                if (isgrid) then
+                   grideps = 0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,1)) / sy%f(sy%iref)%grid%n(1)
+                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,2)) / sy%f(sy%iref)%grid%n(2))
+                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,3)) / sy%f(sy%iref)%grid%n(3))
+                   grideps = max(grideps,cpeps)
+                   call sy%addcp(sy%iref,x0,discexpr,grideps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                else
+                   call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                end if
                 !$omp end critical (addcp)
              end if
           end if
@@ -976,7 +987,7 @@ contains
           ! write the structure to the external file
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
-          call struct_write(syaux,line2,writevmd)
+          call struct_write(syaux,line2,.not.writevmd)
           call syaux%end()
 
           ! write the vmd script
@@ -2272,7 +2283,7 @@ contains
        1d0, 1d0, 0d0/),shape(xlist1))
 
     ! open and header
-    write (uout,'("* Writing vmd script file : ",A)') string(file)
+    write (uout,'("* Writing vmd script file : ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("# Some display settings")')
     write (lu,'("display projection Orthographic")')
