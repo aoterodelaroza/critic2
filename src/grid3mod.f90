@@ -49,15 +49,21 @@ module grid3mod
 
   !> Three-dimensional grid class
   type grid3
+     ! initialization and info flags
      logical :: isinit = .false. !< is the grid initialized?
      logical :: isqe = .false. !< does it have qe ks states info?
      logical :: iswan = .false. !< does it have wannier info?
-     integer :: mode !< interpolation mode
+     ! geometry of the grid
      integer :: n(3) !< number of grid points in each direction
-     real*8 :: x2c(3,3) !< the crystallographic to Cartesian conversion matrix
-     real*8 :: c2x(3,3) !< the Cartesian to crystallographic conversion matrix
+     real*8 :: x2c(3,3) !< crystallographic to Cartesian matrix (crystal)
+     real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
+     type(environ) :: env
+     ! basic grid variables
+     integer :: mode !< interpolation mode
      real*8, allocatable :: f(:,:,:) !< grid values
-     real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients for spline interpolation
+     ! trispline interpolation
+     real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
+     ! test interpolation
      integer :: test_nlist
      real*8 :: test_dist0
      integer, allocatable :: test_ilist(:,:)
@@ -66,7 +72,8 @@ module grid3mod
      real*8 :: test_x2cgrid(3,3)
      real*8, allocatable :: test_rho0(:,:,:,:)
      type(environ) :: test_env
-     type(qedat) :: qe !< QE band states and Wannier function transformation
+     ! QE band states and Wannier function transformation
+     type(qedat) :: qe
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
      procedure :: setmode !< set the interpolation mode of a grid
