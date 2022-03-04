@@ -66,6 +66,7 @@ module grid3mod
      ! test interpolation
      integer :: test_nlist
      real*8 :: test_dist0
+     real*8 :: test_distdelay
      integer, allocatable :: test_ilist(:,:)
      real*8, allocatable :: test_xlist(:,:)
      real*8, allocatable :: test_phiinv(:,:)
@@ -198,13 +199,13 @@ module grid3mod
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
      end subroutine interp
-     module subroutine grinterp_test(f,xi,y,yp,ypp,x0ref)
+     module subroutine grinterp_test(f,xi,y,yp,ypp,i0ref)
        class(grid3), intent(inout), target :: f !< Input grid
        real*8, intent(in) :: xi(3) !< Target point
        real*8, intent(out) :: y !< Interpolated value
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
-       real*8, intent(inout), optional :: x0ref(3)
+       integer, intent(inout), optional :: i0ref(3)
      end subroutine grinterp_test
      module subroutine laplacian_hxx(flap,frho,ix)
        class(grid3), intent(inout) :: flap

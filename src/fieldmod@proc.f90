@@ -1927,8 +1927,8 @@ contains
     real*8, intent(in) :: gfnormeps
     logical, intent(in) :: gridtest
 
-    integer :: it, nid, idif(3)
-    real*8 :: wx(3), x0ref(3), x0(3), xdif(3), dist
+    integer :: it, nid, idif(3), i0ref(3), i0(3)
+    real*8 :: wx(3), x0(3), x0ref(3), xdif(3), dist
     type(scalar_value) :: res
     logical :: isgridtest
 
@@ -1937,7 +1937,7 @@ contains
     isgridtest = gridtest
     if (isgridtest) isgridtest = (f%type == type_grid)
     if (isgridtest) isgridtest = (f%grid%mode == mode_test)
-    x0ref = -10d0
+    i0ref = -1
 
     do it = 1, maxit
        ! evaluate and stop criterion
@@ -1949,16 +1949,16 @@ contains
        else
           ! test interpolation
           wx = f%c%c2x(r)
-          x0 = x0ref
-          call f%grid%grinterp_test(wx,res%f,res%gf,res%hf,x0)
+          i0 = i0ref
+          call f%grid%grinterp_test(wx,res%f,res%gf,res%hf,i0)
           res%gfmod = norm2(res%gf)
 
-          xdif = x0 + nint(x0ref - x0)
-          idif = abs(nint(xdif * f%grid%n) - nint(x0ref * f%grid%n))
-          if (any(idif > 1)) then
-             x0ref = x0
-          endif
-          ! write (*,'("xxre ",I4,X,3(F14.6,X),3(I4,X),1p,3(E14.6,X))') it, wx, idif, x0ref
+          x0 = real(i0,8) / real(f%grid%n,8)
+          x0ref = real(i0ref,8) / real(f%grid%n,8)
+          dist = f%c%eql_distance(x0,x0ref)
+          if (dist > f%grid%test_distdelay) then
+             i0ref = i0
+          end if
        end if
 
        if (res%gfmod < gfnormeps) then
