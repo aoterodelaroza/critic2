@@ -2662,54 +2662,112 @@ contains
   end subroutine grinterp_test
 
   !> Pseudo-nearest grid point of a point x (crystallographic) (only
-  !> nearest in orthogonal grids). Note the first point in the grid
-  !> has index 1.
-  function grid_near(f,x) result(res)
+  !> nearest in orthogonal grids). If shift, the first point in the
+  !> grid has index 1 (for indexing arrays, default is .true.). If
+  !> main, translate the point to the main cell (returns indices
+  !> between 1 and n if shift is true, default is .true.).
+  function grid_near(f,x,main,shift) result(res)
     class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    logical, intent(in), optional :: main !< optional translation
+    logical, intent(in), optional :: shift !< optional shift
     integer :: res(3)
 
-    res = modulo(nint(x * f%n),f%n)+1
+    logical :: shift0, main0
+
+    shift0 = .true.
+    if (present(shift)) shift0 = shift
+    main0 = .true.
+    if (present(main)) main0 = main
+
+    res = nint(x * f%n)
+    if (main0) res = modulo(res,f%n)
+    if (shift0) res = res + 1
 
   end function grid_near
 
-  !> Floor grid point of a point x in crystallographic coords. Note
-  !> the first ponit in the grid has index 1
-  function grid_floor(f,x) result(res)
+  !> Floor grid point of a point x in crystallographic coords. If
+  !> shift, the first point in the grid has index 1 (for indexing
+  !> arrays, default is .true.). If main, translate the point to the
+  !> main cell (returns indices between 1 and n if shift is true,
+  !> default is .true.).
+  function grid_floor(f,x,main,shift) result(res)
     class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    logical, intent(in), optional :: main !< optional translation
+    logical, intent(in), optional :: shift !< optional shift
     integer :: res(3)
 
-    res = modulo(floor(x * f%n),f%n)+1
+    logical :: shift0, main0
+
+    shift0 = .true.
+    if (present(shift)) shift0 = shift
+    main0 = .true.
+    if (present(main)) main0 = main
+
+    res = floor(x * f%n)
+    if (main0) res = modulo(res,f%n)
+    if (shift0) res = res + 1
 
   end function grid_floor
 
-  !> ceiling grid point of a point x in crystallographic coords. Note
-  !> the first ponit in the grid has index 1
-  function grid_ceiling(f,x) result(res)
+  !> ceiling grid point of a point x in crystallographic coords. If
+  !> shift, the first point in the grid has index 1 (for indexing
+  !> arrays, default is .true.). If main, translate the point to the
+  !> main cell (returns indices between 1 and n if shift is true,
+  !> default is .true.).
+  function grid_ceiling(f,x,main,shift) result(res)
     class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    logical, intent(in), optional :: main !< optional translation
+    logical, intent(in), optional :: shift !< optional shift
     integer :: res(3)
 
-    res = modulo(ceiling(x * f%n),f%n)+1
+    logical :: shift0, main0
+
+    shift0 = .true.
+    if (present(shift)) shift0 = shift
+    main0 = .true.
+    if (present(main)) main0 = main
+
+    res = ceiling(x * f%n)
+    if (main0) res = modulo(res,f%n)
+    if (shift0) res = res + 1
 
   end function grid_ceiling
 
   !> Nearest grid point of a point x (crystallographic) in Euclidean
-  !> distance. Note the first point in the grid has index 1.
-  function euclidean_near(f,x) result(res)
+  !> distance. If shift, the first point in the grid has index 1 (for
+  !> indexing arrays, default is .true.). If main, translate the point
+  !> to the main cell (returns indices between 1 and n if shift is
+  !> true, default is .true.).
+  function euclidean_near(f,x,main,shift) result(res)
     use param, only: icrd_crys
     class(grid3), intent(in) :: f !< Input grid
     real*8, intent(in) :: x(3) !< Target point (cryst. coords.)
+    logical, intent(in), optional :: main !< optional translation
+    logical, intent(in), optional :: shift !< optional shift
     integer :: res(3)
 
+    logical :: shift0, main0
     real*8 :: x0(3)
-    integer :: idum
+    integer :: idum, lt(3)
     real*8 :: dd
 
-    x0 = modulo(x,1d0) * f%n
+    shift0 = .true.
+    if (present(shift)) shift0 = shift
+    main0 = .true.
+    if (present(main)) main0 = main
+
+    lt = floor(x)
+    x0 = (x - lt) * f%n
     call f%env%nearest_atom(x0,icrd_crys,idum,dd,lvec=res)
-    res = modulo(res,f%n) + 1
+    if (main0) then
+       res = modulo(res,f%n)
+    else
+       res = res + lt * f%n
+    end if
+    if (shift0) res = res + 1
 
   end function euclidean_near
 
@@ -2742,19 +2800,6 @@ contains
        dd = max(dd,norm2(x2cg(:,i)))
     end do
     call f%env%build_lattice(x2cg,dd*nmaxenv)
-
-    ! do i = 1, 101
-    !    x0 = real(i,8) / 101d0
-    !    x0(1) = 0d0
-    !    write (*,*) i, grid_near(f,x0), euclidean_near(f,x0)
-    ! end do
-    ! write (*,*) "nn ", f%n
-    ! ! call f%env%nearest_atom(x0,icrd_crys,i,dd,lvec=lv)
-    ! ! write (*,*) "here!", f%env%n
-    ! ! write (*,*) "here!", i
-    ! ! write (*,*) "here!", lv
-    ! ! write (*,*) "here!", dd
-    ! stop 1
 
   end subroutine init_geometry
 
