@@ -57,6 +57,9 @@ module grid3mod
      integer :: n(3) !< number of grid points in each direction
      real*8 :: x2c(3,3) !< crystallographic to Cartesian matrix (crystal)
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
+     real*8 :: x2cg(3,3) !< crystallographic to Cartesian matrix (grid)
+     real*8 :: c2xg(3,3) !< Cartesian to crystallographic matrix (grid)
+     real*8 :: dmin, dmax !< minimum and maximum grid steps
      type(environ) :: env
      ! basic grid variables
      integer :: mode !< interpolation mode

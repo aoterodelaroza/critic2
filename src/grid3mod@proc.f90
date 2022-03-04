@@ -2660,13 +2660,17 @@ contains
     call matinv(f%c2x,3)
 
     ! grid environment
-    x2cg = x2c
-    dd = 0d0
+    f%x2cg = x2c
+    f%dmax = 0d0
+    f%dmin = 1d40
     do i = 1, 3
-       x2cg(:,i) = x2cg(:,i) / f%n(i)
-       dd = max(dd,norm2(x2cg(:,i)))
+       f%x2cg(:,i) = f%x2cg(:,i) / f%n(i)
+       f%dmax = max(f%dmax,norm2(f%x2cg(:,i)))
+       f%dmin = min(f%dmin,norm2(f%x2cg(:,i)))
     end do
-    call f%env%build_lattice(x2cg,dd*nmaxenv)
+    call f%env%build_lattice(f%x2cg,f%dmax*nmaxenv)
+    f%c2xg = f%x2cg
+    call matinv(f%c2xg,3)
 
   end subroutine init_geometry
 
