@@ -23,13 +23,16 @@ submodule (grid3mod) proc
   ! subroutine grinterp_trilinear(f,x0,y,yp)
   ! subroutine grinterp_trispline(f,x0,y,yp,ypp)
   ! subroutine grinterp_tricubic(f,xi,y,yp,ypp)
+  ! subroutine grinterp_test(f,xi,y,yp,ypp,i0ref)
   ! function grid_near(f,x) result(res)
-  ! function euclidean_near(f,x) result(res)
-  ! function grid_floor(f,x) result(res)
-  ! function grid_ceiling(f,x) result(res)
-  ! subrotine init_geometry(f,x2c)
+  ! function grid_floor(f,x,main,shift)
+  ! function grid_ceiling(f,x,main,shift)
+  ! function euclidean_near(f,x)
+  ! subrotine init_geometry(f,x2c,n)
+  ! subrotine copy_geometry(f,g)
   ! subroutine init_trispline(f)
   ! subroutine init_test(f)
+  ! subroutine test_kernelfun(r,k,f,fp,fpp)
 
   ! Notes about the 3D-FFT order of the array elements.
   ! - cfftnd accepts a 1D array representing the 3D array in Fortran
@@ -351,10 +354,7 @@ contains
     logical :: iok
 
     call f%end()
-    f%n = n
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
+    call init_geometry(f,x2c,n)
     f%mode = mode_default
     f%isinit = .true.
     allocate(f%f(n(1),n(2),n(3)))
@@ -444,11 +444,8 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
     n = ubound(g) - lbound(g) + 1
-    f%n(:) = n
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('from_array3','Error allocating grid',faterr)
@@ -540,10 +537,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    f%n(:) = n
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -581,10 +575,7 @@ contains
     ! assume unformatted
     read (luc) r
     read (luc) n, nspin
-    f%n = n
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
+    call init_geometry(f,x2c,n)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -634,11 +625,8 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    f%n(:) = hdr%ngfft(:)
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
-    n = f%n
+    n = hdr%ngfft(:)
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_abinit','Error allocating grid',faterr,file)
@@ -689,10 +677,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    f%n(:) = n
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_vasp','Error allocating grid',faterr,file)
@@ -739,7 +724,7 @@ contains
     call f%end()
     luc = fopen_read(file)
 
-    read (luc,*,iostat=istat) f%n
+    read (luc,*,iostat=istat) n
     if (istat /= 0) &
        call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
 
@@ -747,10 +732,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
-    n = f%n(:)
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_qub','Error allocating grid',faterr,file)
@@ -820,10 +802,8 @@ contains
     read (luc,*,iostat=istat) n
     if (istat /= 0) &
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
-    f%n = n - 1
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
+    n = n - 1
+    call init_geometry(f,x2c,n)
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -867,7 +847,7 @@ contains
     real*8, intent(in) :: emin, emax
     real*8, intent(in) :: x2c(3,3)
 
-    integer :: i, is, ik, ib, iver
+    integer :: i, is, ik, ib, iver, n(3)
     integer :: luc
     integer :: npwx, ngms, nkstot, nsp, nat
     real*8 :: at(3,3), fspin, alat
@@ -881,9 +861,6 @@ contains
     f%qe%fpwc = fpwc
     f%isqe = .true.
     f%iswan = .false.
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
 
     ! open file
     luc = fopen_read(fpwc,form="unformatted")
@@ -908,9 +885,10 @@ contains
        fspin = 1d0
     end if
     read (luc) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
-    read (luc) f%n
+    read (luc) n
     read (luc) npwx, ngms
     nkstot = f%qe%nspin * f%qe%nks
+    call init_geometry(f,x2c,n)
 
     ! read k-point info
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
@@ -1037,10 +1015,7 @@ contains
     if (ios /= 0) &
        call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
 
-    f%x2c = x2c
-    f%c2x = f%x2c
-    call matinv(f%c2x,3)
-    f%n = n
+    call init_geometry(f,x2c,n)
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
        call ferror('read_elk','Error allocating grid',faterr,file)
@@ -1272,11 +1247,8 @@ contains
     if (.not.frho%isinit) &
        call ferror('grid_laplacian','no density grid',faterr)
 
-    ! allocate slot
     n = frho%n
-    flap%n = n
-    flap%x2c = frho%x2c
-    flap%c2x = frho%c2x
+    call copy_geometry(flap,frho)
     flap%isinit = .true.
     flap%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1343,9 +1315,7 @@ contains
 
     ! allocate slot
     n = frho%n
-    fgrho%n = n
-    fgrho%x2c = frho%x2c
-    fgrho%c2x = frho%c2x
+    call copy_geometry(fgrho,frho)
     fgrho%isinit = .true.
     fgrho%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1417,9 +1387,7 @@ contains
 
     ! allocate slot
     n = frho%n
-    fpot%n = n
-    fpot%x2c = frho%x2c
-    fpot%c2x = frho%c2x
+    call copy_geometry(fpot,frho)
     fpot%isinit = .true.
     fpot%mode = mode_default
     ntot = n(1) * n(2) * n(3)
@@ -1487,9 +1455,7 @@ contains
        call ferror('resample','no density grid',faterr)
 
     ! allocate slot
-    frs%n = n2
-    frs%x2c = frho%x2c
-    frs%c2x = frho%c2x
+    call init_geometry(frs,frho%x2c,n2)
     frs%isinit = .true.
     frs%mode = mode_default
 
@@ -2673,6 +2639,22 @@ contains
     call matinv(f%c2xg,3)
 
   end subroutine init_geometry
+
+  !> Copy the geometry variables from grid g to grid f.
+  subroutine copy_geometry(f,g)
+    class(grid3), intent(inout) :: f
+    class(grid3), intent(in) :: g
+
+    f%n = g%n
+    f%x2c = g%x2c
+    f%c2x = g%c2x
+    f%x2cg = g%x2cg
+    f%dmax = g%dmax
+    f%dmin = g%dmin
+    f%env = g%env
+    f%c2xg = g%c2xg
+
+  end subroutine copy_geometry
 
   !> Initialize the grid for the trispline interpolation. This is a
   !> modified version of the corresponding subroutine in abinit.
