@@ -2468,7 +2468,7 @@ contains
     w = matmul(f%test_phiinv,flist)
 
     ! sum the contributions
-    x1 = matmul(f%test_x2cgrid,xi * f%n - i0)
+    x1 = matmul(f%x2cg,xi * f%n - i0)
     y = 0d0
     yp = 0d0
     ypp = 0d0
@@ -2797,7 +2797,6 @@ contains
     integer :: i1, i2, i3, i, j, kmax, nn, ierr
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
-    type(environ) :: env
 
     if (allocated(f%test_ilist)) return
 
@@ -2807,25 +2806,15 @@ contains
     if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
 
     ! calculate the stencil
-    x2c = f%x2c
-    x2c(:,1) = x2c(:,1) / f%n(1)
-    x2c(:,2) = x2c(:,2) / f%n(2)
-    x2c(:,3) = x2c(:,3) / f%n(3)
-    dd = 0d0
-    do i = 1, 3
-       dd = max(dd,norm2(x2c(:,i)))
-    end do
-    call env%build_lattice(x2c,dd*40) ! xxxx
-    call env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
+    call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
     f%test_nlist = nn
     f%test_dist0 = dlist(nn)
     f%test_distdelay = dlist(10)
     allocate(f%test_xlist(3,nn),f%test_ilist(3,nn))
     do i = 1, nn
-       f%test_ilist(:,i) = nint(env%at(eid(i))%x)
-       f%test_xlist(:,i) = matmul(x2c,real(f%test_ilist(:,i),8))
+       f%test_ilist(:,i) = nint(f%env%at(eid(i))%x)
+       f%test_xlist(:,i) = matmul(f%x2cg,real(f%test_ilist(:,i),8))
     end do
-    call env%end()
 
     ! calculate the inverse phi matrix
     allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
@@ -2844,9 +2833,6 @@ contains
        f%test_phiinv(i,f%test_nlist+1:) = f%test_phiinv(f%test_nlist+1:,i)
     end do
     call matinvsym(f%test_phiinv,f%test_nlist+4)
-
-    ! write down the x2c of the grid crystal
-    f%test_x2cgrid = x2c
 
    end subroutine init_test
 

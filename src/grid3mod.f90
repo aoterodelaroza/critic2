@@ -73,7 +73,6 @@ module grid3mod
      integer, allocatable :: test_ilist(:,:)
      real*8, allocatable :: test_xlist(:,:)
      real*8, allocatable :: test_phiinv(:,:)
-     real*8 :: test_x2cgrid(3,3)
      real*8, allocatable :: test_rho0(:,:,:,:)
      type(environ) :: test_env
      ! QE band states and Wannier function transformation
