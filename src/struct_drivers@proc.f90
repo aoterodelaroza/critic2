@@ -665,7 +665,7 @@ contains
           end if
        else
           write (uout,'("* WRITE FHIaims file: ",A)') string(file)
-          call s%c%write_fhi(file)
+          call s%c%write_fhi(file,.true.)
           ok = check_no_extra_word()
           if (.not.ok) return
        end if

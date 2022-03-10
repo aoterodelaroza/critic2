@@ -4545,7 +4545,7 @@ contains
     elseif (equal(wext,'pyscf')) then
        call c%write_pyscf(file)
     elseif (equal(wext,'fhi')) then
-       call c%write_fhi(file)
+       call c%write_fhi(file,.true.)
     elseif (equal(wext,'frac')) then
        call c%write_tinkerfrac(file)
     else
@@ -6229,11 +6229,12 @@ contains
   end subroutine write_pyscf
 
   !> Write the crystal or molecualr structure in FHIaims geometry.in format.
-  module subroutine write_fhi(c,file)
+  module subroutine write_fhi(c,file,frac)
     use tools_io, only: fopen_write, fclose, string, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    logical, intent(in) :: frac
 
     integer :: lu, i, j
     character*2 :: name
@@ -6247,8 +6248,13 @@ contains
     end if
     do i = 1, c%ncel
        name = nameguess(c%spc(c%atcel(i)%is)%z,.true.)
-       write (lu,'("atom ",4(X,A))') (string(c%atcel(i)%r(j)*bohrtoa,'f',18,10),j=1,3),&
-          name
+       if (frac) then
+          write (lu,'("atom_frac ",4(X,A))') (string(c%atcel(i)%x(j),'f',18,10),j=1,3),&
+             name
+       else
+          write (lu,'("atom ",4(X,A))') (string(c%atcel(i)%r(j)*bohrtoa,'f',18,10),j=1,3),&
+             name
+       end if
     end do
     call fclose(lu)
 
