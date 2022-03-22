@@ -28,7 +28,7 @@ submodule (grid3mod) proc
   ! function grid_floor(f,x,main,shift)
   ! function grid_ceiling(f,x,main,shift)
   ! function euclidean_near(f,x)
-  ! subrotine init_geometry(f,x2c,n)
+  ! subrotine init_geometry(f,x2c,n,env)
   ! subrotine copy_geometry(f,g)
   ! subroutine init_trispline(f)
   ! subroutine init_test(f)
@@ -340,7 +340,7 @@ contains
 
   !> Build a 3d grid of dimension n using an arithmetic expression
   !> (expr). sptr = C pointer to the associated system.
-  module subroutine new_eval(f,sptr,n,expr,x2c)
+  module subroutine new_eval(f,sptr,n,expr,x2c,env)
     use tools_math, only: matinv
     use arithmetic, only: eval_grid
     use types, only: realloc
@@ -350,11 +350,12 @@ contains
     integer, intent(in) :: n(3)
     character(*), intent(in) :: expr
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     logical :: iok
 
     call f%end()
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     f%mode = mode_default
     f%isinit = .true.
     allocate(f%f(n(1),n(2),n(3)))
@@ -430,12 +431,13 @@ contains
   end subroutine normalize
 
   !> Build a grid field from a three-dimensional array
-  module subroutine from_array3(f,g,x2c)
+  module subroutine from_array3(f,g,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: ferror, faterr
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: g(:,:,:)
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: istat, n(3)
 
@@ -445,7 +447,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('from_array3','Error allocating grid',faterr)
@@ -454,11 +456,12 @@ contains
   end subroutine from_array3
 
   !> Read a grid in Gaussian CUBE format
-  module subroutine read_cube(f,file,x2c)
+  module subroutine read_cube(f,file,x2c,env)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc
     integer :: nat
@@ -491,7 +494,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -504,12 +507,13 @@ contains
   end subroutine read_cube
 
   !> Read a grid in binary CUBE format
-  module subroutine read_bincube(f,file,x2c)
+  module subroutine read_bincube(f,file,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc
     integer :: nat
@@ -537,7 +541,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_cube','Error allocating grid',faterr,file)
@@ -550,12 +554,13 @@ contains
   end subroutine read_bincube
 
   !> Read a grid in siesta RHO format
-  module subroutine read_siesta(f,file,x2c)
+  module subroutine read_siesta(f,file,x2c,env)
     use tools_io, only: fopen_read, faterr, ferror, fclose
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
@@ -575,7 +580,7 @@ contains
     ! assume unformatted
     read (luc) r
     read (luc) n, nspin
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
@@ -599,13 +604,14 @@ contains
   end subroutine read_siesta
 
   !> Read a grid in abinit format
-  module subroutine read_abinit(f,file,x2c)
+  module subroutine read_abinit(f,file,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use abinit_private, only: hdr_type, hdr_io
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     character(len=:), allocatable :: errmsg
     integer :: luc
@@ -626,7 +632,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     n = hdr%ngfft(:)
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_abinit','Error allocating grid',faterr,file)
@@ -646,7 +652,7 @@ contains
   !> density * omega). In CHGCAR containing more than one grid block,
   !> ibl can be used to choose which block to read (density, spin
   !> density, etc.). If vscal, scale by volume.
-  module subroutine read_vasp(f,file,x2c,vscal,ibl)
+  module subroutine read_vasp(f,file,x2c,vscal,ibl,env)
     use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
        isinteger
@@ -655,6 +661,7 @@ contains
     real*8, intent(in) :: x2c(3,3)
     logical, intent(in) :: vscal
     integer, intent(in), optional :: ibl
+    type(environ), intent(in), target :: env
 
     integer :: luc
     integer :: istat, n(3), i, j, k, ibcur, nnew(3)
@@ -677,7 +684,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_vasp','Error allocating grid',faterr,file)
@@ -711,12 +718,13 @@ contains
   end subroutine read_vasp
 
   !> Read a grid in aimpac qub format
-  module subroutine read_qub(f,file,x2c)
+  module subroutine read_qub(f,file,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc
     integer :: istat, n(3), i, j, k
@@ -732,7 +740,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('read_qub','Error allocating grid',faterr,file)
@@ -745,7 +753,7 @@ contains
   end subroutine read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  module subroutine read_xsf(f,file,x2c)
+  module subroutine read_xsf(f,file,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
@@ -753,6 +761,7 @@ contains
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc
     integer :: istat, n(3), lp, i, j, k
@@ -803,7 +812,7 @@ contains
     if (istat /= 0) &
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
     n = n - 1
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -836,7 +845,7 @@ contains
   !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
   !> ikpt = use only the indicated k-points. ibnd = use only the
   !> indicated bands. emin,emax: only the bands in the energy range.
-  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c)
+  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env)
     use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
@@ -846,6 +855,7 @@ contains
     integer, intent(in), allocatable :: ibnd(:)
     real*8, intent(in) :: emin, emax
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: i, is, ik, ib, iver, n(3)
     integer :: luc
@@ -888,7 +898,7 @@ contains
     read (luc) n
     read (luc) npwx, ngms
     nkstot = f%qe%nspin * f%qe%nks
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
 
     ! read k-point info
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
@@ -994,12 +1004,13 @@ contains
   end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  module subroutine read_elk(f,file,x2c)
+  module subroutine read_elk(f,file,x2c,env)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
 
     integer :: luc, ios
     integer :: n(3), i, j, k
@@ -1015,7 +1026,7 @@ contains
     if (ios /= 0) &
        call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
 
-    call init_geometry(f,x2c,n)
+    call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) &
        call ferror('read_elk','Error allocating grid',faterr,file)
@@ -1455,7 +1466,7 @@ contains
        call ferror('resample','no density grid',faterr)
 
     ! allocate slot
-    call init_geometry(frs,frho%x2c,n2)
+    call init_geometry(frs,frho%x2c,n2,frho%env)
     frs%isinit = .true.
     frs%mode = mode_default
 
@@ -2462,7 +2473,7 @@ contains
     yp(2) = yp(2) + w(f%test_nlist+3)
     yp(3) = yp(3) + w(f%test_nlist+4)
 
-    call f%test_env%promolecular(xi,icrd_crys,y0,yp0,ypp0,2)
+    call f%atenv%promolecular(xi,icrd_crys,y0,yp0,ypp0,2)
 
     if (y0 < 1d-40 .or. y > 100d0) then
        yb = 0d0
@@ -2607,12 +2618,13 @@ contains
   !> Initialize the geometry variables and the environment for the
   !> calculation of distances from the x2c matrix of the crystal and
   !> the number of points in each direction. Sets the variables...
-  subroutine init_geometry(f,x2c,n)
+  subroutine init_geometry(f,x2c,n,env)
     use tools_math, only: matinv
     use param, only: icrd_crys
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: x2c(3,3)
     integer, intent(in) :: n(3)
+    type(environ), intent(in), target :: env
 
     integer :: i, lv(3)
     real*8 :: x2cg(3,3), dd, x0(3)
@@ -2638,6 +2650,9 @@ contains
     f%c2xg = f%x2cg
     call matinv(f%c2xg,3)
 
+    ! atom environment
+    f%atenv => env
+
   end subroutine init_geometry
 
   !> Copy the geometry variables from grid g to grid f.
@@ -2653,6 +2668,7 @@ contains
     f%dmin = g%dmin
     f%env = g%env
     f%c2xg = g%c2xg
+    f%atenv = g%atenv
 
   end subroutine copy_geometry
 

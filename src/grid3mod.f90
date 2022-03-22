@@ -53,14 +53,15 @@ module grid3mod
      logical :: isinit = .false. !< is the grid initialized?
      logical :: isqe = .false. !< does it have qe ks states info?
      logical :: iswan = .false. !< does it have wannier info?
-     ! geometry of the grid
+     ! geometry of the grid and crystal
      integer :: n(3) !< number of grid points in each direction
      real*8 :: x2c(3,3) !< crystallographic to Cartesian matrix (crystal)
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
      real*8 :: x2cg(3,3) !< crystallographic to Cartesian matrix (grid)
      real*8 :: c2xg(3,3) !< Cartesian to crystallographic matrix (grid)
      real*8 :: dmin, dmax !< minimum and maximum grid steps
-     type(environ) :: env
+     type(environ) :: env !< environment for grid nodes
+     type(environ), pointer :: atenv !< environment for atoms
      ! basic grid variables
      integer :: mode !< interpolation mode
      real*8, allocatable :: f(:,:,:) !< grid values
@@ -74,7 +75,6 @@ module grid3mod
      real*8, allocatable :: test_xlist(:,:)
      real*8, allocatable :: test_phiinv(:,:)
      real*8, allocatable :: test_rho0(:,:,:,:)
-     type(environ) :: test_env
      ! QE band states and Wannier function transformation
      type(qedat) :: qe
    contains
@@ -114,13 +114,14 @@ module grid3mod
   integer, parameter, public :: mode_default = mode_tricubic
 
   interface
-     module subroutine new_eval(f,sptr,n,expr,x2c)
+     module subroutine new_eval(f,sptr,n,expr,x2c,env)
        use iso_c_binding, only: c_ptr
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: sptr
        integer, intent(in) :: n(3)
        character(*), intent(in) :: expr
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine new_eval
      module subroutine grid_end(f)
        class(grid3), intent(inout) :: f
@@ -133,61 +134,71 @@ module grid3mod
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: norm, omega
      end subroutine normalize
-     module subroutine from_array3(f,g,x2c)
+     module subroutine from_array3(f,g,x2c,env)
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: g(:,:,:)
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine from_array3
-     module subroutine read_cube(f,file,x2c)
+     module subroutine read_cube(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_cube
-     module subroutine read_bincube(f,file,x2c)
+     module subroutine read_bincube(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_bincube
-     module subroutine read_siesta(f,file,x2c)
+     module subroutine read_siesta(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_siesta
-     module subroutine read_abinit(f,file,x2c)
+     module subroutine read_abinit(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_abinit
-     module subroutine read_vasp(f,file,x2c,vscal,ibl)
+     module subroutine read_vasp(f,file,x2c,vscal,ibl,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        logical, intent(in) :: vscal
-       integer, intent(in), optional :: ibl !< grid block to read
+       integer, intent(in), optional :: ibl
+       type(environ), intent(in), target :: env
      end subroutine read_vasp
-     module subroutine read_qub(f,file,x2c)
+     module subroutine read_qub(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_qub
-     module subroutine read_xsf(f,file,x2c)
+     module subroutine read_xsf(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_xsf
-     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c)
+     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: fpwc !< Input file (pwc file from QE)
+       character*(*), intent(in) :: fpwc
        integer, intent(in) :: ispin
        integer, intent(in), allocatable :: ikpt(:)
        integer, intent(in), allocatable :: ibnd(:)
        real*8, intent(in) :: emin, emax
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_pwc
-     module subroutine read_elk(f,file,x2c)
+     module subroutine read_elk(f,file,x2c,env)
        class(grid3), intent(inout) :: f
-       character*(*), intent(in) :: file !< Input file
+       character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
      end subroutine read_elk
      module subroutine read_wannier_chk(f,fileup,filedn)
        class(grid3), intent(inout) :: f

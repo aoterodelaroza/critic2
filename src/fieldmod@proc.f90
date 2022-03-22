@@ -133,7 +133,6 @@ contains
           equal(word,'test')) then
           call ff%grid%setmode(word)
           if (equal(word,'test')) then
-             ff%grid%test_env = ff%c%env
              if (allocated(ff%grid%test_rho0)) deallocate(ff%grid%test_rho0)
              allocate(ff%grid%test_rho0(ff%grid%n(1),ff%grid%n(2),ff%grid%n(3),0:9))
              ! xxxx this should be promolecular_grid
@@ -318,7 +317,7 @@ contains
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
           call f%grid%end()
-          call f%grid%read_elk(seed%file(1),c%m_x2c)
+          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
@@ -344,49 +343,49 @@ contains
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
-       call f%grid%read_cube(seed%file(1),c%m_x2c)
+       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        call f%grid%end()
-       call f%grid%read_bincube(seed%file(1),c%m_x2c)
+       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        call f%grid%end()
-       call f%grid%read_abinit(seed%file(1),c%m_x2c)
+       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk)
+       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
        call f%grid%end()
-       call f%grid%read_qub(seed%file(1),c%m_x2c)
+       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        call f%grid%end()
-       call f%grid%read_xsf(seed%file(1),c%m_x2c)
+       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
        call f%grid%end()
-       call f%grid%read_elk(seed%file(1),c%m_x2c)
+       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
        call f%grid%end()
-       call f%grid%read_siesta(seed%file(1),c%m_x2c)
+       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -402,7 +401,7 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax,c%m_x2c)
+          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env)
        if (seed%nfile == 2) then
           call f%grid%read_wannier_chk(seed%file(2))
        elseif (seed%nfile == 3) then
@@ -471,7 +470,7 @@ contains
        f%type = type_grid
        f%file = ""
        n = seed%n
-       call f%grid%new_eval(sptr,n,seed%expr,c%m_x2c)
+       call f%grid%new_eval(sptr,n,seed%expr,c%m_x2c,c%env)
        if (.not.f%grid%isinit) then
           call f%grid%end()
           f%grid%n = n
