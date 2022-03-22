@@ -394,10 +394,13 @@ contains
   !> trilinear, trispline, and tricubic (lowercase).
   module subroutine setmode(f,mode)
     use tools_io, only: equal, lower
+    use param, only: icrd_crys
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: mode
 
     character(len=:), allocatable :: lmode
+    integer :: i, j, k
+    real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
 
     lmode = lower(mode)
     if (equal(lmode,'test')) then
@@ -416,6 +419,38 @@ contains
        f%mode = mode_nearest
     else if (equal(lmode,'default')) then
        f%mode = mode_default
+    end if
+
+    ! if test interpolation, calculate the rho0 and derivatives here
+    if (f%mode == mode_test) then
+       if (allocated(f%test_rho0)) deallocate(f%test_rho0)
+       allocate(f%test_rho0(f%n(1),f%n(2),f%n(3),0:9))
+
+       do i = 1, 3
+          xdelta(:,i) = 0d0
+          xdelta(i,i) = 1d0 / real(f%n(i),8)
+       end do
+       !$omp parallel do private(x,rho,rhof,rhoff)
+       do k = 1, f%n(3)
+          do j = 1, f%n(2)
+             do i = 1, f%n(1)
+                x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+                call f%atenv%promolecular(x,icrd_crys,rho,rhof,rhoff,2)
+
+                !$omp critical(write)
+                f%test_rho0(i,j,k,0) = rho
+                f%test_rho0(i,j,k,1:3) = rhof
+                f%test_rho0(i,j,k,4) = rhoff(1,1)
+                f%test_rho0(i,j,k,5) = rhoff(1,2)
+                f%test_rho0(i,j,k,6) = rhoff(1,3)
+                f%test_rho0(i,j,k,7) = rhoff(2,2)
+                f%test_rho0(i,j,k,8) = rhoff(2,3)
+                f%test_rho0(i,j,k,9) = rhoff(3,3)
+                !$omp end critical(write)
+             end do
+          end do
+       end do
+       !$omp end parallel do
     end if
 
   end subroutine setmode
@@ -2400,12 +2435,11 @@ contains
     real*8, intent(out) :: ypp(3,3) !< Second derivative
     integer, intent(inout), optional :: i0ref(3)
 
-    integer :: i, j, i1, i2, i3
-    real*8 :: x0(3), x1(3), xh(3), r(3), s(3), dr(3,3), ds(3,3)
+    integer :: i
+    real*8 :: x1(3), xh(3)
     integer :: i0(3), ih(3)
     real*8 :: d, dd, ff, fp, fpp
     real*8, allocatable :: flist(:), w(:), f0list(:)
-    real*8:: y_(0:2,0:2,0:2), yp_(3,0:2,0:2,0:2), ypp_(3,3,0:2,0:2,0:2)
     real*8 :: yb, ypb(3), yppb(3,3)
     real*8 :: y0, yp0(3), ypp0(3,3)
     real*8 :: y0m, ybm
@@ -2620,14 +2654,12 @@ contains
   !> the number of points in each direction. Sets the variables...
   subroutine init_geometry(f,x2c,n,env)
     use tools_math, only: matinv
-    use param, only: icrd_crys
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: x2c(3,3)
     integer, intent(in) :: n(3)
     type(environ), intent(in), target :: env
 
-    integer :: i, lv(3)
-    real*8 :: x2cg(3,3), dd, x0(3)
+    integer :: i
 
     real*8, parameter :: nmaxenv = 15d0
 
@@ -2791,8 +2823,8 @@ contains
     use param, only: icrd_cart
     class(grid3), intent(inout) :: f !< Input grid
 
-    real*8 :: d, dd, xh(3), ff, fp, fpp, x2c(3,3)
-    integer :: i1, i2, i3, i, j, kmax, nn, ierr
+    real*8 :: d, dd, xh(3), ff, fp, fpp
+    integer :: i, j, nn, ierr
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
 

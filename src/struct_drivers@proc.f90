@@ -54,7 +54,7 @@ contains
 
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, lword, subline
-    integer :: nn, isformat, isformat2
+    integer :: nn, isformat
     real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes
     type(crystalseed) :: seed
