@@ -1249,6 +1249,7 @@ contains
     integer, allocatable :: hvecp(:,:), zcount1(:), zcount2(:), isperm(:), list(:,:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
+    integer, allocatable :: singleatom(:)
     logical :: ok
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
@@ -1444,20 +1445,25 @@ contains
 
     if (imethod == imethod_powder .or. imethod == imethod_rdf) then
        ! crystals
-       allocate(iha(npts,ns))
+       allocate(iha(npts,ns),singleatom(ns))
+       singleatom = -1
        do i = 1, ns
-          ! calculate the powder diffraction pattern
-          if (imethod == imethod_powder) then
-             call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
-
-             ! normalize the integral of abs(ih)
-             tini = ih(1)**2
-             tend = ih(npts)**2
-             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-             iha(:,i) = ih / sqrt(nor)
+          if (c(i)%ncel == 1) then
+             singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
           else
-             call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
-             iha(:,i) = ih
+             ! calculate the powder diffraction pattern
+             if (imethod == imethod_powder) then
+                call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
+
+                ! normalize the integral of abs(ih)
+                tini = ih(1)**2
+                tend = ih(npts)**2
+                nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+                iha(:,i) = ih / sqrt(nor)
+             else
+                call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
+                iha(:,i) = ih
+             end if
           end if
        end do
        if (allocated(t)) deallocate(t)
@@ -1470,7 +1476,9 @@ contains
        allocate(xnorm(ns))
        h =  (xend-th2ini) / real(npts-1,8)
        do i = 1, ns
-          xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+          if (singleatom(i) < 0) then
+             xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+          end if
        end do
        xnorm = sqrt(abs(xnorm))
 
@@ -1478,7 +1486,17 @@ contains
        diff = 0d0
        do i = 1, ns
           do j = i+1, ns
-             diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+             if (singleatom(i) > 0 .and. singleatom(j) > 0) then
+                if (singleatom(i) == singleatom(j)) then
+                   diff(i,j) = 0d0
+                else
+                   diff(i,j) = 1d0
+                end if
+             else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
+                diff(i,j) = 1d0
+             else
+                diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+             end if
              diff(j,i) = diff(i,j)
           end do
        end do
