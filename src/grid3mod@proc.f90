@@ -2700,7 +2700,7 @@ contains
     f%dmin = g%dmin
     f%env = g%env
     f%c2xg = g%c2xg
-    f%atenv = g%atenv
+    f%atenv => g%atenv
 
   end subroutine copy_geometry
 
