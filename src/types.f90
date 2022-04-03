@@ -244,6 +244,9 @@ module types
      character*3 :: basinfmt ! draw basin format (obj, ply, off)
      character(len=:), allocatable :: expr ! discard attractor expression
      logical :: wcube ! write weight cubes
+     ! isosurface options
+     logical :: higher ! higher/lower
+     real*8 :: isov ! contour level for the isosurface integration
      ! integration grid
      integer :: n(3) ! number of grid points
      real*8, allocatable :: f(:,:,:) ! basin field

@@ -49,13 +49,14 @@ submodule (integration) proc
   ! grid integration types
   integer, parameter :: imtype_bader = 1
   integer, parameter :: imtype_yt = 2
+  integer, parameter :: imtype_isosurface = 3
 
 contains
 
   !> Driver for the integration in grids
   module subroutine intgrid_driver(line)
     use bader, only: bader_integrate
-    use yt, only: yt_integrate, yt_weights, ytdata, ytdata_clean
+    use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
@@ -91,7 +92,7 @@ contains
        return
     end if
     if (sy%f(sy%iref)%type /= type_grid) then
-       call ferror("intgrid_driver","BADER/YT can only be used with grids",faterr,line,syntax=.true.)
+       call ferror("intgrid_driver","BADER/YT/ISOSURFACE can only be used with grids",faterr,line,syntax=.true.)
        return
     end if
     if (sy%npropi <= 0) then
@@ -102,10 +103,27 @@ contains
     ! method and header
     lp = 1
     word = lgetword(line,lp)
+    bas%higher = .true.
     if (equal(word,"yt")) then
        bas%imtype = imtype_yt
     elseif (equal(word,"bader")) then
        bas%imtype = imtype_bader
+    elseif (equal(word,"isosurface")) then
+       bas%imtype = imtype_isosurface
+       word = lgetword(line,lp)
+       if (equal(word,'higher')) then
+          bas%higher = .true.
+       elseif (equal(word,'lower')) then
+          bas%higher = .false.
+       else
+          call ferror("intgrid_driver","ISOSURFACE must be followed by HIGHER or LOWER",faterr,line,syntax=.true.)
+          return
+       end if
+       ok = eval_next(bas%isov,line,lp)
+       if (.not.ok) then
+          call ferror("intgrid_driver","ISOSURFACE HIGHER/LOWER must be followed by the contour value",faterr,line,syntax=.true.)
+          return
+       end if
     else
        call ferror("intgrid_driver","wrong method",faterr,line,syntax=.true.)
        return
@@ -122,11 +140,11 @@ contains
     bas%expr = ""
     do while(.true.)
        word = lgetword(line,lp)
-       if (equal(word,"nnm")) then
+       if (equal(word,"nnm") .and. bas%imtype /= imtype_isosurface) then
           nonnm = .false.
-       elseif (equal(word,"noatoms")) then
+       elseif (equal(word,"noatoms") .and. bas%imtype /= imtype_isosurface) then
           noatoms = .true.
-       elseif (equal(word,"ratom")) then
+       elseif (equal(word,"ratom") .and. bas%imtype /= imtype_isosurface) then
           nonnm = .false.
           ok = eval_next(ratom_def,line,lp)
           if (.not.ok) then
@@ -134,7 +152,7 @@ contains
              return
           end if
           ratom_def = ratom_def / dunit0(iunit)
-       elseif (equal(word,"wcube")) then
+       elseif (equal(word,"wcube") .and. bas%imtype /= imtype_isosurface) then
           bas%wcube = .true.
        elseif (equal(word,"basins")) then
           lp2 = lp
@@ -158,7 +176,7 @@ contains
              call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
           end if
-       elseif (equal(word,"json")) then
+       elseif (equal(word,"json") .and. bas%imtype /= imtype_isosurface) then
           jsonfile = getword(line,lp)
           if (len_trim(jsonfile) == 0) then
              call ferror("intgrid_driver","Invalid JSON file",faterr,line,syntax=.true.)
@@ -190,10 +208,12 @@ contains
 
     ! prepare the array for the basin field
     allocate(bas%f(bas%n(1),bas%n(2),bas%n(3)))
-    if (sy%f(sy%iref)%usecore) then
+    if (sy%f(sy%iref)%usecore .and. bas%imtype /= imtype_isosurface) then
        call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n,sy%f(sy%iref)%zpsp)
        bas%f = sy%f(sy%iref)%grid%f + faux%f
        call faux%end()
+    elseif (bas%imtype == imtype_isosurface .and..not.bas%higher) then
+       bas%f = -sy%f(sy%iref)%grid%f
     else
        bas%f = sy%f(sy%iref)%grid%f
     end if
@@ -222,52 +242,74 @@ contains
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
        call yt_integrate(sy,bas,sy%iref)
        write (uout,'("+ Attractors in YT: ",A)') string(bas%nattr)
+    elseif (bas%imtype == imtype_isosurface) then
+       write (uout,'("* Isosurface integration ")')
+       if (bas%higher) then
+          write (uout,'("+ Integrated regions with reference field HIGHER than ",A)') string(bas%isov,'e',8,4)
+       else
+          write (uout,'("+ Integrated regions with reference field LOWER than ",A)') string(bas%isov,'e',8,4)
+       end if
+       if (len_trim(bas%expr) > 0) &
+          write (uout,'("+ Discard expression: ",A)') trim(bas%expr)
+       call yt_isosurface(sy,bas,sy%iref)
     endif
 
-    ! Reorder the attractors
-    call int_reorder_gridout(sy%f(sy%iref),bas)
-    write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
-    write (uout,*)
+    if (bas%imtype == imtype_isosurface) then
+       ! isosurface integration output
 
-    ! Write weight cubes
-    call int_cubew(bas)
+       ! deallocate the basin field
+       deallocate(bas%f)
 
-    ! Bains plotting
-    call int_gridbasins(bas)
+       write (*,*) "about to write output!"
+       stop 1
+    else
+       ! atomic basin integration output
 
-    ! deallocate the basin field
-    deallocate(bas%f)
+       ! Reorder the attractors
+       call int_reorder_gridout(sy%f(sy%iref),bas)
+       write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
+       write (uout,*)
 
-    ! Prepare for the calculation of properties
-    allocate(res(sy%npropi))
-    write (uout,'("+ Integrating atomic properties"/)')
+       ! Write weight cubes
+       call int_cubew(bas)
 
-    ! Integrate scalar fields and multipoles
-    call intgrid_fields(bas,res)
+       ! Bains plotting
+       call int_gridbasins(bas)
 
-    ! localization and delocalization indices
-    call intgrid_deloc(bas,res)
+       ! deallocate the basin field
+       deallocate(bas%f)
 
-    ! header for integration output
-    write (uout,*)
-    call int_output_header(bas,res)
+       ! Prepare for the calculation of properties
+       allocate(res(sy%npropi))
+       write (uout,'("+ Integrating atomic properties"/)')
 
-    ! output integrated scalar field properties
-    call int_output_fields(bas,res)
+       ! Integrate scalar fields and multipoles
+       call intgrid_fields(bas,res)
 
-    ! output multipoles
-    call int_output_multipoles(bas,res)
+       ! localization and delocalization indices
+       call intgrid_deloc(bas,res)
 
-    ! output localization and delocalization indices
-    call int_output_deloc(bas,res)
+       ! header for integration output
+       write (uout,*)
+       call int_output_header(bas,res)
 
-    ! write the json file
-    if (len(jsonfile) > 0) then
-       call int_output_json(jsonfile,bas,res)
+       ! output integrated scalar field properties
+       call int_output_fields(bas,res)
+
+       ! output multipoles
+       call int_output_multipoles(bas,res)
+
+       ! output localization and delocalization indices
+       call int_output_deloc(bas,res)
+
+       ! write the json file
+       if (len(jsonfile) > 0) then
+          call int_output_json(jsonfile,bas,res)
+       end if
     end if
 
     ! clean up
-    if (bas%imtype == imtype_yt) then
+    if (bas%imtype == imtype_yt .and. bas%luw /= 0) then
        call fclose(bas%luw)
     endif
     deallocate(res)
@@ -2720,7 +2762,7 @@ contains
        call json%add(o1,'number_of_molecules',sy%c%nmol)
        call json%create_array(a1,'molecules')
        call json%add(o1,a1)
-       
+
        do i = 1, sy%c%nmol
           xcm = sy%c%mol(i)%cmass()
           xcm = sy%c%c2x(xcm)
@@ -2731,7 +2773,7 @@ contains
           call json%add(o2,'id',i)
           call json%add(o2,'center_of_mass',xcm)
           call json%add(o2,'number_of_atoms',sy%c%mol(i)%nat)
-          
+
           call json%create_array(a2,'atoms')
           call json%add(o2,a2)
           l = 0

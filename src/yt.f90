@@ -26,6 +26,7 @@ module yt
   private
 
   public :: yt_integrate
+  public :: yt_isosurface
   public :: yt_weights
   public :: yt_remap
   public :: ytdata_clean
@@ -50,6 +51,12 @@ module yt
        type(basindat), intent(inout) :: bas
        integer, intent(in) :: iref
      end subroutine yt_integrate
+     module subroutine yt_isosurface(s,bas,iref)
+       use types, only: basindat
+       type(system), intent(inout) :: s
+       type(basindat), intent(inout) :: bas
+       integer, intent(in) :: iref
+     end subroutine yt_isosurface
      module subroutine yt_weights(luw,din,idb,w,dout)
        integer, intent(in), optional :: luw
        type(ytdata), intent(in), optional :: din

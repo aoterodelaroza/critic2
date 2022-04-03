@@ -400,6 +400,12 @@ program critic
         if (.not.ok) cycle
         call intgrid_driver(line)
 
+        ! yt
+     elseif (equal(word,'isosurface')) then
+        call check_structure_defined(ok)
+        if (.not.ok) cycle
+        call intgrid_driver(line)
+
         ! xdm
      elseif (equal(word,'xdm')) then
         call check_structure_defined(ok)

@@ -20,17 +20,17 @@ submodule (yt) proc
 
 contains
 
-  !> Do the YT integration on system s and field id. Return the number
-  !> of basins (nbasin), their coordinates (cryst. coordinates,
-  !> xcoord), the integer id that gives the basin for each grid point
-  !> (idg) and the logical unit of an open scratch file containing the
-  !> weights (luw). If the arithmetic expression discexpr is not
-  !> empty, then apply that expression to the basin attractors. If the
-  !> expression is non-zero, discard the attractor. If atexist is
-  !> true, then the code is aware of the presence of atoms, which are
-  !> added as attractors at the beginning of the run. Two attractors
-  !> are considered equal if they are within a ditsance of ratom
-  !> (bohr).
+  !> Do the YT integration on system s and its reference field. Return
+  !> the number of basins (nbasin), their coordinates
+  !> (cryst. coordinates, xcoord), the integer id that gives the basin
+  !> for each grid point (idg) and the logical unit of an open scratch
+  !> file containing the weights (luw). If the arithmetic expression
+  !> discexpr is not empty, then apply that expression to the basin
+  !> attractors. If the expression is non-zero, discard the
+  !> attractor. If atexist is true, then the code is aware of the
+  !> presence of atoms, which are added as attractors at the beginning
+  !> of the run. Two attractors are considered equal if they are
+  !> within a ditsance of ratom (bohr).
   module subroutine yt_integrate(s,bas,iref)
     use systemmod, only: system
     use crystalmod, only: crystal
@@ -229,6 +229,18 @@ contains
       to1 = modulo(k(1)-1,n(1)) + n(1) * (modulo(k(2)-1,n(2)) + n(2) * (modulo(k(3)-1,n(3)))) + 1
     end function to1
   end subroutine yt_integrate
+
+  ! ...
+  module subroutine yt_isosurface(s,bas,iref)
+    use types, only: basindat
+    type(system), intent(inout) :: s
+    type(basindat), intent(inout) :: bas
+    integer, intent(in) :: iref
+
+    write (*,*) "inside yt_isosurface!"
+    stop 1
+
+  end subroutine yt_isosurface
 
   !> Read or use the neighbor and fractions and generate the YT
   !> weights for the given input basin. The input for the weight has
