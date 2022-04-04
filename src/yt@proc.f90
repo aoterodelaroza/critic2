@@ -250,6 +250,7 @@ contains
     real*8, allocatable :: g(:)
     integer :: nn, n(3)
     integer, allocatable :: io(:), iio(:)
+    integer :: i1, i2, i3
     integer :: i, ii, j, jj, k, ib(3), jb(3), nvec, vec(3,14)
     integer :: nhi, imin
     integer, allocatable :: ibasin(:), ihi(:)
@@ -364,7 +365,7 @@ contains
     end do
 
     ! clean up
-    deallocate(io,iio,ihi,g)
+    deallocate(io,ihi,g)
 
     ! reassing maxima
     nn = 0
@@ -386,8 +387,8 @@ contains
 
     ! clean up and output
     allocate(bas%idg(n(1),n(2),n(3)))
-    bas%idg = reshape(ibasin,shape(bas%idg))
-    deallocate(ibasin)
+    bas%idg = reshape(ibasin(iio),shape(bas%idg))
+    deallocate(ibasin,iio)
     call realloc(bas%xattr,3,bas%nattr)
 
   contains

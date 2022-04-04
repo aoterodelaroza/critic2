@@ -3130,6 +3130,14 @@ contains
        call sy%c%writegrid_cube(w,file,.false.,.false.)
     end do
     write (uout,'("+ Weights written to ",A,"_wcube_*.cube"/)') trim(fileroot)
+
+    if (bas%imtype /= imtype_yt) then
+       w = bas%idg
+       file = trim(fileroot) // "_wcube_all.cube"
+       call sy%c%writegrid_cube(w,file,.false.,.false.)
+       write (uout,'("+ All weights written to ",A,"_wcube_*.cube"/)') trim(fileroot)
+    end if
+
     deallocate(w)
 
     if (bas%imtype == imtype_yt) then
