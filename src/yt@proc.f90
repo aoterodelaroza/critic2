@@ -20,23 +20,22 @@ submodule (yt) proc
 
 contains
 
-  !> Do the YT integration on system s and its reference field. Return
-  !> the number of basins (nbasin), their coordinates
-  !> (cryst. coordinates, xcoord), the integer id that gives the basin
-  !> for each grid point (idg) and the logical unit of an open scratch
-  !> file containing the weights (luw). If the arithmetic expression
-  !> discexpr is not empty, then apply that expression to the basin
-  !> attractors. If the expression is non-zero, discard the
-  !> attractor. If atexist is true, then the code is aware of the
+  !> Do the YT integration on system s and field iref. Return the
+  !> number of basins (bas%nattr), their coordinates (crystallographic
+  !> coordinates, bas%xattr), the integer id that gives the basin for
+  !> each grid point (bas%idg) and the logical unit of an open scratch
+  !> file containing the weights (bas%luw).  If the arithmetic
+  !> expression bas%expr is not empty, then apply that expression to
+  !> the basin attractors. If the expression is non-zero, discard the
+  !> attractor. If bas%atexist is true, then the code is aware of the
   !> presence of atoms, which are added as attractors at the beginning
   !> of the run. Two attractors are considered equal if they are
-  !> within a ditsance of ratom (bohr).
+  !> within a ditsance of bas%ratom (bohr).
   module subroutine yt_integrate(s,bas,iref)
     use systemmod, only: system
     use crystalmod, only: crystal
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
-    use arithmetic, only: eval
     use param, only: vsmall, icrd_crys
     use tools, only: qcksort
     use types, only: realloc, basindat
@@ -230,15 +229,178 @@ contains
     end function to1
   end subroutine yt_integrate
 
-  ! ...
-  module subroutine yt_isosurface(s,bas,iref)
+  !> Calculate the isosurface regions associated with a value higher
+  !> than the contour value bas%isov. On output, return the number of
+  !> regions (bas%nattr), the coordinate of the highest-function
+  !> maximum inside (crystallographic coordinates, bas%xattr), and the
+  !> integer id that gives the region for each grid point (bas%idg) If
+  !> the arithmetic expression bas%expr is not empty, then discard the
+  !> grid points where the expression is true.
+  module subroutine yt_isosurface(s,bas)
     use types, only: basindat
+    use crystalmod, only: crystal
+    use tools_math, only: m_x2c_from_cellpar, matinv
+    use tools_io, only: ferror, faterr
+    use tools, only: qcksort
+    use types, only: realloc
+    use param, only: vsmall
     type(system), intent(inout) :: s
     type(basindat), intent(inout) :: bas
-    integer, intent(in) :: iref
 
-    write (*,*) "inside yt_isosurface!"
-    stop 1
+    real*8, allocatable :: g(:)
+    integer :: nn, n(3)
+    integer, allocatable :: io(:), iio(:)
+    integer :: i, ii, j, jj, k, ib(3), jb(3), nvec, vec(3,14)
+    integer :: nhi, imin
+    integer, allocatable :: ibasin(:), ihi(:)
+    real*8 :: fval, x(3), dv(3)
+    type(crystal) :: caux
+    logical :: interior, ok
+    integer, allocatable :: imap(:)
+
+    if (.not.s%isinit) &
+       call ferror("yt_isosurface","system not initialized",faterr)
+    if (.not.associated(s%c)) &
+       call ferror("yt_isosurface","system does not have crystal",faterr)
+
+    ! initialize
+    allocate(bas%xattr(3,10),imap(10))
+    bas%xattr = 0d0
+    bas%nattr = 0
+    imap = 0
+
+    ! Copy the field onto a one-dimensional array
+    do i = 1, 3
+       n(i) = size(bas%f,i)
+    end do
+    nn = n(1)*n(2)*n(3)
+    allocate(g(nn))
+    g = reshape(bas%f,shape(g))
+
+    ! sort g, from smaller to larger field value
+    allocate(io(nn),iio(nn))
+    do i = 1, nn
+       io(i) = i
+    end do
+    call qcksort(g,io,1,nn)
+    do i = 1, nn
+       iio(io(i)) = i
+    end do
+
+    ! calculate areas*lengths and grid vectors. Use a smaller crystal
+    ! where the "lattice" corresponds to the cube grid points.
+    caux%isinit = .true.
+    caux%aa = s%c%aa / real(n,8)
+    caux%bb = s%c%bb
+    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
+    caux%m_c2x = caux%m_x2c
+    call matinv(caux%m_c2x,3)
+    call caux%wigner()
+    nvec = caux%ws_nf
+    vec = caux%ws_ineighx
+    call caux%end()
+
+    ! run over grid points in order of decreasing density
+    allocate(ibasin(nn),ihi(nvec))
+    ibasin = 0
+    ihi = 0
+    do ii = nn, 1, -1
+       i = io(ii)
+       ib = to3(i)
+
+       ! skip the points lower than the contour value
+       if (g(i) < bas%isov) cycle
+
+       ! if the discard expression is present and true, cycle
+       dv = real(ib-1,8) / n
+       if (len_trim(bas%expr) > 0) then
+          x = s%c%x2c(dv)
+          fval = s%eval(bas%expr,.false.,ok,x)
+          if (.not.ok) &
+             call ferror("yt","invalid DISCARD expression",faterr)
+          if (abs(fval) > vsmall) cycle
+       end if
+
+       ! find the number of points with higher density
+       nhi = 0
+       do k = 1, nvec
+          jb = ib + vec(:,k)
+          j = to1(jb)
+          jj = iio(j)
+          if (jj > ii) then
+             nhi = nhi + 1
+             ihi(nhi) = jj
+          end if
+       end do
+
+       ! classify the point
+       if (nhi == 0) then
+          ! this is a maximum
+          bas%nattr = bas%nattr + 1
+          if (bas%nattr > size(bas%xattr,2)) then
+             call realloc(bas%xattr,3,2*bas%nattr)
+             call realloc(imap,2*bas%nattr)
+             imap(bas%nattr+1:) = 0
+          end if
+          ibasin(ii) = bas%nattr
+          bas%xattr(:,bas%nattr) = dv
+       else
+          interior = .true.
+          do k = 2, nhi
+             interior = interior .and. (ibasin(ihi(k)) == ibasin(ihi(1)))
+          end do
+          if (interior) then
+             ! interior point
+             ibasin(ii) = ibasin(ihi(1))
+          else
+             ! contact between isosurfaces, reassign indices
+             imin = minval(ibasin(ihi(1:nhi)))
+             ibasin(ii) = imin
+             do k = 1, nhi
+                if (ibasin(ihi(k)) /= imin) imap(ibasin(ihi(k))) = imin
+             end do
+          end if
+       end if
+    end do
+
+    ! clean up
+    deallocate(io,iio,ihi,g)
+
+    ! reassing maxima
+    nn = 0
+    do i = 1, bas%nattr
+       if (imap(i) == 0) then
+          nn = nn + 1
+       else
+          ii = i
+          do while (imap(ii) /= 0)
+             ii = imap(ii)
+          end do
+          where (ibasin == i)
+             ibasin = ii
+          end where
+       end if
+    end do
+    bas%nattr = nn
+    deallocate(imap)
+
+    ! clean up and output
+    allocate(bas%idg(n(1),n(2),n(3)))
+    bas%idg = reshape(ibasin,shape(bas%idg))
+    deallocate(ibasin)
+    call realloc(bas%xattr,3,bas%nattr)
+
+  contains
+    function to3(k)
+      integer :: to3(3), k
+      to3(1) = modulo(k-1,n(1))+1
+      to3(2) = modulo((k-1) / n(1),n(2)) + 1
+      to3(3) = modulo((k-1) / (n(1)*n(2)),n(3)) + 1
+    end function to3
+    function to1(k)
+      integer :: k(3), to1
+      to1 = modulo(k(1)-1,n(1)) + n(1) * (modulo(k(2)-1,n(2)) + n(2) * (modulo(k(3)-1,n(3)))) + 1
+    end function to1
 
   end subroutine yt_isosurface
 

@@ -152,7 +152,7 @@ contains
              return
           end if
           ratom_def = ratom_def / dunit0(iunit)
-       elseif (equal(word,"wcube") .and. bas%imtype /= imtype_isosurface) then
+       elseif (equal(word,"wcube")) then
           bas%wcube = .true.
        elseif (equal(word,"basins")) then
           lp2 = lp
@@ -214,6 +214,7 @@ contains
        call faux%end()
     elseif (bas%imtype == imtype_isosurface .and..not.bas%higher) then
        bas%f = -sy%f(sy%iref)%grid%f
+       bas%isov = -bas%isov
     else
        bas%f = sy%f(sy%iref)%grid%f
     end if
@@ -247,65 +248,55 @@ contains
        if (bas%higher) then
           write (uout,'("+ Integrated regions with reference field HIGHER than ",A)') string(bas%isov,'e',8,4)
        else
-          write (uout,'("+ Integrated regions with reference field LOWER than ",A)') string(bas%isov,'e',8,4)
+          write (uout,'("+ Integrated regions with reference field LOWER than ",A)') string(-bas%isov,'e',8,4)
        end if
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard expression: ",A)') trim(bas%expr)
-       call yt_isosurface(sy,bas,sy%iref)
+       call yt_isosurface(sy,bas)
     endif
 
-    if (bas%imtype == imtype_isosurface) then
-       ! isosurface integration output
-
-       ! deallocate the basin field
-       deallocate(bas%f)
-
-       write (*,*) "about to write output!"
-       stop 1
-    else
-       ! atomic basin integration output
-
-       ! Reorder the attractors
-       call int_reorder_gridout(sy%f(sy%iref),bas)
+    ! Reorder the attractors
+    call int_reorder_gridout(sy%f(sy%iref),bas)
+    if (bas%imtype /= imtype_isosurface) then
        write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
        write (uout,*)
+    end if
 
-       ! Write weight cubes
-       call int_cubew(bas)
+    ! Write weight cubes
+    call int_cubew(bas)
 
-       ! Bains plotting
-       call int_gridbasins(bas)
+    ! Bains plotting
+    call int_gridbasins(bas)
 
-       ! deallocate the basin field
-       deallocate(bas%f)
+    ! deallocate the basin field
+    deallocate(bas%f)
 
-       ! Prepare for the calculation of properties
-       allocate(res(sy%npropi))
-       write (uout,'("+ Integrating atomic properties"/)')
+    ! Prepare for the calculation of properties
+    allocate(res(sy%npropi))
+    write (uout,'("+ Integrating atomic properties"/)')
 
-       ! Integrate scalar fields and multipoles
-       call intgrid_fields(bas,res)
+    ! Integrate scalar fields and multipoles
+    call intgrid_fields(bas,res)
 
-       ! localization and delocalization indices
-       call intgrid_deloc(bas,res)
+    ! localization and delocalization indices
+    call intgrid_deloc(bas,res)
 
-       ! header for integration output
-       write (uout,*)
-       call int_output_header(bas,res)
+    ! header for integration output
+    write (uout,*)
+    call int_output_header(bas,res)
 
-       ! output integrated scalar field properties
-       call int_output_fields(bas,res)
+    ! output integrated scalar field properties
+    call int_output_fields(bas,res)
 
-       ! output multipoles
-       call int_output_multipoles(bas,res)
+    ! output multipoles
+    call int_output_multipoles(bas,res)
 
-       ! output localization and delocalization indices
-       call int_output_deloc(bas,res)
+    ! output localization and delocalization indices
+    call int_output_deloc(bas,res)
 
-       ! write the json file
-       if (len(jsonfile) > 0) then
-          call int_output_json(jsonfile,bas,res)
-       end if
+    ! write the json file
+    if (len(jsonfile) > 0) then
+       call int_output_json(jsonfile,bas,res)
     end if
 
     ! clean up
@@ -595,7 +586,7 @@ contains
     logical, intent(in), optional :: nomol0
     logical, intent(in), optional :: usesym0
 
-    integer :: i, j, k, fid
+    integer :: i, j, k, fid, id(3)
     character(len=:), allocatable :: saux, label, cini, itaux
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     real*8 :: x(3), xcm(3)
@@ -609,8 +600,12 @@ contains
 
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
-    write (uout,'("* List of properties integrated in the attractor basins")')
-    write (uout,'("+ The ""Label"" entries will be used to identify the integrable")')
+    if (bas%imtype == imtype_isosurface) then
+       write (uout,'("* List of properties integrated in the attractor basins")')
+    else
+       write (uout,'("* List of properties integrated in the isosurface regions")')
+    end if
+    write (uout,'("+ The ""Label"" entries will be used to identify the integrable property")')
     write (uout,'("  in the tables of integrated atomic properties. The entries with")')
     write (uout,'("  an ""x"" will not be integrated.")')
     write (uout,'("# id    Label      fid  Field       Additional")')
@@ -646,78 +641,121 @@ contains
 
     ! key
     write (uout,'("* Key for the interpretation of table headings")')
-    write (uout,'("# Id = attractor identifier")')
-    write (uout,'("# cp/at = critical point/atom from the complete CP/atom list")')
-    write (uout,'("# (lvec) = lattice translation from CP/atom to the main cell''s representative")')
-    write (uout,'("# ncp/nat = critical point/atom from the non-equivalent CP/atom list")')
-    write (uout,'("# Name = atomic name")')
-    write (uout,'("# Z = atomic number")')
-    write (uout,'("# Position = atomic position")')
-    write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
-    write (uout,'("# Volume = volume of the reference field basins.")')
-    write (uout,'("# Pop (population) = the reference field integrated in its own basins.")')
-    write (uout,'("# Lap = Laplacian of the reference field integrated in the reference field basins.")')
-    write (uout,'("# $xxx = field xxx integrated in the basins of the reference field.")')
-    write (uout,*)
-
-    ! List of attractors and positions
-    write (uout,'("* List of attractors integrated")')
-    if (.not.sy%c%ismolecule) then
-       write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (cryst.) ")')
-    else
-       write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
-    endif
-    do i = 1, bas%nattr
-       call assign_strings(i,bas%icp(i),usesym,scp,sncp,sname,smult,sz)
-       if (.not.sy%c%ismolecule) then
-          x = bas%xattr(:,i)
+    if (bas%imtype == imtype_isosurface) then
+       write (uout,'("# Id = isosurface identifier")')
+       if (bas%higher) then
+          write (uout,'("# Position = region maximum position")')
+          write (uout,'("# Field = value of the reference field at the maximum")')
        else
-          x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
-       endif
-       write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
-          smult, (string(x(j),'f',12,7,4),j=1,3)
-    end do
+          write (uout,'("# Position = region minimum position")')
+          write (uout,'("# Field = value of the reference field at the minimum")')
+       end if
+       write (uout,'("# Volume = volume of the isosurface region.")')
+       write (uout,'("# Pop (population) = the reference field integrated in the isosurface region.")')
+       write (uout,'("# Lap = Laplacian of the reference field integrated in the isosurface region.")')
+       write (uout,'("# $xxx = field xxx integrated in the isosurface region.")')
+    else
+       write (uout,'("# Id = attractor identifier")')
+       write (uout,'("# cp/at = critical point/atom from the complete CP/atom list")')
+       write (uout,'("# (lvec) = lattice translation from CP/atom to the main cell''s representative")')
+       write (uout,'("# ncp/nat = critical point/atom from the non-equivalent CP/atom list")')
+       write (uout,'("# Name = atomic name")')
+       write (uout,'("# Z = atomic number")')
+       write (uout,'("# Position = attractor position")')
+       write (uout,'("# Mol = molecule identifier (see corresponding table above)")')
+       write (uout,'("# Volume = volume of the reference field basins.")')
+       write (uout,'("# Pop (population) = the reference field integrated in its own basins.")')
+       write (uout,'("# Lap = Laplacian of the reference field integrated in the reference field basins.")')
+       write (uout,'("# $xxx = field xxx integrated in the basins of the reference field.")')
+    end if
     write (uout,*)
 
-    ! List of molecules and positions
-    if (.not.nomol .and. .not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
-       allocate(idxmol(2,bas%nattr))
-       ! Assign attractors to molecules
-       idxmol = 0
+    if (bas%imtype == imtype_isosurface) then
+       ! isosurface output
+       if (bas%higher) then
+          write (uout,'("* List of isosurface regions and associated maxima")')
+       else
+          write (uout,'("* List of isosurface regions and associated minima")')
+       end if
+       if (.not.sy%c%ismolecule) then
+          write (uout,'("# Id           Position (cryst.)                 Field")')
+       else
+          write (uout,'("# Id           Position (",A,")                  Field")') iunitname0(iunit)
+       endif
        do i = 1, bas%nattr
-          jlo: do j = 1, sy%c%nmol
-             do k = 1, sy%c%mol(j)%nat
-                if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
-                   idxmol(1,i) = j
-                   idxmol(2,i) = k
-                   exit jlo
-                end if
-             end do
-          end do jlo
-       end do
-
-       ! List of molecules and associated attractors
-       write (uout,'("* List of molecules integrated")')
-       write (uout,'("+ Id   at (lvec)   nat    Name  Z              Position (cryst.) ")')
-       do i = 1, sy%c%nmol
-          xcm = sy%c%mol(i)%cmass()
-          xcm = sy%c%c2x(xcm)
-          ! name the molecule
-          write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), &
-             string(sy%c%mol(i)%nat), (string(xcm(j),'f',10,6,3),j=1,3)
-
-          ! Atomic composition
-          do j = 1, bas%nattr
-             if (idxmol(1,j) /= i) cycle
-             call assign_strings(j,bas%icp(j),usesym,scp,sncp,sname,smult,sz)
-             x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
-             write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') &
-                string(j,4,ioj_left), scp, (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
-                sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
-          end do
+          if (.not.sy%c%ismolecule) then
+             x = bas%xattr(:,i)
+          else
+             x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
+          endif
+          id = bas%xattr(:,i) * sy%f(sy%iref)%grid%n
+          id = modulo(id,sy%f(sy%iref)%grid%n) + 1
+          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), (string(x(j),'f',12,7,4),j=1,3), &
+             string(sy%f(sy%iref)%grid%f(id(1),id(2),id(3)),'e',14,7)
        end do
        write (uout,*)
-       deallocate(idxmol)
+    else
+       ! YT/BADER output
+
+       ! List of attractors and positions
+       write (uout,'("* List of attractors integrated")')
+       if (.not.sy%c%ismolecule) then
+          write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (cryst.) ")')
+       else
+          write (uout,'("# Id   cp   ncp   Name  Z   mult           Position (",A,") ")') iunitname0(iunit)
+       endif
+       do i = 1, bas%nattr
+          call assign_strings(i,bas%icp(i),usesym,scp,sncp,sname,smult,sz)
+          if (.not.sy%c%ismolecule) then
+             x = bas%xattr(:,i)
+          else
+             x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
+          endif
+          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
+             smult, (string(x(j),'f',12,7,4),j=1,3)
+       end do
+       write (uout,*)
+
+       ! List of molecules and positions
+       if (.not.nomol .and. .not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+          allocate(idxmol(2,bas%nattr))
+          ! Assign attractors to molecules
+          idxmol = 0
+          do i = 1, bas%nattr
+             jlo: do j = 1, sy%c%nmol
+                do k = 1, sy%c%mol(j)%nat
+                   if (bas%icp(i) == sy%c%mol(j)%at(k)%cidx) then
+                      idxmol(1,i) = j
+                      idxmol(2,i) = k
+                      exit jlo
+                   end if
+                end do
+             end do jlo
+          end do
+
+          ! List of molecules and associated attractors
+          write (uout,'("* List of molecules integrated")')
+          write (uout,'("+ Id   at (lvec)   nat    Name  Z              Position (cryst.) ")')
+          do i = 1, sy%c%nmol
+             xcm = sy%c%mol(i)%cmass()
+             xcm = sy%c%c2x(xcm)
+             ! name the molecule
+             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), &
+                string(sy%c%mol(i)%nat), (string(xcm(j),'f',10,6,3),j=1,3)
+
+             ! Atomic composition
+             do j = 1, bas%nattr
+                if (idxmol(1,j) /= i) cycle
+                call assign_strings(j,bas%icp(j),usesym,scp,sncp,sname,smult,sz)
+                x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
+                write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') &
+                   string(j,4,ioj_left), scp, (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
+                   sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
+             end do
+          end do
+          write (uout,*)
+          deallocate(idxmol)
+       end if
     end if
 
   end subroutine int_output_header
@@ -751,7 +789,11 @@ contains
     if (present(usesym0)) usesym = usesym0
 
     ! Integrated scalar fields, atomic properties
-    write (uout,'("* Integrated atomic properties")')
+    if (bas%imtype == imtype_isosurface) then
+       write (uout,'("* Integrated isosurface regions")')
+    else
+       write (uout,'("* Integrated atomic properties")')
+    end if
     write (uout,'("# (See key above for interpretation of column headings.)")')
     iplast = 0
     do ip = 0, (count(res(1:sy%npropi)%outmode == out_field)-1)/ncols
@@ -770,8 +812,13 @@ contains
 
        ! Table header for this set of properties
        write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
-       write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
-          (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+       if (bas%imtype == imtype_isosurface) then
+          write (uout,'("# Id   ",5(A,X))') &
+             (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+       else
+          write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
+             (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+       end if
 
        ! Table rows
        sump = 0d0
@@ -787,16 +834,28 @@ contains
              sump(nacprop(j)) = sump(nacprop(j)) + res(nacprop(j))%psum(i) * xmult
           end do
           ! table entry
-          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
-             (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
+          if (bas%imtype == imtype_isosurface) then
+             write (uout,'(2X,99(A,X))') string(i,4,ioj_left),&
+                (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
+          else
+             write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
+                (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
+          end if
        end do
-       write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
-       write (uout,'(2X,"Sum                           ",99(A,X))') &
-          (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+       if (bas%imtype == imtype_isosurface) then
+          write (uout,'(7("-"),99(A))') ("----------------",j=1,ipmax)
+          write (uout,'(2X,"Sum  ",99(A,X))') &
+             (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+       else
+          write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
+          write (uout,'(2X,"Sum                           ",99(A,X))') &
+             (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+       end if
        write (uout,*)
     end do
 
-    if (.not.nomol .and. .not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
+    if (bas%imtype /= imtype_isosurface .and. .not.nomol .and. .not.sy%c%ismolecule .and.&
+       all(sy%c%mol(1:sy%c%nmol)%discrete)) then
        allocate(idxmol(2,bas%nattr))
        ! Assign attractors to molecules
        idxmol = 0
@@ -885,7 +944,15 @@ contains
     real*8, allocatable :: fnear(:,:), xattr(:,:)
 
     if (ff%type /= type_grid) &
-       call ferror("int_reorder_gridout","BADER/YT can only be used with grids",faterr)
+       call ferror("int_reorder_gridout","BADER/YT/ISOSURFACE can only be used with grids",faterr)
+
+    ! isosurfaces not associated to atoms
+    if (bas%imtype == imtype_isosurface) then
+       if (allocated(bas%icp)) deallocate(bas%icp)
+       allocate(bas%icp(bas%nattr))
+       bas%icp = 0
+       return
+    end if
     n = ff%grid%n
 
     ! reorder the maxima and assign maxima to atoms according to ratom
@@ -1038,7 +1105,7 @@ contains
              if (bas%imtype == imtype_yt) then
                 call yt_weights(din=dat,idb=i,w=w)
              end if
-             if (bas%imtype == imtype_bader) then
+             if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
                 padd = count(bas%idg == i) * sy%c%omega / real(ntot,8)
              else
                 padd = sum(w) * sy%c%omega / real(ntot,8)
@@ -1124,7 +1191,7 @@ contains
                 if (bas%imtype == imtype_yt) then
                    call yt_weights(din=dat,idb=i,w=w)
                 end if
-                if (bas%imtype == imtype_bader) then
+                if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
                    padd = sum(fint,bas%idg==i) * sy%c%omega / real(ntot,8)
                 else
                    padd = sum(w * fint) * sy%c%omega / real(ntot,8)
@@ -1147,8 +1214,8 @@ contains
              allocate(res(k)%mpole((lmax+1)*(lmax+1),bas%nattr))
              res(k)%mpole = 0d0
 
-             if (bas%imtype == imtype_bader) then
-                ! calcualate the multipoles, with bader
+             if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
+                ! calcualate the multipoles, with bader and isosurface
                 !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm)
                 do i1 = 1, bas%n(1)
                    p(1) = real(i1-1,8)
@@ -1254,6 +1321,9 @@ contains
     character(len=:), allocatable :: sijfname, fafname
     real*8, allocatable :: w(:,:,:), kpt(:,:), occ(:,:,:)
     integer :: isijtype
+
+    ! not implemented for isosurfaces
+    if (bas%imtype == imtype_isosurface) return
 
     ! run over all integrable properties
     first = .true.
@@ -2301,6 +2371,8 @@ contains
     character*3 :: ls, ms
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
 
+    if (bas%imtype == imtype_isosurface) return
+
     do l = 1, sy%npropi
        if (.not.res(l)%done .or. res(l)%outmode /= out_mpoles) cycle
        fid = sy%propi(l)%fid
@@ -2405,6 +2477,8 @@ contains
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
     type(crystalseed) :: ncseed
+
+    if (bas%imtype == imtype_isosurface) return
 
     do l = 1, sy%npropi
        if (.not.res(l)%done) cycle
@@ -2656,6 +2730,8 @@ contains
     real*8, allocatable :: sump(:), xres(:)
     type(json_core) :: json
     type(json_value), pointer :: p, o1, a1, o2, a2, o3
+
+    if (bas%imtype == imtype_isosurface) return
 
     ! open and write some info about the structure and the reference field
     write (uout,'("* WRITE JSON file: ",A/)') string(file)
@@ -2927,7 +3003,7 @@ contains
     ! prepare the idg array
     allocate(idg0(n(1),n(2),n(3)))
     idg0 = 0
-    if (bas%imtype == imtype_bader) then
+    if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
        idg0 = bas%idg
     elseif (bas%imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))

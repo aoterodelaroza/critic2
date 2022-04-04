@@ -51,11 +51,10 @@ module yt
        type(basindat), intent(inout) :: bas
        integer, intent(in) :: iref
      end subroutine yt_integrate
-     module subroutine yt_isosurface(s,bas,iref)
+     module subroutine yt_isosurface(s,bas)
        use types, only: basindat
        type(system), intent(inout) :: s
        type(basindat), intent(inout) :: bas
-       integer, intent(in) :: iref
      end subroutine yt_isosurface
      module subroutine yt_weights(luw,din,idb,w,dout)
        integer, intent(in), optional :: luw
