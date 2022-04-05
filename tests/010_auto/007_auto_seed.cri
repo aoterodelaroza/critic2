@@ -1,6 +1,6 @@
 ## delete: 007_auto_seed.cro
-## check: 007_auto_seed_seeds.obj -a1e-10
-## check: 007_auto_seed_seeds.mtl -a1e-10
+## delete: 007_auto_seed_seeds.obj
+## delete: 007_auto_seed_seeds.mtl
 ## labels: regression quick nodata
 
 molecule library benzene
@@ -15,5 +15,5 @@ auto dry seedobj \
      seed oh x0 0 0 0 radius 5 depth 1 nr 4 \
 
 meshtype becke small
-auto dry seed mesh 
+auto dry seed mesh
 
