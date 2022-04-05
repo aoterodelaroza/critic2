@@ -2997,7 +2997,7 @@ contains
 
     ! write the unit cell
     str = trim(fileroot) // "_basins-cell." // bas%basinfmt
-    call sy%c%write_3dmodel(str,bas%basinfmt,(/1,1,1/),.true.,.false.,.true.,&
+    call sy%c%write_3dmodel(str,bas%basinfmt,(/1,1,1/),.true.,.false.,sy%c%ismol3d,&
        .true.,.true.,-1d0,(/0d0,0d0,0d0/),-1d0,(/0d0,0d0,0d0/))
 
     ! prepare the idg array
