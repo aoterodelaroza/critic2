@@ -44,10 +44,10 @@ contains
     real*8, allocatable :: g(:)
     integer, allocatable :: io(:), iio(:), vec(:,:)
     integer :: i, ii, j, n(3), nn, nvec, ib(3), jb(3), jj, k, kk
-    real*8 :: al(40), csum
+    real*8 :: csum
     integer :: nhi
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
-    real*8, allocatable :: chi(:), fnear(:,:)
+    real*8, allocatable :: chi(:), fnear(:,:), al(:)
     logical :: isias, isassigned, ok
     integer :: nid
     real*8 :: dv(3), fval, x(3)
@@ -90,6 +90,7 @@ contains
     ! copy the voronoi-relevant vectors
     nvec = s%f(s%iref)%grid%nvec
     vec = s%f(s%iref)%grid%vec(:,1:nvec)
+    al = s%f(s%iref)%grid%area(1:nvec)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))

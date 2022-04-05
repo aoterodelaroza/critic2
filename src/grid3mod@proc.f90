@@ -2685,7 +2685,7 @@ contains
     f%atenv => env
 
     ! voronoi relevant vectors and areas
-    allocate(f%vec(3,14))
+    allocate(f%vec(3,14),f%area(14))
     call wscell(f%x2cg,nf=f%nvec,ineighx=f%vec,area=f%area)
 
   end subroutine init_geometry
