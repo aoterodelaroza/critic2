@@ -2952,7 +2952,7 @@ contains
 
     character(len=:), allocatable :: str
     integer :: i, j, i1, i2, i3, iaux, n(3), q(3), p(3)
-    real*8 :: d2, x(3), x1(3), x2(3), xd(3)
+    real*8 :: d2, x(3), x1(3), x2(3), xd(3), xrhotmp
     type(crystal) :: caux
     real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
@@ -3024,7 +3024,7 @@ contains
        if (bas%ndrawbasin > 0 .and. bas%ndrawbasin /= i) cycle
 
        nvert = 0
-       !$omp parallel do private(p,q,x,xd,d2)
+       !$omp parallel do private(p,q,x,xd,d2,xrhotmp)
        do i1 = 1, n(1)
           do i2 = 1, n(2)
              do i3 = 1, n(3)
@@ -3040,6 +3040,7 @@ contains
                       xd = x - bas%xattr(:,i)
                       call sy%c%shortest(xd,d2)
                       x = sy%c%x2c(bas%xattr(:,i)) + xd
+                      xrhotmp = bas%f(q(1),q(2),q(3))
 
                       ! add to the list of basin points
                       !$omp critical (addvertex)
@@ -3049,7 +3050,7 @@ contains
                          call realloc(xrho,2*nvert)
                       end if
                       xvert(:,nvert) = x
-                      xrho(nvert) = bas%f(q(1),q(2),q(3))
+                      xrho(nvert) = xrhotmp
                       !$omp end critical (addvertex)
                    end if
                 end do
@@ -3084,7 +3085,11 @@ contains
           ! write the triangulation to a file
           str = trim(fileroot) // "_basins-" // string(i) // "." // bas%basinfmt
           call gr%open(bas%basinfmt,str)
-          call gr%triangulation(nvert,xvert,nf,iface,xrho)
+          if (bas%imtype == imtype_isosurface) then
+             call gr%triangulation(nvert,xvert,nf,iface)
+          else
+             call gr%triangulation(nvert,xvert,nf,iface,xrho)
+          end if
           call gr%close()
           deallocate(iface)
        else
