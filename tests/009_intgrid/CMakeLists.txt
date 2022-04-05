@@ -17,6 +17,7 @@ set(TESTS
   016_hirshfeld_grid       ## hirshfeld keyword, using grids
   017_hirshfeld_nogrid_crystal ## hirshfeld keyword, using meshes in a crystal
   018_hirshfeld_nogrid_mol ## hirshfeld keyword, using meshes in a molecule
+  019_isosurface           ## isosurface keyword
   )
 
 runtests(${TESTS})

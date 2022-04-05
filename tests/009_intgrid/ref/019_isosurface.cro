@@ -1,0 +1,120 @@
++ Field number 1
+  Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
+  Type: grid
+  Grid dimensions : 80  80  90
+  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
+  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
+  Sum of elements... 3.623977007224E+04
+  Sum of squares of elements... 1.320322985148E+04
+  Cell integral (grid SUM) = 47.99948020
+  Min: -8.54626236E-03
+  Average: 6.29162675E-02
+  Max: 6.59802541E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? T
+  Core charges (ZPSP): O(6), Si(4)
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 9
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+  Type: grid
+  Grid dimensions : 80  80  90
+  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
+  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
+  Sum of elements... 3.624016354025E+04
+  Sum of squares of elements... 1.276442166217E+04
+  Cell integral (grid SUM) = 48.00000135
+  Min: -1.58090372E-02
+  Average: 6.29169506E-02
+  Max: 1.08775964E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 9
+  Alias for this field (1): $2
+
+* Field number 1 is now REFERENCE.
+
+* List of integrable properties (3)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+
+* Summary of critical points for the reference field
+  Non-equivalent critical points = 2
+  Cell critical points = 9
+  Topological class (n|b|r|c): 2(9) 0(0) 0(0) 0(0) 
+  Morse sum: 9
+
+* List of integrable properties (4)
+#  Id  Type  Field  Name
+    1   v        0  Volume  
+    2  fval      1  Pop  
+    3  lval      1  Lap  
+    4   f        2  $2  
+
+* Isosurface integration 
++ Integrated regions with reference field HIGHER than 1.0000E-01
++ Integrating atomic properties
+
++ Integrated property (number 1): Volume
++ Integrated property (number 2): Pop
++ Integrated property (number 3): Lap
++ Integrated property (number 4): $2
+
+* List of properties integrated in the attractor basins
++ The "Label" entries will be used to identify the integrable property
+  in the tables of integrated atomic properties. The entries with
+  an "x" will not be integrated.
+# id    Label      fid  Field       Additional
+  1       Volume    -- Volume       
+  2        Pop       1 Field (v)    
+  3        Lap       1 Laplcn (v)   
+  4         $2       2 Field        
+
+* Key for the interpretation of table headings
+# Id = isosurface identifier
+# Position = region maximum position
+# Field = value of the reference field at the maximum
+# Volume = volume of the isosurface region.
+# Pop (population) = the reference field integrated in the isosurface region.
+# Lap = Laplacian of the reference field integrated in the isosurface region.
+# $xxx = field xxx integrated in the isosurface region.
+
+* List of isosurface regions and associated maxima
+# Id           Position (cryst.)                 Field
+  1      0.8500000    0.5875000    0.8777778  6.5980254E+00 
+  2      0.4125000    0.2625000    0.2111111  6.5980254E+00 
+  3      0.7375000    0.1500000    0.5444444  1.5322635E+00 
+  4      0.1500000    0.7375000    0.4555556  6.5979731E+00 
+  5      0.2625000    0.4125000    0.7888889  6.5979731E+00 
+  6      0.5875000    0.8500000    0.1222222  6.5979731E+00 
+  7      0.5250000    0.5250000    0.0000000  1.5197778E+00 
+  8      0.4750000    0.0000000    0.3333333  1.5197778E+00 
+  9      0.0000000    0.4750000    0.6666667  1.5197778E+00 
+
+* Integrated isosurface regions
+# (See key above for interpretation of column headings.)
+# Integrable properties 1 to 4
+# Id       Volume            Pop             Lap             $2       
+  1     1.81535610E+01  5.56044743E+00 -7.43429678E+00  5.56241051E+00
+  2     1.81535610E+01  5.56044743E+00 -7.36863728E+00  5.56241051E+00
+  3     1.81535610E+01  5.56044743E+00 -7.37572659E+00  5.56241051E+00
+  4     1.81522365E+01  5.56019077E+00 -7.37619637E+00  5.56215345E+00
+  5     1.81522365E+01  5.56019077E+00 -7.36908687E+00  5.56215345E+00
+  6     1.81522365E+01  5.56019077E+00 -7.43477268E+00  5.56215345E+00
+  7     4.05296196E-01  9.10012250E-02 -2.72891246E+00 -2.78752111E-03
+  8     4.05296196E-01  9.10012250E-02 -2.59196722E+00 -2.78752111E-03
+  9     4.05296196E-01  9.10012250E-02 -2.59195908E+00 -2.78752115E-03
+-----------------------------------------------------------------------
+  Sum   1.10133281E+02  3.36349183E+01 -5.22715553E+01  3.33653293E+01
+
