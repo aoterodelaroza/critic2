@@ -612,4 +612,210 @@ contains
 
   end subroutine delaunay_reduction
 
+  !> Calculate the Wigner-Seitz cell associated with the lattice given by
+  !> the crystallographic-to-Cartesian matrix m_x2c. Return a bunch of useful
+  !> information if requested (see below).
+  module subroutine wscell(m_x2c,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
+     isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
+     isortho_del)
+    use, intrinsic :: iso_c_binding, only: c_int, c_double
+    use tools_math, only: cross, matinv, mnorm2
+    use tools_io, only: ferror, faterr
+    real*8, intent(in) :: m_x2c(3,3) !< x2c matrix for the lattice
+    integer, intent(out), optional :: nf !< number of facets in the WS cell
+    integer, intent(out), optional :: nv !< number of vertices
+    integer, intent(out), optional :: mnfv !< maximum number of vertices per facet
+    integer, allocatable, intent(inout), optional :: iside(:,:) !< sides of the WS faces
+    integer, intent(out), optional :: nside(14) !< number of sides of WS faces
+    real*8, allocatable, intent(inout), optional :: x(:,:) !< vertices of the WS cell (cryst. coords.)
+    real*8, intent(out), optional :: ineighc(3,14) !< WS neighbor lattice points (Cart. coords.)
+    integer, intent(out), optional :: ineighx(3,14) !< WS neighbor lattice points (cryst. coords.)
+    real*8, intent(out), optional :: area(14) !< area of the WS facets
+    logical, intent(out), optional :: isortho !< is the cell orthogonal?
+    real*8, intent(out), optional :: m_xr2x(3,3) !< reduced cryst -> input cryst matrix
+    real*8, intent(out), optional :: m_x2xr(3,3) !< input cryst -> reduced cryst matrix
+    real*8, intent(out), optional :: m_xr2c(3,3) !< reduced cryst -> input cartesian matrix
+    real*8, intent(out), optional :: m_c2xr(3,3) !< cartesian -> reduced cryst matrix
+    real*8, intent(out), optional :: n2_xr2x !< norm2 of reduced cryst -> input cryst
+    real*8, intent(out), optional :: n2_x2xr !< norm2 of input cryst -> reduced cryst
+    real*8, intent(out), optional :: n2_xr2c !< norm2 of reduced cryst -> input cartesian
+    real*8, intent(out), optional :: n2_c2xr !< norm2 of cartesian -> reduced cryst
+    integer, intent(out), optional :: ineighxr(3,14) !< WS neighbor lattice points (del cell, cryst.)
+    logical, intent(out), optional :: isortho_del !< is the reduced cell orthogonal?
+
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: n
+         real(c_double) :: xstar(3,n)
+         integer(c_int) :: nf, nv, mnfv
+       end subroutine runqhull_voronoi_step1
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double
+         integer(c_int), value :: nf, nv, mnfv
+         integer(c_int) :: ivws(nf)
+         real(c_double) :: xvws(3,nv)
+         integer(c_int) :: nfvws(mnfv)
+         integer(c_int) :: fvws(mnfv)
+       end subroutine runqhull_voronoi_step2
+    end interface
+
+    real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
+
+    integer :: i, j, k
+    real*8 :: av(3), bary(3), rmat(3,4)
+    integer(c_int) :: n
+    real(c_double) :: xstar(3,14)
+    integer(c_int), allocatable :: ivws(:)
+    real(c_double), allocatable :: xvws(:,:)
+    real*8 :: rdel(3,3), m_c2x(3,3)
+    logical :: do2
+
+    integer :: nf_ !< number of facets in the WS cell
+    integer :: nv_ !< number of vertices
+    integer :: mnfv_ !< maximum number of vertices per facet
+    integer, allocatable :: iside_(:,:) !< sides of the WS faces
+    integer :: nside_(14) !< number of sides of WS faces
+    real*8, allocatable :: x_(:,:) !< vertices of the WS cell (cryst. coords.)
+    real*8 :: ineighc_(3,14) !< WS neighbor lattice points (Cart. coords.)
+    integer :: ineighx_(3,14) !< WS neighbor lattice points (cryst. coords.)
+    real*8 :: m_xr2x_(3,3) !< reduced cryst -> input cryst matrix
+    real*8 :: m_x2xr_(3,3) !< input cryst -> reduced cryst matrix
+    real*8 :: m_xr2c_(3,3) !< reduced cryst -> input cartesian matrix
+    real*8 :: m_c2xr_(3,3) !< cartesian -> reduced cryst matrix
+    integer :: ineighxr_(3,14) !< WS neighbor lattice points (del cell, cryst.)
+
+    ! delaunay reduction
+    call delaunay_reduction(m_x2c,rmat,rbas=rdel)
+
+    ! construct star of lattice vectors -> use Delaunay reduction
+    ! see 9.1.8 in ITC.
+    n = 14
+    xstar(:,1)  = rmat(:,1)
+    xstar(:,2)  = rmat(:,2)
+    xstar(:,3)  = rmat(:,3)
+    xstar(:,4)  = rmat(:,4)
+    xstar(:,5)  = rmat(:,1)+rmat(:,2)
+    xstar(:,6)  = rmat(:,1)+rmat(:,3)
+    xstar(:,7)  = rmat(:,2)+rmat(:,3)
+    xstar(:,8)  = -(rmat(:,1))
+    xstar(:,9)  = -(rmat(:,2))
+    xstar(:,10) = -(rmat(:,3))
+    xstar(:,11) = -(rmat(:,4))
+    xstar(:,12) = -(rmat(:,1)+rmat(:,2))
+    xstar(:,13) = -(rmat(:,1)+rmat(:,3))
+    xstar(:,14) = -(rmat(:,2)+rmat(:,3))
+    do i = 1, 14
+       xstar(:,i) = matmul(m_x2c,xstar(:,i))
+       if (norm2(xstar(:,i)) < eps_dnorm) &
+          call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
+    end do
+
+    ! determine the WS cell
+    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_)
+    allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_))
+    nside_ = 0
+    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_(1:nf_),iside_)
+    if (present(nf)) nf = nf_
+    if (present(nv)) nv = nv_
+    if (present(mnfv)) mnfv = mnfv_
+    if (present(iside)) iside = iside_
+    if (present(nside)) nside = nside_
+
+    ! vertices
+    m_c2x = m_x2c
+    call matinv(m_c2x,3)
+    if (allocated(x_)) deallocate(x_)
+    allocate(x_(3,nv_))
+    do i = 1, nv_
+       x_(:,i) = matmul(m_c2x,xvws(:,i))
+    end do
+    if (present(x)) x = x_
+
+    ! relevant vector coordinates
+    ineighc_ = 0
+    ineighx_ = 0
+    do i = 1, nf_
+       ineighc_(:,i) = xstar(:,ivws(i))
+       ineighx_(:,i) = nint(matmul(m_c2x,xstar(:,ivws(i))))
+    end do
+    if (present(ineighx)) ineighx = ineighx_
+    if (present(ineighc)) ineighc = ineighc_
+
+    ! area of the WS facets
+    if (present(area)) then
+       do i = 1, nf_
+          ! lattice point
+          bary = 0d0
+          do j = 1, nside_(i)
+             bary = bary + xvws(:,iside_(j,i))
+          end do
+          bary = 2d0 * bary / nside_(i)
+
+          ! area of a convex polygon
+          av = 0d0
+          do j = 1, nside_(i)
+             k = mod(j,nside_(i))+1
+             av = av + cross(xvws(:,iside_(j,i)),xvws(:,iside_(k,i)))
+          end do
+          area(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
+       end do
+    end if
+
+    deallocate(ivws,xvws)
+
+    ! is the cell orthogonal?
+    if (present(isortho)) then
+       isortho = (nf_ <= 6)
+       if (isortho) then
+          do i = 1, nf_
+             isortho = isortho .and. (count(abs(ineighx_(:,i)) == 1) == 1) .and.&
+                (count(abs(ineighx_(:,i)) == 0) == 2)
+          end do
+       end if
+    end if
+
+    do2 = present(m_xr2x) .or. present(m_x2xr) .or. present(m_c2xr) .or. present(m_xr2c) .or.&
+       present(n2_xr2x) .or. present(n2_x2xr) .or. present(n2_xr2c) .or. present(n2_c2xr) .or.&
+       present(isortho_del) .or. present(ineighxr)
+    if (do2) then
+       ! calculate the delaunay reduction parameters for shortest vector search
+       m_xr2x_ = rdel
+       m_x2xr_ = m_xr2x_
+       call matinv(m_x2xr_,3)
+       m_xr2c_ = matmul(m_x2c,m_xr2x_)
+       m_c2xr_ = m_xr2c_
+       call matinv(m_c2xr_,3)
+       if (present(m_xr2x)) m_xr2x = m_xr2x_
+       if (present(m_x2xr)) m_x2xr = m_x2xr_
+       if (present(m_c2xr)) m_c2xr = m_c2xr_
+       if (present(m_xr2c)) m_xr2c = m_xr2c_
+
+       ! n2_xr2x, n2_x2xr, n2_xr2c, n2_c2xr
+       if (present(n2_xr2x)) n2_xr2x = mnorm2(m_xr2x_)
+       if (present(n2_x2xr)) n2_x2xr = mnorm2(m_x2xr_)
+       if (present(n2_xr2c)) n2_xr2c = mnorm2(m_xr2c_)
+       if (present(n2_c2xr)) n2_c2xr = mnorm2(m_c2xr_)
+
+       ! ineighxr
+       if (present(isortho_del) .or. present(ineighxr)) then
+          do i = 1, nf_
+             ineighxr_(:,i) = nint(matmul(ineighx_(:,i),m_x2xr_))
+          end do
+          if (present(ineighxr)) ineighxr = ineighxr_
+       end if
+
+       ! isortho_del
+       if (present(isortho_del)) then
+          isortho_del = .true.
+          do i = 1, nf_
+             isortho_del = isortho_del .and. (count(abs(ineighxr_(:,i)) == 1) == 1) .and.&
+                (count(abs(ineighxr_(:,i)) == 0) == 2)
+          end do
+       end if
+    end if
+
+  end subroutine wscell
+
 end submodule proc

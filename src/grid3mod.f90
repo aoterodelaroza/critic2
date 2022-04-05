@@ -62,6 +62,9 @@ module grid3mod
      real*8 :: dmin, dmax !< minimum and maximum grid steps
      type(environ) :: env !< environment for grid nodes
      type(environ), pointer :: atenv !< environment for atoms
+     integer :: nvec !< number of neighbor grid points
+     integer, allocatable :: vec(:,:) !< grid coordinates of neighbor grid points
+     real*8, allocatable :: area(:) !< area of the Voronoi facets
      ! basic grid variables
      integer :: mode !< interpolation mode
      real*8, allocatable :: f(:,:,:) !< grid values

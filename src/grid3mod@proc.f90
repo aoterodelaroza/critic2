@@ -2651,6 +2651,7 @@ contains
   !> calculation of distances from the x2c matrix of the crystal and
   !> the number of points in each direction. Sets the variables...
   subroutine init_geometry(f,x2c,n,env)
+    use tools, only: wscell
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: x2c(3,3)
@@ -2682,6 +2683,10 @@ contains
 
     ! atom environment
     f%atenv => env
+
+    ! voronoi relevant vectors and areas
+    allocate(f%vec(3,14))
+    call wscell(f%x2cg,nf=f%nvec,ineighx=f%vec,area=f%area)
 
   end subroutine init_geometry
 

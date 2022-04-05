@@ -241,7 +241,7 @@ contains
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
-       call yt_integrate(sy,bas,sy%iref)
+       call yt_integrate(sy,bas)
        write (uout,'("+ Attractors in YT: ",A)') string(bas%nattr)
     elseif (bas%imtype == imtype_isosurface) then
        write (uout,'("* Isosurface integration ")')
@@ -688,7 +688,7 @@ contains
           else
              x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
           endif
-          id = bas%xattr(:,i) * sy%f(sy%iref)%grid%n
+          id = nint(bas%xattr(:,i) * sy%f(sy%iref)%grid%n)
           id = modulo(id,sy%f(sy%iref)%grid%n) + 1
           write (uout,'(2X,99(A,X))') string(i,4,ioj_left), (string(x(j),'f',12,7,4),j=1,3), &
              string(sy%f(sy%iref)%grid%f(id(1),id(2),id(3)),'e',14,7)
@@ -2942,7 +2942,6 @@ contains
   subroutine int_gridbasins(bas)
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
-    use crystalmod, only: crystal
     use global, only: fileroot
     use graphics, only: grhandle
     use tools_math, only: m_x2c_from_cellpar, matinv, cross
@@ -2953,7 +2952,6 @@ contains
     character(len=:), allocatable :: str
     integer :: i, j, i1, i2, i3, iaux, n(3), q(3), p(3)
     real*8 :: d2, x(3), x1(3), x2(3), xd(3), xrhotmp
-    type(crystal) :: caux
     real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
@@ -2984,13 +2982,6 @@ contains
     do i = 1, 3
        n(i) = size(bas%idg,i)
     end do
-    caux%isinit = .true.
-    caux%aa = sy%c%aa / real(n,8)
-    caux%bb = sy%c%bb
-    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
-    caux%m_c2x = caux%m_x2c
-    call matinv(caux%m_c2x,3)
-    call caux%wigner()
 
     ! output
     write (uout,'("+ Basins written to ",A,"_basins-*.",A/)') trim(fileroot), bas%basinfmt
@@ -3032,8 +3023,8 @@ contains
 
                 ! is this point on the border of the basin?
                 p = (/i1,i2,i3/)
-                do j = 1, caux%ws_nf
-                   q = modulo(p + caux%ws_ineighx(:,j) - 1,n) + 1
+                do j = 1, sy%f(sy%iref)%grid%nvec
+                   q = modulo(p + sy%f(sy%iref)%grid%vec(:,j) - 1,n) + 1
                    if (idg0(q(1),q(2),q(3)) /= i) then
                       ! move the point to the WS of the attractor and convert to Cartesian
                       x = real(p-1,8) / n

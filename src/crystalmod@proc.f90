@@ -4196,7 +4196,7 @@ contains
     use tools_math, only: mixed, cross, matinv, mnorm2, det3
     use tools_io, only: string, fopen_write, fopen_read,&
        ferror, faterr, fclose
-    use tools, only: delaunay_reduction
+    use tools, only: delaunay_reduction, wscell
     use types, only: realloc
     use param, only: pi, eye
     class(crystal), intent(inout) :: c
@@ -4229,117 +4229,31 @@ contains
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
     real*8 :: rdel(3,3)
-    real*8 :: xlen(3), xang(3), x0(3), xred(3,3)
 
-    ! delaunay reduction
-    call delaunay_reduction(c%m_x2c,rmat,rbas=rdel)
+    call wscell(c%m_x2c,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,c%ws_x,&
+       c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
+       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
 
-    ! construct star of lattice vectors -> use Delaunay reduction
-    ! see 9.1.8 in ITC.
-    n = 14
-    xstar(:,1)  = rmat(:,1)
-    xstar(:,2)  = rmat(:,2)
-    xstar(:,3)  = rmat(:,3)
-    xstar(:,4)  = rmat(:,4)
-    xstar(:,5)  = rmat(:,1)+rmat(:,2)
-    xstar(:,6)  = rmat(:,1)+rmat(:,3)
-    xstar(:,7)  = rmat(:,2)+rmat(:,3)
-    xstar(:,8)  = -(rmat(:,1))
-    xstar(:,9)  = -(rmat(:,2))
-    xstar(:,10) = -(rmat(:,3))
-    xstar(:,11) = -(rmat(:,4))
-    xstar(:,12) = -(rmat(:,1)+rmat(:,2))
-    xstar(:,13) = -(rmat(:,1)+rmat(:,3))
-    xstar(:,14) = -(rmat(:,2)+rmat(:,3))
-    do i = 1, 14
-       xstar(:,i) = matmul(c%m_x2c,xstar(:,i))
-       if (norm2(xstar(:,i)) < eps_dnorm) &
-          call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
-    end do
-
-    call runqhull_voronoi_step1(n,xstar,c%ws_nf,c%ws_nv,c%ws_mnfv)
-    allocate(ivws(c%ws_nf),c%ws_iside(c%ws_mnfv,c%ws_nf),xvws(3,c%ws_nv))
-    c%ws_nside = 0
-    call runqhull_voronoi_step2(c%ws_nf,c%ws_nv,c%ws_mnfv,ivws,xvws,c%ws_nside(1:c%ws_nf),c%ws_iside)
-
-    if (allocated(c%ws_x)) deallocate(c%ws_x)
-    allocate(c%ws_x(3,c%ws_nv))
-    do i = 1, c%ws_nv
-       c%ws_x(:,i) = matmul(c%m_c2x,xvws(:,i))
-    end do
-
-    c%ws_ineighc = 0
-    c%ws_ineighx = 0
-    do i = 1, c%ws_nf
-       c%ws_ineighc(:,i) = xstar(:,ivws(i))
-       c%ws_ineighx(:,i) = nint(matmul(c%m_c2x,xstar(:,ivws(i))))
-    end do
-    if (present(area)) then
-       do i = 1, c%ws_nf
-          ! lattice point
-          bary = 0d0
-          do j = 1, c%ws_nside(i)
-             bary = bary + xvws(:,c%ws_iside(j,i))
-          end do
-          bary = 2d0 * bary / c%ws_nside(i)
-
-          ! area of a convex polygon
-          av = 0d0
-          do j = 1, c%ws_nside(i)
-             k = mod(j,c%ws_nside(i))+1
-             av = av + cross(xvws(:,c%ws_iside(j,i)),xvws(:,c%ws_iside(k,i)))
-          end do
-          area(i) = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
-       end do
-    end if
-
-    deallocate(ivws,xvws)
-
-    ! is the cell orthogonal?
-    c%isortho = (c%ws_nf <= 6)
-    if (c%isortho) then
-       do i = 1, c%ws_nf
-          c%isortho = c%isortho .and. (count(abs(c%ws_ineighx(:,i)) == 1) == 1) .and.&
-             (count(abs(c%ws_ineighx(:,i)) == 0) == 2)
-       end do
-    end if
-
-    ! calculate the delaunay reduction parameters for shortest vector search
+    ! recalculate if this is a molecule
     if (c%ismolecule) then
        c%m_xr2x = eye
        c%m_x2xr = eye
-    else
-       c%m_xr2x = rdel
-       c%m_x2xr = c%m_xr2x
-       call matinv(c%m_x2xr,3)
+       c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
+       c%m_c2xr = c%m_xr2c
+       call matinv(c%m_c2xr,3)
+       c%n2_xr2x = mnorm2(c%m_xr2x)
+       c%n2_x2xr = mnorm2(c%m_x2xr)
+       c%n2_xr2c = mnorm2(c%m_xr2c)
+       c%n2_c2xr = mnorm2(c%m_c2xr)
+       do i = 1, c%ws_nf
+          c%ws_ineighxr(:,i) = nint(matmul(c%ws_ineighx(:,i),c%m_x2xr))
+       end do
+       c%isortho_del = .true.
+       do i = 1, c%ws_nf
+          c%isortho_del = c%isortho_del .and. (count(abs(c%ws_ineighxr(:,i)) == 1) == 1) .and.&
+             (count(abs(c%ws_ineighxr(:,i)) == 0) == 2)
+       end do
     end if
-    c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
-    c%m_c2xr = c%m_xr2c
-    call matinv(c%m_c2xr,3)
-
-    do i = 1, 3
-       x0 = c%m_xr2x(i,:)
-       xred(:,i) = c%x2c(x0)
-       xlen(i) = norm2(xred(:,i))
-    end do
-    xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
-    xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
-    xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
-
-    c%n2_xr2x = mnorm2(c%m_xr2x)
-    c%n2_x2xr = mnorm2(c%m_x2xr)
-    c%n2_xr2c = mnorm2(c%m_xr2c)
-    c%n2_c2xr = mnorm2(c%m_c2xr)
-
-    do i = 1, c%ws_nf
-       c%ws_ineighxr(:,i) = nint(matmul(c%ws_ineighx(:,i),c%m_x2xr))
-    end do
-
-    c%isortho_del = .true.
-    do i = 1, c%ws_nf
-       c%isortho_del = c%isortho_del .and. (count(abs(c%ws_ineighxr(:,i)) == 1) == 1) .and.&
-          (count(abs(c%ws_ineighxr(:,i)) == 0) == 2)
-    end do
 
   end subroutine wigner
 

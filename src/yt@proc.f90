@@ -31,9 +31,8 @@ contains
   !> presence of atoms, which are added as attractors at the beginning
   !> of the run. Two attractors are considered equal if they are
   !> within a ditsance of bas%ratom (bohr).
-  module subroutine yt_integrate(s,bas,iref)
+  module subroutine yt_integrate(s,bas)
     use systemmod, only: system
-    use crystalmod, only: crystal
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use param, only: vsmall, icrd_crys
@@ -41,11 +40,10 @@ contains
     use types, only: realloc, basindat
     type(system), intent(inout) :: s
     type(basindat), intent(inout) :: bas
-    integer, intent(in) :: iref
 
     real*8, allocatable :: g(:)
-    integer, allocatable :: io(:), iio(:)
-    integer :: i, ii, j, n(3), nn, nvec, vec(3,14), ib(3), jb(3), jj, k, kk
+    integer, allocatable :: io(:), iio(:), vec(:,:)
+    integer :: i, ii, j, n(3), nn, nvec, ib(3), jb(3), jj, k, kk
     real*8 :: al(40), csum
     integer :: nhi
     integer, allocatable :: ibasin(:), ihi(:), inear(:,:), nlo(:)
@@ -53,7 +51,6 @@ contains
     logical :: isias, isassigned, ok
     integer :: nid
     real*8 :: dv(3), fval, x(3)
-    type(crystal) :: caux
 
     if (.not.s%isinit) &
        call ferror("yt_integrate","system not initialized",faterr)
@@ -61,12 +58,12 @@ contains
        call ferror("yt_integrate","system does not have crystal",faterr)
 
     ! Pre-allocate atoms and nnm as maxima
-    allocate(bas%xattr(3,s%f(iref)%ncpcel))
+    allocate(bas%xattr(3,s%f(s%iref)%ncpcel))
     bas%xattr = 0d0
     if (bas%atexist) then
-       bas%nattr = s%f(iref)%ncpcel
-       do i = 1, s%f(iref)%ncpcel
-          bas%xattr(:,i) = s%f(iref)%cpcel(i)%x
+       bas%nattr = s%f(s%iref)%ncpcel
+       do i = 1, s%f(s%iref)%ncpcel
+          bas%xattr(:,i) = s%f(s%iref)%cpcel(i)%x
        end do
     else
        bas%nattr = 0
@@ -90,18 +87,9 @@ contains
        iio(io(i)) = i
     end do
 
-    ! calculate areas*lengths and grid vectors. Use a smaller crystal
-    ! where the "lattice" corresponds to the cube grid points.
-    caux%isinit = .true.
-    caux%aa = s%c%aa / real(n,8)
-    caux%bb = s%c%bb
-    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
-    caux%m_c2x = caux%m_x2c
-    call matinv(caux%m_c2x,3)
-    call caux%wigner(area=al)
-    nvec = caux%ws_nf
-    vec = caux%ws_ineighx
-    call caux%end()
+    ! copy the voronoi-relevant vectors
+    nvec = s%f(s%iref)%grid%nvec
+    vec = s%f(s%iref)%grid%vec(:,1:nvec)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec),chi(nvec),inear(nvec,nn),fnear(nvec,nn),nlo(nn))
@@ -249,13 +237,11 @@ contains
 
     real*8, allocatable :: g(:)
     integer :: nn, n(3)
-    integer, allocatable :: io(:), iio(:)
-    integer :: i1, i2, i3
-    integer :: i, ii, j, jj, k, ib(3), jb(3), nvec, vec(3,14)
+    integer, allocatable :: io(:), iio(:), vec(:,:)
+    integer :: i, ii, j, jj, k, ib(3), jb(3), nvec
     integer :: nhi, imin
     integer, allocatable :: ibasin(:), ihi(:)
     real*8 :: fval, x(3), dv(3)
-    type(crystal) :: caux
     logical :: interior, ok
     integer, allocatable :: imap(:)
 
@@ -288,18 +274,9 @@ contains
        iio(io(i)) = i
     end do
 
-    ! calculate areas*lengths and grid vectors. Use a smaller crystal
-    ! where the "lattice" corresponds to the cube grid points.
-    caux%isinit = .true.
-    caux%aa = s%c%aa / real(n,8)
-    caux%bb = s%c%bb
-    caux%m_x2c = m_x2c_from_cellpar(caux%aa,caux%bb)
-    caux%m_c2x = caux%m_x2c
-    call matinv(caux%m_c2x,3)
-    call caux%wigner()
-    nvec = caux%ws_nf
-    vec = caux%ws_ineighx
-    call caux%end()
+    ! copy the voronoi-relevant vectors
+    nvec = s%f(s%iref)%grid%nvec
+    vec = s%f(s%iref)%grid%vec(:,1:nvec)
 
     ! run over grid points in order of decreasing density
     allocate(ibasin(nn),ihi(nvec))
