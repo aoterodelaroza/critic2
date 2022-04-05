@@ -846,8 +846,7 @@ contains
     read (luc,*,iostat=istat) n
     if (istat /= 0) &
        call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
-    n = n - 1
-    call init_geometry(f,x2c,n,env)
+    call init_geometry(f,x2c,n-1,env)
 
     ! origin and edge vectors
     read (luc,*,iostat=istat) x0, x1, x2, x3
@@ -868,7 +867,6 @@ contains
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
     f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
     deallocate(ggloc)
-    n = f%n
 
     call fclose(luc)
 
