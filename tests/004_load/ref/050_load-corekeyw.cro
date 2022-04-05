@@ -41,8 +41,8 @@
 + List of atomic species: 
 # spc = atomic species. Z = atomic number. name = atomic name (symbol).
 # Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name    Q   ZPSP
-   1   6    C_     0.0 4
+# spc  Z   name      Q    ZPSP
+   1   6    C_     0.0000 4
 
 * List of core and pseudopotential charges for each field
 # id  type   core?  ZPSP
@@ -70,8 +70,8 @@
 + List of atomic species: 
 # spc = atomic species. Z = atomic number. name = atomic name (symbol).
 # Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name    Q   ZPSP
-   1   6    C_     0.0  -- 
+# spc  Z   name      Q    ZPSP
+   1   6    C_     0.0000  -- 
 
 * List of core and pseudopotential charges for each field
 # id  type   core?  ZPSP

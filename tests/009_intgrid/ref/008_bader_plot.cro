@@ -73,6 +73,8 @@
 
 + Weights written to 008_bader_plot_wcube_*.cube
 
++ All weights written to 008_bader_plot_wcube_*.cube
+
 + Integrating atomic properties
 
 + Integrated property (number 1): Volume
@@ -80,8 +82,8 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the attractor basins
-+ The "Label" entries will be used to identify the integrable
+* List of properties integrated in the isosurface regions
++ The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
@@ -97,7 +99,7 @@
 # ncp/nat = critical point/atom from the non-equivalent CP/atom list
 # Name = atomic name
 # Z = atomic number
-# Position = atomic position
+# Position = attractor position
 # Mol = molecule identifier (see corresponding table above)
 # Volume = volume of the reference field basins.
 # Pop (population) = the reference field integrated in its own basins.
@@ -152,8 +154,8 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the attractor basins
-+ The "Label" entries will be used to identify the integrable
+* List of properties integrated in the isosurface regions
++ The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
@@ -169,7 +171,7 @@
 # ncp/nat = critical point/atom from the non-equivalent CP/atom list
 # Name = atomic name
 # Z = atomic number
-# Position = atomic position
+# Position = attractor position
 # Mol = molecule identifier (see corresponding table above)
 # Volume = volume of the reference field basins.
 # Pop (population) = the reference field integrated in its own basins.
@@ -222,8 +224,8 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the attractor basins
-+ The "Label" entries will be used to identify the integrable
+* List of properties integrated in the isosurface regions
++ The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
@@ -239,7 +241,7 @@
 # ncp/nat = critical point/atom from the non-equivalent CP/atom list
 # Name = atomic name
 # Z = atomic number
-# Position = atomic position
+# Position = attractor position
 # Mol = molecule identifier (see corresponding table above)
 # Volume = volume of the reference field basins.
 # Pop (population) = the reference field integrated in its own basins.
@@ -292,8 +294,8 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the attractor basins
-+ The "Label" entries will be used to identify the integrable
+* List of properties integrated in the isosurface regions
++ The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
@@ -309,7 +311,7 @@
 # ncp/nat = critical point/atom from the non-equivalent CP/atom list
 # Name = atomic name
 # Z = atomic number
-# Position = atomic position
+# Position = attractor position
 # Mol = molecule identifier (see corresponding table above)
 # Volume = volume of the reference field basins.
 # Pop (population) = the reference field integrated in its own basins.
