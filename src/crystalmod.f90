@@ -88,10 +88,10 @@ module crystalmod
      integer :: ws_nv !< number of vertices
      integer :: ws_nf !< number of facets
      integer :: ws_mnfv !< maximum number of vertices per facet
-     integer :: ws_ineighx(3,14) !< WS neighbor lattice points (cryst. coords.)
-     real*8 :: ws_ineighc(3,14) !< WS neighbor lattice points (Cart. coords.)
-     integer :: ws_ineighxr(3,14) !< WS neighbor lattice points (del cell, cryst.)
-     integer :: ws_nside(14) !< number of sides of WS faces
+     integer, allocatable :: ws_ineighx(:,:) !< WS neighbor lattice points (cryst. coords.)
+     real*8, allocatable :: ws_ineighc(:,:) !< WS neighbor lattice points (Cart. coords.)
+     integer, allocatable :: ws_ineighxr(:,:) !< WS neighbor lattice points (del cell, cryst.)
+     integer, allocatable :: ws_nside(:) !< number of sides of WS faces
      integer, allocatable :: ws_iside(:,:) !< sides of the WS faces
      real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
      logical :: isortho !< is the cell orthogonal?
@@ -191,7 +191,6 @@ module crystalmod
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
 
      ! WS cell
-     procedure :: wigner !< Calculate the WS cell and the IWS/tetrahedra
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
 
      ! structure writers
@@ -540,10 +539,6 @@ module crystalmod
      module subroutine wholemols(c)
        class(crystal), intent(inout) :: c
      end subroutine wholemols
-     module subroutine wigner(c,area)
-       class(crystal), intent(inout) :: c
-       real*8, intent(out), optional :: area(14)
-     end subroutine wigner
      module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xorigin(3)

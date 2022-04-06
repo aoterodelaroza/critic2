@@ -87,19 +87,20 @@ module tools
        real*8, intent(out) :: rmat(3,4)
        real*8, intent(out), optional :: rbas(3,3)
      end subroutine delaunay_reduction
-     module subroutine wscell(m_x2c,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
+     module subroutine wscell(m_x2c,doreduction,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
         isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
         isortho_del)
        real*8, intent(in) :: m_x2c(3,3)
+       logical, intent(in) :: doreduction
        integer, intent(out), optional :: nf
        integer, intent(out), optional :: nv
        integer, intent(out), optional :: mnfv
        integer, allocatable, intent(inout), optional :: iside(:,:)
-       integer, intent(out), optional :: nside(14)
+       integer, allocatable, intent(inout), optional :: nside(:)
        real*8, allocatable, intent(inout), optional :: x(:,:)
-       real*8, intent(out), optional :: ineighc(3,14)
-       integer, intent(out), optional :: ineighx(3,14)
-       real*8, intent(out), optional :: area(14)
+       real*8, allocatable, intent(inout), optional :: ineighc(:,:)
+       integer, allocatable, intent(inout), optional :: ineighx(:,:)
+       real*8, allocatable, intent(inout), optional :: area(:)
        logical, intent(out), optional :: isortho
        real*8, intent(out), optional :: m_xr2x(3,3)
        real*8, intent(out), optional :: m_x2xr(3,3)
@@ -109,7 +110,7 @@ module tools
        real*8, intent(out), optional :: n2_x2xr
        real*8, intent(out), optional :: n2_xr2c
        real*8, intent(out), optional :: n2_c2xr
-       integer, intent(out), optional :: ineighxr(3,14)
+       integer, allocatable, intent(inout), optional :: ineighxr(:,:)
        logical, intent(out), optional :: isortho_del
      end subroutine wscell
   end interface

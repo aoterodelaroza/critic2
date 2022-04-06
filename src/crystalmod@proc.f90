@@ -115,9 +115,10 @@ contains
     c%ws_nv = 0
     c%ws_nf = 0
     c%ws_mnfv = 0
-    c%ws_ineighx = 0
-    c%ws_ineighc = 0d0
-    c%ws_nside = 00
+    if (allocated(c%ws_ineighx)) deallocate(c%ws_ineighx)
+    if (allocated(c%ws_ineighxr)) deallocate(c%ws_ineighxr)
+    if (allocated(c%ws_ineighc)) deallocate(c%ws_ineighc)
+    if (allocated(c%ws_nside)) deallocate(c%ws_nside)
     if (allocated(c%ws_iside)) deallocate(c%ws_iside)
     if (allocated(c%ws_x)) deallocate(c%ws_x)
     c%isortho = .false.
@@ -204,6 +205,7 @@ contains
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
+    use tools, only: wscell
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -213,7 +215,7 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
     logical :: good, clearsym
     integer :: i, j, k, iat
-    real*8, allocatable :: atpos(:,:)
+    real*8, allocatable :: atpos(:,:), area(:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
@@ -393,7 +395,9 @@ contains
     c%n2_c2x = mnorm2(c%m_c2x)
 
     ! calculate the wigner-seitz cell
-    call c%wigner()
+    call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
+       c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
+       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
 
     ! copy the symmetry information, if available
     if (seed%havesym > 0 .and..not.seed%ismolecule) then
@@ -4184,78 +4188,6 @@ contains
     call c%struct_new(ncseed,.true.)
 
   end subroutine wholemols
-
-  !xx! Wigner-Seitz cell tools and cell partition
-
-  !> Builds the Wigner-Seitz cell. Writes the WS components of c.
-  !> Also writes the Delaunay reduction parameters and, if area is
-  !> present, calculates the areas of the WS facets. Sets the matrices
-  !> for the Delaunay transformations.
-  module subroutine wigner(c,area)
-    use, intrinsic :: iso_c_binding, only: c_char, c_null_char, c_int, c_double
-    use tools_math, only: mixed, cross, matinv, mnorm2, det3
-    use tools_io, only: string, fopen_write, fopen_read,&
-       ferror, faterr, fclose
-    use tools, only: delaunay_reduction, wscell
-    use types, only: realloc
-    use param, only: pi, eye
-    class(crystal), intent(inout) :: c
-    real*8, intent(out), optional :: area(14) !< area of the WS faces
-
-    interface
-       ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
-         integer(c_int), value :: n
-         real(c_double) :: xstar(3,n)
-         integer(c_int) :: nf, nv, mnfv
-       end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
-         integer(c_int), value :: nf, nv, mnfv
-         integer(c_int) :: ivws(nf)
-         real(c_double) :: xvws(3,nv)
-         integer(c_int) :: nfvws(mnfv)
-         integer(c_int) :: fvws(mnfv)
-       end subroutine runqhull_voronoi_step2
-    end interface
-
-    real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
-
-    integer :: i, j, k
-    real*8 :: av(3), bary(3), rmat(3,4)
-    integer(c_int) :: n
-    real(c_double) :: xstar(3,14)
-    integer(c_int), allocatable :: ivws(:)
-    real(c_double), allocatable :: xvws(:,:)
-    real*8 :: rdel(3,3)
-
-    call wscell(c%m_x2c,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,c%ws_x,&
-       c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
-       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
-
-    ! recalculate if this is a molecule
-    if (c%ismolecule) then
-       c%m_xr2x = eye
-       c%m_x2xr = eye
-       c%m_xr2c = matmul(c%m_x2c,c%m_xr2x)
-       c%m_c2xr = c%m_xr2c
-       call matinv(c%m_c2xr,3)
-       c%n2_xr2x = mnorm2(c%m_xr2x)
-       c%n2_x2xr = mnorm2(c%m_x2xr)
-       c%n2_xr2c = mnorm2(c%m_xr2c)
-       c%n2_c2xr = mnorm2(c%m_c2xr)
-       do i = 1, c%ws_nf
-          c%ws_ineighxr(:,i) = nint(matmul(c%ws_ineighx(:,i),c%m_x2xr))
-       end do
-       c%isortho_del = .true.
-       do i = 1, c%ws_nf
-          c%isortho_del = c%isortho_del .and. (count(abs(c%ws_ineighxr(:,i)) == 1) == 1) .and.&
-             (count(abs(c%ws_ineighxr(:,i)) == 0) == 2)
-       end do
-    end if
-
-  end subroutine wigner
 
   !> Calculate the irreducible WS wedge around point xorigin (cryst coords)
   !> and partition it into tetrahedra.
