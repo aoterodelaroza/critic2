@@ -27,6 +27,7 @@ module tricks
   private :: trick_uspex_unpack
   private :: trick_reduce
   private :: trick_makecif_ccdc
+  private :: trick_bfgs
 
 contains
 
@@ -46,6 +47,8 @@ contains
        call trick_reduce(line0(lp:))
     else if (equal(word,'makecif')) then
        call trick_makecif_ccdc(line0(lp:))
+    else if (equal(word,'bfgs')) then
+       call trick_bfgs(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -1551,5 +1554,457 @@ contains
     call fclose(lu)
 
   end subroutine trick_makecif_ccdc
+
+  ! Adapted from QE. Copyright (C) 2003-2010 Quantum ESPRESSO group.
+  ! See the bfgs_module.f90 in the QE distribution for more details
+  ! re implementation and authorship.
+  !   trick bfgs file.geom file.bfgs file.calc
+  subroutine trick_bfgs(line0)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: getword, ferror, faterr, fopen_read, fclose, fopen_write
+    use tools_math, only: matinv
+    character*(*), intent(in) :: line0
+
+    type(crystalseed) :: seed
+    type(crystal) :: c
+    character(len=:), allocatable :: filegeom, filebfgs, filecalc
+    character(len=:), allocatable :: errmsg
+    integer :: lp, lu
+
+    integer :: i, j, k
+    logical :: lwolfe, ok, conv_bfgs, energy_wolfe_condition, gradient_wolfe_condition
+    integer :: n, nat
+    real*8 :: energy, st(3,3), dE0s, den
+    real*8 :: h(3,3), hinv(3,3), omega, g(3,3), ginv(3,3), fcell(3,3)
+    integer :: scf_iter, bfgs_iter, tr_min_hit
+    real*8 :: energy_p, nr_step_length_old, nr_step_length, trust_radius_old, trust_radius
+    real*8 :: energy_error, grad_error, cell_error
+    real*8, allocatable :: force(:,:)
+    real*8, allocatable :: pos(:), grad(:), pos_old(:), grad_old(:), inv_hess(:,:)
+    real*8, allocatable :: pos_p(:), grad_p(:), step(:), step_old(:), pos_best(:)
+    real*8, allocatable :: hinv_block(:,:), metric(:,:)
+
+    real*8, parameter :: trust_radius_ini = 0.5d0
+    real*8, parameter :: energy_thr = 1d-4
+    real*8, parameter :: grad_thr = 1d-3
+    real*8, parameter :: cell_thr = 0.5d0 / 147105.08d0
+    real*8, parameter :: w_1 = 0.01d0
+    real*8, parameter :: w_2 = 0.5d0
+    real*8, parameter :: trust_radius_min = 1d-4
+    real*8, parameter :: trust_radius_max = 0.8d0
+
+    ! header
+    write (*,*) "* BFGS optimization"
+
+    ! parse input
+    lp = 1
+    filegeom = getword(line0,lp)
+    filebfgs = getword(line0,lp)
+    filecalc = getword(line0,lp)
+
+    ! read crystal structure
+    write (*,*)"+ Reading the structure from: ", trim(filegeom)
+    call seed%read_any_file(filegeom,-1,errmsg)
+    if (len_trim(errmsg) > 0) then
+       call ferror('trick_bfgs','error reading geometry file: ' // filegeom,faterr)
+    end if
+    call c%struct_new(seed,.true.)
+
+    ! initialize
+    lwolfe=.false.
+    nat = c%ncel
+    n = 3 * nat + 9
+
+    ! allocate work space
+    allocate(pos(n))
+    allocate(grad(n))
+    allocate(grad_old(n))
+    allocate(pos_old(n))
+    allocate(inv_hess(n,n))
+    allocate(pos_p(n))
+    allocate(grad_p(n))
+    allocate(step(n))
+    allocate(step_old(n) )
+    allocate(pos_best(n) )
+    allocate(hinv_block(n-9,n-9))
+    allocate(metric(n,n))
+
+    ! h, hinv, volume
+    h = c%m_x2c
+    hinv = c%m_c2x
+    omega = c%omega
+    hinv_block = 0.d0
+    forall (k=0:nat-1,i=1:3,j=1:3) hinv_block(i+3*k,j+3*k) = hinv(i,j)
+
+    ! generate metric to work with scaled ionic coordinates
+    g = c%gtensor
+    ginv = c%grtensor
+    metric = 0.d0
+    forall (k=0:nat-1,i=1:3,j=1:3) metric(i+3*k,j+3*k) = g(i,j)
+    forall (k=nat:nat+2,i=1:3,j=1:3) metric(i+3*k,j+3*k) = 0.04d0 * omega * ginv(i,j)
+
+    ! read the calc file
+    write (*,*)"+ Reading the calculated values from: ", trim(filecalc)
+    lu = fopen_read(filecalc)
+    allocate(force(3,nat))
+    read (lu,*) energy, st, force
+    call fclose(lu)
+
+    ! calculate the cell force
+    do j=1,3
+       do i=1,3
+          fcell(i,j) = -hinv(j,1)*st(i,1) - hinv(j,2)*st(i,2) - hinv(j,3)*st(i,3)
+       end do
+    end do
+    fcell = omega * fcell
+
+    ! convert forces to Cartesian gradient
+    do i = 1, nat
+       force(:,i) = -matmul(force(:,i),h)
+    end do
+
+    ! generate bfgs vectors for the degrees of freedom and their gradients
+    pos = 0.0d0
+    forall (k=0:nat-1,i=1:3) pos(3*k+i) = c%atcel(k+1)%x(i)
+    forall (i=1:3,j=1:3) pos(n-9+j+3*(i-1)) = h(i,j)
+    grad = 0.0
+    forall (k=0:nat-1,i=1:3) grad(3*k+i) = force(i,k+1)
+    forall (i=1:3,j=1:3) grad(n-9+j+3*(i-1)) = fcell(i,j)
+
+    ! read the bfgs file, if it exists
+    inquire(file=filebfgs,exist=ok)
+    if (ok) then
+       write (*,*)"+ Reading the BFGS file: ", trim(filebfgs)
+       lu =  fopen_read(filebfgs,"unformatted")
+       read (lu) pos_p
+       read (lu) grad_p
+       read (lu) scf_iter
+       read (lu) bfgs_iter
+       read (lu) energy_p
+       read (lu) pos_old
+       read (lu) grad_old
+       read (lu) inv_hess
+       read (lu) tr_min_hit
+       read (lu) nr_step_length
+       call fclose(lu)
+
+       step_old = pos - pos_p
+       trust_radius_old = scnorm(step_old)
+       step_old = step_old / trust_radius_old
+    else
+       ! initialize the inv_hess to the inverse of the metric
+       write (*,*)"+ The BFGS file ", trim(filebfgs), " does not exist, initializing"
+       inv_hess = metric
+       call matinv(inv_hess,n)
+       pos_p = 0d0
+       grad_p = 0d0
+       scf_iter = 0
+       bfgs_iter = 0
+       energy_p = energy
+       step_old = 0d0
+       nr_step_length = 0d0
+       trust_radius_old = trust_radius_ini
+       tr_min_hit = 0
+    end if
+    scf_iter = scf_iter + 1
+
+    ! check convergence
+    energy_error = abs(energy_p - energy)
+    grad_error = maxval(abs(matmul(transpose(hinv_block),grad(1:n-9))))
+    cell_error = maxval(abs(matmul(transpose(reshape(grad(n-8:n), (/3,3/))),transpose(h)))) / omega
+    conv_bfgs = energy_error < energy_thr
+    conv_bfgs = conv_bfgs .and. (grad_error < grad_thr)
+    conv_bfgs = conv_bfgs .and. (cell_error < cell_thr)
+    IF (.not.conv_bfgs.and. (tr_min_hit > 1)) &
+       call ferror('trick_bfgs','history already reset at previous step: stopping',faterr)
+    conv_bfgs = conv_bfgs .or. (tr_min_hit > 1)
+    IF (conv_bfgs) goto 99
+
+    ! some output
+    write (*,*) "number of scf cycles = ", scf_iter
+    write (*,*) "number of bfgs steps = ", bfgs_iter
+    write (*,*) "old energy = ", energy_p
+    write (*,*) "new energy = ", energy
+
+    ! wolfe conditions
+    energy_wolfe_condition = (energy-energy_p) < w_1 * (dot_product(grad_p,step_old)) * trust_radius_old
+    if (.not.energy_wolfe_condition .and. scf_iter > 1) then
+       ! failed energy condition, keep looking
+       write (*,*) "step not accepted - keep searching"
+       step = step_old
+       dE0s = dot_product(grad_p,step) * trust_radius_old
+       den = energy - energy_p - dE0s
+
+       ! estimate new trust radius by interpolation
+       trust_radius = - 0.5d0*dE0s*trust_radius_old / den
+       write (*,*) "new trust radius = ", trust_radius
+
+       ! values from the last successful bfgs step are restored
+       pos  = pos_p
+       energy  = energy_p
+       grad = grad_p
+
+       if (trust_radius < trust_radius_min) then
+          ! history reset (at most twice in a row)
+          write (*,*) "trust_radius < trust_radius_min, reset bfgs history"
+
+          ! ... if tr_min_hit=1 the history has already been reset at the
+          ! ... previous step : something is going wrong
+          if ( tr_min_hit == 1 ) then
+             write (*,*) "history already reset at previous step: stopping"
+             tr_min_hit = 2
+          else
+             tr_min_hit = 1
+          end if
+          inv_hess = metric
+          call matinv(inv_hess,n)
+          step = -matmul(inv_hess,grad)
+
+          ! normalize step but remember its length
+          nr_step_length = scnorm(step)
+          step = step / nr_step_length
+          trust_radius = min(trust_radius_ini, nr_step_length)
+       else
+          tr_min_hit = 0
+       end if
+    else
+       ! a brave new step
+       write (*,*) "a new step!"
+       bfgs_iter = bfgs_iter + 1
+       if (bfgs_iter > 1) then
+          nr_step_length_old = nr_step_length
+
+          ! check wolfe conditions
+          gradient_wolfe_condition = abs(dot_product(grad,step_old)) < -w_2 * dot_product(grad_p,step_old)
+          lwolfe = energy_wolfe_condition .and. gradient_wolfe_condition
+
+          ! update inverse hessian
+          call update_inverse_hessian(pos,grad,n)
+       end if
+
+       ! newton-raphson
+       step = -matmul(inv_hess,grad)
+
+       ! check uphill step condition
+       if (dot_product(grad,step) > 0d0) then
+          write (*,*) "uphill step: resetting bfgs history"
+          inv_hess = metric
+          call matinv(inv_hess,n)
+          step = -matmul(inv_hess,grad)
+       end if
+
+       ! normalize
+       nr_step_length = scnorm(step)
+       step = step / nr_step_length
+
+       ! new trust radius
+       if (bfgs_iter == 1) then
+          trust_radius = min(trust_radius_ini, nr_step_length)
+          tr_min_hit = 0
+       else
+          call compute_trust_radius(lwolfe,energy,grad,n)
+       end if
+
+       write (*,*) "new trust radius = ", trust_radius
+    end if
+
+    ! check step length
+    if (nr_step_length < 1d-16) &
+       call ferror("trick_bfgs","step length too low",faterr)
+
+    ! write the bfgs file
+    write (*,*)"+ Writing the BFGS file: ", trim(filebfgs)
+    lu =  fopen_write(filebfgs,"unformatted",errstop=.true.)
+    write (lu) pos
+    write (lu) grad
+    write (lu) scf_iter
+    write (lu) bfgs_iter
+    write (lu) energy
+    write (lu) pos_old
+    write (lu) grad_old
+    write (lu) inv_hess
+    write (lu) tr_min_hit
+    write (lu) nr_step_length
+    call fclose(lu)
+
+    ! update positions
+    pos = pos + trust_radius * step
+99  continue
+    forall(i=1:3,j=1:3) h(i,j) = pos(n-9+j+3*(i-1))
+
+    if (conv_bfgs) then
+       write (*,*) "converged! :D"
+    else
+       write (*,*) "not converged :("
+    end if
+
+    ! write the new crystal structure
+    write (*,*) "+ Writing the new geometry file: ", "new_" // trim(filebfgs)
+    call c%makeseed(seed,.false.)
+    seed%m_x2c = h
+    forall (k=0:nat-1,i=1:3) seed%x(i,k+1) = pos(3*k+i)
+    call c%struct_new(seed,.true.)
+    call c%write_simple_driver("new_" // filegeom)
+
+    ! wrap up
+    write (*,*)
+
+  contains
+
+    function scnorm(vect)
+      real*8 :: scnorm
+      real*8, intent(in) :: vect(:)
+      real*8 :: ss
+      integer :: i,k,l,n
+
+      scnorm = 0d0
+      n = size(vect) / 3
+      do i=1,n
+         ss = 0d0
+         do k=1,3
+            do l=1,3
+               ss = ss + vect(k+(i-1)*3)*metric(k+(i-1)*3,l+(i-1)*3)*vect(l+(i-1)*3)
+            end do
+         end do
+         scnorm = max(scnorm, sqrt(ss))
+      end do
+
+    end function scnorm
+
+    subroutine update_inverse_hessian(pos,grad,n)
+      real*8, intent(in) :: pos(:)
+      real*8, intent(in) :: grad(:)
+      integer, intent(in) :: n
+      !
+      integer :: info
+      real*8, allocatable :: y(:), s(:)
+      real*8, allocatable :: Hy(:), yH(:)
+      real*8 :: sdoty, sBs, Theta
+      real*8, allocatable :: B(:,:)
+
+      allocate(y(n), s(n), Hy(n), yH(n))
+      s = pos - pos_p
+      y = grad - grad_p
+      sdoty = dot_product(s,y)
+
+      if (abs(sdoty) < 1d-16) then
+         write (*,*) "unexpected behavior in update_inverse_hessian, resetting bfgs history"
+         inv_hess = metric
+         call matinv(inv_hess,n)
+         return
+      else
+         ! Conventional Curvature Trap here
+         ! See section 18.2 (p538-539 ) of Nocedal and Wright "Numerical
+         ! Optimization"for instance
+         ! LDM Addition, April 2011
+         !
+         ! While with the Wolfe conditions the Hessian in most cases
+         ! remains positive definite, if one is far from the minimum
+         ! and/or "bonds" are being made/broken the curvature condition
+         !        Hy = s ; or s = By
+         ! cannot be satisfied if s.y < 0. In addition, if s.y is small
+         ! compared to s.B.s too greedy a step is taken.
+         !
+         ! The trap below is conventional and "OK", and has been around
+         ! for ~ 30 years but, unfortunately, is rarely mentioned in
+         ! introductory texts and hence often neglected.
+         !
+         ! First, solve for inv_hess*t = s ; i.e. t = B*s
+         ! Use yH as workspace here
+
+         allocate(B(n,n))
+         B = inv_hess
+         yH = s
+         call dposv('U',n,1,B,n,yH,n,info)
+         ! Info .ne. 0 should be trapped ...
+         if (info/=0) write (*,*) "info = ", info, "for hessian"
+         deallocate(B)
+         ! Calculate s.B.s
+         sBs = dot_product(s,yH)
+
+         ! Now the trap itself
+         if (sdoty < 0.20D0*sBs) then
+            ! Conventional damping
+            Theta = 0.8D0*sBs/(sBs-sdoty)
+            write (*,*) "warning: bfgs curvature condition failed, theta= ", theta
+            y = Theta*y + (1.D0 - Theta)*yH
+         endif
+      end if
+      Hy = matmul(inv_hess,y)
+      yH = matmul(y,inv_hess)
+
+      ! BFGS update
+      inv_hess = inv_hess + 1.d0 / sdoty * ((1d0 + dot_product(y,Hy) / sdoty) * matrix(s,s) - &
+         (matrix(s,yH) + matrix(Hy,s)))
+
+    end subroutine update_inverse_hessian
+
+    subroutine compute_trust_radius(lwolfe,energy,grad,n)
+      logical, intent(in) :: lwolfe
+      real*8, intent(in) :: energy
+      real*8, intent(in) :: grad(:)
+      integer, intent(in) :: n
+
+      real*8 :: a
+      logical :: ltest
+
+      ltest = (energy - energy_p) < w_1 * dot_product(grad_p,step_old) * trust_radius_old
+
+      ! The instruction below replaces the original instruction:
+      !    ltest = ltest .AND. ( nr_step_length_old > trust_radius_old )
+      ! which gives a random result if trust_radius was set equal to
+      ! nr_step_length at previous step. I am not sure what the best
+      ! action should be in that case, though (PG)
+      !
+      ltest = ltest .and. ( nr_step_length_old > trust_radius_old + 1d-8 )
+
+      if (ltest) then
+         a = 1.5d0
+      else
+         a = 1.1d0
+      end if
+      if (lwolfe) a = 2d0 * a
+
+      trust_radius = min(trust_radius_max, a*trust_radius_old, nr_step_length)
+
+      if (trust_radius < trust_radius_min) then
+         ! ... the history is reset
+         !
+         ! ... if tr_min_hit the history has already been reset at the
+         ! ... previous step : something is going wrong
+         !
+         if (tr_min_hit == 1) then
+            write (*,*) 'history already reset at previous step: stopping'
+            tr_min_hit = 2
+         else
+            tr_min_hit = 1
+         end if
+         write (*,*) "small trust radius: resetting bfgs history"
+         inv_hess = metric
+         call matinv(inv_hess,n)
+         step = -matmul(inv_hess,grad)
+         nr_step_length = scnorm(step)
+         step = step / nr_step_length
+         trust_radius = min(trust_radius_min, nr_step_length )
+      else
+         tr_min_hit = 0
+      end if
+
+    end subroutine compute_trust_radius
+
+    function matrix( vec1, vec2 )
+      real*8, intent(in) :: vec1(:), vec2(:)
+      real*8 :: matrix(SIZE(vec1),SIZE(vec2))
+      integer :: dim1, dim2
+
+      dim1 = size( vec1 )
+      dim2 = size( vec2 )
+      matrix = 0d0
+      call dger( dim1, dim2, 1d0, vec1, 1, vec2, 1, matrix, dim1)
+
+    end function matrix
+
+  end subroutine trick_bfgs
 
 end module tricks
