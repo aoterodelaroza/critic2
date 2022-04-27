@@ -1558,7 +1558,7 @@ contains
   ! Adapted from QE. Copyright (C) 2003-2010 Quantum ESPRESSO group.
   ! See the bfgs_module.f90 in the QE distribution for more details
   ! re implementation and authorship.
-  !   trick bfgs file.geom file.bfgs file.calc [tightqe|looseqe]
+  !   trick bfgs file.geom file.bfgs file.calc [tightqe|looseqe|aims2]
   ! - file.geom contains the geometry and is updated unless the BFGS has converged.
   ! - file.bfgs contains the BFGS history
   ! - file.calc must contain:
@@ -1567,6 +1567,7 @@ contains
   !   nat lines, the atomic forces in Ry/bohr
   ! - looseqe : the QE default convergence criteria (default)
   ! - tightqe : 10x tigther force and energy criteria
+  ! - aims2 : FHIaims, 0.01 eV/ang
   subroutine trick_bfgs(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
@@ -1602,14 +1603,22 @@ contains
 
     real*8, parameter :: kbarau = 147105.08d0
     real*8, parameter :: trust_radius_ini = 0.5d0
+
     real*8, parameter :: energy_thr_looseqe = 1d-4
     real*8, parameter :: grad_thr_looseqe = 1d-3
     real*8, parameter :: cell_thr_looseqe = 0.5d0 / kbarau
     real*8, parameter :: trust_radius_min_looseqe = 1d-4
+
     real*8, parameter :: energy_thr_tightqe = 1d-5
     real*8, parameter :: grad_thr_tightqe = 1d-4
     real*8, parameter :: cell_thr_tightqe = 0.5d0 / kbarau
-    real*8, parameter :: trust_radius_min_tightqe = 1d-4
+    real*8, parameter :: trust_radius_min_tightqe = 1d-5
+
+    real*8, parameter :: energy_thr_aims2 = 3.9d-5
+    real*8, parameter :: grad_thr_aims2 = 3.9d-4
+    real*8, parameter :: cell_thr_aims2 = 0.5d0 / kbarau
+    real*8, parameter :: trust_radius_min_aims2 = 1d-4
+
     real*8, parameter :: w_1 = 0.01d0
     real*8, parameter :: w_2 = 0.5d0
     real*8, parameter :: trust_radius_max = 0.8d0
@@ -1639,6 +1648,11 @@ contains
           grad_thr = grad_thr_tightqe
           cell_thr = cell_thr_tightqe
           trust_radius_min = trust_radius_min_tightqe
+       elseif (equal(lword,'aims2')) then
+          energy_thr = energy_thr_aims2
+          grad_thr = grad_thr_aims2
+          cell_thr = cell_thr_aims2
+          trust_radius_min = trust_radius_min_aims2
        elseif (len_trim(word) > 0) then
           call ferror('trick_bfgs','Unknown extra keyword',faterr,line0,syntax=.true.)
        else
@@ -2055,7 +2069,7 @@ contains
          yH = s
          call dposv('U',n,1,B,n,yH,n,info)
          ! Info .ne. 0 should be trapped ...
-         if (info/=0) write (*,*) "info = ", info, "for hessian"
+         if (info/=0) write (uout,*) "info = ", info, "for hessian"
          deallocate(B)
          ! Calculate s.B.s
          sBs = dot_product(s,yH)
@@ -2064,7 +2078,7 @@ contains
          if (sdoty < 0.20D0*sBs) then
             ! Conventional damping
             Theta = 0.8D0*sBs/(sBs-sdoty)
-            write (*,*) "warning: bfgs curvature condition failed, theta= ", theta
+            write (uout,*) "warning: bfgs curvature condition failed, theta= ", theta
             y = Theta*y + (1.D0 - Theta)*yH
          endif
       end if
@@ -2112,12 +2126,12 @@ contains
          ! ... previous step : something is going wrong
          !
          if (tr_min_hit == 1) then
-            write (*,*) 'history already reset at previous step: stopping'
+            write (uout,*) 'history already reset at previous step: stopping'
             tr_min_hit = 2
          else
             tr_min_hit = 1
          end if
-         write (*,*) "small trust radius: resetting bfgs history"
+         write (uout,*) "small trust radius: resetting bfgs history"
          inv_hess = metric
          call matinv(inv_hess,n)
          step = -matmul(inv_hess,grad)
