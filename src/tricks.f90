@@ -1575,7 +1575,7 @@ contains
     integer :: i, j, k
     logical :: lwolfe, ok, conv_bfgs, energy_wolfe_condition, gradient_wolfe_condition
     integer :: n, nat
-    real*8 :: energy, st(3,3), dE0s, den
+    real*8 :: energy, energysave, st(3,3), dE0s, den
     real*8 :: h(3,3), hinv(3,3), omega, g(3,3), ginv(3,3), fcell(3,3)
     integer :: scf_iter, bfgs_iter, tr_min_hit
     real*8 :: energy_p, nr_step_length_old, nr_step_length, trust_radius_old, trust_radius
@@ -1585,7 +1585,7 @@ contains
     real*8, allocatable :: pos_p(:), grad_p(:), step(:), step_old(:), pos_best(:)
     real*8, allocatable :: hinv_block(:,:), metric(:,:)
     character*10 :: msgsum
-    real*8 :: energy_thr, grad_thr, cell_thr
+    real*8 :: energy_thr, grad_thr, cell_thr, trust_radius_min
     ! bfgs history
     integer :: nstep
     real*8, allocatable :: step_tr(:), step_ene(:), step_de(:), step_df(:), step_dc(:)
@@ -1597,12 +1597,13 @@ contains
     real*8, parameter :: energy_thr_looseqe = 1d-4
     real*8, parameter :: grad_thr_looseqe = 1d-3
     real*8, parameter :: cell_thr_looseqe = 0.5d0 / kbarau
+    real*8, parameter :: trust_radius_min_looseqe = 1d-4
     real*8, parameter :: energy_thr_tightqe = 1d-5
     real*8, parameter :: grad_thr_tightqe = 1d-4
-    real*8, parameter :: cell_thr_tightqe = 0.1d0 / kbarau
+    real*8, parameter :: cell_thr_tightqe = 0.5d0 / kbarau
+    real*8, parameter :: trust_radius_min_tightqe = 1d-4
     real*8, parameter :: w_1 = 0.01d0
     real*8, parameter :: w_2 = 0.5d0
-    real*8, parameter :: trust_radius_min = 1d-4
     real*8, parameter :: trust_radius_max = 0.8d0
 
     ! header and initialization
@@ -1610,6 +1611,7 @@ contains
     energy_thr = energy_thr_looseqe
     grad_thr = grad_thr_looseqe
     cell_thr = cell_thr_looseqe
+    trust_radius_min = trust_radius_min_looseqe
 
     ! parse input
     lp = 1
@@ -1623,10 +1625,12 @@ contains
           energy_thr = energy_thr_looseqe
           grad_thr = grad_thr_looseqe
           cell_thr = cell_thr_looseqe
+          trust_radius_min = trust_radius_min_looseqe
        elseif (equal(lword,'tightqe')) then
           energy_thr = energy_thr_tightqe
           grad_thr = grad_thr_tightqe
           cell_thr = cell_thr_tightqe
+          trust_radius_min = trust_radius_min_tightqe
        elseif (len_trim(word) > 0) then
           call ferror('trick_bfgs','Unknown extra keyword',faterr,line0,syntax=.true.)
        else
@@ -1681,6 +1685,7 @@ contains
     allocate(force(3,nat))
     read (lu,*) energy, st, force
     call fclose(lu)
+    energysave = energy
 
     ! calculate the cell force
     do j=1,3
@@ -1763,9 +1768,10 @@ contains
     conv_bfgs = energy_error < energy_thr
     conv_bfgs = conv_bfgs .and. (grad_error < grad_thr)
     conv_bfgs = conv_bfgs .and. (cell_error < cell_thr)
-    IF (.not.conv_bfgs.and. (tr_min_hit > 1)) &
-       call ferror('trick_bfgs','history already reset at previous step: stopping',faterr)
-    conv_bfgs = conv_bfgs .or. (tr_min_hit > 1)
+    IF (.not.conv_bfgs .and. (tr_min_hit > 1)) then
+       write (uout,'("history already reset at previous step: stopping")')
+       goto 99
+    end IF
     IF (conv_bfgs) goto 99
 
     ! some output
@@ -1869,7 +1875,11 @@ contains
     ! write to the BFGS history
     nstep = nstep + 1
     step_tr(nstep) = trust_radius
-    step_ene(nstep) = energy
+    if (idec == 0) then
+       step_ene(nstep) = energy
+    else
+       step_ene(nstep) = energysave
+    endif
     step_de(nstep) = energy_error
     step_df(nstep) = grad_error
     step_dc(nstep) = cell_error
@@ -1930,7 +1940,7 @@ contains
        end if
 
        write (uout,'(99(A,X))') string(i,3,ioj_left), string(step_bfgs_it(i),3,ioj_left), string(step_scf_it(i),3,ioj_left), &
-          msgsum, string(step_tr(i),'f',12,5), string(step_ene(i),'f',17,10),&
+          msgsum, string(step_tr(i),'f',12,8), string(step_ene(i),'f',17,10),&
           string(step_de(i),'e',12,5), string(string(step_de(i) < energy_thr),3,ioj_center),&
           string(step_df(i),'e',12,5), string(string(step_df(i) < grad_thr),3,ioj_center),&
           string(step_dc(i)*kbarau,'e',12,5), string(string(step_dc(i) < cell_thr),3,ioj_center)
@@ -1948,6 +1958,8 @@ contains
     ! summary
     write (uout,*)
     write (uout,'("+ Convergence summary")')
+    write (uout,'("  Trust radius (min/current/max) = ",3(A,X))') string(trust_radius_min,'f',12,5),&
+         string(trust_radius,'f',12,5), string(trust_radius_max,'f',12,5)
     write (uout,'("  Energy (Ry) = ",A," (thr=",A,")")') string(energy_error,'e',decimal=5), &
        string(energy_thr,'e',decimal=5)
     write (uout,'("  Gradient (Ry/bohr) = ",A," (thr=",A,")")') string(grad_error,'e',decimal=5), &
@@ -1962,6 +1974,10 @@ contains
 
     ! wrap up
     write (uout,*)
+
+    ! crash if minimum step reached
+    if (.not.conv_bfgs .and. (tr_min_hit > 1)) &
+       call ferror('trick_bfgs',"history already reset at previous step: stopping",faterr)
 
   contains
 
