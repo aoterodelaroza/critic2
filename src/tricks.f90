@@ -1563,16 +1563,15 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_io, only: getword, ferror, faterr, fopen_read, fclose, fopen_write, uout,&
-       string, ioj_left, ioj_center
+       string, ioj_left, ioj_center, lower, equal
     use tools_math, only: matinv
     character*(*), intent(in) :: line0
 
     type(crystalseed) :: seed
     type(crystal) :: c
     character(len=:), allocatable :: filegeom, filebfgs, filecalc
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, word, lword
     integer :: lp, lu
-
     integer :: i, j, k
     logical :: lwolfe, ok, conv_bfgs, energy_wolfe_condition, gradient_wolfe_condition
     integer :: n, nat
@@ -1586,6 +1585,7 @@ contains
     real*8, allocatable :: pos_p(:), grad_p(:), step(:), step_old(:), pos_best(:)
     real*8, allocatable :: hinv_block(:,:), metric(:,:)
     character*10 :: msgsum
+    real*8 :: energy_thr, grad_thr, cell_thr
     ! bfgs history
     integer :: nstep
     real*8, allocatable :: step_tr(:), step_ene(:), step_de(:), step_df(:), step_dc(:)
@@ -1594,22 +1594,45 @@ contains
 
     real*8, parameter :: kbarau = 147105.08d0
     real*8, parameter :: trust_radius_ini = 0.5d0
-    real*8, parameter :: energy_thr = 1d-4
-    real*8, parameter :: grad_thr = 1d-3
-    real*8, parameter :: cell_thr = 0.5d0 / kbarau
+    real*8, parameter :: energy_thr_looseqe = 1d-4
+    real*8, parameter :: grad_thr_looseqe = 1d-3
+    real*8, parameter :: cell_thr_looseqe = 0.5d0 / kbarau
+    real*8, parameter :: energy_thr_tightqe = 1d-5
+    real*8, parameter :: grad_thr_tightqe = 1d-4
+    real*8, parameter :: cell_thr_tightqe = 0.1d0 / kbarau
     real*8, parameter :: w_1 = 0.01d0
     real*8, parameter :: w_2 = 0.5d0
     real*8, parameter :: trust_radius_min = 1d-4
     real*8, parameter :: trust_radius_max = 0.8d0
 
-    ! header
+    ! header and initialization
     write (uout,'("* BFGS optimization (vc-relax), algorithm from QE")')
+    energy_thr = energy_thr_looseqe
+    grad_thr = grad_thr_looseqe
+    cell_thr = cell_thr_looseqe
 
     ! parse input
     lp = 1
     filegeom = getword(line0,lp)
     filebfgs = getword(line0,lp)
     filecalc = getword(line0,lp)
+    do while (.true.)
+       word = getword(line0,lp)
+       lword = lower(word)
+       if (equal(lword,'looseqe')) then
+          energy_thr = energy_thr_looseqe
+          grad_thr = grad_thr_looseqe
+          cell_thr = cell_thr_looseqe
+       elseif (equal(lword,'tightqe')) then
+          energy_thr = energy_thr_tightqe
+          grad_thr = grad_thr_tightqe
+          cell_thr = cell_thr_tightqe
+       elseif (len_trim(word) > 0) then
+          call ferror('trick_bfgs','Unknown extra keyword',faterr,line0,syntax=.true.)
+       else
+          exit
+       end if
+    end do
 
     ! read crystal structure
     write (uout,'("+ Reading the structure from: ",A)') trim(filegeom)
