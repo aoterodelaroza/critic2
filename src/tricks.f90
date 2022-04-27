@@ -1558,7 +1558,15 @@ contains
   ! Adapted from QE. Copyright (C) 2003-2010 Quantum ESPRESSO group.
   ! See the bfgs_module.f90 in the QE distribution for more details
   ! re implementation and authorship.
-  !   trick bfgs file.geom file.bfgs file.calc
+  !   trick bfgs file.geom file.bfgs file.calc [tightqe|looseqe]
+  ! - file.geom contains the geometry and is updated unless the BFGS has converged.
+  ! - file.bfgs contains the BFGS history
+  ! - file.calc must contain:
+  !   1 line, the energy in Ry
+  !   3 lines, the stress tensor in Ry/bohr^3
+  !   nat lines, the atomic forces in Ry/bohr
+  ! - looseqe : the QE default convergence criteria (default)
+  ! - tightqe : 10x tigther force and energy criteria
   subroutine trick_bfgs(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
