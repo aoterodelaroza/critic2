@@ -1562,7 +1562,8 @@ contains
   subroutine trick_bfgs(line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
-    use tools_io, only: getword, ferror, faterr, fopen_read, fclose, fopen_write
+    use tools_io, only: getword, ferror, faterr, fopen_read, fclose, fopen_write, uout,&
+       string, ioj_left, ioj_center
     use tools_math, only: matinv
     character*(*), intent(in) :: line0
 
@@ -1584,18 +1585,25 @@ contains
     real*8, allocatable :: pos(:), grad(:), pos_old(:), grad_old(:), inv_hess(:,:)
     real*8, allocatable :: pos_p(:), grad_p(:), step(:), step_old(:), pos_best(:)
     real*8, allocatable :: hinv_block(:,:), metric(:,:)
+    character*10 :: msgsum
+    ! bfgs history
+    integer :: nstep
+    real*8, allocatable :: step_tr(:), step_ene(:), step_de(:), step_df(:), step_dc(:)
+    integer, allocatable :: step_bfgs_it(:), step_scf_it(:), step_idec(:)
+    integer :: idec
 
+    real*8, parameter :: kbarau = 147105.08d0
     real*8, parameter :: trust_radius_ini = 0.5d0
     real*8, parameter :: energy_thr = 1d-4
     real*8, parameter :: grad_thr = 1d-3
-    real*8, parameter :: cell_thr = 0.5d0 / 147105.08d0
+    real*8, parameter :: cell_thr = 0.5d0 / kbarau
     real*8, parameter :: w_1 = 0.01d0
     real*8, parameter :: w_2 = 0.5d0
     real*8, parameter :: trust_radius_min = 1d-4
     real*8, parameter :: trust_radius_max = 0.8d0
 
     ! header
-    write (*,*) "* BFGS optimization"
+    write (uout,'("* BFGS optimization (vc-relax), algorithm from QE")')
 
     ! parse input
     lp = 1
@@ -1604,7 +1612,7 @@ contains
     filecalc = getword(line0,lp)
 
     ! read crystal structure
-    write (*,*)"+ Reading the structure from: ", trim(filegeom)
+    write (uout,'("+ Reading the structure from: ",A)') trim(filegeom)
     call seed%read_any_file(filegeom,-1,errmsg)
     if (len_trim(errmsg) > 0) then
        call ferror('trick_bfgs','error reading geometry file: ' // filegeom,faterr)
@@ -1645,7 +1653,7 @@ contains
     forall (k=nat:nat+2,i=1:3,j=1:3) metric(i+3*k,j+3*k) = 0.04d0 * omega * ginv(i,j)
 
     ! read the calc file
-    write (*,*)"+ Reading the calculated values from: ", trim(filecalc)
+    write (uout,'("+ Reading the calculated values from: ",A)') trim(filecalc)
     lu = fopen_read(filecalc)
     allocate(force(3,nat))
     read (lu,*) energy, st, force
@@ -1675,7 +1683,7 @@ contains
     ! read the bfgs file, if it exists
     inquire(file=filebfgs,exist=ok)
     if (ok) then
-       write (*,*)"+ Reading the BFGS file: ", trim(filebfgs)
+       write (uout,'("+ Reading the BFGS file: ",A)') trim(filebfgs)
        lu =  fopen_read(filebfgs,"unformatted")
        read (lu) pos_p
        read (lu) grad_p
@@ -1687,6 +1695,17 @@ contains
        read (lu) inv_hess
        read (lu) tr_min_hit
        read (lu) nr_step_length
+       read (lu) nstep
+       allocate(step_tr(nstep+1),step_ene(nstep+1),step_de(nstep+1),step_df(nstep+1),step_dc(nstep+1))
+       allocate(step_bfgs_it(nstep+1),step_scf_it(nstep+1),step_idec(nstep+1))
+       read (lu) step_tr(1:nstep)
+       read (lu) step_ene(1:nstep)
+       read (lu) step_de(1:nstep)
+       read (lu) step_df(1:nstep)
+       read (lu) step_dc(1:nstep)
+       read (lu) step_bfgs_it(1:nstep)
+       read (lu) step_scf_it(1:nstep)
+       read (lu) step_idec(1:nstep)
        call fclose(lu)
 
        step_old = pos - pos_p
@@ -1694,7 +1713,7 @@ contains
        step_old = step_old / trust_radius_old
     else
        ! initialize the inv_hess to the inverse of the metric
-       write (*,*)"+ The BFGS file ", trim(filebfgs), " does not exist, initializing"
+       write (uout,'("+ The BFGS file ",A," does not exist, initializing")') trim(filebfgs)
        inv_hess = metric
        call matinv(inv_hess,n)
        pos_p = 0d0
@@ -1706,6 +1725,11 @@ contains
        nr_step_length = 0d0
        trust_radius_old = trust_radius_ini
        tr_min_hit = 0
+
+       ! initialize the BFGS history (for reporting)
+       nstep = 0
+       allocate(step_tr(1),step_ene(1),step_de(1),step_df(1),step_dc(1))
+       allocate(step_bfgs_it(1),step_scf_it(1),step_idec(1))
     end if
     scf_iter = scf_iter + 1
 
@@ -1722,23 +1746,25 @@ contains
     IF (conv_bfgs) goto 99
 
     ! some output
-    write (*,*) "number of scf cycles = ", scf_iter
-    write (*,*) "number of bfgs steps = ", bfgs_iter
-    write (*,*) "old energy = ", energy_p
-    write (*,*) "new energy = ", energy
+    write (uout,'("  Number of scf cycles = ",A)') string(scf_iter)
+    write (uout,'("  Number of bfgs steps = ",A)') string(bfgs_iter)
+    if (scf_iter > 1) &
+       write (uout,'("  Old energy = ",A)') string(energy_p,'f',decimal=10)
+    write (uout,'("  New energy = ",A)') string(energy,'f',decimal=10)
 
     ! wolfe conditions
     energy_wolfe_condition = (energy-energy_p) < w_1 * (dot_product(grad_p,step_old)) * trust_radius_old
     if (.not.energy_wolfe_condition .and. scf_iter > 1) then
        ! failed energy condition, keep looking
-       write (*,*) "step not accepted - keep searching"
+       write (uout,'("+ Step not accepted, line search continues")')
        step = step_old
        dE0s = dot_product(grad_p,step) * trust_radius_old
        den = energy - energy_p - dE0s
 
        ! estimate new trust radius by interpolation
        trust_radius = - 0.5d0*dE0s*trust_radius_old / den
-       write (*,*) "new trust radius = ", trust_radius
+       write (uout,'("  Old trust radius = ",A)') string(trust_radius_old,'f',decimal=10)
+       write (uout,'("  New trust radius = ",A)') string(trust_radius,'f',decimal=10)
 
        ! values from the last successful bfgs step are restored
        pos  = pos_p
@@ -1746,13 +1772,14 @@ contains
        grad = grad_p
 
        if (trust_radius < trust_radius_min) then
+          idec = 2 ! l-s,low tr
           ! history reset (at most twice in a row)
-          write (*,*) "trust_radius < trust_radius_min, reset bfgs history"
+          write (uout,'("+ trust_radius < trust_radius_min, resetting BFGS history")')
 
           ! ... if tr_min_hit=1 the history has already been reset at the
           ! ... previous step : something is going wrong
           if ( tr_min_hit == 1 ) then
-             write (*,*) "history already reset at previous step: stopping"
+             write (uout,'("!! BFGS history already reset at previous step: stopping")')
              tr_min_hit = 2
           else
              tr_min_hit = 1
@@ -1766,11 +1793,13 @@ contains
           step = step / nr_step_length
           trust_radius = min(trust_radius_ini, nr_step_length)
        else
+          idec = 1 ! linesearch
           tr_min_hit = 0
        end if
     else
        ! a brave new step
-       write (*,*) "a new step!"
+       idec = 0 ! new step
+       write (uout,'("+ Step accepted")')
        bfgs_iter = bfgs_iter + 1
        if (bfgs_iter > 1) then
           nr_step_length_old = nr_step_length
@@ -1788,7 +1817,7 @@ contains
 
        ! check uphill step condition
        if (dot_product(grad,step) > 0d0) then
-          write (*,*) "uphill step: resetting bfgs history"
+          write (uout,'("!! Uphill step: resetting BFGS history")')
           inv_hess = metric
           call matinv(inv_hess,n)
           step = -matmul(inv_hess,grad)
@@ -1806,15 +1835,27 @@ contains
           call compute_trust_radius(lwolfe,energy,grad,n)
        end if
 
-       write (*,*) "new trust radius = ", trust_radius
+       write (uout,'("  Old trust radius = ",A)') string(trust_radius_old,'f',decimal=10)
+       write (uout,'("  New trust radius = ",A)') string(trust_radius,'f',decimal=10)
     end if
 
     ! check step length
     if (nr_step_length < 1d-16) &
        call ferror("trick_bfgs","step length too low",faterr)
 
+    ! write to the BFGS history
+    nstep = nstep + 1
+    step_tr(nstep) = trust_radius
+    step_ene(nstep) = energy
+    step_de(nstep) = energy_error
+    step_df(nstep) = grad_error
+    step_dc(nstep) = cell_error
+    step_bfgs_it(nstep) = bfgs_iter
+    step_scf_it(nstep) = scf_iter
+    step_idec(nstep) = idec
+
     ! write the bfgs file
-    write (*,*)"+ Writing the BFGS file: ", trim(filebfgs)
+    write (uout,'("+ Writing the BFGS file: ",A)') trim(filebfgs)
     lu =  fopen_write(filebfgs,"unformatted",errstop=.true.)
     write (lu) pos
     write (lu) grad
@@ -1826,29 +1867,78 @@ contains
     write (lu) inv_hess
     write (lu) tr_min_hit
     write (lu) nr_step_length
+    write (lu) nstep
+    write (lu) step_tr
+    write (lu) step_ene
+    write (lu) step_de
+    write (lu) step_df
+    write (lu) step_dc
+    write (lu) step_bfgs_it
+    write (lu) step_scf_it
+    write (lu) step_idec
     call fclose(lu)
 
     ! update positions
     pos = pos + trust_radius * step
-99  continue
     forall(i=1:3,j=1:3) h(i,j) = pos(n-9+j+3*(i-1))
 
-    if (conv_bfgs) then
-       write (*,*) "converged! :D"
-    else
-       write (*,*) "not converged :("
-    end if
-
     ! write the new crystal structure
-    write (*,*) "+ Writing the new geometry file: ", "new_" // trim(filebfgs)
+    write (uout,'("+ Over-writing the geometry file: ",A)') trim(filegeom)
     call c%makeseed(seed,.false.)
     seed%m_x2c = h
     forall (k=0:nat-1,i=1:3) seed%x(i,k+1) = pos(3*k+i)
     call c%struct_new(seed,.true.)
-    call c%write_simple_driver("new_" // filegeom)
+    call c%write_simple_driver(filegeom)
+
+99  continue ! skip here if converged
+
+    ! bfgs history
+    write (uout,*)
+    write (uout,'("+ BFGS history")')
+    write (uout,'("# Energies in Ry, gradients in Ry/bohr, stress in kbar")')
+    write (uout,'("#i bfgs scf step_type trust_radius    energy(Ry)       delta-E     C?   delta-grad  C?   delta-cell  C?")')
+    do i = 1, nstep
+       if (step_idec(i) == 0) then
+          msgsum = " new step "
+       elseif (step_idec(i) == 1) then
+          msgsum = "linesearch"
+       elseif (step_idec(i) == 2) then
+          msgsum = "l-s,low tr"
+       end if
+
+       write (uout,'(99(A,X))') string(i,3,ioj_left), string(step_bfgs_it(i),3,ioj_left), string(step_scf_it(i),3,ioj_left), &
+          msgsum, string(step_tr(i),'f',12,5), string(step_ene(i),'f',17,10),&
+          string(step_de(i),'e',12,5), string(string(step_de(i) < energy_thr),3,ioj_center),&
+          string(step_df(i),'e',12,5), string(string(step_df(i) < grad_thr),3,ioj_center),&
+          string(step_dc(i)*kbarau,'e',12,5), string(string(step_dc(i) < cell_thr),3,ioj_center)
+    end do
+    if (conv_bfgs) then
+       ! last step
+       write (uout,'(99(A,X))') string(nstep+1,3,ioj_left), string(bfgs_iter,3,ioj_left),&
+          string(scf_iter,3,ioj_left), &
+          msgsum, string(trust_radius,'f',12,5), string(energy,'f',17,10),&
+          string(energy_error,'e',12,5), string(string(energy_error < energy_thr),3,ioj_center),&
+          string(grad_error,'e',12,5), string(string(grad_error < grad_thr),3,ioj_center),&
+          string(cell_error*kbarau,'e',12,5), string(string(cell_error < cell_thr),3,ioj_center)
+    end if
+
+    ! summary
+    write (uout,*)
+    write (uout,'("+ Convergence summary")')
+    write (uout,'("  Energy (Ry) = ",A," (thr=",A,")")') string(energy_error,'e',decimal=5), &
+       string(energy_thr,'e',decimal=5)
+    write (uout,'("  Gradient (Ry/bohr) = ",A," (thr=",A,")")') string(grad_error,'e',decimal=5), &
+       string(grad_thr,'e',decimal=5)
+    write (uout,'("  Stress (Ry/bohr^3) = ",A," (thr=",A,")")') string(cell_error*kbarau,'e',decimal=5), &
+       string(cell_thr*kbarau,'e',decimal=5)
+    if (conv_bfgs) then
+       write (uout,'("+ BFGS is CONVERGED")')
+    else
+       write (uout,'("+ BFGS not finished")')
+    end if
 
     ! wrap up
-    write (*,*)
+    write (uout,*)
 
   contains
 
