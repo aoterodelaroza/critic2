@@ -4343,7 +4343,8 @@ contains
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
 
-    character(len=:), allocatable :: wext, wroot
+    character(len=:), allocatable :: wext, wext2, wroot
+    integer :: idx
 
     wext = lower(file(index(file,'.',.true.)+1:))
     wroot = file(:index(file,'.',.true.)-1)
@@ -4355,7 +4356,17 @@ contains
     elseif (equal(wext,'gau')) then
        call c%write_gaussian(file)
     elseif (equal(wext,'in')) then
-       call c%write_espresso(file)
+       idx = index(wroot,'.',.true.)
+       if (idx > 0) then
+          wext2 = lower(wroot(idx+1:))
+          if (equal(wext2,'scf')) then
+             call c%write_espresso(file)
+          else
+             idx = 0
+          end if
+       end if
+       if (idx == 0) &
+            call c%write_fhi(file,.true.)
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        call c%write_vasp(file,.false.)
     elseif (equal(wext,'abin')) then
