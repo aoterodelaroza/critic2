@@ -194,7 +194,7 @@ contains
     character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
     logical :: ok, iok
-    integer :: i
+    integer :: i, j
     real*8, allocatable :: rhoout(:), lapout(:)
 
     ! read the points
@@ -369,11 +369,12 @@ contains
           xout = (xp + sy%c%molx0) * dunit0(iunit)
        end if
        if (nti == 0) then
-          write (luout,'(1x,4(f15.10,x),1p,1(e18.10,x),0p)') &
-             xout, dist, rhoout(i)
+          write (luout,'(99(X,A))') (string(xout(j),'f',18,13),j=1,3),&
+             string(dist,'f',18,13), string(rhoout(i),'e',20,13)
        else
-          write (luout,'(1x,4(f15.10,x),1p,2(e18.10,x),0p)') &
-             xout, dist, rhoout(i), lapout(i)
+          write (luout,'(99(X,A))') (string(xout(j),'f',18,13),j=1,3),&
+             string(dist,'f',18,13), string(rhoout(i),'e',20,13),&
+             string(lapout(i),'e',20,13)
        end if
     end do
     write (luout,*)
