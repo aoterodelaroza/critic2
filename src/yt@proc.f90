@@ -523,7 +523,7 @@ contains
 
   end subroutine yt_weights
 
-  !> Remap the attractors from a yt calculation
+  !> Remap the attractors from a yt calculation for DIs.
   module subroutine yt_remap(s,bas,dat,nattn,ilvec,iatt)
     use types, only: basindat, realloc
     type(system), intent(in) :: s

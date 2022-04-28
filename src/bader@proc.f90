@@ -233,7 +233,7 @@ contains
 
   end subroutine bader_integrate
 
-  !> Remap the attractors from a bader calculation
+  !> Remap the attractors from a bader calculation for DIs.
   module subroutine bader_remap(s,bas,nattn,idg1,ilvec,iatt)
     use types, only: realloc, basindat
     type(system), intent(in) :: s
@@ -261,6 +261,7 @@ contains
        do m2 = 1, bas%n(2)
           do m1 = 1, bas%n(1)
              idg1(m1,m2,m3) = bas%idg(m1,m2,m3)
+
              p = (/m1,m2,m3/)
              x = real(p-1,8) / bas%n - bas%xattr(:,bas%idg(m1,m2,m3))
              xs = x

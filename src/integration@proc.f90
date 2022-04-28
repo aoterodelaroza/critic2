@@ -70,7 +70,7 @@ contains
     real*8, parameter :: ratom_def0 = 1d0
 
     character(len=:), allocatable :: word, jsonfile
-    integer :: n(3), ntot
+    integer :: n(3), ntot, idum
     integer :: lp, lp2
     logical :: ok, nonnm, noatoms
     real*8 :: ratom_def
@@ -104,6 +104,8 @@ contains
     lp = 1
     word = lgetword(line,lp)
     bas%higher = .true.
+    allocate(bas%docelatom(0:sy%f(sy%iref)%ncpcel))
+    bas%docelatom = .true.
     if (equal(word,"yt")) then
        bas%imtype = imtype_yt
     elseif (equal(word,"bader")) then
@@ -176,6 +178,21 @@ contains
              call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,"only")) then
+          bas%docelatom = .false.
+          do while (.true.)
+             lp2 = lp
+             ok = isinteger(idum,line,lp)
+             if (.not.ok) then
+                lp = lp2
+                exit
+             end if
+             if (idum < 0 .or. idum > sy%f(sy%iref)%ncpcel) then
+                call ferror("intgrid_driver","Invalid complete CP list nuclear ID",faterr,line,syntax=.true.)
+                return
+             end if
+             bas%docelatom(idum) = .true.
+          end do
        elseif (equal(word,"json") .and. bas%imtype /= imtype_isosurface) then
           jsonfile = getword(line,lp)
           if (len_trim(jsonfile) == 0) then
@@ -823,6 +840,7 @@ contains
        ! Table rows
        sump = 0d0
        do i = 1, bas%nattr
+          if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),usesym,scp,sncp,sname,smult,sz)
           if (bas%icp(i) > 0 .and. usesym) then
              xmult = sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(bas%icp(i))%idx)%mult
@@ -898,6 +916,7 @@ contains
              if (k == sy%c%nmol+1 .and. all(idxmol > 0)) cycle
              sump = 0d0
              do i = 1, bas%nattr
+                if (.not.bas%docelatom(bas%icp(i))) cycle
                 if (idxmol(1,i) /= mod(k,sy%c%nmol+1)) cycle
                 ! add to the sum
                 if (bas%icp(i) > 0 .and. usesym) then
@@ -1102,6 +1121,7 @@ contains
           ! compute weights and integrate the scalar field properties
           !$omp parallel do private(padd) firstprivate(w)
           do i = 1, bas%nattr
+             if (.not.bas%docelatom(bas%icp(i))) cycle
              if (bas%imtype == imtype_yt) then
                 call yt_weights(din=dat,idb=i,w=w)
              end if
@@ -1188,6 +1208,7 @@ contains
              ! compute weights and integrate the scalar field properties
              !$omp parallel do private(padd) firstprivate(w)
              do i = 1, bas%nattr
+                if (.not.bas%docelatom(bas%icp(i))) cycle
                 if (bas%imtype == imtype_yt) then
                    call yt_weights(din=dat,idb=i,w=w)
                 end if
@@ -1240,6 +1261,7 @@ contains
                 w = 0d0
                 !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm)
                 do m = 1, bas%nattr
+                   if (.not.bas%docelatom(bas%icp(i))) cycle
                    call yt_weights(din=dat,idb=m,w=w)
                    do i1 = 1, bas%n(1)
                       do i2 = 1, bas%n(2)
@@ -1545,8 +1567,8 @@ contains
 
              ! calculate overlaps
              write (uout,'(99(A,X))') "# Calculating overlaps..."
-             call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,ilvec,&
-                idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
+             call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,&
+                bas%docelatom,ilvec,idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
 
              ! close the rotated evc scratch files
              if (luevc(1) >= 0) call fclose(luevc(1))
@@ -1555,7 +1577,8 @@ contains
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              !!! using bloch functions !!!
              write (uout,'(99(A,X))') "# Calculating overlaps..."
-             call calc_sij_psink(fid,bas%imtype,nattn,iatt,ilvec,idg1,bas%xattr,dat,res(l)%sijc)
+             call calc_sij_psink(fid,bas%imtype,nattn,iatt,bas%docelatom,ilvec,idg1,bas%xattr,&
+                dat,res(l)%sijc)
 
           end if
           deallocate(iatt,ilvec)
@@ -1729,7 +1752,7 @@ contains
   !> to attractors in Bader, xattr = attractor position, dat = YT data
   !> type. luevc are the two scratch files for the rotated evc and
   !> luevc_ibnd are the band pointers in those files.
-  subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
+  subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,doatcel,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
@@ -1741,6 +1764,7 @@ contains
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
+    logical, intent(in) :: doatcel(0:)
     integer, intent(in) :: ilvec(3,natt1)
     integer, intent(in), allocatable :: idg1(:,:,:)
     real*8, intent(in) :: xattr(:,:)
@@ -1843,6 +1867,7 @@ contains
 
                       psic = conjg(f1(:,:,:,ilata)) * f2(:,:,:,ilatb)
                       do i = 1, natt1
+                         if (.not.doatcel(iatt(i))) cycle
                          padd = sum(psic,idg1==i)
                          call packidx(ia-ilvec(1,i),ja-ilvec(2,i),ka-ilvec(3,i),iba,imo1,nmo,nbnd,nwan)
                          call packidx(ib-ilvec(1,i),jb-ilvec(2,i),kb-ilvec(3,i),ibb,jmo1,nmo,nbnd,nwan)
@@ -1866,6 +1891,7 @@ contains
                 !$omp parallel do private(p,x,xs,d2,ia,ja,ka,iba,ib,jb,kb,ibb,padd,imo1,jmo1,ilata,ilatb)&
                 !$omp firstprivate(psic,psic2,w,wmask)
                 do i = 1, natt1
+                   if (.not.doatcel(iatt(i))) cycle
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
                    do m3 = 1, n(3)
@@ -1938,7 +1964,7 @@ contains
   !> with natt1 remapped attractors, iatt = attractor mapping, ilvec =
   !> attractor lattice vector, idg1 = grid assignment to attractors in
   !> Bader, xattr = attractor position, dat = YT data type.
-  subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
+  subroutine calc_sij_psink(fid,imtype,natt1,iatt,doatcel,ilvec,idg1,xattr,dat,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
@@ -1949,6 +1975,7 @@ contains
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
+    logical, intent(in) :: doatcel(0:)
     integer, intent(in) :: ilvec(3,natt1)
     integer, intent(in) :: idg1(:,:,:)
     real*8, intent(in) :: xattr(:,:)
@@ -2049,14 +2076,17 @@ contains
 
              if (imtype == imtype_bader) then
                 do i = 1, natt1
-                   sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + &
-                      sum(psic,idg1==i) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   if (doatcel(iatt(i))) then
+                      sij(imo1,imo2,iatt(i),is) = sij(imo1,imo2,iatt(i),is) + &
+                         sum(psic,idg1==i) * exp(tpi*img*(kdif(1)*ilvec(1,i)+kdif(2)*ilvec(2,i)+kdif(3)*ilvec(3,i)))
+                   end if
                 end do ! natt1
              else
                 ! yt integration
                 w = 0d0
                 wmask = .false.
                 do i = 1, natt1
+                   if (.not.doatcel(iatt(i))) cycle
                    call yt_weights(din=dat,idb=iatt(i),w=w)
                    wmask = .false.
                    do m3 = 1, n(3)
@@ -2436,6 +2466,7 @@ contains
 
           ! body
           do j = 1, bas%nattr
+             if (.not.bas%docelatom(bas%icp(i))) cycle
              call assign_strings(j,bas%icp(j),.false.,scp,sncp,sname,smult,sz)
              write (uout,'(2X,99(A,X))') &
                 string(j,4,ioj_left), scp, sncp, sname, sz, &
@@ -2507,6 +2538,7 @@ contains
        write (uout,'("+ Localization indices")')
        write (uout,'("# Id   cp   ncp   Name  Z       LI(A)           N(A)")')
        do i = 1, natt
+          if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           xli = sum(abs(res(l)%fa(i,i,1,:))) * fspin
           xnn = sum(abs(res(l)%fa(i,:,:,:))) * fspin
@@ -2534,6 +2566,7 @@ contains
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
        do i = 1, natt
+          if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
@@ -2568,6 +2601,7 @@ contains
           asum = 0d0
           do m = 1, natt*nlattot
              j = io(m)
+             if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              if (dist(j) < 1d-5) then
                 write (uout,'(2X,"Localization index",71("."),A)') string(diout(j),'f',12,8,4)
                 asum = asum + diout(j)
@@ -2607,6 +2641,7 @@ contains
           limol = 0d0
           namol = 0d0
           do i = 1, natt
+             if (.not.bas%docelatom(bas%icp(i))) cycle
              ia = idxmol(1,i)
              if (ia == 0) cycle
              limol(ia) = limol(ia) + sum(abs(res(l)%fa(i,i,1,:))) * fspin
@@ -2619,6 +2654,7 @@ contains
                    do kc = 0, nlat(3)-1
                       k = k + 1
                       do j = 1, natt
+                         if (.not.bas%docelatom(bas%icp(j))) cycle
                          m = m + 1
                          if (idxmol(1,j) == 0) cycle
                          if (i == j .and. k == 1) cycle

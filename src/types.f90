@@ -244,6 +244,7 @@ module types
      character*3 :: basinfmt ! draw basin format (obj, ply, off)
      character(len=:), allocatable :: expr ! discard attractor expression
      logical :: wcube ! write weight cubes
+     logical, allocatable :: docelatom(:) ! whether to integrate an atom from the complete cell
      ! isosurface options
      logical :: higher ! higher/lower
      real*8 :: isov ! contour level for the isosurface integration
