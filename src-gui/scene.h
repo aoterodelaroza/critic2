@@ -36,6 +36,7 @@ struct Scene{
 
   // from critic2
   bool ismolecule; // true if this is a molecular system, false if crystal
+  bool ismol3d; // true if this is a molecular crystal
   float scenerad; // scene radius
   float avec[3][3];
 

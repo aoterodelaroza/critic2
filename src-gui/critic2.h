@@ -23,8 +23,8 @@ namespace c2 {
 
   // routines
   extern "C" void gui_initialize();
-  extern "C" int open_file(const char **filename, int ismolecule); 
-  extern "C" void scene_initialize(int isc); 
+  extern "C" int open_file(const char **filename, int ismolecule);
+  extern "C" void scene_initialize(int isc);
   extern "C" void set_scene_pointers(int isc);
   extern "C" void scene_set_reference_field(int isc,int iref);
   extern "C" void gui_end();
@@ -63,6 +63,7 @@ namespace c2 {
 
   extern "C" float *avec[3];
   extern "C" int ismolecule;
+  extern "C" int ismol3d;
   extern "C" float *molx0;
   extern "C" float *molborder;
 }

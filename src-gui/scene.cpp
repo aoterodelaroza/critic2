@@ -77,6 +77,7 @@ void Scene::usetext(){
 void Scene::grabFromC2(){
   c2::set_scene_pointers(iscene);
   ismolecule = c2::ismolecule;
+  ismol3d = c2::ismol3d;
   scenerad = c2::scenerad;
   for (int i=0; i<=2; i++)
     for (int j=0; j<=2; j++)
@@ -86,7 +87,7 @@ void Scene::grabFromC2(){
 void Scene::setDefaults(){
   isucell = (iscene > 0 && !ismolecule);
   ismolcell = (iscene > 0 && ismolecule);
-  isborder = (iscene > 0 && !ismolecule);
+  isborder = (iscene > 0 && !ismolecule && !ismol3d);
   ismotif = (iscene > 0 && !ismolecule);
   ncell[0] = ncell[1] = ncell[2] = 1;
 

@@ -62,6 +62,7 @@ module gui_interface
      real(c_float) :: srad ! radius of the encompassing sphere
 
      logical(c_bool) :: ismolecule ! is this a molecule?
+     logical(c_bool) :: ismol3d ! is this a molecular crystal?
 
      integer(c_int) :: nf ! number of fields
      character(kind=c_char,len=1), allocatable :: fieldname(:,:) !< name of the fields
@@ -122,6 +123,7 @@ module gui_interface
   real(c_float), bind(c) :: scenerad ! (srad, radius of the encompassing sphere)
 
   integer(c_int), bind(c) :: ismolecule
+  integer(c_int), bind(c) :: ismol3d
 
   integer(c_int), bind(c) :: nf
   integer(c_int), bind(c) :: iref ! Current reference field for this system
@@ -311,7 +313,7 @@ contains
           sc(isc)%at(i)%rgb(4) = 1.0
        else
           sc(isc)%at(i)%rad = real(0.4d0,c_float)
-          sc(isc)%at(i)%rgb(1:3) = (/1d0,0.4314d0,0.7059d0/) ! hotpink1
+          sc(isc)%at(i)%rgb(1:3) = (/1.,0.4314,0.7059/) ! hotpink1
           sc(isc)%at(i)%rgb(4) = 1.0
        end if
     end do
@@ -360,6 +362,7 @@ contains
     ! lattice vectors
     sc(isc)%avec = real(sc(isc)%sy%c%m_x2c,c_float)
     sc(isc)%ismolecule = sc(isc)%sy%c%ismolecule
+    sc(isc)%ismol3d = sc(isc)%sy%c%ismol3d
     sc(isc)%molx0 = real(sc(isc)%sy%c%molx0,c_float)
     sc(isc)%molborder = real(sc(isc)%sy%c%molborder,c_float)
 
@@ -432,6 +435,11 @@ contains
        ismolecule = 1
     else
        ismolecule = 0
+    end if
+    if (sc(isc)%ismol3d) then
+       ismol3d = 1
+    else
+       ismol3d = 0
     end if
     molx0 = c_loc(sc(isc)%molx0)
     molborder = c_loc(sc(isc)%molborder)

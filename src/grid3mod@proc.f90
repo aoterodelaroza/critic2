@@ -2424,6 +2424,7 @@ contains
 
   !> Testing
   module subroutine grinterp_test(f,xi,y,yp,ypp,i0ref)
+    use tools_io, only: string
     use types, only: realloc
     use param, only: icrd_crys
     class(grid3), intent(inout), target :: f !< Input grid
@@ -2433,14 +2434,23 @@ contains
     real*8, intent(out) :: ypp(3,3) !< Second derivative
     integer, intent(inout), optional :: i0ref(3)
 
-    integer :: i
+    integer :: i, j, k
     real*8 :: x1(3), xh(3)
     integer :: i0(3), ih(3)
     real*8 :: d, dd, ff, fp, fpp
     real*8, allocatable :: flist(:), w(:), f0list(:)
     real*8 :: yb, ypb(3), yppb(3,3)
-    real*8 :: y0, yp0(3), ypp0(3,3)
-    real*8 :: y0m, ybm
+    real*8 :: ypro, yppro(3), ypppro(3,3)
+    real*8 :: y1, yp1(3), ypp1(3,3)
+    real*8 :: yprom, ybm
+    ! xxxx
+    integer, allocatable :: i0list(:,:), eid(:)
+    real*8, allocatable :: dist(:), wei(:), weip(:), weipp(:)
+    real*8, allocatable :: ys(:), ysp(:,:), yspp(:,:,:)
+    real*8, allocatable :: q(:), qp(:,:), qpp(:,:,:)
+    real*8 :: u, up(3), upp(3,3)
+    real*8 :: x0(3), dfin, swei, sweip(3), sweipp(3,3)
+    integer :: nat, ierr, lvec(3), ii0
 
     !$omp critical (checkalloc)
     if (.not.allocated(f%test_ilist)) then
@@ -2451,89 +2461,175 @@ contains
     ! reserve memory
     allocate(flist(f%test_nlist+4),w(f%test_nlist+4),f0list(f%test_nlist+4))
 
-    ! locate the nearest grid point
-    i0 = euclidean_near(f,xi,main=.false.,shift=.false.)
-
-    ! maybe we have been given a reference...
-    if (present(i0ref)) then
-       if (all(i0ref >= 0)) then
-          ih = i0ref
-          i0ref = modulo(i0,f%n)
-          i0 = ih + (i0 - modulo(i0,f%n))
-       else
-          i0ref = modulo(i0,f%n)
-       end if
-    end if
-
-    ! get the values at the grid points
-    do i = 1, f%test_nlist
-       ih = i0 + f%test_ilist(:,i)
-       ih = modulo(ih,f%n) + 1
-       flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),1d-40)/max(f%test_rho0(ih(1),ih(2),ih(3),0),1d-40))
+    ! calculate the contributing grid nodes and weights
+    dfin = 1d0 * f%dmax
+    x0 = (xi - floor(xi)) * f%n
+    call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2d=dfin)
+    allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
+    do i = 1, nat
+       i0list(:,i) = nint(f%env%xr2x(f%env%at(eid(i))%x) + lvec)
+       call weifun(dist(i),dfin,wei(i),weip(i),weipp(i))
     end do
-    flist(f%test_nlist+1:) = 0d0
 
-    ! solve the system of equations
-    w = matmul(f%test_phiinv,flist)
+    ! run the interpolations
+    allocate(ys(nat),ysp(3,nat),yspp(3,3,nat))
+    allocate(q(nat),qp(3,nat),qpp(3,3,nat))
+    ys = 0d0
+    ysp = 0d0
+    yspp = 0d0
+    do ii0 = 1, nat
+       ! the grid point
+       i0 = i0list(:,ii0)
 
-    ! sum the contributions
-    x1 = matmul(f%x2cg,xi * f%n - i0)
+       ! get the rho/rho0 values at the grid points
+       do i = 1, f%test_nlist
+          ih = i0 + f%test_ilist(:,i)
+          ih = modulo(ih,f%n) + 1
+          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),1d-40)/max(f%test_rho0(ih(1),ih(2),ih(3),0),1d-40))
+       end do
+       flist(f%test_nlist+1:) = 0d0
+
+       ! solve the system of equations
+       w = matmul(f%test_phiinv,flist)
+
+       ! calculate the rho/rho0 interpolation
+       x1 = matmul(f%x2cg,xi * f%n - i0)
+       y1 = 0d0
+       yp1 = 0d0
+       ypp1 = 0d0
+       do i = 1, f%test_nlist
+          xh = x1 - f%test_xlist(:,i)
+          dd = dot_product(xh,xh)
+          d = max(sqrt(dd),1d-40)
+
+          call test_kernelfun(d,test_kkern,ff,fp,fpp)
+          y1 = y1 + w(i) * ff
+          yp1 = yp1 + w(i) * fp * xh / d
+          ypp1(1,1) = ypp1(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
+          ypp1(2,2) = ypp1(2,2) + w(i) * (fpp * (xh(2)/d)**2 + fp * (1/d - xh(2)**2/d**3))
+          ypp1(3,3) = ypp1(3,3) + w(i) * (fpp * (xh(3)/d)**2 + fp * (1/d - xh(3)**2/d**3))
+          ypp1(1,2) = ypp1(1,2) + w(i) * (fpp * (xh(1)*xh(2)/d**2) - fp * xh(1)*xh(2)/d**3)
+          ypp1(1,3) = ypp1(1,3) + w(i) * (fpp * (xh(1)*xh(3)/d**2) - fp * xh(1)*xh(3)/d**3)
+          ypp1(2,3) = ypp1(2,3) + w(i) * (fpp * (xh(2)*xh(3)/d**2) - fp * xh(2)*xh(3)/d**3)
+          ypp1(2,1) = ypp1(1,2)
+          ypp1(3,1) = ypp1(1,3)
+          ypp1(3,2) = ypp1(2,3)
+          ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
+       end do
+       y1 = y1 + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
+       yp1(1) = yp1(1) + w(f%test_nlist+2)
+       yp1(2) = yp1(2) + w(f%test_nlist+3)
+       yp1(3) = yp1(3) + w(f%test_nlist+4)
+
+       ! the promolecular density & derivatives
+       call f%atenv%promolecular(xi,icrd_crys,ypro,yppro,ypppro,2)
+
+       ! unroll the smoothing function
+       if (ypro < 1d-40 .or. y > 100d0) then
+          yb = 0d0
+          ypb = 0d0
+          yppb = 0d0
+       else
+          yb = exp(y1) * ypro
+          yprom = max(ypro,1d-40)
+          ybm = max(yb,1d-40)
+
+          ypb(1) = yb * (yp1(1) + yppro(1) / yprom)
+          ypb(2) = yb * (yp1(2) + yppro(2) / yprom)
+          ypb(3) = yb * (yp1(3) + yppro(3) / yprom)
+          yppb = 0d0
+          yppb(1,1) = yb * (ypp1(1,1) + ypb(1)*ypb(1) / (ybm*ybm) + ypppro(1,1) / yprom - yppro(1)*yppro(1)/(yprom*yprom))
+          yppb(1,2) = yb * (ypp1(1,2) + ypb(1)*ypb(2) / (ybm*ybm) + ypppro(1,2) / yprom - yppro(1)*yppro(2)/(yprom*yprom))
+          yppb(1,3) = yb * (ypp1(1,3) + ypb(1)*ypb(3) / (ybm*ybm) + ypppro(1,3) / yprom - yppro(1)*yppro(3)/(yprom*yprom))
+          yppb(2,2) = yb * (ypp1(2,2) + ypb(2)*ypb(2) / (ybm*ybm) + ypppro(2,2) / yprom - yppro(2)*yppro(2)/(yprom*yprom))
+          yppb(2,3) = yb * (ypp1(2,3) + ypb(2)*ypb(3) / (ybm*ybm) + ypppro(2,3) / yprom - yppro(2)*yppro(3)/(yprom*yprom))
+          yppb(3,3) = yb * (ypp1(3,3) + ypb(3)*ypb(3) / (ybm*ybm) + ypppro(3,3) / yprom - yppro(3)*yppro(3)/(yprom*yprom))
+          yppb(2,1) = yppb(1,2)
+          yppb(3,1) = yppb(1,3)
+          yppb(3,2) = yppb(2,3)
+       end if
+
+       ! save these values for later
+       ys(ii0) = yb
+       ysp(:,ii0) = ypb
+       yspp(:,:,ii0) = yppb
+
+       ! weights and derivatives
+       d = max(dist(ii0),1d-80)
+       dd = d * d
+       q(ii0) = wei(ii0)
+       qp(:,ii0) = weip(ii0) * x1 / d
+       qpp(1,1,ii0) = weip(ii0) / d + x1(1)*x1(1) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(2,2,ii0) = weip(ii0) / d + x1(2)*x1(2) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(3,3,ii0) = weip(ii0) / d + x1(3)*x1(3) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(1,2,ii0) = x1(1)*x1(2) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(1,3,ii0) = x1(1)*x1(3) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(2,3,ii0) = x1(2)*x1(3) / dd * (weipp(ii0) - weip(ii0) / d)
+       qpp(2,1,ii0) = qpp(1,2,ii0)
+       qpp(3,1,ii0) = qpp(1,3,ii0)
+       qpp(3,2,ii0) = qpp(2,3,ii0)
+    end do
+
+    ! sums of weights
+    swei = sum(q)
+    do i = 1, 3
+       sweip(i) = sum(qp(i,:))
+       do j = 1, 3
+          sweipp(i,j) = sum(qpp(i,j,:))
+       end do
+    end do
+
+    ! put everything together
     y = 0d0
     yp = 0d0
     ypp = 0d0
-    do i = 1, f%test_nlist
-       xh = x1 - f%test_xlist(:,i)
-       dd = dot_product(xh,xh)
-       d = max(sqrt(dd),1d-40)
+    do i = 1, nat
+       u = wei(i) / swei
+       up(1) = qp(1,i) / swei - u * sweip(1)
+       up(2) = qp(2,i) / swei - u * sweip(2)
+       up(3) = qp(3,i) / swei - u * sweip(3)
 
-       call test_kernelfun(d,test_kkern,ff,fp,fpp)
-       y = y + w(i) * ff
-       yp = yp + w(i) * fp * xh / d
-       ypp(1,1) = ypp(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
-       ypp(2,2) = ypp(2,2) + w(i) * (fpp * (xh(2)/d)**2 + fp * (1/d - xh(2)**2/d**3))
-       ypp(3,3) = ypp(3,3) + w(i) * (fpp * (xh(3)/d)**2 + fp * (1/d - xh(3)**2/d**3))
-       ypp(1,2) = ypp(1,2) + w(i) * (fpp * (xh(1)*xh(2)/d**2) - fp * xh(1)*xh(2)/d**3)
-       ypp(1,3) = ypp(1,3) + w(i) * (fpp * (xh(1)*xh(3)/d**2) - fp * xh(1)*xh(3)/d**3)
-       ypp(2,3) = ypp(2,3) + w(i) * (fpp * (xh(2)*xh(3)/d**2) - fp * xh(2)*xh(3)/d**3)
-       ypp(2,1) = ypp(1,2)
-       ypp(3,1) = ypp(1,3)
-       ypp(3,2) = ypp(2,3)
-       ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
+       do j = 1, 3
+          do k = j, 3
+             upp(j,k) = qpp(j,k,i) / swei - qp(j,i) * sweip(k) / swei - up(k) * sweip(j) / swei - &
+                q(i) * (sweipp(j,k) / swei - sweip(j) * sweip(k) / swei**2)
+             upp(k,j) = upp(j,k)
+          end do
+       end do
+
+       y = y + u * ys(i)
+       yp = yp + up * ys(i) + u * ysp(:,i)
+       do j = 1, 3
+          do k = j, 3
+             ypp(j,k) = ypp(j,k) + upp(j,k) * ys(i) + up(j) * ysp(k,i) + up(k) * ysp(j,i) + u * yspp(j,k,i)
+             ypp(k,j) = ypp(k,j)
+          end do
+       end do
     end do
-    y = y + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
-    yp(1) = yp(1) + w(f%test_nlist+2)
-    yp(2) = yp(2) + w(f%test_nlist+3)
-    yp(3) = yp(3) + w(f%test_nlist+4)
 
-    call f%atenv%promolecular(xi,icrd_crys,y0,yp0,ypp0,2)
+  contains
+    subroutine weifun(x,a,w,wp,wpp)
+      real*8, intent(in) :: x, a
+      real*8, intent(out) :: w, wp, wpp
 
-    if (y0 < 1d-40 .or. y > 100d0) then
-       yb = 0d0
-       ypb = 0d0
-       yppb = 0d0
-    else
-       yb = exp(y) * y0
-       y0m = max(y0,1d-40)
-       ybm = max(yb,1d-40)
+      real*8 :: x7, x4, x3, x2, a3, arg, denom1, denom2
 
-       ypb(1) = yb * (yp(1) + yp0(1) / y0m)
-       ypb(2) = yb * (yp(2) + yp0(2) / y0m)
-       ypb(3) = yb * (yp(3) + yp0(3) / y0m)
-       yppb = 0d0
-       yppb(1,1) = yb * (ypp(1,1) + ypb(1)*ypb(1) / (ybm*ybm) + ypp0(1,1) / y0m - yp0(1)*yp0(1)/(y0m*y0m))
-       yppb(1,2) = yb * (ypp(1,2) + ypb(1)*ypb(2) / (ybm*ybm) + ypp0(1,2) / y0m - yp0(1)*yp0(2)/(y0m*y0m))
-       yppb(1,3) = yb * (ypp(1,3) + ypb(1)*ypb(3) / (ybm*ybm) + ypp0(1,3) / y0m - yp0(1)*yp0(3)/(y0m*y0m))
-       yppb(2,2) = yb * (ypp(2,2) + ypb(2)*ypb(2) / (ybm*ybm) + ypp0(2,2) / y0m - yp0(2)*yp0(2)/(y0m*y0m))
-       yppb(2,3) = yb * (ypp(2,3) + ypb(2)*ypb(3) / (ybm*ybm) + ypp0(2,3) / y0m - yp0(2)*yp0(3)/(y0m*y0m))
-       yppb(3,3) = yb * (ypp(3,3) + ypb(3)*ypb(3) / (ybm*ybm) + ypp0(3,3) / y0m - yp0(3)*yp0(3)/(y0m*y0m))
-       yppb(2,1) = yppb(1,2)
-       yppb(3,1) = yppb(1,3)
-       yppb(3,2) = yppb(2,3)
-    end if
+      if (x > a - 1d-14) then ! good bc goes to zero pretty quickly
+         w = 0d0
+      else
+         x2 = x * x
+         x3 = x2 * x
+         x4 = x3 * x
+         x7 = x4 * x3
+         a3 = a*a*a
+         denom2 = 1d0 / (x3 - a3)
+         denom1 = denom2 / a3
+         w = exp(x3 * denom1)
+         wp = -3d0 * x2 * denom1 * a3 * denom2 * w
+         wpp = -3d0 * x2 * denom1 * a3 * denom2 * wp + (6d0 * x - 24d0 * x4 * denom2 + 18d0 * x7 * denom2*denom2) * denom1 * w
+      end if
 
-    y = yb
-    yp = ypb
-    ypp = yppb
+    end subroutine weifun
 
   end subroutine grinterp_test
 
