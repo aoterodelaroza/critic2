@@ -1847,15 +1847,17 @@ contains
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
-    integer :: hmax
+    logical :: again
     integer, allocatable :: multp(:)
     integer, allocatable :: io(:)
+    real*8, allocatable :: isum(:)
 
     integer, parameter :: mp = 20
     real*8, parameter :: ieps = 1d-5
     real*8, parameter :: theps = 1d-5
     real*8, parameter :: iepscont = 1d-10
     real*8, parameter :: intmax = 1d15
+    real*8, parameter :: ihagain = 1d-10
 
     ! calculate tshift
     if (.not.ishard) then
@@ -1868,7 +1870,7 @@ contains
     ! prepare the grid limits
     if (allocated(t)) deallocate(t)
     if (allocated(ih)) deallocate(ih)
-    allocate(t(npts),ih(npts))
+    allocate(t(npts),ih(npts),isum(npts))
     do i = 1, npts
        t(i) = th2ini0 + real(i-1,8) / real(npts-1,8) * (th2end0-th2ini0)
     end do
@@ -1885,13 +1887,16 @@ contains
     ! cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
     smax = sin((th2end+tshift)/2d0)
-    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
     ! broadening -> gaussian
     sigma2 = sigma * sigma
 
     ! calculate the intensities
     np = 0
-    do hcell = 1, hmax
+    hcell = 0
+    again = .true.
+    do while (again)
+       hcell = hcell + 1
+       again = .false.
        do h = -hcell, hcell
           do k = -hcell, hcell
              do l = -hcell, hcell
@@ -1962,7 +1967,9 @@ contains
                 ! sum the peak
                 if (int > ieps) then
                    ! use a gaussian profile, add the intensity
-                   ih = ih + int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
+                   isum = int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
+                   if (any(isum > ihagain)) again = .true.
+                   ih = ih + isum
 
                    ! identify the new peak
                    if (th2 > th2ini .and. th2 < th2end) then
