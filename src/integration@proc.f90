@@ -1261,7 +1261,7 @@ contains
                 w = 0d0
                 !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm)
                 do m = 1, bas%nattr
-                   if (.not.bas%docelatom(bas%icp(i))) cycle
+                   if (.not.bas%docelatom(bas%icp(m))) cycle
                    call yt_weights(din=dat,idb=m,w=w)
                    do i1 = 1, bas%n(1)
                       do i2 = 1, bas%n(2)
