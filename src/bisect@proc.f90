@@ -961,7 +961,8 @@ contains
     allocate(atprop(sy%npropi,n))
     atprop = 0d0
     bas%nattr = n
-    allocate(res(sy%npropi),bas%icp(bas%nattr),bas%xattr(3,bas%nattr))
+    allocate(res(sy%npropi),bas%icp(bas%nattr),bas%xattr(3,bas%nattr),bas%docelatom(0:sy%f(sy%iref)%ncpcel))
+    bas%docelatom = .true.
     do i = 1, sy%npropi
        res(i)%done = .true.
        res(i)%reason = ""
@@ -1011,7 +1012,7 @@ contains
 
     call int_output_header(bas,res,.true.,.true.)
     call int_output_fields(bas,res,.true.,.true.)
-    deallocate(bas%icp,bas%xattr,res)
+    deallocate(bas%icp,bas%xattr,bas%docelatom,res)
 
     ! Cleanup files
     if (allocated(intfile)) deallocate(intfile)

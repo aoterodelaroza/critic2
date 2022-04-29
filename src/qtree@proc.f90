@@ -862,7 +862,8 @@ contains
 
     ! output the results
     bas%nattr = nnuc
-    allocate(bas%icp(nnuc),bas%xattr(3,nnuc))
+    allocate(bas%icp(nnuc),bas%xattr(3,nnuc),bas%docelatom(0:sy%f(sy%iref)%ncpcel))
+    bas%docelatom = .true.
     k = 0
     do i = 1, nnuc
        k = k + 1
@@ -880,7 +881,7 @@ contains
 
     call int_output_header(bas,res,.true.,.true.)
     call int_output_fields(bas,res,.true.,.true.)
-    deallocate(bas%icp,bas%xattr,res)
+    deallocate(bas%icp,bas%xattr,bas%docelatom,res)
 
     ! clean up
     if (.not.quiet) call tictac("End QTREE")
