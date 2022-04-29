@@ -1847,6 +1847,7 @@ contains
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
+    integer :: hmax
     logical :: again
     integer, allocatable :: multp(:)
     integer, allocatable :: io(:)
@@ -1887,6 +1888,7 @@ contains
     ! cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
     smax = sin((th2end+tshift)/2d0)
+    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
     ! broadening -> gaussian
     sigma2 = sigma * sigma
 
@@ -1896,7 +1898,7 @@ contains
     again = .true.
     do while (again)
        hcell = hcell + 1
-       again = .false.
+       again = (hcell <= hmax)
        do h = -hcell, hcell
           do k = -hcell, hcell
              do l = -hcell, hcell
