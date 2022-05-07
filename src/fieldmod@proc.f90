@@ -1255,6 +1255,8 @@ contains
        n = f%grid%n
        if (isload) then
           write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
+          write (uout,'("  Step lengths (short/long in ",A,"):  ",2(A,2X))') iunitname0(iunit), &
+             string(f%grid%dmin*dunit0(iunit),'f',decimal=5), string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
           write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
           write (uout,'("  Last elements... ",3(A,2X))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
