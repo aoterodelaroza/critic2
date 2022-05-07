@@ -2462,7 +2462,7 @@ contains
     allocate(flist(f%test_nlist+4),w(f%test_nlist+4),f0list(f%test_nlist+4))
 
     ! calculate the contributing grid nodes and weights
-    dfin = 1d0 * f%dmax
+    dfin = 2d0 * f%dmax
     x0 = (xi - floor(xi)) * f%n
     call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2d=dfin)
     allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
@@ -2514,7 +2514,6 @@ contains
           ypp1(2,1) = ypp1(1,2)
           ypp1(3,1) = ypp1(1,3)
           ypp1(3,2) = ypp1(2,3)
-          ! write (*,'("xx ",7(I4,X),1p,4(E20.12,X))') i, i0, f%test_ilist(:,i), d, w(i), ff, w(i)*ff
        end do
        y1 = y1 + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
        yp1(1) = yp1(1) + w(f%test_nlist+2)
@@ -2585,14 +2584,14 @@ contains
     ypp = 0d0
     do i = 1, nat
        u = wei(i) / swei
-       up(1) = qp(1,i) / swei - u * sweip(1)
-       up(2) = qp(2,i) / swei - u * sweip(2)
-       up(3) = qp(3,i) / swei - u * sweip(3)
+       up(1) = (qp(1,i) - u * sweip(1)) / swei
+       up(2) = (qp(2,i) - u * sweip(2)) / swei
+       up(3) = (qp(3,i) - u * sweip(3)) / swei
 
        do j = 1, 3
           do k = j, 3
-             upp(j,k) = qpp(j,k,i) / swei - qp(j,i) * sweip(k) / swei - up(k) * sweip(j) / swei - &
-                q(i) * (sweipp(j,k) / swei - sweip(j) * sweip(k) / swei**2)
+             upp(j,k) = qpp(j,k,i) / swei - qp(j,i) * sweip(k) / swei**2 - up(k) * sweip(j) / swei - &
+                u * (sweipp(j,k) / swei - sweip(j) * sweip(k) / swei**2)
              upp(k,j) = upp(j,k)
           end do
        end do
@@ -2602,7 +2601,7 @@ contains
        do j = 1, 3
           do k = j, 3
              ypp(j,k) = ypp(j,k) + upp(j,k) * ys(i) + up(j) * ysp(k,i) + up(k) * ysp(j,i) + u * yspp(j,k,i)
-             ypp(k,j) = ypp(k,j)
+             ypp(k,j) = ypp(j,k)
           end do
        end do
     end do
