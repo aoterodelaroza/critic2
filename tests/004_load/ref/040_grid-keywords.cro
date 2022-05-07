@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Grid dimensions : 30  30  81
+  Step lengths (short/long in bohr):  0.15471  0.15622
   First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
   Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
   Sum of elements... 4.941377519400E+03

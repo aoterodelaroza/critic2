@@ -2,6 +2,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.RHO
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03
   Sum of elements... 8.329161614450E+02
@@ -24,6 +25,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.BADER
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03
   Sum of elements... 1.249403708768E+03
@@ -44,6 +46,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.DRHO
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... 5.193233373575E-04  3.967091906816E-04  -9.717827197164E-05
   Last elements... -1.068929675967E-03  -1.201182531076E-04  3.740648389794E-04
   Sum of elements... 1.354547084702E-04
@@ -64,6 +67,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.LDOS
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... 1.812965492718E-03  2.123341429979E-03  3.134407103062E-03
   Last elements... 4.949633497745E-03  3.052817657590E-03  2.089084591717E-03
   Sum of elements... 1.053996685417E+02
@@ -84,6 +88,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.VT
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... -4.014695882797E-01  -4.284884035587E-01  -5.134969949722E-01
   Last elements... -6.419344544411E-01  -5.050554871559E-01  -4.250424206257E-01
   Sum of elements... -1.737186430359E+04
@@ -104,6 +109,7 @@
   Source: ../zz_source/siesta-4.1/graphite/crystal.VH
   Type: grid
   Grid dimensions : 16  16  48
+  Step lengths (short/long in bohr):  0.26362  0.29007
   First elements... -4.972795024514E-02  -5.529231950641E-02  -7.413027435541E-02
   Last elements... -1.104660108685E-01  -7.280975580215E-02  -5.471925064921E-02
   Sum of elements... -8.011507675126E+03

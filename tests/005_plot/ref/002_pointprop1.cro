@@ -2,6 +2,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Type: grid
   Grid dimensions : 80  80  90
+  Step lengths (short/long in bohr):  0.11351  0.11608
   First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03
   Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03
   Sum of elements... 3.624016252190E+04

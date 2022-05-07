@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.5/feo/feo_sym.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 3.995604191473E-04  9.557069109039E-03  1.120039604676E-01
   Last elements... 7.051491164976E-01  5.009543759369E-01  2.367501870802E-01
   Sum of elements... 4.762484537338E+03
@@ -139,6 +140,7 @@
   Source: 027_cube_psink_spin-1-01-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -160,6 +162,7 @@
   Source: 027_cube_psink_spin-1-02-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -181,6 +184,7 @@
   Source: 027_cube_psink_spin-1-03-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -202,6 +206,7 @@
   Source: 027_cube_psink_spin-1-04-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -223,6 +228,7 @@
   Source: 027_cube_psink_spin-1-05-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -244,6 +250,7 @@
   Source: 027_cube_psink_spin-1-06-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -265,6 +272,7 @@
   Source: 027_cube_psink_spin-1-07-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -286,6 +294,7 @@
   Source: 027_cube_psink_spin-1-08-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.007500848118E-04  -4.151319422874E-04  -4.541991142312E-04
   Last elements... -6.115634503894E-04  -5.357443654175E-04  -4.791244459472E-04
   Sum of elements... -1.501774803936E+02
@@ -307,6 +316,7 @@
   Source: 027_cube_psink_spin-1-01-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -328,6 +338,7 @@
   Source: 027_cube_psink_spin-1-02-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -349,6 +360,7 @@
   Source: 027_cube_psink_spin-1-03-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -370,6 +382,7 @@
   Source: 027_cube_psink_spin-1-04-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -391,6 +404,7 @@
   Source: 027_cube_psink_spin-1-05-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -412,6 +426,7 @@
   Source: 027_cube_psink_spin-1-06-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -433,6 +448,7 @@
   Source: 027_cube_psink_spin-1-07-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -454,6 +470,7 @@
   Source: 027_cube_psink_spin-1-08-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 8.132216288522E-03  8.422887470507E-03  9.217690549334E-03
   Last elements... 1.242604619250E-02  1.088695978005E-02  9.733792211617E-03
   Sum of elements... 3.049784030806E+03
@@ -475,6 +492,7 @@
   Source: 027_cube_psink_spin-2-01-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.723445545485E-07  -2.303464384607E-03  -4.521025625495E-03
   Last elements... -6.453646143312E-03  -4.426039111950E-03  -2.268543459815E-03
   Sum of elements... -1.920978392765E+03
@@ -496,6 +514,7 @@
   Source: 027_cube_psink_spin-2-02-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.723445545485E-07  -2.303464384607E-03  -4.521025625495E-03
   Last elements... -6.453646143312E-03  -4.426039111950E-03  -2.268543459815E-03
   Sum of elements... -1.920978392765E+03
@@ -517,6 +536,7 @@
   Source: 027_cube_psink_spin-2-03-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.723445545485E-07  -2.303464384607E-03  -4.521025625495E-03
   Last elements... -6.453646143312E-03  -4.426039111950E-03  -2.268543459815E-03
   Sum of elements... -1.920978392765E+03
@@ -538,6 +558,7 @@
   Source: 027_cube_psink_spin-2-04-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 4.723445545485E-07  2.303464384607E-03  4.521025625495E-03
   Last elements... 6.453646143312E-03  4.426039111950E-03  2.268543459815E-03
   Sum of elements... 1.920978392765E+03
@@ -559,6 +580,7 @@
   Source: 027_cube_psink_spin-2-05-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -4.723445545485E-07  -2.303464384607E-03  -4.521025625495E-03
   Last elements... -6.453646143312E-03  -4.426039111950E-03  -2.268543459815E-03
   Sum of elements... -1.920978392765E+03
@@ -580,6 +602,7 @@
   Source: 027_cube_psink_spin-2-06-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 4.723445545485E-07  2.303464384607E-03  4.521025625495E-03
   Last elements... 6.453646143312E-03  4.426039111950E-03  2.268543459815E-03
   Sum of elements... 1.920978392765E+03
@@ -601,6 +624,7 @@
   Source: 027_cube_psink_spin-2-07-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 4.723445545485E-07  2.303464384607E-03  4.521025625495E-03
   Last elements... 6.453646143312E-03  4.426039111950E-03  2.268543459815E-03
   Sum of elements... 1.920978392765E+03
@@ -622,6 +646,7 @@
   Source: 027_cube_psink_spin-2-08-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 4.723445545485E-07  2.303464384607E-03  4.521025625495E-03
   Last elements... 6.453646143312E-03  4.426039111950E-03  2.268543459815E-03
   Sum of elements... 1.920978392765E+03
@@ -643,6 +668,7 @@
   Source: 027_cube_psink_spin-2-01-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -5.077288968834E-08  2.085583078710E-03  4.093801074324E-03
   Last elements... 5.844716597243E-03  4.008725494144E-03  2.054997139690E-03
   Sum of elements... 1.739578185541E+03
@@ -664,6 +690,7 @@
   Source: 027_cube_psink_spin-2-02-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -5.077288968834E-08  2.085583078710E-03  4.093801074324E-03
   Last elements... 5.844716597243E-03  4.008725494144E-03  2.054997139690E-03
   Sum of elements... 1.739578185541E+03
@@ -685,6 +712,7 @@
   Source: 027_cube_psink_spin-2-03-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -5.077288968834E-08  2.085583078710E-03  4.093801074324E-03
   Last elements... 5.844716597243E-03  4.008725494144E-03  2.054997139690E-03
   Sum of elements... 1.739578185541E+03
@@ -706,6 +734,7 @@
   Source: 027_cube_psink_spin-2-04-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.077288968834E-08  -2.085583078710E-03  -4.093801074324E-03
   Last elements... -5.844716597243E-03  -4.008725494144E-03  -2.054997139690E-03
   Sum of elements... -1.739578185541E+03
@@ -727,6 +756,7 @@
   Source: 027_cube_psink_spin-2-05-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -5.077288968834E-08  2.085583078710E-03  4.093801074324E-03
   Last elements... 5.844716597243E-03  4.008725494144E-03  2.054997139690E-03
   Sum of elements... 1.739578185541E+03
@@ -748,6 +778,7 @@
   Source: 027_cube_psink_spin-2-06-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.077288968834E-08  -2.085583078710E-03  -4.093801074324E-03
   Last elements... -5.844716597243E-03  -4.008725494144E-03  -2.054997139690E-03
   Sum of elements... -1.739578185541E+03
@@ -769,6 +800,7 @@
   Source: 027_cube_psink_spin-2-07-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.077288968834E-08  -2.085583078710E-03  -4.093801074324E-03
   Last elements... -5.844716597243E-03  -4.008725494144E-03  -2.054997139690E-03
   Sum of elements... -1.739578185541E+03
@@ -790,6 +822,7 @@
   Source: 027_cube_psink_spin-2-08-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.077288968834E-08  -2.085583078710E-03  -4.093801074324E-03
   Last elements... -5.844716597243E-03  -4.008725494144E-03  -2.054997139690E-03
   Sum of elements... -1.739578185541E+03
@@ -811,6 +844,7 @@
   Source: 027_cube_psink_spin-3-01-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -832,6 +866,7 @@
   Source: 027_cube_psink_spin-3-02-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -853,6 +888,7 @@
   Source: 027_cube_psink_spin-3-03-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -874,6 +910,7 @@
   Source: 027_cube_psink_spin-3-04-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -895,6 +932,7 @@
   Source: 027_cube_psink_spin-3-05-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -916,6 +954,7 @@
   Source: 027_cube_psink_spin-3-06-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -937,6 +976,7 @@
   Source: 027_cube_psink_spin-3-07-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -958,6 +998,7 @@
   Source: 027_cube_psink_spin-3-08-r.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.009852057662E-07  4.074002476444E-03  7.121454230119E-03
   Last elements... -9.525700403472E-03  -7.076038996309E-03  -4.568077487008E-03
   Sum of elements... -4.459875925879E-04
@@ -979,6 +1020,7 @@
   Source: 027_cube_psink_spin-3-01-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1000,6 +1042,7 @@
   Source: 027_cube_psink_spin-3-02-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1021,6 +1064,7 @@
   Source: 027_cube_psink_spin-3-03-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1042,6 +1086,7 @@
   Source: 027_cube_psink_spin-3-04-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1063,6 +1108,7 @@
   Source: 027_cube_psink_spin-3-05-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1084,6 +1130,7 @@
   Source: 027_cube_psink_spin-3-06-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1105,6 +1152,7 @@
   Source: 027_cube_psink_spin-3-07-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1126,6 +1174,7 @@
   Source: 027_cube_psink_spin-3-08-i.cube
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.819022585345E-07  1.260323678350E-04  2.204354042199E-04
   Last elements... -1.620363609047E-03  -1.669664576475E-03  -1.780512622316E-03
   Sum of elements... -2.535719945757E-04
@@ -1146,6 +1195,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.303483391502E-04  5.689389429626E-04  6.813769271892E-04
   Last elements... 1.238245070656E-03  9.505033222207E-04  7.598101684291E-04
   Sum of elements... 2.721419735622E+03
@@ -1166,6 +1216,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 1.805498116312E-12  7.724483959485E-05  2.975910395402E-04
   Last elements... 6.064820851613E-04  2.852776184633E-04  7.495442138563E-05
   Sum of elements... 2.721419735622E+03
@@ -1186,6 +1237,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 5.878678767745E-13  1.329070426865E-04  4.061096169529E-04
   Last elements... 7.469163712179E-04  4.228648614018E-04  1.923004570043E-04
   Sum of elements... 2.721419735622E+03
@@ -1206,6 +1258,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 1.033975765691E-25  3.388131789017E-21  0.000000000000E+00
   Last elements... -1.355252715607E-20  -2.710505431214E-20  -3.388131789017E-21
   Sum of elements... -2.727716280510E-13
@@ -1226,6 +1279,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.247850678424E-08  -5.037536872113E-06  -9.621222889138E-06
   Last elements... -1.144731427883E-04  -1.150929845481E-04  -1.211396984062E-04
   Sum of elements... 9.522720204611E-13
@@ -1246,6 +1300,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... -1.577721810442E-30  1.058791184068E-22  1.058791184068E-21
   Last elements... 3.896351557370E-20  0.000000000000E+00  -1.270549420881E-21
   Sum of elements... -4.162796932835E-14

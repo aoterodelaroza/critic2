@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 3.995604191473E-04  9.900016917788E-03  1.158836131277E-01
   Last elements... 7.011121538456E-01  4.986921915477E-01  2.383221642209E-01
   Sum of elements... 4.762484537339E+03
@@ -67,6 +68,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.377154928321E-04  8.161341740151E-03  9.673659732713E-02
   Last elements... 5.535683674670E-01  3.847647247295E-01  1.789654833912E-01
   Sum of elements... 3.061597202575E+03
@@ -130,6 +132,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 1.618449263153E-04  1.738675177637E-03  1.914701580058E-02
   Last elements... 1.475437863786E-01  1.139274668182E-01  5.935668082963E-02
   Sum of elements... 1.700887334764E+03
@@ -193,6 +196,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 2.077855145158E-04  4.765017975649E-03  5.567948694760E-02
   Last elements... 3.521635427784E-01  2.535354043168E-01  1.227831293125E-01
   Sum of elements... 2.381242268669E+03
@@ -256,6 +260,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 3.448772786800E-04  2.576753625651E-03  2.721601262742E-02
   Last elements... 1.549618659436E-01  1.076402179230E-01  5.026847755105E-02
   Sum of elements... 2.721419735622E+03
@@ -319,6 +324,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
+  Step lengths (short/long in bohr):  0.16079  0.16079
   First elements... 3.203812182717E-04  5.015769083160E-04  2.410475329094E-03
   Last elements... 1.460313052305E-02  1.082818213970E-02  5.482742954145E-03
   Sum of elements... 4.677440170600E+02

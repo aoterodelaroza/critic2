@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02
   Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02
   Sum of elements... 2.207000348926E+03
@@ -116,6 +117,7 @@
   Source: 022_cube_unk-1-01-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02
   Sum of elements... 2.173063916342E+03
@@ -137,6 +139,7 @@
   Source: 022_cube_unk-1-02-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.175805814662E-11  -6.355398231138E-03  -1.233789278150E-02
   Last elements... 1.269679190896E-02  7.637408141753E-03  1.969940488169E-03
   Sum of elements... -4.161234013620E+01
@@ -158,6 +161,7 @@
   Source: 022_cube_unk-1-03-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.175805830579E-11  4.277648132859E-03  8.481925095607E-03
   Last elements... -5.155082342368E-03  -1.873549907563E-03  1.969940488341E-03
   Sum of elements... -4.161234013620E+01
@@ -179,6 +183,7 @@
   Source: 022_cube_unk-1-04-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.471868683547E-02  -4.469705896569E-02  -4.422173097580E-02
   Last elements... -3.568657874201E-02  -3.861706790527E-02  -4.118762140761E-02
   Sum of elements... -1.483229830758E+03
@@ -200,6 +205,7 @@
   Source: 022_cube_unk-1-05-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.185910130042E-03  -1.189727472039E-03  -1.200108738207E-03
   Last elements... -5.495215482562E-03  -5.542597941212E-03  -5.633960337177E-03
   Sum of elements... -4.161234013620E+01
@@ -221,6 +227,7 @@
   Source: 022_cube_unk-1-06-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 4.164660339306E-10  3.689947044207E-03  6.360679840877E-03
   Last elements... -1.161464674668E-02  -6.427354592424E-03  -1.437136374374E-03
   Sum of elements... -1.062922296418E+03
@@ -242,6 +249,7 @@
   Source: 022_cube_unk-1-07-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 4.164660158250E-10  3.505046084761E-03  6.920399113724E-03
   Last elements... -3.650846486586E-03  -1.514570772373E-03  9.504466057439E-04
   Sum of elements... -1.062922296418E+03
@@ -263,6 +271,7 @@
   Source: 022_cube_unk-1-08-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.185910130042E-03  -5.824229980272E-03  -1.040101814337E-02
   Last elements... 1.853345508876E-02  1.547486334285E-02  1.191807500978E-02
   Sum of elements... -4.161234013620E+01
@@ -284,6 +293,7 @@
   Source: 022_cube_unk-1-01-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02
   Sum of elements... -1.006465336628E+03
@@ -305,6 +315,7 @@
   Source: 022_cube_unk-1-02-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.228640387473E-13  -4.657099524682E-04  -2.134677173574E-03
   Last elements... -4.201269918588E-03  -1.718920358403E-03  -2.439369185263E-04
   Sum of elements... -1.662307366183E+03
@@ -326,6 +337,7 @@
   Source: 022_cube_unk-1-03-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.228423120283E-13  -1.070818499859E-04  -2.123270087843E-04
   Last elements... 6.383517220193E-04  2.320009136451E-04  -2.439369174219E-04
   Sum of elements... -1.662307366183E+03
@@ -347,6 +359,7 @@
   Source: 022_cube_unk-1-04-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 2.267253116046E-03  -2.125504505626E-03  -6.488751141872E-03
   Last elements... 1.694708666899E-02  1.388581768217E-02  1.038569245752E-02
   Sum of elements... 7.520028387554E+01
@@ -368,6 +381,7 @@
   Source: 022_cube_unk-1-05-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.737409960154E-02  -4.752659266419E-02  -4.794129784751E-02
   Last elements... -4.437724124400E-02  -4.475988370376E-02  -4.549769117703E-02
   Sum of elements... -1.662307366183E+03
@@ -389,6 +403,7 @@
   Source: 022_cube_unk-1-06-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 6.910531698608E-09  4.610143414207E-03  9.776380252082E-03
   Last elements... -4.978343924984E-03  -3.537301408270E-03  -9.859124427553E-04
   Sum of elements... 1.037216506546E+03
@@ -410,6 +425,7 @@
   Source: 022_cube_unk-1-07-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 6.910531712376E-09  3.591919417502E-03  7.091915976476E-03
   Last elements... -5.611348211834E-03  -2.327889309735E-03  1.460845573883E-03
   Sum of elements... 1.037216506546E+03
@@ -431,6 +447,7 @@
   Source: 022_cube_unk-1-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.737409960154E-02  -4.703423542588E-02  -4.621320603981E-02
   Last elements... -3.686406440509E-02  -4.017496819310E-02  -4.314761401589E-02
   Sum of elements... -1.662307366183E+03
@@ -452,6 +469,7 @@
   Source: 022_cube_unk-2-01-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02
   Sum of elements... 3.122845651057E-06
@@ -473,6 +491,7 @@
   Source: 022_cube_unk-2-02-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 8.413908808952E-02  7.688332242484E-02  6.813365537354E-02
   Last elements... 8.951354463823E-02  8.921850920030E-02  8.711615393291E-02
   Sum of elements... 1.410298779675E+03
@@ -494,6 +513,7 @@
   Source: 022_cube_unk-2-03-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 8.413908808952E-02  8.407171652075E-02  8.408470130725E-02
   Last elements... 8.594423493177E-02  8.627101630400E-02  8.711615401969E-02
   Sum of elements... 1.410298779675E+03
@@ -515,6 +535,7 @@
   Source: 022_cube_unk-2-04-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 2.792799359633E-08  7.269253432841E-03  1.336452730442E-02
   Last elements... -3.014515492592E-02  -2.248306613079E-02  -1.498294776707E-02
   Sum of elements... -6.680346678435E+02
@@ -536,6 +557,7 @@
   Source: 022_cube_unk-2-05-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.717431336266E-10  -7.781993244082E-04  -1.530544879301E-03
   Last elements... -7.624378972785E-04  -1.509625580909E-03  -2.258060893097E-03
   Sum of elements... 1.410298779675E+03
@@ -557,6 +579,7 @@
   Source: 022_cube_unk-2-06-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.011391204307E-02  -3.176866085350E-02  -2.297538907973E-02
   Last elements... -6.031115795732E-02  -5.772234469685E-02  -5.348796184584E-02
   Sum of elements... -7.986895656212E+02
@@ -578,6 +601,7 @@
   Source: 022_cube_unk-2-07-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.011391204307E-02  -4.010256078776E-02  -4.016863494014E-02
   Last elements... -2.270670881733E-02  -2.269456826063E-02  -2.277627488842E-02
   Sum of elements... -7.986895656212E+02
@@ -599,6 +623,7 @@
   Source: 022_cube_unk-2-08-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.717431239913E-10  -4.537712914518E-03  -7.624376251614E-03
   Last elements... 3.665343442671E-02  2.789686514671E-02  1.956294750448E-02
   Sum of elements... 1.410298779675E+03
@@ -620,6 +645,7 @@
   Source: 022_cube_unk-2-01-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03
   Sum of elements... -1.290626808802E-05
@@ -641,6 +667,7 @@
   Source: 022_cube_unk-2-02-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 6.338492412353E-02  7.073994122097E-02  7.631584883625E-02
   Last elements... 3.278741799434E-02  4.301853824458E-02  5.310707313643E-02
   Sum of elements... 1.062427524829E+03
@@ -662,6 +689,7 @@
   Source: 022_cube_unk-2-03-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 6.338492412353E-02  6.333417058493E-02  6.334395243513E-02
   Last elements... 5.239265719661E-02  5.259186712974E-02  5.310707337257E-02
   Sum of elements... 1.062427524829E+03
@@ -683,6 +711,7 @@
   Source: 022_cube_unk-2-04-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.237460703197E-11  3.762612259817E-03  8.676175275406E-03
   Last elements... 3.991232454371E-04  -1.914219032047E-03  -2.774616413774E-03
   Sum of elements... 1.675170126957E+03
@@ -704,6 +733,7 @@
   Source: 022_cube_unk-2-05-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.889480354098E-10  1.033005150506E-03  2.031691607175E-03
   Last elements... 1.250694053405E-03  2.476370919236E-03  3.704094239283E-03
   Sum of elements... 1.062427524829E+03
@@ -725,6 +755,7 @@
   Source: 022_cube_unk-2-06-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -8.121127682934E-02  -8.424294568529E-02  -8.552529212029E-02
   Last elements... -5.282290519936E-02  -6.155015567126E-02  -6.961414844624E-02
   Sum of elements... -1.616959229314E+03
@@ -746,6 +777,7 @@
   Source: 022_cube_unk-2-07-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -8.121127682934E-02  -8.118830223124E-02  -8.132207776686E-02
   Last elements... -8.452511885262E-02  -8.447992538612E-02  -8.478407896819E-02
   Sum of elements... -1.616959229314E+03
@@ -767,6 +799,7 @@
   Source: 022_cube_unk-2-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.889480322961E-10  7.443604705345E-03  1.581261163698E-02
   Last elements... -1.700074429460E-02  -1.643775915396E-02  -1.428281500489E-02
   Sum of elements... 1.062427524829E+03
@@ -787,6 +820,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.357584580295E-09  -1.934586638150E-03  -3.793644298610E-03
   Last elements... 5.072916558466E-03  3.671262496513E-03  2.075426058471E-03
   Sum of elements... 3.436790782518E-14
@@ -807,6 +841,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 8.994176696580E-03  9.143762281248E-03  9.566988087259E-03
   Last elements... 7.950719575467E-03  8.019270707968E-03  8.313521992432E-03
   Sum of elements... 2.207000348926E+03

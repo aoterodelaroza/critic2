@@ -3,6 +3,7 @@
   Source: ../zz_source/vasp-5.4.1/agtao3/AECCAR0
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 1.252373820233E+06  2.442894148772E+02  3.752289400415E+01
   Last elements... 2.505188821486E+00  8.443252466652E+00  2.521651151056E+01
   Sum of elements... 2.823341656103E+06
@@ -26,6 +27,7 @@
   Source: ../zz_source/vasp-5.4.1/agtao3/AECCAR2
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 7.343253749114E+01  8.834027770367E-01  1.076299452139E+00
   Last elements... 4.265524630124E-01  5.432129848880E-02  4.064414686608E-01
   Sum of elements... 1.686765409783E+04
@@ -47,6 +49,7 @@
   Source: ../zz_source/vasp-5.4.1/agtao3/CHGCAR
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 6.397301305616E-01  6.342813582282E-01  6.158682544382E-01
   Last elements... 5.019083794884E-01  5.621618188423E-01  6.012904904342E-01
   Sum of elements... 1.670963778832E+04
@@ -68,6 +71,7 @@
   Source: ../zz_source/vasp-5.4.1/agtao3/ELFCAR
   Type: grid
   Grid dimensions : 28  28  28
+  Step lengths (short/long in bohr):  0.38104  0.38104
   First elements... 3.076000000000E-11  2.984800000000E-03  1.261100000000E-01
   Last elements... 3.435400000000E-01  4.074000000000E-01  2.494900000000E-01
   Sum of elements... 5.900513530028E+03
@@ -89,6 +93,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 1.252447252770E+06  2.451728176542E+02  3.859919345629E+01
   Last elements... 2.931741284498E+00  8.497573765141E+00  2.562295297922E+01
   Sum of elements... 2.840209310201E+06
@@ -110,6 +115,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 7  7  7
+  Step lengths (short/long in bohr):  1.52417  1.52417
   First elements... 6.397301305616E-01  1.712328781312E-01  2.348389639755E-02
   Last elements... 1.013926790038E-01  9.595880214315E-02  1.476717100370E-02
   Sum of elements... 3.263971749471E+01
@@ -131,6 +137,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 7  7  7
+  Step lengths (short/long in bohr):  1.52417  1.52417
   First elements... 1.252447252770E+06  2.385255209023E-01  2.358847125519E-02
   Last elements... 1.232877669127E-01  1.158385010823E-01  1.492383605688E-02
   Sum of elements... 1.252494089107E+06
@@ -152,6 +159,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 7  7  7
+  Step lengths (short/long in bohr):  1.52417  1.52417
   First elements... 3.076000000000E-11  3.895900000000E-01  1.414100000000E-01
   Last elements... 2.413400000000E-01  2.649600000000E-01  6.329000000000E-02
   Sum of elements... 9.209399200003E+01

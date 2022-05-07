@@ -2,6 +2,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
   Grid dimensions : 50  40  56
+  Step lengths (short/long in bohr):  0.16558  0.17518
   First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
   Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
   Sum of elements... 1.359728581679E+04
@@ -24,6 +25,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/AECCAR0
   Type: grid
   Grid dimensions : 50  40  56
+  Step lengths (short/long in bohr):  0.16558  0.17518
   First elements... 1.595508124138E-02  6.195198485722E-02  2.077190056623E-02
   Last elements... -9.110871462197E-03  -4.539323991752E-03  -9.840727885136E-03
   Sum of elements... 2.496936089393E+04
@@ -44,6 +46,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/AECCAR2
   Type: grid
   Grid dimensions : 50  40  56
+  Step lengths (short/long in bohr):  0.16558  0.17518
   First elements... 1.518608752486E-02  1.718506126767E-02  1.472297154444E-02
   Last elements... 1.374989824355E-02  1.450446890663E-02  1.478894017704E-02
   Sum of elements... 1.359785367697E+04

@@ -2,6 +2,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 2  2  2
+  Step lengths (short/long in bohr):  4.42574  5.25816
   First elements... 1.810108118799E-03  1.045154298839E-03
   Last elements... 1.810108118799E-03  1.045154298839E-03
   Sum of elements... 1.256793063492E+00

@@ -2,6 +2,7 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/AECCAR0
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 1.252373820233E+06  2.442894148772E+02  3.752289400415E+01
   Last elements... 2.505188821486E+00  8.443252466652E+00  2.521651151056E+01
   Sum of elements... 2.823341656104E+06
@@ -24,6 +25,7 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/AECCAR2
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 7.341336153604E+01  8.832923273850E-01  1.076043837629E+00
   Last elements... 4.264810305034E-01  5.430981994511E-02  4.063066199712E-01
   Sum of elements... 1.686762987920E+04
@@ -44,6 +46,7 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/CHG
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 6.397206321844E-01  6.342733670546E-01  6.158501930673E-01
   Last elements... 5.018857946515E-01  5.621387316557E-01  6.012686492917E-01
   Sum of elements... 1.670963871393E+04
@@ -64,6 +67,7 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/CHGCAR
   Type: grid
   Grid dimensions : 56  56  56
+  Step lengths (short/long in bohr):  0.19052  0.19052
   First elements... 6.397182317721E-01  6.342675940596E-01  6.158500568381E-01
   Last elements... 5.018819587540E-01  5.621374430088E-01  6.012700890586E-01
   Sum of elements... 1.670963778790E+04
@@ -84,6 +88,7 @@
   Source: ../zz_source/vasp-5.3.3/agtao3/ELFCAR
   Type: grid
   Grid dimensions : 28  28  28
+  Step lengths (short/long in bohr):  0.38104  0.38104
   First elements... 3.101200000000E-11  2.984300000000E-03  1.261800000000E-01
   Last elements... 3.437300000000E-01  4.073800000000E-01  2.495100000000E-01
   Sum of elements... 5.900819949140E+03

@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.5/mgo/rhoae.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.932000000000E-02  1.945300000000E-02  1.984000000000E-02
   Last elements... 1.820300000000E-02  1.831800000000E-02  1.867000000000E-02
   Sum of elements... 7.203956126000E+03
@@ -24,6 +25,7 @@
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02
   Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02
   Sum of elements... 2.207000348926E+03

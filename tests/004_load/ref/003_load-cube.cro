@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Grid dimensions : 30  30  81
+  Step lengths (short/long in bohr):  0.15471  0.15622
   First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
   Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
   Sum of elements... 4.941377519400E+03
@@ -46,6 +47,7 @@
   Source: ../zz_source/g16A.03/benzene/benzene.cube
   Type: grid
   Grid dimensions : 54  56  40
+  Step lengths (short/long in ang_):  0.17639  0.17639
   First elements... 1.647720000000E-09  1.984650000000E-09  2.349970000000E-09
   Last elements... 2.143720000000E-09  1.814590000000E-09  1.510230000000E-09
   Sum of elements... 8.075131040783E+02

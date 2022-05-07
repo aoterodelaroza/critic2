@@ -2,6 +2,7 @@
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02
   Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02
   Sum of elements... 2.207000348926E+03
@@ -126,6 +127,7 @@
   Source: 020_cube_wannier-1-01-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.174972961616E-04  4.982945927722E-04  1.242826937907E-03
   Last elements... -1.959500937896E-03  -1.008043246928E-03  2.933582108866E-05
   Sum of elements... -1.520693905610E+01
@@ -147,6 +149,7 @@
   Source: 020_cube_wannier-1-02-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.754575606266E-04  -8.150421973167E-04  -1.927326177048E-03
   Last elements... 8.778103453277E-04  2.062891608557E-04  -5.375348922598E-04
   Sum of elements... -1.531797162247E+01
@@ -168,6 +171,7 @@
   Source: 020_cube_wannier-1-03-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.125865183316E-02  1.002166847591E-02  8.848078788896E-03
   Last elements... 7.516875327243E-03  8.981965226587E-03  1.054667087132E-02
   Sum of elements... 6.881196756250E+01
@@ -189,6 +193,7 @@
   Source: 020_cube_wannier-1-04-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.125865183316E-02  9.867842994724E-03  8.545417106543E-03
   Last elements... 8.532754259184E-03  9.765181543223E-03  1.114849284892E-02
   Sum of elements... 2.832784152733E+01
@@ -210,6 +215,7 @@
   Source: 020_cube_wannier-1-05-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.125865183316E-02  1.252893972900E-02  1.379154488014E-02
   Last elements... 1.319498874171E-02  1.220632112660E-02  1.115526114633E-02
   Sum of elements... 2.677839100663E+01
@@ -231,6 +237,7 @@
   Source: 020_cube_wannier-1-06-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.125865183316E-02  1.268461721272E-02  1.410155280734E-02
   Last elements... 1.213587345303E-02  1.139746090865E-02  1.053990257387E-02
   Sum of elements... 7.036141808320E+01
@@ -252,6 +259,7 @@
   Source: 020_cube_wannier-1-07-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.174975202736E-04  -8.857812629534E-04  -1.514869075511E-03
   Last elements... 3.459906277809E-03  2.242487191059E-03  1.021518001790E-03
   Sum of elements... 1.004710123062E+03
@@ -273,6 +281,7 @@
   Source: 020_cube_wannier-1-08-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.754577529805E-04  1.615430996635E-03  2.848046532807E-03
   Last elements... -4.531928842384E-04  -7.487433046671E-05  4.546476125242E-04
   Sum of elements... 1.004599085779E+03
@@ -294,6 +303,7 @@
   Source: 020_cube_wannier-1-01-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.418565677932E-02  -1.323122311962E-02  -1.234588776238E-02
   Last elements... 6.782814309197E-03  7.858371173381E-03  9.035698103752E-03
   Sum of elements... -1.221340377181E+02
@@ -315,6 +325,7 @@
   Source: 020_cube_wannier-1-02-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 9.501389566183E-03  8.540535401417E-03  7.618144569005E-03
   Last elements... -1.124583186370E-02  -1.236362794206E-02  -1.360934487902E-02
   Sum of elements... -1.265695914464E+02
@@ -336,6 +347,7 @@
   Source: 020_cube_wannier-1-03-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.908946885611E-03  -2.824227808168E-03  -2.792982480567E-03
   Last elements... -2.798921250705E-03  -2.912087667190E-03  -3.013597403345E-03
   Sum of elements... -1.239094402816E+02
@@ -357,6 +369,7 @@
   Source: 020_cube_wannier-1-04-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.908946885611E-03  -2.945823125289E-03  -2.960177272431E-03
   Last elements... -2.599302609887E-03  -2.608525191317E-03  -2.660300535341E-03
   Sum of elements... -1.050881379208E+02
@@ -378,6 +391,7 @@
   Source: 020_cube_wannier-1-05-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.908946885611E-03  -3.049452612505E-03  -3.238326812134E-03
   Last elements... -1.851879233564E-03  -2.157108580343E-03  -2.389924225846E-03
   Sum of elements... -1.669847529919E+02
@@ -399,6 +413,7 @@
   Source: 020_cube_wannier-1-06-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.908946885611E-03  -2.853874510203E-03  -2.777668208002E-03
   Last elements... -3.778680606814E-03  -3.485079844960E-03  -3.283973713398E-03
   Sum of elements... -6.201282521060E+01
@@ -420,6 +435,7 @@
   Source: 020_cube_wannier-1-07-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.418566023465E-02  -1.519886670772E-02  -1.623102657779E-02
   Last elements... 1.019049351000E-02  9.630812875892E-03  9.010857649933E-03
   Sum of elements... -1.476654891319E+02
@@ -441,6 +457,7 @@
   Source: 020_cube_wannier-1-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 9.501393021387E-03  1.048198465025E-02  1.145277512607E-02
   Last elements... -1.475585558965E-02  -1.421040144973E-02  -1.363417878696E-02
   Sum of elements... -1.521010619268E+02
@@ -462,6 +479,7 @@
   Source: 020_cube_wannier-2-01-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.100629746359E-02  1.075081577752E-02  1.033049925117E-02
   Last elements... -3.320220598504E-02  -3.247871842161E-02  -3.181421444305E-02
   Sum of elements... 4.585925029034E+02
@@ -483,6 +501,7 @@
   Source: 020_cube_wannier-2-02-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.106325367100E-02  3.225060633825E-02  3.320075513033E-02
   Last elements... -8.778149979350E-03  -9.016896246139E-03  -9.383567890064E-03
   Sum of elements... -3.951632898935E+02
@@ -504,6 +523,7 @@
   Source: 020_cube_wannier-2-03-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.437084394775E-09  -8.308699184914E-04  -1.707918838627E-03
   Last elements... 9.665300837201E-03  7.491925762538E-03  5.460459534577E-03
   Sum of elements... 9.501589214072E+01
@@ -525,7 +545,8 @@
   Source: 020_cube_wannier-2-04-r.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -3.437084151881E-09  -2.005091468397E-03  -4.203362177538E-03
+  Step lengths (short/long in bohr):  0.17243  0.17243
+  First elements... -3.437084152200E-09  -2.005091468397E-03  -4.203362177538E-03
   Last elements... 2.553463703853E-03  1.842448448285E-03  1.164266272770E-03
   Sum of elements... -1.213929094854E+02
   Sum of squares of elements... 1.816497984289E+01
@@ -546,6 +567,7 @@
   Source: 020_cube_wannier-2-05-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.437084192947E-09  -7.320550505756E-04  -1.352374650256E-03
   Last elements... 7.788245889958E-03  6.752192067948E-03  5.460452168571E-03
   Sum of elements... 9.501588255764E+01
@@ -567,6 +589,7 @@
   Source: 020_cube_wannier-2-06-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.437084466720E-09  -1.791465555223E-03  -3.373040619701E-03
   Last elements... 2.303731096718E-03  1.787685505272E-03  1.164273607168E-03
   Sum of elements... -1.213928999023E+02
@@ -588,6 +611,7 @@
   Source: 020_cube_wannier-2-07-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -1.100629055963E-02  -1.113494722107E-02  -1.127198974402E-02
   Last elements... 2.449846404112E-02  2.650175173489E-02  2.837100363308E-02
   Sum of elements... 8.587899137480E+01
@@ -609,6 +633,7 @@
   Source: 020_cube_wannier-2-08-r.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.106324639530E-02  -2.962290640284E-02  -2.809559143553E-02
   Last elements... 1.178940395707E-02  1.190883031933E-02  1.192247646576E-02
   Sum of elements... -9.655416657253E+01
@@ -630,6 +655,7 @@
   Source: 020_cube_wannier-2-01-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -4.456588364559E-03  -3.195434510465E-03  -1.960989221373E-03
   Last elements... -3.045801949724E-02  -3.189071119922E-02  -3.331127713224E-02
   Sum of elements... 1.512443153720E+01
@@ -651,6 +677,7 @@
   Source: 020_cube_wannier-2-02-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 3.614904995564E-02  3.528349763879E-02  3.420619152844E-02
   Last elements... -6.451376196628E-04  7.440926748168E-04  2.074064197713E-03
   Sum of elements... 2.330705110274E+01
@@ -672,6 +699,7 @@
   Source: 020_cube_wannier-2-03-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.322473477598E-10  -1.230644321428E-03  -2.447335334710E-03
   Last elements... -9.752205219950E-04  -1.460725310764E-03  -1.711408180248E-03
   Sum of elements... -1.488932047444E+02
@@ -693,6 +721,7 @@
   Source: 020_cube_wannier-2-04-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.322474674557E-10  1.356307475217E-04  6.947389176467E-05
   Last elements... 5.737908368333E-03  4.890578898756E-03  3.991473062817E-03
   Sum of elements... 1.383744326681E+02
@@ -714,7 +743,8 @@
   Source: 020_cube_wannier-2-05-i.cube
   Type: grid
   Grid dimensions : 32  32  32
-  First elements... -2.322474515386E-10  -1.229178752698E-03  -2.481259885983E-03
+  Step lengths (short/long in bohr):  0.17243  0.17243
+  First elements... -2.322474521753E-10  -1.229178752698E-03  -2.481259885983E-03
   Last elements... -3.423575154633E-03  -2.453345882481E-03  -1.711415755591E-03
   Sum of elements... -1.488932149799E+02
   Sum of squares of elements... 1.285721569363E+01
@@ -735,6 +765,7 @@
   Source: 020_cube_wannier-2-06-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.322473171991E-10  3.695376384129E-04  9.967524440440E-04
   Last elements... 6.584079416388E-03  5.284677249622E-03  3.991480516406E-03
   Sum of elements... 1.383744429036E+02
@@ -756,6 +787,7 @@
   Source: 020_cube_wannier-2-07-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 4.456587988351E-03  5.733096881423E-03  6.994148893221E-03
   Last elements... 3.661138268390E-02  3.672858718127E-02  3.673960051962E-02
   Sum of elements... -6.923401154333E+02
@@ -777,6 +809,7 @@
   Source: 020_cube_wannier-2-08-i.cube
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -3.614905052080E-02  -3.674383187840E-02  -3.719954502027E-02
   Last elements... -8.752343017715E-03  -7.679066700396E-03  -6.586588983735E-03
   Sum of elements... 6.749461640395E+02
@@ -797,13 +830,14 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... -2.946980784402E-10  -2.418233297687E-04  -4.742055373263E-04
   Last elements... 6.341145698083E-04  4.589078120641E-04  2.594282573088E-04
-  Sum of elements... 7.403485376839E-14
+  Sum of elements... 7.316055313650E-14
   Sum of squares of elements... 5.006518276259E-01
   Cell integral (grid SUM) = 0.00000000
   Min: -4.20351171E-02
-  Average: 2.25936443E-18
+  Average: 2.23268290E-18
   Max: 4.20351091E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
   Use core densities? F
@@ -817,6 +851,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 32  32  32
+  Step lengths (short/long in bohr):  0.17243  0.17243
   First elements... 1.124272087073E-03  1.142970285156E-03  1.195873510907E-03
   Last elements... 9.938399469333E-04  1.002408838496E-03  1.039190249054E-03
   Sum of elements... 2.758750436157E+02
