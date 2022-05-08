@@ -2524,7 +2524,7 @@ contains
        call f%atenv%promolecular(xi,icrd_crys,ypro,yppro,ypppro,2)
 
        ! unroll the smoothing function
-       if (ypro < 1d-40 .or. y > 100d0) then
+       if (ypro < 1d-40 .or. y1 > 100d0) then
           yb = 0d0
           ypb = 0d0
           yppb = 0d0
