@@ -1942,8 +1942,6 @@ contains
 
     ! too many iterations
     ier = 2
-    if (res%gfmod < 1d-3 .and.(f%type == type_grid) .and. (f%grid%mode == mode_test)) &
-       ier = 3
 
   end subroutine newton
 

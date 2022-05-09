@@ -58,6 +58,7 @@ contains
   !> Uses the IWS, with barycentric subdivision.
   module subroutine autocritic(line)
     use systemmod, only: sy
+    use fieldmod, only: type_grid
     use meshmod, only: mesh
     use graphics, only: grhandle
     use surface, only: minisurf
@@ -96,7 +97,7 @@ contains
 
     real*8  :: iniv(4,3), xdum(3)
     integer :: nt
-    logical :: ok, dryrun, dochk, isgrid
+    logical :: ok, dryrun, dochk
     character(len=:), allocatable :: word, str, discexpr
     real*8 :: gfnormeps, x0fin(3)
     integer :: ntetrag
@@ -144,9 +145,15 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_hdegen = 1d-8
-    cpeps = 1d-2
-    nuceps = 1d-1
-    nucepsh = 2d-1
+    if (sy%f(sy%iref)%type == type_grid) then
+       cpeps = max(1.1d0 * sy%f(sy%iref)%grid%dmax,1d-2)
+       nuceps = max(1.1d0 * sy%f(sy%iref)%grid%dmax,1d-1)
+       nucepsh = max(1.1d0 * sy%f(sy%iref)%grid%dmax,2d-1)
+    else
+       cpeps = 1d-2
+       nuceps = 1d-1
+       nucepsh = 2d-1
+    end if
     dograph = 1
 
     ! parse the input
@@ -700,15 +707,6 @@ contains
           x0 = xseed(:,i)
           call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.false.)
 
-          ! if grid test, run again with grid delay
-          if (ier == 3) then
-             x0fin = x0
-             call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.true.)
-             isgrid = .true.
-          else
-             isgrid = .false.
-          end if
-
           if (ier <= 0) then
              ! Check if it's inside the sphere
              ok = .true.
@@ -729,19 +727,7 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                if (isgrid) then
-                   grideps = 0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,1)) / sy%f(sy%iref)%grid%n(1)
-                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,2)) / sy%f(sy%iref)%grid%n(2))
-                   grideps = min(grideps,0.5d0*norm2(sy%f(sy%iref)%grid%x2c(:,3)) / sy%f(sy%iref)%grid%n(3))
-                   grideps = max(grideps,cpeps)
-                   ! write (*,*) "final ", norm2(x0-x0fin), cpeps
-                   ! write (*,*) "added: ", (x0 + sy%c%molx0) * 0.52917720d0
-                   if (norm2(x0-x0fin) < cpeps) then
-                      call sy%addcp(sy%iref,x0,discexpr,grideps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
-                   endif
-                else
-                   call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
-                end if
+                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
                 !$omp end critical (addcp)
              end if
           end if
