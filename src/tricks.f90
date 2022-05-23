@@ -28,6 +28,7 @@ module tricks
   private :: trick_reduce
   private :: trick_makecif_ccdc
   private :: trick_bfgs
+  private :: trick_compare_deformed
 
 contains
 
@@ -49,6 +50,8 @@ contains
        call trick_makecif_ccdc(line0(lp:))
     else if (equal(word,'bfgs')) then
        call trick_bfgs(line0(lp:))
+    else if (equal(word,'compare')) then
+       call trick_compare_deformed(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2157,5 +2160,222 @@ contains
     end function matrix
 
   end subroutine trick_bfgs
+
+  ! trick compare struct1 struct2
+  subroutine trick_compare_deformed(line0)
+    use iso_c_binding, only: c_double
+    use spglib, only: spg_delaunay_reduce, spg_standardize_cell
+    use environmod, only: environ
+    use global, only: symprec
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_math, only: matinv
+    use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right
+    use param, only: pi, icrd_crys
+    character*(*), intent(in) :: line0
+
+    type(crystalseed) :: seed
+    type(environ) :: e
+    integer :: lp, ierr, i, j
+    character(len=:), allocatable :: file1, file2, errmsg, abc
+    type(crystal) :: c1, c2
+    real*8 :: xd1(3,3), xd2(3,3), cd1(3,3), cd2(3,3), dmax0, xx(3)
+    real*8 :: aa1(3), bb1(3), bb2(3), aa2(3), cd1del(3,3), cd2del(3,3), cc(3)
+    real*8 :: xd2del(3,3)
+    real*8, allocatable :: dist(:)
+    integer, allocatable :: eid(:), irange(:,:)
+    real(c_double), allocatable :: x(:,:)
+    integer, allocatable :: types_(:)
+    integer :: nat, ntyp, n1, n2, n3, i1, i2, i3
+
+    real*8 :: max_elong = 0.2d0 ! at most 20% elongation of cell lengths
+    real*8 :: max_ang = 20d0    ! at most 20 degrees change in angle
+
+    ! header
+    write (uout,'("* COMPARE, allowing for deformed cells")')
+
+    ! read the input files
+    lp = 1
+    file1 = getword(line0,lp)
+    if (len_trim(file1) == 0) &
+       call ferror('trick_compare_deformed','Missing first structure file',faterr)
+    file2 = getword(line0,lp)
+    if (len_trim(file2) == 0) &
+       call ferror('trick_compare_deformed','Missing second structure file',faterr)
+
+    ! read the structures
+    write (uout,'("+ Reading the structure from: ",A)') trim(file1)
+    call seed%read_any_file(file1,-1,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_compare_deformed','error reading geometry file: ' // file1,faterr)
+    call c1%struct_new(seed,.true.)
+    write (uout,'("+ Reading the structure from: ",A)') trim(file2)
+    call seed%read_any_file(file2,-1,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
+    call c2%struct_new(seed,.true.)
+
+    ! get the Delaunay cell of both cells
+    cd1 = transpose(c1%m_x2c)
+    nat = c1%ncel
+    ntyp = c1%nspc
+    allocate(x(3,4*c1%ncel),types_(4*c1%ncel)) ! to make room for spglib
+    do i = 1, c1%ncel
+       x(:,i) = c1%atcel(i)%x
+       types_(i) = c1%atcel(i)%is
+    end do
+    ierr = spg_standardize_cell(cd1,x,types_,nat,1,1,symprec)
+    if (ierr == 0) &
+       call ferror("trick_compare_deformed","structure 1, could not find primitive",faterr)
+    ierr = spg_delaunay_reduce(cd1,symprec)
+    if (ierr == 0) &
+       call ferror("trick_compare_deformed","structure 1, could not find Delaunay reduction",faterr)
+    cd1 = transpose(cd1)
+    deallocate(x,types_)
+
+    cd2 = transpose(c2%m_x2c)
+    nat = c2%ncel
+    ntyp = c2%nspc
+    allocate(x(3,4*c2%ncel),types_(4*c2%ncel)) ! to make room for spglib
+    do i = 1, c2%ncel
+       x(:,i) = c2%atcel(i)%x
+       types_(i) = c2%atcel(i)%is
+    end do
+    ierr = spg_standardize_cell(cd2,x,types_,nat,1,1,symprec)
+    if (ierr == 0) &
+       call ferror("trick_compare_deformed","structure 1, could not find primitive",faterr)
+    ierr = spg_delaunay_reduce(cd2,symprec)
+    if (ierr == 0) &
+       call ferror("trick_compare_deformed","structure 1, could not find Delaunay reduction",faterr)
+    cd2 = transpose(cd2)
+    deallocate(x,types_)
+
+    do i = 1, 3
+       xd1(:,i) = c1%c2x(cd1(:,i))
+       xd2(:,i) = c2%c2x(cd2(:,i))
+    end do
+
+    ! write out some info about the Delaunay cell
+    write (uout,'("+ Delaunay cells ")')
+    write (uout,'("  Structure 1: ")')
+    do i = 1, 3
+       write (uout,'(2X,"a",A,":",X,3(A,X))') string(i), (string(xd1(j,i),'f',10,4,ioj_right),j=1,3)
+    end do
+    write (uout,'("  Structure 2: ")')
+    do i = 1, 3
+       write (uout,'(2X,"a",A,":",X,3(A,X))') string(i), (string(xd2(j,i),'f',10,4,ioj_right),j=1,3)
+    end do
+    write (uout,*)
+
+    ! some output for the first structure
+    write (uout,'("+ Delaunay lattice vectors of structure 1: ")')
+    write (uout,'("#Id        x        y        z       length")')
+    do i = 1, 3
+       xx = 0d0
+       xx(i) = 1d0
+       xx = matmul(xx,transpose(xd1))
+       aa1(i) = norm2(c1%x2c(xx))
+       write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
+          string(aa1(i),'f',12,6,ioj_right)
+    end do
+    write (uout,'("+ Delaunay lattice vectors of structure 2: ")')
+    write (uout,'("#Id        x        y        z       length")')
+    do i = 1, 3
+       xx = 0d0
+       xx(i) = 1d0
+       xx = matmul(xx,transpose(xd2))
+       aa2(i) = norm2(c2%x2c(xx))
+       write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
+          string(aa2(i),'f',12,6,ioj_right)
+    end do
+    write (uout,*)
+
+    ! build the lattice vector environment for the second crystal
+    dmax0 = 0d0
+    do i = 1, 3
+       dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
+    end do
+    dmax0 = dmax0 * (1d0 + max_elong)
+    call e%build_lattice(cd2,dmax0*2d0)
+    call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
+
+    ! output for the second structure and determine integer ranges
+    n1 = 0
+    n2 = 0
+    n3 = 0
+    allocate(irange(nat,3))
+    write (uout,'("+ Lattice vectors of structure 2: ")')
+    write (uout,'("#Id        x        y        z       length   used-by")')
+    do i = 1, nat
+       xx = e%xr2x(e%at(eid(i))%x)
+       xx = matmul(xx,transpose(xd2))
+
+       abc = ""
+       if (abs(dist(i) / aa1(1) - 1d0) < max_elong) then
+          abc = trim(abc) // "1 "
+          n1 = n1 + 1
+          irange(n1,1) = i
+       end if
+       if (abs(dist(i) / aa1(2) - 1d0) < max_elong) then
+          abc = trim(abc) // "2 "
+          n2 = n2 + 1
+          irange(n2,2) = i
+       end if
+       if (abs(dist(i) / aa1(3) - 1d0) < max_elong) then
+          abc = trim(abc) // "3 "
+          n3 = n3 + 1
+          irange(n3,3) = i
+       end if
+       if (len_trim(abc) > 0) abc = "(" // trim(abc) // ")"
+
+       write (uout,'(2X,6(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
+          string(dist(i),'f',12,6,ioj_right), abc
+
+       if (all((dist(i) / aa1 - 1d0) > max_elong)) exit
+    end do
+    write (uout,*)
+
+    ! run over all permutations
+    cd1del = matmul(c1%m_x2c,transpose(xd1))
+    bb1(1) = acos(dot_product(cd1del(:,2),cd1del(:,3)) / aa1(2) / aa1(3)) * 180d0 / pi
+    bb1(2) = acos(dot_product(cd1del(:,1),cd1del(:,3)) / aa1(1) / aa1(3)) * 180d0 / pi
+    bb1(3) = acos(dot_product(cd1del(:,1),cd1del(:,2)) / aa1(1) / aa1(2)) * 180d0 / pi
+
+    do i1 = 1, n1
+       cd2del(:,1) = matmul(cd2,e%xr2x(e%at(eid(irange(i1,1)))%x))
+       aa2(1) = norm2(cd2del(:,1))
+       do i2 = 1, n2
+          if (i1 == i2) cycle
+          cd2del(:,2) = matmul(cd2,e%xr2x(e%at(eid(irange(i2,2)))%x))
+          aa2(2) = norm2(cd2del(:,2))
+          do i3 = 1, n3
+             if (i1 == i3 .or. i2 == i3) cycle
+             cd2del(:,3) = matmul(cd2,e%xr2x(e%at(eid(irange(i3,3)))%x))
+             aa2(3) = norm2(cd2del(:,3))
+
+             cc(1) = dot_product(cd2del(:,2),cd2del(:,3)) / aa2(2) / aa2(3)
+             cc(2) = dot_product(cd2del(:,1),cd2del(:,3)) / aa2(1) / aa2(3)
+             cc(3) = dot_product(cd2del(:,1),cd2del(:,2)) / aa2(1) / aa2(2)
+             if (any(abs(cc) > 0.9999d0)) cycle
+
+             bb2(1) = acos(cc(1)) * 180d0 / pi
+             bb2(2) = acos(cc(2)) * 180d0 / pi
+             bb2(3) = acos(cc(3)) * 180d0 / pi
+
+             if (any(abs(bb1 - bb2) > max_ang)) cycle
+             xd2del = matmul(c2%m_c2x,cd2del)
+
+             write (*,*) irange(i1,1), irange(i2,2), irange(i3,3)
+             write (*,'(2X,3(3(A,X),2X))') (string(xd2del(i,1),'f',8,2,ioj_right),i=1,3),&
+                (string(xd2del(i,2),'f',8,2,ioj_right),i=1,3),&
+                (string(xd2del(i,3),'f',8,2,ioj_right),i=1,3)
+          end do
+       end do
+    end do
+
+
+    stop 1
+
+  end subroutine trick_compare_deformed
 
 end module tricks

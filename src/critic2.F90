@@ -642,9 +642,6 @@ program critic
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
 
-        ! temp, for testing
-     elseif (equal(word,'temp')) then
-
      elseif (equal(word,'end').or.equal(word,'exit')) then
         call check_no_extra_word(ok)
         if (.not.ok) cycle
