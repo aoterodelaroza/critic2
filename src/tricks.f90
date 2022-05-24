@@ -2169,7 +2169,7 @@ contains
     use global, only: symprec
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
-    use tools_math, only: matinv
+    use tools_math, only: matinv, m_c2x_from_cellpar
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right
     use param, only: pi, icrd_crys
     character*(*), intent(in) :: line0
@@ -2178,10 +2178,10 @@ contains
     type(environ) :: e
     integer :: lp, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc
-    type(crystal) :: c1, c2
+    type(crystal) :: c1, c2, c1del, c2del
     real*8 :: xd1(3,3), xd2(3,3), cd1(3,3), cd2(3,3), dmax0, xx(3)
-    real*8 :: aa1(3), bb1(3), bb2(3), aa2(3), cd1del(3,3), cd2del(3,3), cc(3)
-    real*8 :: xd2del(3,3)
+    real*8 :: aa1(3), bb1(3), bb2(3), aa2(3), cd2del(3,3), cc(3)
+    real*8 :: xd2del(3,3), c2xnew(3,3), xcm(3)
     real*8, allocatable :: dist(:)
     integer, allocatable :: eid(:), irange(:,:)
     real(c_double), allocatable :: x(:,:)
@@ -2273,7 +2273,7 @@ contains
     do i = 1, 3
        xx = 0d0
        xx(i) = 1d0
-       xx = matmul(xx,transpose(xd1))
+       xx = matmul(xd1,xx)
        aa1(i) = norm2(c1%x2c(xx))
        write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
           string(aa1(i),'f',12,6,ioj_right)
@@ -2283,7 +2283,7 @@ contains
     do i = 1, 3
        xx = 0d0
        xx(i) = 1d0
-       xx = matmul(xx,transpose(xd2))
+       xx = matmul(xd2,xx)
        aa2(i) = norm2(c2%x2c(xx))
        write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
           string(aa2(i),'f',12,6,ioj_right)
@@ -2308,7 +2308,7 @@ contains
     write (uout,'("#Id        x        y        z       length   used-by")')
     do i = 1, nat
        xx = e%xr2x(e%at(eid(i))%x)
-       xx = matmul(xx,transpose(xd2))
+       xx = matmul(xd2,xx)
 
        abc = ""
        if (abs(dist(i) / aa1(1) - 1d0) < max_elong) then
@@ -2336,10 +2336,11 @@ contains
     write (uout,*)
 
     ! run over all permutations
-    cd1del = matmul(c1%m_x2c,transpose(xd1))
-    bb1(1) = acos(dot_product(cd1del(:,2),cd1del(:,3)) / aa1(2) / aa1(3)) * 180d0 / pi
-    bb1(2) = acos(dot_product(cd1del(:,1),cd1del(:,3)) / aa1(1) / aa1(3)) * 180d0 / pi
-    bb1(3) = acos(dot_product(cd1del(:,1),cd1del(:,2)) / aa1(1) / aa1(2)) * 180d0 / pi
+    bb1(1) = acos(dot_product(cd1(:,2),cd1(:,3)) / aa1(2) / aa1(3)) * 180d0 / pi
+    bb1(2) = acos(dot_product(cd1(:,1),cd1(:,3)) / aa1(1) / aa1(3)) * 180d0 / pi
+    bb1(3) = acos(dot_product(cd1(:,1),cd1(:,2)) / aa1(1) / aa1(2)) * 180d0 / pi
+    c1del = c1
+    call c1del%newcell(xd1)
 
     do i1 = 1, n1
        cd2del(:,1) = matmul(cd2,e%xr2x(e%at(eid(irange(i1,1)))%x))
@@ -2365,16 +2366,50 @@ contains
              if (any(abs(bb1 - bb2) > max_ang)) cycle
              xd2del = matmul(c2%m_c2x,cd2del)
 
-             write (*,*) irange(i1,1), irange(i2,2), irange(i3,3)
+             ! make the new c2 crystal
+             c2del = c2
+             call c2del%newcell(xd2del)
+             call c2del%makeseed(seed,.false.)
+             seed%useabr = 1
+             seed%aa = c1del%aa
+             seed%bb = c1del%bb
+             seed%findsym = 0
+
+             ! whole-body translation of the molecules to their new positions
+
+             ! c2xnew = m_c2x_from_cellpar(seed%aa,seed%bb)
+             ! do i = 1, c2del%nmol
+             !    xcm = c2del%c2x(c2del%mol(i)%cmass())
+             !    do j = 1, c2del%mol(i)%nat
+             !       xx = c2del%mol(i)%at(j)%x - xcm
+             !       xx = c2del%x2c(xx)
+             !       xx = matmul(c2xnew,xx)
+             !       seed%x(:,c2del%mol(i)%at(j)%cidx) = xcm + xx
+
+             !       ! seed%x(:,c2del%mol(i)%at(j)%cidx) = c2del%mol(i)%at(j)%x
+             !    end do
+             ! end do
+
+             call c2del%struct_new(seed,.true.)
+
+             ! call c1del%write_cif("bleh1_" // string(i1) // "_" // string(i2) // "_" // string(i3) // ".cif",.false.)
+             ! call c2del%write_cif("bleh2_" // string(i1) // "_" // string(i2) // "_" // string(i3) // ".cif",.false.)
+
+             ! write
+             write (*,*) "xxxx", i1, i2, i3
+             write (*,*) "xxxx", irange(i1,1), irange(i2,2), irange(i3,3)
              write (*,'(2X,3(3(A,X),2X))') (string(xd2del(i,1),'f',8,2,ioj_right),i=1,3),&
                 (string(xd2del(i,2),'f',8,2,ioj_right),i=1,3),&
                 (string(xd2del(i,3),'f',8,2,ioj_right),i=1,3)
+             write (*,*) c1del%aa, c2del%aa
+             write (*,*) aa1, aa2
+             write (*,*) c1del%bb, c2del%bb
+             write (*,*) bb1, bb2
           end do
        end do
     end do
 
-
-    stop 1
+    ! stop 1
 
   end subroutine trick_compare_deformed
 
