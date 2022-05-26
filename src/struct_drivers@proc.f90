@@ -654,9 +654,10 @@ contains
           isqe = equal(wext,'scf')
        endif
 
+       ok = eval_next(rk,line,lp)
+
        ! espresso
        if (isqe) then
-          ok = eval_next(rk,line,lp)
           write (uout,'("* WRITE espresso file: ",A)') string(file)
           if (ok) then
              call s%c%write_espresso(file,rk)
@@ -665,9 +666,11 @@ contains
           end if
        else
           write (uout,'("* WRITE FHIaims file: ",A)') string(file)
-          call s%c%write_fhi(file,.true.)
-          ok = check_no_extra_word()
-          if (.not.ok) return
+          if (ok) then
+             call s%c%write_fhi(file,.true.,rk)
+          else
+             call s%c%write_fhi(file,.true.)
+          end if
        end if
 
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then

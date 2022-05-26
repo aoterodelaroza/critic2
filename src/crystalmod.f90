@@ -664,10 +664,11 @@ module crystalmod
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
      end subroutine write_pyscf
-     module subroutine write_fhi(c,file,frac)
+     module subroutine write_fhi(c,file,frac,rklength)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: frac
+       real*8, intent(in), optional :: rklength
      end subroutine write_fhi
      module subroutine write_tinkerfrac(c,file)
        class(crystal), intent(in) :: c
