@@ -2166,10 +2166,10 @@ contains
     use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
-    use global, only: symprec
+    use global, only: symprec, iunitname0, dunit0, iunit
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
-    use tools_math, only: matinv, m_c2x_from_cellpar
+    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right
     use param, only: pi, icrd_crys
     character*(*), intent(in) :: line0
@@ -2180,16 +2180,29 @@ contains
     character(len=:), allocatable :: file1, file2, errmsg, abc
     type(crystal) :: c1, c2, c1del, c2del
     real*8 :: xd1(3,3), xd2(3,3), cd1(3,3), cd2(3,3), dmax0, xx(3)
-    real*8 :: aa1(3), bb1(3), bb2(3), aa2(3), cd2del(3,3), cc(3)
-    real*8 :: xd2del(3,3), c2xnew(3,3), xcm(3)
+    real*8 :: xd2del(3,3), c2xnew(3,3), xcm(3), dd
+    real*8 :: aa2(3), bb2(3), cc2(3)
     real*8, allocatable :: dist(:)
     integer, allocatable :: eid(:), irange(:,:)
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types_(:)
     integer :: nat, ntyp, n1, n2, n3, i1, i2, i3
+    real*8, allocatable :: iha1(:), iha2(:)
+    real*8, allocatable :: t(:), th2p(:), ip(:)
+    integer, allocatable :: hvecp(:,:)
+    real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
+    real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3)
 
-    real*8 :: max_elong = 0.2d0 ! at most 20% elongation of cell lengths
-    real*8 :: max_ang = 20d0    ! at most 20 degrees change in angle
+    real*8, parameter :: th2ini = 5d0
+    real*8, parameter :: th2end = 50d0
+    integer, parameter :: npts = 10001
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: sigma0 = 0.05d0
+
+    real*8, parameter :: max_elong = 0.2d0 ! at most 20% elongation of cell lengths
+    real*8, parameter :: max_ang = 20d0    ! at most 20 degrees change in angle
+    character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
     ! header
     write (uout,'("* COMPARE, allowing for deformed cells")')
@@ -2203,91 +2216,45 @@ contains
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
 
-    ! read the structures
+    ! read the structures, force symmetry recalculation
     write (uout,'("+ Reading the structure from: ",A)') trim(file1)
     call seed%read_any_file(file1,-1,errmsg)
+    seed%havesym = 0
+    seed%findsym = 1
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file1,faterr)
     call c1%struct_new(seed,.true.)
     write (uout,'("+ Reading the structure from: ",A)') trim(file2)
     call seed%read_any_file(file2,-1,errmsg)
+    seed%havesym = 0
+    seed%findsym = 1
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
     call c2%struct_new(seed,.true.)
 
     ! get the Delaunay cell of both cells
-    cd1 = transpose(c1%m_x2c)
-    nat = c1%ncel
-    ntyp = c1%nspc
-    allocate(x(3,4*c1%ncel),types_(4*c1%ncel)) ! to make room for spglib
-    do i = 1, c1%ncel
-       x(:,i) = c1%atcel(i)%x
-       types_(i) = c1%atcel(i)%is
-    end do
-    ierr = spg_standardize_cell(cd1,x,types_,nat,1,1,symprec)
-    if (ierr == 0) &
-       call ferror("trick_compare_deformed","structure 1, could not find primitive",faterr)
-    ierr = spg_delaunay_reduce(cd1,symprec)
-    if (ierr == 0) &
-       call ferror("trick_compare_deformed","structure 1, could not find Delaunay reduction",faterr)
-    cd1 = transpose(cd1)
-    deallocate(x,types_)
-
-    cd2 = transpose(c2%m_x2c)
-    nat = c2%ncel
-    ntyp = c2%nspc
-    allocate(x(3,4*c2%ncel),types_(4*c2%ncel)) ! to make room for spglib
-    do i = 1, c2%ncel
-       x(:,i) = c2%atcel(i)%x
-       types_(i) = c2%atcel(i)%is
-    end do
-    ierr = spg_standardize_cell(cd2,x,types_,nat,1,1,symprec)
-    if (ierr == 0) &
-       call ferror("trick_compare_deformed","structure 1, could not find primitive",faterr)
-    ierr = spg_delaunay_reduce(cd2,symprec)
-    if (ierr == 0) &
-       call ferror("trick_compare_deformed","structure 1, could not find Delaunay reduction",faterr)
-    cd2 = transpose(cd2)
-    deallocate(x,types_)
-
-    do i = 1, 3
-       xd1(:,i) = c1%c2x(cd1(:,i))
-       xd2(:,i) = c2%c2x(cd2(:,i))
-    end do
-
-    ! write out some info about the Delaunay cell
-    write (uout,'("+ Delaunay cells ")')
-    write (uout,'("  Structure 1: ")')
-    do i = 1, 3
-       write (uout,'(2X,"a",A,":",X,3(A,X))') string(i), (string(xd1(j,i),'f',10,4,ioj_right),j=1,3)
-    end do
-    write (uout,'("  Structure 2: ")')
-    do i = 1, 3
-       write (uout,'(2X,"a",A,":",X,3(A,X))') string(i), (string(xd2(j,i),'f',10,4,ioj_right),j=1,3)
-    end do
-    write (uout,*)
+    x0std1 = c1%cell_standard(.true.,.false.,.false.)
+    x0del1 = c1%cell_delaunay()
+    x0std2 = c2%cell_standard(.true.,.false.,.false.)
+    x0del2 = c2%cell_delaunay()
 
     ! some output for the first structure
-    write (uout,'("+ Delaunay lattice vectors of structure 1: ")')
-    write (uout,'("#Id        x        y        z       length")')
+    write (uout,'("+ Delaunay lattice vectors (",A,")")') iunitname0(iunit)
+    write (uout,'("# Structure 1: ")')
     do i = 1, 3
-       xx = 0d0
-       xx(i) = 1d0
-       xx = matmul(xd1,xx)
-       aa1(i) = norm2(c1%x2c(xx))
-       write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
-          string(aa1(i),'f',12,6,ioj_right)
+       write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
+          (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+          string(c1%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
     end do
-    write (uout,'("+ Delaunay lattice vectors of structure 2: ")')
-    write (uout,'("#Id        x        y        z       length")')
+    write (uout,'("  Angles (deg): ",3(A,X))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
+    write (uout,'("# Structure 2: ")')
     do i = 1, 3
-       xx = 0d0
-       xx(i) = 1d0
-       xx = matmul(xd2,xx)
-       aa2(i) = norm2(c2%x2c(xx))
-       write (uout,'(2X,5(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
-          string(aa2(i),'f',12,6,ioj_right)
+       c2%aa(i) = norm2(c2%m_x2c(:,i))
+       write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
+          (string(c2%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+          string(c2%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
     end do
+    write (uout,'("  Angles (deg): ",3(A,X))') (string(c2%bb(i),'f',length=8,decimal=3),i=1,3)
     write (uout,*)
 
     ! build the lattice vector environment for the second crystal
@@ -2296,7 +2263,7 @@ contains
        dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
     end do
     dmax0 = dmax0 * (1d0 + max_elong)
-    call e%build_lattice(cd2,dmax0*2d0)
+    call e%build_lattice(c2%m_x2c,dmax0*2d0)
     call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
 
     ! output for the second structure and determine integer ranges
@@ -2304,24 +2271,23 @@ contains
     n2 = 0
     n3 = 0
     allocate(irange(nat,3))
-    write (uout,'("+ Lattice vectors of structure 2: ")')
+    write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Delaunay basis): ")')
     write (uout,'("#Id        x        y        z       length   used-by")')
     do i = 1, nat
        xx = e%xr2x(e%at(eid(i))%x)
-       xx = matmul(xd2,xx)
 
        abc = ""
-       if (abs(dist(i) / aa1(1) - 1d0) < max_elong) then
+       if (abs(dist(i) / c1%aa(1) - 1d0) < max_elong) then
           abc = trim(abc) // "1 "
           n1 = n1 + 1
           irange(n1,1) = i
        end if
-       if (abs(dist(i) / aa1(2) - 1d0) < max_elong) then
+       if (abs(dist(i) / c1%aa(2) - 1d0) < max_elong) then
           abc = trim(abc) // "2 "
           n2 = n2 + 1
           irange(n2,2) = i
        end if
-       if (abs(dist(i) / aa1(3) - 1d0) < max_elong) then
+       if (abs(dist(i) / c1%aa(3) - 1d0) < max_elong) then
           abc = trim(abc) // "3 "
           n3 = n3 + 1
           irange(n3,3) = i
@@ -2331,85 +2297,94 @@ contains
        write (uout,'(2X,6(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
           string(dist(i),'f',12,6,ioj_right), abc
 
-       if (all((dist(i) / aa1 - 1d0) > max_elong)) exit
+       if (all((dist(i) / c1%aa - 1d0) > max_elong)) exit
     end do
     write (uout,*)
 
-    ! run over all permutations
-    bb1(1) = acos(dot_product(cd1(:,2),cd1(:,3)) / aa1(2) / aa1(3)) * 180d0 / pi
-    bb1(2) = acos(dot_product(cd1(:,1),cd1(:,3)) / aa1(1) / aa1(3)) * 180d0 / pi
-    bb1(3) = acos(dot_product(cd1(:,1),cd1(:,2)) / aa1(1) / aa1(2)) * 180d0 / pi
-    c1del = c1
-    call c1del%newcell(xd1)
+    ! calculate the powder of structure 1
+    call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+    tini = iha1(1)**2
+    tend = iha1(npts)**2
+    nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+    iha1 = iha1 / sqrt(nor)
+    h =  (th2end-th2ini) / real(npts-1,8)
+    xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
+    xnorm1 = sqrt(abs(xnorm1))
 
+    ! run over all permutations
+    mindiff = 1d0
+    write (uout,'("+ Structural comparison of candidate structures")')
+    write (uout,'("# Reference structure is 1.")')
+    write (uout,'("# Structure 2 takes lattice vectors (a,b,c) from the list above.")')
+    write (uout,'("# max-dlen = maximum difference in cell lengths (bohr).")')
+    write (uout,'("# max-dang = maximum difference in angles (degree).")')
+    write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
     do i1 = 1, n1
-       cd2del(:,1) = matmul(cd2,e%xr2x(e%at(eid(irange(i1,1)))%x))
-       aa2(1) = norm2(cd2del(:,1))
+       cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
+       aa2(1) = norm2(cd2(:,1))
        do i2 = 1, n2
           if (i1 == i2) cycle
-          cd2del(:,2) = matmul(cd2,e%xr2x(e%at(eid(irange(i2,2)))%x))
-          aa2(2) = norm2(cd2del(:,2))
+          cd2(:,2) = e%xr2c(e%at(eid(irange(i2,2)))%x)
+          aa2(2) = norm2(cd2(:,2))
           do i3 = 1, n3
              if (i1 == i3 .or. i2 == i3) cycle
-             cd2del(:,3) = matmul(cd2,e%xr2x(e%at(eid(irange(i3,3)))%x))
-             aa2(3) = norm2(cd2del(:,3))
+             cd2(:,3) = e%xr2c(e%at(eid(irange(i3,3)))%x)
+             aa2(3) = norm2(cd2(:,3))
 
-             cc(1) = dot_product(cd2del(:,2),cd2del(:,3)) / aa2(2) / aa2(3)
-             cc(2) = dot_product(cd2del(:,1),cd2del(:,3)) / aa2(1) / aa2(3)
-             cc(3) = dot_product(cd2del(:,1),cd2del(:,2)) / aa2(1) / aa2(2)
-             if (any(abs(cc) > 0.9999d0)) cycle
+             ! check collinear
+             cc2(1) = dot_product(cd2(:,2),cd2(:,3)) / aa2(2) / aa2(3)
+             cc2(2) = dot_product(cd2(:,1),cd2(:,3)) / aa2(1) / aa2(3)
+             cc2(3) = dot_product(cd2(:,1),cd2(:,2)) / aa2(1) / aa2(2)
+             if (any(abs(cc2) > 0.9999d0)) cycle
 
-             bb2(1) = acos(cc(1)) * 180d0 / pi
-             bb2(2) = acos(cc(2)) * 180d0 / pi
-             bb2(3) = acos(cc(3)) * 180d0 / pi
+             ! check angle conditions
+             bb2(1) = acos(cc2(1)) * 180d0 / pi
+             bb2(2) = acos(cc2(2)) * 180d0 / pi
+             bb2(3) = acos(cc2(3)) * 180d0 / pi
+             if (any(abs(c1%bb - bb2) > max_ang)) cycle
+             xd2 = matmul(c2%m_c2x,cd2)
 
-             if (any(abs(bb1 - bb2) > max_ang)) cycle
-             xd2del = matmul(c2%m_c2x,cd2del)
+             ! check determinant
+             dd = det3(xd2)
+             if (abs(dd) < 1d-5) cycle
+             if (dd < 0d0) xd2 = -xd2
 
-             ! make the new c2 crystal
+             ! make the new c2 crystal with the new transformation and replace metric parameters
              c2del = c2
-             call c2del%newcell(xd2del)
+             call c2del%newcell(xd2)
              call c2del%makeseed(seed,.false.)
              seed%useabr = 1
-             seed%aa = c1del%aa
-             seed%bb = c1del%bb
+             seed%aa = c1%aa
+             seed%bb = c1%bb
              seed%findsym = 0
 
-             ! whole-body translation of the molecules to their new positions
+             !! nothing = keep the fractional coordinates of the original crystal
 
-             ! c2xnew = m_c2x_from_cellpar(seed%aa,seed%bb)
-             ! do i = 1, c2del%nmol
-             !    xcm = c2del%c2x(c2del%mol(i)%cmass())
-             !    do j = 1, c2del%mol(i)%nat
-             !       xx = c2del%mol(i)%at(j)%x - xcm
-             !       xx = c2del%x2c(xx)
-             !       xx = matmul(c2xnew,xx)
-             !       seed%x(:,c2del%mol(i)%at(j)%cidx) = xcm + xx
-
-             !       ! seed%x(:,c2del%mol(i)%at(j)%cidx) = c2del%mol(i)%at(j)%x
-             !    end do
-             ! end do
-
+             ! create the new c2 crystal
              call c2del%struct_new(seed,.true.)
 
-             ! call c1del%write_cif("bleh1_" // string(i1) // "_" // string(i2) // "_" // string(i3) // ".cif",.false.)
-             ! call c2del%write_cif("bleh2_" // string(i1) // "_" // string(i2) // "_" // string(i3) // ".cif",.false.)
+             ! calculate the powder of structure 2
+             call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+             tini = iha2(1)**2
+             tend = iha2(npts)**2
+             nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+             iha2 = iha2 / sqrt(nor)
+             xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+             xnorm2 = sqrt(abs(xnorm2))
 
-             ! write
-             write (*,*) "xxxx", i1, i2, i3
-             write (*,*) "xxxx", irange(i1,1), irange(i2,2), irange(i3,3)
-             write (*,'(2X,3(3(A,X),2X))') (string(xd2del(i,1),'f',8,2,ioj_right),i=1,3),&
-                (string(xd2del(i,2),'f',8,2,ioj_right),i=1,3),&
-                (string(xd2del(i,3),'f',8,2,ioj_right),i=1,3)
-             write (*,*) c1del%aa, c2del%aa
-             write (*,*) aa1, aa2
-             write (*,*) c1del%bb, c2del%bb
-             write (*,*) bb1, bb2
+             ! calculate the powdiff
+             diff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+             mindiff = min(diff,mindiff)
+
+             write (uout,'(99(A,X))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                string(irange(i3,3),2,ioj_right),&
+                string(maxval(abs(c1%aa-aa2)),'f',8,4,ioj_right), string(maxval(abs(c1%bb-bb2)),'f',8,3,ioj_right),&
+                string(diff,'f',10,7)
           end do
        end do
     end do
-
-    ! stop 1
+    write (uout,'("+ FINAL POWDIFF = ",A)') string(mindiff,'f',12,9)
+    write (uout,*)
 
   end subroutine trick_compare_deformed
 
