@@ -2219,18 +2219,20 @@ contains
     ! read the structures, force symmetry recalculation
     write (uout,'("+ Reading the structure from: ",A)') trim(file1)
     call seed%read_any_file(file1,-1,errmsg)
-    seed%havesym = 0
-    seed%findsym = 1
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file1,faterr)
     call c1%struct_new(seed,.true.)
+    call c1%calcsym(.false.,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
     write (uout,'("+ Reading the structure from: ",A)') trim(file2)
     call seed%read_any_file(file2,-1,errmsg)
-    seed%havesym = 0
-    seed%findsym = 1
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
     call c2%struct_new(seed,.true.)
+    call c2%calcsym(.false.,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
 
     ! check both are molecular crystals
     if (c1%ismolecule) &
@@ -2245,8 +2247,10 @@ contains
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
     x0del1 = c1%cell_delaunay()
+    !x0del1 = c1%cell_niggli()
     x0std2 = c2%cell_standard(.true.,.false.,.false.)
     x0del2 = c2%cell_delaunay()
+    !x0del2 = c2%cell_niggli()
     if (all(abs(x0std1) < 1d-5)) x0std1 = eye
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
     if (all(abs(x0std2) < 1d-5)) x0std2 = eye
