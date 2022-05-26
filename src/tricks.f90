@@ -2316,23 +2316,35 @@ contains
     write (uout,*)
 
     ! calculate the powder of structure 1
+    h =  (th2end-th2ini) / real(npts-1,8)
     call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
     tini = iha1(1)**2
     tend = iha1(npts)**2
     nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
     iha1 = iha1 / sqrt(nor)
-    h =  (th2end-th2ini) / real(npts-1,8)
     xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
     xnorm1 = sqrt(abs(xnorm1))
 
+    ! calculate the powder of structure 2
+    call c2%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+    tini = iha2(1)**2
+    tend = iha2(npts)**2
+    nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+    iha2 = iha2 / sqrt(nor)
+    xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+    xnorm2 = sqrt(abs(xnorm2))
+
+    ! calculate baseline powdiff
+    mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+
     ! run over all permutations
-    mindiff = 1d0
     write (uout,'("+ Structural comparison of candidate structures")')
     write (uout,'("# Reference structure is 1.")')
     write (uout,'("# Structure 2 takes lattice vectors (a,b,c) from the list above.")')
     write (uout,'("# max-dlen = maximum difference in cell lengths (bohr).")')
     write (uout,'("# max-dang = maximum difference in angles (degree).")')
     write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
+    write (uout,'("+ INITIAL POWDIFF = ",A)') string(mindiff,'f',12,9)
     do i1 = 1, n1
        cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
        aa2(1) = norm2(cd2(:,1))
