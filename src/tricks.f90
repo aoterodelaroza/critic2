@@ -2170,7 +2170,8 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle
-    use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right
+    use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
+       isreal
     use param, only: pi, icrd_crys, eye
     character*(*), intent(in) :: line0
 
@@ -2192,6 +2193,8 @@ contains
     integer, allocatable :: hvecp(:,:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3)
+    logical :: ok
+    real*8 :: powdiff_thr
 
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
@@ -2204,7 +2207,7 @@ contains
     real*8, parameter :: max_ang = 20d0    ! at most 20 degrees change in angle
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
-    ! header
+    ! header and initalization
     write (uout,'("* COMPARE, allowing for deformed cells")')
 
     ! read the input files
@@ -2215,6 +2218,8 @@ contains
     file2 = getword(line0,lp)
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
+    ok = isreal(powdiff_thr,line0,lp)
+    if (.not.ok) powdiff_thr = -1d0
 
     ! read the structures, force symmetry recalculation
     write (uout,'("+ Reading the structure from: ",A)') trim(file1)
@@ -2340,7 +2345,6 @@ contains
 
     ! calculate baseline powdiff
     mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
-
     ! run over all permutations
     write (uout,'("+ Structural comparison of candidate structures")')
     write (uout,'("# Reference structure is 1.")')
@@ -2349,6 +2353,7 @@ contains
     write (uout,'("# max-dang = maximum difference in angles (degree).")')
     write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
     write (uout,'("+ INITIAL POWDIFF = ",A)') string(mindiff,'f',12,9)
+    if (mindiff < powdiff_thr) goto 999
     do i1 = 1, n1
        cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
        aa2(1) = norm2(cd2(:,1))
@@ -2410,9 +2415,15 @@ contains
                 string(irange(i3,3),2,ioj_right),&
                 string(maxval(abs(c1%aa-aa2)),'f',8,4,ioj_right), string(maxval(abs(c1%bb-bb2)),'f',8,3,ioj_right),&
                 string(diff,'f',10,7)
+             if (mindiff < powdiff_thr) goto 999
           end do
        end do
     end do
+
+999 continue
+    if (mindiff < powdiff_thr) &
+       write (uout,'("--- Last POWDIFF satisfies the threshold requirement for matching structures, skipping...")')
+
     write (uout,'("+ FINAL POWDIFF = ",A)') string(mindiff,'f',12,9)
     write (uout,*)
 
