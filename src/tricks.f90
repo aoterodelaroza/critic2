@@ -2171,7 +2171,7 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right
-    use param, only: pi, icrd_crys
+    use param, only: pi, icrd_crys, eye
     character*(*), intent(in) :: line0
 
     type(crystalseed) :: seed
@@ -2232,11 +2232,25 @@ contains
        call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
     call c2%struct_new(seed,.true.)
 
+    ! check both are molecular crystals
+    if (c1%ismolecule) &
+       call ferror('trick_compare_defomred','structure 1 is a molecule',faterr)
+    if (.not.c1%ismol3d) &
+       call ferror('trick_compare_deformed','structure 1 is not a molecular crystal',faterr)
+    if (c2%ismolecule) &
+       call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
+    if (.not.c2%ismol3d) &
+       call ferror('trick_compare_deformed','structure 2 is not a molecular crystal',faterr)
+
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
     x0del1 = c1%cell_delaunay()
     x0std2 = c2%cell_standard(.true.,.false.,.false.)
     x0del2 = c2%cell_delaunay()
+    if (all(abs(x0std1) < 1d-5)) x0std1 = eye
+    if (all(abs(x0del1) < 1d-5)) x0del1 = eye
+    if (all(abs(x0std2) < 1d-5)) x0std2 = eye
+    if (all(abs(x0del2) < 1d-5)) x0del2 = eye
 
     ! some output for the first structure
     write (uout,'("+ Delaunay lattice vectors (",A,")")') iunitname0(iunit)
