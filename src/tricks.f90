@@ -2200,7 +2200,7 @@ contains
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
 
-    real*8, parameter :: max_elong = 0.2d0 ! at most 20% elongation of cell lengths
+    real*8, parameter :: max_elong = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang = 20d0    ! at most 20 degrees change in angle
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
