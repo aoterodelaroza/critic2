@@ -2163,9 +2163,9 @@ contains
 
   ! Compare structures, allowing deformation of one crystal into the other such
   ! as may be cause by temperature or pressure effects without a phase change.
-  !   TRICK COMPARE struct1 struct2 THR thr.r WRITE
+  !   TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH]
   ! If thr.r, then stop if the POWDIFF is below thr.r. If WRITE, write stucture 2
-  ! to a file.
+  ! to a file. If NOH, strip the hydrogens from the structure before comparing.
   subroutine trick_compare_deformed(line0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
@@ -2195,7 +2195,7 @@ contains
     integer, allocatable :: hvecp(:,:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
-    logical :: ok, dowrite
+    logical :: ok, dowrite, noh
     real*8 :: powdiff_thr
 
     real*8, parameter :: th2ini = 5d0
@@ -2223,6 +2223,7 @@ contains
 
     powdiff_thr = -1d0
     dowrite = .false.
+    noh = .false.
     do while (.true.)
        word = lgetword(line0,lp)
        if (equal(word,'thr')) then
@@ -2230,6 +2231,8 @@ contains
           if (.not.ok) call ferror('trick_compare_deformed','Wrong THR',faterr)
        elseif (equal(word,'write')) then
           dowrite = .true.
+       elseif (equal(word,'noh')) then
+          noh = .true.
        elseif (len_trim(word) > 0) then
           if (.not.ok) call ferror('trick_compare_deformed','Unknown keyword',faterr)
        else
@@ -2242,14 +2245,17 @@ contains
     call seed%read_any_file(file1,-1,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file1,faterr)
+    if (noh) call seed%strip_hydrogens()
     call c1%struct_new(seed,.true.)
     call c1%calcsym(.false.,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
+
     write (uout,'("+ Reading the structure from: ",A)') trim(file2)
     call seed%read_any_file(file2,-1,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
+    if (noh) call seed%strip_hydrogens()
     call c2%struct_new(seed,.true.)
     call c2%calcsym(.false.,errmsg)
     if (len_trim(errmsg) > 0) &

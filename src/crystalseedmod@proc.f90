@@ -753,6 +753,27 @@ contains
 
   end subroutine from_fragment
 
+  !> Remove all hydrogens from the seed
+  module subroutine strip_hydrogens(seed)
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed
+
+    integer :: i, nnat
+
+    nnat = 0
+    do i = 1, seed%nat
+       if (seed%spc(seed%is(i))%z /= 1) then
+          nnat = nnat + 1
+          seed%x(:,nnat) = seed%x(:,i)
+          seed%is(nnat) = seed%is(i)
+       end if
+    end do
+    seed%nat = nnat
+    call realloc(seed%x,3,nnat)
+    call realloc(seed%is,nnat)
+
+  end subroutine strip_hydrogens
+
   !> Detect the file format of a file from the extension and read a
   !> crystal seed from it. If mol0 == 1, force a molecule. If mol0 ==
   !> 0, force a crystal. If mol0 == -1, let the format detection

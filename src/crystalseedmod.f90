@@ -64,6 +64,7 @@ module crystalseedmod
      procedure :: parse_crystal_env
      procedure :: parse_molecule_env
      procedure :: from_fragment
+     procedure :: strip_hydrogens
      procedure :: read_library
      procedure :: read_any_file
      procedure :: read_cif
@@ -131,6 +132,9 @@ module crystalseedmod
        type(fragment), intent(in) :: fr
        logical, intent(in), optional :: order_by_cidx0
      end subroutine from_fragment
+     module subroutine strip_hydrogens(seed)
+       class(crystalseed), intent(inout) :: seed
+     end subroutine strip_hydrogens
      module subroutine read_any_file(seed,file,mol0,errmsg)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
