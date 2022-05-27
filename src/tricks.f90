@@ -2273,11 +2273,11 @@ contains
 
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
-    x0del1 = c1%cell_delaunay()
-    !x0del1 = c1%cell_niggli()
+    !x0del1 = c1%cell_delaunay()
+    x0del1 = c1%cell_niggli()
     x0std2 = c2%cell_standard(.true.,.false.,.false.)
-    x0del2 = c2%cell_delaunay()
-    !x0del2 = c2%cell_niggli()
+    !x0del2 = c2%cell_delaunay()
+    x0del2 = c2%cell_niggli()
     if (all(abs(x0std1) < 1d-5)) x0std1 = eye
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
     if (all(abs(x0std2) < 1d-5)) x0std2 = eye
@@ -2357,7 +2357,16 @@ contains
     xnorm1 = sqrt(abs(xnorm1))
 
     ! calculate the powder of structure 2 and prepare
-    call c2%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+    c2del = c2
+    c2del%aa = c1%aa
+    c2del%bb = c1%bb
+    c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+    c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+    call matinv(c2del%grtensor,3)
+    do i = 1, 3
+       c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+    end do
+    call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
     tini = iha2(1)**2
     tend = iha2(npts)**2
     nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2368,6 +2377,7 @@ contains
     ! calculate baseline powdiff
     mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
     xd2min = eye
+
     ! run over all permutations
     write (uout,'("+ Structural comparison of candidate structures")')
     write (uout,'("# Reference structure is 1.")')
@@ -2381,11 +2391,11 @@ contains
        cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
        aa2(1) = norm2(cd2(:,1))
        do i2 = 1, n2
-          if (i1 == i2) cycle
+          if (irange(i1,1) == irange(i2,2)) cycle
           cd2(:,2) = e%xr2c(e%at(eid(irange(i2,2)))%x)
           aa2(2) = norm2(cd2(:,2))
           do i3 = 1, n3
-             if (i1 == i3 .or. i2 == i3) cycle
+             if (irange(i1,1) == irange(i3,3) .or. irange(i2,2) == irange(i3,3)) cycle
              cd2(:,3) = e%xr2c(e%at(eid(irange(i3,3)))%x)
              aa2(3) = norm2(cd2(:,3))
 
