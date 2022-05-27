@@ -11,7 +11,7 @@ set(critic2_DESCRIPTION "Analysis of quantum mechanical calculations in molecule
 string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
 
 ## project definition
-project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C CXX Fortran)
+project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C Fortran)
 
 ## find git to see if we can have a git commit; n/a otherwise
 find_package(Git QUIET)
@@ -60,6 +60,7 @@ include(CTest)
 
 ## the GUI needs -fPIC
 if (ENABLE_GUI)
+  enable_language(CXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
