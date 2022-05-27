@@ -2170,7 +2170,7 @@ contains
     use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
-    use global, only: symprec, iunitname0, dunit0, iunit, fileroot
+    use global, only: iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
@@ -2185,14 +2185,11 @@ contains
     integer :: lp, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del
-    real*8 :: xd1(3,3), xd2(3,3), cd1(3,3), cd2(3,3), dmax0, xx(3)
-    real*8 :: xd2del(3,3), c2xnew(3,3), xcm(3), dd
-    real*8 :: aa2(3), bb2(3), cc2(3)
+    real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
+    real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:)
     integer, allocatable :: eid(:), irange(:,:)
-    real(c_double), allocatable :: x(:,:)
-    integer, allocatable :: types_(:)
-    integer :: nat, ntyp, n1, n2, n3, i1, i2, i3
+    integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:), th2p(:), ip(:)
     integer, allocatable :: hvecp(:,:)
