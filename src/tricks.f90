@@ -2161,25 +2161,29 @@ contains
 
   end subroutine trick_bfgs
 
-  ! trick compare struct1 struct2
+  ! Compare structures, allowing deformation of one crystal into the other such
+  ! as may be cause by temperature or pressure effects without a phase change.
+  !   TRICK COMPARE struct1 struct2 THR thr.r WRITE
+  ! If thr.r, then stop if the POWDIFF is below thr.r. If WRITE, write stucture 2
+  ! to a file.
   subroutine trick_compare_deformed(line0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
-    use global, only: symprec, iunitname0, dunit0, iunit
+    use global, only: symprec, iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
-       isreal
+       isreal, equal, lgetword
     use param, only: pi, icrd_crys, eye
     character*(*), intent(in) :: line0
 
     type(crystalseed) :: seed
     type(environ) :: e
     integer :: lp, ierr, i, j
-    character(len=:), allocatable :: file1, file2, errmsg, abc
-    type(crystal) :: c1, c2, c1del, c2del
+    character(len=:), allocatable :: file1, file2, errmsg, abc, word
+    type(crystal) :: c1, c2, c2del
     real*8 :: xd1(3,3), xd2(3,3), cd1(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: xd2del(3,3), c2xnew(3,3), xcm(3), dd
     real*8 :: aa2(3), bb2(3), cc2(3)
@@ -2192,8 +2196,8 @@ contains
     real*8, allocatable :: t(:), th2p(:), ip(:)
     integer, allocatable :: hvecp(:,:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
-    real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3)
-    logical :: ok
+    real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
+    logical :: ok, dowrite
     real*8 :: powdiff_thr
 
     real*8, parameter :: th2ini = 5d0
@@ -2218,8 +2222,22 @@ contains
     file2 = getword(line0,lp)
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
-    ok = isreal(powdiff_thr,line0,lp)
-    if (.not.ok) powdiff_thr = -1d0
+
+    powdiff_thr = -1d0
+    dowrite = .false.
+    do while (.true.)
+       word = lgetword(line0,lp)
+       if (equal(word,'thr')) then
+          ok = isreal(powdiff_thr,line0,lp)
+          if (.not.ok) call ferror('trick_compare_deformed','Wrong THR',faterr)
+       elseif (equal(word,'write')) then
+          dowrite = .true.
+       elseif (len_trim(word) > 0) then
+          if (.not.ok) call ferror('trick_compare_deformed','Unknown keyword',faterr)
+       else
+          exit
+       end if
+    end do
 
     ! read the structures, force symmetry recalculation
     write (uout,'("+ Reading the structure from: ",A)') trim(file1)
@@ -2345,6 +2363,7 @@ contains
 
     ! calculate baseline powdiff
     mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+    xd2min = eye
     ! run over all permutations
     write (uout,'("+ Structural comparison of candidate structures")')
     write (uout,'("# Reference structure is 1.")')
@@ -2384,19 +2403,8 @@ contains
              if (abs(dd) < 1d-5) cycle
              if (dd < 0d0) xd2 = -xd2
 
-             ! make the new c2 crystal with the new transformation and replace metric parameters
-             c2del = c2
-             call c2del%newcell(xd2)
-             call c2del%makeseed(seed,.false.)
-             seed%useabr = 1
-             seed%aa = c1%aa
-             seed%bb = c1%bb
-             seed%findsym = 0
-
-             !! nothing = keep the fractional coordinates of the original crystal
-
-             ! create the new c2 crystal
-             call c2del%struct_new(seed,.true.)
+             ! make the new crystal
+             call make_deformed_c2del(xd2)
 
              ! calculate the powder of structure 2
              call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
@@ -2409,8 +2417,12 @@ contains
 
              ! calculate the powdiff
              diff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
-             mindiff = min(diff,mindiff)
+             if (diff < mindiff) then
+                mindiff = diff
+                xd2min = xd2
+             end if
 
+             ! write output
              write (uout,'(99(A,X))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
                 string(irange(i3,3),2,ioj_right),&
                 string(maxval(abs(c1%aa-aa2)),'f',8,4,ioj_right), string(maxval(abs(c1%bb-bb2)),'f',8,3,ioj_right),&
@@ -2423,9 +2435,42 @@ contains
 999 continue
     if (mindiff < powdiff_thr) &
        write (uout,'("--- Last POWDIFF satisfies the threshold requirement for matching structures, skipping...")')
-
     write (uout,'("+ FINAL POWDIFF = ",A)') string(mindiff,'f',12,9)
     write (uout,*)
+
+    if (dowrite) then
+       ! make the minimum-powdiff structure 2
+       call make_deformed_c2del(xd2)
+
+       ! write both to a res file
+       file1 = fileroot // "_structure_1.res"
+       write (uout,'("+ Structure 1 written to file: ",A)') trim(file1)
+       call c1%write_res(file1,-1)
+
+       file2 = fileroot // "_structure_2.res"
+       write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
+       call c2del%write_res(file2,-1)
+    end if
+
+  contains
+    subroutine make_deformed_c2del(xd2)
+      real*8, intent(in) :: xd2(3,3)
+
+      ! make the new c2 crystal with the new transformation and replace metric parameters
+      c2del = c2
+      call c2del%newcell(xd2)
+      call c2del%makeseed(seed,.false.)
+      seed%useabr = 1
+      seed%aa = c1%aa
+      seed%bb = c1%bb
+      seed%findsym = 0
+
+      !! nothing = keep the fractional coordinates of the original crystal
+
+      ! create the new c2 crystal
+      call c2del%struct_new(seed,.true.)
+
+    end subroutine make_deformed_c2del
 
   end subroutine trick_compare_deformed
 
