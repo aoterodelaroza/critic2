@@ -242,11 +242,12 @@ module crystalmod
      module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
-     module subroutine struct_new(c,seed,crashfail)
+     module subroutine struct_new(c,seed,crashfail,noenv)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
+       logical, intent(in), optional :: noenv
      end subroutine struct_new
      module function identify_spc(c,str) result(res)
        use crystalseedmod, only: crystalseed
@@ -471,13 +472,14 @@ module crystalmod
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
      end subroutine reorder_atoms
-     module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
+     module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
        real*8, intent(in), optional :: t0(3)
        integer, intent(in), optional :: nnew
        real*8, intent(in), optional :: xnew(:,:)
        integer, intent(in), optional :: isnew(:)
+       logical, intent(in), optional :: noenv
      end subroutine newcell
      module function cell_standard(c,toprim,doforce,refine) result(x0)
        class(crystal), intent(inout) :: c

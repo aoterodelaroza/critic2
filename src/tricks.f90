@@ -2173,7 +2173,8 @@ contains
     use global, only: symprec, iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
-    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle
+    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
+       m_x2c_from_cellpar
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
        isreal, equal, lgetword
     use param, only: pi, icrd_crys, eye
@@ -2202,7 +2203,7 @@ contains
 
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
-    integer, parameter :: npts = 10001
+    integer, parameter :: npts = 1001
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
@@ -2352,7 +2353,7 @@ contains
     xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
     xnorm1 = sqrt(abs(xnorm1))
 
-    ! calculate the powder of structure 2
+    ! calculate the powder of structure 2 and prepare
     call c2%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
     tini = iha2(1)**2
     tend = iha2(npts)**2
@@ -2404,7 +2405,16 @@ contains
              if (dd < 0d0) xd2 = -xd2
 
              ! make the new crystal
-             call make_deformed_c2del(xd2)
+             c2del = c2
+             call c2del%newcell(xd2,noenv=.true.)
+             c2del%aa = c1%aa
+             c2del%bb = c1%bb
+             c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+             c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+             call matinv(c2del%grtensor,3)
+             do i = 1, 3
+                c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+             end do
 
              ! calculate the powder of structure 2
              call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
@@ -2440,7 +2450,14 @@ contains
 
     if (dowrite) then
        ! make the minimum-powdiff structure 2
-       call make_deformed_c2del(xd2)
+       c2del = c2
+       call c2del%newcell(xd2)
+       call c2del%makeseed(seed,.false.)
+       seed%useabr = 1
+       seed%aa = c1%aa
+       seed%bb = c1%bb
+       seed%findsym = 0
+       call c2del%struct_new(seed,.true.)
 
        ! write both to a res file
        file1 = fileroot // "_structure_1.res"
@@ -2451,26 +2468,6 @@ contains
        write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
        call c2del%write_res(file2,-1)
     end if
-
-  contains
-    subroutine make_deformed_c2del(xd2)
-      real*8, intent(in) :: xd2(3,3)
-
-      ! make the new c2 crystal with the new transformation and replace metric parameters
-      c2del = c2
-      call c2del%newcell(xd2)
-      call c2del%makeseed(seed,.false.)
-      seed%useabr = 1
-      seed%aa = c1%aa
-      seed%bb = c1%bb
-      seed%findsym = 0
-
-      !! nothing = keep the fractional coordinates of the original crystal
-
-      ! create the new c2 crystal
-      call c2del%struct_new(seed,.true.)
-
-    end subroutine make_deformed_c2del
 
   end subroutine trick_compare_deformed
 

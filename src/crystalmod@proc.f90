@@ -197,8 +197,9 @@ contains
 
   !> Create a new, complete crystal/molecule from a crystal seed. If
   !> failed and crashfail is true, crash the program. Otherwise,
-  !> return a the error status through c%isinit.
-  module subroutine struct_new(c,seed,crashfail)
+  !> return a the error status through c%isinit. If noenv is present
+  !> and true, do not load the atomic grids or the environment.
+  module subroutine struct_new(c,seed,crashfail,noenv)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
@@ -211,6 +212,7 @@ contains
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
+    logical, intent(in), optional :: noenv
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
     logical :: good, clearsym
@@ -501,6 +503,10 @@ contains
        ! symmetry was not available or there was an error, and I do not
        ! want symmetry - make a copy of at() to atcel() and set P1
        call c%clearsym(neq2cel=.true.)
+    end if
+
+    if (present(noenv)) then
+       if (noenv) return
     end if
 
     ! load the atomic density grids
@@ -2538,8 +2544,10 @@ contains
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. If nnew,
   !> xnew, and isnew are given, replace the nnew atoms with the
-  !> new positions (xnew) and species (isnew).
-  module subroutine newcell(c,x00,t0,nnew,xnew,isnew)
+  !> new positions (xnew) and species (isnew). If noenv is present
+  !> and true, do not load the atomic grids or the environments in
+  !> the new cell.
+  module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
@@ -2550,6 +2558,7 @@ contains
     integer, intent(in), optional :: nnew
     real*8, intent(in), optional :: xnew(:,:)
     integer, intent(in), optional :: isnew(:)
+    logical, intent(in), optional :: noenv
 
     type(crystalseed) :: ncseed
     logical :: ok, found, atgiven
@@ -2711,7 +2720,7 @@ contains
     ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_new(ncseed,.true.)
+    call c%struct_new(ncseed,.true.,noenv)
 
   end subroutine newcell
 
