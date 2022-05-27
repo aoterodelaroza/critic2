@@ -2264,12 +2264,8 @@ contains
     ! check both are molecular crystals
     if (c1%ismolecule) &
        call ferror('trick_compare_defomred','structure 1 is a molecule',faterr)
-    if (.not.c1%ismol3d) &
-       call ferror('trick_compare_deformed','structure 1 is not a molecular crystal',faterr)
     if (c2%ismolecule) &
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
-    if (.not.c2%ismol3d) &
-       call ferror('trick_compare_deformed','structure 2 is not a molecular crystal',faterr)
 
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
