@@ -2464,7 +2464,7 @@ contains
     if (dowrite) then
        ! make the minimum-powdiff structure 2
        c2del = c2
-       call c2del%newcell(xd2)
+       call c2del%newcell(xd2min)
        call c2del%makeseed(seed,.false.)
        seed%useabr = 1
        seed%aa = c1%aa
