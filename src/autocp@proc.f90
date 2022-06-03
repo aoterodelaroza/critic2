@@ -705,7 +705,7 @@ contains
 
           ! run newton
           x0 = xseed(:,i)
-          call sy%f(sy%iref)%newton(x0,gfnormeps,ier,.false.)
+          call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
 
           if (ier <= 0) then
              ! Check if it's inside the sphere

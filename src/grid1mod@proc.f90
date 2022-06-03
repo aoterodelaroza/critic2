@@ -264,6 +264,36 @@ contains
        end if
     end do
 
+    ! ! laplacian transformation
+    ! ! 1/r^2 * d/dr ( r^2 * df/dr)
+    ! do i = 1, ngrid
+    !    if (i <= 2) then
+    !       ic = 1
+    !    else if (i >= ngrid-2) then
+    !       ic = 3
+    !    else
+    !       ic = 2
+    !    end if
+    !    do j = 1, 6
+    !       rr(i,1) = rr(i,1) + coef1(j,ic) * rr(i+noef(j,ic),0)
+    !       rr(i,2) = rr(i,2) + coef2(j,ic) * rr(i+noef(j,ic),0)
+    !    end do
+    !    rr(i,1) = rr(i,1) * fac1
+    !    rr(i,2) = rr(i,2) * fac2
+
+    !    r = g%r(i)
+    !    r1 = 1d0 / r
+    !    r2 = r1 * r1
+    !    r3 = r2 * r1
+    !    r4 = r3 * r1
+    !    delta=1.d0/g%b
+    !    delta2=delta*delta
+
+    !    g%f(i) = rr(i,0) * r2
+    !    g%fp(i) = (rr(i,1) * delta - 2.d0 * rr(i,0)) * r3
+    !    g%fpp(i) = (rr(i,2) * delta2 - 5.d0 * rr(i,1) * delta + 6.d0 * rr(i,0)) * r4
+    ! end do
+
     ! fill grid info
     g%isinit = .true.
     g%a = exp(xmin) / zz

@@ -1881,9 +1881,8 @@ contains
 
   !> Do a Newton-Raphson search at point r (Cartesian). A CP is found
   !> when the gradient is less than gfnormeps. ier is the exit code: 0
-  !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations),
-  !> 3 (too many iterations,bouncing)
-  module subroutine newton(f,r,gfnormeps,ier,gridtest)
+  !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations).
+  module subroutine newton(f,r,gfnormeps,ier)
     use grid3mod, only: mode_test
     use tools_math, only: matinvsym
     use types, only: scalar_value
@@ -1891,41 +1890,18 @@ contains
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
     real*8, intent(in) :: gfnormeps
-    logical, intent(in) :: gridtest
 
-    integer :: it, i0ref(3), i0(3)
+    integer :: it
     real*8 :: wx(3), x0(3), x0ref(3), dist
     type(scalar_value) :: res
-    logical :: isgridtest
 
     integer, parameter :: maxit = 200
 
-    isgridtest = gridtest
-    if (isgridtest) isgridtest = (f%type == type_grid)
-    if (isgridtest) isgridtest = (f%grid%mode == mode_test)
-    i0ref = -1
-
     do it = 1, maxit
        ! evaluate and stop criterion
-       if (.not.isgridtest) then
-          ! usual field
-          call f%grd(r,2,res)
-          wx = f%c%c2x(r)
-          ! write (*,'("xx ",I4,X,3(F14.6,X),1p,3(E14.6,X))') it, wx, res%gfmod
-       else
-          ! test interpolation
-          wx = f%c%c2x(r)
-          i0 = i0ref
-          call f%grid%grinterp_test(wx,res%f,res%gf,res%hf,i0)
-          res%gfmod = norm2(res%gf)
-
-          x0 = real(i0,8) / real(f%grid%n,8)
-          x0ref = real(i0ref,8) / real(f%grid%n,8)
-          dist = f%c%eql_distance(x0,x0ref)
-          if (dist > f%grid%test_distdelay) then
-             i0ref = i0
-          end if
-       end if
+       call f%grd(r,2,res)
+       wx = f%c%c2x(r)
+       ! write (*,'("xx ",I4,X,3(F14.6,X),1p,3(E14.6,X))') it, wx, res%gfmod
 
        if (res%gfmod < gfnormeps) then
           ier = 0
