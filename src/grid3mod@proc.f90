@@ -23,7 +23,7 @@ submodule (grid3mod) proc
   ! subroutine grinterp_trilinear(f,x0,y,yp)
   ! subroutine grinterp_trispline(f,x0,y,yp,ypp)
   ! subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-  ! subroutine grinterp_test(f,xi,y,yp,ypp,i0ref)
+  ! subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
   ! function grid_near(f,x) result(res)
   ! function grid_floor(f,x,main,shift)
   ! function grid_ceiling(f,x,main,shift)
@@ -31,8 +31,8 @@ submodule (grid3mod) proc
   ! subrotine init_geometry(f,x2c,n,env)
   ! subrotine copy_geometry(f,g)
   ! subroutine init_trispline(f)
-  ! subroutine init_test(f)
-  ! subroutine test_kernelfun(r,k,f,fp,fpp)
+  ! subroutine init_smr(f)
+  ! subroutine smr_kernelfun(r,k,f,fp,fpp)
 
   ! Notes about the 3D-FFT order of the array elements.
   ! - cfftnd accepts a 1D array representing the 3D array in Fortran
@@ -406,7 +406,7 @@ contains
 
     lmode = lower(mode)
     if (equal(lmode,'smoothrho')) then
-       f%mode = mode_test
+       f%mode = mode_smr
        if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
        if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
        if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
@@ -425,7 +425,7 @@ contains
     end if
 
     ! if test interpolation, calculate the rho0 and derivatives here
-    if (f%mode == mode_test) then
+    if (f%mode == mode_smr) then
        if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
        allocate(f%smr_rho0(f%n(1),f%n(2),f%n(3)))
 
@@ -1255,12 +1255,12 @@ contains
        call grinterp_trispline(f,x0,y,yp,ypp)
     else if (f%mode == mode_tricubic) then
        call grinterp_tricubic(f,x0,y,yp,ypp)
-    else if (f%mode == mode_test) then
-       call grinterp_test(f,x0,y,yp,ypp)
+    else if (f%mode == mode_smr) then
+       call grinterp_smr(f,x0,y,yp,ypp)
     end if
 
     ! convert the gradient and Hessian to Cartesian coordinates
-    if (f%mode /= mode_test) then
+    if (f%mode /= mode_smr) then
        yp = matmul(transpose(f%c2x),yp)
        ypp = matmul(matmul(transpose(f%c2x),ypp),f%c2x)
     end if
@@ -2419,7 +2419,7 @@ contains
   end subroutine grinterp_tricubic
 
   !> Testing
-  module subroutine grinterp_test(f,xi,y,yp,ypp,i0ref)
+  module subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
     use tools_io, only: string
     use types, only: realloc
     use param, only: icrd_crys
@@ -2439,7 +2439,6 @@ contains
     real*8 :: ypro, yppro(3), ypppro(3,3)
     real*8 :: y1, yp1(3), ypp1(3,3)
     real*8 :: yprom, ybm
-    ! xxxx
     integer, allocatable :: i0list(:,:), eid(:)
     real*8, allocatable :: dist(:), wei(:), weip(:), weipp(:)
     real*8, allocatable :: ys(:), ysp(:,:), yspp(:,:,:)
@@ -2450,7 +2449,7 @@ contains
 
     !$omp critical (checkalloc)
     if (.not.allocated(f%smr_ilist)) then
-       call init_test(f)
+       call init_smr(f)
     end if
     !$omp end critical (checkalloc)
 
@@ -2498,7 +2497,7 @@ contains
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
 
-          call test_kernelfun(d,test_kkern,ff,fp,fpp)
+          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
           y1 = y1 + w(i) * ff
           yp1 = yp1 + w(i) * fp * xh / d
           ypp1(1,1) = ypp1(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
@@ -2607,7 +2606,7 @@ contains
       real*8, intent(in) :: x, a
       real*8, intent(out) :: w, wp, wpp
 
-      real*8 :: x7, x4, x3, x2, a3, arg, denom1, denom2
+      real*8 :: x7, x4, x3, x2, a3, denom1, denom2
 
       if (x > a - 1d-14) then ! good bc goes to zero pretty quickly
          w = 0d0
@@ -2626,7 +2625,7 @@ contains
 
     end subroutine weifun
 
-  end subroutine grinterp_test
+  end subroutine grinterp_smr
 
   !> Pseudo-nearest grid point of a point x (crystallographic) (only
   !> nearest in orthogonal grids). If shift, the first point in the
@@ -2909,7 +2908,7 @@ contains
   end subroutine init_trispline
 
   !> Testing
-  subroutine init_test(f)
+  subroutine init_smr(f)
     use environmod, only: environ
     use tools_math, only: matinvsym
     use types, only: realloc
@@ -2945,7 +2944,7 @@ contains
           xh = f%smr_xlist(:,i) - f%smr_xlist(:,j)
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
-          call test_kernelfun(d,test_kkern,ff,fp,fpp)
+          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
           f%smr_phiinv(i,j) = ff
           f%smr_phiinv(j,i) = f%smr_phiinv(i,j)
        end do
@@ -2955,10 +2954,11 @@ contains
     end do
     call matinvsym(f%smr_phiinv,f%smr_nlist+4)
 
-   end subroutine init_test
+   end subroutine init_smr
 
-   !> Kernel function for testing
-   subroutine test_kernelfun(r,k,f,fp,fpp)
+   !> Kernel function for smoothrho interpolation. Input: distance
+   !> and degree. Output: value, first, and second derivative.
+   subroutine smr_kernelfun(r,k,f,fp,fpp)
      real*8, intent(in) :: r
      integer, intent(in) :: k
      real*8, intent(out) :: f
@@ -2979,6 +2979,6 @@ contains
         fpp = k*(k-1)*r**(k-2)
      end if
 
-   end subroutine test_kernelfun
+   end subroutine smr_kernelfun
 
 end submodule proc

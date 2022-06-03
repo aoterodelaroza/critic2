@@ -1883,7 +1883,6 @@ contains
   !> when the gradient is less than gfnormeps. ier is the exit code: 0
   !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations).
   module subroutine newton(f,r,gfnormeps,ier)
-    use grid3mod, only: mode_test
     use tools_math, only: matinvsym
     use types, only: scalar_value
     class(field), intent(inout) :: f
