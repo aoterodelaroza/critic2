@@ -126,7 +126,7 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'tricubic') .or. equal(word,'trispline') .or. &
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
-          equal(word,'test')) then
+          equal(word,'smoothrho')) then
           call ff%grid%setmode(word)
        else if (equal(word,'exact')) then
           ff%exact = .true.

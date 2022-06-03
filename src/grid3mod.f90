@@ -70,14 +70,12 @@ module grid3mod
      real*8, allocatable :: f(:,:,:) !< grid values
      ! trispline interpolation
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
-     ! test interpolation
-     integer :: test_nlist
-     real*8 :: test_dist0
-     real*8 :: test_distdelay
-     integer, allocatable :: test_ilist(:,:)
-     real*8, allocatable :: test_xlist(:,:)
-     real*8, allocatable :: test_phiinv(:,:)
-     real*8, allocatable :: test_rho0(:,:,:,:)
+     ! smoothrho interpolation
+     integer :: smr_nlist
+     integer, allocatable :: smr_ilist(:,:)
+     real*8, allocatable :: smr_xlist(:,:)
+     real*8, allocatable :: smr_phiinv(:,:)
+     real*8, allocatable :: smr_rho0(:,:,:)
      ! QE band states and Wannier function transformation
      type(qedat) :: qe
    contains

@@ -335,6 +335,7 @@ submodule (grid3mod) proc
 
   integer, parameter :: test_nenv = 8**3
   integer, parameter :: test_kkern = 3
+  real*8, parameter :: tiny_rho_smr = 1d-80
 
 contains
 
@@ -373,9 +374,10 @@ contains
     f%iswan = .false.
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
-    if (allocated(f%test_ilist)) deallocate(f%test_ilist)
-    if (allocated(f%test_xlist)) deallocate(f%test_xlist)
-    if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
+    if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
+    if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
+    if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
+    if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
     if (allocated(f%qe%wk)) deallocate(f%qe%wk)
     if (allocated(f%qe%ek)) deallocate(f%qe%ek)
@@ -403,11 +405,12 @@ contains
     real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
 
     lmode = lower(mode)
-    if (equal(lmode,'test')) then
+    if (equal(lmode,'smoothrho')) then
        f%mode = mode_test
-       if (allocated(f%test_ilist)) deallocate(f%test_ilist)
-       if (allocated(f%test_xlist)) deallocate(f%test_xlist)
-       if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
+       if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
+       if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
+       if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
+       if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
     else if (equal(lmode,'tricubic')) then
        f%mode = mode_tricubic
     else if (equal(lmode,'trispline')) then
@@ -423,8 +426,8 @@ contains
 
     ! if test interpolation, calculate the rho0 and derivatives here
     if (f%mode == mode_test) then
-       if (allocated(f%test_rho0)) deallocate(f%test_rho0)
-       allocate(f%test_rho0(f%n(1),f%n(2),f%n(3),0:9))
+       if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
+       allocate(f%smr_rho0(f%n(1),f%n(2),f%n(3)))
 
        do i = 1, 3
           xdelta(:,i) = 0d0
@@ -435,17 +438,10 @@ contains
           do j = 1, f%n(2)
              do i = 1, f%n(1)
                 x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-                call f%atenv%promolecular(x,icrd_crys,rho,rhof,rhoff,2)
+                call f%atenv%promolecular(x,icrd_crys,rho,rhof,rhoff,0)
 
                 !$omp critical(write)
-                f%test_rho0(i,j,k,0) = rho
-                f%test_rho0(i,j,k,1:3) = rhof
-                f%test_rho0(i,j,k,4) = rhoff(1,1)
-                f%test_rho0(i,j,k,5) = rhoff(1,2)
-                f%test_rho0(i,j,k,6) = rhoff(1,3)
-                f%test_rho0(i,j,k,7) = rhoff(2,2)
-                f%test_rho0(i,j,k,8) = rhoff(2,3)
-                f%test_rho0(i,j,k,9) = rhoff(3,3)
+                f%smr_rho0(i,j,k) = max(rho,tiny_rho_smr)
                 !$omp end critical(write)
              end do
           end do
@@ -2453,13 +2449,13 @@ contains
     integer :: nat, ierr, lvec(3), ii0
 
     !$omp critical (checkalloc)
-    if (.not.allocated(f%test_ilist)) then
+    if (.not.allocated(f%smr_ilist)) then
        call init_test(f)
     end if
     !$omp end critical (checkalloc)
 
     ! reserve memory
-    allocate(flist(f%test_nlist+4),w(f%test_nlist+4),f0list(f%test_nlist+4))
+    allocate(flist(f%smr_nlist+4),w(f%smr_nlist+4),f0list(f%smr_nlist+4))
 
     ! calculate the contributing grid nodes and weights
     dfin = 2d0 * f%dmax
@@ -2482,23 +2478,23 @@ contains
        i0 = i0list(:,ii0)
 
        ! get the rho/rho0 values at the grid points
-       do i = 1, f%test_nlist
-          ih = i0 + f%test_ilist(:,i)
+       do i = 1, f%smr_nlist
+          ih = i0 + f%smr_ilist(:,i)
           ih = modulo(ih,f%n) + 1
-          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),1d-40)/max(f%test_rho0(ih(1),ih(2),ih(3),0),1d-40))
+          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),tiny_rho_smr)/f%smr_rho0(ih(1),ih(2),ih(3)))
        end do
-       flist(f%test_nlist+1:) = 0d0
+       flist(f%smr_nlist+1:) = 0d0
 
        ! solve the system of equations
-       w = matmul(f%test_phiinv,flist)
+       w = matmul(f%smr_phiinv,flist)
 
        ! calculate the rho/rho0 interpolation
        x1 = matmul(f%x2cg,xi * f%n - i0)
        y1 = 0d0
        yp1 = 0d0
        ypp1 = 0d0
-       do i = 1, f%test_nlist
-          xh = x1 - f%test_xlist(:,i)
+       do i = 1, f%smr_nlist
+          xh = x1 - f%smr_xlist(:,i)
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
 
@@ -2515,10 +2511,10 @@ contains
           ypp1(3,1) = ypp1(1,3)
           ypp1(3,2) = ypp1(2,3)
        end do
-       y1 = y1 + w(f%test_nlist+1) + w(f%test_nlist+2) * x1(1) + w(f%test_nlist+3) * x1(2) + w(f%test_nlist+4) * x1(3)
-       yp1(1) = yp1(1) + w(f%test_nlist+2)
-       yp1(2) = yp1(2) + w(f%test_nlist+3)
-       yp1(3) = yp1(3) + w(f%test_nlist+4)
+       y1 = y1 + w(f%smr_nlist+1) + w(f%smr_nlist+2) * x1(1) + w(f%smr_nlist+3) * x1(2) + w(f%smr_nlist+4) * x1(3)
+       yp1(1) = yp1(1) + w(f%smr_nlist+2)
+       yp1(2) = yp1(2) + w(f%smr_nlist+3)
+       yp1(3) = yp1(3) + w(f%smr_nlist+4)
 
        ! the promolecular density & derivatives
        call f%atenv%promolecular(xi,icrd_crys,ypro,yppro,ypppro,2)
@@ -2925,41 +2921,39 @@ contains
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
 
-    if (allocated(f%test_ilist)) return
+    if (allocated(f%smr_ilist)) return
 
     ! prepare
-    if (allocated(f%test_ilist)) deallocate(f%test_ilist)
-    if (allocated(f%test_xlist)) deallocate(f%test_xlist)
-    if (allocated(f%test_phiinv)) deallocate(f%test_phiinv)
+    if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
+    if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
+    if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
 
     ! calculate the stencil
     call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
-    f%test_nlist = nn
-    f%test_dist0 = dlist(nn)
-    f%test_distdelay = dlist(10)
-    allocate(f%test_xlist(3,nn),f%test_ilist(3,nn))
+    f%smr_nlist = nn
+    allocate(f%smr_xlist(3,nn),f%smr_ilist(3,nn))
     do i = 1, nn
-       f%test_ilist(:,i) = nint(f%env%at(eid(i))%x)
-       f%test_xlist(:,i) = matmul(f%x2cg,real(f%test_ilist(:,i),8))
+       f%smr_ilist(:,i) = nint(f%env%at(eid(i))%x)
+       f%smr_xlist(:,i) = matmul(f%x2cg,real(f%smr_ilist(:,i),8))
     end do
 
     ! calculate the inverse phi matrix
-    allocate(f%test_phiinv(f%test_nlist+4,f%test_nlist+4))
-    f%test_phiinv = 0d0
-    do i = 1, f%test_nlist
-       do j = i, f%test_nlist
-          xh = f%test_xlist(:,i) - f%test_xlist(:,j)
+    allocate(f%smr_phiinv(f%smr_nlist+4,f%smr_nlist+4))
+    f%smr_phiinv = 0d0
+    do i = 1, f%smr_nlist
+       do j = i, f%smr_nlist
+          xh = f%smr_xlist(:,i) - f%smr_xlist(:,j)
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
           call test_kernelfun(d,test_kkern,ff,fp,fpp)
-          f%test_phiinv(i,j) = ff
-          f%test_phiinv(j,i) = f%test_phiinv(i,j)
+          f%smr_phiinv(i,j) = ff
+          f%smr_phiinv(j,i) = f%smr_phiinv(i,j)
        end do
-       f%test_phiinv(f%test_nlist+1,i) = 1d0
-       f%test_phiinv(f%test_nlist+2:f%test_nlist+4,i) = f%test_xlist(:,i)
-       f%test_phiinv(i,f%test_nlist+1:) = f%test_phiinv(f%test_nlist+1:,i)
+       f%smr_phiinv(f%smr_nlist+1,i) = 1d0
+       f%smr_phiinv(f%smr_nlist+2:f%smr_nlist+4,i) = f%smr_xlist(:,i)
+       f%smr_phiinv(i,f%smr_nlist+1:) = f%smr_phiinv(f%smr_nlist+1:,i)
     end do
-    call matinvsym(f%test_phiinv,f%test_nlist+4)
+    call matinvsym(f%smr_phiinv,f%smr_nlist+4)
 
    end subroutine init_test
 
