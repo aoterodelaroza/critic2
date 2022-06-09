@@ -71,11 +71,13 @@ module grid3mod
      ! trispline interpolation
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
      ! smoothrho interpolation
-     integer :: smr_nlist
-     integer, allocatable :: smr_ilist(:,:)
-     real*8, allocatable :: smr_xlist(:,:)
-     real*8, allocatable :: smr_phiinv(:,:)
-     real*8, allocatable :: smr_rho0(:,:,:)
+     integer :: smr_nlist ! number of nodes in the stencil
+     integer, allocatable :: smr_ilist(:,:) ! integer offsets of the stencil nodes
+     real*8, allocatable :: smr_xlist(:,:) ! positions of the stencil nodes
+     real*8, allocatable :: smr_phiinv(:,:) ! inverse of the phi matrix
+     real*8, allocatable :: smr_rho0(:,:,:) ! promolecular density on the grid (for smoothing)
+     integer :: smr_nenv ! target number of nodes in the stencil
+     real*8 :: smr_dmax ! dmax for the continuity smoothing
      ! QE band states and Wannier function transformation
      type(qedat) :: qe
    contains

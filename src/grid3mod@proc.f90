@@ -333,8 +333,7 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&   ! 49-64, 64
      /),shape(c))
 
-  integer, parameter :: test_nenv = 8**3
-  integer, parameter :: test_kkern = 3
+  integer, parameter :: smr_kkern = 3
   real*8, parameter :: tiny_rho_smr = 1d-80
 
 contains
@@ -389,6 +388,8 @@ contains
     if (allocated(f%qe%center)) deallocate(f%qe%center)
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
+    f%smr_nenv = 8**3
+    f%smr_dmax = 2d0
 
   end subroutine grid_end
 
@@ -404,6 +405,11 @@ contains
     integer :: i, j, k
     real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
 
+    ! set some defaults
+    f%smr_nenv = 8**3
+    f%smr_dmax = 2d0
+
+    ! parse the mode
     lmode = lower(mode)
     if (equal(lmode,'smoothrho')) then
        f%mode = mode_smr
@@ -2457,7 +2463,7 @@ contains
     allocate(flist(f%smr_nlist+4),w(f%smr_nlist+4),f0list(f%smr_nlist+4))
 
     ! calculate the contributing grid nodes and weights
-    dfin = 2d0 * f%dmax
+    dfin = f%smr_dmax * f%dmax
     x0 = (xi - floor(xi)) * f%n
     call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2d=dfin)
     allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
@@ -2497,7 +2503,7 @@ contains
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
 
-          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
+          call smr_kernelfun(d,smr_kkern,ff,fp,fpp)
           y1 = y1 + w(i) * ff
           yp1 = yp1 + w(i) * fp * xh / d
           ypp1(1,1) = ypp1(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
@@ -2928,7 +2934,7 @@ contains
     if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
 
     ! calculate the stencil
-    call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
+    call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=f%smr_nenv)
     f%smr_nlist = nn
     allocate(f%smr_xlist(3,nn),f%smr_ilist(3,nn))
     do i = 1, nn
@@ -2944,7 +2950,7 @@ contains
           xh = f%smr_xlist(:,i) - f%smr_xlist(:,j)
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
-          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
+          call smr_kernelfun(d,smr_kkern,ff,fp,fpp)
           f%smr_phiinv(i,j) = ff
           f%smr_phiinv(j,i) = f%smr_phiinv(i,j)
        end do

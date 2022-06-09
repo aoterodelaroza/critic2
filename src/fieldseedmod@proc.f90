@@ -554,7 +554,8 @@ contains
           equal(lword,'nocore').or.equal(lword,'numerical').or.equal(lword,'analytical')) then
           ! single-word elsewhere options
           f%elseopt = trim(f%elseopt) // " " // word
-       elseif (equal(lword,'typnuc').or.equal(lword,'normalize')) then
+       elseif (equal(lword,'typnuc').or.equal(lword,'normalize').or.equal(lword,'nenv').or.&
+          equal(lword,'dmax')) then
           ! option+expression elsewhere options
           ok = isexpression_or_word(word2,line,lp)
           if (.not.ok) then

@@ -107,7 +107,7 @@ contains
   module subroutine field_set_options(ff,line,errmsg)
     use grid1mod, only: grid1_register_core
     use global, only: eval_next
-    use tools_io, only: string, lgetword, equal, isexpression_or_word, zatguess,&
+    use tools_io, only: string, lgetword, equal, zatguess,&
        isinteger, getword
     use param, only: sqfp
     class(field), intent(inout) :: ff
@@ -128,6 +128,28 @@ contains
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'smoothrho')) then
           call ff%grid%setmode(word)
+
+          do while (.true.)
+             lp2 = lp
+             word = lgetword(line,lp)
+             if (equal(word,'nenv')) then
+                ok = isinteger(ff%grid%smr_nenv,line,lp)
+                if (.not.ok) then
+                   errmsg = "wrong nenv option in smoothrho"
+                   return
+                end if
+             elseif (equal(word,'dmax')) then
+                ok = eval_next(ff%grid%smr_dmax,line,lp)
+                if (.not.ok) then
+                   errmsg = "wrong dmax option in smoothrho"
+                   return
+                end if
+             else
+                lp = lp2
+                exit
+             end if
+          end do
+
        else if (equal(word,'exact')) then
           ff%exact = .true.
        else if (equal(word,'approximate')) then
@@ -1214,6 +1236,7 @@ contains
   !> isload is true, show load-time information. If isset is true,
   !> show flags for this field.
   module subroutine printinfo(f,isload,isset)
+    use grid3mod, only: mode_smr
     use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac, &
        molden_type_orca, molden_type_psi4, molden_type_adf_sto
     use global, only: dunit0, iunit, iunitname0
@@ -1269,7 +1292,11 @@ contains
           write (uout,'("  Max: ",A)') string(maxval(f%grid%f),'e',decimal=8)
        end if
        if (isset) then
-          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): ",A)') string(f%grid%mode)
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): ",A)') string(f%grid%mode)
+          if (f%grid%mode == mode_smr) then
+             write (uout,'("    smoothrho with ",A," stencil nodes and smoothing factor dmax = ",A)') &
+                string(f%grid%smr_nenv), string(f%grid%smr_dmax,'f',decimal=4)
+          end if
        end if
     elseif (f%type == type_wien) then
        if (isload) then
