@@ -2,7 +2,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
   Grid dimensions : 50  40  56
-  Step lengths (short/long in bohr):  0.16558  0.17518
+  Max. length Voronoi-relevant vector (bohr):  0.22958
   First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
   Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
   Sum of elements... 1.359728581679E+04
@@ -11,7 +11,7 @@
   Min: 7.63007086E-03
   Average: 1.21404338E-01
   Max: 2.58734409E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -25,7 +25,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
   Grid dimensions : 50  40  56
-  Step lengths (short/long in bohr):  0.16558  0.17518
+  Max. length Voronoi-relevant vector (bohr):  0.22958
   First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
   Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
   Sum of elements... 1.359728581679E+04
@@ -34,7 +34,7 @@
   Min: 7.63007086E-03
   Average: 1.21404338E-01
   Max: 2.58734409E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -46,7 +46,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
   Grid dimensions : 50  40  56
-  Step lengths (short/long in bohr):  0.16558  0.17518
+  Max. length Voronoi-relevant vector (bohr):  0.22958
   First elements... -6.226877545933E-04  -6.177467460372E-04  -6.032108254941E-04
   Last elements... -5.865005252390E-04  -6.141022018626E-04  -6.346120592282E-04
   Sum of elements... -1.116499275845E-10
@@ -55,7 +55,7 @@
   Min: -2.29151702E-01
   Average: -9.96874353E-16
   Max: 2.29152777E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -67,7 +67,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHG
   Type: grid
   Grid dimensions : 50  40  56
-  Step lengths (short/long in bohr):  0.16558  0.17518
+  Max. length Voronoi-relevant vector (bohr):  0.22958
   First elements... 1.403487734992E-02  1.395096552646E-02  1.370976366794E-02
   Last elements... 1.419895174517E-02  1.473848691647E-02  1.517107914681E-02
   Sum of elements... 1.359728588756E+04
@@ -76,7 +76,7 @@
   Min: 7.63008425E-03
   Average: 1.21404338E-01
   Max: 2.58734074E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -88,7 +88,7 @@
   Source: ../zz_source/vasp-5.3.3/cuo/CHG
   Type: grid
   Grid dimensions : 50  40  56
-  Step lengths (short/long in bohr):  0.16558  0.17518
+  Max. length Voronoi-relevant vector (bohr):  0.22958
   First elements... -6.226792908540E-04  -6.177517029228E-04  -6.032188892418E-04
   Last elements... -5.865079388665E-04  -6.141095727128E-04  -6.346054819338E-04
   Sum of elements... -2.008504188830E-05
@@ -97,7 +97,7 @@
   Min: -2.29150692E-01
   Average: -1.79330731E-10
   Max: 2.29150692E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
