@@ -555,7 +555,7 @@ contains
           ! single-word elsewhere options
           f%elseopt = trim(f%elseopt) // " " // word
        elseif (equal(lword,'typnuc').or.equal(lword,'normalize').or.equal(lword,'nenv').or.&
-          equal(lword,'dmax')) then
+          equal(lword,'fdmax')) then
           ! option+expression elsewhere options
           ok = isexpression_or_word(word2,line,lp)
           if (.not.ok) then

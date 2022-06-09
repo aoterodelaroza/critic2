@@ -59,7 +59,7 @@ module grid3mod
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
      real*8 :: x2cg(3,3) !< crystallographic to Cartesian matrix (grid)
      real*8 :: c2xg(3,3) !< Cartesian to crystallographic matrix (grid)
-     real*8 :: dmin, dmax !< minimum and maximum grid steps
+     real*8 :: dmax !< minimum and maximum grid steps
      type(environ) :: env !< environment for grid nodes
      type(environ), pointer :: atenv !< environment for atoms
      integer :: nvec !< number of neighbor grid points
@@ -77,7 +77,7 @@ module grid3mod
      real*8, allocatable :: smr_phiinv(:,:) ! inverse of the phi matrix
      real*8, allocatable :: smr_rho0(:,:,:) ! promolecular density on the grid (for smoothing)
      integer :: smr_nenv ! target number of nodes in the stencil
-     real*8 :: smr_dmax ! dmax for the continuity smoothing
+     real*8 :: smr_fdmax ! dmax factor for the continuity smoothing
      ! QE band states and Wannier function transformation
      type(qedat) :: qe
    contains

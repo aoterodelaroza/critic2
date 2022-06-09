@@ -138,10 +138,10 @@ contains
                    errmsg = "wrong nenv option in smoothrho"
                    return
                 end if
-             elseif (equal(word,'dmax')) then
-                ok = eval_next(ff%grid%smr_dmax,line,lp)
+             elseif (equal(word,'fdmax')) then
+                ok = eval_next(ff%grid%smr_fdmax,line,lp)
                 if (.not.ok) then
-                   errmsg = "wrong dmax option in smoothrho"
+                   errmsg = "wrong fdmax option in smoothrho"
                    return
                 end if
              else
@@ -1278,8 +1278,8 @@ contains
        n = f%grid%n
        if (isload) then
           write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
-          write (uout,'("  Step lengths (short/long in ",A,"):  ",2(A,2X))') iunitname0(iunit), &
-             string(f%grid%dmin*dunit0(iunit),'f',decimal=5), string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
+          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,2X))') iunitname0(iunit), &
+             string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
           write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
           write (uout,'("  Last elements... ",3(A,2X))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
@@ -1294,8 +1294,8 @@ contains
        if (isset) then
           write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): ",A)') string(f%grid%mode)
           if (f%grid%mode == mode_smr) then
-             write (uout,'("    smoothrho with ",A," stencil nodes and smoothing factor dmax = ",A)') &
-                string(f%grid%smr_nenv), string(f%grid%smr_dmax,'f',decimal=4)
+             write (uout,'("    smoothrho with ",A," stencil nodes and smoothing dmax factor = ",A)') &
+                string(f%grid%smr_nenv), string(f%grid%smr_fdmax,'f',decimal=4)
           end if
        end if
     elseif (f%type == type_wien) then
