@@ -216,13 +216,12 @@ module grid3mod
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
      end subroutine interp
-     module subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
+     module subroutine grinterp_smr(f,xi,y,yp,ypp)
        class(grid3), intent(inout), target :: f !< Input grid
        real*8, intent(in) :: xi(3) !< Target point
        real*8, intent(out) :: y !< Interpolated value
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
-       integer, intent(inout), optional :: i0ref(3)
      end subroutine grinterp_smr
      module subroutine laplacian_hxx(flap,frho,ix)
        class(grid3), intent(inout) :: flap

@@ -2424,8 +2424,10 @@ contains
 
   end subroutine grinterp_tricubic
 
-  !> Testing
-  module subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
+  !> Smoothrho interpolation. The grid f is interpolated at point xi
+  !> (cryst. coords.). Returns the interpolated field (y), first (yp),
+  !> and second (ypp) derivatives, all in Cartesian coordinates.
+  module subroutine grinterp_smr(f,xi,y,yp,ypp)
     use tools_io, only: string
     use types, only: realloc
     use param, only: icrd_crys
@@ -2434,7 +2436,6 @@ contains
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
-    integer, intent(inout), optional :: i0ref(3)
 
     integer :: i, j, k
     real*8 :: x1(3), xh(3)
@@ -2913,7 +2914,7 @@ contains
 
   end subroutine init_trispline
 
-  !> Testing
+  !> Initialize the grid for smoothrho interpolation.
   subroutine init_smr(f)
     use environmod, only: environ
     use tools_math, only: matinvsym
