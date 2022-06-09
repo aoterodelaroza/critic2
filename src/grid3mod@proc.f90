@@ -409,7 +409,7 @@ contains
        f%mode = mode_smr
        f%smr_nlist = 0
        f%smr_nenv = 8**3
-       f%smr_fdmax = 2d0
+       f%smr_fdmax = 1.75d0
        if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
        if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
        if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
