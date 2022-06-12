@@ -1401,8 +1401,8 @@ contains
        call ferror('trick_makecif_ccdc','crystal structure not initialized',faterr)
     if (sy%c%ismolecule) &
        call ferror('trick_makecif_ccdc','structure is a molecule',faterr)
-    if (.not.sy%c%ismol3d) &
-       call ferror('trick_makecif_ccdc','structure is not a molecular crystal',faterr)
+    ! if (.not.sy%c%ismol3d) &
+    !    call ferror('trick_makecif_ccdc','structure is not a molecular crystal',faterr)
 
     ! transform to the standard cell
     matdum = sy%c%cell_standard(.false.,.false.,.true.)
@@ -1432,35 +1432,35 @@ contains
     write (lu,'("_audit_creation_date ",A,"-",A,"-",A)') &
        (string(datvalues(i)),i=1,3)
 
-    ! chemical formula sum
-    allocate(atc(maxzat,sy%c%nmol))
-    atc = 0
-    do i = 1, sy%c%nmol
-       do j = 1, sy%c%mol(i)%nat
-          atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) = atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) + 1
-       end do
-       if (i > 2) then
-          if (any(atc(:,i) - atc(:,1) /= 0)) then
-             call ferror('trick_makecif_ccdc','inconsistent molecular fragments',faterr)
-          end if
-       end if
-    end do
-    str = ""
-    do i = 1, maxzat
-       idx = hillord(i)
-       if (atc(idx,1) > 0) then
-          sym = nameguess(idx,.true.)
-          if (atc(idx,1) > 1) then
-             str = str // trim(sym) // string(atc(idx,1)) // " "
-          else
-             str = str // trim(sym) //  " "
-          end if
-       end if
-    end do
-    natmol = sum(atc(:,1))
-    deallocate(atc)
-    str = trim(str)
-    write (lu,'("_chemical_formula_sum ''",A,"''")') str
+    ! ! chemical formula sum
+    ! allocate(atc(maxzat,sy%c%nmol))
+    ! atc = 0
+    ! do i = 1, sy%c%nmol
+    !    do j = 1, sy%c%mol(i)%nat
+    !       atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) = atc(sy%c%mol(i)%spc(sy%c%mol(i)%at(j)%is)%z,i) + 1
+    !    end do
+    !    if (i > 2) then
+    !       if (any(atc(:,i) - atc(:,1) /= 0)) then
+    !          call ferror('trick_makecif_ccdc','inconsistent molecular fragments',faterr)
+    !       end if
+    !    end if
+    ! end do
+    ! str = ""
+    ! do i = 1, maxzat
+    !    idx = hillord(i)
+    !    if (atc(idx,1) > 0) then
+    !       sym = nameguess(idx,.true.)
+    !       if (atc(idx,1) > 1) then
+    !          str = str // trim(sym) // string(atc(idx,1)) // " "
+    !       else
+    !          str = str // trim(sym) //  " "
+    !       end if
+    !    end if
+    ! end do
+    ! natmol = sum(atc(:,1))
+    ! deallocate(atc)
+    ! str = trim(str)
+    ! write (lu,'("_chemical_formula_sum ''",A,"''")') str
 
     ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') sy%c%aa(1)*bohrtoa
@@ -1471,10 +1471,10 @@ contains
     write (lu,'("_cell_angle_gamma ",F14.4)') sy%c%bb(3)
     write (lu,'("_cell_volume ",F20.6)') sy%c%omega * bohrtoa**3
 
-    ! number of molecules
-    if (abs(real(sy%c%ncel,8)/real(natmol,8) - sy%c%ncel/natmol) > 1d-10) &
-       call ferror('trick_makecif_ccdc','non-integer Z',faterr)
-    write (lu,'("_cell_formula_units_Z ",A)') string(sy%c%ncel/natmol)
+    ! ! number of molecules
+    ! if (abs(real(sy%c%ncel,8)/real(natmol,8) - sy%c%ncel/natmol) > 1d-10) &
+    !    call ferror('trick_makecif_ccdc','non-integer Z',faterr)
+    ! write (lu,'("_cell_formula_units_Z ",A)') string(sy%c%ncel/natmol)
 
     ! get the strings for the symmetry operations
     if (usesym) then
