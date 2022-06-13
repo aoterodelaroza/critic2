@@ -2,7 +2,7 @@
   Source: ../zz_source/qe-6.5/graphite/graph.pwc
   Type: grid
   Grid dimensions : 27  27  80
-  Step lengths (short/long in bohr):  0.15817  0.17190
+  Max. length Voronoi-relevant vector (bohr):  0.17190
   First elements... 5.863527487728E-03  6.135024538085E-03  6.980428092815E-03
   Last elements... 8.447964109769E-03  6.945933678349E-03  6.105829950960E-03
   Sum of elements... 3.953102629449E+03
@@ -11,7 +11,7 @@
   Min: 3.37110488E-03
   Average: 6.77829669E-02
   Max: 3.26638252E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

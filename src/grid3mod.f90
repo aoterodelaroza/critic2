@@ -59,7 +59,7 @@ module grid3mod
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
      real*8 :: x2cg(3,3) !< crystallographic to Cartesian matrix (grid)
      real*8 :: c2xg(3,3) !< Cartesian to crystallographic matrix (grid)
-     real*8 :: dmin, dmax !< minimum and maximum grid steps
+     real*8 :: dmax !< minimum and maximum grid steps
      type(environ) :: env !< environment for grid nodes
      type(environ), pointer :: atenv !< environment for atoms
      integer :: nvec !< number of neighbor grid points
@@ -71,11 +71,13 @@ module grid3mod
      ! trispline interpolation
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
      ! smoothrho interpolation
-     integer :: smr_nlist
-     integer, allocatable :: smr_ilist(:,:)
-     real*8, allocatable :: smr_xlist(:,:)
-     real*8, allocatable :: smr_phiinv(:,:)
-     real*8, allocatable :: smr_rho0(:,:,:)
+     integer :: smr_nlist ! number of nodes in the stencil
+     integer, allocatable :: smr_ilist(:,:) ! integer offsets of the stencil nodes
+     real*8, allocatable :: smr_xlist(:,:) ! positions of the stencil nodes
+     real*8, allocatable :: smr_phiinv(:,:) ! inverse of the phi matrix
+     real*8, allocatable :: smr_rho0(:,:,:) ! promolecular density on the grid (for smoothing)
+     integer :: smr_nenv ! target number of nodes in the stencil
+     real*8 :: smr_fdmax ! dmax factor for the continuity smoothing
      ! QE band states and Wannier function transformation
      type(qedat) :: qe
    contains
@@ -214,13 +216,12 @@ module grid3mod
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
      end subroutine interp
-     module subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
+     module subroutine grinterp_smr(f,xi,y,yp,ypp)
        class(grid3), intent(inout), target :: f !< Input grid
        real*8, intent(in) :: xi(3) !< Target point
        real*8, intent(out) :: y !< Interpolated value
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
-       integer, intent(inout), optional :: i0ref(3)
      end subroutine grinterp_smr
      module subroutine laplacian_hxx(flap,frho,ix)
        class(grid3), intent(inout) :: flap

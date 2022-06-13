@@ -107,7 +107,7 @@ contains
   module subroutine field_set_options(ff,line,errmsg)
     use grid1mod, only: grid1_register_core
     use global, only: eval_next
-    use tools_io, only: string, lgetword, equal, isexpression_or_word, zatguess,&
+    use tools_io, only: string, lgetword, equal, zatguess,&
        isinteger, getword
     use param, only: sqfp
     class(field), intent(inout) :: ff
@@ -128,6 +128,28 @@ contains
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'smoothrho')) then
           call ff%grid%setmode(word)
+
+          do while (.true.)
+             lp2 = lp
+             word = lgetword(line,lp)
+             if (equal(word,'nenv')) then
+                ok = isinteger(ff%grid%smr_nenv,line,lp)
+                if (.not.ok) then
+                   errmsg = "wrong nenv option in smoothrho"
+                   return
+                end if
+             elseif (equal(word,'fdmax')) then
+                ok = eval_next(ff%grid%smr_fdmax,line,lp)
+                if (.not.ok) then
+                   errmsg = "wrong fdmax option in smoothrho"
+                   return
+                end if
+             else
+                lp = lp2
+                exit
+             end if
+          end do
+
        else if (equal(word,'exact')) then
           ff%exact = .true.
        else if (equal(word,'approximate')) then
@@ -1214,6 +1236,7 @@ contains
   !> isload is true, show load-time information. If isset is true,
   !> show flags for this field.
   module subroutine printinfo(f,isload,isset)
+    use grid3mod, only: mode_smr
     use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac, &
        molden_type_orca, molden_type_psi4, molden_type_adf_sto
     use global, only: dunit0, iunit, iunitname0
@@ -1255,8 +1278,8 @@ contains
        n = f%grid%n
        if (isload) then
           write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
-          write (uout,'("  Step lengths (short/long in ",A,"):  ",2(A,2X))') iunitname0(iunit), &
-             string(f%grid%dmin*dunit0(iunit),'f',decimal=5), string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
+          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,2X))') iunitname0(iunit), &
+             string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
           write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
           write (uout,'("  Last elements... ",3(A,2X))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
@@ -1269,7 +1292,11 @@ contains
           write (uout,'("  Max: ",A)') string(maxval(f%grid%f),'e',decimal=8)
        end if
        if (isset) then
-          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): ",A)') string(f%grid%mode)
+          write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): ",A)') string(f%grid%mode)
+          if (f%grid%mode == mode_smr) then
+             write (uout,'("    smoothrho with ",A," stencil nodes and smoothing dmax factor = ",A)') &
+                string(f%grid%smr_nenv), string(f%grid%smr_fdmax,'f',decimal=4)
+          end if
        end if
     elseif (f%type == type_wien) then
        if (isload) then

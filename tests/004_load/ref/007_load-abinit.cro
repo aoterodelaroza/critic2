@@ -2,7 +2,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03
   Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03
   Sum of elements... 3.624016252190E+04
@@ -11,7 +11,7 @@
   Min: 1.11426372E-03
   Average: 6.29169488E-02
   Max: 9.31744835E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -25,7 +25,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN1
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -1.052371348703E-04  -7.347832507920E-05  -8.236369446712E-05
   Last elements... -3.697077542347E-04  -3.660138960065E-04  -3.801678395651E-04
   Sum of elements... 5.500114252932E-14
@@ -34,7 +34,7 @@
   Min: -1.73700919E+00
   Average: 9.54880947E-20
   Max: 1.74149401E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -46,7 +46,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN2
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -1.823050847193E-04  -2.414009311963E-04  -3.519948820639E-04
   Last elements... -9.744024826114E-04  -8.536501420477E-04  -7.701766193822E-04
   Sum of elements... 3.944126275579E-12
@@ -55,7 +55,7 @@
   Min: -1.72311960E+00
   Average: 6.84744145E-18
   Max: 1.72311935E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -67,7 +67,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN3
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -4.440423168051E-10  9.988284970683E-05  1.836441128348E-04
   Last elements... -3.893008553548E-04  -2.929764735620E-04  -1.572790841804E-04
   Sum of elements... 4.169829238843E-11
@@ -76,7 +76,7 @@
   Min: -1.68241668E+00
   Average: 7.23928687E-17
   Max: 1.68242928E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -88,7 +88,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_LDEN
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 4.955873856369E-03  4.827159683734E-03  4.519183684946E-03
   Last elements... 8.868983193108E-03  9.384181483951E-03  9.774526561554E-03
   Sum of elements... -7.082445914464E-11
@@ -97,7 +97,7 @@
   Min: -9.95655072E+00
   Average: -1.22959130E-16
   Max: 3.12605557E+01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -109,7 +109,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_POT
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 2.099095320530E-01  2.104450665856E-01  2.116345810638E-01
   Last elements... 2.078489885745E-01  2.071372161712E-01  2.064175444831E-01
   Sum of elements... -2.085569582204E+05
@@ -118,7 +118,7 @@
   Min: -9.17196199E+00
   Average: -3.62078052E-01
   Max: 2.17985633E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -130,7 +130,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VCLMB
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 3.734744989474E-01  3.741347244350E-01  3.756767905158E-01
   Last elements... 3.742167940362E-01  3.726832208948E-01  3.714158083713E-01
   Sum of elements... 2.566302725882E-11
@@ -139,7 +139,7 @@
   Min: -7.55609071E+00
   Average: 4.45538668E-17
   Max: 3.85185014E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -151,7 +151,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHA
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -1.143636874536E+00  -1.143438445621E+00  -1.142851923327E+00
   Last elements... -1.120804316614E+00  -1.121311097593E+00  -1.121631483578E+00
   Sum of elements... 2.730349280000E-11
@@ -160,7 +160,7 @@
   Min: -1.21890554E+00
   Average: 4.74018972E-17
   Max: 3.55329682E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -172,7 +172,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHXC
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -1.307201841431E+00  -1.307128103470E+00  -1.306894132779E+00
   Last elements... -1.287172122076E+00  -1.286857102316E+00  -1.286629747466E+00
   Sum of elements... -2.085569582204E+05
@@ -181,7 +181,7 @@
   Min: -1.36619959E+00
   Average: -3.62078052E-01
   Max: 2.25530063E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -193,7 +193,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VPSP
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 1.517111373484E+00  1.517573170056E+00  1.518528713843E+00
   Last elements... 1.495021110651E+00  1.493994318487E+00  1.493047291949E+00
   Sum of elements... -2.002245036437E-10
@@ -202,7 +202,7 @@
   Min: -1.11044951E+01
   Average: -3.47611985E-16
   Max: 1.57228520E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -214,7 +214,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VXC
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... -1.635649668944E-01  -1.636896578494E-01  -1.640422094520E-01
   Last elements... -1.663678054617E-01  -1.655460047236E-01  -1.649982638882E-01
   Sum of elements... -2.085569582204E+05
@@ -223,7 +223,7 @@
   Min: -1.68146489E+00
   Average: -3.62078052E-01
   Max: -1.32577186E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -265,7 +265,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
   Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
   Sum of elements... 3.624016354025E+04
@@ -274,7 +274,7 @@
   Min: -1.58090372E-02
   Average: 6.29169506E-02
   Max: 1.08775964E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -288,7 +288,7 @@
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
   Type: grid
   Grid dimensions : 80  80  90
-  Step lengths (short/long in bohr):  0.11351  0.11608
+  Max. length Voronoi-relevant vector (bohr):  0.11608
   First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
   Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
   Sum of elements... 3.623977007224E+04
@@ -297,7 +297,7 @@
   Min: -8.54626236E-03
   Average: 6.29162675E-02
   Max: 6.59802541E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

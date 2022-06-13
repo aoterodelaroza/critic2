@@ -2,7 +2,7 @@
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 3.995604191473E-04  9.900016917788E-03  1.158836131277E-01
   Last elements... 7.011121538456E-01  4.986921915477E-01  2.383221642209E-01
   Sum of elements... 4.762484537339E+03
@@ -11,7 +11,7 @@
   Min: 3.99560419E-04
   Average: 1.02076572E-01
   Max: 1.02725755E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -153,7 +153,7 @@
   Source: 019_cube_mlwf_spin-1-1-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -3.223852551508E-05  1.495732004650E-03  5.212375892601E-03
   Last elements... -4.555884638513E-02  -4.192659428221E-02  -3.119594384429E-02
   Sum of elements... -1.349477091603E+01
@@ -162,7 +162,7 @@
   Min: -5.66726665E-02
   Average: -2.89239774E-04
   Max: 5.96560925E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -175,7 +175,7 @@
   Source: 019_cube_mlwf_spin-1-4-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -6.894218472023E-05  2.671025611535E-03  9.557644386044E-03
   Last elements... -4.613448922386E-02  -4.015026768408E-02  -2.766002273628E-02
   Sum of elements... 6.777812917930E+00
@@ -184,7 +184,7 @@
   Min: -5.41916808E-02
   Average: 1.45272053E-04
   Max: 4.98072896E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -197,7 +197,7 @@
   Source: 019_cube_mlwf_spin-1-3-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 8.643776836378E-05  -4.893854702871E-04  -1.947537006667E-03
   Last elements... 3.782313275023E-02  3.510774794131E-02  2.648671322274E-02
   Sum of elements... 2.593029780530E+01
@@ -206,7 +206,7 @@
   Min: -4.38318185E-02
   Average: 5.55776273E-04
   Max: 5.30104164E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -219,7 +219,7 @@
   Source: 019_cube_mlwf_spin-1-7-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -2.141615982771E-04  -4.131122855829E-03  -1.365277450272E-02
   Last elements... 5.113214369922E-02  4.206305256775E-02  2.654448748015E-02
   Sum of elements... -7.767483173141E-01
@@ -228,7 +228,7 @@
   Min: -5.01234822E-02
   Average: -1.66484122E-05
   Max: 5.50591127E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -241,7 +241,7 @@
   Source: 019_cube_mlwf_spin-1-2-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 2.144717904423E-04  5.391210814094E-03  1.857022973960E-02
   Last elements... -4.350926507073E-02  -3.757127582261E-02  -2.546177160532E-02
   Sum of elements... 4.253857568385E+00
@@ -250,7 +250,7 @@
   Min: -5.02561706E-02
   Average: 9.11749307E-05
   Max: 5.11326295E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -263,7 +263,7 @@
   Source: 019_cube_mlwf_spin-1-6-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -6.254563705823E-05  2.155261685715E-03  7.616299462064E-03
   Last elements... -1.962795351670E-02  -1.933660159109E-02  -1.577070149023E-02
   Sum of elements... 2.991716517223E+01
@@ -272,7 +272,7 @@
   Min: -5.15892105E-02
   Average: 6.41228677E-04
   Max: 5.26440621E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -285,7 +285,7 @@
   Source: 019_cube_mlwf_spin-1-5-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 4.605478488803E-05  -3.901572663237E-03  -1.367844842357E-02
   Last elements... 3.576793648317E-02  3.158066320839E-02  2.226054203216E-02
   Sum of elements... -2.576981258243E+01
@@ -294,7 +294,7 @@
   Min: -5.46357766E-02
   Average: -5.52336518E-04
   Max: 5.67100253E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -307,7 +307,7 @@
   Source: 019_cube_mlwf_spin-1-8-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 6.778332778044E-05  -2.514255975043E-03  -9.028514678857E-03
   Last elements... 4.048228937070E-02  3.910613979941E-02  3.081847668966E-02
   Sum of elements... -1.304123526192E+01
@@ -316,7 +316,7 @@
   Min: -5.65126562E-02
   Average: -2.79518931E-04
   Max: 5.92580109E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -329,7 +329,7 @@
   Source: 019_cube_mlwf_spin-1-1-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.289399214204E-03  6.990943231355E-03  2.770303600602E-02
   Last elements... -6.353106157154E-05  1.418068838317E-02  2.567610357050E-02
   Sum of elements... 4.565808098626E+01
@@ -338,7 +338,7 @@
   Min: -1.04585437E-01
   Average: 9.78611132E-04
   Max: 9.13181535E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -351,7 +351,7 @@
   Source: 019_cube_mlwf_spin-1-4-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.619990865748E-03  6.214907401699E-03  1.773614944809E-02
   Last elements... 7.459894123218E-03  1.462674299300E-02  1.758620257362E-02
   Sum of elements... -8.376265252952E+02
@@ -360,7 +360,7 @@
   Min: -5.95753432E-01
   Average: -1.79532434E-02
   Max: 3.66339500E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -373,7 +373,7 @@
   Source: 019_cube_mlwf_spin-1-3-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 2.073747838580E-04  -3.661728238517E-04  -3.682572288130E-04
   Last elements... -2.727985928630E-02  -2.460150630154E-02  -1.644961892720E-02
   Sum of elements... -9.690789484304E+01
@@ -382,7 +382,7 @@
   Min: -9.16977958E-02
   Average: -2.07707251E-03
   Max: 9.40361760E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -395,7 +395,7 @@
   Source: 019_cube_mlwf_spin-1-7-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.270227344324E-03  2.111978234589E-03  2.065990864203E-03
   Last elements... -5.131369910443E-02  -4.690801419998E-02  -3.434262344400E-02
   Sum of elements... -1.106126090802E+02
@@ -404,7 +404,7 @@
   Min: -8.91130422E-02
   Average: -2.37081209E-03
   Max: 9.78748670E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -417,7 +417,7 @@
   Source: 019_cube_mlwf_spin-1-2-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -2.240853602533E-03  -1.016427289179E-03  -1.089706168886E-03
   Last elements... 2.810570703051E-02  2.942853980354E-02  2.357149374628E-02
   Sum of elements... 7.789201125182E+01
@@ -426,7 +426,7 @@
   Min: -8.66719448E-02
   Average: 1.66949613E-03
   Max: 7.99211060E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -439,7 +439,7 @@
   Source: 019_cube_mlwf_spin-1-6-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.182096783798E-03  -4.437088609232E-03  -1.027287941366E-02
   Last elements... 3.016219356987E-02  2.806115491750E-02  2.051263270095E-02
   Sum of elements... 2.090083678268E+01
@@ -448,7 +448,7 @@
   Min: -8.91302028E-02
   Average: 4.47977469E-04
   Max: 8.69730135E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -461,7 +461,7 @@
   Source: 019_cube_mlwf_spin-1-5-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.560712864867E-03  -5.131110421219E-03  -1.402959781847E-02
   Last elements... -1.195249215092E-03  -1.034838678394E-02  -1.575857523366E-02
   Sum of elements... -9.649096826032E+01
@@ -470,7 +470,7 @@
   Min: -1.01635208E-01
   Average: -2.06813632E-03
   Max: 9.84065554E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -483,7 +483,7 @@
   Source: 019_cube_mlwf_spin-1-8-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 3.191297051166E-04  -6.256548498092E-03  -2.255621015282E-02
   Last elements... 2.209235753026E-02  4.401364740587E-03  -1.332393153983E-02
   Sum of elements... -7.390042355554E+01
@@ -492,7 +492,7 @@
   Min: -8.32518404E-02
   Average: -1.58394255E-03
   Max: 9.02607280E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -505,7 +505,7 @@
   Source: 019_cube_mlwf_spin-2-1-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.038827547488E-03  -3.066061110230E-03  -7.087003510409E-03
   Last elements... -8.843088052511E-03  -1.084460993262E-02  -1.056136489521E-02
   Sum of elements... -4.511850713287E+01
@@ -514,7 +514,7 @@
   Min: -4.05950585E-02
   Average: -9.67046192E-04
   Max: 4.16241280E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -527,7 +527,7 @@
   Source: 019_cube_mlwf_spin-2-4-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.367758753177E-03  -3.779434944562E-03  -1.098094276565E-02
   Last elements... 1.484161203696E-02  1.024483275908E-02  3.966198659996E-03
   Sum of elements... -1.013347884545E+01
@@ -536,7 +536,7 @@
   Min: -3.33677417E-02
   Average: -2.17195620E-04
   Max: 3.87353542E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -549,7 +549,7 @@
   Source: 019_cube_mlwf_spin-2-3-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -7.570945342757E-05  3.894002977124E-04  1.550869046256E-03
   Last elements... -2.169001878210E-03  -3.234124902910E-03  -3.450617534492E-03
   Sum of elements... -6.353741353859E+02
@@ -558,7 +558,7 @@
   Min: -3.13957769E-01
   Average: -1.36182728E-02
   Max: 1.38203765E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -571,7 +571,7 @@
   Source: 019_cube_mlwf_spin-2-7-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.765052041324E-03  -1.873336159235E-04  3.749990467378E-03
   Last elements... 1.485853009362E-03  2.668668790511E-03  4.615248049774E-03
   Sum of elements... -6.012779089584E+01
@@ -580,7 +580,7 @@
   Min: -3.22660087E-02
   Average: -1.28874723E-03
   Max: 4.12520029E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -593,7 +593,7 @@
   Source: 019_cube_mlwf_spin-2-2-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.058439186436E-03  9.977862475889E-04  8.745571887286E-04
   Last elements... 1.100120280937E-02  6.935202354445E-03  7.488967005685E-04
   Sum of elements... -5.170094539070E+00
@@ -602,7 +602,7 @@
   Min: -2.82213433E-02
   Average: -1.10813069E-04
   Max: 3.93880289E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -615,7 +615,7 @@
   Source: 019_cube_mlwf_spin-2-6-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 8.532396831825E-05  6.345761279207E-04  2.000468639030E-03
   Last elements... 1.912306132131E-02  1.865203754607E-02  1.469815012856E-02
   Sum of elements... 1.474450134603E+01
@@ -624,7 +624,7 @@
   Min: -4.01426441E-02
   Average: 3.16025835E-04
   Max: 4.11097673E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -637,7 +637,7 @@
   Source: 019_cube_mlwf_spin-2-5-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 6.624194052215E-04  3.474203483510E-03  9.941397294515E-03
   Last elements... -2.045633047131E-02  -1.317017829953E-02  -4.590910646490E-03
   Sum of elements... -2.934249889932E+01
@@ -646,7 +646,7 @@
   Min: -4.05049924E-02
   Average: -6.28911585E-04
   Max: 4.13677228E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -659,7 +659,7 @@
   Source: 019_cube_mlwf_spin-2-8-i.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 3.349921416238E-04  6.496480329743E-04  1.882892171667E-03
   Last elements... 1.135088207979E-02  1.416877848143E-02  1.420725361573E-02
   Sum of elements... -1.919811719120E+01
@@ -668,7 +668,7 @@
   Min: -2.89557354E-02
   Average: -4.11482279E-04
   Max: 3.96719306E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -681,7 +681,7 @@
   Source: 019_cube_mlwf_spin-2-1-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -2.336116526730E-03  -9.352487137149E-03  -2.480487269561E-02
   Last elements... 2.293117847246E-02  1.618997369733E-02  7.274390175740E-03
   Sum of elements... -8.454592968862E+01
@@ -690,7 +690,7 @@
   Min: -6.24525660E-02
   Average: -1.81211269E-03
   Max: 6.08275106E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -703,7 +703,7 @@
   Source: 019_cube_mlwf_spin-2-4-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -2.381564454259E-03  -6.394438863282E-03  -1.859723002940E-02
   Last elements... 4.125473586898E-02  3.669330715151E-02  2.533508314020E-02
   Sum of elements... -2.357015077929E+01
@@ -712,7 +712,7 @@
   Min: -7.28328219E-02
   Average: -5.05190132E-04
   Max: 5.27393832E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -725,7 +725,7 @@
   Source: 019_cube_mlwf_spin-2-3-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -8.023285881127E-05  1.059126123831E-03  3.907696896823E-03
   Last elements... 6.695535583088E-03  6.412110405167E-03  5.129934819377E-03
   Sum of elements... -1.181734209717E+03
@@ -734,7 +734,7 @@
   Min: -5.76038493E-01
   Average: -2.53286653E-02
   Max: 2.56721370E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -747,7 +747,7 @@
   Source: 019_cube_mlwf_spin-2-7-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -3.179983085082E-03  -8.283269044922E-04  4.998863285775E-03
   Last elements... 1.643274162478E-02  1.864674114849E-02  1.958372419810E-02
   Sum of elements... -6.764115648459E+01
@@ -756,7 +756,7 @@
   Min: -6.08049022E-02
   Average: -1.44978473E-03
   Max: 6.03240688E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -769,7 +769,7 @@
   Source: 019_cube_mlwf_spin-2-2-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.901173083533E-03  1.943970718703E-03  2.069487839745E-03
   Last elements... 5.213920619043E-03  -1.430516217403E-03  -9.362612157907E-03
   Sum of elements... 1.769514844714E+01
@@ -778,7 +778,7 @@
   Min: -5.58587026E-02
   Average: 3.79268442E-04
   Max: 6.18680060E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -791,16 +791,16 @@
   Source: 019_cube_mlwf_spin-2-6-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.008603254599E-04  3.915448714158E-04  1.103457999214E-03
   Last elements... 1.505140627360E-03  -8.161618850793E-04  -2.772696600531E-03
-  Sum of elements... -4.652148427918E-01
+  Sum of elements... -4.652148427919E-01
   Sum of squares of elements... 3.403275582423E+00
   Cell integral (grid SUM) = -0.00136757
   Min: -7.51212934E-02
   Average: -9.97116861E-06
   Max: 5.63645365E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -813,7 +813,7 @@
   Source: 019_cube_mlwf_spin-2-5-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.101282994164E-03  4.603025539412E-03  1.231484950119E-02
   Last elements... -7.137496180278E-02  -5.990691903474E-02  -3.932372244989E-02
   Sum of elements... -6.226379923598E+01
@@ -822,7 +822,7 @@
   Min: -8.18152689E-02
   Average: -1.33452930E-03
   Max: 6.40210726E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -835,7 +835,7 @@
   Source: 019_cube_mlwf_spin-2-8-r.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.053281041880E-03  3.461787051233E-03  1.044647558716E-02
   Last elements... -3.452674855855E-02  -2.445327014115E-02  -1.062429367576E-02
   Sum of elements... -3.070683663766E+01
@@ -844,7 +844,7 @@
   Min: -5.29815543E-02
   Average: -6.58154077E-04
   Max: 5.67568907E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -856,16 +856,16 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -9.889864151500E-06  -1.787904058265E-04  -1.747737008262E-03
   Last elements... -2.619170786950E-03  -2.598427240063E-04  6.947229587849E-04
-  Sum of elements... -8.505276344328E-12
+  Sum of elements... -8.502736709159E-12
   Sum of squares of elements... 1.431162223277E-01
   Cell integral (grid SUM) = -0.00000000
   Min: -1.99924923E-02
-  Average: -1.82297590E-16
+  Average: -1.82243156E-16
   Max: 2.84589615E-02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -877,7 +877,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.501560338913E-05  2.602177944663E-04  2.878948934552E-03
   Last elements... 1.906768887496E-02  1.568442897974E-02  9.307532465066E-03
   Sum of elements... 3.401774669528E+02
@@ -886,7 +886,7 @@
   Min: 1.50156034E-05
   Average: 7.29118371E-03
   Max: 3.90127795E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

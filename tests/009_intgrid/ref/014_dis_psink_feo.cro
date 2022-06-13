@@ -2,7 +2,7 @@
   Source: ../zz_source/qe-6.5/feo_nosym/rhoae.cube
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 5.335600000000E+04  1.037000000000E+02  1.487400000000E+01
   Last elements... 2.891200000000E+00  4.104700000000E+00  7.154400000000E+00
   Sum of elements... 6.437539477201E+04
@@ -11,7 +11,7 @@
   Min: 1.09970000E-02
   Average: 1.37978813E+00
   Max: 5.33560000E+04
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -25,7 +25,7 @@
   Source: ../zz_source/qe-6.5/feo_nosym/feo.pwc
   Type: grid
   Grid dimensions : 36  36  36
-  Step lengths (short/long in bohr):  0.16079  0.16079
+  Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 5.839851433795E-04  1.034313622256E-02  1.188284367959E-01
   Last elements... 6.804558054365E-01  4.741987579667E-01  2.211650520331E-01
   Sum of elements... 4.762484537371E+03
@@ -34,7 +34,7 @@
   Min: 5.83985143E-04
   Average: 1.02076572E-01
   Max: 1.02539137E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

@@ -1262,7 +1262,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 10  10  10
-  Step lengths (short/long in bohr):  0.79576  0.79576
+  Max. length Voronoi-relevant vector (bohr):  0.79576
   First elements... 5.704420790593E+02  4.642470454442E-01  2.246717674940E-02
   Last elements... 2.164333039700E-02  1.356991407303E-02  3.528665527077E-02
   Sum of elements... 2.962352830797E+03
@@ -1271,7 +1271,7 @@
   Min: 9.76465012E-03
   Average: 2.96235283E+00
   Max: 5.70442079E+02
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

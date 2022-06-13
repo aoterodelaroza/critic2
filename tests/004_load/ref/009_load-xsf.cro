@@ -2,7 +2,7 @@
   Source: ../zz_source/qe-6.1/graphite/rho.xsf
   Type: grid
   Grid dimensions : 30  30  81
-  Step lengths (short/long in bohr):  0.15471  0.15622
+  Max. length Voronoi-relevant vector (bohr):  0.15622
   First elements... 5.887910000000E-03  6.155050000000E-03  6.978490000000E-03
   Last elements... 8.402300000000E-03  6.951040000000E-03  6.134830000000E-03
   Sum of elements... 4.941379332210E+03
@@ -11,7 +11,7 @@
   Min: 3.40531000E-03
   Average: 6.77829812E-02
   Max: 3.25198000E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic): 4
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

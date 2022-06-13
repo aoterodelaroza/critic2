@@ -333,9 +333,7 @@ submodule (grid3mod) proc
      0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,  0d0,   1d0,  -1d0,  0d0,  0d0,  -1d0,   1d0&   ! 49-64, 64
      /),shape(c))
 
-  integer, parameter :: test_nenv = 8**3
-  integer, parameter :: test_kkern = 3
-  real*8, parameter :: tiny_rho_smr = 1d-80
+  integer, parameter :: smr_kkern = 3
 
 contains
 
@@ -372,6 +370,7 @@ contains
     f%isinit = .false.
     f%isqe = .false.
     f%iswan = .false.
+    f%smr_nlist = 0
     if (allocated(f%f)) deallocate(f%f)
     if (allocated(f%c2)) deallocate(f%c2)
     if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
@@ -396,7 +395,7 @@ contains
   !> trilinear, trispline, and tricubic (lowercase).
   module subroutine setmode(f,mode)
     use tools_io, only: equal, lower
-    use param, only: icrd_crys
+    use param, only: icrd_crys, VSMALL
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: mode
 
@@ -404,9 +403,13 @@ contains
     integer :: i, j, k
     real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
 
+    ! parse the mode
     lmode = lower(mode)
     if (equal(lmode,'smoothrho')) then
        f%mode = mode_smr
+       f%smr_nlist = 0
+       f%smr_nenv = 8**3
+       f%smr_fdmax = 1.75d0
        if (allocated(f%smr_ilist)) deallocate(f%smr_ilist)
        if (allocated(f%smr_xlist)) deallocate(f%smr_xlist)
        if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
@@ -441,7 +444,7 @@ contains
                 call f%atenv%promolecular(x,icrd_crys,rho,rhof,rhoff,0)
 
                 !$omp critical(write)
-                f%smr_rho0(i,j,k) = max(rho,tiny_rho_smr)
+                f%smr_rho0(i,j,k) = max(rho,VSMALL)
                 !$omp end critical(write)
              end do
           end do
@@ -2418,17 +2421,18 @@ contains
 
   end subroutine grinterp_tricubic
 
-  !> Testing
-  module subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
+  !> Smoothrho interpolation. The grid f is interpolated at point xi
+  !> (cryst. coords.). Returns the interpolated field (y), first (yp),
+  !> and second (ypp) derivatives, all in Cartesian coordinates.
+  module subroutine grinterp_smr(f,xi,y,yp,ypp)
     use tools_io, only: string
     use types, only: realloc
-    use param, only: icrd_crys
+    use param, only: icrd_crys, VSMALL
     class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
-    integer, intent(inout), optional :: i0ref(3)
 
     integer :: i, j, k
     real*8 :: x1(3), xh(3)
@@ -2457,14 +2461,23 @@ contains
     allocate(flist(f%smr_nlist+4),w(f%smr_nlist+4),f0list(f%smr_nlist+4))
 
     ! calculate the contributing grid nodes and weights
-    dfin = 2d0 * f%dmax
     x0 = (xi - floor(xi)) * f%n
-    call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2d=dfin)
-    allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
-    do i = 1, nat
-       i0list(:,i) = nint(f%env%xr2x(f%env%at(eid(i))%x) + lvec)
-       call weifun(dist(i),dfin,wei(i),weip(i),weipp(i))
-    end do
+    if (f%smr_fdmax >= 1d0) then
+       dfin = f%smr_fdmax * f%dmax
+       call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2d=dfin)
+       allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
+       do i = 1, nat
+          i0list(:,i) = nint(f%env%xr2x(f%env%at(eid(i))%x) + lvec)
+          call weifun(dist(i),dfin,wei(i),weip(i),weipp(i))
+       end do
+    else
+       call f%env%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec,up2n=1)
+       allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
+       i0list(:,1) = nint(f%env%xr2x(f%env%at(eid(1))%x) + lvec)
+       wei(1) = 1d0
+       weip(1) = 0d0
+       weipp(1) = 0d0
+    end if
 
     ! run the interpolations
     allocate(ys(nat),ysp(3,nat),yspp(3,3,nat))
@@ -2480,7 +2493,7 @@ contains
        do i = 1, f%smr_nlist
           ih = i0 + f%smr_ilist(:,i)
           ih = modulo(ih,f%n) + 1
-          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),tiny_rho_smr)/f%smr_rho0(ih(1),ih(2),ih(3)))
+          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
        end do
        flist(f%smr_nlist+1:) = 0d0
 
@@ -2497,7 +2510,7 @@ contains
           dd = dot_product(xh,xh)
           d = max(sqrt(dd),1d-40)
 
-          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
+          call smr_kernelfun(d,smr_kkern,ff,fp,fpp)
           y1 = y1 + w(i) * ff
           yp1 = yp1 + w(i) * fp * xh / d
           ypp1(1,1) = ypp1(1,1) + w(i) * (fpp * (xh(1)/d)**2 + fp * (1/d - xh(1)**2/d**3))
@@ -2749,7 +2762,7 @@ contains
     type(environ), intent(in), target :: env
 
     integer :: i
-
+    real*8 :: xx(3)
     real*8, parameter :: nmaxenv = 15d0
 
     ! number of point and crystal matrices
@@ -2758,24 +2771,29 @@ contains
     f%c2x = x2c
     call matinv(f%c2x,3)
 
-    ! grid environment
+    ! grid x2c matrix
     f%x2cg = x2c
-    f%dmax = 0d0
-    f%dmin = 1d40
     do i = 1, 3
        f%x2cg(:,i) = f%x2cg(:,i) / f%n(i)
-       f%dmax = max(f%dmax,norm2(f%x2cg(:,i)))
-       f%dmin = min(f%dmin,norm2(f%x2cg(:,i)))
     end do
+
+    ! voronoi relevant vectors and areas
+    call wscell(f%x2cg,.true.,nf=f%nvec,ineighx=f%vec,area=f%area)
+
+    ! dmax of the grid
+    f%dmax = 0d0
+    do i = 1, f%nvec
+       xx = matmul(f%x2cg,f%vec(:,i))
+       f%dmax = max(f%dmax,norm2(xx))
+    end do
+
+    ! grid environment
     call f%env%build_lattice(f%x2cg,f%dmax*nmaxenv)
     f%c2xg = f%x2cg
     call matinv(f%c2xg,3)
 
     ! atom environment
     f%atenv => env
-
-    ! voronoi relevant vectors and areas
-    call wscell(f%x2cg,.true.,nf=f%nvec,ineighx=f%vec,area=f%area)
 
   end subroutine init_geometry
 
@@ -2789,7 +2807,6 @@ contains
     f%c2x = g%c2x
     f%x2cg = g%x2cg
     f%dmax = g%dmax
-    f%dmin = g%dmin
     f%env = g%env
     f%c2xg = g%c2xg
     f%atenv => g%atenv
@@ -2907,7 +2924,7 @@ contains
 
   end subroutine init_trispline
 
-  !> Testing
+  !> Initialize the grid for smoothrho interpolation.
   subroutine init_smr(f)
     use environmod, only: environ
     use tools_math, only: matinvsym
@@ -2920,6 +2937,7 @@ contains
     real*8, allocatable :: dlist(:)
     integer, allocatable :: eid(:)
 
+    ! do not init if already initialized
     if (allocated(f%smr_ilist)) return
 
     ! prepare
@@ -2928,7 +2946,7 @@ contains
     if (allocated(f%smr_phiinv)) deallocate(f%smr_phiinv)
 
     ! calculate the stencil
-    call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=test_nenv)
+    call f%env%list_near_atoms((/0d0,0d0,0d0/),icrd_cart,.true.,nn,ierr,eid,dlist,up2n=f%smr_nenv)
     f%smr_nlist = nn
     allocate(f%smr_xlist(3,nn),f%smr_ilist(3,nn))
     do i = 1, nn
@@ -2943,8 +2961,8 @@ contains
        do j = i, f%smr_nlist
           xh = f%smr_xlist(:,i) - f%smr_xlist(:,j)
           dd = dot_product(xh,xh)
-          d = max(sqrt(dd),1d-40)
-          call smr_kernelfun(d,test_kkern,ff,fp,fpp)
+          d = sqrt(dd)
+          call smr_kernelfun(d,smr_kkern,ff,fp,fpp)
           f%smr_phiinv(i,j) = ff
           f%smr_phiinv(j,i) = f%smr_phiinv(i,j)
        end do
@@ -2965,11 +2983,11 @@ contains
      real*8, intent(out) :: fp
      real*8, intent(out) :: fpp
 
-     f = 0d0
-     fp = 0d0
-     fpp = 0d0
-     if (r < 1d-40) return
-     if (mod(k,2) == 0) then
+     if (r < 1d-40) then
+        f = 0d0
+        fp = 0d0
+        fpp = 0d0
+     elseif (mod(k,2) == 0) then
         f = r**k * log(r)
         fp = r**(k-1) * (k*log(r) + 1)
         fpp = (k*(k-1)*log(r) + 2*k - 1) * r**(k-2)
