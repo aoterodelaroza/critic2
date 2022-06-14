@@ -2184,7 +2184,7 @@ contains
     type(environ) :: e
     integer :: lp, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
-    type(crystal) :: c1, c2, c2del
+    type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:)
@@ -2267,6 +2267,16 @@ contains
     if (c2%ismolecule) &
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
 
+    ! choose the largest crystal as the reference
+    if (c1%ncel >= c2%ncel) then
+       write (uout,'("+ Using as reference: ",A)') trim(file1)
+    else
+       write (uout,'("+ Using as reference: ",A)') trim(file2)
+       caux = c1
+       c1 = c2
+       c2 = caux
+    end if
+
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
     !x0del1 = c1%cell_delaunay()
@@ -2303,7 +2313,7 @@ contains
     do i = 1, 3
        dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
     end do
-    dmax0 = dmax0 * (1d0 + max_elong)
+    dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
     call e%build_lattice(c2%m_x2c,dmax0*2d0)
     call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
 
