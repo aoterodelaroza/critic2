@@ -99,7 +99,7 @@ contains
     integer :: nt
     logical :: ok, dryrun, dochk
     character(len=:), allocatable :: word, str, discexpr
-    real*8 :: gfnormeps, x0fin(3)
+    real*8 :: gfnormeps
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
     logical :: cpdebug, seedobj
@@ -115,7 +115,7 @@ contains
     type(minisurf) :: srf
     real*8 :: cpeps
     real*8 :: nuceps
-    real*8 :: nucepsh, grideps
+    real*8 :: nucepsh
     type(grhandle) :: gr
     type(mesh) :: meshseed
 

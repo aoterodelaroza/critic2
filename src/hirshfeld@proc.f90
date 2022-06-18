@@ -22,21 +22,6 @@ submodule (hirshfeld) proc
 
 contains
 
-  ! Driver for the Hirshfeld routines.
-  module subroutine hirsh_driver()
-    use systemmod, only: sy
-    use fieldmod, only: type_grid
-
-    ! if (sy%f(sy%iref)%type == type_grid .and. .not.sy%c%ismolecule) then
-    !    call hirsh_grid()
-    ! else
-    !    call hirsh_nogrid()
-    ! end if
-    write (*,*) "temporarily disabled"
-    stop 1
-
-  end subroutine hirsh_driver
-
   !> Set the attractors for Hirshfeld integration. The actual
   !> integration is done using hirsh_weights.
   module subroutine hirsh_grid(s,bas)
@@ -121,7 +106,6 @@ contains
     type(basindat), intent(inout) :: bas
 
     integer :: i
-    integer :: i1, i2, i3
 
     if (.not.s%isinit) &
        call ferror("voronoi_grid","system not initialized",faterr)

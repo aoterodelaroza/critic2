@@ -1361,7 +1361,7 @@ contains
     use grid3mod, only: grid3
     use fieldmod, only: type_grid
     use tools_io, only: uout, string, ferror, faterr
-    use types, only: basindat, int_result, out_mpoles, out_field, realloc
+    use types, only: basindat, int_result, out_field, realloc
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
