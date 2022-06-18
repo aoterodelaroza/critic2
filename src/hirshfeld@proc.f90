@@ -130,7 +130,7 @@ contains
   end subroutine voronoi_grid
 
   ! Calculate hirshfeld populations and volumes using a mesh.
-  subroutine hirsh_nogrid()
+  module subroutine hirsh_nogrid()
     use fieldmod, only: field
     use meshmod, only: mesh
     use global, only: mesh_type, mesh_level
