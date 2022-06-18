@@ -58,7 +58,7 @@ contains
 
   !> Driver for the integration in grids
   module subroutine intgrid_driver(line)
-    use hirshfeld, only: hirsh_grid
+    use hirshfeld, only: hirsh_grid, voronoi_grid
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
@@ -162,10 +162,9 @@ contains
              return
           end if
           ratom_def = ratom_def / dunit0(iunit)
-       elseif (equal(word,"wcube")) then
+       elseif (equal(word,"wcube") .and. bas%imtype /= imtype_voronoi) then
           bas%wcube = .true.
-       elseif (equal(word,"basins") .and.&
-          (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt .or. bas%imtype == imtype_isosurface)) then
+       elseif (equal(word,"basins") .and. bas%imtype /= imtype_hirshfeld) then
           lp2 = lp
           word = lgetword(line,lp)
           if (equal(word,"obj")) then
@@ -293,13 +292,12 @@ contains
        call hirsh_grid(sy,bas)
     elseif (bas%imtype == imtype_voronoi) then
        write (uout,'("* Voronoi integration ")')
-       ! xxxx !
-       stop 1
+       call voronoi_grid(sy,bas)
     endif
 
     ! Reorder the attractors
     call int_reorder_gridout(sy%f(sy%iref),bas)
-    if (bas%imtype /= imtype_isosurface) then
+    if (bas%imtype == imtype_yt .or. bas%imtype == imtype_bader) then
        write (uout,'("+ Attractors after reordering: ",A)') string(bas%nattr)
        write (uout,*)
     end if
@@ -333,8 +331,6 @@ contains
 
     ! output integrated scalar field properties
     call int_output_fields(bas,res)
-
-    stop 1
 
     ! output multipoles
     call int_output_multipoles(bas,res)
@@ -745,7 +741,7 @@ contains
        end do
        write (uout,*)
     else
-       ! YT/BADER/HIRSHFELD output
+       ! YT/BADER/HIRSHFELD/VORONOI output
 
        ! List of attractors and positions
        write (uout,'("* List of attractors integrated")')
@@ -1166,11 +1162,9 @@ contains
              if (.not.bas%docelatom(bas%icp(i))) cycle
              if (bas%imtype == imtype_yt) then
                 call yt_weights(din=dat,idb=i,w=w)
-             end if
-             if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
-                padd = count(bas%idg == i) * sy%c%omega / real(ntot,8)
-             else
                 padd = sum(w) * sy%c%omega / real(ntot,8)
+             else
+                padd = count(bas%idg == i) * sy%c%omega / real(ntot,8)
              endif
              !$omp critical (accum)
              res(k)%psum(i) = res(k)%psum(i) + padd
@@ -1253,11 +1247,9 @@ contains
                 if (.not.bas%docelatom(bas%icp(i))) cycle
                 if (bas%imtype == imtype_yt) then
                    call yt_weights(din=dat,idb=i,w=w)
-                end if
-                if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
-                   padd = sum(fint,bas%idg==i) * sy%c%omega / real(ntot,8)
-                else
                    padd = sum(w * fint) * sy%c%omega / real(ntot,8)
+                else
+                   padd = sum(fint,bas%idg==i) * sy%c%omega / real(ntot,8)
                 endif
                 !$omp critical (accum)
                 res(k)%psum(i) = res(k)%psum(i) + padd
@@ -1277,29 +1269,7 @@ contains
              allocate(res(k)%mpole((lmax+1)*(lmax+1),bas%nattr))
              res(k)%mpole = 0d0
 
-             if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
-                ! calcualate the multipoles, with bader and isosurface
-                !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm)
-                do i1 = 1, bas%n(1)
-                   p(1) = real(i1-1,8)
-                   do i2 = 1, bas%n(2)
-                      p(2) = real(i2-1,8)
-                      do i3 = 1, bas%n(3)
-                         p(3) = real(i3-1,8)
-                         ix = bas%idg(i1,i2,i3)
-                         dv = p/real(bas%n,8) - bas%xattr(:,ix)
-                         call sy%c%shortest(dv,r)
-                         call tosphere(dv,r,tp)
-                         call genrlm_real(lmax,r,tp,rrlm)
-
-                         !$omp critical (accum)
-                         res(k)%mpole(:,ix) = res(k)%mpole(:,ix) + rrlm * fint(i1,i2,i3)
-                         !$omp end critical (accum)
-                      end do
-                   end do
-                end do
-                !$omp end parallel do
-             else
+             if (bas%imtype == imtype_yt) then
                 w = 0d0
                 !$omp parallel do private(p,dv,r,tp) firstprivate(w,rrlm)
                 do m = 1, bas%nattr
@@ -1324,6 +1294,28 @@ contains
                 end do
                 !$omp end parallel do
                 res(k)%outmode = out_mpoles
+             else
+                ! calcualate the multipoles, with bader and isosurface
+                !$omp parallel do private(p,ix,dv,r,tp) firstprivate(rrlm)
+                do i1 = 1, bas%n(1)
+                   p(1) = real(i1-1,8)
+                   do i2 = 1, bas%n(2)
+                      p(2) = real(i2-1,8)
+                      do i3 = 1, bas%n(3)
+                         p(3) = real(i3-1,8)
+                         ix = bas%idg(i1,i2,i3)
+                         dv = p/real(bas%n,8) - bas%xattr(:,ix)
+                         call sy%c%shortest(dv,r)
+                         call tosphere(dv,r,tp)
+                         call genrlm_real(lmax,r,tp,rrlm)
+
+                         !$omp critical (accum)
+                         res(k)%mpole(:,ix) = res(k)%mpole(:,ix) + rrlm * fint(i1,i2,i3)
+                         !$omp end critical (accum)
+                      end do
+                   end do
+                end do
+                !$omp end parallel do
              endif
              res(k)%mpole = res(k)%mpole * sy%c%omega / real(ntot,8)
              deallocate(rrlm)
@@ -3218,6 +3210,7 @@ contains
     end interface
 
     if (bas%ndrawbasin < 0) return
+    if (bas%imtype == imtype_hirshfeld) return
 
     ! prepare wigner-seitz tetrahedra
     do i = 1, 3
@@ -3235,9 +3228,7 @@ contains
     ! prepare the idg array
     allocate(idg0(n(1),n(2),n(3)))
     idg0 = 0
-    if (bas%imtype == imtype_bader .or. bas%imtype == imtype_isosurface) then
-       idg0 = bas%idg
-    elseif (bas%imtype == imtype_yt) then
+    if (bas%imtype == imtype_yt) then
        allocate(w(n(1),n(2),n(3)))
        call yt_weights(luw=bas%luw,dout=dat)
        do i = 1, bas%nattr
@@ -3248,6 +3239,8 @@ contains
        end do
        call ytdata_clean(dat)
        deallocate(w)
+    else
+       idg0 = bas%idg
     endif
 
     ! write the basins

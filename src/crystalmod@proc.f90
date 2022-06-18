@@ -2540,6 +2540,42 @@ contains
 
   end subroutine reorder_atoms
 
+  !> Calculate the nearest atom on a grid of points whose dimensions
+  !> are given by n. Return the complete atom list IDs in the idg
+  !> array.
+  module subroutine nearest_atom_grid(c,n,idg)
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: n(3)
+    integer, allocatable, intent(inout) :: idg(:,:,:)
+
+    integer :: i, j, k, nid
+    real*8 :: xdelta(3,3), dist, x(3)
+
+    ! initialize
+    if (allocated(idg)) deallocate(idg)
+    allocate(idg(n(1),n(2),n(3)))
+    do i = 1, 3
+       xdelta(:,i) = 0d0
+       xdelta(i,i) = 1d0 / real(n(i),8)
+    end do
+
+    !$omp parallel do private(x,nid,dist)
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+             call c%env%nearest_atom(x,icrd_crys,nid,dist)
+             !$omp critical(write)
+             idg(i,j,k) = nid
+             !$omp end critical(write)
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine nearest_atom_grid
+
   !> Given a crystal structure (c) and three lattice vectors in cryst.
   !> coords (x0(:,1), x0(:,2), x0(:,3)), build the same crystal
   !> structure using the unit cell given by those vectors. If nnew,

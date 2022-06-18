@@ -24,6 +24,7 @@ module hirshfeld
   public :: hirsh_driver
   public :: hirsh_grid
   public :: hirsh_weights
+  public :: voronoi_grid
 
   interface
      module subroutine hirsh_driver()
@@ -42,6 +43,12 @@ module hirshfeld
        integer, intent(in) :: idb
        real*8, intent(out) :: w(:,:,:)
      end subroutine hirsh_weights
+     module subroutine voronoi_grid(s,bas)
+       use systemmod, only: system
+       use types, only: basindat
+       type(system), intent(inout) :: s
+       type(basindat), intent(inout) :: bas
+     end subroutine voronoi_grid
   end interface
 
 end module hirshfeld

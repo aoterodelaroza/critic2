@@ -169,6 +169,7 @@ module crystalmod
      procedure :: ewald_pot !< electrostatic potential (Ewald)
      procedure :: makeseed !< make a crystal seed from a crystal
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
+     procedure :: nearest_atom_grid !< return the nearest atom IDs for a uniform grid of points
 
      ! unit cell transformations
      procedure :: newcell !< Change the unit cell and rebuild the crystal
@@ -224,7 +225,7 @@ module crystalmod
      procedure :: writegrid_vasp
      procedure :: writegrid_xsf
 
-     ! promolecular and core density calculation
+     ! promolecular, etc. calculations
      procedure :: promolecular
      procedure :: promolecular_grid
   end type crystal
@@ -472,6 +473,11 @@ module crystalmod
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
      end subroutine reorder_atoms
+     module subroutine nearest_atom_grid(c,n,idg)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: n(3)
+       integer, allocatable, intent(inout) :: idg(:,:,:)
+     end subroutine nearest_atom_grid
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)

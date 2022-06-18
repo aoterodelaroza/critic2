@@ -110,6 +110,41 @@ contains
 
   end subroutine hirsh_weights
 
+  !> Set the attractors for Voronoi integration and calculate
+  !> the assignments of nodes to nuclei (bas%idg). The size
+  !> of the grid is given by bas%n.
+  module subroutine voronoi_grid(s,bas)
+    use systemmod, only: system
+    use tools_io, only: ferror, faterr
+    use types, only: basindat
+    type(system), intent(inout) :: s
+    type(basindat), intent(inout) :: bas
+
+    integer :: i
+    integer :: i1, i2, i3
+
+    if (.not.s%isinit) &
+       call ferror("voronoi_grid","system not initialized",faterr)
+    if (.not.associated(s%c)) &
+       call ferror("voronoi_grid","system does not have crystal",faterr)
+
+    ! Atoms are the attractors in this case
+    allocate(bas%xattr(3,s%f(s%iref)%ncpcel))
+    bas%xattr = 0d0
+    if (bas%atexist) then
+       bas%nattr = s%f(s%iref)%ncpcel
+       do i = 1, s%f(s%iref)%ncpcel
+          bas%xattr(:,i) = s%f(s%iref)%cpcel(i)%x
+       end do
+    else
+       bas%nattr = 0
+    end if
+
+    ! assign grid nodes to atoms
+    call s%c%nearest_atom_grid(bas%n,bas%idg)
+
+  end subroutine voronoi_grid
+
   ! Calculate hirshfeld populations and volumes using a mesh.
   subroutine hirsh_nogrid()
     use fieldmod, only: field
