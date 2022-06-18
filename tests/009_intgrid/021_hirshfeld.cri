@@ -1,0 +1,6 @@
+## check: 021_hirshfeld.cro -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/mgo/rho.cube
+load ../zz_source/qe-6.5/mgo/rho.cube
+hirshfeld
