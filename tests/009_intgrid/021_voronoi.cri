@@ -1,4 +1,4 @@
-## check: 022_voronoi.cro -a1e-10
+## check: 021_voronoi.cro -a1e-10
 ## labels: regression quick
 
 crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
