@@ -78,7 +78,7 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the isosurface regions
+* List of properties integrated in the attractor basins
 + The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
@@ -144,7 +144,7 @@
 + Integrated property (number 3): Lap
 + Integrated property (number 4): $2
 
-* List of properties integrated in the isosurface regions
+* List of properties integrated in the attractor basins
 + The "Label" entries will be used to identify the integrable property
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.

@@ -19,6 +19,7 @@ set(TESTS
   018_hirshfeld_nogrid_mol ## hirshfeld keyword, using meshes in a molecule
   019_isosurface           ## isosurface keyword
   020_grid_only            ## only option in YT, BADER
+  021_voronoi              ## voronoi keyword, basic
   )
 
 runtests(${TESTS})
