@@ -24,6 +24,7 @@ submodule (integration) proc
   ! subroutine int_output_fields(bas,res)
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
+  ! subroutine intgrid_fields_atomloop(bas,res)
   ! subroutine intgrid_deloc(bas,res)
   ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,kpt,occ,sij)
   ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
@@ -50,11 +51,14 @@ submodule (integration) proc
   integer, parameter :: imtype_bader = 1
   integer, parameter :: imtype_yt = 2
   integer, parameter :: imtype_isosurface = 3
+  integer, parameter :: imtype_hirshfeld = 4
+  integer, parameter :: imtype_voronoi = 5
 
 contains
 
   !> Driver for the integration in grids
   module subroutine intgrid_driver(line)
+    use hirshfeld, only: hirsh_grid
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
@@ -92,7 +96,7 @@ contains
        return
     end if
     if (sy%f(sy%iref)%type /= type_grid) then
-       call ferror("intgrid_driver","BADER/YT/ISOSURFACE can only be used with grids",faterr,line,syntax=.true.)
+       call ferror("intgrid_driver","BADER/YT/ISOSURFACE/HIRSHFELD/VORONOI can only be used with grids",faterr,line,syntax=.true.)
        return
     end if
     if (sy%npropi <= 0) then
@@ -126,6 +130,10 @@ contains
           call ferror("intgrid_driver","ISOSURFACE HIGHER/LOWER must be followed by the contour value",faterr,line,syntax=.true.)
           return
        end if
+    elseif (equal(word,"hirshfeld")) then
+       bas%imtype = imtype_hirshfeld
+    elseif (equal(word,"voronoi")) then
+       bas%imtype = imtype_voronoi
     else
        call ferror("intgrid_driver","wrong method",faterr,line,syntax=.true.)
        return
@@ -142,11 +150,11 @@ contains
     bas%expr = ""
     do while(.true.)
        word = lgetword(line,lp)
-       if (equal(word,"nnm") .and. bas%imtype /= imtype_isosurface) then
+       if (equal(word,"nnm") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           nonnm = .false.
-       elseif (equal(word,"noatoms") .and. bas%imtype /= imtype_isosurface) then
+       elseif (equal(word,"noatoms") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           noatoms = .true.
-       elseif (equal(word,"ratom") .and. bas%imtype /= imtype_isosurface) then
+       elseif (equal(word,"ratom") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           nonnm = .false.
           ok = eval_next(ratom_def,line,lp)
           if (.not.ok) then
@@ -156,7 +164,8 @@ contains
           ratom_def = ratom_def / dunit0(iunit)
        elseif (equal(word,"wcube")) then
           bas%wcube = .true.
-       elseif (equal(word,"basins")) then
+       elseif (equal(word,"basins") .and.&
+          (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt .or. bas%imtype == imtype_isosurface)) then
           lp2 = lp
           word = lgetword(line,lp)
           if (equal(word,"obj")) then
@@ -172,13 +181,14 @@ contains
           ok = isinteger(bas%ndrawbasin,line,lp)
           if (.not.ok) &
              bas%ndrawbasin = 0
-       elseif (equal(word,"discard")) then
+       elseif (equal(word,"discard") .and.&
+          (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt .or. bas%imtype == imtype_isosurface)) then
           ok = isexpression_or_word(bas%expr,line,lp)
           if (.not. ok) then
              call ferror("intgrid_driver","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
           end if
-       elseif (equal(word,"only")) then
+       elseif (equal(word,"only") .and. (bas%imtype /= imtype_isosurface)) then
           bas%docelatom = .false.
           do while (.true.)
              lp2 = lp
@@ -193,14 +203,14 @@ contains
              end if
              bas%docelatom(idum) = .true.
           end do
-       elseif (equal(word,"json") .and. bas%imtype /= imtype_isosurface) then
+       elseif (equal(word,"json") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           jsonfile = getword(line,lp)
           if (len_trim(jsonfile) == 0) then
              call ferror("intgrid_driver","Invalid JSON file",faterr,line,syntax=.true.)
              return
           end if
        elseif (len_trim(word) > 0) then
-          call ferror("intgrid_driver","Unknown extra keyword",faterr,line,syntax=.true.)
+          call ferror("intgrid_driver","Unknown extra keyword: " // word,faterr,line,syntax=.true.)
           return
        else
           exit
@@ -225,14 +235,22 @@ contains
 
     ! prepare the array for the basin field
     allocate(bas%f(bas%n(1),bas%n(2),bas%n(3)))
-    if (sy%f(sy%iref)%usecore .and. bas%imtype /= imtype_isosurface) then
+    if (sy%f(sy%iref)%usecore .and. (bas%imtype == imtype_yt .or. bas%imtype == imtype_bader)) then
+       ! yt,bader with usercore -> augment qirh xoew
        call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n,sy%f(sy%iref)%zpsp)
        bas%f = sy%f(sy%iref)%grid%f + faux%f
        call faux%end()
     elseif (bas%imtype == imtype_isosurface .and..not.bas%higher) then
+       ! isosurface lower -> minus the reference field
        bas%f = -sy%f(sy%iref)%grid%f
        bas%isov = -bas%isov
+    elseif (bas%imtype == imtype_hirshfeld) then
+       ! hirshfeld -> the promolecular density
+       call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n)
+       bas%f = faux%f
+       call faux%end()
     else
+       ! rest -> reference field
        bas%f = sy%f(sy%iref)%grid%f
     end if
 
@@ -270,6 +288,13 @@ contains
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard expression: ",A)') trim(bas%expr)
        call yt_isosurface(sy,bas)
+    elseif (bas%imtype == imtype_hirshfeld) then
+       write (uout,'("* Hirshfeld integration ")')
+       call hirsh_grid(sy,bas)
+    elseif (bas%imtype == imtype_voronoi) then
+       write (uout,'("* Voronoi integration ")')
+       ! xxxx !
+       stop 1
     endif
 
     ! Reorder the attractors
@@ -285,18 +310,22 @@ contains
     ! Bains plotting
     call int_gridbasins(bas)
 
-    ! deallocate the basin field
-    deallocate(bas%f)
-
     ! Prepare for the calculation of properties
     allocate(res(sy%npropi))
     write (uout,'("+ Integrating atomic properties"/)')
 
     ! Integrate scalar fields and multipoles
-    call intgrid_fields(bas,res)
+    if (bas%imtype == imtype_hirshfeld) then
+       call intgrid_fields_atomloop(bas,res)
+    else
+       call intgrid_fields(bas,res)
+    end if
 
     ! localization and delocalization indices
     call intgrid_deloc(bas,res)
+
+    ! deallocate the basin field
+    deallocate(bas%f)
 
     ! header for integration output
     write (uout,*)
@@ -304,6 +333,8 @@ contains
 
     ! output integrated scalar field properties
     call int_output_fields(bas,res)
+
+    stop 1
 
     ! output multipoles
     call int_output_multipoles(bas,res)
@@ -618,9 +649,11 @@ contains
     ! List of integrable properties accepted/rejected and why some
     ! were rejected
     if (bas%imtype == imtype_isosurface) then
-       write (uout,'("* List of properties integrated in the attractor basins")')
-    else
        write (uout,'("* List of properties integrated in the isosurface regions")')
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_voronoi) then
+       write (uout,'("* List of integrated atomic properties")')
+    else
+       write (uout,'("* List of properties integrated in the attractor basins")')
     end if
     write (uout,'("+ The ""Label"" entries will be used to identify the integrable property")')
     write (uout,'("  in the tables of integrated atomic properties. The entries with")')
@@ -712,7 +745,7 @@ contains
        end do
        write (uout,*)
     else
-       ! YT/BADER output
+       ! YT/BADER/HIRSHFELD output
 
        ! List of attractors and positions
        write (uout,'("* List of attractors integrated")')
@@ -946,7 +979,8 @@ contains
   !> compatible with the crystal structure. Reorder them, including
   !> the weights of the YT. On output, gives the identity of the
   !> attractors (icp) in the complete CP list. bas contains the
-  !> integration information.
+  !> integration information. Others: just set up the icp array
+  !> and exit.
   subroutine int_reorder_gridout(ff,bas)
     use fieldmod, only: field, type_grid
     use tools_io, only: ferror, faterr, fopen_scratch, fclose
@@ -963,13 +997,21 @@ contains
     real*8, allocatable :: fnear(:,:), xattr(:,:)
 
     if (ff%type /= type_grid) &
-       call ferror("int_reorder_gridout","BADER/YT/ISOSURFACE can only be used with grids",faterr)
+       call ferror("int_reorder_gridout","BADER/YT/ISOSURFACE/... can only be used with grids",faterr)
 
-    ! isosurfaces not associated to atoms
     if (bas%imtype == imtype_isosurface) then
+       ! isosurfaces not associated to atoms
        if (allocated(bas%icp)) deallocate(bas%icp)
        allocate(bas%icp(bas%nattr))
        bas%icp = 0
+       return
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_voronoi) then
+       ! hirshfeld and voronoi always associated to atoms
+       if (allocated(bas%icp)) deallocate(bas%icp)
+       allocate(bas%icp(bas%nattr))
+       do i = 1, bas%nattr
+          bas%icp(i) = i
+       end do
        return
     end if
     n = ff%grid%n
@@ -1316,6 +1358,169 @@ contains
 
   end subroutine intgrid_fields
 
+  !> Integrate scalar fields in atomic basins, the outer loop goes
+  !> over atoms instead of integrable properties, for hirshfeld
+  !> integration only. bas = integration driver data, res(1:npropi) =
+  !> results.
+  subroutine intgrid_fields_atomloop(bas,res)
+    use hirshfeld, only: hirsh_weights
+    use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
+       itype_lap, itype_lapval, itype_mpoles, itype_expr
+    use grid3mod, only: grid3
+    use fieldmod, only: type_grid
+    use tools_io, only: uout, string, ferror, faterr
+    use types, only: basindat, int_result, out_mpoles, out_field, realloc
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(inout) :: res(:)
+
+    integer :: i, k, ntot, fid
+    real*8, allocatable :: w(:,:,:)
+    integer :: i1, i2, i3
+    type(grid3) :: faux
+    logical :: ok, fillgrd
+    logical :: plmask(sy%npropi)
+    real*8 :: lprop(sy%npropi), x(3), x2(3)
+    integer :: nmap
+    integer, allocatable :: idmap(:)
+    real*8, allocatable :: fmap(:,:,:,:)
+
+    if (bas%imtype /= imtype_hirshfeld) return
+
+    ! initialize
+    allocate(w(bas%n(1),bas%n(2),bas%n(3)))
+    ntot = bas%n(1)*bas%n(2)*bas%n(3)
+
+    ! prepare results of integrable properties
+    nmap = 0
+    allocate(idmap(sy%npropi))
+    idmap = 0
+    do k = 1, sy%npropi
+       if (res(k)%done) cycle
+       if (.not.sy%propi(k)%used) cycle
+       if (sy%propi(k)%itype == itype_v) then
+          ! volume
+          if (allocated(res(k)%psum)) deallocate(res(k)%psum)
+          allocate(res(k)%psum(bas%nattr))
+          res(k)%psum = 0d0
+          res(k)%outmode = out_field
+          write (uout,'("+ Integrated property (number ",A,"): ",A)') string(k), string(sy%propi(k)%prop_name)
+
+       elseif (sy%propi(k)%itype == itype_mpoles) then
+          ! multipoles (not implemented) yet
+          call ferror('intgrid_fields_atomloop','multipoles not implemented with hirshfeld',faterr)
+
+       elseif (sy%propi(k)%itype == itype_f.or.sy%propi(k)%itype == itype_fval.or.&
+          sy%propi(k)%itype == itype_gmod.or.sy%propi(k)%itype == itype_lap .or.&
+          sy%propi(k)%itype == itype_lapval.or.sy%propi(k)%itype == itype_expr) then
+          ! other scalar fields
+
+          ! check it is a good field
+          fid = sy%propi(k)%fid
+          if (.not.sy%goodfield(fid)) then
+             res(k)%reason = "unknown or invalid field"
+             cycle
+          end if
+
+          ! create space for the grid
+          nmap = nmap + 1
+          idmap(k) = nmap
+          if (.not.allocated(fmap)) then
+             allocate(fmap(bas%n(1),bas%n(2),bas%n(3),1))
+          else
+             call realloc(fmap,bas%n(1),bas%n(2),bas%n(3),nmap)
+          end if
+
+          ! copy the grid if it is available
+          fillgrd = .false.
+          ok = (sy%f(fid)%type == type_grid)
+          if (ok) ok = all(sy%f(fid)%grid%n == bas%n)
+          if (ok) then
+             if (sy%propi(k)%itype == itype_fval .or.&
+                sy%propi(k)%itype == itype_f.and..not.sy%f(fid)%usecore.or.&
+                sy%propi(k)%itype == itype_mpoles.and..not.sy%f(fid)%usecore) then
+                fmap(:,:,:,nmap) = sy%f(fid)%grid%f
+             elseif (sy%propi(k)%itype == itype_lapval .or.&
+                sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
+                call faux%laplacian_hxx(sy%f(fid)%grid,0)
+                fmap(:,:,:,nmap) = faux%f
+             elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
+                call faux%gradrho(sy%f(fid)%grid)
+                fmap(:,:,:,nmap) = faux%f
+             else
+                fillgrd = .true.
+             end if
+             call faux%end()
+          else
+             fillgrd = .true.
+          endif
+
+          ! otherwise generate the field on the grid
+          if (fillgrd) then
+             plmask = .false.
+             plmask(k) = .true.
+             !$omp parallel do private(x,x2,lprop)
+             do i1 = 1, bas%n(1)
+                x(1) = real(i1-1,8) / bas%n(1)
+                do i2 = 1, bas%n(2)
+                   x(2) = real(i2-1,8) / bas%n(2)
+                   do i3 = 1, bas%n(3)
+                      x(3) = real(i3-1,8) / bas%n(3)
+                      x2 = sy%c%x2c(x)
+                      call sy%grdall(x2,lprop,plmask)
+                      !$omp critical (write)
+                      fmap(i1,i2,i3,nmap) = lprop(k)
+                      !$omp end critical (write)
+                   end do
+                end do
+             end do
+             !$omp end parallel do
+          end if
+
+          ! set up the result space
+          if (allocated(res(k)%psum)) deallocate(res(k)%psum)
+          allocate(res(k)%psum(bas%nattr))
+          res(k)%psum = 0d0
+          res(k)%outmode = out_field
+          write (uout,'("+ Integrated property (number ",A,"): ",A)') string(k), string(sy%propi(k)%prop_name)
+       end if
+
+       res(k)%done = .true.
+       res(k)%reason = ""
+    end do
+
+    ! loop over atoms
+    do i = 1, bas%nattr
+       if (.not.bas%docelatom(bas%icp(i))) cycle
+
+       ! compute the weight
+       call hirsh_weights(sy,bas,i,w)
+
+       ! run over integrable properties
+       do k = 1, sy%npropi
+          if (.not.sy%propi(k)%used) cycle
+
+          if (sy%propi(k)%itype == itype_v) then
+             ! volume
+             res(k)%psum(i) = sum(w) * sy%c%omega / real(ntot,8)
+
+          elseif (sy%propi(k)%itype == itype_f.or.sy%propi(k)%itype == itype_fval.or.&
+             sy%propi(k)%itype == itype_gmod.or.sy%propi(k)%itype == itype_lap .or.&
+             sy%propi(k)%itype == itype_lapval.or.sy%propi(k)%itype == itype_expr) then
+             ! scalar fields other than volume, minus the multipoles
+             if (idmap(k) == 0) cycle
+             res(k)%psum(i) = sum(w * fmap(:,:,:,idmap(k))) * sy%c%omega / real(ntot,8)
+
+          else
+             ! none of the above
+             cycle
+          end if
+       end do
+    end do
+
+    deallocate(w)
+
+  end subroutine intgrid_fields_atomloop
+
   !> Calculate localization and delocalization indices using
   !> grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_deloc(bas,res)
@@ -1345,7 +1550,7 @@ contains
     integer :: isijtype
 
     ! not implemented for isosurfaces
-    if (bas%imtype == imtype_isosurface) return
+    if (bas%imtype /= imtype_bader .and. bas%imtype /= imtype_yt) return
 
     ! run over all integrable properties
     first = .true.
@@ -3130,6 +3335,7 @@ contains
   !> Write cube files with the integration weights.  bas = integration
   !> driver data.
   subroutine int_cubew(bas)
+    use hirshfeld, only: hirsh_weights
     use systemmod, only: sy
     use yt, only: ytdata, yt_weights, ytdata_clean
     use global, only: fileroot
@@ -3152,6 +3358,8 @@ contains
     do i = 1, bas%nattr
        if (bas%imtype == imtype_yt) then
           call yt_weights(din=dat,idb=i,w=w)
+       elseif (bas%imtype == imtype_hirshfeld) then
+          call hirsh_weights(sy,bas,i,w)
        else
           w = 0d0
           where (bas%idg == i)
@@ -3163,7 +3371,7 @@ contains
     end do
     write (uout,'("+ Weights written to ",A,"_wcube_*.cube"/)') trim(fileroot)
 
-    if (bas%imtype /= imtype_yt) then
+    if (bas%imtype /= imtype_yt .and. bas%imtype /= imtype_hirshfeld) then
        w = bas%idg
        file = trim(fileroot) // "_wcube_all.cube"
        call sy%c%writegrid_cube(w,file,.false.,.false.)

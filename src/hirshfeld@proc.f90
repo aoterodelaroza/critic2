@@ -27,87 +27,88 @@ contains
     use systemmod, only: sy
     use fieldmod, only: type_grid
 
-    if (sy%f(sy%iref)%type == type_grid .and. .not.sy%c%ismolecule) then
-       call hirsh_grid()
-    else
-       call hirsh_nogrid()
-    end if
+    ! if (sy%f(sy%iref)%type == type_grid .and. .not.sy%c%ismolecule) then
+    !    call hirsh_grid()
+    ! else
+    !    call hirsh_nogrid()
+    ! end if
+    write (*,*) "temporarily disabled"
+    stop 1
 
   end subroutine hirsh_driver
 
-  ! Calculate hirshfeld populations and volumes using a grid.
-  subroutine hirsh_grid()
-    use fragmentmod, only: fragment
-    use systemmod, only: sy
+  !> Set the attractors for Hirshfeld integration. The actual
+  !> integration is done using hirsh_weights.
+  module subroutine hirsh_grid(s,bas)
+    use systemmod, only: system
+    use types, only: basindat
+    use tools_io, only: ferror, faterr
+    type(system), intent(inout) :: s
+    type(basindat), intent(inout) :: bas
+
+    integer :: i
+
+    if (.not.s%isinit) &
+       call ferror("hirsh_grid","system not initialized",faterr)
+    if (.not.associated(s%c)) &
+       call ferror("hirsh_grid","system does not have crystal",faterr)
+
+    ! Atoms are the attractors in this case
+    allocate(bas%xattr(3,s%f(s%iref)%ncpcel))
+    bas%xattr = 0d0
+    if (bas%atexist) then
+       bas%nattr = s%f(s%iref)%ncpcel
+       do i = 1, s%f(s%iref)%ncpcel
+          bas%xattr(:,i) = s%f(s%iref)%cpcel(i)%x
+       end do
+    else
+       bas%nattr = 0
+    end if
+
+  end subroutine hirsh_grid
+
+  !> For system s, calculate the hirshfeld weights for atom idb
+  !> (complete list) on a grid and return it in w. The size of w bas%n
+  !> determines the size of the grid and bas%f must contain the
+  !> promolecular density. The size of w must be consistent with
+  !> bas%n.
+  module subroutine hirsh_weights(s,bas,idb,w)
+    use systemmod, only: system
     use grid3mod, only: grid3
-    use tools_io, only: uout, string
+    use fragmentmod, only: fragment
+    use types, only: basindat
     use param, only: VSMALL
+    type(system), intent(inout) :: s
+    type(basindat), intent(in) :: bas
+    integer, intent(in) :: idb
+    real*8, intent(out) :: w(:,:,:)
 
-    integer :: i, j
-    integer :: n(3)
-    integer :: iat, cidx
-    real*8 :: vsum, asum, ntotal, vtotal
-    real*8, allocatable :: nat(:), vat(:)
-    type(grid3) :: hw, hwat
     type(fragment) :: fr
+    type(grid3) :: hwat
 
-    ! Header
-    write (uout,'("* Hirshfeld atomic electron populations (using grid integration)")')
-    write (uout,'("  Reference field: ",A)') string(sy%iref)
-    write (uout,'("  Grid size: ",3(A,X))') (string(sy%f(sy%iref)%grid%n(j)),j=1,3)
-    write (uout,*)
-
-    ! Calculate the promolecular density on the grid
-    n = sy%f(sy%iref)%grid%n
-    call sy%c%promolecular_grid(hw,n)
-
-    ! Initialize accumulation and fragment
-    allocate(nat(sy%c%nneq),vat(sy%c%nneq))
-    ntotal = 0d0
-    vtotal = 0d0
-    nat = 0d0
-    vat = 0d0
+    ! initialize
+    w = 0d0
     fr%nat = 1
     fr%nspc = 1
     allocate(fr%at(1),fr%spc(1))
 
-    do iat = 1, sy%c%nneq
-       ! Fetch a representative with that iat
-       cidx = 0
-       do i = 1, sy%c%ncel
-          if (sy%c%atcel(i)%idx == iat) then
-             cidx = i
-             exit
-          end if
-       end do
+    ! Prepare a fragment with this atom
+    fr%at(1)%x = s%c%atcel(idb)%x
+    fr%at(1)%r = s%c%atcel(idb)%r
+    fr%at(1)%is = 1
+    fr%at(1)%cidx = idb
+    fr%at(1)%idx = s%c%atcel(idb)%idx
+    fr%at(1)%lvec = 0
+    fr%spc(1) = s%c%spc(s%c%atcel(idb)%is)
 
-       ! Prepare a fragment with this atom
-       fr%at(1)%x = sy%c%atcel(cidx)%x
-       fr%at(1)%r = sy%c%atcel(cidx)%r
-       fr%at(1)%is = 1
-       fr%at(1)%idx = iat
-       fr%at(1)%cidx = cidx
-       fr%at(1)%lvec = 0
-       fr%spc(1) = sy%c%spc(sy%c%at(iat)%is)
+    ! Calculate grid with the atomic density. The sum over cells
+    ! turns into a sum over periodic copies of the atom.  call
+    call s%c%promolecular_grid(hwat,bas%n,fr=fr)
 
-       ! Calculate grid with the atomic density. The sum over cells
-       ! turns into a sum over periodic copies of the atom.
-       call sy%c%promolecular_grid(hwat,n,fr=fr)
+    ! hirshfeld weights
+    w = hwat%f / max(bas%f,VSMALL)
 
-       ! hirshfeld weights
-       hwat%f = hwat%f / max(hw%f,VSMALL)
-       asum = sum(sy%f(sy%iref)%grid%f * hwat%f) * sy%c%omega / real(n(1)*n(2)*n(3),8)
-       vsum = sum(hwat%f) * sy%c%omega / real(n(1)*n(2)*n(3),8)
-       nat(iat) = asum
-       ntotal = ntotal + asum * sy%c%at(iat)%mult
-       vat(iat) = vsum
-       vtotal = vtotal + vsum * sy%c%at(iat)%mult
-    end do
-
-    ! write the results
-    call hirsh_report(nat,vat,ntotal,vtotal)
-
-  end subroutine hirsh_grid
+  end subroutine hirsh_weights
 
   ! Calculate hirshfeld populations and volumes using a mesh.
   subroutine hirsh_nogrid()

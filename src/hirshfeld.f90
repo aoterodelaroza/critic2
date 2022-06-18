@@ -22,10 +22,26 @@ module hirshfeld
   private
 
   public :: hirsh_driver
+  public :: hirsh_grid
+  public :: hirsh_weights
 
   interface
      module subroutine hirsh_driver()
      end subroutine hirsh_driver
+     module subroutine hirsh_grid(s,bas)
+       use systemmod, only: system
+       use types, only: basindat
+       type(system), intent(inout) :: s
+       type(basindat), intent(inout) :: bas
+     end subroutine hirsh_grid
+     module subroutine hirsh_weights(s,bas,idb,w)
+       use systemmod, only: system
+       use types, only: basindat
+       type(system), intent(inout) :: s
+       type(basindat), intent(in) :: bas
+       integer, intent(in) :: idb
+       real*8, intent(out) :: w(:,:,:)
+     end subroutine hirsh_weights
   end interface
 
 end module hirshfeld

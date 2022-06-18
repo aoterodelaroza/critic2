@@ -388,23 +388,18 @@ program critic
         if (.not.ok) cycle
         call qtree_driver(subline)
 
-        ! yt
-     elseif (equal(word,'yt')) then
+        ! yt/bader/hirshfeld/voronoi/isosurface
+     elseif (equal(word,'yt').or.equal(word,'bader').or.&
+             equal(word,'hirshfeld').or.equal(word,'voronoi').or.&
+             equal(word,'isosurface')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
-        call intgrid_driver(line)
-
-        ! bader
-     elseif (equal(word,'bader')) then
-        call check_structure_defined(ok)
-        if (.not.ok) cycle
-        call intgrid_driver(line)
-
-        ! yt
-     elseif (equal(word,'isosurface')) then
-        call check_structure_defined(ok)
-        if (.not.ok) cycle
-        call intgrid_driver(line)
+        if (sy%f(sy%iref)%type == type_grid) then
+           call intgrid_driver(line)
+        else
+           call ferror("critic2",word // " can only be used with grids",faterr,line,syntax=.true.)
+           cycle
+        end if
 
         ! xdm
      elseif (equal(word,'xdm')) then
@@ -431,14 +426,6 @@ program critic
            cycle
         end if
         fileroot = line(lp:)
-
-        ! hirshfeld
-     elseif (equal(word,'hirshfeld')) then
-        call check_structure_defined(ok)
-        if (.not.ok) cycle
-        call check_no_extra_word(ok)
-        if (.not.ok) cycle
-        call hirsh_driver()
 
         ! ewald
      elseif (equal(word,'ewald')) then
