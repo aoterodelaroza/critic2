@@ -4330,7 +4330,8 @@ contains
     isvasp = (index(basename,'CONTCAR') > 0) .or. &
        (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0).or.&
        (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0).or.&
-       (index(basename,'AECCAR2') > 0) .or. (index(basename,'POSCAR') > 0)
+       (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0) .or.&
+       (index(basename,'POSCAR') > 0)
 
     if (equal(lower(wextdot),'cif')) then
        isformat = isformat_cif
@@ -4431,7 +4432,7 @@ contains
        isformat = isformat_vasp
        alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
           (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
-          (index(basename,'AECCAR2') > 0)
+          (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0)
     else
        goto 999
     endif

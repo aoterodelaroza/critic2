@@ -193,7 +193,9 @@ contains
           f%iff = ifformat_siestagrid
        else if (equal(extdot,'xml')) then
           f%iff = ifformat_dftb
-       else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.equal(extdot,'AECCAR0').or.equal(extdot,'AECCAR2')) then
+       else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.&
+          equal(extdot,'AECCAR0').or.equal(extdot,'AECCAR1').or.&
+          equal(extdot,'AECCAR2')) then
           f%iff = ifformat_vasp
        else if (equal(extdot,'ELFCAR')) then
           f%iff = ifformat_vaspnov
