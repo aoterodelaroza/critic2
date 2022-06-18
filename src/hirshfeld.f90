@@ -21,14 +21,12 @@ module hirshfeld
 
   private
 
-  public :: hirsh_driver
   public :: hirsh_grid
+  public :: hirsh_nogrid
   public :: hirsh_weights
   public :: voronoi_grid
 
   interface
-     module subroutine hirsh_driver()
-     end subroutine hirsh_driver
      module subroutine hirsh_grid(s,bas)
        use systemmod, only: system
        use types, only: basindat
@@ -49,6 +47,8 @@ module hirshfeld
        type(system), intent(inout) :: s
        type(basindat), intent(inout) :: bas
      end subroutine voronoi_grid
+     module subroutine hirsh_nogrid()
+     end subroutine hirsh_nogrid
   end interface
 
 end module hirshfeld

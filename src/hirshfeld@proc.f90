@@ -152,16 +152,11 @@ contains
     use global, only: mesh_type, mesh_level
     use fragmentmod, only: fragment
     use systemmod, only: sy
-    use tools_io, only: uout, string
+    use tools_io, only: uout, string, ioj_center
     use param, only: VSMALL, im_rho
 
     type(field) :: fat
     type(mesh) :: m0, mat, mrho
-    ! integer :: i, j, k
-    ! real*8 :: dist, rrho, rrho1, rrho2, x(3), xdelta(3,3)
-    ! integer :: n(3)
-    ! logical :: doagain
-    ! integer :: ishl, il, ill, ivec(3), cidx
     integer :: i, iat, cidx
     real*8 :: vsum, asum, ntotal, vtotal
     real*8, allocatable :: nat(:), vat(:)
@@ -236,20 +231,6 @@ contains
     end do
 
     ! write the results
-    call hirsh_report(nat,vat,ntotal,vtotal)
-
-  end subroutine hirsh_nogrid
-
-  ! Report the results of a hirshfeld calculation: number of electrons
-  ! per atom and total, volume per atom and total.
-  subroutine hirsh_report(nat,vat,ntotal,vtotal)
-    use systemmod, only: sy
-    use tools_io, only: uout, string, ioj_center
-    real*8, intent(in) :: nat(sy%c%nneq), vat(sy%c%nneq)
-    real*8, intent(in) :: ntotal, vtotal
-
-    integer :: iat
-
     write (uout,'("+ Hirshfeld integration results")')
     write (uout,'("# N_hirsh = atomic electron populations")')
     write (uout,'("# V_hirsh = atomic volumes ")')
@@ -265,6 +246,6 @@ contains
     write (uout,'("# total volume: ",A)') string(vtotal,'e',decimal=10)
     write (uout,*)
 
-  end subroutine hirsh_report
+  end subroutine hirsh_nogrid
 
 end submodule proc

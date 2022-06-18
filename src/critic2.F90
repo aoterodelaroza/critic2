@@ -27,7 +27,7 @@ program critic
   use qtree, only: qtree_driver
   use stm, only: stm_driver
   use xdm, only: xdm_driver
-  use hirshfeld, only: hirsh_driver
+  use hirshfeld, only: hirsh_nogrid
   use sigmahole, only: sigmahole_driver
   use bisect, only: basinplot, bundleplot, sphereintegrals, integrals
   use integration, only: intgrid_driver
@@ -394,8 +394,11 @@ program critic
              equal(word,'isosurface')) then
         call check_structure_defined(ok)
         if (.not.ok) cycle
+
         if (sy%f(sy%iref)%type == type_grid) then
            call intgrid_driver(line)
+        elseif (equal(word,'hirshfeld')) then
+           call hirsh_nogrid()
         else
            call ferror("critic2",word // " can only be used with grids",faterr,line,syntax=.true.)
            cycle
