@@ -34,4 +34,5 @@
   Cube nodes in each direction: 69 22 29
   Cube steps in each direction: 0.100000 0.100000 0.100000
   Cube side lengths in each direction (ang_): 3.6513 1.1642 1.5346
+  Using scalar field differentiation for derivative calculation.
 

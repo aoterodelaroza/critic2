@@ -16,4 +16,5 @@
   Cube nodes in each direction: 2 2 2
   Cube steps in each direction: 5.258163 5.258163 4.425739
   Cube side lengths in each direction (bohr): 10.5163 10.5163 8.8515
+  Using scalar field differentiation for derivative calculation.
 
