@@ -179,7 +179,7 @@ endif()
 
 ## the syntax.txt target
 add_custom_target(syntax 
-  COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/12_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
+  COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
   )
 
 ## process subdirectories
