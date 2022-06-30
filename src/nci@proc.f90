@@ -45,7 +45,7 @@ contains
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file
-    logical :: ok, ok2
+    logical :: ok, ok2, nstep_from_grid
     integer :: lp, istat
     integer :: i, j, k, iat, ifr, l, nmol
     integer :: lugc, ludc, luvmd, ludat, lupc
@@ -375,6 +375,7 @@ contains
     x1x = x1
 
     ! determine the grid step
+    nstep_from_grid = .false.
     if (periodic) then
        ! use xinc for periodic cells
        do i = 1, 3
@@ -382,6 +383,7 @@ contains
           x1(i) = 1d0
           x1 = sy%c%x2c(x1)
           if (istep == -1 .and. sy%f(sy%iref)%type == type_grid) then
+             nstep_from_grid = .true.
              nstep = sy%f(sy%iref)%grid%n
           elseif (istep == 0 .or. istep == -1) then
              nstep(i) = ceiling(norm2(x1) / xinc(i))
@@ -431,6 +433,13 @@ contains
     write(uout,'("  Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
     write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A,X))') &
        iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit0(iunit),'f',decimal=4),j=1,3)
+    if (nstep_from_grid) &
+       write(uout,'("  Values of NSTEP derived from reference field grid dimensions.")')
+    if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
+       write(uout,'("  Using fast Fourier transform for derivative calculation.")')
+    else
+       write(uout,'("  Using scalar field differentiation for derivative calculation.")')
+    end if
     write(uout,*)
 
     ! allocate logical units and open files
