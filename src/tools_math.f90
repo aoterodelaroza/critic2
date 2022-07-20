@@ -63,6 +63,8 @@ module tools_math
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
+  !xx! sobol submodule !xx!
+  public :: sobol_sequence
 
   ! types of contour level choosing strategies
   integer, parameter, public :: niso_manual = 0
@@ -327,6 +329,12 @@ module tools_math
        integer, intent(in) :: npts
        real*8, intent(out) :: xleb(:), yleb(:), zleb(:), wleb(:)
      end subroutine select_lebedev
+     !xx! sobol submodule
+     module subroutine sobol_sequence(n,x,seed)
+       integer, intent(in) :: n
+       real*8, intent(out) :: x(n)
+       integer*8, optional :: seed
+     end subroutine sobol_sequence
   end interface
 
 end module tools_math
