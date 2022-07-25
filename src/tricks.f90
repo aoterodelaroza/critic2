@@ -2163,9 +2163,11 @@ contains
 
   ! Compare structures, allowing deformation of one crystal into the other such
   ! as may be cause by temperature or pressure effects without a phase change.
-  !   TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH]
+  !   TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r]
   ! If thr.r, then stop if the POWDIFF is below thr.r. If WRITE, write stucture 2
   ! to a file. If NOH, strip the hydrogens from the structure before comparing.
+  ! Allow cell length elongations up to a factor me.r and angle
+  ! deformation up to ma.r angle.
   subroutine trick_compare_deformed(line0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
@@ -2196,7 +2198,7 @@ contains
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
     logical :: ok, dowrite, noh
-    real*8 :: powdiff_thr
+    real*8 :: powdiff_thr, max_elong, max_ang
 
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
@@ -2205,8 +2207,8 @@ contains
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
 
-    real*8, parameter :: max_elong = 0.3d0 ! at most 30% elongation of cell lengths
-    real*8, parameter :: max_ang = 20d0    ! at most 20 degrees change in angle
+    real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
+    real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
     ! header and initalization
@@ -2221,6 +2223,8 @@ contains
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
 
+    max_elong = max_elong_def
+    max_ang = max_ang_def
     powdiff_thr = -1d0
     dowrite = .false.
     noh = .false.
@@ -2229,6 +2233,12 @@ contains
        if (equal(word,'thr')) then
           ok = isreal(powdiff_thr,line0,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong THR',faterr)
+       elseif (equal(word,'maxelong')) then
+          ok = isreal(max_elong,line0,lp)
+          if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXELONG',faterr)
+       elseif (equal(word,'maxang')) then
+          ok = isreal(max_ang,line0,lp)
+          if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXANG',faterr)
        elseif (equal(word,'write')) then
           dowrite = .true.
        elseif (equal(word,'noh')) then
