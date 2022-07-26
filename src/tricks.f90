@@ -2433,6 +2433,12 @@ contains
              if (abs(dd) < 1d-5) cycle
              if (dd < 0d0) xd2 = -xd2
 
+             ! check volumes
+             if (nint(abs(dd)) /= nint(c1%omega/c2%omega)) cycle
+
+             ! check number of atoms
+             if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
+
              ! make the new crystal
              c2del = c2
              call c2del%newcell(xd2,noenv=.true.)
