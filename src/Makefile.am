@@ -155,7 +155,7 @@ integration@proc.o integration@proc.smod flux@proc.o flux@proc.smod crystalmod@p
 graphics@proc.o: graphics.smod graphics.mod
 critic2.o critic2.mod arithmetic@proc.o arithmetic@proc.smod xdm@proc.o xdm@proc.smod struct_drivers@proc.o struct_drivers@proc.smod pi_private.o pi_private.mod pi_private.smod nci@proc.o nci@proc.smod gui_interface.o gui_interface.mod fieldmod@proc.o fieldmod@proc.smod environmod@proc.o environmod@proc.smod dftb_private.o dftb_private.mod dftb_private.smod crystalmod@proc.o crystalmod@proc.smod : grid1mod.mod
 grid1mod@proc.o: grid1mod.smod grid1mod.mod
-xdm@proc.o xdm@proc.smod rhoplot@proc.o rhoplot@proc.smod integration@proc.o integration@proc.smod hirshfeld@proc.o hirshfeld@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod : grid3mod.mod
+xdm@proc.o xdm@proc.smod rhoplot@proc.o rhoplot@proc.smod integration@proc.o integration@proc.smod hirshfeld@proc.o hirshfeld@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalmod@proc.o crystalmod@proc.smod crystalmod.o crystalmod.mod crystalmod.smod autocp@proc.o autocp@proc.smod : grid3mod.mod
 grid3mod@proc.o: grid3mod.smod grid3mod.mod
 param.o param.mod param.smod arithmetic@proc.o arithmetic@proc.smod systemmod.o systemmod.mod systemmod.smod spglib@proc.o spglib@proc.smod fieldmod@proc.o fieldmod@proc.smod fieldmod.o fieldmod.mod fieldmod.smod crystalseedmod@proc.o crystalseedmod@proc.smod : hashmod.mod
 hashmod@proc.o: hashmod.smod hashmod.mod

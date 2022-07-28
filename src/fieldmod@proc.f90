@@ -1296,6 +1296,7 @@ contains
           if (f%grid%mode == mode_smr) then
              write (uout,'("    smoothrho with ",A," stencil nodes and smoothing dmax factor = ",A)') &
                 string(f%grid%smr_nenv), string(f%grid%smr_fdmax,'f',decimal=4)
+             write (uout,'("    Please cite: A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
           end if
        end if
     elseif (f%type == type_wien) then

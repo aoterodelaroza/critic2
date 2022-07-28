@@ -57,6 +57,7 @@ contains
   !> Automatic search for all the critical points in the crystal unit cell.
   !> Uses the IWS, with barycentric subdivision.
   module subroutine autocritic(line)
+    use grid3mod, only: mode_smr
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use meshmod, only: mesh
@@ -145,12 +146,11 @@ contains
     hadx1 = .false.
     iclip = 0
     CP_hdegen = 1d-8
+    cpeps = 1d-2
     if (sy%f(sy%iref)%type == type_grid) then
-       cpeps = max(1.1d0 * sy%f(sy%iref)%grid%dmax,1d-2)
        nuceps = max(1.1d0 * sy%f(sy%iref)%grid%dmax,1d-1)
        nucepsh = max(1.1d0 * sy%f(sy%iref)%grid%dmax,2d-1)
     else
-       cpeps = 1d-2
        nuceps = 1d-1
        nucepsh = 2d-1
     end if
@@ -523,6 +523,12 @@ contains
 
     ! write the header to the output
     write (uout,'("* Automatic determination of CPs")')
+
+    if (sy%f(sy%iref)%type == type_grid .and. sy%f(sy%iref)%grid%mode == mode_smr) then
+       write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
+       write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
+    end if
+
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
        string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
