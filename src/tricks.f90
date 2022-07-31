@@ -2302,7 +2302,7 @@ contains
     end if
 
     ! some output for the first structure
-    write (uout,'("+ Delaunay lattice vectors (",A,")")') iunitname0(iunit)
+    write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
     write (uout,'("# Structure 1: ")')
     do i = 1, 3
        write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
@@ -2334,7 +2334,7 @@ contains
     n2 = 0
     n3 = 0
     allocate(irange(nat,3))
-    write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Delaunay basis): ")')
+    write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Niggli basis): ")')
     write (uout,'("#Id        x        y        z       length   used-by")')
     do i = 1, nat
        xx = e%xr2x(e%at(eid(i))%x)
