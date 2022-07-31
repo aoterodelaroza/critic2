@@ -2277,16 +2277,6 @@ contains
     if (c2%ismolecule) &
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
 
-    ! choose the largest crystal as the reference
-    if (c1%ncel >= c2%ncel) then
-       write (uout,'("+ Using as reference: ",A)') trim(file1)
-    else
-       write (uout,'("+ Using as reference: ",A)') trim(file2)
-       caux = c1
-       c1 = c2
-       c2 = caux
-    end if
-
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
     !x0del1 = c1%cell_delaunay()
@@ -2298,6 +2288,18 @@ contains
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
     if (all(abs(x0std2) < 1d-5)) x0std2 = eye
     if (all(abs(x0del2) < 1d-5)) x0del2 = eye
+
+    ! choose the largest crystal as the reference
+    if (c1%ncel >= c2%ncel) then
+       write (uout,'("+ Using as reference: ",A)') trim(file1)
+       write (uout,'("  The other crystal will be transformed to match the reference.")')
+    else
+       write (uout,'("+ Using as reference: ",A)') trim(file2)
+       write (uout,'("  The other crystal will be transformed to match the reference.")')
+       caux = c1
+       c1 = c2
+       c2 = caux
+    end if
 
     ! some output for the first structure
     write (uout,'("+ Delaunay lattice vectors (",A,")")') iunitname0(iunit)
