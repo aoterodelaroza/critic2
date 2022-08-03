@@ -1,0 +1,123 @@
+! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+submodule (gui_main) proc
+  use iso_c_binding
+  implicit none
+
+contains
+
+  module subroutine gui_start()
+    use gui_interfaces
+    use c_interface_module, only: f_c_string_dup, C_string_free
+    use tools_io, only: ferror, faterr
+    integer(c_int) :: idum, display_w, display_h
+    type(c_funptr) :: fdum
+    type(c_ptr) :: rootwin, ptrc
+    logical(c_bool) :: ldum, show_demo_window
+    character(kind=c_char,len=:), allocatable, target :: strc
+
+    ! Initialize glfw
+    fdum = glfwSetErrorCallback(c_funloc(error_callback))
+    if (glfwInit() == 0) &
+       call ferror('gui_start','Failed to initialize GLFW',faterr)
+    call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
+    call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+    call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
+    call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1)
+    !xx! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
+
+    ! set up window
+    strc = "critic2 GUI"//c_null_char
+    rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
+    if (.not.c_associated(rootwin)) &
+       call ferror('gui_start','Failed to create window',faterr)
+    call glfwMakeContextCurrent(rootwin)
+    call glfwSwapInterval(1) ! enable vsync
+
+    ! set up ImGui context
+    ptrc = igCreateContext(c_null_ptr)
+    if (.not.c_associated(ptrc)) &
+       call ferror('gui_start','Failed to create ImGui context',faterr)
+    idum = gl3wInit()
+    if (idum /= 0) &
+       call ferror('gui_start','Failed to initialize gl3w',faterr)
+    call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
+
+    ! set up ImGui style
+    call igStyleColorsDark(c_null_ptr)
+
+    ! set up backend and renderer
+    ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
+    if (.not.ldum)&
+       call ferror('gui_start','Failed to initialize GLFW for OpenGL',faterr)
+    strc = "#version 330"//c_null_char
+    ldum = ImGui_ImplOpenGL3_Init(c_loc(strc))
+    if (.not.ldum)&
+       call ferror('gui_start','Failed to initialize OpenGL',faterr)
+
+    ! main loop
+    show_demo_window = .true.
+    do while (glfwWindowShouldClose(rootwin) == 0)
+       ! poll events
+       call glfwPollEvents()
+
+       ! start the ImGui frame
+       call ImGui_ImplOpenGL3_NewFrame()
+       call ImGui_ImplGlfw_NewFrame()
+       call igNewFrame()
+
+       ! show demo window
+       if (show_demo_window) &
+          call igShowDemoWindow(show_demo_window)
+
+       ! rendering
+       call igRender()
+       call glfwGetFramebufferSize(rootwin, display_w, display_h)
+       call glViewport(0, 0, display_w, display_h)
+       call glClearColor(0.45, 0.55, 0.60, 1.00)
+       call glClear(GL_COLOR_BUFFER_BIT)
+       call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+
+       ! swap buffers
+       call glfwSwapBuffers(rootwin)
+    end do
+
+    ! cleanup
+    call ImGui_ImplOpenGL3_Shutdown()
+    call ImGui_ImplGlfw_Shutdown()
+    call igDestroyContext(c_null_ptr)
+
+    ! terminate
+    call glfwDestroyWindow(rootwin)
+    call glfwTerminate()
+
+  contains
+    subroutine error_callback(error,description) bind(c)
+      use c_interface_module, only: c_f_string
+      use tools_io, only: uout
+      integer(c_int), value :: error
+      type(c_ptr), intent(in), value :: description
+
+      character(len=512), allocatable :: msg
+      call c_f_string(description,msg)
+      write (uout,'("Error : ",A)') trim(msg)
+
+    end subroutine error_callback
+  end subroutine gui_start
+
+end submodule proc

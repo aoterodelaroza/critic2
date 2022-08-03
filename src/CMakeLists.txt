@@ -38,6 +38,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
 set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
+add_library(critic2_core OBJECT ${SOURCES_Fortran} ${SOURCES_C})
 
 ## gfortran-10: do not check fftpack for argument mismatch
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0)
@@ -81,23 +82,14 @@ else()
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
 endif()
 
-# ## qhull -- deactivated
-# if (QHULL_FOUND)
-#   include_directories("${QHULL_INCLUDE_DIRS}")
-#   target_link_libraries(critic2 PRIVATE ${QHULL_LIBRARIES})
-# else()
-  add_subdirectory(qhull)
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
-  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
-# endif()
+## qhull
+add_subdirectory(qhull)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
 
 ## spglib
-#if (SPGLIB_FOUND)
-#  target_link_libraries(critic2 PRIVATE ${SPGLIB_LIBRARY})
-#else()
 add_subdirectory(spglib)
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
-#endif()
 
 ## json-fortran
 add_subdirectory(json-fortran)
@@ -123,10 +115,28 @@ if (READLINE_FOUND)
   add_definitions("-DHAVE_READLINE")
 endif()
 
-## The library for the GUI
+## The library for the GUI, fortran version
 if (ENABLE_GUI)
-  add_library(lcritic2 OBJECT ${SOURCES_Fortran} ${SOURCES_C})
-  add_dependencies(lcritic2 critic2)
+  ## GUI libraries
+  target_include_directories(critic2 PRIVATE
+    ${GLFW_INCLUDE_DIRS}
+    ${FREETYPE2_INCLUDE_DIRS}
+    ${GLM_INCLUDE_DIRS}
+    ${GL_INCLUDE_DIRS}
+    )
+  target_link_libraries(critic2 PRIVATE
+    ${GLFW_LIBRARIES}
+    ${FREETYPE2_LIBRARIES}
+    ${GLM_LIBRARIES}
+    ${GL_LIBRARIES}
+    )
+  ## the dynamic linking library
+  target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
+
+  add_subdirectory(gui)
+  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:fgui>)
+  include_directories("${CMAKE_BINARY_DIR}/src/gui")
+  add_dependencies(fgui critic2_core)
 endif()
 
 ## install the binary

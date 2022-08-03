@@ -51,6 +51,15 @@ if (ENABLE_GUI)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+## GUI libraries
+if (ENABLE_GUI)
+  find_package(PkgConfig REQUIRED)
+  pkg_search_module(GLFW REQUIRED glfw3)
+  pkg_search_module(FREETYPE2 REQUIRED freetype2)
+  pkg_search_module(GLM REQUIRED glm)
+  pkg_search_module(GL REQUIRED gl)
+endif()
+
 ## perform a static build
 if (BUILD_STATIC)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -165,16 +174,16 @@ if (USE_LIBCINT)
 endif()
 
 ## the syntax.txt target
-add_custom_target(syntax 
+add_custom_target(syntax
   COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
   )
 
 ## process subdirectories
 add_subdirectory(src)
 add_subdirectory(dat)
-if (ENABLE_GUI)
-  add_subdirectory(src-gui)
-endif()
+## if (ENABLE_GUI)
+##   add_subdirectory(src-gui)
+## endif()
 if (BUILD_TESTING AND NUMDIFF_FOUND)
   add_subdirectory(tests)
 endif()
@@ -233,7 +242,7 @@ endif()
 set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
 
 if (ENABLE_GUI)
-  set(_message 
+  set(_message
     "${_message}gl: lib=${GL_LIBRARIES} | inc=${GL_INCLUDE_DIRS}\n"
     "glm: lib=${GLM_LIBRARIES} | inc=${GLM_INCLUDE_DIRS}\n"
     "glfw: lib=${GLFW_LIBRARIES} | inc=${GLFW_INCLUDE_DIRS}\n"

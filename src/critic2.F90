@@ -22,6 +22,7 @@
 !                 \___|_|  |_|\__|_|\___|_____|
 !
 program critic
+  use gui_main, only: gui_start
   use tricks, only: trick
   use molcalc, only: molcalc_driver
   use qtree, only: qtree_driver
@@ -631,6 +632,10 @@ program critic
         ! trick
      elseif (equal(word,'trick')) then
         call trick(line(lp:))
+
+        ! gui (temporary)
+     elseif (equal(word,'gui')) then
+        call gui_start()
 
         ! end
      elseif (equal(word,'end').or.equal(word,'exit')) then
