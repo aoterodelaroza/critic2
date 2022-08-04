@@ -37,6 +37,12 @@ subroutine glfwSetInputMode(window, mode, val) bind(c,name="glfwSetInputMode")
   type(c_ptr), value :: window
   integer(c_int), value :: mode, val
 end subroutine glfwSetInputMode
+! void glfwGetFramebufferSize(GLFWwindow *window, int *width, int *height)
+subroutine glfwGetFramebufferSize(window, width, height) bind(c,name="glfwGetFramebufferSize")
+  import c_int, c_ptr
+  type(c_ptr), value :: window
+  integer(c_int) :: width, height
+end subroutine glfwGetFramebufferSize
 ! int glfwWindowShouldClose(GLFWwindow *window)
 function glfwWindowShouldClose(window) bind(c,name="glfwWindowShouldClose")
   import c_ptr, c_int

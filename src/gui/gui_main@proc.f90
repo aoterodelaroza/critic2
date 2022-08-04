@@ -19,12 +19,15 @@ submodule (gui_main) proc
   use iso_c_binding
   implicit none
 
+  integer, parameter :: opengl_version_major = 3
+  integer, parameter :: opengl_version_minor = 3
+
 contains
 
   module subroutine gui_start()
     use gui_interfaces
     use c_interface_module, only: f_c_string_dup, C_string_free
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h
     type(c_funptr) :: fdum
     type(c_ptr) :: rootwin, ptrc
@@ -35,8 +38,8 @@ contains
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
        call ferror('gui_start','Failed to initialize GLFW',faterr)
-    call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
-    call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+    call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
+    call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1)
     !xx! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
@@ -53,12 +56,16 @@ contains
     ptrc = igCreateContext(c_null_ptr)
     if (.not.c_associated(ptrc)) &
        call ferror('gui_start','Failed to create ImGui context',faterr)
+
+    ! initialize gl3w
     idum = gl3wInit()
     if (idum /= 0) &
        call ferror('gui_start','Failed to initialize gl3w',faterr)
-    call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
+    if (gl3wIsSupported(opengl_version_major,opengl_version_minor) /= 1) &
+       call ferror('gui_start','gl3w: OpenGL version ' // string(3) // '.' // string(3) // ' not supported',faterr)
 
     ! set up ImGui style
+    call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
     call igStyleColorsDark(c_null_ptr)
 
     ! set up backend and renderer
@@ -108,14 +115,15 @@ contains
 
   contains
     subroutine error_callback(error,description) bind(c)
-      use c_interface_module, only: c_f_string
-      use tools_io, only: uout
+      use c_interface_module, only: c_f_string_alloc, c_strlen
+      use tools_io, only: uout, ferror, faterr
       integer(c_int), value :: error
       type(c_ptr), intent(in), value :: description
 
-      character(len=512), allocatable :: msg
-      call c_f_string(description,msg)
-      write (uout,'("Error : ",A)') trim(msg)
+      character(len=:), allocatable :: msg
+
+      call c_f_string_alloc(description,msg)
+      call ferror('glfw',"GLFW error: " // trim(msg),faterr)
 
     end subroutine error_callback
   end subroutine gui_start
