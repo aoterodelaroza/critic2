@@ -4,9 +4,9 @@
 //with imgui_freetype.h api
 #define CIMGUI_FREETYPE
 #define IMGUI_ENABLE_FREETYPE
-#include "./imgui/imgui.h"
-#include "./imgui/imgui_freetype.h"
-#include "./imgui/imgui_internal.h"
+#include "imgui.h"
+#include "imgui_freetype.h"
+#include "imgui_internal.h"
 #include "cimgui.h"
 #include "cimgui_impl.h"
 

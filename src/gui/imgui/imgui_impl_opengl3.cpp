@@ -89,8 +89,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
+#include "imgui.h"
+#include "imgui_internal.h"
 #include "cimgui.h"
 #include "cimgui_impl.h"
 #include <stdio.h>
