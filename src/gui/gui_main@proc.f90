@@ -21,6 +21,9 @@ submodule (gui_main) proc
 
   integer, parameter :: opengl_version_major = 3
   integer, parameter :: opengl_version_minor = 3
+  character(len=*,kind=c_char), parameter :: shader_version = "#version 330"//c_null_char
+
+  character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
 contains
 
@@ -45,7 +48,7 @@ contains
     !xx! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
 
     ! set up window
-    strc = "critic2 GUI"//c_null_char
+    strc = gui_title
     rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
        call ferror('gui_start','Failed to create window',faterr)
@@ -72,7 +75,7 @@ contains
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
     if (.not.ldum)&
        call ferror('gui_start','Failed to initialize GLFW for OpenGL',faterr)
-    strc = "#version 330"//c_null_char
+    strc = shader_version
     ldum = ImGui_ImplOpenGL3_Init(c_loc(strc))
     if (.not.ldum)&
        call ferror('gui_start','Failed to initialize OpenGL',faterr)
