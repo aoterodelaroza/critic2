@@ -11,7 +11,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   fragmentmod@proc.f90 global.f90 global@proc.F90
   graphics.f90 graphics@proc.f90 grid1mod.f90
   grid1mod@proc.f90 grid3mod.f90 grid3mod@proc.f90
-  gui_interface.f90 hashmod.f90 hashmod@proc.f90
+  hashmod.f90 hashmod@proc.f90
   hirshfeld.f90 hirshfeld@proc.f90 integration.f90
   integration@proc.f90 keast.f90 meshmod.f90
   meshmod@proc.f90 molcalc.f90 nci.f90 nci@proc.f90
@@ -121,13 +121,11 @@ if (ENABLE_GUI)
   target_include_directories(critic2 PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${FREETYPE2_INCLUDE_DIRS}
-    ${GLM_INCLUDE_DIRS}
     ${GL_INCLUDE_DIRS}
     )
   target_link_libraries(critic2 PRIVATE
     ${GLFW_LIBRARIES}
     ${FREETYPE2_LIBRARIES}
-    ${GLM_LIBRARIES}
     ${GL_LIBRARIES}
     )
   ## the dynamic linking library
