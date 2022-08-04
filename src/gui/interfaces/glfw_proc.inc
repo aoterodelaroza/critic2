@@ -62,6 +62,11 @@ end subroutine glfwSwapBuffers
 ! void glfwPollEvents(void)
 subroutine glfwPollEvents() bind(c,name="glfwPollEvents")
 end subroutine glfwPollEvents
+! double glfwGetTime(void)
+function glfwGetTime() bind(c,name="glfwGetTime")
+  import c_double
+  real(c_double) :: glfwGetTime
+end function glfwGetTime
 ! void glfwDestroyWindow(GLFWwindow * window)
 subroutine glfwDestroyWindow(window) bind(c,name="glfwDestroyWindow")
   import c_ptr

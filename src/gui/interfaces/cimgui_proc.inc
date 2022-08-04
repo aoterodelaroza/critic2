@@ -6,6 +6,11 @@ function igGetCurrentContext() bind(c,name="igGetCurrentContext")
   import c_ptr
   type(c_ptr) :: igGetCurrentContext
 end function igGetCurrentContext
+! ImGuiIO* igGetIO(void);
+function igGetIO() bind(c,name="igGetIO")
+  import c_ptr
+  type(c_ptr) :: igGetIO
+end function igGetIO
 ! ImGuiContext* igCreateContext(ImFontAtlas* shared_font_atlas);
 function igCreateContext(shared_font_atlas) bind(c,name="igCreateContext")
   import c_ptr

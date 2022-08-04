@@ -10,6 +10,14 @@ module gui_interfaces
   !xx! OpenGL constants
   include "interfaces/opengl3_constants.inc"
 
+  !xx! cimgui constants
+  include "interfaces/cimgui_constants.inc"
+
+
+  !xx! cimgui user-defined types
+  include "interfaces/cimgui_types.inc"
+
+
   interface
      !xx! GLFW
      include "interfaces/glfw_proc.inc"

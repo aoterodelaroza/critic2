@@ -17,13 +17,22 @@
 
 submodule (gui_main) proc
   use iso_c_binding
+  use gui_interfaces, only: ImGuiIO
   implicit none
 
+  ! opengl & shader version
   integer, parameter :: opengl_version_major = 3
   integer, parameter :: opengl_version_minor = 3
   character(len=*,kind=c_char), parameter :: shader_version = "#version 330"//c_null_char
 
+  ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
+
+  ! time variable
+  real*8 :: time
+
+  ! pointer to ImGui's IO object
+  type(ImGuiIO), pointer :: io
 
 contains
 
@@ -33,7 +42,7 @@ contains
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h
     type(c_funptr) :: fdum
-    type(c_ptr) :: rootwin, ptrc
+    type(c_ptr) :: window, ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
 
@@ -49,10 +58,10 @@ contains
 
     ! set up window
     strc = gui_title
-    rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
-    if (.not.c_associated(rootwin)) &
+    window = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
+    if (.not.c_associated(window)) &
        call ferror('gui_start','Failed to create window',faterr)
-    call glfwMakeContextCurrent(rootwin)
+    call glfwMakeContextCurrent(window)
     call glfwSwapInterval(1) ! enable vsync
 
     ! set up ImGui context
@@ -63,28 +72,35 @@ contains
     ! initialize gl3w
     idum = gl3wInit()
     if (idum /= 0) &
-       call ferror('gui_start','Failed to initialize gl3w',faterr)
-    if (gl3wIsSupported(opengl_version_major,opengl_version_minor) /= 1) &
-       call ferror('gui_start','gl3w: OpenGL version ' // string(3) // '.' // string(3) // ' not supported',faterr)
+       call ferror('gui_start','Failed to initialize OpenGL (gl3w)',faterr)
+    if (gl3wIsSupported(opengl_version_major,opengl_version_minor) == 0) &
+       call ferror('gui_start','gl3w: OpenGL version ' // &
+       string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported',faterr)
 
     ! set up ImGui style
-    call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
+    call glfwSetInputMode(window, GLFW_STICKY_KEYS, 1)
     call igStyleColorsDark(c_null_ptr)
 
     ! set up backend and renderer
-    ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
+    ldum = ImGui_ImplGlfw_InitForOpenGL(window, .true._c_bool)
     if (.not.ldum)&
-       call ferror('gui_start','Failed to initialize GLFW for OpenGL',faterr)
+       call ferror('gui_start','Failed to initialize ImGui (GLFW for OpenGL)',faterr)
     strc = shader_version
     ldum = ImGui_ImplOpenGL3_Init(c_loc(strc))
     if (.not.ldum)&
-       call ferror('gui_start','Failed to initialize OpenGL',faterr)
+       call ferror('gui_start','Failed to initialize ImGui (OpenGL)',faterr)
+
+    ! get the ImGUI IO interface and enable docking
+    ptrc = igGetIO()
+    call c_f_pointer(ptrc,io)
+    io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable)
 
     ! main loop
     show_demo_window = .true.
-    do while (glfwWindowShouldClose(rootwin) == 0)
+    do while (glfwWindowShouldClose(window) == 0)
        ! poll events
        call glfwPollEvents()
+       time = glfwGetTime()
 
        ! start the ImGui frame
        call ImGui_ImplOpenGL3_NewFrame()
@@ -97,14 +113,14 @@ contains
 
        ! rendering
        call igRender()
-       call glfwGetFramebufferSize(rootwin, display_w, display_h)
+       call glfwGetFramebufferSize(window, display_w, display_h)
        call glViewport(0, 0, display_w, display_h)
        call glClearColor(0.45, 0.55, 0.60, 1.00)
        call glClear(GL_COLOR_BUFFER_BIT)
        call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
 
        ! swap buffers
-       call glfwSwapBuffers(rootwin)
+       call glfwSwapBuffers(window)
     end do
 
     ! cleanup
@@ -113,20 +129,20 @@ contains
     call igDestroyContext(c_null_ptr)
 
     ! terminate
-    call glfwDestroyWindow(rootwin)
+    call glfwDestroyWindow(window)
     call glfwTerminate()
 
   contains
     subroutine error_callback(error,description) bind(c)
       use c_interface_module, only: c_f_string_alloc, c_strlen
-      use tools_io, only: uout, ferror, faterr
+      use tools_io, only: ferror, faterr, string
       integer(c_int), value :: error
       type(c_ptr), intent(in), value :: description
 
       character(len=:), allocatable :: msg
 
       call c_f_string_alloc(description,msg)
-      call ferror('glfw',"GLFW error: " // trim(msg),faterr)
+      call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),faterr)
 
     end subroutine error_callback
   end subroutine gui_start

@@ -58,15 +58,18 @@ configure_file(config@proc.F90.in "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
 
 ## executable
 add_executable(critic2 ${SOURCES})
+add_dependencies(critic2 critic2_core)
 
 ## cubpack
 add_subdirectory(cubpack)
 include_directories("${CMAKE_BINARY_DIR}/src/cubpack")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
+add_dependencies(critic2_core cubpack)
 
 ## ciftbx
 add_subdirectory(ciftbx)
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:ciftbx>)
+add_dependencies(critic2_core ciftbx)
 
 ## openmp
 if (OPENMP_FOUND)
@@ -80,21 +83,25 @@ if (LAPACK_FOUND)
 else()
   add_subdirectory(oldlibs)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
+  add_dependencies(critic2_core oldlibs)
 endif()
 
 ## qhull
 add_subdirectory(qhull)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
+add_dependencies(critic2_core qhull)
 
 ## spglib
 add_subdirectory(spglib)
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
+add_dependencies(critic2_core spglib)
 
 ## json-fortran
 add_subdirectory(json-fortran)
 include_directories("${CMAKE_BINARY_DIR}/src/json-fortran")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
+add_dependencies(critic2_core json-fortran)
 
 ## libxc
 if (LIBXC_FOUND)
