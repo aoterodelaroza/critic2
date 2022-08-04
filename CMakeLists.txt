@@ -185,7 +185,7 @@ endif()
 
 ## summary
 set(_message
-"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION} (git:${critic2_GIT_COMMIT})###\n"
+"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION}###\n"
 "System: ${CMAKE_SYSTEM} (crosscompiling? ${CROSSCOMPILE})\n"
 "Date: ${DATE}\n"
 "Build type: ${CMAKE_BUILD_TYPE}\n"
