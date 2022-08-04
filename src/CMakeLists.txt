@@ -133,9 +133,12 @@ if (ENABLE_GUI)
   ## the dynamic linking library
   target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
 
+  ## process subdirectory
   add_subdirectory(gui)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:fgui>)
   include_directories("${CMAKE_BINARY_DIR}/src/gui")
+
+  ## add dependency to the core critic2 files
   add_dependencies(fgui critic2_core)
 endif()
 

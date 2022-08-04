@@ -45,14 +45,13 @@ option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)
 option(BUILD_TESTING "Enable the regression tests for the critic2 build." OFF)
 include(CTest)
 
-## the GUI needs -fPIC
+## GUI requirements
 if (ENABLE_GUI)
+  ## needs -fPIC
   enable_language(CXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
 
-## GUI libraries
-if (ENABLE_GUI)
+  ## find GUI libraries
   find_package(PkgConfig REQUIRED)
   pkg_search_module(GLFW REQUIRED glfw3)
   pkg_search_module(FREETYPE2 REQUIRED freetype2)
@@ -181,9 +180,6 @@ add_custom_target(syntax
 ## process subdirectories
 add_subdirectory(src)
 add_subdirectory(dat)
-## if (ENABLE_GUI)
-##   add_subdirectory(src-gui)
-## endif()
 if (BUILD_TESTING AND NUMDIFF_FOUND)
   add_subdirectory(tests)
 endif()
