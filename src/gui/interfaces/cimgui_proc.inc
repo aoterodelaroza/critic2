@@ -70,6 +70,11 @@ subroutine igSameLine(offset_from_start_x, spacing) bind(c,name="igSameLine")
   real(c_float), value :: offset_from_start_x
   real(c_float), value :: spacing
 end subroutine igSameLine
+! void igGetContentRegionAvail(ImVec2 *pOut);
+subroutine igGetContentRegionAvail(pOut) bind(c,name="igGetContentRegionAvail")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetContentRegionAvail
 ! void igText(const char* fmt,...); (Fortran handles the formatting)
 subroutine igText(fmt) bind(c,name="igText")
   import c_ptr

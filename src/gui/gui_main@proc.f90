@@ -162,11 +162,13 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use gui_interfaces_cimgui, only: igBeginMainMenuBar, igEndMainMenuBar, igBeginMenu,&
-       igEndMenu, igMenuItem_Bool
+       igEndMenu, igMenuItem_Bool, igGetContentRegionAvail, igSameLine, igText, ImVec2
     use gui_keybindings, only: BIND_QUIT, get_bind_keyname
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
+    use tools_io, only: string
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: v2
 
     if (igBeginMainMenuBar()) then
        ! File
@@ -197,8 +199,11 @@ contains
        !       EndMenu();
        !     }
 
-       !     SameLine(0, GetContentRegionAvailWidth()-180.);
-       !     Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
+       call igGetContentRegionAvail(v2)
+       call igSameLine(0._c_float, v2%x - 180._c_float)
+       str1 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
+          string(io%Framerate,'f',decimal=1) // " FPS)" // c_null_char
+       call igText(c_loc(str1))
     end if
     call igEndMainMenuBar()
 
