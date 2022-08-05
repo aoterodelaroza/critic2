@@ -1,170 +1,169 @@
 module gui_keybindings
   use iso_c_binding
-  use gui_interfaces, only: GLFW_KEY_LAST
   implicit none
 
   private
 
-  public :: IsBindEvent
+  ! public :: IsBindEvent
 
   ! Processing level for bind events. Right now 0 = all and 1 = none.
   ! Perhaps more will be added in the future.
   integer, parameter :: bindevent_level = 0
 
-  ! no key
-  integer(c_int), parameter :: NOKEY = 0
-  integer(c_int), parameter :: NOMOD = 0
+  ! ! no key
+  ! integer(c_int), parameter :: NOKEY = 0
+  ! integer(c_int), parameter :: NOMOD = 0
 
-  ! Mouse interactions as special keys
-  integer(c_int), parameter :: GLFW_MOUSE_LEFT = GLFW_KEY_LAST+1
-  integer(c_int), parameter :: GLFW_MOUSE_LEFT_DOUBLE = GLFW_KEY_LAST+2
-  integer(c_int), parameter :: GLFW_MOUSE_RIGHT = GLFW_KEY_LAST+3
-  integer(c_int), parameter :: GLFW_MOUSE_RIGHT_DOUBLE = GLFW_KEY_LAST+4
-  integer(c_int), parameter :: GLFW_MOUSE_MIDDLE = GLFW_KEY_LAST+5
-  integer(c_int), parameter :: GLFW_MOUSE_MIDDLE_DOUBLE = GLFW_KEY_LAST+6
-  integer(c_int), parameter :: GLFW_MOUSE_BUTTON3 = GLFW_KEY_LAST+7
-  integer(c_int), parameter :: GLFW_MOUSE_BUTTON3_DOUBLE = GLFW_KEY_LAST+8
-  integer(c_int), parameter :: GLFW_MOUSE_BUTTON4 = GLFW_KEY_LAST+9
-  integer(c_int), parameter :: GLFW_MOUSE_BUTTON4_DOUBLE = GLFW_KEY_LAST+10
-  integer(c_int), parameter :: GLFW_MOUSE_SCROLL = GLFW_KEY_LAST+11
+  ! ! Mouse interactions as special keys
+  ! integer(c_int), parameter :: GLFW_MOUSE_LEFT = GLFW_KEY_LAST+1
+  ! integer(c_int), parameter :: GLFW_MOUSE_LEFT_DOUBLE = GLFW_KEY_LAST+2
+  ! integer(c_int), parameter :: GLFW_MOUSE_RIGHT = GLFW_KEY_LAST+3
+  ! integer(c_int), parameter :: GLFW_MOUSE_RIGHT_DOUBLE = GLFW_KEY_LAST+4
+  ! integer(c_int), parameter :: GLFW_MOUSE_MIDDLE = GLFW_KEY_LAST+5
+  ! integer(c_int), parameter :: GLFW_MOUSE_MIDDLE_DOUBLE = GLFW_KEY_LAST+6
+  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON3 = GLFW_KEY_LAST+7
+  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON3_DOUBLE = GLFW_KEY_LAST+8
+  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON4 = GLFW_KEY_LAST+9
+  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON4_DOUBLE = GLFW_KEY_LAST+10
+  ! integer(c_int), parameter :: GLFW_MOUSE_SCROLL = GLFW_KEY_LAST+11
 
-  ! List of binds
-  integer, parameter :: BIND_QUIT = 1 ! quit the program
-  integer, parameter :: BIND_NUM = 1 ! total number of binds
-  ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
-  ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
-  ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
-  ! #define BIND_NAV_ROTATE        9  // Rotate the camera (navigation)
-  ! #define BIND_NAV_TRANSLATE     10 // Camera pan (navigation)
-  ! #define BIND_NAV_ZOOM          11 // Camera zoom (navigation)
-  ! #define BIND_NAV_RESET         12 // Reset the view (navigation)
+  ! ! List of binds
+  ! integer, parameter :: BIND_QUIT = 1 ! quit the program
+  ! integer, parameter :: BIND_NUM = 1 ! total number of binds
+  ! ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
+  ! ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
+  ! ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
+  ! ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
+  ! ! #define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
+  ! ! #define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
+  ! ! #define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
+  ! ! #define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
+  ! ! #define BIND_NAV_ROTATE        9  // Rotate the camera (navigation)
+  ! ! #define BIND_NAV_TRANSLATE     10 // Camera pan (navigation)
+  ! ! #define BIND_NAV_ZOOM          11 // Camera zoom (navigation)
+  ! ! #define BIND_NAV_RESET         12 // Reset the view (navigation)
 
-  ! Bind names
-  character(len=10), parameter :: bindnames(BIND_NUM) = (/&
-     "Quit      "/)
-!   "Close last dialog",
-!   "Close all dialogs",
-!   "Align view with a axis",
-!   "Align view with b axis",
-!   "Align view with c axis",
-!   "Align view with x axis",
-!   "Align view with y axis",
-!   "Align view with z axis",
-!   "Camera rotate",
-!   "Camera pan",
-!   "Camera zoom",
-!   "Camera reset",
+!   ! Bind names
+!   character(len=10), parameter :: bindnames(BIND_NUM) = (/&
+!      "Quit      "/)
+! !   "Close last dialog",
+! !   "Close all dialogs",
+! !   "Align view with a axis",
+! !   "Align view with b axis",
+! !   "Align view with c axis",
+! !   "Align view with x axis",
+! !   "Align view with y axis",
+! !   "Align view with z axis",
+! !   "Camera rotate",
+! !   "Camera pan",
+! !   "Camera zoom",
+! !   "Camera reset",
 
-  ! Bind groups. Group 1 is global.
-  integer, parameter :: bindgroup(BIND_NUM) = (/&
-     1/) ! quit
-!   1, // close last dialog
-!   1, // close all dialogs
-!   2, // align view with a axis
-!   2, // align view with b axis
-!   2, // align view with c axis
-!   2, // align view with x axis
-!   2, // align view with y axis
-!   2, // align view with z axis
-!   2, // rotate camera (navigation)
-!   2, // pan camera (navigation)
-!   2, // zoom camera (navigation)
-!   2, // reset camera (navigation)
-  integer, parameter :: nbindgroups = 1
+!   ! Bind groups. Group 1 is global.
+!   integer, parameter :: bindgroup(BIND_NUM) = (/&
+!      1/) ! quit
+! !   1, // close last dialog
+! !   1, // close all dialogs
+! !   2, // align view with a axis
+! !   2, // align view with b axis
+! !   2, // align view with c axis
+! !   2, // align view with x axis
+! !   2, // align view with y axis
+! !   2, // align view with z axis
+! !   2, // rotate camera (navigation)
+! !   2, // pan camera (navigation)
+! !   2, // zoom camera (navigation)
+! !   2, // reset camera (navigation)
+!   integer, parameter :: nbindgroups = 1
 
-  ! The key associated with each bind, bind -> key
-  integer :: keybind(BIND_NUM)
+  ! ! The key associated with each bind, bind -> key
+  ! integer :: keybind(BIND_NUM)
 
-  ! The modifiers associated with each bind, bind -> mod
-  integer :: modbind(BIND_NUM)
+  ! ! The modifiers associated with each bind, bind -> mod
+  ! integer :: modbind(BIND_NUM)
 
 contains
 
-  function IsModPressed(mod)
-    use gui_main, only: io
-    integer, intent(in) :: mod
-    logical :: IsModPressed
+!   function IsModPressed(mod)
+!     use gui_main, only: io
+!     integer, intent(in) :: mod
+!     logical :: IsModPressed
 
-!    iand(mod,GLFW_MOD_SHIFT)
-!   return (!(mod & GLFW_MOD_SHIFT) != io.KeyShift) &&
-!          (!(mod & GLFW_MOD_CONTROL) != io.KeyCtrl) &&
-!          (!(mod & GLFW_MOD_ALT) != io.KeyAlt) &&
-!        (!(mod & GLFW_MOD_SUPER) != io.KeySuper);
-! }
-  end function IsModPressed
+! !    iand(mod,GLFW_MOD_SHIFT)
+! !   return (!(mod & GLFW_MOD_SHIFT) != io.KeyShift) &&
+! !          (!(mod & GLFW_MOD_CONTROL) != io.KeyCtrl) &&
+! !          (!(mod & GLFW_MOD_ALT) != io.KeyAlt) &&
+! !        (!(mod & GLFW_MOD_SUPER) != io.KeySuper);
+! ! }
+!   end function IsModPressed
 
-  ! Return whether the bind event is happening. If held, the event
-  ! happens only if the key/button is held down.
-  function IsBindEvent(bind,held)
-    use gui_main, only: io
-    integer, intent(in) :: bind
-    logical, intent(in) :: held
-    logical :: IsBindEvent
+!   ! Return whether the bind event is happening. If held, the event
+!   ! happens only if the key/button is held down.
+!   function IsBindEvent(bind,held)
+!     use gui_main, only: io
+!     integer, intent(in) :: bind
+!     logical, intent(in) :: held
+!     logical :: IsBindEvent
 
-    integer :: key, mod
+!     integer :: key, mod
 
-    IsBindEvent = .false.
-    if (bindevent_level > 0) return
-    if (bind < 1 .or. bind > BIND_NUM) return
+!     IsBindEvent = .false.
+!     if (bindevent_level > 0) return
+!     if (bind < 1 .or. bind > BIND_NUM) return
 
-    key = keybind(bind)
-    mod = modbind(bind)
+!     key = keybind(bind)
+!     mod = modbind(bind)
 
-!   if (key == NOKEY || !IsModPressed(mod))
-!     return false;
-!   else if (key <= GLFW_KEY_LAST && !io.WantCaptureKeyboard && !io.WantTextInput)
-!     if (!held)
-!       return IsKeyPressed(key,false);
-!     else
-!       return IsKeyDown(key);
-!   else{
-!     if (key == GLFW_MOUSE_LEFT)
-!       if (!held)
-!       return IsMouseClicked(0);
-!       else
-!       return IsMouseDown(0);
-!     else if (key == GLFW_MOUSE_RIGHT)
-!       if (!held)
-!       return IsMouseClicked(1);
-!       else
-!       return IsMouseDown(1);
-!     else if (key == GLFW_MOUSE_MIDDLE)
-!       if (!held)
-!       return IsMouseClicked(2);
-!       else
-!       return IsMouseDown(2);
-!     else if (key == GLFW_MOUSE_BUTTON3)
-!       if (!held)
-!       return IsMouseClicked(3);
-!       else
-!       return IsMouseDown(3);
-!     else if (key == GLFW_MOUSE_BUTTON4)
-!       if (!held)
-!       return IsMouseClicked(4);
-!       else
-!       return IsMouseDown(4);
-!     else if (key == GLFW_MOUSE_LEFT_DOUBLE && !held)
-!       return IsMouseDoubleClicked(0);
-!     else if (key == GLFW_MOUSE_RIGHT_DOUBLE && !held)
-!       return IsMouseDoubleClicked(1);
-!     else if (key == GLFW_MOUSE_MIDDLE_DOUBLE && !held)
-!       return IsMouseDoubleClicked(2);
-!     else if (key == GLFW_MOUSE_BUTTON3_DOUBLE && !held)
-!       return IsMouseDoubleClicked(3);
-!     else if (key == GLFW_MOUSE_BUTTON4_DOUBLE && !held)
-!       return IsMouseDoubleClicked(4);
-!     else if (key == GLFW_MOUSE_SCROLL)
-!       return abs(GetCurrentContext()->IO.MouseWheel) > 1e-8;
-!     return false;
-!   }
-! }
+! !   if (key == NOKEY || !IsModPressed(mod))
+! !     return false;
+! !   else if (key <= GLFW_KEY_LAST && !io.WantCaptureKeyboard && !io.WantTextInput)
+! !     if (!held)
+! !       return IsKeyPressed(key,false);
+! !     else
+! !       return IsKeyDown(key);
+! !   else{
+! !     if (key == GLFW_MOUSE_LEFT)
+! !       if (!held)
+! !       return IsMouseClicked(0);
+! !       else
+! !       return IsMouseDown(0);
+! !     else if (key == GLFW_MOUSE_RIGHT)
+! !       if (!held)
+! !       return IsMouseClicked(1);
+! !       else
+! !       return IsMouseDown(1);
+! !     else if (key == GLFW_MOUSE_MIDDLE)
+! !       if (!held)
+! !       return IsMouseClicked(2);
+! !       else
+! !       return IsMouseDown(2);
+! !     else if (key == GLFW_MOUSE_BUTTON3)
+! !       if (!held)
+! !       return IsMouseClicked(3);
+! !       else
+! !       return IsMouseDown(3);
+! !     else if (key == GLFW_MOUSE_BUTTON4)
+! !       if (!held)
+! !       return IsMouseClicked(4);
+! !       else
+! !       return IsMouseDown(4);
+! !     else if (key == GLFW_MOUSE_LEFT_DOUBLE && !held)
+! !       return IsMouseDoubleClicked(0);
+! !     else if (key == GLFW_MOUSE_RIGHT_DOUBLE && !held)
+! !       return IsMouseDoubleClicked(1);
+! !     else if (key == GLFW_MOUSE_MIDDLE_DOUBLE && !held)
+! !       return IsMouseDoubleClicked(2);
+! !     else if (key == GLFW_MOUSE_BUTTON3_DOUBLE && !held)
+! !       return IsMouseDoubleClicked(3);
+! !     else if (key == GLFW_MOUSE_BUTTON4_DOUBLE && !held)
+! !       return IsMouseDoubleClicked(4);
+! !     else if (key == GLFW_MOUSE_SCROLL)
+! !       return abs(GetCurrentContext()->IO.MouseWheel) > 1e-8;
+! !     return false;
+! !   }
+! ! }
 
-  end function IsBindEvent
+!   end function IsBindEvent
 
 end module gui_keybindings
 

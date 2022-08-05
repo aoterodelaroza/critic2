@@ -2,24 +2,194 @@
 
   !xx! cimgui constants
 
-  ! enum ImGuiConfigFlags_
-  integer(c_int), parameter :: ImGuiConfigFlags_None = 0
-  integer(c_int), parameter :: ImGuiConfigFlags_NavEnableKeyboard = int(b'0000000000000000000001') ! 1 << 0
-  integer(c_int), parameter :: ImGuiConfigFlags_NavEnableGamepad = int(b'0000000000000000000010') ! 1 << 1
-  integer(c_int), parameter :: ImGuiConfigFlags_NavEnableSetMousePos = int(b'0000000000000000000100') ! 1 << 2
-  integer(c_int), parameter :: ImGuiConfigFlags_NavNoCaptureKeyboard = int(b'0000000000000000001000') ! 1 << 3,
-  integer(c_int), parameter :: ImGuiConfigFlags_NoMouse = int(b'0000000000000000010000') ! 1 << 4,
-  integer(c_int), parameter :: ImGuiConfigFlags_NoMouseCursorChange = int(b'0000000000000000100000') ! 1 << 5,
-  integer(c_int), parameter :: ImGuiConfigFlags_DockingEnable = int(b'0000000000000001000000') ! 1 << 6,
-  integer(c_int), parameter :: ImGuiConfigFlags_ViewportsEnable = int(b'0000000000010000000000') ! 1 << 10,
-  integer(c_int), parameter :: ImGuiConfigFlags_DpiEnableScaleViewports = int(b'0000000100000000000000') ! 1 << 14,
-  integer(c_int), parameter :: ImGuiConfigFlags_DpiEnableScaleFonts = int(b'0000001000000000000000') ! 1 << 15,
-  integer(c_int), parameter :: ImGuiConfigFlags_IsSRGB = int(b'0100000000000000000000') ! 1 << 20,
-  integer(c_int), parameter :: ImGuiConfigFlags_IsTouchScreen = int(b'1000000000000000000000') ! 1 << 21
-
+  !!! sizes !!!
+  !!! These need to be the same as in cimgui.h. They are here because
+  !!! they are sizes for components in C-interoperable user-defined
+  !!! types, which need to be known at compile-time. Since bind(c) and
+  !!! parameter are incompatible, it is not possible to use the
+  !!! "const_" trick below to do this. Hence, copied here.
+  !!! Note to self: remember to copy them over if imgui/cimgui is updated.
   ! enum ImGuiKey_
   integer(c_int), parameter :: ImGuiKey_COUNT = 645
   integer(c_int), parameter :: ImGuiKey_KeysData_SIZE = 645
-
   ! enum ImGuiNavInput_
   integer(c_int), parameter :: ImGuiNavInput_COUNT = 20
+  !!!!!!!
+
+  ! enum ImGuiConfigFlags_
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_None") :: ImGuiConfigFlags_None
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NavEnableKeyboard") ::ImGuiConfigFlags_NavEnableKeyboard
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NavEnableGamepad") :: ImGuiConfigFlags_NavEnableGamepad
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NavEnableSetMousePos") :: ImGuiConfigFlags_NavEnableSetMousePos
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NavNoCaptureKeyboard") :: ImGuiConfigFlags_NavNoCaptureKeyboard
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NoMouse") :: ImGuiConfigFlags_NoMouse
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_NoMouseCursorChange") :: ImGuiConfigFlags_NoMouseCursorChange
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_DockingEnable") :: ImGuiConfigFlags_DockingEnable
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_ViewportsEnable") :: ImGuiConfigFlags_ViewportsEnable
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_DpiEnableScaleViewport") :: ImGuiConfigFlags_DpiEnableScaleViewport
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_DpiEnableScaleFonts") :: ImGuiConfigFlags_DpiEnableScaleFonts
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_IsSRGB") :: ImGuiConfigFlags_IsSRGB
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_IsTouchScreen") :: ImGuiConfigFlags_IsTouchScreen
+  ! enum ImGuiKey_
+  integer(c_int), bind(C,name="const_ImGuiKey_None") :: ImGuiKey_None
+  integer(c_int), bind(C,name="const_ImGuiKey_Tab") :: ImGuiKey_Tab
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftArrow") :: ImGuiKey_LeftArrow
+  integer(c_int), bind(C,name="const_ImGuiKey_RightArrow") :: ImGuiKey_RightArrow
+  integer(c_int), bind(C,name="const_ImGuiKey_UpArrow") :: ImGuiKey_UpArrow
+  integer(c_int), bind(C,name="const_ImGuiKey_DownArrow") :: ImGuiKey_DownArrow
+  integer(c_int), bind(C,name="const_ImGuiKey_PageUp") :: ImGuiKey_PageUp
+  integer(c_int), bind(C,name="const_ImGuiKey_PageDown") :: ImGuiKey_PageDown
+  integer(c_int), bind(C,name="const_ImGuiKey_Home") :: ImGuiKey_Home
+  integer(c_int), bind(C,name="const_ImGuiKey_End") :: ImGuiKey_End
+  integer(c_int), bind(C,name="const_ImGuiKey_Insert") :: ImGuiKey_Insert
+  integer(c_int), bind(C,name="const_ImGuiKey_Delete") :: ImGuiKey_Delete
+  integer(c_int), bind(C,name="const_ImGuiKey_Backspace") :: ImGuiKey_Backspace
+  integer(c_int), bind(C,name="const_ImGuiKey_Space") :: ImGuiKey_Space
+  integer(c_int), bind(C,name="const_ImGuiKey_Enter") :: ImGuiKey_Enter
+  integer(c_int), bind(C,name="const_ImGuiKey_Escape") :: ImGuiKey_Escape
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftCtrl") :: ImGuiKey_LeftCtrl
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftShift") :: ImGuiKey_LeftShift
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftAlt") :: ImGuiKey_LeftAlt
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftSuper") :: ImGuiKey_LeftSuper
+  integer(c_int), bind(C,name="const_ImGuiKey_RightCtrl") :: ImGuiKey_RightCtrl
+  integer(c_int), bind(C,name="const_ImGuiKey_RightShift") :: ImGuiKey_RightShift
+  integer(c_int), bind(C,name="const_ImGuiKey_RightAlt") :: ImGuiKey_RightAlt
+  integer(c_int), bind(C,name="const_ImGuiKey_RightSuper") :: ImGuiKey_RightSuper
+  integer(c_int), bind(C,name="const_ImGuiKey_Menu") :: ImGuiKey_Menu
+  integer(c_int), bind(C,name="const_ImGuiKey_0") :: ImGuiKey_0
+  integer(c_int), bind(C,name="const_ImGuiKey_1") :: ImGuiKey_1
+  integer(c_int), bind(C,name="const_ImGuiKey_2") :: ImGuiKey_2
+  integer(c_int), bind(C,name="const_ImGuiKey_3") :: ImGuiKey_3
+  integer(c_int), bind(C,name="const_ImGuiKey_4") :: ImGuiKey_4
+  integer(c_int), bind(C,name="const_ImGuiKey_5") :: ImGuiKey_5
+  integer(c_int), bind(C,name="const_ImGuiKey_6") :: ImGuiKey_6
+  integer(c_int), bind(C,name="const_ImGuiKey_7") :: ImGuiKey_7
+  integer(c_int), bind(C,name="const_ImGuiKey_8") :: ImGuiKey_8
+  integer(c_int), bind(C,name="const_ImGuiKey_9") :: ImGuiKey_9
+  integer(c_int), bind(C,name="const_ImGuiKey_A") :: ImGuiKey_A
+  integer(c_int), bind(C,name="const_ImGuiKey_B") :: ImGuiKey_B
+  integer(c_int), bind(C,name="const_ImGuiKey_C") :: ImGuiKey_C
+  integer(c_int), bind(C,name="const_ImGuiKey_D") :: ImGuiKey_D
+  integer(c_int), bind(C,name="const_ImGuiKey_E") :: ImGuiKey_E
+  integer(c_int), bind(C,name="const_ImGuiKey_F") :: ImGuiKey_F
+  integer(c_int), bind(C,name="const_ImGuiKey_G") :: ImGuiKey_G
+  integer(c_int), bind(C,name="const_ImGuiKey_H") :: ImGuiKey_H
+  integer(c_int), bind(C,name="const_ImGuiKey_I") :: ImGuiKey_I
+  integer(c_int), bind(C,name="const_ImGuiKey_J") :: ImGuiKey_J
+  integer(c_int), bind(C,name="const_ImGuiKey_K") :: ImGuiKey_K
+  integer(c_int), bind(C,name="const_ImGuiKey_L") :: ImGuiKey_L
+  integer(c_int), bind(C,name="const_ImGuiKey_M") :: ImGuiKey_M
+  integer(c_int), bind(C,name="const_ImGuiKey_N") :: ImGuiKey_N
+  integer(c_int), bind(C,name="const_ImGuiKey_O") :: ImGuiKey_O
+  integer(c_int), bind(C,name="const_ImGuiKey_P") :: ImGuiKey_P
+  integer(c_int), bind(C,name="const_ImGuiKey_Q") :: ImGuiKey_Q
+  integer(c_int), bind(C,name="const_ImGuiKey_R") :: ImGuiKey_R
+  integer(c_int), bind(C,name="const_ImGuiKey_S") :: ImGuiKey_S
+  integer(c_int), bind(C,name="const_ImGuiKey_T") :: ImGuiKey_T
+  integer(c_int), bind(C,name="const_ImGuiKey_U") :: ImGuiKey_U
+  integer(c_int), bind(C,name="const_ImGuiKey_V") :: ImGuiKey_V
+  integer(c_int), bind(C,name="const_ImGuiKey_W") :: ImGuiKey_W
+  integer(c_int), bind(C,name="const_ImGuiKey_X") :: ImGuiKey_X
+  integer(c_int), bind(C,name="const_ImGuiKey_Y") :: ImGuiKey_Y
+  integer(c_int), bind(C,name="const_ImGuiKey_Z") :: ImGuiKey_Z
+  integer(c_int), bind(C,name="const_ImGuiKey_F1") :: ImGuiKey_F1
+  integer(c_int), bind(C,name="const_ImGuiKey_F2") :: ImGuiKey_F2
+  integer(c_int), bind(C,name="const_ImGuiKey_F3") :: ImGuiKey_F3
+  integer(c_int), bind(C,name="const_ImGuiKey_F4") :: ImGuiKey_F4
+  integer(c_int), bind(C,name="const_ImGuiKey_F5") :: ImGuiKey_F5
+  integer(c_int), bind(C,name="const_ImGuiKey_F6") :: ImGuiKey_F6
+  integer(c_int), bind(C,name="const_ImGuiKey_F7") :: ImGuiKey_F7
+  integer(c_int), bind(C,name="const_ImGuiKey_F8") :: ImGuiKey_F8
+  integer(c_int), bind(C,name="const_ImGuiKey_F9") :: ImGuiKey_F9
+  integer(c_int), bind(C,name="const_ImGuiKey_F10") :: ImGuiKey_F10
+  integer(c_int), bind(C,name="const_ImGuiKey_F11") :: ImGuiKey_F11
+  integer(c_int), bind(C,name="const_ImGuiKey_F12") :: ImGuiKey_F12
+  integer(c_int), bind(C,name="const_ImGuiKey_Apostrophe") :: ImGuiKey_Apostrophe
+  integer(c_int), bind(C,name="const_ImGuiKey_Comma") :: ImGuiKey_Comma
+  integer(c_int), bind(C,name="const_ImGuiKey_Minus") :: ImGuiKey_Minus
+  integer(c_int), bind(C,name="const_ImGuiKey_Period") :: ImGuiKey_Period
+  integer(c_int), bind(C,name="const_ImGuiKey_Slash") :: ImGuiKey_Slash
+  integer(c_int), bind(C,name="const_ImGuiKey_Semicolon") :: ImGuiKey_Semicolon
+  integer(c_int), bind(C,name="const_ImGuiKey_Equal") :: ImGuiKey_Equal
+  integer(c_int), bind(C,name="const_ImGuiKey_LeftBracket") :: ImGuiKey_LeftBracket
+  integer(c_int), bind(C,name="const_ImGuiKey_Backslash") :: ImGuiKey_Backslash
+  integer(c_int), bind(C,name="const_ImGuiKey_RightBracket") :: ImGuiKey_RightBracket
+  integer(c_int), bind(C,name="const_ImGuiKey_GraveAccent") :: ImGuiKey_GraveAccent
+  integer(c_int), bind(C,name="const_ImGuiKey_CapsLock") :: ImGuiKey_CapsLock
+  integer(c_int), bind(C,name="const_ImGuiKey_ScrollLock") :: ImGuiKey_ScrollLock
+  integer(c_int), bind(C,name="const_ImGuiKey_NumLock") :: ImGuiKey_NumLock
+  integer(c_int), bind(C,name="const_ImGuiKey_PrintScreen") :: ImGuiKey_PrintScreen
+  integer(c_int), bind(C,name="const_ImGuiKey_Pause") :: ImGuiKey_Pause
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad0") :: ImGuiKey_Keypad0
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad1") :: ImGuiKey_Keypad1
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad2") :: ImGuiKey_Keypad2
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad3") :: ImGuiKey_Keypad3
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad4") :: ImGuiKey_Keypad4
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad5") :: ImGuiKey_Keypad5
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad6") :: ImGuiKey_Keypad6
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad7") :: ImGuiKey_Keypad7
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad8") :: ImGuiKey_Keypad8
+  integer(c_int), bind(C,name="const_ImGuiKey_Keypad9") :: ImGuiKey_Keypad9
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadDecimal") :: ImGuiKey_KeypadDecimal
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadDivide") :: ImGuiKey_KeypadDivide
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadMultiply") :: ImGuiKey_KeypadMultiply
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadSubtract") :: ImGuiKey_KeypadSubtract
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadAdd") :: ImGuiKey_KeypadAdd
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadEnter") :: ImGuiKey_KeypadEnter
+  integer(c_int), bind(C,name="const_ImGuiKey_KeypadEqual") :: ImGuiKey_KeypadEqual
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadStart") :: ImGuiKey_GamepadStart
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadBack") :: ImGuiKey_GamepadBack
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadFaceUp") :: ImGuiKey_GamepadFaceUp
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadFaceDown") :: ImGuiKey_GamepadFaceDown
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadFaceLeft") :: ImGuiKey_GamepadFaceLeft
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadFaceRight") :: ImGuiKey_GamepadFaceRight
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadDpadUp") :: ImGuiKey_GamepadDpadUp
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadDpadDown") :: ImGuiKey_GamepadDpadDown
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadDpadLeft") :: ImGuiKey_GamepadDpadLeft
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadDpadRight") :: ImGuiKey_GamepadDpadRight
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadL1") :: ImGuiKey_GamepadL1
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadR1") :: ImGuiKey_GamepadR1
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadL2") :: ImGuiKey_GamepadL2
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadR2") :: ImGuiKey_GamepadR2
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadL3") :: ImGuiKey_GamepadL3
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadR3") :: ImGuiKey_GamepadR3
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadLStickUp") :: ImGuiKey_GamepadLStickUp
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadLStickDown") :: ImGuiKey_GamepadLStickDown
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadLStickLeft") :: ImGuiKey_GamepadLStickLeft
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadLStickRight") :: ImGuiKey_GamepadLStickRight
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadRStickUp") :: ImGuiKey_GamepadRStickUp
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadRStickDown") :: ImGuiKey_GamepadRStickDown
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadRStickLeft") :: ImGuiKey_GamepadRStickLeft
+  integer(c_int), bind(C,name="const_ImGuiKey_GamepadRStickRight") :: ImGuiKey_GamepadRStickRight
+  integer(c_int), bind(C,name="const_ImGuiKey_ModCtrl") :: ImGuiKey_ModCtrl
+  integer(c_int), bind(C,name="const_ImGuiKey_ModShift") :: ImGuiKey_ModShift
+  integer(c_int), bind(C,name="const_ImGuiKey_ModAlt") :: ImGuiKey_ModAlt
+  integer(c_int), bind(C,name="const_ImGuiKey_ModSuper") :: ImGuiKey_ModSuper
+  ! integer(c_int), bind(C,name="const_ImGuiKey_COUNT") :: ImGuiKey_COUNT
+  integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_BEGIN") :: ImGuiKey_NamedKey_BEGIN
+  integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_END") :: ImGuiKey_NamedKey_END
+  integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_COUNT") :: ImGuiKey_NamedKey_COUNT
+  ! integer(c_int), bind(C,name="const_ImGuiKey_KeysData_SIZE") :: ImGuiKey_KeysData_SIZE
+  integer(c_int), bind(C,name="const_ImGuiKey_KeysData_OFFSET") :: ImGuiKey_KeysData_OFFSET
+  ! enum ImGuiNavInput_
+  integer(c_int), bind(C,name="const_ImGuiNavInput_Activate") :: ImGuiNavInput_Activate
+  integer(c_int), bind(C,name="const_ImGuiNavInput_Cancel") :: ImGuiNavInput_Cancel
+  integer(c_int), bind(C,name="const_ImGuiNavInput_Input") :: ImGuiNavInput_Input
+  integer(c_int), bind(C,name="const_ImGuiNavInput_Menu") :: ImGuiNavInput_Menu
+  integer(c_int), bind(C,name="const_ImGuiNavInput_DpadLeft") :: ImGuiNavInput_DpadLeft
+  integer(c_int), bind(C,name="const_ImGuiNavInput_DpadRight") :: ImGuiNavInput_DpadRight
+  integer(c_int), bind(C,name="const_ImGuiNavInput_DpadUp") :: ImGuiNavInput_DpadUp
+  integer(c_int), bind(C,name="const_ImGuiNavInput_DpadDown") :: ImGuiNavInput_DpadDown
+  integer(c_int), bind(C,name="const_ImGuiNavInput_LStickLeft") :: ImGuiNavInput_LStickLeft
+  integer(c_int), bind(C,name="const_ImGuiNavInput_LStickRight") :: ImGuiNavInput_LStickRight
+  integer(c_int), bind(C,name="const_ImGuiNavInput_LStickUp") :: ImGuiNavInput_LStickUp
+  integer(c_int), bind(C,name="const_ImGuiNavInput_LStickDown") :: ImGuiNavInput_LStickDown
+  integer(c_int), bind(C,name="const_ImGuiNavInput_FocusPrev") :: ImGuiNavInput_FocusPrev
+  integer(c_int), bind(C,name="const_ImGuiNavInput_FocusNext") :: ImGuiNavInput_FocusNext
+  integer(c_int), bind(C,name="const_ImGuiNavInput_TweakSlow") :: ImGuiNavInput_TweakSlow
+  integer(c_int), bind(C,name="const_ImGuiNavInput_TweakFast") :: ImGuiNavInput_TweakFast
+  integer(c_int), bind(C,name="const_ImGuiNavInput_KeyLeft_") :: ImGuiNavInput_KeyLeft_
+  integer(c_int), bind(C,name="const_ImGuiNavInput_KeyRight_") :: ImGuiNavInput_KeyRight_
+  integer(c_int), bind(C,name="const_ImGuiNavInput_KeyUp_") :: ImGuiNavInput_KeyUp_
+  integer(c_int), bind(C,name="const_ImGuiNavInput_KeyDown_") :: ImGuiNavInput_KeyDown_
+  !integer(c_int), bind(C,name="const_ImGuiNavInput_COUNT") :: ImGuiNavInput_COUNT
