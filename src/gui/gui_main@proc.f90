@@ -32,6 +32,7 @@ submodule (gui_main) proc
 
 contains
 
+  ! Start the critic2 GUI.
   module subroutine gui_start()
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
@@ -41,7 +42,7 @@ contains
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h
     type(c_funptr) :: fdum
-    type(c_ptr) :: window, ptrc
+    type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
 
@@ -57,10 +58,10 @@ contains
 
     ! set up window
     strc = gui_title
-    window = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
-    if (.not.c_associated(window)) &
+    rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
+    if (.not.c_associated(rootwin)) &
        call ferror('gui_start','Failed to create window',faterr)
-    call glfwMakeContextCurrent(window)
+    call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
 
     ! set up ImGui context
@@ -77,11 +78,11 @@ contains
        string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported',faterr)
 
     ! set up ImGui style
-    call glfwSetInputMode(window, GLFW_STICKY_KEYS, 1)
+    call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
     call igStyleColorsDark(c_null_ptr)
 
     ! set up backend and renderer
-    ldum = ImGui_ImplGlfw_InitForOpenGL(window, .true._c_bool)
+    ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
     if (.not.ldum)&
        call ferror('gui_start','Failed to initialize ImGui (GLFW for OpenGL)',faterr)
     strc = shader_version
@@ -99,7 +100,7 @@ contains
 
     ! main loop
     show_demo_window = .true.
-    do while (glfwWindowShouldClose(window) == 0)
+    do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events
        call glfwPollEvents()
        time = glfwGetTime()
@@ -111,7 +112,10 @@ contains
 
        ! handle quit key binding
        if (is_bind_event(BIND_QUIT)) &
-          call glfwSetWindowShouldClose(window, GLFW_TRUE)
+          call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+
+       ! show main menu
+       call show_main_menu()
 
        ! show demo window
        if (show_demo_window) &
@@ -119,14 +123,14 @@ contains
 
        ! rendering
        call igRender()
-       call glfwGetFramebufferSize(window, display_w, display_h)
+       call glfwGetFramebufferSize(rootwin, display_w, display_h)
        call glViewport(0, 0, display_w, display_h)
        call glClearColor(0.45, 0.55, 0.60, 1.00)
        call glClear(GL_COLOR_BUFFER_BIT)
        call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
 
        ! swap buffers
-       call glfwSwapBuffers(window)
+       call glfwSwapBuffers(rootwin)
     end do
 
     ! cleanup
@@ -135,7 +139,7 @@ contains
     call igDestroyContext(c_null_ptr)
 
     ! terminate
-    call glfwDestroyWindow(window)
+    call glfwDestroyWindow(rootwin)
     call glfwTerminate()
 
   contains
@@ -153,33 +157,50 @@ contains
     end subroutine error_callback
   end subroutine gui_start
 
+  !xx! private procedures
+
+  ! Show the main menu
+  subroutine show_main_menu()
+    use gui_interfaces_cimgui, only: igBeginMainMenuBar, igEndMainMenuBar, igBeginMenu,&
+       igEndMenu, igMenuItem_Bool
+    use gui_keybindings, only: BIND_QUIT, get_bind_keyname
+    use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
+
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    if (igBeginMainMenuBar()) then
+       ! File
+       str1 = "File" // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+
+          ! File -> Quit
+          str1 = "Quit" // c_null_char
+          str2 = get_bind_keyname(BIND_QUIT) // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)) &
+             call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+          call igEndMenu()
+       end if
+
+       !     if (BeginMenu("Edit")){
+       !       if (MenuItem("Preferences..."))
+       ! 	OpenDialog(DLG_Preferences);
+       !       EndMenu();
+       !     }
+
+       !     if (BeginMenu("View")){
+       !       if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
+       ! 	ToggleDialog(DLG_Tree);
+       !       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
+       ! 	ToggleDialog(DLG_Preferences);
+       !       if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
+       ! 	ToggleDialog(DLG_StructInfo);
+       !       EndMenu();
+       !     }
+
+       !     SameLine(0, GetContentRegionAvailWidth()-180.);
+       !     Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
+    end if
+    call igEndMainMenuBar()
+
+  end subroutine show_main_menu
 end submodule proc
-
-
-! void show_main_menu(GLFWwindow* rootwin){
-!   
-!   if (BeginMainMenuBar()){
-!     if (BeginMenu("File")){
-!       if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
-! 	glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
-!       EndMenu();
-!     }
-!     if (BeginMenu("Edit")){
-!       if (MenuItem("Preferences..."))
-! 	OpenDialog(DLG_Preferences);
-!       EndMenu();
-!     }
-!     if (BeginMenu("View")){
-!       if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
-! 	ToggleDialog(DLG_Tree);
-!       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
-! 	ToggleDialog(DLG_Preferences);
-!       if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
-! 	ToggleDialog(DLG_StructInfo);
-!       EndMenu();
-!     }
-!     SameLine(0, GetContentRegionAvailWidth()-180.);
-!     Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
-!   }
-!   EndMainMenuBar();
-! }

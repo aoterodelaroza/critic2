@@ -8,6 +8,7 @@ module gui_keybindings
   public :: set_bind
   public :: set_default_keybindings
   public :: is_bind_event
+  public :: get_bind_keyname
 
   ! Public list of binds
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
@@ -43,6 +44,10 @@ module gui_keybindings
        logical, intent(in), optional :: held
        logical :: is_bind_event
      end function is_bind_event
+     module function get_bind_keyname(bind)
+       integer, intent(in) :: bind
+       character(len=:), allocatable :: get_bind_keyname
+     end function get_bind_keyname
   end interface
 
 end module gui_keybindings

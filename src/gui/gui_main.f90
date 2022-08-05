@@ -20,6 +20,7 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
+  use iso_c_binding, only: c_ptr
   use gui_interfaces_cimgui, only: ImGuiIO
   implicit none
 
@@ -30,6 +31,9 @@ module gui_main
 
   ! pointer to ImGui's IO object
   type(ImGuiIO), pointer, public :: io
+
+  ! the root window pointer (GLFWwindow*)
+  type(c_ptr) :: rootwin
 
   ! public procedures
   public :: gui_start

@@ -229,6 +229,41 @@ contains
 
   end function is_bind_event
 
+  ! Return the key+mod combination for a given bind
+  module function get_bind_keyname(bind)
+    use gui_interfaces_cimgui, only: ImGuiKey_None, igGetKeyName, &
+       ImGuiKey_ModCtrl, ImGuiKey_ModShift, ImGuiKey_ModAlt, ImGuiKey_ModSuper
+    use c_interface_module, only: C_F_string_ptr_alloc
+    use tools_io, only: lower
+    integer, intent(in) :: bind
+    character(len=:), allocatable :: get_bind_keyname
+
+    integer :: group
+    integer(c_int) :: key, mod
+    type(c_ptr) :: name
+    character(len=:), allocatable :: aux
+
+    get_bind_keyname = ""
+    group = groupbind(bind)
+    key = keybind(bind)
+    mod = modbind(bind)
+    if (key /= ImGuiKey_None) then
+       if (mod == ImGuiKey_ModCtrl) then
+          get_bind_keyname = "Ctrl+"
+       elseif (mod == ImGuiKey_ModShift) then
+          get_bind_keyname = "Shift+"
+       elseif (mod == ImGuiKey_ModAlt) then
+          get_bind_keyname = "Alt+"
+       elseif (mod == ImGuiKey_ModSuper) then
+          get_bind_keyname = "Super+"
+       end if
+       name = igGetKeyName(key)
+       call C_F_string_ptr_alloc(name,aux)
+       get_bind_keyname = get_bind_keyname // lower(trim(aux))
+    end if
+
+  end function get_bind_keyname
+
   !xx! private procedures
 
   ! return a key for the keymap hash by combining key ID, mod, and group.

@@ -2,7 +2,7 @@
 
 !xx! cimgui procedures
 
-! [SECTION] MAIN CODE (most of the code! lots of stuff, needs tidying up!)
+! [SECTION/imgui.cpp] MAIN CODE (most of the code! lots of stuff, needs tidying up!)
 ! ImGuiContext* igGetCurrentContext(void);
 function igGetCurrentContext() bind(c,name="igGetCurrentContext")
   import c_ptr
@@ -36,7 +36,7 @@ end subroutine igNewFrame
 subroutine igRender() bind(c,name="igRender")
 end subroutine igRender
 
-! [SECTION] INPUTS
+! [SECTION/imgui.cpp] INPUTS
 ! bool igIsKeyDown(ImGuiKey key);
 function igIsKeyDown(key) bind(c,name="igIsKeyDown")
   import c_int, c_bool
@@ -63,17 +63,67 @@ function igGetKeyName(key) bind(c,name="igGetKeyName")
   type(c_ptr) :: igGetKeyName
 end function igGetKeyName
 
-! [SECTION] USER FACING STRUCTURES (ImGuiStyle, ImGuiIO)
+! [SECTION/imgui.cpp] LAYOUT
+! void igSameLine(float offset_from_start_x,float spacing);
+subroutine igSameLine(offset_from_start_x, spacing) bind(c,name="igSameLine")
+  import c_float
+  real(c_float), value :: offset_from_start_x
+  real(c_float), value :: spacing
+end subroutine igSameLine
+! void igText(const char* fmt,...); (Fortran handles the formatting)
+subroutine igText(fmt) bind(c,name="igText")
+  import c_ptr
+  type(c_ptr), intent(in), value :: fmt
+end subroutine igText
+
+! [SECTION/imgui.cpp] USER FACING STRUCTURES (ImGuiStyle, ImGuiIO)
 ! void igStyleColorsDark(ImGuiStyle* dst);
 subroutine igStyleColorsDark(dst) bind(c,name="igStyleColorsDark")
   import c_ptr
   type(c_ptr), value :: dst
 end subroutine igStyleColorsDark
 
-! [SECTION] imgui_demo.cpp
+! [SECTION/imgui_demo.cpp]
 ! void igShowDemoWindow(bool* p_open);
 subroutine igShowDemoWindow(p_open) bind(c,name="igShowDemoWindow")
   import c_bool
   logical(c_bool) :: p_open
 end subroutine igShowDemoWindow
 
+! [SECTION/header] Dear ImGui end-user API functions
+! bool igBeginMainMenuBar(void);
+function igBeginMainMenuBar() bind(c,name="igBeginMainMenuBar")
+  import c_bool
+  logical(c_bool) :: igBeginMainMenuBar
+end function igBeginMainMenuBar
+! void igEndMainMenuBar(void);
+subroutine igEndMainMenuBar() bind(c,name="igEndMainMenuBar")
+end subroutine igEndMainMenuBar
+! bool igBeginMenu(const char* label,bool enabled);
+function igBeginMenu(label, enabled) bind(c,name="igBeginMenu")
+  import c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool), value :: enabled
+  logical(c_bool) :: igBeginMenu
+end function igBeginMenu
+! void igEndMenu(void);
+subroutine igEndMenu() bind(c,name="igEndMenu")
+end subroutine igEndMenu
+! bool igMenuItem_Bool(const char* label,const char* shortcut,bool selected,bool enabled);
+function igMenuItem_Bool(label, shortcut, selected, enabled) bind(c,name="igMenuItem_Bool")
+  import c_ptr, c_bool
+  type(c_ptr), value, intent(in) :: label
+  type(c_ptr), value, intent(in) :: shortcut
+  logical(c_bool), value :: selected
+  logical(c_bool), value :: enabled
+  logical(c_bool) :: igMenuItem_Bool
+end function igMenuItem_Bool
+! bool igMenuItem_BoolPtr(const char* label,const char* shortcut,bool* p_selected,bool enabled);
+function igMenuItem_BoolPtr(label, shortcut, p_selected, enabled) bind(c,name="igMenuItem_BoolPtr")
+  import c_ptr, c_bool
+  type(c_ptr), value, intent(in) :: label
+  type(c_ptr), value, intent(in) :: shortcut
+  logical(c_bool) :: p_selected
+  logical(c_bool), value :: enabled
+  logical(c_bool) :: igMenuItem_BoolPtr
+end function igMenuItem_BoolPtr
