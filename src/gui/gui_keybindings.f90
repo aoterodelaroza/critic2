@@ -4,10 +4,10 @@ module gui_keybindings
 
   private
 
-  public :: EraseBind
-  public :: SetBind
-  public :: SetDefaultKeyBindings
-  public :: IsBindEvent
+  public :: erase_bind
+  public :: set_bind
+  public :: set_default_keybindings
+  public :: is_bind_event
 
   ! Public list of binds
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
@@ -27,22 +27,22 @@ module gui_keybindings
 
   ! module procedure interfaces
   interface
-     module subroutine EraseBind(key, mod, group)
+     module subroutine erase_bind(key, mod, group)
        integer(c_int), intent(in) :: key, mod
        integer, intent(in) :: group
-     end subroutine EraseBind
-     module subroutine SetBind(bind, key, mod)
+     end subroutine erase_bind
+     module subroutine set_bind(bind, key, mod)
        use tools_io, only: ferror, faterr
        integer, intent(in) :: bind
        integer(c_int), intent(in) :: key, mod
-     end subroutine SetBind
-     module subroutine SetDefaultKeyBindings()
-     end subroutine SetDefaultKeyBindings
-     module function IsBindEvent(bind,held)
+     end subroutine set_bind
+     module subroutine set_default_keybindings()
+     end subroutine set_default_keybindings
+     module function is_bind_event(bind,held)
        integer, intent(in) :: bind
        logical, intent(in), optional :: held
-       logical :: IsBindEvent
-     end function IsBindEvent
+       logical :: is_bind_event
+     end function is_bind_event
   end interface
 
 end module gui_keybindings

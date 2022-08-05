@@ -27,13 +27,16 @@ submodule (gui_main) proc
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
+  !xx! private procedures
+  ! subroutine show_main_menu()
+
 contains
 
   module subroutine gui_start()
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
-    use gui_keybindings, only: IsBindEvent, BIND_QUIT, SetDefaultKeyBindings
+    use gui_keybindings, only: is_bind_event, BIND_QUIT, set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h
@@ -92,7 +95,7 @@ contains
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable)
 
     ! set default keybindings
-    call SetDefaultKeyBindings()
+    call set_default_keybindings()
 
     ! main loop
     show_demo_window = .true.
@@ -107,7 +110,7 @@ contains
        call igNewFrame()
 
        ! handle quit key binding
-       if (IsBindEvent(BIND_QUIT)) &
+       if (is_bind_event(BIND_QUIT)) &
           call glfwSetWindowShouldClose(window, GLFW_TRUE)
 
        ! show demo window
@@ -151,3 +154,32 @@ contains
   end subroutine gui_start
 
 end submodule proc
+
+
+! void show_main_menu(GLFWwindow* rootwin){
+!   
+!   if (BeginMainMenuBar()){
+!     if (BeginMenu("File")){
+!       if (MenuItem("Quit",BindKeyName(BIND_QUIT).c_str()))
+! 	glfwSetWindowShouldClose(rootwin, GLFW_TRUE);
+!       EndMenu();
+!     }
+!     if (BeginMenu("Edit")){
+!       if (MenuItem("Preferences..."))
+! 	OpenDialog(DLG_Preferences);
+!       EndMenu();
+!     }
+!     if (BeginMenu("View")){
+!       if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
+! 	ToggleDialog(DLG_Tree);
+!       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
+! 	ToggleDialog(DLG_Preferences);
+!       if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
+! 	ToggleDialog(DLG_StructInfo);
+!       EndMenu();
+!     }
+!     SameLine(0, GetContentRegionAvailWidth()-180.);
+!     Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GetIO().Framerate, GetIO().Framerate);
+!   }
+!   EndMainMenuBar();
+! }

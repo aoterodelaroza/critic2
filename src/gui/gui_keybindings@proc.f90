@@ -56,7 +56,7 @@ submodule (gui_keybindings) proc
 contains
 
   ! unbind the key/mod/group combination
-  subroutine EraseBind(key, mod, group)
+  subroutine erase_bind(key, mod, group)
     use gui_interfaces_cimgui, only: ImGuiKey_None
     integer(c_int), intent(in) :: key, mod
     integer, intent(in) :: group
@@ -72,10 +72,10 @@ contains
        call keymap%delkey(hk)
     end if
 
-  end subroutine EraseBind
+  end subroutine erase_bind
 
   ! Associate a bind with a key/mod combination
-  module subroutine SetBind(bind, key, mod)
+  module subroutine set_bind(bind, key, mod)
     use gui_interfaces_cimgui, only: ImGuiKey_None
     use tools_io, only: ferror, faterr
     integer, intent(in) :: bind
@@ -86,7 +86,7 @@ contains
     character(len=:), allocatable :: hk
 
     if (bind < 1 .or. bind > BIND_NUM) &
-       call ferror('SetBind','BIND number out of range',faterr)
+       call ferror('set_bind','BIND number out of range',faterr)
 
     group = groupbind(bind)
 
@@ -99,15 +99,15 @@ contains
     end if
 
     ! unbind the previous owner of this key+mod combination in this group...
-    call EraseBind(key,mod,group)
+    call erase_bind(key,mod,group)
     if (group == group_global) then
        ! unbind in all other groups
        do i = 2, ngroupbinds
-          call EraseBind(key,mod,i);
+          call erase_bind(key,mod,i);
        end do
     else
        ! unbind from the global group
-       call EraseBind(key,mod,group_global);
+       call erase_bind(key,mod,group_global);
     end if
 
     ! make the new bind
@@ -115,9 +115,9 @@ contains
     modbind(bind) = mod
     call keymap%put(hkey(key,mod,group),bind)
 
-  end subroutine SetBind
+  end subroutine set_bind
 
-  module subroutine SetDefaultKeyBindings()
+  module subroutine set_default_keybindings()
     use gui_interfaces_cimgui
     integer :: i
 
@@ -129,32 +129,32 @@ contains
     call keymap%init()
 
     ! Default keybindings
-    call SetBind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
-    !   SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
-    !   SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
+    call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
+    !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
+    !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !
-    !   SetBind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
-    !   SetBind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
-    !   SetBind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
-    !   SetBind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
-    !   SetBind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
-    !   SetBind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
+    !   set_bind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
     !
     !   // Default mouse bindings
-    !   SetBind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
-    !   SetBind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
-    !   SetBind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
-    !   SetBind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
-  end subroutine SetDefaultKeyBindings
+    !   set_bind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
+    !   set_bind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
+    !   set_bind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
+    !   set_bind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
+  end subroutine set_default_keybindings
 
   ! Return whether the bind event is happening. If held (optional),
   ! the event happens only if the button is held down (for mouse).
-  module function IsBindEvent(bind,held)
+  module function is_bind_event(bind,held)
     use gui_interfaces_cimgui
     use gui_main, only: io
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
-    logical :: IsBindEvent
+    logical :: is_bind_event
 
     integer :: key, mod
     logical :: held_
@@ -164,7 +164,7 @@ contains
     if (present(held)) held_ = held
 
     ! some checks
-    IsBindEvent = .false.
+    is_bind_event = .false.
     if (bindevent_level > 0) return
     if (bind < 1 .or. bind > BIND_NUM) return
 
@@ -179,9 +179,9 @@ contains
        .not.io%WantCaptureKeyboard .and..not.io%WantTextInput) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
-          IsBindEvent = igIsKeyPressed(key,.true._c_bool)
+          is_bind_event = igIsKeyDown(key)
        else
-          IsBindEvent = igIsKeyDown(key)
+          is_bind_event = igIsKeyPressed(key,.true._c_bool)
        end if
     else
        ! mouse interaction
@@ -227,7 +227,7 @@ contains
        !   }
     end if
 
-  end function IsBindEvent
+  end function is_bind_event
 
   !xx! private procedures
 
