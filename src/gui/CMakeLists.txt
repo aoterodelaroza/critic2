@@ -8,7 +8,7 @@ set(SOURCES
   gui_interfaces_opengl3.f90 interfaces/constants.cpp
 
   gui_main.f90 gui_main@proc.f90
-  gui_keybindings.f90
+  gui_keybindings.f90 gui_keybindings@proc.f90
   )
 add_library(fgui OBJECT ${SOURCES})
 
