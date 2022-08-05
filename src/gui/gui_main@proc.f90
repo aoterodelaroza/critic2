@@ -106,7 +106,7 @@ contains
        call ImGui_ImplGlfw_NewFrame()
        call igNewFrame()
 
-       ! Quit key binding
+       ! handle quit key binding
        if (IsBindEvent(BIND_QUIT)) &
           call glfwSetWindowShouldClose(window, GLFW_TRUE)
 

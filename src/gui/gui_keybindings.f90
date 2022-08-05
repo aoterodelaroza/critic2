@@ -4,6 +4,7 @@ module gui_keybindings
 
   private
 
+  public :: EraseBind
   public :: SetBind
   public :: SetDefaultKeyBindings
   public :: IsBindEvent
@@ -26,6 +27,10 @@ module gui_keybindings
 
   ! module procedure interfaces
   interface
+     module subroutine EraseBind(key, mod, group)
+       integer(c_int), intent(in) :: key, mod
+       integer, intent(in) :: group
+     end subroutine EraseBind
      module subroutine SetBind(bind, key, mod)
        use tools_io, only: ferror, faterr
        integer, intent(in) :: bind
