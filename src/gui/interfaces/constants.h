@@ -203,6 +203,8 @@ extern "C" const int const_ImGuiNavInput_KeyDown;
 extern "C" const int const_ImGuiNavInput_COUNT;
 
 extern "C" // GLFW;
+extern "C" const int const_GLFW_TRUE;
+extern "C" const int const_GLFW_FALSE;
 extern "C" const int const_GLFW_SAMPLES;
 extern "C" const int const_GLFW_CONTEXT_VERSION_MAJOR;
 extern "C" const int const_GLFW_CONTEXT_VERSION_MINOR;

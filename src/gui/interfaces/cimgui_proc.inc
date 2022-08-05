@@ -36,6 +36,33 @@ end subroutine igNewFrame
 subroutine igRender() bind(c,name="igRender")
 end subroutine igRender
 
+! [SECTION] INPUTS
+! bool igIsKeyDown(ImGuiKey key);
+function igIsKeyDown(key) bind(c,name="igIsKeyDown")
+  import c_int, c_bool
+  integer(c_int), value :: key
+  logical(c_bool) :: igIsKeyDown
+end function igIsKeyDown
+! bool igIsKeyPressed(ImGuiKey key,bool repeat);
+function igIsKeyPressed(key,repeat) bind(c,name="igIsKeyPressed")
+  import c_int, c_bool
+  integer(c_int), value :: key
+  logical(c_bool), value :: repeat
+  logical(c_bool) :: igIsKeyPressed
+end function igIsKeyPressed
+! bool igIsKeyReleased(ImGuiKey key);
+function igIsKeyReleased(key) bind(c,name="igIsKeyReleased")
+  import c_int, c_bool
+  integer(c_int), value :: key
+  logical(c_bool) :: igIsKeyReleased
+end function igIsKeyReleased
+! const char* igGetKeyName(ImGuiKey key);
+function igGetKeyName(key) bind(c,name="igGetKeyName")
+  import c_int, c_ptr
+  integer(c_int), value :: key
+  type(c_ptr) :: igGetKeyName
+end function igGetKeyName
+
 ! [SECTION] USER FACING STRUCTURES (ImGuiStyle, ImGuiIO)
 ! void igStyleColorsDark(ImGuiStyle* dst);
 subroutine igStyleColorsDark(dst) bind(c,name="igStyleColorsDark")
@@ -49,3 +76,4 @@ subroutine igShowDemoWindow(p_open) bind(c,name="igShowDemoWindow")
   import c_bool
   logical(c_bool) :: p_open
 end subroutine igShowDemoWindow
+

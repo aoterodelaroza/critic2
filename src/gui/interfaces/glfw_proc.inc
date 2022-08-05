@@ -49,6 +49,12 @@ function glfwWindowShouldClose(window) bind(c,name="glfwWindowShouldClose")
   type(c_ptr), value :: window
   integer(c_int) :: glfwWindowShouldClose
 end function glfwWindowShouldClose
+! void glfwSetWindowShouldClose(GLFWwindow *window, int value)
+subroutine glfwSetWindowShouldClose(window, val) bind(c,name="glfwSetWindowShouldClose")
+  import c_ptr, c_int
+  type(c_ptr), value :: window
+  integer(c_int), value :: val
+end subroutine glfwSetWindowShouldClose
 ! void glfwSwapInterval(int interval)
 subroutine glfwSwapInterval(interval) bind(c,name="glfwSwapInterval")
   import c_int

@@ -33,6 +33,7 @@ contains
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
+    use gui_keybindings, only: IsBindEvent, BIND_QUIT, SetDefaultKeyBindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h
@@ -90,6 +91,9 @@ contains
     call c_f_pointer(ptrc,io)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable)
 
+    ! set default keybindings
+    call SetDefaultKeyBindings()
+
     ! main loop
     show_demo_window = .true.
     do while (glfwWindowShouldClose(window) == 0)
@@ -101,6 +105,10 @@ contains
        call ImGui_ImplOpenGL3_NewFrame()
        call ImGui_ImplGlfw_NewFrame()
        call igNewFrame()
+
+       ! Quit key binding
+       if (IsBindEvent(BIND_QUIT)) &
+          call glfwSetWindowShouldClose(window, GLFW_TRUE)
 
        ! show demo window
        if (show_demo_window) &

@@ -4,96 +4,121 @@ module gui_keybindings
 
   private
 
-  ! public :: IsBindEvent
+  public :: SetDefaultKeyBindings
+  public :: IsBindEvent
 
   ! Processing level for bind events. Right now 0 = all and 1 = none.
   ! Perhaps more will be added in the future.
   integer, parameter :: bindevent_level = 0
 
-  ! ! no key
-  ! integer(c_int), parameter :: NOKEY = 0
-  ! integer(c_int), parameter :: NOMOD = 0
+  ! List of binds
+  integer, parameter, public :: BIND_QUIT = 1 ! quit the program
+  integer, parameter, public :: BIND_NUM = 1 ! total number of binds
+  ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
+  ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
+  ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
+  ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
+  ! #define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
+  ! #define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
+  ! #define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
+  ! #define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
+  ! #define BIND_NAV_ROTATE        9  // Rotate the camera (navigation)
+  ! #define BIND_NAV_TRANSLATE     10 // Camera pan (navigation)
+  ! #define BIND_NAV_ZOOM          11 // Camera zoom (navigation)
+  ! #define BIND_NAV_RESET         12 // Reset the view (navigation)
 
-  ! ! Mouse interactions as special keys
-  ! integer(c_int), parameter :: GLFW_MOUSE_LEFT = GLFW_KEY_LAST+1
-  ! integer(c_int), parameter :: GLFW_MOUSE_LEFT_DOUBLE = GLFW_KEY_LAST+2
-  ! integer(c_int), parameter :: GLFW_MOUSE_RIGHT = GLFW_KEY_LAST+3
-  ! integer(c_int), parameter :: GLFW_MOUSE_RIGHT_DOUBLE = GLFW_KEY_LAST+4
-  ! integer(c_int), parameter :: GLFW_MOUSE_MIDDLE = GLFW_KEY_LAST+5
-  ! integer(c_int), parameter :: GLFW_MOUSE_MIDDLE_DOUBLE = GLFW_KEY_LAST+6
-  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON3 = GLFW_KEY_LAST+7
-  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON3_DOUBLE = GLFW_KEY_LAST+8
-  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON4 = GLFW_KEY_LAST+9
-  ! integer(c_int), parameter :: GLFW_MOUSE_BUTTON4_DOUBLE = GLFW_KEY_LAST+10
-  ! integer(c_int), parameter :: GLFW_MOUSE_SCROLL = GLFW_KEY_LAST+11
+  ! Bind names
+  character(len=10), parameter :: bindnames(BIND_NUM) = (/&
+     "Quit      "/)
+!   "Close last dialog",
+!   "Close all dialogs",
+!   "Align view with a axis",
+!   "Align view with b axis",
+!   "Align view with c axis",
+!   "Align view with x axis",
+!   "Align view with y axis",
+!   "Align view with z axis",
+!   "Camera rotate",
+!   "Camera pan",
+!   "Camera zoom",
+!   "Camera reset",
 
-  ! ! List of binds
-  ! integer, parameter :: BIND_QUIT = 1 ! quit the program
-  ! integer, parameter :: BIND_NUM = 1 ! total number of binds
-  ! ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
-  ! ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
-  ! ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
-  ! ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
-  ! ! #define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
-  ! ! #define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
-  ! ! #define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
-  ! ! #define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
-  ! ! #define BIND_NAV_ROTATE        9  // Rotate the camera (navigation)
-  ! ! #define BIND_NAV_TRANSLATE     10 // Camera pan (navigation)
-  ! ! #define BIND_NAV_ZOOM          11 // Camera zoom (navigation)
-  ! ! #define BIND_NAV_RESET         12 // Reset the view (navigation)
+  ! Bind groups. Group 1 is global.
+  integer, parameter :: bindgroup(BIND_NUM) = (/&
+     1/) ! quit
+!   1, // close last dialog
+!   1, // close all dialogs
+!   2, // align view with a axis
+!   2, // align view with b axis
+!   2, // align view with c axis
+!   2, // align view with x axis
+!   2, // align view with y axis
+!   2, // align view with z axis
+!   2, // rotate camera (navigation)
+!   2, // pan camera (navigation)
+!   2, // zoom camera (navigation)
+!   2, // reset camera (navigation)
+  integer, parameter :: nbindgroups = 1
 
-!   ! Bind names
-!   character(len=10), parameter :: bindnames(BIND_NUM) = (/&
-!      "Quit      "/)
-! !   "Close last dialog",
-! !   "Close all dialogs",
-! !   "Align view with a axis",
-! !   "Align view with b axis",
-! !   "Align view with c axis",
-! !   "Align view with x axis",
-! !   "Align view with y axis",
-! !   "Align view with z axis",
-! !   "Camera rotate",
-! !   "Camera pan",
-! !   "Camera zoom",
-! !   "Camera reset",
+  ! The key associated with each bind, bind -> key
+  integer(c_int) :: keybind(BIND_NUM)
 
-!   ! Bind groups. Group 1 is global.
-!   integer, parameter :: bindgroup(BIND_NUM) = (/&
-!      1/) ! quit
-! !   1, // close last dialog
-! !   1, // close all dialogs
-! !   2, // align view with a axis
-! !   2, // align view with b axis
-! !   2, // align view with c axis
-! !   2, // align view with x axis
-! !   2, // align view with y axis
-! !   2, // align view with z axis
-! !   2, // rotate camera (navigation)
-! !   2, // pan camera (navigation)
-! !   2, // zoom camera (navigation)
-! !   2, // reset camera (navigation)
-!   integer, parameter :: nbindgroups = 1
-
-  ! ! The key associated with each bind, bind -> key
-  ! integer :: keybind(BIND_NUM)
-
-  ! ! The modifiers associated with each bind, bind -> mod
-  ! integer :: modbind(BIND_NUM)
+  ! The modifiers associated with each bind, bind -> mod
+  integer(c_int) :: modbind(BIND_NUM)
 
 contains
 
+  subroutine SetBind(bind, key, mod)
+    use tools_io, only: ferror, faterr
+    integer, intent(in) :: bind
+    integer(c_int), intent(in) :: key, mod
+
+    integer :: group
+    integer(c_int) :: oldkey, oldmod
+
+    if (bind < 1 .or. bind > BIND_NUM) &
+       call ferror('SetBind','BIND number out of range',faterr)
+
+    group = bindgroup(bind)
+
+    ! erase the key+mod combination for this bind from the keymap
+    oldkey = keybind(bind)
+    oldmod = modbind(bind)
+    ! if (keymap.find(std::make_tuple(oldkey,oldmod,group)) != keymap.end())
+    !   keymap.erase(std::make_tuple(oldkey,oldmod,group));
+
+    ! unbind the previous owner of this key+mod combination in this group...
+    !   EraseBind_(key,mod,group);
+
+    !   if (group == 0){
+    !     // ...and in all other groups
+    !     for (int i = 1; i < nbindgroups ; i++)
+    !       EraseBind_(key,mod,i);
+    !   } else {
+    !     // ...and in the 0-group
+    !     EraseBind_(key,mod,0);
+    !   }
+
+    ! make the new bind
+    keybind(bind) = key
+    modbind(bind) = mod
+    ! keymap[std::make_tuple(key,mod,group)] = bind;
+
+  end subroutine SetBind
+
   subroutine SetDefaultKeyBindings()
     use gui_interfaces_cimgui
-!   // Initialize to no keys and null callbacks
-!   for (int i = 0; i < BIND_NUM; i++){
-!     modbind[i] = NOMOD;
-!     keybind[i] = NOKEY;
-!   }
-!
-!   // Default keybindings
-!   SetBind(BIND_QUIT,GLFW_KEY_Q,GLFW_MOD_CONTROL);
+
+    integer :: i
+
+    ! initialize to no keys and modifiers
+    do i = 1, BIND_NUM
+       keybind(i) = ImGuiKey_None
+       modbind(i) = ImGuiKey_None
+    end do
+
+    ! Default keybindings
+    call SetBind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
 !   SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
 !   SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
 !
@@ -111,7 +136,6 @@ contains
 !   SetBind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
   end subroutine SetDefaultKeyBindings
 
-
 !   function IsModPressed(mod)
 !     use gui_main, only: io
 !     integer, intent(in) :: mod
@@ -125,73 +149,87 @@ contains
 ! ! }
 !   end function IsModPressed
 
-!   ! Return whether the bind event is happening. If held, the event
-!   ! happens only if the key/button is held down.
-!   function IsBindEvent(bind,held)
-!     use gui_main, only: io
-!     integer, intent(in) :: bind
-!     logical, intent(in) :: held
-!     logical :: IsBindEvent
+  ! Return whether the bind event is happening. If held (optional),
+  ! the event happens only if the button is held down (for mouse).
+  function IsBindEvent(bind,held)
+    use gui_interfaces_cimgui
+    use gui_main, only: io
+    integer, intent(in) :: bind
+    logical, intent(in), optional :: held
+    logical :: IsBindEvent
 
-!     integer :: key, mod
+    integer :: key, mod
+    logical :: held_
 
-!     IsBindEvent = .false.
-!     if (bindevent_level > 0) return
-!     if (bind < 1 .or. bind > BIND_NUM) return
+    ! process options
+    held_ = .false.
+    if (present(held)) held_ = held
 
-!     key = keybind(bind)
-!     mod = modbind(bind)
+    ! some checks
+    IsBindEvent = .false.
+    if (bindevent_level > 0) return
+    if (bind < 1 .or. bind > BIND_NUM) return
 
-! !   if (key == NOKEY || !IsModPressed(mod))
-! !     return false;
-! !   else if (key <= GLFW_KEY_LAST && !io.WantCaptureKeyboard && !io.WantTextInput)
-! !     if (!held)
-! !       return IsKeyPressed(key,false);
-! !     else
-! !       return IsKeyDown(key);
-! !   else{
-! !     if (key == GLFW_MOUSE_LEFT)
-! !       if (!held)
-! !       return IsMouseClicked(0);
-! !       else
-! !       return IsMouseDown(0);
-! !     else if (key == GLFW_MOUSE_RIGHT)
-! !       if (!held)
-! !       return IsMouseClicked(1);
-! !       else
-! !       return IsMouseDown(1);
-! !     else if (key == GLFW_MOUSE_MIDDLE)
-! !       if (!held)
-! !       return IsMouseClicked(2);
-! !       else
-! !       return IsMouseDown(2);
-! !     else if (key == GLFW_MOUSE_BUTTON3)
-! !       if (!held)
-! !       return IsMouseClicked(3);
-! !       else
-! !       return IsMouseDown(3);
-! !     else if (key == GLFW_MOUSE_BUTTON4)
-! !       if (!held)
-! !       return IsMouseClicked(4);
-! !       else
-! !       return IsMouseDown(4);
-! !     else if (key == GLFW_MOUSE_LEFT_DOUBLE && !held)
-! !       return IsMouseDoubleClicked(0);
-! !     else if (key == GLFW_MOUSE_RIGHT_DOUBLE && !held)
-! !       return IsMouseDoubleClicked(1);
-! !     else if (key == GLFW_MOUSE_MIDDLE_DOUBLE && !held)
-! !       return IsMouseDoubleClicked(2);
-! !     else if (key == GLFW_MOUSE_BUTTON3_DOUBLE && !held)
-! !       return IsMouseDoubleClicked(3);
-! !     else if (key == GLFW_MOUSE_BUTTON4_DOUBLE && !held)
-! !       return IsMouseDoubleClicked(4);
-! !     else if (key == GLFW_MOUSE_SCROLL)
-! !       return abs(GetCurrentContext()->IO.MouseWheel) > 1e-8;
-! !     return false;
-! !   }
-! ! }
+    ! get current key and mod for this bind
+    key = keybind(bind)
+    mod = modbind(bind)
 
-!   end function IsBindEvent
+    if (key == ImGuiKey_None .or..not.igIsKeyDown(mod)) then
+       ! no key or the mod is not down
+       return
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.&
+       .not.io%WantCaptureKeyboard .and..not.io%WantTextInput) then
+       ! correct key ID and not keyboard captured or inputing text
+       if (held_) then
+          IsBindEvent = igIsKeyPressed(key,.true._c_bool)
+       else
+          IsBindEvent = igIsKeyDown(key)
+       end if
+    else
+       ! mouse interaction
+    !   else{
+    !     if (key == GLFW_MOUSE_LEFT)
+    !       if (!held)
+    !       return IsMouseClicked(0);
+    !       else
+    !       return IsMouseDown(0);
+    !     else if (key == GLFW_MOUSE_RIGHT)
+    !       if (!held)
+    !       return IsMouseClicked(1);
+    !       else
+    !       return IsMouseDown(1);
+    !     else if (key == GLFW_MOUSE_MIDDLE)
+    !       if (!held)
+    !       return IsMouseClicked(2);
+    !       else
+    !       return IsMouseDown(2);
+    !     else if (key == GLFW_MOUSE_BUTTON3)
+    !       if (!held)
+    !       return IsMouseClicked(3);
+    !       else
+    !       return IsMouseDown(3);
+    !     else if (key == GLFW_MOUSE_BUTTON4)
+    !       if (!held)
+    !       return IsMouseClicked(4);
+    !       else
+    !       return IsMouseDown(4);
+    !     else if (key == GLFW_MOUSE_LEFT_DOUBLE && !held)
+    !       return IsMouseDoubleClicked(0);
+    !     else if (key == GLFW_MOUSE_RIGHT_DOUBLE && !held)
+    !       return IsMouseDoubleClicked(1);
+    !     else if (key == GLFW_MOUSE_MIDDLE_DOUBLE && !held)
+    !       return IsMouseDoubleClicked(2);
+    !     else if (key == GLFW_MOUSE_BUTTON3_DOUBLE && !held)
+    !       return IsMouseDoubleClicked(3);
+    !     else if (key == GLFW_MOUSE_BUTTON4_DOUBLE && !held)
+    !       return IsMouseDoubleClicked(4);
+    !     else if (key == GLFW_MOUSE_SCROLL)
+    !       return abs(GetCurrentContext()->IO.MouseWheel) > 1e-8;
+    !     return false;
+    !   }
+    end if
+
+  end function IsBindEvent
 
 end module gui_keybindings
 
@@ -338,34 +376,7 @@ end module gui_keybindings
 !     keymap.erase(std::make_tuple(key,mod,group));
 !   }
 ! }
-!
-! void SetBind(int bind, int key, int mod){
-!   int group = BindGroups[bind];
-!
-!   // erase the key+mod combination for this bind from the keymap
-!   int oldkey = keybind[bind];
-!   int oldmod = modbind[bind];
-!   if (keymap.find(std::make_tuple(oldkey,oldmod,group)) != keymap.end())
-!     keymap.erase(std::make_tuple(oldkey,oldmod,group));
-!
-!   // unbind the previous owner of this key+mod combination in this group...
-!   EraseBind_(key,mod,group);
-!
-!   if (group == 0){
-!     // ...and in all other groups
-!     for (int i = 1; i < nbindgroups ; i++)
-!       EraseBind_(key,mod,i);
-!   } else {
-!     // ...and in the 0-group
-!     EraseBind_(key,mod,0);
-!   }
-!
-!   // make the new bind
-!   keybind[bind] = key;
-!   modbind[bind] = mod;
-!   keymap[std::make_tuple(key,mod,group)] = bind;
-! }
-!
+
 ! void SetBindEventLevel(int level/*=0*/){
 !   bindevent_level = level;
 ! }

@@ -211,6 +211,8 @@ const int const_ImGuiNavInput_KeyDown_ = ImGuiNavInput_KeyDown_;
 const int const_ImGuiNavInput_COUNT = ImGuiNavInput_COUNT;
 
 // GLFW
+const int const_GLFW_TRUE = GLFW_TRUE;
+const int const_GLFW_FALSE = GLFW_FALSE;
 const int const_GLFW_SAMPLES = GLFW_SAMPLES;
 const int const_GLFW_CONTEXT_VERSION_MAJOR = GLFW_CONTEXT_VERSION_MAJOR;
 const int const_GLFW_CONTEXT_VERSION_MINOR = GLFW_CONTEXT_VERSION_MINOR;

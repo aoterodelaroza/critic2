@@ -1,6 +1,8 @@
   ! -*-F90-*-
 
   !xx! GLFW constants
+  integer(c_int), bind(C,name="const_GLFW_TRUE") :: GLFW_TRUE
+  integer(c_int), bind(C,name="const_GLFW_FALSE") :: GLFW_FALSE
   integer(c_int), bind(C,name="const_GLFW_SAMPLES") :: GLFW_SAMPLES
   integer(c_int), bind(C,name="const_GLFW_CONTEXT_VERSION_MAJOR") :: GLFW_CONTEXT_VERSION_MAJOR
   integer(c_int), bind(C,name="const_GLFW_CONTEXT_VERSION_MINOR") :: GLFW_CONTEXT_VERSION_MINOR
