@@ -30,7 +30,9 @@ submodule (gui_main) proc
 contains
 
   module subroutine gui_start()
-    use gui_interfaces
+    use gui_interfaces_cimgui
+    use gui_interfaces_glfw
+    use gui_interfaces_opengl3
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, display_w, display_h

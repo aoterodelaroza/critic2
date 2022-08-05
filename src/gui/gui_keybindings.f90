@@ -84,6 +84,34 @@ module gui_keybindings
 
 contains
 
+  subroutine SetDefaultKeyBindings()
+    use gui_interfaces_cimgui
+!   // Initialize to no keys and null callbacks
+!   for (int i = 0; i < BIND_NUM; i++){
+!     modbind[i] = NOMOD;
+!     keybind[i] = NOKEY;
+!   }
+!
+!   // Default keybindings
+!   SetBind(BIND_QUIT,GLFW_KEY_Q,GLFW_MOD_CONTROL);
+!   SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
+!   SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
+!
+!   SetBind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
+!   SetBind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
+!   SetBind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
+!   SetBind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
+!   SetBind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
+!   SetBind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
+!
+!   // Default mouse bindings
+!   SetBind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
+!   SetBind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
+!   SetBind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
+!   SetBind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
+  end subroutine SetDefaultKeyBindings
+
+
 !   function IsModPressed(mod)
 !     use gui_main, only: io
 !     integer, intent(in) :: mod
@@ -202,34 +230,8 @@ end module gui_keybindings
 !
 ! std::map<std::tuple<int,int,int>,int> keymap = {}; // [key,mod] -> bind
 !
-!
-! void SetDefaultKeyBindings(){
-!   // Initialize to no keys and null callbacks
-!   for (int i = 0; i < BIND_NUM; i++){
-!     modbind[i] = NOMOD;
-!     keybind[i] = NOKEY;
-!   }
-!
-!   // Default keybindings
-!   SetBind(BIND_QUIT,GLFW_KEY_Q,GLFW_MOD_CONTROL);
-!   SetBind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
-!   SetBind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
-!
-!   SetBind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
-!   SetBind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
-!   SetBind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
-!   SetBind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
-!   SetBind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
-!   SetBind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
-!
-!   // Default mouse bindings
-!   SetBind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
-!   SetBind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
-!   SetBind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
-!   SetBind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
-! }
 
-!
+
 ! std::string BindKeyName(int bind){
 !   std::string ckey = "";
 !   if (keybind[bind] > 0){

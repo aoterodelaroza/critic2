@@ -20,7 +20,7 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
-  use gui_interfaces, only: ImGuiIO
+  use gui_interfaces_cimgui, only: ImGuiIO
   implicit none
 
   private
