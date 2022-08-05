@@ -17,7 +17,6 @@
 
 submodule (gui_main) proc
   use iso_c_binding
-  use gui_interfaces, only: ImGuiIO
   implicit none
 
   ! opengl & shader version
@@ -27,12 +26,6 @@ submodule (gui_main) proc
 
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
-
-  ! time variable
-  real*8 :: time
-
-  ! pointer to ImGui's IO object
-  type(ImGuiIO), pointer :: io
 
 contains
 

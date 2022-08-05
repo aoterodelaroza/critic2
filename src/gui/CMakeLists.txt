@@ -4,7 +4,7 @@ set(SOURCES
   imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/imgui_freetype.cpp
   imgui/gl3w.c
   gui_main.f90 gui_main@proc.f90
-  gui_interfaces.f90
+  gui_interfaces.f90 gui_keybindings.f90
   )
 add_library(fgui OBJECT ${SOURCES})
 

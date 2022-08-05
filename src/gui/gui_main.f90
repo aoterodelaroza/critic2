@@ -20,10 +20,18 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
+  use gui_interfaces, only: ImGuiIO
   implicit none
 
   private
 
+  ! time variable
+  real*8, public :: time
+
+  ! pointer to ImGui's IO object
+  type(ImGuiIO), pointer, public :: io
+
+  ! public procedures
   public :: gui_start
 
   interface
