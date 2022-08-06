@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! This module contains code for the calculation of the dispersion
+! energy (and derivatives) using the exchange-hole dipole moment
+! (XDM) model.
 submodule (xdm) proc
   implicit none
 

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Field class
+!> Scalar field class
 module fieldmod
   use fieldseedmod, only: fieldseed
   use crystalmod, only: crystal

@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! meshmod: becke-style meshes for molecular integrals.
 submodule (meshmod) proc
   implicit none
 

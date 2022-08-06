@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Calculate the STM map of the surface slab in the input using the
+! Tersoff-Hamann approximation and either a constant height or a constant
+! current. The reference field is assumed to be the DOS at the Fermi level
+! (although the density will also give reasonable results).
 submodule (stm) proc
   implicit none
 

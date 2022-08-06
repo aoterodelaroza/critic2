@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to WIEN2k densities.
+!> Interface to WIEN2k densities and structures
 module wien_private
   implicit none
 

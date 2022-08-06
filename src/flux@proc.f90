@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> 3d plotting of gradient paths.
 submodule (flux) proc
   use graphics, only: grhandle
   use types, only: gpathp

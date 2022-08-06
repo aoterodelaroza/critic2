@@ -18,7 +18,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Driver routines for structure operations
+! Driver routines for structural calculations
 module struct_drivers
   use systemmod, only: system
   use crystalmod, only: crystal

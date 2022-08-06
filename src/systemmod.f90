@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! sysmod: system class and associated routines
+! system class and associated routines
 module systemmod
   use hashmod, only: hash
   use types, only: integrable, pointpropable

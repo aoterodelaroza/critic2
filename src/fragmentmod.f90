@@ -18,7 +18,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Fragment class.
+! Molecular fragment class.
 module fragmentmod
   use types, only: anyatom, species
   implicit none

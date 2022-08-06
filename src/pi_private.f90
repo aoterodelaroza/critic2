@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to aiPI (pi7) densities.
+!> Interface to aiPI (pi7) densities and structures.
 module pi_private
   use environmod, only: environ
   use grid1mod, only: grid1

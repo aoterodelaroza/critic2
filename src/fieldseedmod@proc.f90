@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Scalar field seed class.
 submodule (fieldseedmod) proc
   implicit none
 

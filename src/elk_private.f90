@@ -22,7 +22,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to ELK densities.
+!> Interface to ELK densities and structures.
 module elk_private
   use environmod, only: environ
   implicit none

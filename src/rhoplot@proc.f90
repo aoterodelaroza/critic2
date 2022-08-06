@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Basic plotting capabilities: contour diagrams, 1d, 2d and 3d representations.
 submodule (rhoplot) proc
   implicit none
 

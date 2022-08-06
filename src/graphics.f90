@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Output in several common graphics formats
+! Output routines for several common graphics formats
 module graphics
   use param, only: mlen
   implicit none

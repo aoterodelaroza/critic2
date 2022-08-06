@@ -15,8 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Hash table implementation (type hash)
-!> Waiting for unlimited polymorphism (class(*)) to be implemented to generalize this.
+!> Hash table implementation (type hash) Waiting for unlimited
+!> polymorphism (class(*)) to be generally available to generalize
+!> this.
 module hashmod
   implicit none
 

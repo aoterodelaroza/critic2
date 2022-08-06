@@ -18,7 +18,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Field seed class.
+! Scalar field seed class.
 module fieldseedmod
   use wfn_private, only: molden_type_unknown
   use param, only: ifformat_unknown, mlen, mmlen

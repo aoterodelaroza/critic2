@@ -15,6 +15,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Evaluation of arithmetic expressions. This entire module is
+! THREAD-SAFE (or should be, at least).
 submodule (arithmetic) proc
 #ifdef HAVE_LIBXC
   use xc_f90_types_m, only: xc_f90_pointer_t

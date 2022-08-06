@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Surface and mini-surface user-defined types and tools to work with them.
 submodule (surface) proc
   implicit none
 

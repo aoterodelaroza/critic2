@@ -16,12 +16,6 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! meshmod: becke-style meshes for molecular integrals.
-! The meshmod module has been adapted from postg:
-! Copyright (c) 2013 Alberto Otero de la Roza
-! <aoterodelaroza@ucmerced.edu>, Felix Kannemann
-! <felix.kannemann@dal.ca>, Erin R. Johnson <ejohnson29@ucmerced.edu>,
-! Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider
-! <hs7@post.queensu.ca>, and Axel D. Becke <axel.becke@dal.ca>
 module meshmod
   use fieldmod, only: field
   use crystalmod, only: crystal

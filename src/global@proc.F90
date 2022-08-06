@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Global variables, parameters and basic initialization subroutines.
+! Contains global variables and parameters, and initialization
+! procedures run at the beginning of the execution.
 submodule (global) proc
   implicit none
 

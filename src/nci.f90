@@ -15,6 +15,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
+
+! non-covalent interaction index plots
 module nci
   use fragmentmod, only: fragment
   implicit none

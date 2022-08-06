@@ -15,6 +15,8 @@
 ! in the root directory of the present distribution,
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
+
+! Quantum ESPRESSO densities and structures.
 submodule (qe_private) proc
   implicit none
 

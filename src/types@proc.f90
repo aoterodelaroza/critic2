@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> User-defined types and overloaded reallocation procedures.
 submodule (types) proc
   implicit none
 

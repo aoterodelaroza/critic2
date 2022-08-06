@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Integration and plotting of basins by bisection.
 submodule (bisect) proc
   use global, only: INT_lebedev
   implicit none

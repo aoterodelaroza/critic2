@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Interface to DFTB+ wavefunctions.
+! DFTB+ wavefunctions and readers
 module dftb_private
   use grid1mod, only: grid1
   use environmod, only: environ

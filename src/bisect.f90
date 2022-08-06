@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Integration and plotting of basins through bisection.
+!> Integration and plotting of basins by bisection.
 module bisect
   use surface, only: minisurf
   use systemmod, only: sy

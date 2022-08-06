@@ -15,10 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> merge-sort routines contributed by:
-!> Jose Luis Casals Sainz <joseluiscasalssainz@gmail.com>
-
-!Toolbox with misc. tools.
+! Toolbox with miscellaneous tools.
 module tools
   implicit none
 

@@ -40,6 +40,7 @@
 ! NETLIB web site. The version displayed here has been converted to
 ! FORTRAN90, and other internal changes have been made to suit me.
 
+! Math functions and subroutines, sobol sequences
 submodule (tools_math) sobol
   implicit none
 

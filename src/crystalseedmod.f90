@@ -18,7 +18,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Crystal seed class. External file readers.
+! Crystal seed class, contains the structure file readers.
 module crystalseedmod
   use fragmentmod, only: fragment
   use types, only: species

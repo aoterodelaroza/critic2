@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! This module contains code for the Yu and Trinkle Bader integration-on-a-grid.
+! See:
+!    Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.
+! for details on the algorithm.
 submodule (yt) proc
   implicit none
 

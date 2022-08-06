@@ -10,6 +10,7 @@
 ! Attribution of specific routines at the top of the corresponding
 ! procedures.
 
+! Quantum ESPRESSO densities and structures.
 module qe_private
   implicit none
 

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Code for the FLUXPRINT environment: 3d plotting.
+!> 3d plotting of gradient paths.
 module flux
   implicit none
 
