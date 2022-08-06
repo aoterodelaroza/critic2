@@ -16,223 +16,212 @@
   integer(c_int), parameter :: ImGuiNavInput_COUNT = 20
   !! end of sizes !!
 
-  ! typedef enum {
-  !     ImGuiWindowFlags_None = 0,
-  !     ImGuiWindowFlags_NoTitleBar = 1 << 0,
-  !     ImGuiWindowFlags_NoResize = 1 << 1,
-  !     ImGuiWindowFlags_NoMove = 1 << 2,
-  !     ImGuiWindowFlags_NoScrollbar = 1 << 3,
-  !     ImGuiWindowFlags_NoScrollWithMouse = 1 << 4,
-  !     ImGuiWindowFlags_NoCollapse = 1 << 5,
-  !     ImGuiWindowFlags_AlwaysAutoResize = 1 << 6,
-  !     ImGuiWindowFlags_NoBackground = 1 << 7,
-  !     ImGuiWindowFlags_NoSavedSettings = 1 << 8,
-  !     ImGuiWindowFlags_NoMouseInputs = 1 << 9,
-  !     ImGuiWindowFlags_MenuBar = 1 << 10,
-  !     ImGuiWindowFlags_HorizontalScrollbar = 1 << 11,
-  !     ImGuiWindowFlags_NoFocusOnAppearing = 1 << 12,
-  !     ImGuiWindowFlags_NoBringToFrontOnFocus = 1 << 13,
-  !     ImGuiWindowFlags_AlwaysVerticalScrollbar= 1 << 14,
-  !     ImGuiWindowFlags_AlwaysHorizontalScrollbar=1<< 15,
-  !     ImGuiWindowFlags_AlwaysUseWindowPadding = 1 << 16,
-  !     ImGuiWindowFlags_NoNavInputs = 1 << 18,
-  !     ImGuiWindowFlags_NoNavFocus = 1 << 19,
-  !     ImGuiWindowFlags_UnsavedDocument = 1 << 20,
-  !     ImGuiWindowFlags_NoDocking = 1 << 21,
-  !     ImGuiWindowFlags_NoNav = ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus,
-  !     ImGuiWindowFlags_NoDecoration = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse,
-  !     ImGuiWindowFlags_NoInputs = ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus,
-  !     ImGuiWindowFlags_NavFlattened = 1 << 23,
-  !     ImGuiWindowFlags_ChildWindow = 1 << 24,
-  !     ImGuiWindowFlags_Tooltip = 1 << 25,
-  !     ImGuiWindowFlags_Popup = 1 << 26,
-  !     ImGuiWindowFlags_Modal = 1 << 27,
-  !     ImGuiWindowFlags_ChildMenu = 1 << 28,
-  !     ImGuiWindowFlags_DockNodeHost = 1 << 29
-  ! }ImGuiWindowFlags_;
-  ! typedef enum {
-  !     ImGuiInputTextFlags_None = 0,
-  !     ImGuiInputTextFlags_CharsDecimal = 1 << 0,
-  !     ImGuiInputTextFlags_CharsHexadecimal = 1 << 1,
-  !     ImGuiInputTextFlags_CharsUppercase = 1 << 2,
-  !     ImGuiInputTextFlags_CharsNoBlank = 1 << 3,
-  !     ImGuiInputTextFlags_AutoSelectAll = 1 << 4,
-  !     ImGuiInputTextFlags_EnterReturnsTrue = 1 << 5,
-  !     ImGuiInputTextFlags_CallbackCompletion = 1 << 6,
-  !     ImGuiInputTextFlags_CallbackHistory = 1 << 7,
-  !     ImGuiInputTextFlags_CallbackAlways = 1 << 8,
-  !     ImGuiInputTextFlags_CallbackCharFilter = 1 << 9,
-  !     ImGuiInputTextFlags_AllowTabInput = 1 << 10,
-  !     ImGuiInputTextFlags_CtrlEnterForNewLine = 1 << 11,
-  !     ImGuiInputTextFlags_NoHorizontalScroll = 1 << 12,
-  !     ImGuiInputTextFlags_AlwaysOverwrite = 1 << 13,
-  !     ImGuiInputTextFlags_ReadOnly = 1 << 14,
-  !     ImGuiInputTextFlags_Password = 1 << 15,
-  !     ImGuiInputTextFlags_NoUndoRedo = 1 << 16,
-  !     ImGuiInputTextFlags_CharsScientific = 1 << 17,
-  !     ImGuiInputTextFlags_CallbackResize = 1 << 18,
-  !     ImGuiInputTextFlags_CallbackEdit = 1 << 19
-  ! }ImGuiInputTextFlags_;
-  ! typedef enum {
-  !     ImGuiTreeNodeFlags_None = 0,
-  !     ImGuiTreeNodeFlags_Selected = 1 << 0,
-  !     ImGuiTreeNodeFlags_Framed = 1 << 1,
-  !     ImGuiTreeNodeFlags_AllowItemOverlap = 1 << 2,
-  !     ImGuiTreeNodeFlags_NoTreePushOnOpen = 1 << 3,
-  !     ImGuiTreeNodeFlags_NoAutoOpenOnLog = 1 << 4,
-  !     ImGuiTreeNodeFlags_DefaultOpen = 1 << 5,
-  !     ImGuiTreeNodeFlags_OpenOnDoubleClick = 1 << 6,
-  !     ImGuiTreeNodeFlags_OpenOnArrow = 1 << 7,
-  !     ImGuiTreeNodeFlags_Leaf = 1 << 8,
-  !     ImGuiTreeNodeFlags_Bullet = 1 << 9,
-  !     ImGuiTreeNodeFlags_FramePadding = 1 << 10,
-  !     ImGuiTreeNodeFlags_SpanAvailWidth = 1 << 11,
-  !     ImGuiTreeNodeFlags_SpanFullWidth = 1 << 12,
-  !     ImGuiTreeNodeFlags_NavLeftJumpsBackHere = 1 << 13,
-  !     ImGuiTreeNodeFlags_CollapsingHeader = ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_NoAutoOpenOnLog
-  ! }ImGuiTreeNodeFlags_;
-  ! typedef enum {
-  !     ImGuiPopupFlags_None = 0,
-  !     ImGuiPopupFlags_MouseButtonLeft = 0,
-  !     ImGuiPopupFlags_MouseButtonRight = 1,
-  !     ImGuiPopupFlags_MouseButtonMiddle = 2,
-  !     ImGuiPopupFlags_MouseButtonMask_ = 0x1F,
-  !     ImGuiPopupFlags_MouseButtonDefault_ = 1,
-  !     ImGuiPopupFlags_NoOpenOverExistingPopup = 1 << 5,
-  !     ImGuiPopupFlags_NoOpenOverItems = 1 << 6,
-  !     ImGuiPopupFlags_AnyPopupId = 1 << 7,
-  !     ImGuiPopupFlags_AnyPopupLevel = 1 << 8,
-  !     ImGuiPopupFlags_AnyPopup = ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel
-  ! }ImGuiPopupFlags_;
-  ! typedef enum {
-  !     ImGuiSelectableFlags_None = 0,
-  !     ImGuiSelectableFlags_DontClosePopups = 1 << 0,
-  !     ImGuiSelectableFlags_SpanAllColumns = 1 << 1,
-  !     ImGuiSelectableFlags_AllowDoubleClick = 1 << 2,
-  !     ImGuiSelectableFlags_Disabled = 1 << 3,
-  !     ImGuiSelectableFlags_AllowItemOverlap = 1 << 4
-  ! }ImGuiSelectableFlags_;
-  ! typedef enum {
-  !     ImGuiComboFlags_None = 0,
-  !     ImGuiComboFlags_PopupAlignLeft = 1 << 0,
-  !     ImGuiComboFlags_HeightSmall = 1 << 1,
-  !     ImGuiComboFlags_HeightRegular = 1 << 2,
-  !     ImGuiComboFlags_HeightLarge = 1 << 3,
-  !     ImGuiComboFlags_HeightLargest = 1 << 4,
-  !     ImGuiComboFlags_NoArrowButton = 1 << 5,
-  !     ImGuiComboFlags_NoPreview = 1 << 6,
-  !     ImGuiComboFlags_HeightMask_ = ImGuiComboFlags_HeightSmall | ImGuiComboFlags_HeightRegular | ImGuiComboFlags_HeightLarge | ImGuiComboFlags_HeightLargest
-  ! }ImGuiComboFlags_;
-  ! typedef enum {
-  !     ImGuiTabBarFlags_None = 0,
-  !     ImGuiTabBarFlags_Reorderable = 1 << 0,
-  !     ImGuiTabBarFlags_AutoSelectNewTabs = 1 << 1,
-  !     ImGuiTabBarFlags_TabListPopupButton = 1 << 2,
-  !     ImGuiTabBarFlags_NoCloseWithMiddleMouseButton = 1 << 3,
-  !     ImGuiTabBarFlags_NoTabListScrollingButtons = 1 << 4,
-  !     ImGuiTabBarFlags_NoTooltip = 1 << 5,
-  !     ImGuiTabBarFlags_FittingPolicyResizeDown = 1 << 6,
-  !     ImGuiTabBarFlags_FittingPolicyScroll = 1 << 7,
-  !     ImGuiTabBarFlags_FittingPolicyMask_ = ImGuiTabBarFlags_FittingPolicyResizeDown | ImGuiTabBarFlags_FittingPolicyScroll,
-  !     ImGuiTabBarFlags_FittingPolicyDefault_ = ImGuiTabBarFlags_FittingPolicyResizeDown
-  ! }ImGuiTabBarFlags_;
-  ! typedef enum {
-  !     ImGuiTabItemFlags_None = 0,
-  !     ImGuiTabItemFlags_UnsavedDocument = 1 << 0,
-  !     ImGuiTabItemFlags_SetSelected = 1 << 1,
-  !     ImGuiTabItemFlags_NoCloseWithMiddleMouseButton = 1 << 2,
-  !     ImGuiTabItemFlags_NoPushId = 1 << 3,
-  !     ImGuiTabItemFlags_NoTooltip = 1 << 4,
-  !     ImGuiTabItemFlags_NoReorder = 1 << 5,
-  !     ImGuiTabItemFlags_Leading = 1 << 6,
-  !     ImGuiTabItemFlags_Trailing = 1 << 7
-  ! }ImGuiTabItemFlags_;
-  ! typedef enum {
-  !     ImGuiTableFlags_None = 0,
-  !     ImGuiTableFlags_Resizable = 1 << 0,
-  !     ImGuiTableFlags_Reorderable = 1 << 1,
-  !     ImGuiTableFlags_Hideable = 1 << 2,
-  !     ImGuiTableFlags_Sortable = 1 << 3,
-  !     ImGuiTableFlags_NoSavedSettings = 1 << 4,
-  !     ImGuiTableFlags_ContextMenuInBody = 1 << 5,
-  !     ImGuiTableFlags_RowBg = 1 << 6,
-  !     ImGuiTableFlags_BordersInnerH = 1 << 7,
-  !     ImGuiTableFlags_BordersOuterH = 1 << 8,
-  !     ImGuiTableFlags_BordersInnerV = 1 << 9,
-  !     ImGuiTableFlags_BordersOuterV = 1 << 10,
-  !     ImGuiTableFlags_BordersH = ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH,
-  !     ImGuiTableFlags_BordersV = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterV,
-  !     ImGuiTableFlags_BordersInner = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersInnerH,
-  !     ImGuiTableFlags_BordersOuter = ImGuiTableFlags_BordersOuterV | ImGuiTableFlags_BordersOuterH,
-  !     ImGuiTableFlags_Borders = ImGuiTableFlags_BordersInner | ImGuiTableFlags_BordersOuter,
-  !     ImGuiTableFlags_NoBordersInBody = 1 << 11,
-  !     ImGuiTableFlags_NoBordersInBodyUntilResize = 1 << 12,
-  !     ImGuiTableFlags_SizingFixedFit = 1 << 13,
-  !     ImGuiTableFlags_SizingFixedSame = 2 << 13,
-  !     ImGuiTableFlags_SizingStretchProp = 3 << 13,
-  !     ImGuiTableFlags_SizingStretchSame = 4 << 13,
-  !     ImGuiTableFlags_NoHostExtendX = 1 << 16,
-  !     ImGuiTableFlags_NoHostExtendY = 1 << 17,
-  !     ImGuiTableFlags_NoKeepColumnsVisible = 1 << 18,
-  !     ImGuiTableFlags_PreciseWidths = 1 << 19,
-  !     ImGuiTableFlags_NoClip = 1 << 20,
-  !     ImGuiTableFlags_PadOuterX = 1 << 21,
-  !     ImGuiTableFlags_NoPadOuterX = 1 << 22,
-  !     ImGuiTableFlags_NoPadInnerX = 1 << 23,
-  !     ImGuiTableFlags_ScrollX = 1 << 24,
-  !     ImGuiTableFlags_ScrollY = 1 << 25,
-  !     ImGuiTableFlags_SortMulti = 1 << 26,
-  !     ImGuiTableFlags_SortTristate = 1 << 27,
-  !     ImGuiTableFlags_SizingMask_ = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_SizingFixedSame | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_SizingStretchSame
-  ! }ImGuiTableFlags_;
-  ! typedef enum {
-  !     ImGuiTableColumnFlags_None = 0,
-  !     ImGuiTableColumnFlags_Disabled = 1 << 0,
-  !     ImGuiTableColumnFlags_DefaultHide = 1 << 1,
-  !     ImGuiTableColumnFlags_DefaultSort = 1 << 2,
-  !     ImGuiTableColumnFlags_WidthStretch = 1 << 3,
-  !     ImGuiTableColumnFlags_WidthFixed = 1 << 4,
-  !     ImGuiTableColumnFlags_NoResize = 1 << 5,
-  !     ImGuiTableColumnFlags_NoReorder = 1 << 6,
-  !     ImGuiTableColumnFlags_NoHide = 1 << 7,
-  !     ImGuiTableColumnFlags_NoClip = 1 << 8,
-  !     ImGuiTableColumnFlags_NoSort = 1 << 9,
-  !     ImGuiTableColumnFlags_NoSortAscending = 1 << 10,
-  !     ImGuiTableColumnFlags_NoSortDescending = 1 << 11,
-  !     ImGuiTableColumnFlags_NoHeaderLabel = 1 << 12,
-  !     ImGuiTableColumnFlags_NoHeaderWidth = 1 << 13,
-  !     ImGuiTableColumnFlags_PreferSortAscending = 1 << 14,
-  !     ImGuiTableColumnFlags_PreferSortDescending = 1 << 15,
-  !     ImGuiTableColumnFlags_IndentEnable = 1 << 16,
-  !     ImGuiTableColumnFlags_IndentDisable = 1 << 17,
-  !     ImGuiTableColumnFlags_IsEnabled = 1 << 24,
-  !     ImGuiTableColumnFlags_IsVisible = 1 << 25,
-  !     ImGuiTableColumnFlags_IsSorted = 1 << 26,
-  !     ImGuiTableColumnFlags_IsHovered = 1 << 27,
-  !     ImGuiTableColumnFlags_WidthMask_ = ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_WidthFixed,
-  !     ImGuiTableColumnFlags_IndentMask_ = ImGuiTableColumnFlags_IndentEnable | ImGuiTableColumnFlags_IndentDisable,
-  !     ImGuiTableColumnFlags_StatusMask_ = ImGuiTableColumnFlags_IsEnabled | ImGuiTableColumnFlags_IsVisible | ImGuiTableColumnFlags_IsSorted | ImGuiTableColumnFlags_IsHovered,
-  !     ImGuiTableColumnFlags_NoDirectResize_ = 1 << 30
-  ! }ImGuiTableColumnFlags_;
-  ! typedef enum {
-  !     ImGuiTableRowFlags_None = 0,
-  !     ImGuiTableRowFlags_Headers = 1 << 0
-  ! }ImGuiTableRowFlags_;
-  ! typedef enum {
-  !     ImGuiTableBgTarget_None = 0,
-  !     ImGuiTableBgTarget_RowBg0 = 1,
-  !     ImGuiTableBgTarget_RowBg1 = 2,
-  !     ImGuiTableBgTarget_CellBg = 3
-  ! }ImGuiTableBgTarget_;
-  ! typedef enum {
-  !     ImGuiFocusedFlags_None = 0,
-  !     ImGuiFocusedFlags_ChildWindows = 1 << 0,
-  !     ImGuiFocusedFlags_RootWindow = 1 << 1,
-  !     ImGuiFocusedFlags_AnyWindow = 1 << 2,
-  !     ImGuiFocusedFlags_NoPopupHierarchy = 1 << 3,
-  !     ImGuiFocusedFlags_DockHierarchy = 1 << 4,
-  !     ImGuiFocusedFlags_RootAndChildWindows = ImGuiFocusedFlags_RootWindow | ImGuiFocusedFlags_ChildWindows
-  ! }ImGuiFocusedFlags_;
+  ! enum ImGuiWindowFlags_
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_None") :: ImGuiWindowFlags_None
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoTitleBar") :: ImGuiWindowFlags_NoTitleBar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoResize") :: ImGuiWindowFlags_NoResize
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoMove") :: ImGuiWindowFlags_NoMove
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoScrollbar") :: ImGuiWindowFlags_NoScrollbar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoScrollWithMouse") :: ImGuiWindowFlags_NoScrollWithMouse
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoCollapse") :: ImGuiWindowFlags_NoCollapse
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_AlwaysAutoResize") :: ImGuiWindowFlags_AlwaysAutoResize
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoBackground") :: ImGuiWindowFlags_NoBackground
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoSavedSettings") :: ImGuiWindowFlags_NoSavedSettings
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoMouseInputs") :: ImGuiWindowFlags_NoMouseInputs
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_MenuBar") :: ImGuiWindowFlags_MenuBar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_HorizontalScrollbar") :: ImGuiWindowFlags_HorizontalScrollbar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoFocusOnAppearing") :: ImGuiWindowFlags_NoFocusOnAppearing
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoBringToFrontOnFocus") :: ImGuiWindowFlags_NoBringToFrontOnFocus
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_AlwaysVerticalScrollbar") :: ImGuiWindowFlags_AlwaysVerticalScrollbar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_AlwaysHorizontalScrollbar") :: ImGuiWindowFlags_AlwaysHorizontalScrollbar
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_AlwaysUseWindowPadding") :: ImGuiWindowFlags_AlwaysUseWindowPadding
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoNavInputs") :: ImGuiWindowFlags_NoNavInputs
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoNavFocus") :: ImGuiWindowFlags_NoNavFocus
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_UnsavedDocument") :: ImGuiWindowFlags_UnsavedDocument
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoDocking") :: ImGuiWindowFlags_NoDocking
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoNav") :: ImGuiWindowFlags_NoNav
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoDecoration") :: ImGuiWindowFlags_NoDecoration
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NoInputs") :: ImGuiWindowFlags_NoInputs
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_NavFlattened") :: ImGuiWindowFlags_NavFlattened
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_ChildWindow") :: ImGuiWindowFlags_ChildWindow
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_Tooltip") :: ImGuiWindowFlags_Tooltip
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_Popup") :: ImGuiWindowFlags_Popup
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_Modal") :: ImGuiWindowFlags_Modal
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_ChildMenu") :: ImGuiWindowFlags_ChildMenu
+  integer(c_int), bind(C,name="const_ImGuiWindowFlags_DockNodeHost") :: ImGuiWindowFlags_DockNodeHost
+  ! enum ImGuiInputTextFlags_
+  ! ImGuiInputTextFlags_None
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsDecimal") :: ImGuiInputTextFlags_CharsDecimal
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsHexadecimal") :: ImGuiInputTextFlags_CharsHexadecimal
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsUppercase") :: ImGuiInputTextFlags_CharsUppercase
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsNoBlank") :: ImGuiInputTextFlags_CharsNoBlank
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_AutoSelectAll") :: ImGuiInputTextFlags_AutoSelectAll
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_EnterReturnsTrue") :: ImGuiInputTextFlags_EnterReturnsTrue
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackCompletion") :: ImGuiInputTextFlags_CallbackCompletion
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackHistory") :: ImGuiInputTextFlags_CallbackHistory
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackAlways") :: ImGuiInputTextFlags_CallbackAlways
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackCharFilter") :: ImGuiInputTextFlags_CallbackCharFilter
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_AllowTabInput") :: ImGuiInputTextFlags_AllowTabInput
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CtrlEnterForNewLine") :: ImGuiInputTextFlags_CtrlEnterForNewLine
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_NoHorizontalScroll") :: ImGuiInputTextFlags_NoHorizontalScroll
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_AlwaysOverwrite") :: ImGuiInputTextFlags_AlwaysOverwrite
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_ReadOnly") :: ImGuiInputTextFlags_ReadOnly
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_Password") :: ImGuiInputTextFlags_Password
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_NoUndoRedo") :: ImGuiInputTextFlags_NoUndoRedo
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsScientific") :: ImGuiInputTextFlags_CharsScientific
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackResize") :: ImGuiInputTextFlags_CallbackResize
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CallbackEdit") :: ImGuiInputTextFlags_CallbackEdit
+  ! enum ImGuiTreeNodeFlags_;
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_None") :: ImGuiTreeNodeFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_Selected") :: ImGuiTreeNodeFlags_Selected
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_Framed") :: ImGuiTreeNodeFlags_Framed
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_AllowItemOverlap") :: ImGuiTreeNodeFlags_AllowItemOverlap
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_NoTreePushOnOpen") :: ImGuiTreeNodeFlags_NoTreePushOnOpen
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_NoAutoOpenOnLog") :: ImGuiTreeNodeFlags_NoAutoOpenOnLog
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_DefaultOpen") :: ImGuiTreeNodeFlags_DefaultOpen
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_OpenOnDoubleClick") :: ImGuiTreeNodeFlags_OpenOnDoubleClick
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_OpenOnArrow") :: ImGuiTreeNodeFlags_OpenOnArrow
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_Leaf") :: ImGuiTreeNodeFlags_Leaf
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_Bullet") :: ImGuiTreeNodeFlags_Bullet
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_FramePadding") :: ImGuiTreeNodeFlags_FramePadding
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_SpanAvailWidth") :: ImGuiTreeNodeFlags_SpanAvailWidth
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_SpanFullWidth") :: ImGuiTreeNodeFlags_SpanFullWidth
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_NavLeftJumpsBackHere") :: ImGuiTreeNodeFlags_NavLeftJumpsBackHere
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_CollapsingHeader") :: ImGuiTreeNodeFlags_CollapsingHeader
+  ! enum ImGuiPopupFlags_
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_None") :: ImGuiPopupFlags_None
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_MouseButtonLeft") :: ImGuiPopupFlags_MouseButtonLeft
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_MouseButtonRight") :: ImGuiPopupFlags_MouseButtonRight
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_MouseButtonMiddle") :: ImGuiPopupFlags_MouseButtonMiddle
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_MouseButtonMask_") :: ImGuiPopupFlags_MouseButtonMask_
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_MouseButtonDefault_") :: ImGuiPopupFlags_MouseButtonDefault_
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_NoOpenOverExistingPopup") :: ImGuiPopupFlags_NoOpenOverExistingPopup
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_NoOpenOverItems") :: ImGuiPopupFlags_NoOpenOverItems
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_AnyPopupId") :: ImGuiPopupFlags_AnyPopupId
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_AnyPopupLevel") :: ImGuiPopupFlags_AnyPopupLevel
+  integer(c_int), bind(C,name="const_ImGuiPopupFlags_AnyPopup") :: ImGuiPopupFlags_AnyPopup
+  ! enum ImGuiSelectableFlags_
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_None") :: ImGuiSelectableFlags_None
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_DontClosePopups") :: ImGuiSelectableFlags_DontClosePopups
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SpanAllColumns") :: ImGuiSelectableFlags_SpanAllColumns
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_AllowDoubleClick") :: ImGuiSelectableFlags_AllowDoubleClick
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_Disabled") :: ImGuiSelectableFlags_Disabled
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_AllowItemOverlap") :: ImGuiSelectableFlags_AllowItemOverlap
+  ! enum ImGuiComboFlags_
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_None") :: ImGuiComboFlags_None
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_PopupAlignLeft") :: ImGuiComboFlags_PopupAlignLeft
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_HeightSmall") :: ImGuiComboFlags_HeightSmall
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_HeightRegular") :: ImGuiComboFlags_HeightRegular
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_HeightLarge") :: ImGuiComboFlags_HeightLarge
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_HeightLargest") :: ImGuiComboFlags_HeightLargest
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_NoArrowButton") :: ImGuiComboFlags_NoArrowButton
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_NoPreview") :: ImGuiComboFlags_NoPreview
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_HeightMask_") :: ImGuiComboFlags_HeightMask_
+  ! enum ImGuiTabBarFlags_
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_None") :: ImGuiTabBarFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_Reorderable") :: ImGuiTabBarFlags_Reorderable
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_AutoSelectNewTabs") :: ImGuiTabBarFlags_AutoSelectNewTabs
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_TabListPopupButton") :: ImGuiTabBarFlags_TabListPopupButton
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_NoCloseWithMiddleMouseButton") :: &
+     ImGuiTabBarFlags_NoCloseWithMiddleMouseButton
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_NoTabListScrollingButtons") :: ImGuiTabBarFlags_NoTabListScrollingButtons
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_NoTooltip") :: ImGuiTabBarFlags_NoTooltip
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_FittingPolicyResizeDown") :: ImGuiTabBarFlags_FittingPolicyResizeDown
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_FittingPolicyScroll") :: ImGuiTabBarFlags_FittingPolicyScroll
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_FittingPolicyMask_") :: ImGuiTabBarFlags_FittingPolicyMask_
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_FittingPolicyDefault_") :: ImGuiTabBarFlags_FittingPolicyDefault_
+  ! enum ImGuiTabItemFlags_
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_None") :: ImGuiTabItemFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_UnsavedDocument") :: ImGuiTabItemFlags_UnsavedDocument
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_SetSelected") :: ImGuiTabItemFlags_SetSelected
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_NoCloseWithMiddleMouseButton") :: &
+     ImGuiTabItemFlags_NoCloseWithMiddleMouseButton
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_NoPushId") :: ImGuiTabItemFlags_NoPushId
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_NoTooltip") :: ImGuiTabItemFlags_NoTooltip
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_NoReorder") :: ImGuiTabItemFlags_NoReorder
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Leading") :: ImGuiTabItemFlags_Leading
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Trailing") :: ImGuiTabItemFlags_Trailing
+  ! enum ImGuiTableFlags_
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_None") :: ImGuiTableFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_Resizable") :: ImGuiTableFlags_Resizable
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_Reorderable") :: ImGuiTableFlags_Reorderable
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_Hideable") :: ImGuiTableFlags_Hideable
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_Sortable") :: ImGuiTableFlags_Sortable
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoSavedSettings") :: ImGuiTableFlags_NoSavedSettings
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_ContextMenuInBody") :: ImGuiTableFlags_ContextMenuInBody
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_RowBg") :: ImGuiTableFlags_RowBg
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersInnerH") :: ImGuiTableFlags_BordersInnerH
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersOuterH") :: ImGuiTableFlags_BordersOuterH
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersInnerV") :: ImGuiTableFlags_BordersInnerV
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersOuterV") :: ImGuiTableFlags_BordersOuterV
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersH") :: ImGuiTableFlags_BordersH
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersV") :: ImGuiTableFlags_BordersV
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersInner") :: ImGuiTableFlags_BordersInner
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_BordersOuter") :: ImGuiTableFlags_BordersOuter
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_Borders") :: ImGuiTableFlags_Borders
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoBordersInBody") :: ImGuiTableFlags_NoBordersInBody
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoBordersInBodyUntilResize") :: ImGuiTableFlags_NoBordersInBodyUntilResize
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SizingFixedFit") :: ImGuiTableFlags_SizingFixedFit
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SizingFixedSame") :: ImGuiTableFlags_SizingFixedSame
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SizingStretchProp") :: ImGuiTableFlags_SizingStretchProp
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SizingStretchSame") :: ImGuiTableFlags_SizingStretchSame
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoHostExtendX") :: ImGuiTableFlags_NoHostExtendX
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoHostExtendY") :: ImGuiTableFlags_NoHostExtendY
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoKeepColumnsVisible") :: ImGuiTableFlags_NoKeepColumnsVisible
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_PreciseWidths") :: ImGuiTableFlags_PreciseWidths
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoClip") :: ImGuiTableFlags_NoClip
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_PadOuterX") :: ImGuiTableFlags_PadOuterX
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoPadOuterX") :: ImGuiTableFlags_NoPadOuterX
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_NoPadInnerX") :: ImGuiTableFlags_NoPadInnerX
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_ScrollX") :: ImGuiTableFlags_ScrollX
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_ScrollY") :: ImGuiTableFlags_ScrollY
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SortMulti") :: ImGuiTableFlags_SortMulti
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SortTristate") :: ImGuiTableFlags_SortTristate
+  integer(c_int), bind(C,name="const_ImGuiTableFlags_SizingMask_") :: ImGuiTableFlags_SizingMask_
+  ! enum ImGuiTableColumnFlags_
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_None") :: ImGuiTableColumnFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_Disabled") :: ImGuiTableColumnFlags_Disabled
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_DefaultHide") :: ImGuiTableColumnFlags_DefaultHide
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_DefaultSort") :: ImGuiTableColumnFlags_DefaultSort
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_WidthStretch") :: ImGuiTableColumnFlags_WidthStretch
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_WidthFixed") :: ImGuiTableColumnFlags_WidthFixed
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoResize") :: ImGuiTableColumnFlags_NoResize
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoReorder") :: ImGuiTableColumnFlags_NoReorder
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoHide") :: ImGuiTableColumnFlags_NoHide
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoClip") :: ImGuiTableColumnFlags_NoClip
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoSort") :: ImGuiTableColumnFlags_NoSort
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoSortAscending") :: ImGuiTableColumnFlags_NoSortAscending
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoSortDescending") :: ImGuiTableColumnFlags_NoSortDescending
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoHeaderLabel") :: ImGuiTableColumnFlags_NoHeaderLabel
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoHeaderWidth") :: ImGuiTableColumnFlags_NoHeaderWidth
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_PreferSortAscending") :: ImGuiTableColumnFlags_PreferSortAscending
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_PreferSortDescending") :: ImGuiTableColumnFlags_PreferSortDescending
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IndentEnable") :: ImGuiTableColumnFlags_IndentEnable
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IndentDisable") :: ImGuiTableColumnFlags_IndentDisable
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IsEnabled") :: ImGuiTableColumnFlags_IsEnabled
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IsVisible") :: ImGuiTableColumnFlags_IsVisible
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IsSorted") :: ImGuiTableColumnFlags_IsSorted
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IsHovered") :: ImGuiTableColumnFlags_IsHovered
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_WidthMask_") :: ImGuiTableColumnFlags_WidthMask_
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_IndentMask_") :: ImGuiTableColumnFlags_IndentMask_
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_StatusMask_") :: ImGuiTableColumnFlags_StatusMask_
+  integer(c_int), bind(C,name="const_ImGuiTableColumnFlags_NoDirectResize_") :: ImGuiTableColumnFlags_NoDirectResize_
+  ! enum ImGuiTableRowFlags_
+  integer(c_int), bind(C,name="const_ImGuiTableRowFlags_None") :: ImGuiTableRowFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTableRowFlags_Headers") :: ImGuiTableRowFlags_Headers
+  ! enum ImGuiTableBgTarget_
+  integer(c_int), bind(C,name="const_ImGuiTableBgTarget_None") :: ImGuiTableBgTarget_None
+  integer(c_int), bind(C,name="const_ImGuiTableBgTarget_RowBg0") :: ImGuiTableBgTarget_RowBg0
+  integer(c_int), bind(C,name="const_ImGuiTableBgTarget_RowBg1") :: ImGuiTableBgTarget_RowBg1
+  integer(c_int), bind(C,name="const_ImGuiTableBgTarget_CellBg") :: ImGuiTableBgTarget_CellBg
+  ! enum ImGuiFocusedFlags_
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_None") :: ImGuiFocusedFlags_None
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_ChildWindows") :: ImGuiFocusedFlags_ChildWindows
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_RootWindow") :: ImGuiFocusedFlags_RootWindow
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_AnyWindow") :: ImGuiFocusedFlags_AnyWindow
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_NoPopupHierarchy") :: ImGuiFocusedFlags_NoPopupHierarchy
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_DockHierarchy") :: ImGuiFocusedFlags_DockHierarchy
+  integer(c_int), bind(C,name="const_ImGuiFocusedFlags_RootAndChildWindows") :: ImGuiFocusedFlags_RootAndChildWindows
   ! enum ImGuiHoveredFlags_
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_None") :: ImGuiHoveredFlags_None
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_ChildWindows") :: ImGuiHoveredFlags_ChildWindows
@@ -240,8 +229,7 @@
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_AnyWindow") :: ImGuiHoveredFlags_AnyWindow
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_NoPopupHierarchy") :: ImGuiHoveredFlags_NoPopupHierarchy
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_DockHierarchy") :: ImGuiHoveredFlags_DockHierarchy
-  integer(c_int), bind(C,name="const_ImGuiHoveredFlags_AllowWhenBlockedByPopup") :: &
-     ImGuiHoveredFlags_AllowWhenBlockedByPopup
+  integer(c_int), bind(C,name="const_ImGuiHoveredFlags_AllowWhenBlockedByPopup") :: ImGuiHoveredFlags_AllowWhenBlockedByPopup
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_AllowWhenBlockedByActiveItem") :: &
      ImGuiHoveredFlags_AllowWhenBlockedByActiveItem
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_AllowWhenOverlapped") :: ImGuiHoveredFlags_AllowWhenOverlapped
@@ -249,54 +237,49 @@
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_NoNavOverride") :: ImGuiHoveredFlags_NoNavOverride
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_RectOnly") :: ImGuiHoveredFlags_RectOnly
   integer(c_int), bind(C,name="const_ImGuiHoveredFlags_RootAndChildWindows") :: ImGuiHoveredFlags_RootAndChildWindows
-  ! typedef enum {
-  !     ImGuiDockNodeFlags_None = 0,
-  !     ImGuiDockNodeFlags_KeepAliveOnly = 1 << 0,
-  !     ImGuiDockNodeFlags_NoDockingInCentralNode = 1 << 2,
-  !     ImGuiDockNodeFlags_PassthruCentralNode = 1 << 3,
-  !     ImGuiDockNodeFlags_NoSplit = 1 << 4,
-  !     ImGuiDockNodeFlags_NoResize = 1 << 5,
-  !     ImGuiDockNodeFlags_AutoHideTabBar = 1 << 6
-  ! }ImGuiDockNodeFlags_;
-  ! typedef enum {
-  !     ImGuiDragDropFlags_None = 0,
-  !     ImGuiDragDropFlags_SourceNoPreviewTooltip = 1 << 0,
-  !     ImGuiDragDropFlags_SourceNoDisableHover = 1 << 1,
-  !     ImGuiDragDropFlags_SourceNoHoldToOpenOthers = 1 << 2,
-  !     ImGuiDragDropFlags_SourceAllowNullID = 1 << 3,
-  !     ImGuiDragDropFlags_SourceExtern = 1 << 4,
-  !     ImGuiDragDropFlags_SourceAutoExpirePayload = 1 << 5,
-  !     ImGuiDragDropFlags_AcceptBeforeDelivery = 1 << 10,
-  !     ImGuiDragDropFlags_AcceptNoDrawDefaultRect = 1 << 11,
-  !     ImGuiDragDropFlags_AcceptNoPreviewTooltip = 1 << 12,
-  !     ImGuiDragDropFlags_AcceptPeekOnly = ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect
-  ! }ImGuiDragDropFlags_;
-  ! typedef enum {
-  !     ImGuiDataType_S8,
-  !     ImGuiDataType_U8,
-  !     ImGuiDataType_S16,
-  !     ImGuiDataType_U16,
-  !     ImGuiDataType_S32,
-  !     ImGuiDataType_U32,
-  !     ImGuiDataType_S64,
-  !     ImGuiDataType_U64,
-  !     ImGuiDataType_Float,
-  !     ImGuiDataType_Double,
-  !     ImGuiDataType_COUNT
-  ! }ImGuiDataType_;
-  ! typedef enum {
-  !     ImGuiDir_None = -1,
-  !     ImGuiDir_Left = 0,
-  !     ImGuiDir_Right = 1,
-  !     ImGuiDir_Up = 2,
-  !     ImGuiDir_Down = 3,
-  !     ImGuiDir_COUNT
-  ! }ImGuiDir_;
-  ! typedef enum {
-  !     ImGuiSortDirection_None = 0,
-  !     ImGuiSortDirection_Ascending = 1,
-  !     ImGuiSortDirection_Descending = 2
-  ! }ImGuiSortDirection_;
+  ! enum ImGuiDockNodeFlags_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_None") :: ImGuiDockNodeFlags_None
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_KeepAliveOnly") :: ImGuiDockNodeFlags_KeepAliveOnly
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingInCentralNode") :: ImGuiDockNodeFlags_NoDockingInCentralNode
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_PassthruCentralNode") :: ImGuiDockNodeFlags_PassthruCentralNode
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoSplit") :: ImGuiDockNodeFlags_NoSplit
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoResize") :: ImGuiDockNodeFlags_NoResize
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_AutoHideTabBar") :: ImGuiDockNodeFlags_AutoHideTabBar
+  ! enum ImGuiDragDropFlags_
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_None") :: ImGuiDragDropFlags_None
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceNoPreviewTooltip") :: ImGuiDragDropFlags_SourceNoPreviewTooltip
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceNoDisableHover") :: ImGuiDragDropFlags_SourceNoDisableHover
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceNoHoldToOpenOthers") :: ImGuiDragDropFlags_SourceNoHoldToOpenOthers
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceAllowNullID") :: ImGuiDragDropFlags_SourceAllowNullID
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceExtern") :: ImGuiDragDropFlags_SourceExtern
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_SourceAutoExpirePayload") :: ImGuiDragDropFlags_SourceAutoExpirePayload
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_AcceptBeforeDelivery") :: ImGuiDragDropFlags_AcceptBeforeDelivery
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_AcceptNoDrawDefaultRect") :: ImGuiDragDropFlags_AcceptNoDrawDefaultRect
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_AcceptNoPreviewTooltip") :: ImGuiDragDropFlags_AcceptNoPreviewTooltip
+  integer(c_int), bind(C,name="const_ImGuiDragDropFlags_AcceptPeekOnly") :: ImGuiDragDropFlags_AcceptPeekOnly
+  ! enum ImGuiDataType_
+  integer(c_int), bind(C,name="const_ImGuiDataType_S8") :: ImGuiDataType_S8
+  integer(c_int), bind(C,name="const_ImGuiDataType_U8") :: ImGuiDataType_U8
+  integer(c_int), bind(C,name="const_ImGuiDataType_S16") :: ImGuiDataType_S16
+  integer(c_int), bind(C,name="const_ImGuiDataType_U16") :: ImGuiDataType_U16
+  integer(c_int), bind(C,name="const_ImGuiDataType_S32") :: ImGuiDataType_S32
+  integer(c_int), bind(C,name="const_ImGuiDataType_U32") :: ImGuiDataType_U32
+  integer(c_int), bind(C,name="const_ImGuiDataType_S64") :: ImGuiDataType_S64
+  integer(c_int), bind(C,name="const_ImGuiDataType_U64") :: ImGuiDataType_U64
+  integer(c_int), bind(C,name="const_ImGuiDataType_Float") :: ImGuiDataType_Float
+  integer(c_int), bind(C,name="const_ImGuiDataType_Double") :: ImGuiDataType_Double
+  integer(c_int), bind(C,name="const_ImGuiDataType_COUNT") :: ImGuiDataType_COUNT
+  ! enum ImGuiDir_
+  integer(c_int), bind(C,name="const_ImGuiDir_None") :: ImGuiDir_None
+  integer(c_int), bind(C,name="const_ImGuiDir_Left") :: ImGuiDir_Left
+  integer(c_int), bind(C,name="const_ImGuiDir_Right") :: ImGuiDir_Right
+  integer(c_int), bind(C,name="const_ImGuiDir_Up") :: ImGuiDir_Up
+  integer(c_int), bind(C,name="const_ImGuiDir_Down") :: ImGuiDir_Down
+  integer(c_int), bind(C,name="const_ImGuiDir_COUNT") :: ImGuiDir_COUNT
+  ! enum ImGuiSortDirection_
+  integer(c_int), bind(C,name="const_ImGuiSortDirection_None") :: ImGuiSortDirection_None
+  integer(c_int), bind(C,name="const_ImGuiSortDirection_Ascending") :: ImGuiSortDirection_Ascending
+  integer(c_int), bind(C,name="const_ImGuiSortDirection_Descending") :: ImGuiSortDirection_Descending
   ! enum ImGuiKey_
   integer(c_int), bind(C,name="const_ImGuiKey_None") :: ImGuiKey_None
   integer(c_int), bind(C,name="const_ImGuiKey_Tab") :: ImGuiKey_Tab
@@ -432,11 +415,11 @@
   integer(c_int), bind(C,name="const_ImGuiKey_ModShift") :: ImGuiKey_ModShift
   integer(c_int), bind(C,name="const_ImGuiKey_ModAlt") :: ImGuiKey_ModAlt
   integer(c_int), bind(C,name="const_ImGuiKey_ModSuper") :: ImGuiKey_ModSuper
-  ! integer(c_int), bind(C,name="const_ImGuiKey_COUNT") :: ImGuiKey_COUNT
+  !! integer(c_int), bind(C,name="const_ImGuiKey_COUNT") :: ImGuiKey_COUNT
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_BEGIN") :: ImGuiKey_NamedKey_BEGIN
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_END") :: ImGuiKey_NamedKey_END
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_COUNT") :: ImGuiKey_NamedKey_COUNT
-  ! integer(c_int), bind(C,name="const_ImGuiKey_KeysData_SIZE") :: ImGuiKey_KeysData_SIZE
+  !! integer(c_int), bind(C,name="const_ImGuiKey_KeysData_SIZE") :: ImGuiKey_KeysData_SIZE
   integer(c_int), bind(C,name="const_ImGuiKey_KeysData_OFFSET") :: ImGuiKey_KeysData_OFFSET
   ! enum ImGuiModFlags_
   integer(c_int), bind(C,name="const_ImGuiModFlags_None") :: ImGuiModFlags_None
@@ -465,7 +448,7 @@
   integer(c_int), bind(C,name="const_ImGuiNavInput_KeyRight_") :: ImGuiNavInput_KeyRight_
   integer(c_int), bind(C,name="const_ImGuiNavInput_KeyUp_") :: ImGuiNavInput_KeyUp_
   integer(c_int), bind(C,name="const_ImGuiNavInput_KeyDown_") :: ImGuiNavInput_KeyDown_
-  !integer(c_int), bind(C,name="const_ImGuiNavInput_COUNT") :: ImGuiNavInput_COUNT
+  !! integer(c_int), bind(C,name="const_ImGuiNavInput_COUNT") :: ImGuiNavInput_COUNT
   ! enum ImGuiConfigFlags_
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_None") :: ImGuiConfigFlags_None
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_NavEnableKeyboard") ::ImGuiConfigFlags_NavEnableKeyboard
@@ -476,525 +459,486 @@
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_NoMouseCursorChange") :: ImGuiConfigFlags_NoMouseCursorChange
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_DockingEnable") :: ImGuiConfigFlags_DockingEnable
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_ViewportsEnable") :: ImGuiConfigFlags_ViewportsEnable
-  integer(c_int), bind(C,name="const_ImGuiConfigFlags_DpiEnableScaleViewport") :: ImGuiConfigFlags_DpiEnableScaleViewport
+  integer(c_int), bind(C,name="const_ImGuiConfigFlags_DpiEnableScaleViewports") :: ImGuiConfigFlags_DpiEnableScaleViewports
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_DpiEnableScaleFonts") :: ImGuiConfigFlags_DpiEnableScaleFonts
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_IsSRGB") :: ImGuiConfigFlags_IsSRGB
   integer(c_int), bind(C,name="const_ImGuiConfigFlags_IsTouchScreen") :: ImGuiConfigFlags_IsTouchScreen
-  ! typedef enum {
-  !     ImGuiBackendFlags_None = 0,
-  !     ImGuiBackendFlags_HasGamepad = 1 << 0,
-  !     ImGuiBackendFlags_HasMouseCursors = 1 << 1,
-  !     ImGuiBackendFlags_HasSetMousePos = 1 << 2,
-  !     ImGuiBackendFlags_RendererHasVtxOffset = 1 << 3,
-  !     ImGuiBackendFlags_PlatformHasViewports = 1 << 10,
-  !     ImGuiBackendFlags_HasMouseHoveredViewport=1 << 11,
-  !     ImGuiBackendFlags_RendererHasViewports = 1 << 12
-  ! }ImGuiBackendFlags_;
-  ! typedef enum {
-  !     ImGuiCol_Text,
-  !     ImGuiCol_TextDisabled,
-  !     ImGuiCol_WindowBg,
-  !     ImGuiCol_ChildBg,
-  !     ImGuiCol_PopupBg,
-  !     ImGuiCol_Border,
-  !     ImGuiCol_BorderShadow,
-  !     ImGuiCol_FrameBg,
-  !     ImGuiCol_FrameBgHovered,
-  !     ImGuiCol_FrameBgActive,
-  !     ImGuiCol_TitleBg,
-  !     ImGuiCol_TitleBgActive,
-  !     ImGuiCol_TitleBgCollapsed,
-  !     ImGuiCol_MenuBarBg,
-  !     ImGuiCol_ScrollbarBg,
-  !     ImGuiCol_ScrollbarGrab,
-  !     ImGuiCol_ScrollbarGrabHovered,
-  !     ImGuiCol_ScrollbarGrabActive,
-  !     ImGuiCol_CheckMark,
-  !     ImGuiCol_SliderGrab,
-  !     ImGuiCol_SliderGrabActive,
-  !     ImGuiCol_Button,
-  !     ImGuiCol_ButtonHovered,
-  !     ImGuiCol_ButtonActive,
-  !     ImGuiCol_Header,
-  !     ImGuiCol_HeaderHovered,
-  !     ImGuiCol_HeaderActive,
-  !     ImGuiCol_Separator,
-  !     ImGuiCol_SeparatorHovered,
-  !     ImGuiCol_SeparatorActive,
-  !     ImGuiCol_ResizeGrip,
-  !     ImGuiCol_ResizeGripHovered,
-  !     ImGuiCol_ResizeGripActive,
-  !     ImGuiCol_Tab,
-  !     ImGuiCol_TabHovered,
-  !     ImGuiCol_TabActive,
-  !     ImGuiCol_TabUnfocused,
-  !     ImGuiCol_TabUnfocusedActive,
-  !     ImGuiCol_DockingPreview,
-  !     ImGuiCol_DockingEmptyBg,
-  !     ImGuiCol_PlotLines,
-  !     ImGuiCol_PlotLinesHovered,
-  !     ImGuiCol_PlotHistogram,
-  !     ImGuiCol_PlotHistogramHovered,
-  !     ImGuiCol_TableHeaderBg,
-  !     ImGuiCol_TableBorderStrong,
-  !     ImGuiCol_TableBorderLight,
-  !     ImGuiCol_TableRowBg,
-  !     ImGuiCol_TableRowBgAlt,
-  !     ImGuiCol_TextSelectedBg,
-  !     ImGuiCol_DragDropTarget,
-  !     ImGuiCol_NavHighlight,
-  !     ImGuiCol_NavWindowingHighlight,
-  !     ImGuiCol_NavWindowingDimBg,
-  !     ImGuiCol_ModalWindowDimBg,
-  !     ImGuiCol_COUNT
-  ! }ImGuiCol_;
-  ! typedef enum {
-  !     ImGuiStyleVar_Alpha,
-  !     ImGuiStyleVar_DisabledAlpha,
-  !     ImGuiStyleVar_WindowPadding,
-  !     ImGuiStyleVar_WindowRounding,
-  !     ImGuiStyleVar_WindowBorderSize,
-  !     ImGuiStyleVar_WindowMinSize,
-  !     ImGuiStyleVar_WindowTitleAlign,
-  !     ImGuiStyleVar_ChildRounding,
-  !     ImGuiStyleVar_ChildBorderSize,
-  !     ImGuiStyleVar_PopupRounding,
-  !     ImGuiStyleVar_PopupBorderSize,
-  !     ImGuiStyleVar_FramePadding,
-  !     ImGuiStyleVar_FrameRounding,
-  !     ImGuiStyleVar_FrameBorderSize,
-  !     ImGuiStyleVar_ItemSpacing,
-  !     ImGuiStyleVar_ItemInnerSpacing,
-  !     ImGuiStyleVar_IndentSpacing,
-  !     ImGuiStyleVar_CellPadding,
-  !     ImGuiStyleVar_ScrollbarSize,
-  !     ImGuiStyleVar_ScrollbarRounding,
-  !     ImGuiStyleVar_GrabMinSize,
-  !     ImGuiStyleVar_GrabRounding,
-  !     ImGuiStyleVar_TabRounding,
-  !     ImGuiStyleVar_ButtonTextAlign,
-  !     ImGuiStyleVar_SelectableTextAlign,
-  !     ImGuiStyleVar_COUNT
-  ! }ImGuiStyleVar_;
-  ! typedef enum {
-  !     ImGuiButtonFlags_None = 0,
-  !     ImGuiButtonFlags_MouseButtonLeft = 1 << 0,
-  !     ImGuiButtonFlags_MouseButtonRight = 1 << 1,
-  !     ImGuiButtonFlags_MouseButtonMiddle = 1 << 2,
-  !     ImGuiButtonFlags_MouseButtonMask_ = ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle,
-  !     ImGuiButtonFlags_MouseButtonDefault_ = ImGuiButtonFlags_MouseButtonLeft
-  ! }ImGuiButtonFlags_;
-  ! typedef enum {
-  !     ImGuiColorEditFlags_None = 0,
-  !     ImGuiColorEditFlags_NoAlpha = 1 << 1,
-  !     ImGuiColorEditFlags_NoPicker = 1 << 2,
-  !     ImGuiColorEditFlags_NoOptions = 1 << 3,
-  !     ImGuiColorEditFlags_NoSmallPreview = 1 << 4,
-  !     ImGuiColorEditFlags_NoInputs = 1 << 5,
-  !     ImGuiColorEditFlags_NoTooltip = 1 << 6,
-  !     ImGuiColorEditFlags_NoLabel = 1 << 7,
-  !     ImGuiColorEditFlags_NoSidePreview = 1 << 8,
-  !     ImGuiColorEditFlags_NoDragDrop = 1 << 9,
-  !     ImGuiColorEditFlags_NoBorder = 1 << 10,
-  !     ImGuiColorEditFlags_AlphaBar = 1 << 16,
-  !     ImGuiColorEditFlags_AlphaPreview = 1 << 17,
-  !     ImGuiColorEditFlags_AlphaPreviewHalf= 1 << 18,
-  !     ImGuiColorEditFlags_HDR = 1 << 19,
-  !     ImGuiColorEditFlags_DisplayRGB = 1 << 20,
-  !     ImGuiColorEditFlags_DisplayHSV = 1 << 21,
-  !     ImGuiColorEditFlags_DisplayHex = 1 << 22,
-  !     ImGuiColorEditFlags_Uint8 = 1 << 23,
-  !     ImGuiColorEditFlags_Float = 1 << 24,
-  !     ImGuiColorEditFlags_PickerHueBar = 1 << 25,
-  !     ImGuiColorEditFlags_PickerHueWheel = 1 << 26,
-  !     ImGuiColorEditFlags_InputRGB = 1 << 27,
-  !     ImGuiColorEditFlags_InputHSV = 1 << 28,
-  !     ImGuiColorEditFlags_DefaultOptions_ = ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_PickerHueBar,
-  !     ImGuiColorEditFlags_DisplayMask_ = ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_DisplayHSV | ImGuiColorEditFlags_DisplayHex,
-  !     ImGuiColorEditFlags_DataTypeMask_ = ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_Float,
-  !     ImGuiColorEditFlags_PickerMask_ = ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_PickerHueBar,
-  !     ImGuiColorEditFlags_InputMask_ = ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_InputHSV
-  ! }ImGuiColorEditFlags_;
-  ! typedef enum {
-  !     ImGuiSliderFlags_None = 0,
-  !     ImGuiSliderFlags_AlwaysClamp = 1 << 4,
-  !     ImGuiSliderFlags_Logarithmic = 1 << 5,
-  !     ImGuiSliderFlags_NoRoundToFormat = 1 << 6,
-  !     ImGuiSliderFlags_NoInput = 1 << 7,
-  !     ImGuiSliderFlags_InvalidMask_ = 0x7000000F
-  ! }ImGuiSliderFlags_;
-  ! typedef enum {
-  !     ImGuiMouseButton_Left = 0,
-  !     ImGuiMouseButton_Right = 1,
-  !     ImGuiMouseButton_Middle = 2,
-  !     ImGuiMouseButton_COUNT = 5
-  ! }ImGuiMouseButton_;
-  ! typedef enum {
-  !     ImGuiMouseCursor_None = -1,
-  !     ImGuiMouseCursor_Arrow = 0,
-  !     ImGuiMouseCursor_TextInput,
-  !     ImGuiMouseCursor_ResizeAll,
-  !     ImGuiMouseCursor_ResizeNS,
-  !     ImGuiMouseCursor_ResizeEW,
-  !     ImGuiMouseCursor_ResizeNESW,
-  !     ImGuiMouseCursor_ResizeNWSE,
-  !     ImGuiMouseCursor_Hand,
-  !     ImGuiMouseCursor_NotAllowed,
-  !     ImGuiMouseCursor_COUNT
-  ! }ImGuiMouseCursor_;
-  ! typedef enum {
-  !     ImGuiCond_None = 0,
-  !     ImGuiCond_Always = 1 << 0,
-  !     ImGuiCond_Once = 1 << 1,
-  !     ImGuiCond_FirstUseEver = 1 << 2,
-  !     ImGuiCond_Appearing = 1 << 3
-  ! }ImGuiCond_;
-  ! typedef enum {
-  !     ImDrawFlags_None = 0,
-  !     ImDrawFlags_Closed = 1 << 0,
-  !     ImDrawFlags_RoundCornersTopLeft = 1 << 4,
-  !     ImDrawFlags_RoundCornersTopRight = 1 << 5,
-  !     ImDrawFlags_RoundCornersBottomLeft = 1 << 6,
-  !     ImDrawFlags_RoundCornersBottomRight = 1 << 7,
-  !     ImDrawFlags_RoundCornersNone = 1 << 8,
-  !     ImDrawFlags_RoundCornersTop = ImDrawFlags_RoundCornersTopLeft | ImDrawFlags_RoundCornersTopRight,
-  !     ImDrawFlags_RoundCornersBottom = ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersBottomRight,
-  !     ImDrawFlags_RoundCornersLeft = ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersTopLeft,
-  !     ImDrawFlags_RoundCornersRight = ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight,
-  !     ImDrawFlags_RoundCornersAll = ImDrawFlags_RoundCornersTopLeft | ImDrawFlags_RoundCornersTopRight | ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersBottomRight,
-  !     ImDrawFlags_RoundCornersDefault_ = ImDrawFlags_RoundCornersAll,
-  !     ImDrawFlags_RoundCornersMask_ = ImDrawFlags_RoundCornersAll | ImDrawFlags_RoundCornersNone
-  ! }ImDrawFlags_;
-  ! typedef enum {
-  !     ImDrawListFlags_None = 0,
-  !     ImDrawListFlags_AntiAliasedLines = 1 << 0,
-  !     ImDrawListFlags_AntiAliasedLinesUseTex = 1 << 1,
-  !     ImDrawListFlags_AntiAliasedFill = 1 << 2,
-  !     ImDrawListFlags_AllowVtxOffset = 1 << 3
-  ! }ImDrawListFlags_;
-  ! typedef enum {
-  !     ImFontAtlasFlags_None = 0,
-  !     ImFontAtlasFlags_NoPowerOfTwoHeight = 1 << 0,
-  !     ImFontAtlasFlags_NoMouseCursors = 1 << 1,
-  !     ImFontAtlasFlags_NoBakedLines = 1 << 2
-  ! }ImFontAtlasFlags_;
-  ! typedef enum {
-  !     ImGuiViewportFlags_None = 0,
-  !     ImGuiViewportFlags_IsPlatformWindow = 1 << 0,
-  !     ImGuiViewportFlags_IsPlatformMonitor = 1 << 1,
-  !     ImGuiViewportFlags_OwnedByApp = 1 << 2,
-  !     ImGuiViewportFlags_NoDecoration = 1 << 3,
-  !     ImGuiViewportFlags_NoTaskBarIcon = 1 << 4,
-  !     ImGuiViewportFlags_NoFocusOnAppearing = 1 << 5,
-  !     ImGuiViewportFlags_NoFocusOnClick = 1 << 6,
-  !     ImGuiViewportFlags_NoInputs = 1 << 7,
-  !     ImGuiViewportFlags_NoRendererClear = 1 << 8,
-  !     ImGuiViewportFlags_TopMost = 1 << 9,
-  !     ImGuiViewportFlags_Minimized = 1 << 10,
-  !     ImGuiViewportFlags_NoAutoMerge = 1 << 11,
-  !     ImGuiViewportFlags_CanHostOtherWindows = 1 << 12
-  ! }ImGuiViewportFlags_;
-  ! typedef enum {
-  !     ImGuiItemFlags_None = 0,
-  !     ImGuiItemFlags_NoTabStop = 1 << 0,
-  !     ImGuiItemFlags_ButtonRepeat = 1 << 1,
-  !     ImGuiItemFlags_Disabled = 1 << 2,
-  !     ImGuiItemFlags_NoNav = 1 << 3,
-  !     ImGuiItemFlags_NoNavDefaultFocus = 1 << 4,
-  !     ImGuiItemFlags_SelectableDontClosePopup = 1 << 5,
-  !     ImGuiItemFlags_MixedValue = 1 << 6,
-  !     ImGuiItemFlags_ReadOnly = 1 << 7,
-  !     ImGuiItemFlags_Inputable = 1 << 8
-  ! }ImGuiItemFlags_;
-  ! typedef enum {
-  !     ImGuiItemStatusFlags_None = 0,
-  !     ImGuiItemStatusFlags_HoveredRect = 1 << 0,
-  !     ImGuiItemStatusFlags_HasDisplayRect = 1 << 1,
-  !     ImGuiItemStatusFlags_Edited = 1 << 2,
-  !     ImGuiItemStatusFlags_ToggledSelection = 1 << 3,
-  !     ImGuiItemStatusFlags_ToggledOpen = 1 << 4,
-  !     ImGuiItemStatusFlags_HasDeactivated = 1 << 5,
-  !     ImGuiItemStatusFlags_Deactivated = 1 << 6,
-  !     ImGuiItemStatusFlags_HoveredWindow = 1 << 7,
-  !     ImGuiItemStatusFlags_FocusedByTabbing = 1 << 8
-  ! }ImGuiItemStatusFlags_;
-  ! typedef enum {
-  !     ImGuiInputTextFlags_Multiline = 1 << 26,
-  !     ImGuiInputTextFlags_NoMarkEdited = 1 << 27,
-  !     ImGuiInputTextFlags_MergedItem = 1 << 28
-  ! }ImGuiInputTextFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiButtonFlags_PressedOnClick = 1 << 4,
-  !     ImGuiButtonFlags_PressedOnClickRelease = 1 << 5,
-  !     ImGuiButtonFlags_PressedOnClickReleaseAnywhere = 1 << 6,
-  !     ImGuiButtonFlags_PressedOnRelease = 1 << 7,
-  !     ImGuiButtonFlags_PressedOnDoubleClick = 1 << 8,
-  !     ImGuiButtonFlags_PressedOnDragDropHold = 1 << 9,
-  !     ImGuiButtonFlags_Repeat = 1 << 10,
-  !     ImGuiButtonFlags_FlattenChildren = 1 << 11,
-  !     ImGuiButtonFlags_AllowItemOverlap = 1 << 12,
-  !     ImGuiButtonFlags_DontClosePopups = 1 << 13,
-  !     ImGuiButtonFlags_AlignTextBaseLine = 1 << 15,
-  !     ImGuiButtonFlags_NoKeyModifiers = 1 << 16,
-  !     ImGuiButtonFlags_NoHoldingActiveId = 1 << 17,
-  !     ImGuiButtonFlags_NoNavFocus = 1 << 18,
-  !     ImGuiButtonFlags_NoHoveredOnFocus = 1 << 19,
-  !     ImGuiButtonFlags_PressedOnMask_ = ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_PressedOnClickRelease | ImGuiButtonFlags_PressedOnClickReleaseAnywhere | ImGuiButtonFlags_PressedOnRelease | ImGuiButtonFlags_PressedOnDoubleClick | ImGuiButtonFlags_PressedOnDragDropHold,
-  !     ImGuiButtonFlags_PressedOnDefault_ = ImGuiButtonFlags_PressedOnClickRelease
-  ! }ImGuiButtonFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiComboFlags_CustomPreview = 1 << 20
-  ! }ImGuiComboFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiSliderFlags_Vertical = 1 << 20,
-  !     ImGuiSliderFlags_ReadOnly = 1 << 21
-  ! }ImGuiSliderFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiSelectableFlags_NoHoldingActiveID = 1 << 20,
-  !     ImGuiSelectableFlags_SelectOnNav = 1 << 21,
-  !     ImGuiSelectableFlags_SelectOnClick = 1 << 22,
-  !     ImGuiSelectableFlags_SelectOnRelease = 1 << 23,
-  !     ImGuiSelectableFlags_SpanAvailWidth = 1 << 24,
-  !     ImGuiSelectableFlags_DrawHoveredWhenHeld = 1 << 25,
-  !     ImGuiSelectableFlags_SetNavIdOnHover = 1 << 26,
-  !     ImGuiSelectableFlags_NoPadWithHalfSpacing = 1 << 27
-  ! }ImGuiSelectableFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiTreeNodeFlags_ClipLabelForTrailingButton = 1 << 20
-  ! }ImGuiTreeNodeFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiSeparatorFlags_None = 0,
-  !     ImGuiSeparatorFlags_Horizontal = 1 << 0,
-  !     ImGuiSeparatorFlags_Vertical = 1 << 1,
-  !     ImGuiSeparatorFlags_SpanAllColumns = 1 << 2
-  ! }ImGuiSeparatorFlags_;
-  ! typedef enum {
-  !     ImGuiTextFlags_None = 0,
-  !     ImGuiTextFlags_NoWidthForLargeClippedText = 1 << 0
-  ! }ImGuiTextFlags_;
-  ! typedef enum {
-  !     ImGuiTooltipFlags_None = 0,
-  !     ImGuiTooltipFlags_OverridePreviousTooltip = 1 << 0
-  ! }ImGuiTooltipFlags_;
-  ! typedef enum {
-  !     ImGuiLayoutType_Horizontal = 0,
-  !     ImGuiLayoutType_Vertical = 1
-  ! }ImGuiLayoutType_;
-  ! typedef enum {
-  !     ImGuiLogType_None = 0,
-  !     ImGuiLogType_TTY,
-  !     ImGuiLogType_File,
-  !     ImGuiLogType_Buffer,
-  !     ImGuiLogType_Clipboard
-  ! }ImGuiLogType;
-  ! typedef enum {
-  !     ImGuiAxis_None = -1,
-  !     ImGuiAxis_X = 0,
-  !     ImGuiAxis_Y = 1
-  ! }ImGuiAxis;
-  ! typedef enum {
-  !     ImGuiPlotType_Lines,
-  !     ImGuiPlotType_Histogram
-  ! }ImGuiPlotType;
-  ! typedef enum {
-  !     ImGuiPopupPositionPolicy_Default,
-  !     ImGuiPopupPositionPolicy_ComboBox,
-  !     ImGuiPopupPositionPolicy_Tooltip
-  ! }ImGuiPopupPositionPolicy;
-  ! typedef enum {
-  !     ImGuiDataType_String = ImGuiDataType_COUNT + 1,
-  !     ImGuiDataType_Pointer,
-  !     ImGuiDataType_ID
-  ! }ImGuiDataTypePrivate_;
-  ! typedef enum {
-  !     ImGuiNextWindowDataFlags_None = 0,
-  !     ImGuiNextWindowDataFlags_HasPos = 1 << 0,
-  !     ImGuiNextWindowDataFlags_HasSize = 1 << 1,
-  !     ImGuiNextWindowDataFlags_HasContentSize = 1 << 2,
-  !     ImGuiNextWindowDataFlags_HasCollapsed = 1 << 3,
-  !     ImGuiNextWindowDataFlags_HasSizeConstraint = 1 << 4,
-  !     ImGuiNextWindowDataFlags_HasFocus = 1 << 5,
-  !     ImGuiNextWindowDataFlags_HasBgAlpha = 1 << 6,
-  !     ImGuiNextWindowDataFlags_HasScroll = 1 << 7,
-  !     ImGuiNextWindowDataFlags_HasViewport = 1 << 8,
-  !     ImGuiNextWindowDataFlags_HasDock = 1 << 9,
-  !     ImGuiNextWindowDataFlags_HasWindowClass = 1 << 10
-  ! }ImGuiNextWindowDataFlags_;
-  ! typedef enum {
-  !     ImGuiNextItemDataFlags_None = 0,
-  !     ImGuiNextItemDataFlags_HasWidth = 1 << 0,
-  !     ImGuiNextItemDataFlags_HasOpen = 1 << 1
-  ! }ImGuiNextItemDataFlags_;
-  ! typedef enum {
-  !     ImGuiKey_LegacyNativeKey_BEGIN = 0,
-  !     ImGuiKey_LegacyNativeKey_END = 512,
-  !     ImGuiKey_Gamepad_BEGIN = ImGuiKey_GamepadStart,
-  !     ImGuiKey_Gamepad_END = ImGuiKey_GamepadRStickRight + 1
-  ! }ImGuiKeyPrivate_;
-  ! typedef enum {
-  !     ImGuiInputEventType_None = 0,
-  !     ImGuiInputEventType_MousePos,
-  !     ImGuiInputEventType_MouseWheel,
-  !     ImGuiInputEventType_MouseButton,
-  !     ImGuiInputEventType_MouseViewport,
-  !     ImGuiInputEventType_Key,
-  !     ImGuiInputEventType_Text,
-  !     ImGuiInputEventType_Focus,
-  !     ImGuiInputEventType_COUNT
-  ! }ImGuiInputEventType;
-  ! typedef enum {
-  !     ImGuiInputSource_None = 0,
-  !     ImGuiInputSource_Mouse,
-  !     ImGuiInputSource_Keyboard,
-  !     ImGuiInputSource_Gamepad,
-  !     ImGuiInputSource_Clipboard,
-  !     ImGuiInputSource_Nav,
-  !     ImGuiInputSource_COUNT
-  ! }ImGuiInputSource;
-  ! typedef enum {
-  !     ImGuiNavReadMode_Down,
-  !     ImGuiNavReadMode_Pressed,
-  !     ImGuiNavReadMode_Released,
-  !     ImGuiNavReadMode_Repeat,
-  !     ImGuiNavReadMode_RepeatSlow,
-  !     ImGuiNavReadMode_RepeatFast
-  ! }ImGuiNavReadMode;
-  ! typedef enum {
-  !     ImGuiActivateFlags_None = 0,
-  !     ImGuiActivateFlags_PreferInput = 1 << 0,
-  !     ImGuiActivateFlags_PreferTweak = 1 << 1,
-  !     ImGuiActivateFlags_TryToPreserveState = 1 << 2
-  ! }ImGuiActivateFlags_;
-  ! typedef enum {
-  !     ImGuiScrollFlags_None = 0,
-  !     ImGuiScrollFlags_KeepVisibleEdgeX = 1 << 0,
-  !     ImGuiScrollFlags_KeepVisibleEdgeY = 1 << 1,
-  !     ImGuiScrollFlags_KeepVisibleCenterX = 1 << 2,
-  !     ImGuiScrollFlags_KeepVisibleCenterY = 1 << 3,
-  !     ImGuiScrollFlags_AlwaysCenterX = 1 << 4,
-  !     ImGuiScrollFlags_AlwaysCenterY = 1 << 5,
-  !     ImGuiScrollFlags_NoScrollParent = 1 << 6,
-  !     ImGuiScrollFlags_MaskX_ = ImGuiScrollFlags_KeepVisibleEdgeX | ImGuiScrollFlags_KeepVisibleCenterX | ImGuiScrollFlags_AlwaysCenterX,
-  !     ImGuiScrollFlags_MaskY_ = ImGuiScrollFlags_KeepVisibleEdgeY | ImGuiScrollFlags_KeepVisibleCenterY | ImGuiScrollFlags_AlwaysCenterY
-  ! }ImGuiScrollFlags_;
-  ! typedef enum {
-  !     ImGuiNavHighlightFlags_None = 0,
-  !     ImGuiNavHighlightFlags_TypeDefault = 1 << 0,
-  !     ImGuiNavHighlightFlags_TypeThin = 1 << 1,
-  !     ImGuiNavHighlightFlags_AlwaysDraw = 1 << 2,
-  !     ImGuiNavHighlightFlags_NoRounding = 1 << 3
-  ! }ImGuiNavHighlightFlags_;
-  ! typedef enum {
-  !     ImGuiNavDirSourceFlags_None = 0,
-  !     ImGuiNavDirSourceFlags_RawKeyboard = 1 << 0,
-  !     ImGuiNavDirSourceFlags_Keyboard = 1 << 1,
-  !     ImGuiNavDirSourceFlags_PadDPad = 1 << 2,
-  !     ImGuiNavDirSourceFlags_PadLStick = 1 << 3
-  ! }ImGuiNavDirSourceFlags_;
-  ! typedef enum {
-  !     ImGuiNavMoveFlags_None = 0,
-  !     ImGuiNavMoveFlags_LoopX = 1 << 0,
-  !     ImGuiNavMoveFlags_LoopY = 1 << 1,
-  !     ImGuiNavMoveFlags_WrapX = 1 << 2,
-  !     ImGuiNavMoveFlags_WrapY = 1 << 3,
-  !     ImGuiNavMoveFlags_AllowCurrentNavId = 1 << 4,
-  !     ImGuiNavMoveFlags_AlsoScoreVisibleSet = 1 << 5,
-  !     ImGuiNavMoveFlags_ScrollToEdgeY = 1 << 6,
-  !     ImGuiNavMoveFlags_Forwarded = 1 << 7,
-  !     ImGuiNavMoveFlags_DebugNoResult = 1 << 8,
-  !     ImGuiNavMoveFlags_FocusApi = 1 << 9,
-  !     ImGuiNavMoveFlags_Tabbing = 1 << 10,
-  !     ImGuiNavMoveFlags_Activate = 1 << 11,
-  !     ImGuiNavMoveFlags_DontSetNavHighlight = 1 << 12
-  ! }ImGuiNavMoveFlags_;
-  ! typedef enum {
-  !     ImGuiNavLayer_Main = 0,
-  !     ImGuiNavLayer_Menu = 1,
-  !     ImGuiNavLayer_COUNT
-  ! }ImGuiNavLayer;
-  ! typedef enum {
-  !     ImGuiOldColumnFlags_None = 0,
-  !     ImGuiOldColumnFlags_NoBorder = 1 << 0,
-  !     ImGuiOldColumnFlags_NoResize = 1 << 1,
-  !     ImGuiOldColumnFlags_NoPreserveWidths = 1 << 2,
-  !     ImGuiOldColumnFlags_NoForceWithinWindow = 1 << 3,
-  !     ImGuiOldColumnFlags_GrowParentContentsSize = 1 << 4
-  ! }ImGuiOldColumnFlags_;
-  ! typedef enum {
-  !     ImGuiDockNodeFlags_DockSpace = 1 << 10,
-  !     ImGuiDockNodeFlags_CentralNode = 1 << 11,
-  !     ImGuiDockNodeFlags_NoTabBar = 1 << 12,
-  !     ImGuiDockNodeFlags_HiddenTabBar = 1 << 13,
-  !     ImGuiDockNodeFlags_NoWindowMenuButton = 1 << 14,
-  !     ImGuiDockNodeFlags_NoCloseButton = 1 << 15,
-  !     ImGuiDockNodeFlags_NoDocking = 1 << 16,
-  !     ImGuiDockNodeFlags_NoDockingSplitMe = 1 << 17,
-  !     ImGuiDockNodeFlags_NoDockingSplitOther = 1 << 18,
-  !     ImGuiDockNodeFlags_NoDockingOverMe = 1 << 19,
-  !     ImGuiDockNodeFlags_NoDockingOverOther = 1 << 20,
-  !     ImGuiDockNodeFlags_NoDockingOverEmpty = 1 << 21,
-  !     ImGuiDockNodeFlags_NoResizeX = 1 << 22,
-  !     ImGuiDockNodeFlags_NoResizeY = 1 << 23,
-  !     ImGuiDockNodeFlags_SharedFlagsInheritMask_ = ~0,
-  !     ImGuiDockNodeFlags_NoResizeFlagsMask_ = ImGuiDockNodeFlags_NoResize | ImGuiDockNodeFlags_NoResizeX | ImGuiDockNodeFlags_NoResizeY,
-  !     ImGuiDockNodeFlags_LocalFlagsMask_ = ImGuiDockNodeFlags_NoSplit | ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_AutoHideTabBar | ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton | ImGuiDockNodeFlags_NoDocking,
-  !     ImGuiDockNodeFlags_LocalFlagsTransferMask_ = ImGuiDockNodeFlags_LocalFlagsMask_ & ~ImGuiDockNodeFlags_DockSpace,
-  !     ImGuiDockNodeFlags_SavedFlagsMask_ = ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton | ImGuiDockNodeFlags_NoDocking
-  ! }ImGuiDockNodeFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiDataAuthority_Auto,
-  !     ImGuiDataAuthority_DockNode,
-  !     ImGuiDataAuthority_Window
-  ! }ImGuiDataAuthority_;
-  ! typedef enum {
-  !     ImGuiDockNodeState_Unknown,
-  !     ImGuiDockNodeState_HostWindowHiddenBecauseSingleWindow,
-  !     ImGuiDockNodeState_HostWindowHiddenBecauseWindowsAreResizing,
-  !     ImGuiDockNodeState_HostWindowVisible
-  ! }ImGuiDockNodeState;
-  ! typedef enum {
-  !     ImGuiWindowDockStyleCol_Text,
-  !     ImGuiWindowDockStyleCol_Tab,
-  !     ImGuiWindowDockStyleCol_TabHovered,
-  !     ImGuiWindowDockStyleCol_TabActive,
-  !     ImGuiWindowDockStyleCol_TabUnfocused,
-  !     ImGuiWindowDockStyleCol_TabUnfocusedActive,
-  !     ImGuiWindowDockStyleCol_COUNT
-  ! }ImGuiWindowDockStyleCol;
-  ! typedef enum {
-  !     ImGuiDebugLogFlags_None = 0,
-  !     ImGuiDebugLogFlags_EventActiveId = 1 << 0,
-  !     ImGuiDebugLogFlags_EventFocus = 1 << 1,
-  !     ImGuiDebugLogFlags_EventPopup = 1 << 2,
-  !     ImGuiDebugLogFlags_EventNav = 1 << 3,
-  !     ImGuiDebugLogFlags_EventIO = 1 << 4,
-  !     ImGuiDebugLogFlags_EventDocking = 1 << 5,
-  !     ImGuiDebugLogFlags_EventViewport = 1 << 6,
-  !     ImGuiDebugLogFlags_EventMask_ = ImGuiDebugLogFlags_EventActiveId | ImGuiDebugLogFlags_EventFocus | ImGuiDebugLogFlags_EventPopup | ImGuiDebugLogFlags_EventNav | ImGuiDebugLogFlags_EventIO | ImGuiDebugLogFlags_EventDocking | ImGuiDebugLogFlags_EventViewport,
-  !     ImGuiDebugLogFlags_OutputToTTY = 1 << 10
-  ! }ImGuiDebugLogFlags_;
-  ! typedef enum { ImGuiContextHookType_NewFramePre, ImGuiContextHookType_NewFramePost, ImGuiContextHookType_EndFramePre, ImGuiContextHookType_EndFramePost, ImGuiContextHookType_RenderPre, ImGuiContextHookType_RenderPost, ImGuiContextHookType_Shutdown, ImGuiContextHookType_PendingRemoval_ }ImGuiContextHookType;
-  ! typedef enum {
-  !     ImGuiTabBarFlags_DockNode = 1 << 20,
-  !     ImGuiTabBarFlags_IsFocused = 1 << 21,
-  !     ImGuiTabBarFlags_SaveSettings = 1 << 22
-  ! }ImGuiTabBarFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiTabItemFlags_SectionMask_ = ImGuiTabItemFlags_Leading | ImGuiTabItemFlags_Trailing,
-  !     ImGuiTabItemFlags_NoCloseButton = 1 << 20,
-  !     ImGuiTabItemFlags_Button = 1 << 21,
-  !     ImGuiTabItemFlags_Unsorted = 1 << 22,
-  !     ImGuiTabItemFlags_Preview = 1 << 23
-  ! }ImGuiTabItemFlagsPrivate_;
-  ! typedef enum {
-  !     ImGuiFreeTypeBuilderFlags_NoHinting = 1 << 0,
-  !     ImGuiFreeTypeBuilderFlags_NoAutoHint = 1 << 1,
-  !     ImGuiFreeTypeBuilderFlags_ForceAutoHint = 1 << 2,
-  !     ImGuiFreeTypeBuilderFlags_LightHinting = 1 << 3,
-  !     ImGuiFreeTypeBuilderFlags_MonoHinting = 1 << 4,
-  !     ImGuiFreeTypeBuilderFlags_Bold = 1 << 5,
-  !     ImGuiFreeTypeBuilderFlags_Oblique = 1 << 6,
-  !     ImGuiFreeTypeBuilderFlags_Monochrome = 1 << 7,
-  !     ImGuiFreeTypeBuilderFlags_LoadColor = 1 << 8,
-  !     ImGuiFreeTypeBuilderFlags_Bitmap = 1 << 9
-  ! }ImGuiFreeTypeBuilderFlags;
+  ! enum ImGuiBackendFlags_
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_None") :: ImGuiBackendFlags_None
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_HasGamepad") :: ImGuiBackendFlags_HasGamepad
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_HasMouseCursors") :: ImGuiBackendFlags_HasMouseCursors
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_HasSetMousePos") :: ImGuiBackendFlags_HasSetMousePos
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_RendererHasVtxOffset") :: ImGuiBackendFlags_RendererHasVtxOffset
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_PlatformHasViewports") :: ImGuiBackendFlags_PlatformHasViewports
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_HasMouseHoveredViewport") :: ImGuiBackendFlags_HasMouseHoveredViewport
+  integer(c_int), bind(C,name="const_ImGuiBackendFlags_RendererHasViewports") :: ImGuiBackendFlags_RendererHasViewports
+  ! enum ImGuiCol_
+  integer(c_int), bind(C,name="const_ImGuiCol_Text") :: ImGuiCol_Text
+  integer(c_int), bind(C,name="const_ImGuiCol_TextDisabled") :: ImGuiCol_TextDisabled
+  integer(c_int), bind(C,name="const_ImGuiCol_WindowBg") :: ImGuiCol_WindowBg
+  integer(c_int), bind(C,name="const_ImGuiCol_ChildBg") :: ImGuiCol_ChildBg
+  integer(c_int), bind(C,name="const_ImGuiCol_PopupBg") :: ImGuiCol_PopupBg
+  integer(c_int), bind(C,name="const_ImGuiCol_Border") :: ImGuiCol_Border
+  integer(c_int), bind(C,name="const_ImGuiCol_BorderShadow") :: ImGuiCol_BorderShadow
+  integer(c_int), bind(C,name="const_ImGuiCol_FrameBg") :: ImGuiCol_FrameBg
+  integer(c_int), bind(C,name="const_ImGuiCol_FrameBgHovered") :: ImGuiCol_FrameBgHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_FrameBgActive") :: ImGuiCol_FrameBgActive
+  integer(c_int), bind(C,name="const_ImGuiCol_TitleBg") :: ImGuiCol_TitleBg
+  integer(c_int), bind(C,name="const_ImGuiCol_TitleBgActive") :: ImGuiCol_TitleBgActive
+  integer(c_int), bind(C,name="const_ImGuiCol_TitleBgCollapsed") :: ImGuiCol_TitleBgCollapsed
+  integer(c_int), bind(C,name="const_ImGuiCol_MenuBarBg") :: ImGuiCol_MenuBarBg
+  integer(c_int), bind(C,name="const_ImGuiCol_ScrollbarBg") :: ImGuiCol_ScrollbarBg
+  integer(c_int), bind(C,name="const_ImGuiCol_ScrollbarGrab") :: ImGuiCol_ScrollbarGrab
+  integer(c_int), bind(C,name="const_ImGuiCol_ScrollbarGrabHovered") :: ImGuiCol_ScrollbarGrabHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_ScrollbarGrabActive") :: ImGuiCol_ScrollbarGrabActive
+  integer(c_int), bind(C,name="const_ImGuiCol_CheckMark") :: ImGuiCol_CheckMark
+  integer(c_int), bind(C,name="const_ImGuiCol_SliderGrab") :: ImGuiCol_SliderGrab
+  integer(c_int), bind(C,name="const_ImGuiCol_SliderGrabActive") :: ImGuiCol_SliderGrabActive
+  integer(c_int), bind(C,name="const_ImGuiCol_Button") :: ImGuiCol_Button
+  integer(c_int), bind(C,name="const_ImGuiCol_ButtonHovered") :: ImGuiCol_ButtonHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_ButtonActive") :: ImGuiCol_ButtonActive
+  integer(c_int), bind(C,name="const_ImGuiCol_Header") :: ImGuiCol_Header
+  integer(c_int), bind(C,name="const_ImGuiCol_HeaderHovered") :: ImGuiCol_HeaderHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_HeaderActive") :: ImGuiCol_HeaderActive
+  integer(c_int), bind(C,name="const_ImGuiCol_Separator") :: ImGuiCol_Separator
+  integer(c_int), bind(C,name="const_ImGuiCol_SeparatorHovered") :: ImGuiCol_SeparatorHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_SeparatorActive") :: ImGuiCol_SeparatorActive
+  integer(c_int), bind(C,name="const_ImGuiCol_ResizeGrip") :: ImGuiCol_ResizeGrip
+  integer(c_int), bind(C,name="const_ImGuiCol_ResizeGripHovered") :: ImGuiCol_ResizeGripHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_ResizeGripActive") :: ImGuiCol_ResizeGripActive
+  integer(c_int), bind(C,name="const_ImGuiCol_Tab") :: ImGuiCol_Tab
+  integer(c_int), bind(C,name="const_ImGuiCol_TabHovered") :: ImGuiCol_TabHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_TabActive") :: ImGuiCol_TabActive
+  integer(c_int), bind(C,name="const_ImGuiCol_TabUnfocused") :: ImGuiCol_TabUnfocused
+  integer(c_int), bind(C,name="const_ImGuiCol_TabUnfocusedActive") :: ImGuiCol_TabUnfocusedActive
+  integer(c_int), bind(C,name="const_ImGuiCol_DockingPreview") :: ImGuiCol_DockingPreview
+  integer(c_int), bind(C,name="const_ImGuiCol_DockingEmptyBg") :: ImGuiCol_DockingEmptyBg
+  integer(c_int), bind(C,name="const_ImGuiCol_PlotLines") :: ImGuiCol_PlotLines
+  integer(c_int), bind(C,name="const_ImGuiCol_PlotLinesHovered") :: ImGuiCol_PlotLinesHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_PlotHistogram") :: ImGuiCol_PlotHistogram
+  integer(c_int), bind(C,name="const_ImGuiCol_PlotHistogramHovered") :: ImGuiCol_PlotHistogramHovered
+  integer(c_int), bind(C,name="const_ImGuiCol_TableHeaderBg") :: ImGuiCol_TableHeaderBg
+  integer(c_int), bind(C,name="const_ImGuiCol_TableBorderStrong") :: ImGuiCol_TableBorderStrong
+  integer(c_int), bind(C,name="const_ImGuiCol_TableBorderLight") :: ImGuiCol_TableBorderLight
+  integer(c_int), bind(C,name="const_ImGuiCol_TableRowBg") :: ImGuiCol_TableRowBg
+  integer(c_int), bind(C,name="const_ImGuiCol_TableRowBgAlt") :: ImGuiCol_TableRowBgAlt
+  integer(c_int), bind(C,name="const_ImGuiCol_TextSelectedBg") :: ImGuiCol_TextSelectedBg
+  integer(c_int), bind(C,name="const_ImGuiCol_DragDropTarget") :: ImGuiCol_DragDropTarget
+  integer(c_int), bind(C,name="const_ImGuiCol_NavHighlight") :: ImGuiCol_NavHighlight
+  integer(c_int), bind(C,name="const_ImGuiCol_NavWindowingHighlight") :: ImGuiCol_NavWindowingHighlight
+  integer(c_int), bind(C,name="const_ImGuiCol_NavWindowingDimBg") :: ImGuiCol_NavWindowingDimBg
+  integer(c_int), bind(C,name="const_ImGuiCol_ModalWindowDimBg") :: ImGuiCol_ModalWindowDimBg
+  integer(c_int), bind(C,name="const_ImGuiCol_COUNT") :: ImGuiCol_COUNT
+  ! enum ImGuiStyleVar_
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_Alpha") :: ImGuiStyleVar_Alpha
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_DisabledAlpha") :: ImGuiStyleVar_DisabledAlpha
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_WindowPadding") :: ImGuiStyleVar_WindowPadding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_WindowRounding") :: ImGuiStyleVar_WindowRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_WindowBorderSize") :: ImGuiStyleVar_WindowBorderSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_WindowMinSize") :: ImGuiStyleVar_WindowMinSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_WindowTitleAlign") :: ImGuiStyleVar_WindowTitleAlign
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ChildRounding") :: ImGuiStyleVar_ChildRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ChildBorderSize") :: ImGuiStyleVar_ChildBorderSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_PopupRounding") :: ImGuiStyleVar_PopupRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_PopupBorderSize") :: ImGuiStyleVar_PopupBorderSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_FramePadding") :: ImGuiStyleVar_FramePadding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_FrameRounding") :: ImGuiStyleVar_FrameRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_FrameBorderSize") :: ImGuiStyleVar_FrameBorderSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ItemSpacing") :: ImGuiStyleVar_ItemSpacing
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ItemInnerSpacing") :: ImGuiStyleVar_ItemInnerSpacing
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_IndentSpacing") :: ImGuiStyleVar_IndentSpacing
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_CellPadding") :: ImGuiStyleVar_CellPadding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ScrollbarSize") :: ImGuiStyleVar_ScrollbarSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ScrollbarRounding") :: ImGuiStyleVar_ScrollbarRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_GrabMinSize") :: ImGuiStyleVar_GrabMinSize
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_GrabRounding") :: ImGuiStyleVar_GrabRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_TabRounding") :: ImGuiStyleVar_TabRounding
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_ButtonTextAlign") :: ImGuiStyleVar_ButtonTextAlign
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_SelectableTextAlign") :: ImGuiStyleVar_SelectableTextAlign
+  integer(c_int), bind(C,name="const_ImGuiStyleVar_COUNT") :: ImGuiStyleVar_COUNT
+  ! enum ImGuiButtonFlags_
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_None") :: ImGuiButtonFlags_None
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_MouseButtonLeft") :: ImGuiButtonFlags_MouseButtonLeft
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_MouseButtonRight") :: ImGuiButtonFlags_MouseButtonRight
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_MouseButtonMiddle") :: ImGuiButtonFlags_MouseButtonMiddle
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_MouseButtonMask_") :: ImGuiButtonFlags_MouseButtonMask_
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_MouseButtonDefault_") :: ImGuiButtonFlags_MouseButtonDefault_
+  ! enum ImGuiColorEditFlags_
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_None") :: ImGuiColorEditFlags_None
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoAlpha") :: ImGuiColorEditFlags_NoAlpha
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoPicker") :: ImGuiColorEditFlags_NoPicker
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoOptions") :: ImGuiColorEditFlags_NoOptions
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoSmallPreview") :: ImGuiColorEditFlags_NoSmallPreview
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoInputs") :: ImGuiColorEditFlags_NoInputs
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoTooltip") :: ImGuiColorEditFlags_NoTooltip
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoLabel") :: ImGuiColorEditFlags_NoLabel
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoSidePreview") :: ImGuiColorEditFlags_NoSidePreview
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoDragDrop") :: ImGuiColorEditFlags_NoDragDrop
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_NoBorder") :: ImGuiColorEditFlags_NoBorder
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_AlphaBar") :: ImGuiColorEditFlags_AlphaBar
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_AlphaPreview") :: ImGuiColorEditFlags_AlphaPreview
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_AlphaPreviewHalf") :: ImGuiColorEditFlags_AlphaPreviewHalf
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_HDR") :: ImGuiColorEditFlags_HDR
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DisplayRGB") :: ImGuiColorEditFlags_DisplayRGB
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DisplayHSV") :: ImGuiColorEditFlags_DisplayHSV
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DisplayHex") :: ImGuiColorEditFlags_DisplayHex
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_Uint8") :: ImGuiColorEditFlags_Uint8
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_Float") :: ImGuiColorEditFlags_Float
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_PickerHueBar") :: ImGuiColorEditFlags_PickerHueBar
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_PickerHueWheel") :: ImGuiColorEditFlags_PickerHueWheel
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_InputRGB") :: ImGuiColorEditFlags_InputRGB
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_InputHSV") :: ImGuiColorEditFlags_InputHSV
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DefaultOptions_") :: ImGuiColorEditFlags_DefaultOptions_
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DisplayMask_") :: ImGuiColorEditFlags_DisplayMask_
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_DataTypeMask_") :: ImGuiColorEditFlags_DataTypeMask_
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_PickerMask_") :: ImGuiColorEditFlags_PickerMask_
+  integer(c_int), bind(C,name="const_ImGuiColorEditFlags_InputMask_") :: ImGuiColorEditFlags_InputMask_
+  ! enum ImGuiSliderFlags_
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_None") :: ImGuiSliderFlags_None
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_AlwaysClamp") :: ImGuiSliderFlags_AlwaysClamp
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_Logarithmic") :: ImGuiSliderFlags_Logarithmic
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_NoRoundToFormat") :: ImGuiSliderFlags_NoRoundToFormat
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_NoInput") :: ImGuiSliderFlags_NoInput
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_InvalidMask_") :: ImGuiSliderFlags_InvalidMask_
+  ! enum ImGuiMouseButton_
+  integer(c_int), bind(C,name="const_ImGuiMouseButton_Left") :: ImGuiMouseButton_Left
+  integer(c_int), bind(C,name="const_ImGuiMouseButton_Right") :: ImGuiMouseButton_Right
+  integer(c_int), bind(C,name="const_ImGuiMouseButton_Middle") :: ImGuiMouseButton_Middle
+  integer(c_int), bind(C,name="const_ImGuiMouseButton_COUNT") :: ImGuiMouseButton_COUNT
+  ! enum ImGuiMouseCursor_
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_None") :: ImGuiMouseCursor_None
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_Arrow") :: ImGuiMouseCursor_Arrow
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_TextInput") :: ImGuiMouseCursor_TextInput
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_ResizeAll") :: ImGuiMouseCursor_ResizeAll
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_ResizeNS") :: ImGuiMouseCursor_ResizeNS
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_ResizeEW") :: ImGuiMouseCursor_ResizeEW
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_ResizeNESW") :: ImGuiMouseCursor_ResizeNESW
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_ResizeNWSE") :: ImGuiMouseCursor_ResizeNWSE
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_Hand") :: ImGuiMouseCursor_Hand
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_NotAllowed") :: ImGuiMouseCursor_NotAllowed
+  integer(c_int), bind(C,name="const_ImGuiMouseCursor_COUNT") :: ImGuiMouseCursor_COUNT
+  ! enum ImGuiCond_
+  integer(c_int), bind(C,name="const_ImGuiCond_None") :: ImGuiCond_None
+  integer(c_int), bind(C,name="const_ImGuiCond_Always") :: ImGuiCond_Always
+  integer(c_int), bind(C,name="const_ImGuiCond_Once") :: ImGuiCond_Once
+  integer(c_int), bind(C,name="const_ImGuiCond_FirstUseEver") :: ImGuiCond_FirstUseEver
+  integer(c_int), bind(C,name="const_ImGuiCond_Appearing") :: ImGuiCond_Appearing
+  ! enum ImDrawFlags_
+  integer(c_int), bind(C,name="const_ImDrawFlags_None") :: ImDrawFlags_None
+  integer(c_int), bind(C,name="const_ImDrawFlags_Closed") :: ImDrawFlags_Closed
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersTopLeft") :: ImDrawFlags_RoundCornersTopLeft
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersTopRight") :: ImDrawFlags_RoundCornersTopRight
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersBottomLeft") :: ImDrawFlags_RoundCornersBottomLeft
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersBottomRight") :: ImDrawFlags_RoundCornersBottomRight
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersNone") :: ImDrawFlags_RoundCornersNone
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersTop") :: ImDrawFlags_RoundCornersTop
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersBottom") :: ImDrawFlags_RoundCornersBottom
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersLeft") :: ImDrawFlags_RoundCornersLeft
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersRight") :: ImDrawFlags_RoundCornersRight
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersAll") :: ImDrawFlags_RoundCornersAll
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersDefault_") :: ImDrawFlags_RoundCornersDefault_
+  integer(c_int), bind(C,name="const_ImDrawFlags_RoundCornersMask_") :: ImDrawFlags_RoundCornersMask_
+  ! enum ImDrawListFlags_
+  integer(c_int), bind(C,name="const_ImDrawListFlags_None") :: ImDrawListFlags_None
+  integer(c_int), bind(C,name="const_ImDrawListFlags_AntiAliasedLines") :: ImDrawListFlags_AntiAliasedLines
+  integer(c_int), bind(C,name="const_ImDrawListFlags_AntiAliasedLinesUseTex") :: ImDrawListFlags_AntiAliasedLinesUseTex
+  integer(c_int), bind(C,name="const_ImDrawListFlags_AntiAliasedFill") :: ImDrawListFlags_AntiAliasedFill
+  integer(c_int), bind(C,name="const_ImDrawListFlags_AllowVtxOffset") :: ImDrawListFlags_AllowVtxOffset
+  ! enum ImFontAtlasFlags_
+  integer(c_int), bind(C,name="const_ImFontAtlasFlags_None") :: ImFontAtlasFlags_None
+  integer(c_int), bind(C,name="const_ImFontAtlasFlags_NoPowerOfTwoHeight") :: ImFontAtlasFlags_NoPowerOfTwoHeight
+  integer(c_int), bind(C,name="const_ImFontAtlasFlags_NoMouseCursors") :: ImFontAtlasFlags_NoMouseCursors
+  integer(c_int), bind(C,name="const_ImFontAtlasFlags_NoBakedLines") :: ImFontAtlasFlags_NoBakedLines
+  ! enum ImGuiViewportFlags_
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_None") :: ImGuiViewportFlags_None
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_IsPlatformWindow") :: ImGuiViewportFlags_IsPlatformWindow
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_IsPlatformMonitor") :: ImGuiViewportFlags_IsPlatformMonitor
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_OwnedByApp") :: ImGuiViewportFlags_OwnedByApp
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoDecoration") :: ImGuiViewportFlags_NoDecoration
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoTaskBarIcon") :: ImGuiViewportFlags_NoTaskBarIcon
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoFocusOnAppearing") :: ImGuiViewportFlags_NoFocusOnAppearing
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoFocusOnClick") :: ImGuiViewportFlags_NoFocusOnClick
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoInputs") :: ImGuiViewportFlags_NoInputs
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoRendererClear") :: ImGuiViewportFlags_NoRendererClear
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_TopMost") :: ImGuiViewportFlags_TopMost
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_Minimized") :: ImGuiViewportFlags_Minimized
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_NoAutoMerge") :: ImGuiViewportFlags_NoAutoMerge
+  integer(c_int), bind(C,name="const_ImGuiViewportFlags_CanHostOtherWindows") :: ImGuiViewportFlags_CanHostOtherWindows
+  ! enum ImGuiItemFlags_
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_None") :: ImGuiItemFlags_None
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_NoTabStop") :: ImGuiItemFlags_NoTabStop
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_ButtonRepeat") :: ImGuiItemFlags_ButtonRepeat
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_Disabled") :: ImGuiItemFlags_Disabled
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_NoNav") :: ImGuiItemFlags_NoNav
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_NoNavDefaultFocus") :: ImGuiItemFlags_NoNavDefaultFocus
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_SelectableDontClosePopup") :: ImGuiItemFlags_SelectableDontClosePopup
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_MixedValue") :: ImGuiItemFlags_MixedValue
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_ReadOnly") :: ImGuiItemFlags_ReadOnly
+  integer(c_int), bind(C,name="const_ImGuiItemFlags_Inputable") :: ImGuiItemFlags_Inputable
+  ! enum ImGuiItemStatusFlags_
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_None") :: ImGuiItemStatusFlags_None
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_HoveredRect") :: ImGuiItemStatusFlags_HoveredRect
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_HasDisplayRect") :: ImGuiItemStatusFlags_HasDisplayRect
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_Edited") :: ImGuiItemStatusFlags_Edited
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_ToggledSelection") :: ImGuiItemStatusFlags_ToggledSelection
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_ToggledOpen") :: ImGuiItemStatusFlags_ToggledOpen
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_HasDeactivated") :: ImGuiItemStatusFlags_HasDeactivated
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_Deactivated") :: ImGuiItemStatusFlags_Deactivated
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_HoveredWindow") :: ImGuiItemStatusFlags_HoveredWindow
+  integer(c_int), bind(C,name="const_ImGuiItemStatusFlags_FocusedByTabbing") :: ImGuiItemStatusFlags_FocusedByTabbing
+  ! enum ImGuiInputTextFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_Multiline") :: ImGuiInputTextFlags_Multiline
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_NoMarkEdited") :: ImGuiInputTextFlags_NoMarkEdited
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_MergedItem") :: ImGuiInputTextFlags_MergedItem
+  ! enum ImGuiButtonFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnClick") :: ImGuiButtonFlags_PressedOnClick
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnClickRelease") :: ImGuiButtonFlags_PressedOnClickRelease
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnClickReleaseAnywhere") :: &
+     ImGuiButtonFlags_PressedOnClickReleaseAnywhere
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnRelease") :: ImGuiButtonFlags_PressedOnRelease
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnDoubleClick") :: ImGuiButtonFlags_PressedOnDoubleClick
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnDragDropHold") :: ImGuiButtonFlags_PressedOnDragDropHold
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_Repeat") :: ImGuiButtonFlags_Repeat
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_FlattenChildren") :: ImGuiButtonFlags_FlattenChildren
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_AllowItemOverlap") :: ImGuiButtonFlags_AllowItemOverlap
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_DontClosePopups") :: ImGuiButtonFlags_DontClosePopups
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_AlignTextBaseLine") :: ImGuiButtonFlags_AlignTextBaseLine
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_NoKeyModifiers") :: ImGuiButtonFlags_NoKeyModifiers
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_NoHoldingActiveId") :: ImGuiButtonFlags_NoHoldingActiveId
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_NoNavFocus") :: ImGuiButtonFlags_NoNavFocus
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_NoHoveredOnFocus") :: ImGuiButtonFlags_NoHoveredOnFocus
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnMask_") :: ImGuiButtonFlags_PressedOnMask_
+  integer(c_int), bind(C,name="const_ImGuiButtonFlags_PressedOnDefault_") :: ImGuiButtonFlags_PressedOnDefault_
+  ! enum ImGuiComboFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiComboFlags_CustomPreview") :: ImGuiComboFlags_CustomPreview
+  ! enum ImGuiSliderFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_Vertical") :: ImGuiSliderFlags_Vertical
+  integer(c_int), bind(C,name="const_ImGuiSliderFlags_ReadOnly") :: ImGuiSliderFlags_ReadOnly
+  ! enum ImGuiSelectableFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_NoHoldingActiveID") :: ImGuiSelectableFlags_NoHoldingActiveID
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SelectOnNav") :: ImGuiSelectableFlags_SelectOnNav
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SelectOnClick") :: ImGuiSelectableFlags_SelectOnClick
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SelectOnRelease") :: ImGuiSelectableFlags_SelectOnRelease
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SpanAvailWidth") :: ImGuiSelectableFlags_SpanAvailWidth
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_DrawHoveredWhenHeld") :: ImGuiSelectableFlags_DrawHoveredWhenHeld
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_SetNavIdOnHover") :: ImGuiSelectableFlags_SetNavIdOnHover
+  integer(c_int), bind(C,name="const_ImGuiSelectableFlags_NoPadWithHalfSpacing") :: ImGuiSelectableFlags_NoPadWithHalfSpacing
+  ! enum ImGuiTreeNodeFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiTreeNodeFlags_ClipLabelForTrailingButton") :: &
+     ImGuiTreeNodeFlags_ClipLabelForTrailingButton
+  ! enum ImGuiSeparatorFlags_
+  integer(c_int), bind(C,name="const_ImGuiSeparatorFlags_None") :: ImGuiSeparatorFlags_None
+  integer(c_int), bind(C,name="const_ImGuiSeparatorFlags_Horizontal") :: ImGuiSeparatorFlags_Horizontal
+  integer(c_int), bind(C,name="const_ImGuiSeparatorFlags_Vertical") :: ImGuiSeparatorFlags_Vertical
+  integer(c_int), bind(C,name="const_ImGuiSeparatorFlags_SpanAllColumns") :: ImGuiSeparatorFlags_SpanAllColumns
+  ! enum ImGuiTextFlags_
+  integer(c_int), bind(C,name="const_ImGuiTextFlags_None") :: ImGuiTextFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTextFlags_NoWidthForLargeClippedText") :: ImGuiTextFlags_NoWidthForLargeClippedText
+  ! enum ImGuiTooltipFlags_
+  integer(c_int), bind(C,name="const_ImGuiTooltipFlags_None") :: ImGuiTooltipFlags_None
+  integer(c_int), bind(C,name="const_ImGuiTooltipFlags_OverridePreviousTooltip") :: ImGuiTooltipFlags_OverridePreviousTooltip
+  ! enum ImGuiLayoutType_
+  integer(c_int), bind(C,name="const_ImGuiLayoutType_Horizontal") :: ImGuiLayoutType_Horizontal
+  integer(c_int), bind(C,name="const_ImGuiLayoutType_Vertical") :: ImGuiLayoutType_Vertical
+  ! enum ImGuiLogType
+  integer(c_int), bind(C,name="const_ImGuiLogType_None") :: ImGuiLogType_None
+  integer(c_int), bind(C,name="const_ImGuiLogType_TTY") :: ImGuiLogType_TTY
+  integer(c_int), bind(C,name="const_ImGuiLogType_File") :: ImGuiLogType_File
+  integer(c_int), bind(C,name="const_ImGuiLogType_Buffer") :: ImGuiLogType_Buffer
+  integer(c_int), bind(C,name="const_ImGuiLogType_Clipboard") :: ImGuiLogType_Clipboard
+  ! enum ImGuiAxis
+  integer(c_int), bind(C,name="const_ImGuiAxis_None") :: ImGuiAxis_None
+  integer(c_int), bind(C,name="const_ImGuiAxis_X") :: ImGuiAxis_X
+  integer(c_int), bind(C,name="const_ImGuiAxis_Y") :: ImGuiAxis_Y
+  ! enum ImGuiPlotType
+  integer(c_int), bind(C,name="const_ImGuiPlotType_Lines") :: ImGuiPlotType_Lines
+  integer(c_int), bind(C,name="const_ImGuiPlotType_Histogram") :: ImGuiPlotType_Histogram
+  ! enum ImGuiPopupPositionPolicy
+  integer(c_int), bind(C,name="const_ImGuiPopupPositionPolicy_Default") :: ImGuiPopupPositionPolicy_Default
+  integer(c_int), bind(C,name="const_ImGuiPopupPositionPolicy_ComboBox") :: ImGuiPopupPositionPolicy_ComboBox
+  integer(c_int), bind(C,name="const_ImGuiPopupPositionPolicy_Tooltip") :: ImGuiPopupPositionPolicy_Tooltip
+  ! enum ImGuiDataTypePrivate_
+  integer(c_int), bind(C,name="const_ImGuiDataType_String") :: ImGuiDataType_String
+  integer(c_int), bind(C,name="const_ImGuiDataType_Pointer") :: ImGuiDataType_Pointer
+  integer(c_int), bind(C,name="const_ImGuiDataType_ID") :: ImGuiDataType_ID
+  ! enum ImGuiNextWindowDataFlags_
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_None") :: ImGuiNextWindowDataFlags_None
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasPos") :: ImGuiNextWindowDataFlags_HasPos
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasSize") :: ImGuiNextWindowDataFlags_HasSize
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasContentSize") :: ImGuiNextWindowDataFlags_HasContentSize
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasCollapsed") :: ImGuiNextWindowDataFlags_HasCollapsed
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasSizeConstraint") :: ImGuiNextWindowDataFlags_HasSizeConstraint
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasFocus") :: ImGuiNextWindowDataFlags_HasFocus
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasBgAlpha") :: ImGuiNextWindowDataFlags_HasBgAlpha
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasScroll") :: ImGuiNextWindowDataFlags_HasScroll
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasViewport") :: ImGuiNextWindowDataFlags_HasViewport
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasDock") :: ImGuiNextWindowDataFlags_HasDock
+  integer(c_int), bind(C,name="const_ImGuiNextWindowDataFlags_HasWindowClass") :: ImGuiNextWindowDataFlags_HasWindowClass
+  ! enum ImGuiNextItemDataFlags_
+  integer(c_int), bind(C,name="const_ImGuiNextItemDataFlags_None") :: ImGuiNextItemDataFlags_None
+  integer(c_int), bind(C,name="const_ImGuiNextItemDataFlags_HasWidth") :: ImGuiNextItemDataFlags_HasWidth
+  integer(c_int), bind(C,name="const_ImGuiNextItemDataFlags_HasOpen") :: ImGuiNextItemDataFlags_HasOpen
+  ! enum ImGuiKeyPrivate_
+  integer(c_int), bind(C,name="const_ImGuiKey_LegacyNativeKey_BEGIN") :: ImGuiKey_LegacyNativeKey_BEGIN
+  integer(c_int), bind(C,name="const_ImGuiKey_LegacyNativeKey_END") :: ImGuiKey_LegacyNativeKey_END
+  integer(c_int), bind(C,name="const_ImGuiKey_Gamepad_BEGIN") :: ImGuiKey_Gamepad_BEGIN
+  integer(c_int), bind(C,name="const_ImGuiKey_Gamepad_END") :: ImGuiKey_Gamepad_END
+  ! enum ImGuiInputEventType
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_None") :: ImGuiInputEventType_None
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_MousePos") :: ImGuiInputEventType_MousePos
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_MouseWheel") :: ImGuiInputEventType_MouseWheel
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_MouseButton") :: ImGuiInputEventType_MouseButton
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_MouseViewport") :: ImGuiInputEventType_MouseViewport
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_Key") :: ImGuiInputEventType_Key
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_Text") :: ImGuiInputEventType_Text
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_Focus") :: ImGuiInputEventType_Focus
+  integer(c_int), bind(C,name="const_ImGuiInputEventType_COUNT") :: ImGuiInputEventType_COUNT
+  ! enum ImGuiInputSource
+  integer(c_int), bind(C,name="const_ImGuiInputSource_None") :: ImGuiInputSource_None
+  integer(c_int), bind(C,name="const_ImGuiInputSource_Mouse") :: ImGuiInputSource_Mouse
+  integer(c_int), bind(C,name="const_ImGuiInputSource_Keyboard") :: ImGuiInputSource_Keyboard
+  integer(c_int), bind(C,name="const_ImGuiInputSource_Gamepad") :: ImGuiInputSource_Gamepad
+  integer(c_int), bind(C,name="const_ImGuiInputSource_Clipboard") :: ImGuiInputSource_Clipboard
+  integer(c_int), bind(C,name="const_ImGuiInputSource_Nav") :: ImGuiInputSource_Nav
+  integer(c_int), bind(C,name="const_ImGuiInputSource_COUNT") :: ImGuiInputSource_COUNT
+  ! enum ImGuiNavReadMode
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_Down") :: ImGuiNavReadMode_Down
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_Pressed") :: ImGuiNavReadMode_Pressed
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_Released") :: ImGuiNavReadMode_Released
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_Repeat") :: ImGuiNavReadMode_Repeat
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_RepeatSlow") :: ImGuiNavReadMode_RepeatSlow
+  integer(c_int), bind(C,name="const_ImGuiNavReadMode_RepeatFast") :: ImGuiNavReadMode_RepeatFast
+  ! enum ImGuiActivateFlags_
+  integer(c_int), bind(C,name="const_ImGuiActivateFlags_None") :: ImGuiActivateFlags_None
+  integer(c_int), bind(C,name="const_ImGuiActivateFlags_PreferInput") :: ImGuiActivateFlags_PreferInput
+  integer(c_int), bind(C,name="const_ImGuiActivateFlags_PreferTweak") :: ImGuiActivateFlags_PreferTweak
+  integer(c_int), bind(C,name="const_ImGuiActivateFlags_TryToPreserveState") :: ImGuiActivateFlags_TryToPreserveState
+  ! enum ImGuiScrollFlags_
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_None") :: ImGuiScrollFlags_None
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_KeepVisibleEdgeX") :: ImGuiScrollFlags_KeepVisibleEdgeX
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_KeepVisibleEdgeY") :: ImGuiScrollFlags_KeepVisibleEdgeY
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_KeepVisibleCenterX") :: ImGuiScrollFlags_KeepVisibleCenterX
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_KeepVisibleCenterY") :: ImGuiScrollFlags_KeepVisibleCenterY
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_AlwaysCenterX") :: ImGuiScrollFlags_AlwaysCenterX
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_AlwaysCenterY") :: ImGuiScrollFlags_AlwaysCenterY
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_NoScrollParent") :: ImGuiScrollFlags_NoScrollParent
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_MaskX_") :: ImGuiScrollFlags_MaskX_
+  integer(c_int), bind(C,name="const_ImGuiScrollFlags_MaskY_") :: ImGuiScrollFlags_MaskY_
+  ! enum ImGuiNavHighlightFlags_
+  integer(c_int), bind(C,name="const_ImGuiNavHighlightFlags_None") :: ImGuiNavHighlightFlags_None
+  integer(c_int), bind(C,name="const_ImGuiNavHighlightFlags_TypeDefault") :: ImGuiNavHighlightFlags_TypeDefault
+  integer(c_int), bind(C,name="const_ImGuiNavHighlightFlags_TypeThin") :: ImGuiNavHighlightFlags_TypeThin
+  integer(c_int), bind(C,name="const_ImGuiNavHighlightFlags_AlwaysDraw") :: ImGuiNavHighlightFlags_AlwaysDraw
+  integer(c_int), bind(C,name="const_ImGuiNavHighlightFlags_NoRounding") :: ImGuiNavHighlightFlags_NoRounding
+  ! enum ImGuiNavDirSourceFlags_
+  integer(c_int), bind(C,name="const_ImGuiNavDirSourceFlags_None") :: ImGuiNavDirSourceFlags_None
+  integer(c_int), bind(C,name="const_ImGuiNavDirSourceFlags_RawKeyboard") :: ImGuiNavDirSourceFlags_RawKeyboard
+  integer(c_int), bind(C,name="const_ImGuiNavDirSourceFlags_Keyboard") :: ImGuiNavDirSourceFlags_Keyboard
+  integer(c_int), bind(C,name="const_ImGuiNavDirSourceFlags_PadDPad") :: ImGuiNavDirSourceFlags_PadDPad
+  integer(c_int), bind(C,name="const_ImGuiNavDirSourceFlags_PadLStick") :: ImGuiNavDirSourceFlags_PadLStick
+  ! enum ImGuiNavMoveFlags_
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_None") :: ImGuiNavMoveFlags_None
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_LoopX") :: ImGuiNavMoveFlags_LoopX
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_LoopY") :: ImGuiNavMoveFlags_LoopY
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_WrapX") :: ImGuiNavMoveFlags_WrapX
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_WrapY") :: ImGuiNavMoveFlags_WrapY
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_AllowCurrentNavId") :: ImGuiNavMoveFlags_AllowCurrentNavId
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_AlsoScoreVisibleSet") :: ImGuiNavMoveFlags_AlsoScoreVisibleSet
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_ScrollToEdgeY") :: ImGuiNavMoveFlags_ScrollToEdgeY
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_Forwarded") :: ImGuiNavMoveFlags_Forwarded
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_DebugNoResult") :: ImGuiNavMoveFlags_DebugNoResult
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_FocusApi") :: ImGuiNavMoveFlags_FocusApi
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_Tabbing") :: ImGuiNavMoveFlags_Tabbing
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_Activate") :: ImGuiNavMoveFlags_Activate
+  integer(c_int), bind(C,name="const_ImGuiNavMoveFlags_DontSetNavHighlight") :: ImGuiNavMoveFlags_DontSetNavHighlight
+  ! enum ImGuiNavLayer
+  integer(c_int), bind(C,name="const_ImGuiNavLayer_Main") :: ImGuiNavLayer_Main
+  integer(c_int), bind(C,name="const_ImGuiNavLayer_Menu") :: ImGuiNavLayer_Menu
+  integer(c_int), bind(C,name="const_ImGuiNavLayer_COUNT") :: ImGuiNavLayer_COUNT
+  ! enum ImGuiOldColumnFlags_
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_None") :: ImGuiOldColumnFlags_None
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_NoBorder") :: ImGuiOldColumnFlags_NoBorder
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_NoResize") :: ImGuiOldColumnFlags_NoResize
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_NoPreserveWidths") :: ImGuiOldColumnFlags_NoPreserveWidths
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_NoForceWithinWindow") :: ImGuiOldColumnFlags_NoForceWithinWindow
+  integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_GrowParentContentsSize") :: ImGuiOldColumnFlags_GrowParentContentsSize
+  ! enum ImGuiDockNodeFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_DockSpace") :: ImGuiDockNodeFlags_DockSpace
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_CentralNode") :: ImGuiDockNodeFlags_CentralNode
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoTabBar") :: ImGuiDockNodeFlags_NoTabBar
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_HiddenTabBar") :: ImGuiDockNodeFlags_HiddenTabBar
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoWindowMenuButton") :: ImGuiDockNodeFlags_NoWindowMenuButton
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoCloseButton") :: ImGuiDockNodeFlags_NoCloseButton
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDocking") :: ImGuiDockNodeFlags_NoDocking
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingSplitMe") :: ImGuiDockNodeFlags_NoDockingSplitMe
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingSplitOther") :: ImGuiDockNodeFlags_NoDockingSplitOther
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingOverMe") :: ImGuiDockNodeFlags_NoDockingOverMe
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingOverOther") :: ImGuiDockNodeFlags_NoDockingOverOther
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoDockingOverEmpty") :: ImGuiDockNodeFlags_NoDockingOverEmpty
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoResizeX") :: ImGuiDockNodeFlags_NoResizeX
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoResizeY") :: ImGuiDockNodeFlags_NoResizeY
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_SharedFlagsInheritMask_") :: ImGuiDockNodeFlags_SharedFlagsInheritMask_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_NoResizeFlagsMask_") :: ImGuiDockNodeFlags_NoResizeFlagsMask_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_LocalFlagsMask_") :: ImGuiDockNodeFlags_LocalFlagsMask_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_LocalFlagsTransferMask_") :: ImGuiDockNodeFlags_LocalFlagsTransferMask_
+  integer(c_int), bind(C,name="const_ImGuiDockNodeFlags_SavedFlagsMask_") :: ImGuiDockNodeFlags_SavedFlagsMask_
+  ! enum ImGuiDataAuthority_
+  integer(c_int), bind(C,name="const_ImGuiDataAuthority_Auto") :: ImGuiDataAuthority_Auto
+  integer(c_int), bind(C,name="const_ImGuiDataAuthority_DockNode") :: ImGuiDataAuthority_DockNode
+  integer(c_int), bind(C,name="const_ImGuiDataAuthority_Window") :: ImGuiDataAuthority_Window
+  ! enum ImGuiDockNodeState
+  integer(c_int), bind(C,name="const_ImGuiDockNodeState_Unknown") :: ImGuiDockNodeState_Unknown
+  integer(c_int), bind(C,name="const_ImGuiDockNodeState_HostWindowHiddenBecauseSingleWindow") :: &
+     ImGuiDockNodeState_HostWindowHiddenBecauseSingleWindow
+  integer(c_int), bind(C,name="const_ImGuiDockNodeState_HostWindowHiddenBecauseWindowsAreResizing") :: &
+     ImGuiDockNodeState_HostWindowHiddenBecauseWindowsAreResizing
+  integer(c_int), bind(C,name="const_ImGuiDockNodeState_HostWindowVisible") :: ImGuiDockNodeState_HostWindowVisible
+  ! enum ImGuiWindowDockStyleCol
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_Text") :: ImGuiWindowDockStyleCol_Text
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_Tab") :: ImGuiWindowDockStyleCol_Tab
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabHovered") :: ImGuiWindowDockStyleCol_TabHovered
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabActive") :: ImGuiWindowDockStyleCol_TabActive
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabUnfocused") :: ImGuiWindowDockStyleCol_TabUnfocused
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabUnfocusedActive") :: ImGuiWindowDockStyleCol_TabUnfocusedActive
+  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_COUNT") :: ImGuiWindowDockStyleCol_COUNT
+  ! enum ImGuiDebugLogFlags_
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_None") :: ImGuiDebugLogFlags_None
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventActiveId") :: ImGuiDebugLogFlags_EventActiveId
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventFocus") :: ImGuiDebugLogFlags_EventFocus
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventPopup") :: ImGuiDebugLogFlags_EventPopup
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventNav") :: ImGuiDebugLogFlags_EventNav
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventIO") :: ImGuiDebugLogFlags_EventIO
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventDocking") :: ImGuiDebugLogFlags_EventDocking
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventViewport") :: ImGuiDebugLogFlags_EventViewport
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventMask_") :: ImGuiDebugLogFlags_EventMask_
+  integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_OutputToTTY") :: ImGuiDebugLogFlags_OutputToTTY
+  ! enum ImGuiContextHookType
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_NewFramePre") :: ImGuiContextHookType_NewFramePre
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_NewFramePost") :: ImGuiContextHookType_NewFramePost
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_EndFramePre") :: ImGuiContextHookType_EndFramePre
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_EndFramePost") :: ImGuiContextHookType_EndFramePost
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_RenderPre") :: ImGuiContextHookType_RenderPre
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_RenderPost") :: ImGuiContextHookType_RenderPost
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_Shutdown") :: ImGuiContextHookType_Shutdown
+  integer(c_int), bind(C,name="const_ImGuiContextHookType_PendingRemoval_") :: ImGuiContextHookType_PendingRemoval_
+  ! enum ImGuiTabBarFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_DockNode") :: ImGuiTabBarFlags_DockNode
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_IsFocused") :: ImGuiTabBarFlags_IsFocused
+  integer(c_int), bind(C,name="const_ImGuiTabBarFlags_SaveSettings") :: ImGuiTabBarFlags_SaveSettings
+  ! enum ImGuiTabItemFlagsPrivate_
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_SectionMask_") :: ImGuiTabItemFlags_SectionMask_
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_NoCloseButton") :: ImGuiTabItemFlags_NoCloseButton
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Button") :: ImGuiTabItemFlags_Button
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Unsorted") :: ImGuiTabItemFlags_Unsorted
+  integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Preview") :: ImGuiTabItemFlags_Preview
+  ! enum ImGuiFreeTypeBuilderFlags
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoHinting") :: ImGuiFreeTypeBuilderFlags_NoHinting
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoAutoHint") :: ImGuiFreeTypeBuilderFlags_NoAutoHint
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_ForceAutoHint") :: ImGuiFreeTypeBuilderFlags_ForceAutoHint
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LightHinting") :: ImGuiFreeTypeBuilderFlags_LightHinting
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_MonoHinting") :: ImGuiFreeTypeBuilderFlags_MonoHinting
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bold") :: ImGuiFreeTypeBuilderFlags_Bold
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Oblique") :: ImGuiFreeTypeBuilderFlags_Oblique
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Monochrome") :: ImGuiFreeTypeBuilderFlags_Monochrome
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LoadColor") :: ImGuiFreeTypeBuilderFlags_LoadColor
+  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bitmap") :: ImGuiFreeTypeBuilderFlags_Bitmap

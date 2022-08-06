@@ -129,7 +129,7 @@ contains
     call keymap%init()
 
     ! Default keybindings
-    call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiModFlags_Ctrl)
+    call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !
@@ -232,7 +232,7 @@ contains
   ! Return the key+mod combination for a given bind
   module function get_bind_keyname(bind)
     use gui_interfaces_cimgui, only: ImGuiKey_None, igGetKeyName, &
-       ImGuiModFlags_Ctrl, ImGuiModFlags_Shift, ImGuiModFlags_Alt, ImGuiModFlags_Super
+       ImGuiKey_ModCtrl, ImGuiKey_ModShift, ImGuiKey_ModAlt, ImGuiKey_ModSuper
     use c_interface_module, only: C_F_string_ptr_alloc
     use tools_io, only: lower
     integer, intent(in) :: bind
@@ -247,14 +247,15 @@ contains
     group = groupbind(bind)
     key = keybind(bind)
     mod = modbind(bind)
+
     if (key /= ImGuiKey_None) then
-       if (mod == ImGuiModFlags_Ctrl) then
+       if (mod == ImGuiKey_ModCtrl) then
           get_bind_keyname = "Ctrl+"
-       elseif (mod == ImGuiModFlags_Shift) then
+       elseif (mod == ImGuiKey_ModShift) then
           get_bind_keyname = "Shift+"
-       elseif (mod == ImGuiModFlags_Alt) then
+       elseif (mod == ImGuiKey_ModAlt) then
           get_bind_keyname = "Alt+"
-       elseif (mod == ImGuiModFlags_Super) then
+       elseif (mod == ImGuiKey_ModSuper) then
           get_bind_keyname = "Super+"
        end if
        name = igGetKeyName(key)
