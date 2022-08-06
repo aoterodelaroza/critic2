@@ -66,7 +66,6 @@ contains
     local = .false.
     optv=""
     ghome=""
-    input_from_lu = 1
     uin = input_unit
     uout = output_unit
     interactive = .true.
@@ -137,7 +136,6 @@ contains
 
     ! the gui imposes a few restrictions
     if (usegui) then
-       input_from_lu = 0
        interactive = .true.
        ucopy = -1
        uroot = "gui"
@@ -520,12 +518,17 @@ contains
 
   !> Read a line from logical unit u, and return true if read was
   !> successful. Continuation with "\", skip blank lines and comments.
-  !> If eofstop is true, raise error on EOF. If ucopy (integer) exists,
-  !> write a copy of the output line to that logical unit, preceded
-  !> by a prefix.
-  module function getline(u,oline,eofstop,ucopy,nprompt)
+  !> If eofstop is true, raise error on EOF. If ucopy (integer) exists
+  !> and is positive, write a copy of the output line to that logical
+  !> unit, preceded by a prefix. If nprompt, show this number in the
+  !> prompt.
+  !> If lstr, read the line from the instr global variable and ignore
+  !> the logical unit u. If lstr is true, eofstop is always .false.
+  !> ucopy is not used (-1).
+  module function getline(u,lstr,oline,eofstop,ucopy,nprompt)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
+    logical, intent(in) :: lstr
     logical, intent(in), optional :: eofstop
     integer, intent(in), optional :: ucopy
     integer, intent(in), optional :: nprompt
@@ -543,7 +546,24 @@ contains
     notfirst = .false.
     do while (.true.)
        ! read the line
-       ok = getline_raw(u,line,nprompt=nprompt)
+       if (.not.lstr) then
+          ok = getline_raw(u,line,nprompt=nprompt)
+       else
+          instrptr = instrptr + 1
+          ok = (instrptr <= size(instr,1))
+          if (ok) then
+             line = instr(instrptr)%s
+          else
+             line = ""
+          end if
+       end if
+       ! exit if eof
+       if (.not.ok) then
+          if (present(eofstop).and..not.lstr) then
+             if (eofstop) call ferror("getline","unexpected end of file",faterr)
+          end if
+          return
+       end if
 
        ! remove tabs
        do i = 1, len(line)
@@ -573,14 +593,6 @@ contains
           endif
        end do
 
-       ! exit if eof
-       if (.not.ok) then
-          if (present(eofstop)) then
-             if (eofstop) call ferror("getline","unexpected end of file",faterr)
-          end if
-          return
-       end if
-
        ! skip blank lines
        lenu = len_trim(line)
        if (lenu == 0) then
@@ -604,7 +616,7 @@ contains
        oline = trim(oline) // " " // line(1:lenu-1)
        notfirst = .true.
     end do
-    if (present(ucopy)) then
+    if (present(ucopy).and..not.lstr) then
        if (ucopy >= 0) &
           write (ucopy,'(A,X,A/)') prfx, trim(oline)
     endif

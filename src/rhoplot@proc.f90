@@ -102,7 +102,7 @@ contains
        np = 0
        allocate(xp(3,10))
        lu = fopen_read(word)
-       do while (getline(lu,str))
+       do while (getline(lu,.false.,str))
           read (str,*,err=998) x1, y1, z1
           np = np + 1
           if (np > size(xp,2)) call realloc(xp,3,2*np)
@@ -1173,7 +1173,7 @@ contains
     use systemmod, only: sy
     use global, only: fileroot, eval_next, dunit0, iunit
     use tools_io, only: uout, uin, ucopy, getline, lgetword, equal,&
-       faterr, ferror, string, ioj_right, fopen_write, getword, fclose
+       faterr, ferror, string, ioj_right, fopen_write, getword, fclose, usegui
     use tools_math, only: plane_scale_extend, assign_ziso, &
        niso_manual, niso_atan, niso_lin, niso_log, niso_bader
     use types, only: scalar_value, realloc
@@ -1223,7 +1223,7 @@ contains
 
     !.Read user options:
     ll = len(line)
-    doagain = getline(uin,line,ucopy=ucopy)
+    doagain = getline(uin,usegui,line,ucopy=ucopy)
     goodplane = .false.
     do while (doagain)
        lp=1
@@ -1414,7 +1414,7 @@ contains
           ok = check_no_extra_word()
           if (.not.ok) return
           ! read the user-entered points:
-          ok = getline(uin,line,.true.,ucopy)
+          ok = getline(uin,usegui,line,.true.,ucopy)
           lp = 1
           word = lgetword (line,lp)
           do while (ok.and..not.equal(word, 'endcheck').and..not.equal(word, 'end'))
@@ -1432,7 +1432,7 @@ contains
              newtypcrit(newncriticp) = res%s
              q0 = sy%c%c2x(q0)
 
-             ok = ok .and. getline(uin,line,.true.,ucopy)
+             ok = ok .and. getline(uin,usegui,line,.true.,ucopy)
              lp = 1
              word = lgetword(line,lp)
           enddo
@@ -1549,7 +1549,7 @@ contains
           call ferror('rhoplot_grdvec','Unkown keyword in GRDVEC',faterr,line,syntax=.true.)
           return
        endif
-       doagain = getline(uin,line,ucopy=ucopy)
+       doagain = getline(uin,usegui,line,ucopy=ucopy)
     enddo
     call ferror('rhoplot_grdvec','Unexpected end of input',faterr,line,syntax=.true.)
     return

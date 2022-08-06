@@ -47,7 +47,7 @@ contains
     use spglib, only: spg_list_spg
     use arithmetic, only: listvariables, listlibxc
     use tools_io, only: ferror, faterr, uin, ucopy, uout, getword, lgetword, getline,&
-       equal, isinteger, isreal, string
+       equal, isinteger, isreal, string, usegui
     use param, only: param_init
 
     ! parsing
@@ -65,7 +65,7 @@ contains
 
     ! Start reading
     ncom = 1
-    main: do while (getline(uin,line,ucopy=ucopy,nprompt=ncom))
+    main: do while (getline(uin,usegui,line,ucopy=ucopy,nprompt=ncom))
        ncom = ncom + 1
        lp=1
        word = lgetword(line,lp)

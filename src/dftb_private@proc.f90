@@ -786,7 +786,7 @@ contains
     at%nexp = 0
     at%ncoef = 0
     nb = 0
-    do while(getline(lu,line,.false.))
+    do while(getline(lu,.false.,line,.false.))
        if (len_trim(line) > 0) then
           ! must be an atom?
           idx = index(line,"{")
@@ -795,7 +795,7 @@ contains
           nb = nb + 1
 
           ! read the keywords at this level: atomicnumber and orbital
-          do while(getline(lu,line,.true.))
+          do while(getline(lu,.false.,line,.true.))
              lp = 1
              word = lgetword(line,lp)
              idx = index(word,"{")
@@ -813,7 +813,7 @@ contains
                 at%norb = at%norb + 1
                 ! read the keywords at this level:
                 ! angularmomentum, occupation, cutoff, exponents, coefficients
-                do while(getline(lu,line,.true.))
+                do while(getline(lu,.false.,line,.true.))
                    lp = 1
                    word = lgetword(line,lp)
                    idx = index(word,"{")
@@ -846,7 +846,7 @@ contains
                             at%eexp(at%nexp(at%norb),at%norb) = rdum
                          end do
                          if (index(line,"}") > 0) exit
-                         ok = getline(lu,line,.true.)
+                         ok = getline(lu,.false.,line,.true.)
                          if (.not.ok) exit
                       end do
                    elseif (equal(word,"coefficients")) then
@@ -866,7 +866,7 @@ contains
                             caux(n) = rdum
                          end do
                          if (index(line,"}") > 0) exit
-                         ok = getline(lu,line,.true.)
+                         ok = getline(lu,.false.,line,.true.)
                          if (.not.ok) exit
                       end do
                       if (mod(n,at%nexp(at%norb)) /= 0) &

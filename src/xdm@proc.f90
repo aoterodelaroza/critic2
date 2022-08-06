@@ -1155,7 +1155,7 @@ contains
   subroutine xdm_excitation(line0)
     use systemmod, only: sy
     use tools_io, only: ferror, faterr, uin, uout, ucopy, getline, isreal,&
-       equal, lgetword, getword, string
+       equal, lgetword, getword, string, usegui
     use param, only: bohrtoa
     character*(*), intent(inout) :: line0
 
@@ -1184,7 +1184,7 @@ contains
     inow = 0
     lvec = 0
     do while(.true.)
-       ok = getline(uin,line,ucopy=ucopy)
+       ok = getline(uin,usegui,line,ucopy=ucopy)
        if (.not.ok) &
           call ferror("xdm_excitation","unexpected end of input in XDM EXCITATION",faterr)
        lp = 1

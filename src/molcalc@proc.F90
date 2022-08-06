@@ -126,7 +126,7 @@ contains
     use fieldmod, only: type_wfn
     use global, only: mesh_type, mesh_level
     use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
-       lgetword, equal, uout
+       lgetword, equal, uout, usegui
     use types, only: realloc
     character*(*), intent(in) :: savevar
 
@@ -152,7 +152,7 @@ contains
     call m%report()
     allocate(imo1(10),imo2(10),kk(10))
     n = 0
-    do while (getline(uin,line,ucopy=ucopy))
+    do while (getline(uin,usegui,line,ucopy=ucopy))
        lp = 1
        word = lgetword(line,lp)
        if (equal(word,'endmolcalc').or.equal(word,'end')) then

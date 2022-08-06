@@ -60,7 +60,7 @@ contains
     use systemmod, only: sy
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: uout, getline, lgetword, equal, ferror, faterr, uin, &
-       ucopy, getword, lower
+       ucopy, getword, lower, usegui
     use param, only: jmlcol
 
     type flxorder
@@ -94,7 +94,7 @@ contains
     write (uout,'(A)') "* FLUXPRINT: 3d representation of cell, CPs and gradient paths"
     write (uout,*)
     do while(.true.)
-       ok = getline(uin,line,eofstop=.true.,ucopy=ucopy)
+       ok = getline(uin,usegui,line,eofstop=.true.,ucopy=ucopy)
        lp = 1
        word = lgetword(line,lp)
 
