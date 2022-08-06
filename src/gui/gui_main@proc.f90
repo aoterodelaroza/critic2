@@ -93,7 +93,8 @@ contains
     ! get the ImGUI IO interface and enable docking
     ptrc = igGetIO()
     call c_f_pointer(ptrc,io)
-    io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable)
+    io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
+    io%inifilename = c_null_ptr ! do not save the ini file, for now
 
     ! set default keybindings
     call set_default_keybindings()
