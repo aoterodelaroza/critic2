@@ -96,6 +96,10 @@ contains
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
     io%inifilename = c_null_ptr ! do not save the ini file, for now
 
+    ! get the ImGUI context pointer
+    ptrc = igGetCurrentContext()
+    call c_f_pointer(ptrc,g)
+
     ! set default keybindings
     call set_default_keybindings()
 
