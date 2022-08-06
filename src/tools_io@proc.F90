@@ -45,12 +45,13 @@ contains
   !> command-line options. On output, optv contains the dash-options
   !> passed to critic, ghome is the path passed with -r and uroot is
   !> the root for the run.
-  module subroutine stdargs(optv,ghome,uroot)
+  module subroutine stdargs(optv,ghome,uroot,usegui)
     use iso_fortran_env, only: input_unit, output_unit
     use param, only: dirsep
     character(len=:), allocatable, intent(out) :: optv
     character(len=:), allocatable, intent(out) :: ghome
     character(len=:), allocatable, intent(out) :: uroot
+    logical, intent(out) :: usegui
 
     integer, parameter :: arglen = 1024
 
@@ -66,6 +67,7 @@ contains
     local = .false.
     optv=""
     ghome=""
+    input_from_lu = 1
     uin = input_unit
     uout = output_unit
     interactive = .true.
@@ -73,8 +75,20 @@ contains
     uroot = "stdin"
     filepath = "."
 
-    ! process arguments
+    ! check if the -g argument is present -> usegui
     argc = command_argument_count()
+    do n = 1, argc
+       call getarg(n,argv)
+       argv = adjustl(argv)
+       if (len(argv) >= 2) then
+          if (argv(1:2) == "-g") then
+             usegui = .true.
+             exit
+          end if
+       end if
+    end do
+
+    ! process arguments
     if (argc > 0) then
        n=0
        do while (n < argc)
@@ -82,7 +96,7 @@ contains
           call getarg(n,argv)
           argv = adjustl(argv)
 
-          if (argv(1:1) == "-") then
+          if (argv(1:1) == "-" .and. len(argv) > 1) then
              if (trim(argv(2:2)) == "r") then
                 n = n + 1
                 call getarg(n,argv)
@@ -92,7 +106,7 @@ contains
              else
                 optv = trim(optv) // argv(2:2)
              endif
-          elseif (uin == input_unit) then
+          elseif (uin == input_unit .and..not.usegui) then
              uroot = trim(argv)
              if (index(uroot,dirsep) > 0) then
                 filepath = uroot(1:index(uroot,dirsep,.true.)-1)
@@ -115,10 +129,18 @@ contains
              uroot = trim(adjustl(uroot))
              uin = fopen_read(argv,abspath0=.true.)
              interactive = .false.
-          elseif (uout == output_unit) then
+          elseif (uout == output_unit .and..not.usegui) then
              uout = fopen_write(argv)
           endif
        end do
+    end if
+
+    ! the gui imposes a few restrictions
+    if (usegui) then
+       input_from_lu = 0
+       interactive = .true.
+       ucopy = -1
+       uroot = "gui"
     end if
 
   end subroutine stdargs

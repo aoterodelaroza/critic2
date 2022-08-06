@@ -18,6 +18,7 @@
 ! Standalone library for I/O and error handling. Heavily modified
 ! from previous code (pi).
 module tools_io
+  use types, only: vstring
   implicit none
 
   public
@@ -77,11 +78,14 @@ module tools_io
   character*(1), parameter :: tab = char(9) !< tab char (ascii 9)
 
   ! main input and output, logical unit allocation
+  integer :: input_from_lu = 1 ! 0 = input from character array, 1 = input from uin
   integer :: uin !< main input lu
   integer :: uout !< main output lu
   integer :: ucopy !< logical unit where the copy of the input is written
   character(len=:), allocatable :: filepath !< relative path to find related files
   logical :: interactive !< is this an interactive sesion?
+  type(vstring), allocatable :: instr(:) !< input string array
+  integer :: instrptr = 0 !< pointer to input string array
 
   ! error system
   integer, parameter :: faterr = -1 !< fatal error flag
@@ -93,10 +97,11 @@ module tools_io
   interface
      module subroutine lualloc_init()
      end subroutine lualloc_init
-     module subroutine stdargs(optv,ghome,uroot)
+     module subroutine stdargs(optv,ghome,uroot,usegui)
        character(len=:), allocatable, intent(out) :: optv
        character(len=:), allocatable, intent(out) :: ghome
        character(len=:), allocatable, intent(out) :: uroot
+       logical, intent(out) :: usegui
      end subroutine stdargs
      module function string_int4(a,length,justify,pad0,padspace) result(s)
        character(len=:), allocatable :: s

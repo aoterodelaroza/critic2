@@ -30,10 +30,10 @@ module gui_main
   real*8, public :: time ! the time
   type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
-  type(c_ptr) :: rootwin ! the root window pointer (GLFWwindow*)
+  type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
 
   ! GUI control parameters
-  real(c_float) :: tooltip_delay = 2.5 ! tooltip delay, in seconds
+  real(c_float), public :: tooltip_delay = 2.5 ! tooltip delay, in seconds
 
   ! public procedures
   public :: gui_start

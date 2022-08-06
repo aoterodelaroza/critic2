@@ -155,6 +155,8 @@ module global
   integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
 
   interface
+     module subroutine critic_main()
+     end subroutine critic_main
      module subroutine global_init(ghome,datadir)
        character*(*) :: ghome, datadir
      end subroutine global_init

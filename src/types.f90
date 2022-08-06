@@ -21,6 +21,7 @@ module types
   implicit none
 
   private
+  public :: vstring
   public :: species
   public :: basicatom
   public :: neqatom
@@ -38,6 +39,7 @@ module types
 
   ! overloaded functions
   interface realloc
+     module procedure realloc_vstring
      module procedure realloc_pointpropable
      module procedure realloc_integrable
      module procedure realloc_species
@@ -63,6 +65,11 @@ module types
      module procedure realloc1cmplx8
      module procedure realloc5cmplx8
   end interface
+
+  !> Variable-length strings
+  type vstring
+     character(len=:), allocatable :: s
+  end type vstring
 
   !> Atomic species
   type species
@@ -287,6 +294,10 @@ module types
      module subroutine scalar_value_clear(s)
        class(scalar_value), intent(inout) :: s
      end subroutine scalar_value_clear
+     module subroutine realloc_vstring(a,nnew)
+       type(vstring), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_vstring
      module subroutine realloc_pointpropable(a,nnew)
        type(pointpropable), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

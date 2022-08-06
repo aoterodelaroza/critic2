@@ -58,6 +58,28 @@ contains
 
   end subroutine scalar_value_clear
 
+  !> Adapt the size of an allocatable 1D type(vstring) array
+  module subroutine realloc_vstring(a,nnew)
+    type(vstring), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(vstring), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_vstring
+
   !> Adapt the size of an allocatable 1D type(pointpropable) array
   module subroutine realloc_pointpropable(a,nnew)
     type(pointpropable), intent(inout), allocatable :: a(:)

@@ -1919,7 +1919,7 @@ contains
     real*8, intent(in) :: gfnormeps
 
     integer :: it
-    real*8 :: wx(3), x0(3), x0ref(3), dist
+    real*8 :: wx(3)
     type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
