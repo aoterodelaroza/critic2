@@ -913,7 +913,7 @@ contains
   function read_fragment(lu) result(fr)
     use systemmod, only: sy
     use global, only: eval_next
-    use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
+    use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr, usegui
     use fragmentmod, only: fragment
     use types, only: realloc
     use param, only: bohrtoa, icrd_cart
@@ -934,7 +934,7 @@ contains
 
     ! create a fragment from input
     do while (.true.)
-       if (lu == uin) then
+       if (lu == uin.and..not.usegui) then
           ok = getline(lu,line,.true.,ucopy)
        else
           ok = getline(lu,line,.true.)

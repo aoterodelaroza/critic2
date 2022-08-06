@@ -29,20 +29,19 @@ program critic
      global_init, critic_main
   use config, only: getstring, istring_datadir
   use tools_io, only: ncomms, nwarns, ucopy, uout, string, start_clock, stdargs,&
-     history_init, history_end, tictac, print_clock
+     history_init, history_end, tictac, print_clock, usegui
   use param, only: param_init
   implicit none
 
   ! command-line arguments
   character(len=:), allocatable :: optv, ghome
-  logical :: usegui
 
   ! initialize parameters
   call start_clock()
   call param_init()
 
   ! input/output, arguments (tools_io)
-  call stdargs(optv,ghome,fileroot,usegui)
+  call stdargs(optv,ghome,fileroot)
   call history_init()
 
   ! set default values and initialize the rest of the modules

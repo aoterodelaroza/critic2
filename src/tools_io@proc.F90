@@ -45,13 +45,12 @@ contains
   !> command-line options. On output, optv contains the dash-options
   !> passed to critic, ghome is the path passed with -r and uroot is
   !> the root for the run.
-  module subroutine stdargs(optv,ghome,uroot,usegui)
+  module subroutine stdargs(optv,ghome,uroot)
     use iso_fortran_env, only: input_unit, output_unit
     use param, only: dirsep
     character(len=:), allocatable, intent(out) :: optv
     character(len=:), allocatable, intent(out) :: ghome
     character(len=:), allocatable, intent(out) :: uroot
-    logical, intent(out) :: usegui
 
     integer, parameter :: arglen = 1024
 
@@ -71,6 +70,7 @@ contains
     uin = input_unit
     uout = output_unit
     interactive = .true.
+    usegui = .false.
     ucopy = uout
     uroot = "stdin"
     filepath = "."

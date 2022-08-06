@@ -64,7 +64,7 @@ contains
     use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
-       getword, lower, isinteger, string, nameguess, zatguess, equali
+       getword, lower, isinteger, string, nameguess, zatguess, equali, usegui
     use param, only: bohrtoa
     use types, only: realloc
 
@@ -95,7 +95,7 @@ contains
     seed%nspc = 0
     seed%useabr = 0
     nsline = 0
-    if (lu == uin) then
+    if (lu == uin.and..not.usegui) then
        luout = ucopy
     else
        luout = -1
@@ -416,7 +416,7 @@ contains
   module subroutine parse_molecule_env(seed,lu,oksyn)
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
-       string, isinteger, nameguess, getword, zatguess, equali
+       string, isinteger, nameguess, getword, zatguess, equali, usegui
     use param, only: bohrtoa
     use types, only: realloc
 
@@ -442,7 +442,7 @@ contains
     seed%nat = 0
     seed%nspc = 0
     allocate(seed%x(3,10),seed%is(10),seed%spc(2))
-    if (lu == uin) then
+    if (lu == uin.and..not.usegui) then
        luout = ucopy
     else
        luout = -1
