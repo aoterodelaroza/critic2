@@ -438,13 +438,12 @@
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_COUNT") :: ImGuiKey_NamedKey_COUNT
   ! integer(c_int), bind(C,name="const_ImGuiKey_KeysData_SIZE") :: ImGuiKey_KeysData_SIZE
   integer(c_int), bind(C,name="const_ImGuiKey_KeysData_OFFSET") :: ImGuiKey_KeysData_OFFSET
-  ! typedef enum {
-  !     ImGuiModFlags_None = 0,
-  !     ImGuiModFlags_Ctrl = 1 << 0,
-  !     ImGuiModFlags_Shift = 1 << 1,
-  !     ImGuiModFlags_Alt = 1 << 2,
-  !     ImGuiModFlags_Super = 1 << 3
-  ! }ImGuiModFlags_;
+  ! enum ImGuiModFlags_
+  integer(c_int), bind(C,name="const_ImGuiModFlags_None") :: ImGuiModFlags_None
+  integer(c_int), bind(C,name="const_ImGuiModFlags_Ctrl") :: ImGuiModFlags_Ctrl
+  integer(c_int), bind(C,name="const_ImGuiModFlags_Shift") :: ImGuiModFlags_Shift
+  integer(c_int), bind(C,name="const_ImGuiModFlags_Alt") :: ImGuiModFlags_Alt
+  integer(c_int), bind(C,name="const_ImGuiModFlags_Super") :: ImGuiModFlags_Super
   ! enum ImGuiNavInput_
   integer(c_int), bind(C,name="const_ImGuiNavInput_Activate") :: ImGuiNavInput_Activate
   integer(c_int), bind(C,name="const_ImGuiNavInput_Cancel") :: ImGuiNavInput_Cancel
