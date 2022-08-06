@@ -434,7 +434,7 @@ extern "C" const int const_ImGuiKey_ModSuper;
 // ImGuiKey_COUNT
 extern "C" const int const_ImGuiKey_NamedKey_BEGIN;
 extern "C" const int const_ImGuiKey_NamedKey_END;
-extern "C" const int const_ImGuiKey_NamedKey_COUNT;
+// extern "C" const int const_ImGuiKey_NamedKey_COUNT;
 // ImGuiKey_KeysData_SIZE
 extern "C" const int const_ImGuiKey_KeysData_OFFSET;
 // enum ImGuiModFlags_
@@ -544,7 +544,7 @@ extern "C" const int const_ImGuiCol_NavHighlight;
 extern "C" const int const_ImGuiCol_NavWindowingHighlight;
 extern "C" const int const_ImGuiCol_NavWindowingDimBg;
 extern "C" const int const_ImGuiCol_ModalWindowDimBg;
-extern "C" const int const_ImGuiCol_COUNT;
+// extern "C" const int const_ImGuiCol_COUNT;
 // enum ImGuiStyleVar_
 extern "C" const int const_ImGuiStyleVar_Alpha;
 extern "C" const int const_ImGuiStyleVar_DisabledAlpha;
@@ -944,14 +944,14 @@ extern "C" const int const_ImGuiTabItemFlags_Button;
 extern "C" const int const_ImGuiTabItemFlags_Unsorted;
 extern "C" const int const_ImGuiTabItemFlags_Preview;
 // enum ImGuiFreeTypeBuilderFlags
-// const int const_ImGuiFreeTypeBuilderFlags_NoHinting = ImGuiFreeTypeBuilderFlags_NoHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint = ImGuiFreeTypeBuilderFlags_NoAutoHint;
-// const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint = ImGuiFreeTypeBuilderFlags_ForceAutoHint;
-// const int const_ImGuiFreeTypeBuilderFlags_LightHinting = ImGuiFreeTypeBuilderFlags_LightHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_MonoHinting = ImGuiFreeTypeBuilderFlags_MonoHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_Bold = ImGuiFreeTypeBuilderFlags_Bold;
-// const int const_ImGuiFreeTypeBuilderFlags_Oblique = ImGuiFreeTypeBuilderFlags_Oblique;
-// const int const_ImGuiFreeTypeBuilderFlags_Monochrome = ImGuiFreeTypeBuilderFlags_Monochrome;
-// const int const_ImGuiFreeTypeBuilderFlags_LoadColor = ImGuiFreeTypeBuilderFlags_LoadColor;
-// const int const_ImGuiFreeTypeBuilderFlags_Bitmap = ImGuiFreeTypeBuilderFlags_Bitmap;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoHinting;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_LightHinting;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_MonoHinting;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bold;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Oblique;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Monochrome;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_LoadColor;
+// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bitmap;
 

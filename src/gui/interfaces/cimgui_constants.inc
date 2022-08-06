@@ -11,9 +11,13 @@
   !! Note to self: remember to copy them over if imgui/cimgui is updated.
   ! enum ImGuiKey_
   integer(c_int), parameter :: ImGuiKey_COUNT = 645
+  integer(c_int), parameter :: ImGuiKey_NamedKey_COUNT = 133
+  integer(c_int), parameter :: ImGuiKey_NamedKey_COUNT_31shift5 = 5 ! (ImGuiKey_NamedKey_COUNT+31)>>5
   integer(c_int), parameter :: ImGuiKey_KeysData_SIZE = 645
   ! enum ImGuiNavInput_
   integer(c_int), parameter :: ImGuiNavInput_COUNT = 20
+  ! enum ImGuiStyle
+  integer(c_int), parameter :: ImGuiCol_COUNT = 55
   !! end of sizes !!
 
   ! enum ImGuiWindowFlags_
@@ -418,7 +422,7 @@
   !! integer(c_int), bind(C,name="const_ImGuiKey_COUNT") :: ImGuiKey_COUNT
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_BEGIN") :: ImGuiKey_NamedKey_BEGIN
   integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_END") :: ImGuiKey_NamedKey_END
-  integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_COUNT") :: ImGuiKey_NamedKey_COUNT
+  !! integer(c_int), bind(C,name="const_ImGuiKey_NamedKey_COUNT") :: ImGuiKey_NamedKey_COUNT
   !! integer(c_int), bind(C,name="const_ImGuiKey_KeysData_SIZE") :: ImGuiKey_KeysData_SIZE
   integer(c_int), bind(C,name="const_ImGuiKey_KeysData_OFFSET") :: ImGuiKey_KeysData_OFFSET
   ! enum ImGuiModFlags_
@@ -528,7 +532,7 @@
   integer(c_int), bind(C,name="const_ImGuiCol_NavWindowingHighlight") :: ImGuiCol_NavWindowingHighlight
   integer(c_int), bind(C,name="const_ImGuiCol_NavWindowingDimBg") :: ImGuiCol_NavWindowingDimBg
   integer(c_int), bind(C,name="const_ImGuiCol_ModalWindowDimBg") :: ImGuiCol_ModalWindowDimBg
-  integer(c_int), bind(C,name="const_ImGuiCol_COUNT") :: ImGuiCol_COUNT
+  !!integer(c_int), bind(C,name="const_ImGuiCol_COUNT") :: ImGuiCol_COUNT
   ! enum ImGuiStyleVar_
   integer(c_int), bind(C,name="const_ImGuiStyleVar_Alpha") :: ImGuiStyleVar_Alpha
   integer(c_int), bind(C,name="const_ImGuiStyleVar_DisabledAlpha") :: ImGuiStyleVar_DisabledAlpha

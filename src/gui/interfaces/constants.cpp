@@ -442,7 +442,7 @@ const int const_ImGuiKey_ModSuper = ImGuiKey_ModSuper;
 // ImGuiKey_COUNT
 const int const_ImGuiKey_NamedKey_BEGIN = ImGuiKey_NamedKey_BEGIN;
 const int const_ImGuiKey_NamedKey_END = ImGuiKey_NamedKey_END;
-const int const_ImGuiKey_NamedKey_COUNT = ImGuiKey_NamedKey_COUNT;
+// const int const_ImGuiKey_NamedKey_COUNT = ImGuiKey_NamedKey_COUNT;
 // ImGuiKey_KeysData_SIZE
 const int const_ImGuiKey_KeysData_OFFSET = ImGuiKey_KeysData_OFFSET;
 // enum ImGuiModFlags_
@@ -552,7 +552,7 @@ const int const_ImGuiCol_NavHighlight = ImGuiCol_NavHighlight;
 const int const_ImGuiCol_NavWindowingHighlight = ImGuiCol_NavWindowingHighlight;
 const int const_ImGuiCol_NavWindowingDimBg = ImGuiCol_NavWindowingDimBg;
 const int const_ImGuiCol_ModalWindowDimBg = ImGuiCol_ModalWindowDimBg;
-const int const_ImGuiCol_COUNT = ImGuiCol_COUNT;
+// const int const_ImGuiCol_COUNT = ImGuiCol_COUNT;
 // enum ImGuiStyleVar_
 const int const_ImGuiStyleVar_Alpha = ImGuiStyleVar_Alpha;
 const int const_ImGuiStyleVar_DisabledAlpha = ImGuiStyleVar_DisabledAlpha;
