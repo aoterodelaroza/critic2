@@ -9,6 +9,7 @@ set(SOURCES
 
   gui_main.f90 gui_main@proc.f90
   gui_keybindings.f90 gui_keybindings@proc.f90
+  gui_utils.f90 gui_utils@proc.f90
   )
 add_library(fgui OBJECT ${SOURCES})
 

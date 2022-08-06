@@ -1,3 +1,5 @@
+! This module handles the key-bindings for the critic2 GUI.
+
 module gui_keybindings
   use iso_c_binding, only: c_int
   implicit none

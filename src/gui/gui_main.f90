@@ -20,23 +20,20 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
-  use iso_c_binding, only: c_ptr
+  use iso_c_binding, only: c_ptr, c_float
   use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
   implicit none
 
   private
 
-  ! time variable
-  real*8, public :: time
+  ! variables to GUI's structures & data
+  real*8, public :: time ! the time
+  type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
+  type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
+  type(c_ptr) :: rootwin ! the root window pointer (GLFWwindow*)
 
-  ! pointer to ImGui's IO object
-  type(ImGuiIO), pointer, public :: io
-
-  ! pointer to ImGui's context
-  type(ImGuiContext), pointer, public :: g
-
-  ! the root window pointer (GLFWwindow*)
-  type(c_ptr) :: rootwin
+  ! GUI control parameters
+  real(c_float) :: tooltip_delay = 2.5 ! tooltip delay, in seconds
 
   ! public procedures
   public :: gui_start

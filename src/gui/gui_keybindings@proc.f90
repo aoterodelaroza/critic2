@@ -1,3 +1,5 @@
+! This module handles the key-bindings for the critic2 GUI.
+
 submodule (gui_keybindings) proc
   use iso_c_binding
   use hashmod, only: hash
