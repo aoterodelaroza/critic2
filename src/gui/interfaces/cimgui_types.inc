@@ -1,60 +1,65 @@
   ! -*-F90-*-
-  
+
   !xx! cimgui user-defined types
-  ! typedef struct ImVector_const_charPtr {int Size;int Capacity;const char** Data;} ImVector_const_charPtr;
+  type, bind(c) :: ImVector_const_charPtr
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_const_charPtr
   type, bind(c) :: ImVec2
      real(c_float) :: x
      real(c_float) :: y
   end type ImVec2
+  type, bind(c) :: ImVec4
+     real(c_float) :: x
+     real(c_float) :: y
+     real(c_float) :: z
+     real(c_float) :: w
+  end type ImVec4
 
-  ! struct ImVec4
-  ! {
-  !     float x, y, z, w;
-  ! };
-  ! struct ImGuiStyle
-  ! {
-  !     float Alpha;
-  !     float DisabledAlpha;
-  !     ImVec2 WindowPadding;
-  !     float WindowRounding;
-  !     float WindowBorderSize;
-  !     ImVec2 WindowMinSize;
-  !     ImVec2 WindowTitleAlign;
-  !     ImGuiDir WindowMenuButtonPosition;
-  !     float ChildRounding;
-  !     float ChildBorderSize;
-  !     float PopupRounding;
-  !     float PopupBorderSize;
-  !     ImVec2 FramePadding;
-  !     float FrameRounding;
-  !     float FrameBorderSize;
-  !     ImVec2 ItemSpacing;
-  !     ImVec2 ItemInnerSpacing;
-  !     ImVec2 CellPadding;
-  !     ImVec2 TouchExtraPadding;
-  !     float IndentSpacing;
-  !     float ColumnsMinSpacing;
-  !     float ScrollbarSize;
-  !     float ScrollbarRounding;
-  !     float GrabMinSize;
-  !     float GrabRounding;
-  !     float LogSliderDeadzone;
-  !     float TabRounding;
-  !     float TabBorderSize;
-  !     float TabMinWidthForCloseButton;
-  !     ImGuiDir ColorButtonPosition;
-  !     ImVec2 ButtonTextAlign;
-  !     ImVec2 SelectableTextAlign;
-  !     ImVec2 DisplayWindowPadding;
-  !     ImVec2 DisplaySafeAreaPadding;
-  !     float MouseCursorScale;
-  !     bool AntiAliasedLines;
-  !     bool AntiAliasedLinesUseTex;
-  !     bool AntiAliasedFill;
-  !     float CurveTessellationTol;
-  !     float CircleTessellationMaxError;
-  !     ImVec4 Colors[ImGuiCol_COUNT];
-  ! };
+  type, bind(c) :: ImGuiStyle
+     real(c_float) :: Alpha
+     real(c_float) :: DisabledAlpha
+     type(ImVec2) :: WindowPadding
+     real(c_float) :: WindowRounding
+     real(c_float) :: WindowBorderSize
+     type(ImVec2) :: WindowMinSize
+     type(ImVec2) :: WindowTitleAlign
+     integer(c_int) :: WindowMenuButtonPosition
+     real(c_float) :: ChildRounding
+     real(c_float) :: ChildBorderSize
+     real(c_float) :: PopupRounding
+     real(c_float) :: PopupBorderSize
+     type(ImVec2) :: FramePadding
+     real(c_float) :: FrameRounding
+     real(c_float) :: FrameBorderSize
+     type(ImVec2) :: ItemSpacing
+     type(ImVec2) :: ItemInnerSpacing
+     type(ImVec2) :: CellPadding
+     type(ImVec2) :: TouchExtraPadding
+     real(c_float) :: IndentSpacing
+     real(c_float) :: ColumnsMinSpacing
+     real(c_float) :: ScrollbarSize
+     real(c_float) :: ScrollbarRounding
+     real(c_float) :: GrabMinSize
+     real(c_float) :: GrabRounding
+     real(c_float) :: LogSliderDeadzone
+     real(c_float) :: TabRounding
+     real(c_float) :: TabBorderSize
+     real(c_float) :: TabMinWidthForCloseButton
+     integer(c_int) :: ColorButtonPosition
+     type(ImVec2) :: ButtonTextAlign
+     type(ImVec2) :: SelectableTextAlign
+     type(ImVec2) :: DisplayWindowPadding
+     type(ImVec2) :: DisplaySafeAreaPadding
+     real(c_float) :: MouseCursorScale
+     logical(c_bool) :: AntiAliasedLines
+     logical(c_bool) :: AntiAliasedLinesUseTex
+     logical(c_bool) :: AntiAliasedFill
+     real(c_float) :: CurveTessellationTol
+     real(c_float) :: CircleTessellationMaxError
+     ! type(ImVec4) :: Colors[ImGuiCol_COUNT]
+  end type ImGuiStyle
 
   type, bind(c) :: ImGuiKeyData
      logical(c_bool) :: Down
@@ -167,27 +172,28 @@
      integer(c_short) :: InputQueueSurrogate ! ImWchar16
      type(ImVector_ImWchar) :: InputQueueCharacters
   end type ImGuiIO
+
   ! struct ImGuiInputTextCallbackData
   ! {
   !     ImGuiInputTextFlags EventFlag;
   !     ImGuiInputTextFlags Flags;
-  !     void* UserData;
+  !     type(c_ptr) :: UserData;
   !     ImWchar EventChar;
   !     ImGuiKey EventKey;
   !     char* Buf;
-  !     int BufTextLen;
-  !     int BufSize;
-  !     bool BufDirty;
-  !     int CursorPos;
-  !     int SelectionStart;
-  !     int SelectionEnd;
+  !     integer(c_int) :: BufTextLen;
+  !     integer(c_int) :: BufSize;
+  !     logical(c_bool) :: BufDirty;
+  !     integer(c_int) :: CursorPos;
+  !     integer(c_int) :: SelectionStart;
+  !     integer(c_int) :: SelectionEnd;
   ! };
   ! struct ImGuiSizeCallbackData
   ! {
-  !     void* UserData;
-  !     ImVec2 Pos;
-  !     ImVec2 CurrentSize;
-  !     ImVec2 DesiredSize;
+  !     type(c_ptr) :: UserData;
+  !     type(ImVec2) :: Pos;
+  !     type(ImVec2) :: CurrentSize;
+  !     type(ImVec2) :: DesiredSize;
   ! };
   ! struct ImGuiWindowClass
   ! {
@@ -197,19 +203,19 @@
   !     ImGuiViewportFlags ViewportFlagsOverrideClear;
   !     ImGuiTabItemFlags TabItemFlagsOverrideSet;
   !     ImGuiDockNodeFlags DockNodeFlagsOverrideSet;
-  !     bool DockingAlwaysTabBar;
-  !     bool DockingAllowUnclassed;
+  !     logical(c_bool) :: DockingAlwaysTabBar;
+  !     logical(c_bool) :: DockingAllowUnclassed;
   ! };
   ! struct ImGuiPayload
   ! {
-  !     void* Data;
-  !     int DataSize;
+  !     type(c_ptr) :: Data;
+  !     integer(c_int) :: DataSize;
   !     ImGuiID SourceId;
   !     ImGuiID SourceParentId;
-  !     int DataFrameCount;
-  !     char DataType[32 + 1];
-  !     bool Preview;
-  !     bool Delivery;
+  !     integer(c_int) :: DataFrameCount;
+  !     character(c_char) :: DataType[32 + 1];
+  !     logical(c_bool) :: Preview;
+  !     logical(c_bool) :: Delivery;
   ! };
   ! struct ImGuiTableColumnSortSpecs
   ! {
@@ -221,12 +227,12 @@
   ! struct ImGuiTableSortSpecs
   ! {
   !     const ImGuiTableColumnSortSpecs* Specs;
-  !     int SpecsCount;
-  !     bool SpecsDirty;
+  !     integer(c_int) :: SpecsCount;
+  !     logical(c_bool) :: SpecsDirty;
   ! };
   ! struct ImGuiOnceUponAFrame
   ! {
-  !      int RefFrame;
+  !      integer(c_int) :: RefFrame;
   ! };
   ! struct ImGuiTextRange
   ! {
@@ -236,9 +242,9 @@
   ! typedef struct ImVector_ImGuiTextRange {int Size;int Capacity;ImGuiTextRange* Data;} ImVector_ImGuiTextRange;
   ! struct ImGuiTextFilter
   ! {
-  !     char InputBuf[256];
+  !     character(c_char) :: InputBuf[256];
   !     ImVector_ImGuiTextRange Filters;
-  !     int CountGrep;
+  !     integer(c_int) :: CountGrep;
   ! };
   ! typedef struct ImVector_char {int Size;int Capacity;char* Data;} ImVector_char;
   ! struct ImGuiTextBuffer
@@ -257,39 +263,39 @@
   ! };
   ! struct ImGuiListClipper
   ! {
-  !     int DisplayStart;
-  !     int DisplayEnd;
-  !     int ItemsCount;
-  !     float ItemsHeight;
-  !     float StartPosY;
-  !     void* TempData;
+  !     integer(c_int) :: DisplayStart;
+  !     integer(c_int) :: DisplayEnd;
+  !     integer(c_int) :: ItemsCount;
+  !     real(c_float) :: ItemsHeight;
+  !     real(c_float) :: StartPosY;
+  !     type(c_ptr) :: TempData;
   ! };
   ! struct ImColor
   ! {
-  !     ImVec4 Value;
+  !     type(ImVec4) :: Value;
   ! };
   ! typedef void (*ImDrawCallback)(const ImDrawList* parent_list, const ImDrawCmd* cmd);
   ! struct ImDrawCmd
   ! {
-  !     ImVec4 ClipRect;
+  !     type(ImVec4) :: ClipRect;
   !     ImTextureID TextureId;
-  !     unsigned int VtxOffset;
-  !     unsigned int IdxOffset;
-  !     unsigned int ElemCount;
+  !     integer(c_int) :: VtxOffset;
+  !     integer(c_int) :: IdxOffset;
+  !     integer(c_int) :: ElemCount;
   !     ImDrawCallback UserCallback;
-  !     void* UserCallbackData;
+  !     type(c_ptr) :: UserCallbackData;
   ! };
   ! struct ImDrawVert
   ! {
-  !     ImVec2 pos;
-  !     ImVec2 uv;
+  !     type(ImVec2) :: pos;
+  !     type(ImVec2) :: uv;
   !     ImU32 col;
   ! };
   ! struct ImDrawCmdHeader
   ! {
-  !     ImVec4 ClipRect;
+  !     type(ImVec4) :: ClipRect;
   !     ImTextureID TextureId;
-  !     unsigned int VtxOffset;
+  !     integer(c_int) :: VtxOffset;
   ! };
   ! typedef struct ImVector_ImDrawCmd {int Size;int Capacity;ImDrawCmd* Data;} ImVector_ImDrawCmd;
 
@@ -303,8 +309,8 @@
 
   ! struct ImDrawListSplitter
   ! {
-  !     int _Current;
-  !     int _Count;
+  !     integer(c_int) :: _Current;
+  !     integer(c_int) :: _Count;
   !     ImVector_ImDrawChannel _Channels;
   ! };
   ! typedef struct ImVector_ImDrawVert {int Size;int Capacity;ImDrawVert* Data;} ImVector_ImDrawVert;
@@ -321,7 +327,7 @@
   !     ImVector_ImDrawIdx IdxBuffer;
   !     ImVector_ImDrawVert VtxBuffer;
   !     ImDrawListFlags Flags;
-  !     unsigned int _VtxCurrentIdx;
+  !     integer(c_int) :: _VtxCurrentIdx;
   !     const ImDrawListSharedData* _Data;
   !     const char* _OwnerName;
   !     ImDrawVert* _VtxWritePtr;
@@ -331,50 +337,50 @@
   !     ImVector_ImVec2 _Path;
   !     ImDrawCmdHeader _CmdHeader;
   !     ImDrawListSplitter _Splitter;
-  !     float _FringeScale;
+  !     real(c_float) :: _FringeScale;
   ! };
   ! struct ImDrawData
   ! {
-  !     bool Valid;
-  !     int CmdListsCount;
-  !     int TotalIdxCount;
-  !     int TotalVtxCount;
+  !     logical(c_bool) :: Valid;
+  !     integer(c_int) :: CmdListsCount;
+  !     integer(c_int) :: TotalIdxCount;
+  !     integer(c_int) :: TotalVtxCount;
   !     ImDrawList** CmdLists;
-  !     ImVec2 DisplayPos;
-  !     ImVec2 DisplaySize;
-  !     ImVec2 FramebufferScale;
+  !     type(ImVec2) :: DisplayPos;
+  !     type(ImVec2) :: DisplaySize;
+  !     type(ImVec2) :: FramebufferScale;
   !     ImGuiViewport* OwnerViewport;
   ! };
   ! struct ImFontConfig
   ! {
-  !     void* FontData;
-  !     int FontDataSize;
-  !     bool FontDataOwnedByAtlas;
-  !     int FontNo;
-  !     float SizePixels;
-  !     int OversampleH;
-  !     int OversampleV;
-  !     bool PixelSnapH;
-  !     ImVec2 GlyphExtraSpacing;
-  !     ImVec2 GlyphOffset;
+  !     type(c_ptr) :: FontData;
+  !     integer(c_int) :: FontDataSize;
+  !     logical(c_bool) :: FontDataOwnedByAtlas;
+  !     integer(c_int) :: FontNo;
+  !     real(c_float) :: SizePixels;
+  !     integer(c_int) :: OversampleH;
+  !     integer(c_int) :: OversampleV;
+  !     logical(c_bool) :: PixelSnapH;
+  !     type(ImVec2) :: GlyphExtraSpacing;
+  !     type(ImVec2) :: GlyphOffset;
   !     const ImWchar* GlyphRanges;
-  !     float GlyphMinAdvanceX;
-  !     float GlyphMaxAdvanceX;
-  !     bool MergeMode;
-  !     unsigned int FontBuilderFlags;
-  !     float RasterizerMultiply;
+  !     real(c_float) :: GlyphMinAdvanceX;
+  !     real(c_float) :: GlyphMaxAdvanceX;
+  !     logical(c_bool) :: MergeMode;
+  !     integer(c_int) :: FontBuilderFlags;
+  !     real(c_float) :: RasterizerMultiply;
   !     ImWchar EllipsisChar;
-  !     char Name[40];
+  !     character(c_char) :: Name[40];
   !     ImFont* DstFont;
   ! };
   ! struct ImFontGlyph
   ! {
-  !     unsigned int Colored : 1;
-  !     unsigned int Visible : 1;
-  !     unsigned int Codepoint : 30;
-  !     float AdvanceX;
-  !     float X0, Y0, X1, Y1;
-  !     float U0, V0, U1, V1;
+  !     integer(c_int) :: Colored : 1;
+  !     integer(c_int) :: Visible : 1;
+  !     integer(c_int) :: Codepoint : 30;
+  !     real(c_float) :: AdvanceX;
+  !     real(c_float) :: X0, Y0, X1, Y1;
+  !     real(c_float) :: U0, V0, U1, V1;
   ! };
   ! typedef struct ImVector_ImU32 {int Size;int Capacity;ImU32* Data;} ImVector_ImU32;
 
@@ -385,11 +391,11 @@
   ! typedef struct ImFontAtlasCustomRect ImFontAtlasCustomRect;
   ! struct ImFontAtlasCustomRect
   ! {
-  !     unsigned short Width, Height;
-  !     unsigned short X, Y;
-  !     unsigned int GlyphID;
-  !     float GlyphAdvanceX;
-  !     ImVec2 GlyphOffset;
+  !     integer(c_short) :: Width, Height;
+  !     integer(c_short) :: X, Y;
+  !     integer(c_int) :: GlyphID;
+  !     real(c_float) :: GlyphAdvanceX;
+  !     type(ImVec2) :: GlyphOffset;
   !     ImFont* Font;
   ! };
   ! typedef struct ImVector_ImFontPtr {int Size;int Capacity;ImFont** Data;} ImVector_ImFontPtr;
@@ -402,25 +408,25 @@
   ! {
   !     ImFontAtlasFlags Flags;
   !     ImTextureID TexID;
-  !     int TexDesiredWidth;
-  !     int TexGlyphPadding;
-  !     bool Locked;
-  !     bool TexReady;
-  !     bool TexPixelsUseColors;
+  !     integer(c_int) :: TexDesiredWidth;
+  !     integer(c_int) :: TexGlyphPadding;
+  !     logical(c_bool) :: Locked;
+  !     logical(c_bool) :: TexReady;
+  !     logical(c_bool) :: TexPixelsUseColors;
   !     unsigned char* TexPixelsAlpha8;
   !     unsigned int* TexPixelsRGBA32;
-  !     int TexWidth;
-  !     int TexHeight;
-  !     ImVec2 TexUvScale;
-  !     ImVec2 TexUvWhitePixel;
+  !     integer(c_int) :: TexWidth;
+  !     integer(c_int) :: TexHeight;
+  !     type(ImVec2) :: TexUvScale;
+  !     type(ImVec2) :: TexUvWhitePixel;
   !     ImVector_ImFontPtr Fonts;
   !     ImVector_ImFontAtlasCustomRect CustomRects;
   !     ImVector_ImFontConfig ConfigData;
-  !     ImVec4 TexUvLines[(63) + 1];
+  !     type(ImVec4) :: TexUvLines[(63) + 1];
   !     const ImFontBuilderIO* FontBuilderIO;
-  !     unsigned int FontBuilderFlags;
-  !     int PackIdMouseCursors;
-  !     int PackIdLines;
+  !     integer(c_int) :: FontBuilderFlags;
+  !     integer(c_int) :: PackIdMouseCursors;
+  !     integer(c_int) :: PackIdLines;
   ! };
   ! typedef struct ImVector_float {int Size;int Capacity;float* Data;} ImVector_float;
 
@@ -429,135 +435,145 @@
   ! struct ImFont
   ! {
   !     ImVector_float IndexAdvanceX;
-  !     float FallbackAdvanceX;
-  !     float FontSize;
+  !     real(c_float) :: FallbackAdvanceX;
+  !     real(c_float) :: FontSize;
   !     ImVector_ImWchar IndexLookup;
   !     ImVector_ImFontGlyph Glyphs;
   !     const ImFontGlyph* FallbackGlyph;
   !     ImFontAtlas* ContainerAtlas;
   !     const ImFontConfig* ConfigData;
-  !     short ConfigDataCount;
+  !     integer(c_short) :: ConfigDataCount;
   !     ImWchar FallbackChar;
   !     ImWchar EllipsisChar;
   !     ImWchar DotChar;
-  !     bool DirtyLookupTables;
-  !     float Scale;
-  !     float Ascent, Descent;
-  !     int MetricsTotalSurface;
+  !     logical(c_bool) :: DirtyLookupTables;
+  !     real(c_float) :: Scale;
+  !     real(c_float) :: Ascent, Descent;
+  !     integer(c_int) :: MetricsTotalSurface;
   !     ImU8 Used4kPagesMap[(0xFFFF +1)/4096/8];
   ! };
   ! struct ImGuiViewport
   ! {
   !     ImGuiID ID;
   !     ImGuiViewportFlags Flags;
-  !     ImVec2 Pos;
-  !     ImVec2 Size;
-  !     ImVec2 WorkPos;
-  !     ImVec2 WorkSize;
-  !     float DpiScale;
+  !     type(ImVec2) :: Pos;
+  !     type(ImVec2) :: Size;
+  !     type(ImVec2) :: WorkPos;
+  !     type(ImVec2) :: WorkSize;
+  !     real(c_float) :: DpiScale;
   !     ImGuiID ParentViewportId;
   !     ImDrawData* DrawData;
-  !     void* RendererUserData;
-  !     void* PlatformUserData;
-  !     void* PlatformHandle;
-  !     void* PlatformHandleRaw;
-  !     bool PlatformRequestMove;
-  !     bool PlatformRequestResize;
-  !     bool PlatformRequestClose;
+  !     type(c_ptr) :: RendererUserData;
+  !     type(c_ptr) :: PlatformUserData;
+  !     type(c_ptr) :: PlatformHandle;
+  !     type(c_ptr) :: PlatformHandleRaw;
+  !     logical(c_bool) :: PlatformRequestMove;
+  !     logical(c_bool) :: PlatformRequestResize;
+  !     logical(c_bool) :: PlatformRequestClose;
   ! };
-  ! typedef struct ImVector_ImGuiPlatformMonitor {int Size;int Capacity;ImGuiPlatformMonitor* Data;} ImVector_ImGuiPlatformMonitor;
+  type, bind(c) :: ImVector_ImGuiPlatformMonitor
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImGuiPlatformMonitor
 
-  ! typedef struct ImVector_ImGuiViewportPtr {int Size;int Capacity;ImGuiViewport** Data;} ImVector_ImGuiViewportPtr;
+  type, bind(c) :: ImVector_ImGuiViewportPtr
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImGuiViewportPtr
 
-  ! struct ImGuiPlatformIO
-  ! {
-  !     void (*Platform_CreateWindow)(ImGuiViewport* vp);
-  !     void (*Platform_DestroyWindow)(ImGuiViewport* vp);
-  !     void (*Platform_ShowWindow)(ImGuiViewport* vp);
-  !     void (*Platform_SetWindowPos)(ImGuiViewport* vp, ImVec2 pos);
-  !     ImVec2 (*Platform_GetWindowPos)(ImGuiViewport* vp);
-  !     void (*Platform_SetWindowSize)(ImGuiViewport* vp, ImVec2 size);
-  !     ImVec2 (*Platform_GetWindowSize)(ImGuiViewport* vp);
-  !     void (*Platform_SetWindowFocus)(ImGuiViewport* vp);
-  !     bool (*Platform_GetWindowFocus)(ImGuiViewport* vp);
-  !     bool (*Platform_GetWindowMinimized)(ImGuiViewport* vp);
-  !     void (*Platform_SetWindowTitle)(ImGuiViewport* vp, const char* str);
-  !     void (*Platform_SetWindowAlpha)(ImGuiViewport* vp, float alpha);
-  !     void (*Platform_UpdateWindow)(ImGuiViewport* vp);
-  !     void (*Platform_RenderWindow)(ImGuiViewport* vp, void* render_arg);
-  !     void (*Platform_SwapBuffers)(ImGuiViewport* vp, void* render_arg);
-  !     float (*Platform_GetWindowDpiScale)(ImGuiViewport* vp);
-  !     void (*Platform_OnChangedViewport)(ImGuiViewport* vp);
-  !     int (*Platform_CreateVkSurface)(ImGuiViewport* vp, ImU64 vk_inst, const void* vk_allocators, ImU64* out_vk_surface);
-  !     void (*Renderer_CreateWindow)(ImGuiViewport* vp);
-  !     void (*Renderer_DestroyWindow)(ImGuiViewport* vp);
-  !     void (*Renderer_SetWindowSize)(ImGuiViewport* vp, ImVec2 size);
-  !     void (*Renderer_RenderWindow)(ImGuiViewport* vp, void* render_arg);
-  !     void (*Renderer_SwapBuffers)(ImGuiViewport* vp, void* render_arg);
-  !     ImVector_ImGuiPlatformMonitor Monitors;
-  !     ImVector_ImGuiViewportPtr Viewports;
-  ! };
+  type, bind(c) :: ImGuiPlatformIO
+     type(c_funptr) :: Platform_CreateWindow
+     type(c_funptr) :: Platform_DestroyWindow
+     type(c_funptr) :: Platform_ShowWindow
+     type(c_funptr) :: Platform_SetWindowPos
+     type(c_funptr) :: Platform_GetWindowPos
+     type(c_funptr) :: Platform_SetWindowSize
+     type(c_funptr) :: Platform_GetWindowSize
+     type(c_funptr) :: Platform_SetWindowFocus
+     type(c_funptr) :: Platform_GetWindowFocus
+     type(c_funptr) :: Platform_GetWindowMinimized
+     type(c_funptr) :: Platform_SetWindowTitle
+     type(c_funptr) :: Platform_SetWindowAlpha
+     type(c_funptr) :: Platform_UpdateWindow
+     type(c_funptr) :: Platform_RenderWindow
+     type(c_funptr) :: Platform_SwapBuffers
+     type(c_funptr) :: Platform_GetWindowDpiScale
+     type(c_funptr) :: Platform_OnChangedViewport
+     type(c_funptr) :: Platform_CreateVkSurface
+     type(c_funptr) :: Renderer_CreateWindow
+     type(c_funptr) :: Renderer_DestroyWindow
+     type(c_funptr) :: Renderer_SetWindowSize
+     type(c_funptr) :: Renderer_RenderWindow
+     type(c_funptr) :: Renderer_SwapBuffers
+     type(ImVector_ImGuiPlatformMonitor) :: Monitors
+     type(ImVector_ImGuiViewportPtr) :: Viewports
+  end type ImGuiPlatformIO
+
   ! struct ImGuiPlatformMonitor
   ! {
-  !     ImVec2 MainPos, MainSize;
-  !     ImVec2 WorkPos, WorkSize;
-  !     float DpiScale;
+  !     type(ImVec2) :: MainPos;
+  !     type(ImVec2) :: MainSize;
+  !     type(ImVec2) :: WorkPos;
+  !     type(ImVec2) :: WorkSize;
+  !     real(c_float) :: DpiScale;
   ! };
   ! struct ImGuiPlatformImeData
   ! {
-  !     bool WantVisible;
-  !     ImVec2 InputPos;
-  !     float InputLineHeight;
+  !     logical(c_bool) :: WantVisible;
+  !     type(ImVec2) :: InputPos;
+  !     real(c_float) :: InputLineHeight;
   ! };
   ! typedef void (*ImGuiErrorLogCallback)(void* user_data, const char* fmt, ...);
   ! struct StbUndoRecord
   ! {
-  !    int where;
-  !    int insert_length;
-  !    int delete_length;
-  !    int char_storage;
+  !    integer(c_int) :: where;
+  !    integer(c_int) :: insert_length;
+  !    integer(c_int) :: delete_length;
+  !    integer(c_int) :: char_storage;
   ! };
   ! struct StbUndoState
   ! {
   !    StbUndoRecord undo_rec [99];
   !    ImWchar undo_char[999];
-  !    short undo_point, redo_point;
-  !    int undo_char_point, redo_char_point;
+  !    integer(c_short) :: undo_point, redo_point;
+  !    integer(c_int) :: undo_char_point, redo_char_point;
   ! };
   ! struct STB_TexteditState
   ! {
-  !    int cursor;
-  !    int select_start;
-  !    int select_end;
-  !    unsigned char insert_mode;
-  !    int row_count_per_page;
-  !    unsigned char cursor_at_end_of_line;
-  !    unsigned char initialized;
-  !    unsigned char has_preferred_x;
-  !    unsigned char single_line;
-  !    unsigned char padding1, padding2, padding3;
-  !    float preferred_x;
+  !    integer(c_int) :: cursor;
+  !    integer(c_int) :: select_start;
+  !    integer(c_int) :: select_end;
+  !    integer(c_signed_char) :: insert_mode;
+  !    integer(c_int) :: row_count_per_page;
+  !    integer(c_signed_char) :: cursor_at_end_of_line;
+  !    integer(c_signed_char) :: initialized;
+  !    integer(c_signed_char) :: has_preferred_x;
+  !    integer(c_signed_char) :: single_line;
+  !    integer(c_signed_char) :: padding1, padding2, padding3;
+  !    real(c_float) :: preferred_x;
   !    StbUndoState undostate;
   ! };
   ! struct StbTexteditRow
   ! {
-  !    float x0,x1;
-  !    float baseline_y_delta;
-  !    float ymin,ymax;
-  !    int num_chars;
+  !    real(c_float) :: x0,x1;
+  !    real(c_float) :: baseline_y_delta;
+  !    real(c_float) :: ymin,ymax;
+  !    integer(c_int) :: num_chars;
   ! };
   ! struct ImVec1
   ! {
-  !     float x;
+  !     real(c_float) :: x;
   ! };
   ! struct ImVec2ih
   ! {
-  !     short x, y;
+  !     integer(c_short) :: x, y;
   ! };
   ! struct ImRect
   ! {
-  !     ImVec2 Min;
-  !     ImVec2 Max;
+  !     type(ImVec2) :: Min;
+  !     type(ImVec2) :: Max;
   ! };
   ! struct ImBitVector
   ! {
@@ -565,15 +581,15 @@
   ! };
   ! struct ImDrawListSharedData
   ! {
-  !     ImVec2 TexUvWhitePixel;
+  !     type(ImVec2) :: TexUvWhitePixel;
   !     ImFont* Font;
-  !     float FontSize;
-  !     float CurveTessellationTol;
-  !     float CircleSegmentMaxError;
-  !     ImVec4 ClipRectFullscreen;
+  !     real(c_float) :: FontSize;
+  !     real(c_float) :: CurveTessellationTol;
+  !     real(c_float) :: CircleSegmentMaxError;
+  !     type(ImVec4) :: ClipRectFullscreen;
   !     ImDrawListFlags InitialFlags;
-  !     ImVec2 ArcFastVtx[48];
-  !     float ArcFastRadiusCutoff;
+  !     type(ImVec2) :: ArcFastVtx[48];
+  !     real(c_float) :: ArcFastRadiusCutoff;
   !     ImU8 CircleSegmentCounts[64];
   !     const ImVec4* TexUvLines;
   ! };
@@ -597,7 +613,7 @@
   ! struct ImGuiColorMod
   ! {
   !     ImGuiCol Col;
-  !     ImVec4 BackupValue;
+  !     type(ImVec4) :: BackupValue;
   ! };
   ! struct ImGuiStyleMod
   ! {
@@ -607,25 +623,25 @@
   ! struct ImGuiComboPreviewData
   ! {
   !     ImRect PreviewRect;
-  !     ImVec2 BackupCursorPos;
-  !     ImVec2 BackupCursorMaxPos;
-  !     ImVec2 BackupCursorPosPrevLine;
-  !     float BackupPrevLineTextBaseOffset;
+  !     type(ImVec2) :: BackupCursorPos;
+  !     type(ImVec2) :: BackupCursorMaxPos;
+  !     type(ImVec2) :: BackupCursorPosPrevLine;
+  !     real(c_float) :: BackupPrevLineTextBaseOffset;
   !     ImGuiLayoutType BackupLayout;
   ! };
   ! struct ImGuiGroupData
   ! {
   !     ImGuiID WindowID;
-  !     ImVec2 BackupCursorPos;
-  !     ImVec2 BackupCursorMaxPos;
+  !     type(ImVec2) :: BackupCursorPos;
+  !     type(ImVec2) :: BackupCursorMaxPos;
   !     ImVec1 BackupIndent;
   !     ImVec1 BackupGroupOffset;
-  !     ImVec2 BackupCurrLineSize;
-  !     float BackupCurrLineTextBaseOffset;
+  !     type(ImVec2) :: BackupCurrLineSize;
+  !     real(c_float) :: BackupCurrLineTextBaseOffset;
   !     ImGuiID BackupActiveIdIsAlive;
-  !     bool BackupActiveIdPreviousFrameIsAlive;
-  !     bool BackupHoveredIdIsAlive;
-  !     bool EmitItem;
+  !     logical(c_bool) :: BackupActiveIdPreviousFrameIsAlive;
+  !     logical(c_bool) :: BackupHoveredIdIsAlive;
+  !     logical(c_bool) :: EmitItem;
   ! };
   ! struct ImGuiMenuColumns
   ! {
@@ -641,18 +657,18 @@
   ! struct ImGuiInputTextState
   ! {
   !     ImGuiID ID;
-  !     int CurLenW, CurLenA;
+  !     integer(c_int) :: CurLenW, CurLenA;
   !     ImVector_ImWchar TextW;
   !     ImVector_char TextA;
   !     ImVector_char InitialTextA;
-  !     bool TextAIsValid;
-  !     int BufCapacityA;
-  !     float ScrollX;
+  !     logical(c_bool) :: TextAIsValid;
+  !     integer(c_int) :: BufCapacityA;
+  !     real(c_float) :: ScrollX;
   !     STB_TexteditState Stb;
-  !     float CursorAnim;
-  !     bool CursorFollow;
-  !     bool SelectedAllMouseLock;
-  !     bool Edited;
+  !     real(c_float) :: CursorAnim;
+  !     logical(c_bool) :: CursorFollow;
+  !     logical(c_bool) :: SelectedAllMouseLock;
+  !     logical(c_bool) :: Edited;
   !     ImGuiInputTextFlags Flags;
   ! };
   ! struct ImGuiPopupData
@@ -660,11 +676,11 @@
   !     ImGuiID PopupId;
   !     ImGuiWindow* Window;
   !     ImGuiWindow* SourceWindow;
-  !     int ParentNavLayer;
-  !     int OpenFrameCount;
+  !     integer(c_int) :: ParentNavLayer;
+  !     integer(c_int) :: OpenFrameCount;
   !     ImGuiID OpenParentId;
-  !     ImVec2 OpenPopupPos;
-  !     ImVec2 OpenMousePos;
+  !     type(ImVec2) :: OpenPopupPos;
+  !     type(ImVec2) :: OpenMousePos;
   ! };
   ! struct ImGuiNextWindowData
   ! {
@@ -673,29 +689,29 @@
   !     ImGuiCond SizeCond;
   !     ImGuiCond CollapsedCond;
   !     ImGuiCond DockCond;
-  !     ImVec2 PosVal;
-  !     ImVec2 PosPivotVal;
-  !     ImVec2 SizeVal;
-  !     ImVec2 ContentSizeVal;
-  !     ImVec2 ScrollVal;
-  !     bool PosUndock;
-  !     bool CollapsedVal;
+  !     type(ImVec2) :: PosVal;
+  !     type(ImVec2) :: PosPivotVal;
+  !     type(ImVec2) :: SizeVal;
+  !     type(ImVec2) :: ContentSizeVal;
+  !     type(ImVec2) :: ScrollVal;
+  !     logical(c_bool) :: PosUndock;
+  !     logical(c_bool) :: CollapsedVal;
   !     ImRect SizeConstraintRect;
   !     ImGuiSizeCallback SizeCallback;
-  !     void* SizeCallbackUserData;
-  !     float BgAlphaVal;
+  !     type(c_ptr) :: SizeCallbackUserData;
+  !     real(c_float) :: BgAlphaVal;
   !     ImGuiID ViewportId;
   !     ImGuiID DockId;
   !     ImGuiWindowClass WindowClass;
-  !     ImVec2 MenuBarOffsetMinVal;
+  !     type(ImVec2) :: MenuBarOffsetMinVal;
   ! };
   ! struct ImGuiNextItemData
   ! {
   !     ImGuiNextItemDataFlags Flags;
-  !     float Width;
+  !     real(c_float) :: Width;
   !     ImGuiID FocusScopeId;
   !     ImGuiCond OpenCond;
-  !     bool OpenVal;
+  !     logical(c_bool) :: OpenVal;
   ! };
   ! struct ImGuiLastItemData
   ! {
@@ -708,15 +724,15 @@
   ! };
   ! struct ImGuiStackSizes
   ! {
-  !     short SizeOfIDStack;
-  !     short SizeOfColorStack;
-  !     short SizeOfStyleVarStack;
-  !     short SizeOfFontStack;
-  !     short SizeOfFocusScopeStack;
-  !     short SizeOfGroupStack;
-  !     short SizeOfItemFlagsStack;
-  !     short SizeOfBeginPopupStack;
-  !     short SizeOfDisabledStack;
+  !     integer(c_short) :: SizeOfIDStack;
+  !     integer(c_short) :: SizeOfColorStack;
+  !     integer(c_short) :: SizeOfStyleVarStack;
+  !     integer(c_short) :: SizeOfFontStack;
+  !     integer(c_short) :: SizeOfFocusScopeStack;
+  !     integer(c_short) :: SizeOfGroupStack;
+  !     integer(c_short) :: SizeOfItemFlagsStack;
+  !     integer(c_short) :: SizeOfBeginPopupStack;
+  !     integer(c_short) :: SizeOfDisabledStack;
   ! };
   ! struct ImGuiWindowStackData
   ! {
@@ -726,36 +742,36 @@
   ! };
   ! struct ImGuiShrinkWidthItem
   ! {
-  !     int Index;
-  !     float Width;
-  !     float InitialWidth;
+  !     integer(c_int) :: Index;
+  !     real(c_float) :: Width;
+  !     real(c_float) :: InitialWidth;
   ! };
   ! struct ImGuiPtrOrIndex
   ! {
-  !     void* Ptr;
-  !     int Index;
+  !     type(c_ptr) :: Ptr;
+  !     integer(c_int) :: Index;
   ! };
   ! typedef struct ImBitArray_ImGuiKey_NamedKey_COUNT__lessImGuiKey_NamedKey_BEGIN {ImU32 Storage[(ImGuiKey_NamedKey_COUNT+31)>>5];} ImBitArray_ImGuiKey_NamedKey_COUNT__lessImGuiKey_NamedKey_BEGIN;
   ! struct ImGuiInputEventMousePos
-  ! { float PosX, PosY;
+  ! { real(c_float) :: PosX, PosY;
   ! };
   ! struct ImGuiInputEventMouseWheel
-  ! { float WheelX, WheelY;
+  ! { real(c_float) :: WheelX, WheelY;
   ! };
   ! struct ImGuiInputEventMouseButton
-  ! { int Button; bool Down;
+  ! { integer(c_int) :: Button; logical(c_bool) :: Down;
   ! };
   ! struct ImGuiInputEventMouseViewport
   ! { ImGuiID HoveredViewportID;
   ! };
   ! struct ImGuiInputEventKey
-  ! { ImGuiKey Key; bool Down; float AnalogValue;
+  ! { ImGuiKey Key; logical(c_bool) :: Down; real(c_float) :: AnalogValue;
   ! };
   ! struct ImGuiInputEventText
-  ! { unsigned int Char;
+  ! { integer(c_int) :: Char;
   ! };
   ! struct ImGuiInputEventAppFocused
-  ! { bool Focused;
+  ! { logical(c_bool) :: Focused;
   ! };
   ! struct ImGuiInputEvent
   ! {
@@ -771,13 +787,13 @@
   !         ImGuiInputEventText Text;
   !         ImGuiInputEventAppFocused AppFocused;
   !     };
-  !     bool AddedByTestEngine;
+  !     logical(c_bool) :: AddedByTestEngine;
   ! };
   ! struct ImGuiListClipperRange
   ! {
-  !     int Min;
-  !     int Max;
-  !     bool PosToIndexConvert;
+  !     integer(c_int) :: Min;
+  !     integer(c_int) :: Max;
+  !     logical(c_bool) :: PosToIndexConvert;
   !     ImS8 PosToIndexOffsetMin;
   !     ImS8 PosToIndexOffsetMax;
   ! };
@@ -785,9 +801,9 @@
   ! struct ImGuiListClipperData
   ! {
   !     ImGuiListClipper* ListClipper;
-  !     float LossynessOffset;
-  !     int StepNo;
-  !     int ItemsFrozen;
+  !     real(c_float) :: LossynessOffset;
+  !     integer(c_int) :: StepNo;
+  !     integer(c_int) :: ItemsFrozen;
   !     ImVector_ImGuiListClipperRange Ranges;
   ! };
   ! struct ImGuiNavItemData
@@ -797,14 +813,14 @@
   !     ImGuiID FocusScopeId;
   !     ImRect RectRel;
   !     ImGuiItemFlags InFlags;
-  !     float DistBox;
-  !     float DistCenter;
-  !     float DistAxial;
+  !     real(c_float) :: DistBox;
+  !     real(c_float) :: DistCenter;
+  !     real(c_float) :: DistAxial;
   ! };
   ! struct ImGuiOldColumnData
   ! {
-  !     float OffsetNorm;
-  !     float OffsetNormBeforeResize;
+  !     real(c_float) :: OffsetNorm;
+  !     real(c_float) :: OffsetNormBeforeResize;
   !     ImGuiOldColumnFlags Flags;
   !     ImRect ClipRect;
   ! };
@@ -813,14 +829,14 @@
   ! {
   !     ImGuiID ID;
   !     ImGuiOldColumnFlags Flags;
-  !     bool IsFirstFrame;
-  !     bool IsBeingResized;
-  !     int Current;
-  !     int Count;
-  !     float OffMinX, OffMaxX;
-  !     float LineMinY, LineMaxY;
-  !     float HostCursorPosY;
-  !     float HostCursorMaxPosX;
+  !     logical(c_bool) :: IsFirstFrame;
+  !     logical(c_bool) :: IsBeingResized;
+  !     integer(c_int) :: Current;
+  !     integer(c_int) :: Count;
+  !     real(c_float) :: OffMinX, OffMaxX;
+  !     real(c_float) :: LineMinY, LineMaxY;
+  !     real(c_float) :: HostCursorPosY;
+  !     real(c_float) :: HostCursorMaxPosX;
   !     ImRect HostInitialClipRect;
   !     ImRect HostBackupClipRect;
   !     ImRect HostBackupParentWorkRect;
@@ -840,9 +856,9 @@
   !     ImGuiDockNode* ChildNodes[2];
   !     ImVector_ImGuiWindowPtr Windows;
   !     ImGuiTabBar* TabBar;
-  !     ImVec2 Pos;
-  !     ImVec2 Size;
-  !     ImVec2 SizeRef;
+  !     type(ImVec2) :: Pos;
+  !     type(ImVec2) :: Size;
+  !     type(ImVec2) :: SizeRef;
   !     ImGuiAxis SplitAxis;
   !     ImGuiWindowClass WindowClass;
   !     ImU32 LastBgColor;
@@ -850,27 +866,27 @@
   !     ImGuiWindow* VisibleWindow;
   !     ImGuiDockNode* CentralNode;
   !     ImGuiDockNode* OnlyNodeWithWindows;
-  !     int CountNodeWithWindows;
-  !     int LastFrameAlive;
-  !     int LastFrameActive;
-  !     int LastFrameFocused;
+  !     integer(c_int) :: CountNodeWithWindows;
+  !     integer(c_int) :: LastFrameAlive;
+  !     integer(c_int) :: LastFrameActive;
+  !     integer(c_int) :: LastFrameFocused;
   !     ImGuiID LastFocusedNodeId;
   !     ImGuiID SelectedTabId;
   !     ImGuiID WantCloseTabId;
   !     ImGuiDataAuthority AuthorityForPos :3;
   !     ImGuiDataAuthority AuthorityForSize :3;
   !     ImGuiDataAuthority AuthorityForViewport :3;
-  !     bool IsVisible :1;
-  !     bool IsFocused :1;
-  !     bool IsBgDrawnThisFrame :1;
-  !     bool HasCloseButton :1;
-  !     bool HasWindowMenuButton :1;
-  !     bool HasCentralNodeChild :1;
-  !     bool WantCloseAll :1;
-  !     bool WantLockSizeOnce :1;
-  !     bool WantMouseMove :1;
-  !     bool WantHiddenTabBarUpdate :1;
-  !     bool WantHiddenTabBarToggle :1;
+  !     logical(c_bool) :: IsVisible :1;
+  !     logical(c_bool) :: IsFocused :1;
+  !     logical(c_bool) :: IsBgDrawnThisFrame :1;
+  !     logical(c_bool) :: HasCloseButton :1;
+  !     logical(c_bool) :: HasWindowMenuButton :1;
+  !     logical(c_bool) :: HasCentralNodeChild :1;
+  !     logical(c_bool) :: WantCloseAll :1;
+  !     logical(c_bool) :: WantLockSizeOnce :1;
+  !     logical(c_bool) :: WantMouseMove :1;
+  !     logical(c_bool) :: WantHiddenTabBarUpdate :1;
+  !     logical(c_bool) :: WantHiddenTabBarToggle :1;
   ! };
   ! struct ImGuiWindowDockStyle
   ! {
@@ -883,32 +899,32 @@
   !     ImGuiStorage Nodes;
   !     ImVector_ImGuiDockRequest Requests;
   !     ImVector_ImGuiDockNodeSettings NodesSettings;
-  !     bool WantFullRebuild;
+  !     logical(c_bool) :: WantFullRebuild;
   ! };
   ! struct ImGuiViewportP
   ! {
   !     ImGuiViewport _ImGuiViewport;
-  !     int Idx;
-  !     int LastFrameActive;
-  !     int LastFrontMostStampCount;
+  !     integer(c_int) :: Idx;
+  !     integer(c_int) :: LastFrameActive;
+  !     integer(c_int) :: LastFrontMostStampCount;
   !     ImGuiID LastNameHash;
-  !     ImVec2 LastPos;
-  !     float Alpha;
-  !     float LastAlpha;
-  !     short PlatformMonitor;
-  !     bool PlatformWindowCreated;
+  !     type(ImVec2) :: LastPos;
+  !     real(c_float) :: Alpha;
+  !     real(c_float) :: LastAlpha;
+  !     integer(c_short) :: PlatformMonitor;
+  !     logical(c_bool) :: PlatformWindowCreated;
   !     ImGuiWindow* Window;
-  !     int DrawListsLastFrame[2];
+  !     integer(c_int) :: DrawListsLastFrame[2];
   !     ImDrawList* DrawLists[2];
   !     ImDrawData DrawDataP;
   !     ImDrawDataBuilder DrawDataBuilder;
-  !     ImVec2 LastPlatformPos;
-  !     ImVec2 LastPlatformSize;
-  !     ImVec2 LastRendererSize;
-  !     ImVec2 WorkOffsetMin;
-  !     ImVec2 WorkOffsetMax;
-  !     ImVec2 BuildWorkOffsetMin;
-  !     ImVec2 BuildWorkOffsetMax;
+  !     type(ImVec2) :: LastPlatformPos;
+  !     type(ImVec2) :: LastPlatformSize;
+  !     type(ImVec2) :: LastRendererSize;
+  !     type(ImVec2) :: WorkOffsetMin;
+  !     type(ImVec2) :: WorkOffsetMax;
+  !     type(ImVec2) :: BuildWorkOffsetMin;
+  !     type(ImVec2) :: BuildWorkOffsetMax;
   ! };
   ! struct ImGuiWindowSettings
   ! {
@@ -919,9 +935,9 @@
   !     ImGuiID ViewportId;
   !     ImGuiID DockId;
   !     ImGuiID ClassId;
-  !     short DockOrder;
-  !     bool Collapsed;
-  !     bool WantApply;
+  !     integer(c_short) :: DockOrder;
+  !     logical(c_bool) :: Collapsed;
+  !     logical(c_bool) :: WantApply;
   ! };
   ! struct ImGuiSettingsHandler
   ! {
@@ -929,42 +945,42 @@
   !     ImGuiID TypeHash;
   !     void (*ClearAllFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler);
   !     void (*ReadInitFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler);
-  !     void* (*ReadOpenFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name);
+  !     type(c_ptr) :: (*ReadOpenFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name);
   !     void (*ReadLineFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line);
   !     void (*ApplyAllFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler);
   !     void (*WriteAllFn)(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* out_buf);
-  !     void* UserData;
+  !     type(c_ptr) :: UserData;
   ! };
   ! struct ImGuiMetricsConfig
   ! {
-  !     bool ShowDebugLog;
-  !     bool ShowStackTool;
-  !     bool ShowWindowsRects;
-  !     bool ShowWindowsBeginOrder;
-  !     bool ShowTablesRects;
-  !     bool ShowDrawCmdMesh;
-  !     bool ShowDrawCmdBoundingBoxes;
-  !     bool ShowDockingNodes;
-  !     int ShowWindowsRectsType;
-  !     int ShowTablesRectsType;
+  !     logical(c_bool) :: ShowDebugLog;
+  !     logical(c_bool) :: ShowStackTool;
+  !     logical(c_bool) :: ShowWindowsRects;
+  !     logical(c_bool) :: ShowWindowsBeginOrder;
+  !     logical(c_bool) :: ShowTablesRects;
+  !     logical(c_bool) :: ShowDrawCmdMesh;
+  !     logical(c_bool) :: ShowDrawCmdBoundingBoxes;
+  !     logical(c_bool) :: ShowDockingNodes;
+  !     integer(c_int) :: ShowWindowsRectsType;
+  !     integer(c_int) :: ShowTablesRectsType;
   ! };
   ! struct ImGuiStackLevelInfo
   ! {
   !     ImGuiID ID;
   !     ImS8 QueryFrameCount;
-  !     bool QuerySuccess;
+  !     logical(c_bool) :: QuerySuccess;
   !     ImGuiDataType DataType : 8;
-  !     char Desc[57];
+  !     character(c_char) :: Desc[57];
   ! };
   ! typedef struct ImVector_ImGuiStackLevelInfo {int Size;int Capacity;ImGuiStackLevelInfo* Data;} ImVector_ImGuiStackLevelInfo;
   ! struct ImGuiStackTool
   ! {
-  !     int LastActiveFrame;
-  !     int StackLevel;
+  !     integer(c_int) :: LastActiveFrame;
+  !     integer(c_int) :: StackLevel;
   !     ImGuiID QueryId;
   !     ImVector_ImGuiStackLevelInfo Results;
-  !     bool CopyToClipboardOnCtrlC;
-  !     float CopyToClipboardLastTime;
+  !     logical(c_bool) :: CopyToClipboardOnCtrlC;
+  !     real(c_float) :: CopyToClipboardLastTime;
   ! };
   ! typedef void (*ImGuiContextHookCallback)(ImGuiContext* ctx, ImGuiContextHook* hook);
   ! struct ImGuiContextHook
@@ -973,9 +989,14 @@
   !     ImGuiContextHookType Type;
   !     ImGuiID Owner;
   !     ImGuiContextHookCallback Callback;
-  !     void* UserData;
+  !     type(c_ptr) :: UserData;
   ! };
-  ! typedef struct ImVector_ImGuiInputEvent {int Size;int Capacity;ImGuiInputEvent* Data;} ImVector_ImGuiInputEvent;
+
+  type, bind(c) ::ImVector_ImGuiInputEvent
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImGuiInputEvent
 
   ! typedef struct ImVector_ImGuiWindowStackData {int Size;int Capacity;ImGuiWindowStackData* Data;} ImVector_ImGuiWindowStackData;
 
@@ -1021,74 +1042,74 @@
 
   ! struct ImGuiContext
   ! {
-  !     bool Initialized;
-  !     bool FontAtlasOwnedByContext;
-  !     ImGuiIO IO;
-  !     ImGuiPlatformIO PlatformIO;
-  !     ImVector_ImGuiInputEvent InputEventsQueue;
-  !     ImVector_ImGuiInputEvent InputEventsTrail;
+  !     logical(c_bool) :: Initialized;
+  !     logical(c_bool) :: FontAtlasOwnedByContext;
+  !     type(ImGuiIO) :: IO;
+  !     type(ImGuiPlatformIO) :: PlatformIO;
+  !     type(ImVector_ImGuiInputEvent) :: InputEventsQueue;
+  !     type(ImVector_ImGuiInputEvent) :: InputEventsTrail;
   !     ImGuiStyle Style;
   !     ImGuiConfigFlags ConfigFlagsCurrFrame;
   !     ImGuiConfigFlags ConfigFlagsLastFrame;
   !     ImFont* Font;
-  !     float FontSize;
-  !     float FontBaseSize;
+  !     real(c_float) :: FontSize;
+  !     real(c_float) :: FontBaseSize;
   !     ImDrawListSharedData DrawListSharedData;
-  !     double Time;
-  !     int FrameCount;
-  !     int FrameCountEnded;
-  !     int FrameCountPlatformEnded;
-  !     int FrameCountRendered;
-  !     bool WithinFrameScope;
-  !     bool WithinFrameScopeWithImplicitWindow;
-  !     bool WithinEndChild;
-  !     bool GcCompactAll;
-  !     bool TestEngineHookItems;
-  !     void* TestEngine;
+  !     real(c_double) :: Time;
+  !     integer(c_int) :: FrameCount;
+  !     integer(c_int) :: FrameCountEnded;
+  !     integer(c_int) :: FrameCountPlatformEnded;
+  !     integer(c_int) :: FrameCountRendered;
+  !     logical(c_bool) :: WithinFrameScope;
+  !     logical(c_bool) :: WithinFrameScopeWithImplicitWindow;
+  !     logical(c_bool) :: WithinEndChild;
+  !     logical(c_bool) :: GcCompactAll;
+  !     logical(c_bool) :: TestEngineHookItems;
+  !     type(c_ptr) :: TestEngine;
   !     ImVector_ImGuiWindowPtr Windows;
   !     ImVector_ImGuiWindowPtr WindowsFocusOrder;
   !     ImVector_ImGuiWindowPtr WindowsTempSortBuffer;
   !     ImVector_ImGuiWindowStackData CurrentWindowStack;
   !     ImGuiStorage WindowsById;
-  !     int WindowsActiveCount;
-  !     ImVec2 WindowsHoverPadding;
+  !     integer(c_int) :: WindowsActiveCount;
+  !     type(ImVec2) :: WindowsHoverPadding;
   !     ImGuiWindow* CurrentWindow;
   !     ImGuiWindow* HoveredWindow;
   !     ImGuiWindow* HoveredWindowUnderMovingWindow;
   !     ImGuiDockNode* HoveredDockNode;
   !     ImGuiWindow* MovingWindow;
   !     ImGuiWindow* WheelingWindow;
-  !     ImVec2 WheelingWindowRefMousePos;
-  !     float WheelingWindowTimer;
+  !     type(ImVec2) :: WheelingWindowRefMousePos;
+  !     real(c_float) :: WheelingWindowTimer;
   !     ImGuiID DebugHookIdInfo;
   !     ImGuiID HoveredId;
   !     ImGuiID HoveredIdPreviousFrame;
-  !     bool HoveredIdAllowOverlap;
-  !     bool HoveredIdUsingMouseWheel;
-  !     bool HoveredIdPreviousFrameUsingMouseWheel;
-  !     bool HoveredIdDisabled;
-  !     float HoveredIdTimer;
-  !     float HoveredIdNotActiveTimer;
+  !     logical(c_bool) :: HoveredIdAllowOverlap;
+  !     logical(c_bool) :: HoveredIdUsingMouseWheel;
+  !     logical(c_bool) :: HoveredIdPreviousFrameUsingMouseWheel;
+  !     logical(c_bool) :: HoveredIdDisabled;
+  !     real(c_float) :: HoveredIdTimer;
+  !     real(c_float) :: HoveredIdNotActiveTimer;
   !     ImGuiID ActiveId;
   !     ImGuiID ActiveIdIsAlive;
-  !     float ActiveIdTimer;
-  !     bool ActiveIdIsJustActivated;
-  !     bool ActiveIdAllowOverlap;
-  !     bool ActiveIdNoClearOnFocusLoss;
-  !     bool ActiveIdHasBeenPressedBefore;
-  !     bool ActiveIdHasBeenEditedBefore;
-  !     bool ActiveIdHasBeenEditedThisFrame;
-  !     ImVec2 ActiveIdClickOffset;
+  !     real(c_float) :: ActiveIdTimer;
+  !     logical(c_bool) :: ActiveIdIsJustActivated;
+  !     logical(c_bool) :: ActiveIdAllowOverlap;
+  !     logical(c_bool) :: ActiveIdNoClearOnFocusLoss;
+  !     logical(c_bool) :: ActiveIdHasBeenPressedBefore;
+  !     logical(c_bool) :: ActiveIdHasBeenEditedBefore;
+  !     logical(c_bool) :: ActiveIdHasBeenEditedThisFrame;
+  !     type(ImVec2) :: ActiveIdClickOffset;
   !     ImGuiWindow* ActiveIdWindow;
   !     ImGuiInputSource ActiveIdSource;
-  !     int ActiveIdMouseButton;
+  !     integer(c_int) :: ActiveIdMouseButton;
   !     ImGuiID ActiveIdPreviousFrame;
-  !     bool ActiveIdPreviousFrameIsAlive;
-  !     bool ActiveIdPreviousFrameHasBeenEditedBefore;
+  !     logical(c_bool) :: ActiveIdPreviousFrameIsAlive;
+  !     logical(c_bool) :: ActiveIdPreviousFrameHasBeenEditedBefore;
   !     ImGuiWindow* ActiveIdPreviousFrameWindow;
   !     ImGuiID LastActiveId;
-  !     float LastActiveIdTimer;
-  !     bool ActiveIdUsingMouseWheel;
+  !     real(c_float) :: LastActiveIdTimer;
+  !     logical(c_bool) :: ActiveIdUsingMouseWheel;
   !     ImU32 ActiveIdUsingNavDirMask;
   !     ImU32 ActiveIdUsingNavInputMask;
   !     ImBitArrayForNamedKeys ActiveIdUsingKeyInputMask;
@@ -1104,15 +1125,15 @@
   !     ImVector_ImGuiGroupData GroupStack;
   !     ImVector_ImGuiPopupData OpenPopupStack;
   !     ImVector_ImGuiPopupData BeginPopupStack;
-  !     int BeginMenuCount;
+  !     integer(c_int) :: BeginMenuCount;
   !     ImVector_ImGuiViewportPPtr Viewports;
-  !     float CurrentDpiScale;
+  !     real(c_float) :: CurrentDpiScale;
   !     ImGuiViewportP* CurrentViewport;
   !     ImGuiViewportP* MouseViewport;
   !     ImGuiViewportP* MouseLastHoveredViewport;
   !     ImGuiID PlatformLastFocusedViewportId;
   !     ImGuiPlatformMonitor FallbackMonitor;
-  !     int ViewportFrontMostStampCount;
+  !     integer(c_int) :: ViewportFrontMostStampCount;
   !     ImGuiWindow* NavWindow;
   !     ImGuiID NavId;
   !     ImGuiID NavFocusScopeId;
@@ -1128,29 +1149,29 @@
   !     ImGuiActivateFlags NavNextActivateFlags;
   !     ImGuiInputSource NavInputSource;
   !     ImGuiNavLayer NavLayer;
-  !     bool NavIdIsAlive;
-  !     bool NavMousePosDirty;
-  !     bool NavDisableHighlight;
-  !     bool NavDisableMouseHover;
-  !     bool NavAnyRequest;
-  !     bool NavInitRequest;
-  !     bool NavInitRequestFromMove;
+  !     logical(c_bool) :: NavIdIsAlive;
+  !     logical(c_bool) :: NavMousePosDirty;
+  !     logical(c_bool) :: NavDisableHighlight;
+  !     logical(c_bool) :: NavDisableMouseHover;
+  !     logical(c_bool) :: NavAnyRequest;
+  !     logical(c_bool) :: NavInitRequest;
+  !     logical(c_bool) :: NavInitRequestFromMove;
   !     ImGuiID NavInitResultId;
   !     ImRect NavInitResultRectRel;
-  !     bool NavMoveSubmitted;
-  !     bool NavMoveScoringItems;
-  !     bool NavMoveForwardToNextFrame;
+  !     logical(c_bool) :: NavMoveSubmitted;
+  !     logical(c_bool) :: NavMoveScoringItems;
+  !     logical(c_bool) :: NavMoveForwardToNextFrame;
   !     ImGuiNavMoveFlags NavMoveFlags;
   !     ImGuiScrollFlags NavMoveScrollFlags;
   !     ImGuiModFlags NavMoveKeyMods;
-  !     ImGuiDir NavMoveDir;
-  !     ImGuiDir NavMoveDirForDebug;
-  !     ImGuiDir NavMoveClipDir;
+  !     integer(c_int) :: NavMoveDir;
+  !     integer(c_int) :: NavMoveDirForDebug;
+  !     integer(c_int) :: NavMoveClipDir;
   !     ImRect NavScoringRect;
   !     ImRect NavScoringNoClipRect;
-  !     int NavScoringDebugCount;
-  !     int NavTabbingDir;
-  !     int NavTabbingCounter;
+  !     integer(c_int) :: NavScoringDebugCount;
+  !     integer(c_int) :: NavTabbingDir;
+  !     integer(c_int) :: NavTabbingCounter;
   !     ImGuiNavItemData NavMoveResultLocal;
   !     ImGuiNavItemData NavMoveResultLocalVisible;
   !     ImGuiNavItemData NavMoveResultOther;
@@ -1158,32 +1179,32 @@
   !     ImGuiWindow* NavWindowingTarget;
   !     ImGuiWindow* NavWindowingTargetAnim;
   !     ImGuiWindow* NavWindowingListWindow;
-  !     float NavWindowingTimer;
-  !     float NavWindowingHighlightAlpha;
-  !     bool NavWindowingToggleLayer;
-  !     float DimBgRatio;
+  !     real(c_float) :: NavWindowingTimer;
+  !     real(c_float) :: NavWindowingHighlightAlpha;
+  !     logical(c_bool) :: NavWindowingToggleLayer;
+  !     real(c_float) :: DimBgRatio;
   !     ImGuiMouseCursor MouseCursor;
-  !     bool DragDropActive;
-  !     bool DragDropWithinSource;
-  !     bool DragDropWithinTarget;
+  !     logical(c_bool) :: DragDropActive;
+  !     logical(c_bool) :: DragDropWithinSource;
+  !     logical(c_bool) :: DragDropWithinTarget;
   !     ImGuiDragDropFlags DragDropSourceFlags;
-  !     int DragDropSourceFrameCount;
-  !     int DragDropMouseButton;
+  !     integer(c_int) :: DragDropSourceFrameCount;
+  !     integer(c_int) :: DragDropMouseButton;
   !     ImGuiPayload DragDropPayload;
   !     ImRect DragDropTargetRect;
   !     ImGuiID DragDropTargetId;
   !     ImGuiDragDropFlags DragDropAcceptFlags;
-  !     float DragDropAcceptIdCurrRectSurface;
+  !     real(c_float) :: DragDropAcceptIdCurrRectSurface;
   !     ImGuiID DragDropAcceptIdCurr;
   !     ImGuiID DragDropAcceptIdPrev;
-  !     int DragDropAcceptFrameCount;
+  !     integer(c_int) :: DragDropAcceptFrameCount;
   !     ImGuiID DragDropHoldJustPressedId;
   !     ImVector_unsigned_char DragDropPayloadBufHeap;
-  !     unsigned char DragDropPayloadBufLocal[16];
-  !     int ClipperTempDataStacked;
+  !     integer(c_signed_char) :: DragDropPayloadBufLocal[16];
+  !     integer(c_int) :: ClipperTempDataStacked;
   !     ImVector_ImGuiListClipperData ClipperTempData;
   !     ImGuiTable* CurrentTable;
-  !     int TablesTempDataStacked;
+  !     integer(c_int) :: TablesTempDataStacked;
   !     ImVector_ImGuiTableTempData TablesTempData;
   !     ImPool_ImGuiTable Tables;
   !     ImVector_float TablesLastTimeActive;
@@ -1192,103 +1213,103 @@
   !     ImPool_ImGuiTabBar TabBars;
   !     ImVector_ImGuiPtrOrIndex CurrentTabBarStack;
   !     ImVector_ImGuiShrinkWidthItem ShrinkWidthBuffer;
-  !     ImVec2 MouseLastValidPos;
+  !     type(ImVec2) :: MouseLastValidPos;
   !     ImGuiInputTextState InputTextState;
   !     ImFont InputTextPasswordFont;
   !     ImGuiID TempInputId;
   !     ImGuiColorEditFlags ColorEditOptions;
-  !     float ColorEditLastHue;
-  !     float ColorEditLastSat;
+  !     real(c_float) :: ColorEditLastHue;
+  !     real(c_float) :: ColorEditLastSat;
   !     ImU32 ColorEditLastColor;
-  !     ImVec4 ColorPickerRef;
+  !     type(ImVec4) :: ColorPickerRef;
   !     ImGuiComboPreviewData ComboPreviewData;
-  !     float SliderGrabClickOffset;
-  !     float SliderCurrentAccum;
-  !     bool SliderCurrentAccumDirty;
-  !     bool DragCurrentAccumDirty;
-  !     float DragCurrentAccum;
-  !     float DragSpeedDefaultRatio;
-  !     float ScrollbarClickDeltaToGrabCenter;
-  !     float DisabledAlphaBackup;
-  !     short DisabledStackSize;
-  !     short TooltipOverrideCount;
-  !     float TooltipSlowDelay;
+  !     real(c_float) :: SliderGrabClickOffset;
+  !     real(c_float) :: SliderCurrentAccum;
+  !     logical(c_bool) :: SliderCurrentAccumDirty;
+  !     logical(c_bool) :: DragCurrentAccumDirty;
+  !     real(c_float) :: DragCurrentAccum;
+  !     real(c_float) :: DragSpeedDefaultRatio;
+  !     real(c_float) :: ScrollbarClickDeltaToGrabCenter;
+  !     real(c_float) :: DisabledAlphaBackup;
+  !     integer(c_short) :: DisabledStackSize;
+  !     integer(c_short) :: TooltipOverrideCount;
+  !     real(c_float) :: TooltipSlowDelay;
   !     ImVector_char ClipboardHandlerData;
   !     ImVector_ImGuiID MenusIdSubmittedThisFrame;
   !     ImGuiPlatformImeData PlatformImeData;
   !     ImGuiPlatformImeData PlatformImeDataPrev;
   !     ImGuiID PlatformImeViewport;
-  !     char PlatformLocaleDecimalPoint;
+  !     character(c_char) :: PlatformLocaleDecimalPoint;
   !     ImGuiDockContext DockContext;
-  !     bool SettingsLoaded;
-  !     float SettingsDirtyTimer;
+  !     logical(c_bool) :: SettingsLoaded;
+  !     real(c_float) :: SettingsDirtyTimer;
   !     ImGuiTextBuffer SettingsIniData;
   !     ImVector_ImGuiSettingsHandler SettingsHandlers;
   !     ImChunkStream_ImGuiWindowSettings SettingsWindows;
   !     ImChunkStream_ImGuiTableSettings SettingsTables;
   !     ImVector_ImGuiContextHook Hooks;
   !     ImGuiID HookIdNext;
-  !     bool LogEnabled;
+  !     logical(c_bool) :: LogEnabled;
   !     ImGuiLogType LogType;
   !     ImFileHandle LogFile;
   !     ImGuiTextBuffer LogBuffer;
   !     const char* LogNextPrefix;
   !     const char* LogNextSuffix;
-  !     float LogLinePosY;
-  !     bool LogLineFirstItem;
-  !     int LogDepthRef;
-  !     int LogDepthToExpand;
-  !     int LogDepthToExpandDefault;
+  !     real(c_float) :: LogLinePosY;
+  !     logical(c_bool) :: LogLineFirstItem;
+  !     integer(c_int) :: LogDepthRef;
+  !     integer(c_int) :: LogDepthToExpand;
+  !     integer(c_int) :: LogDepthToExpandDefault;
   !     ImGuiDebugLogFlags DebugLogFlags;
   !     ImGuiTextBuffer DebugLogBuf;
-  !     bool DebugItemPickerActive;
+  !     logical(c_bool) :: DebugItemPickerActive;
   !     ImGuiID DebugItemPickerBreakId;
   !     ImGuiMetricsConfig DebugMetricsConfig;
   !     ImGuiStackTool DebugStackTool;
-  !     float FramerateSecPerFrame[120];
-  !     int FramerateSecPerFrameIdx;
-  !     int FramerateSecPerFrameCount;
-  !     float FramerateSecPerFrameAccum;
-  !     int WantCaptureMouseNextFrame;
-  !     int WantCaptureKeyboardNextFrame;
-  !     int WantTextInputNextFrame;
+  !     real(c_float) :: FramerateSecPerFrame[120];
+  !     integer(c_int) :: FramerateSecPerFrameIdx;
+  !     integer(c_int) :: FramerateSecPerFrameCount;
+  !     real(c_float) :: FramerateSecPerFrameAccum;
+  !     integer(c_int) :: WantCaptureMouseNextFrame;
+  !     integer(c_int) :: WantCaptureKeyboardNextFrame;
+  !     integer(c_int) :: WantTextInputNextFrame;
   !     ImVector_char TempBuffer;
   ! };
   ! struct ImGuiWindowTempData
   ! {
-  !     ImVec2 CursorPos;
-  !     ImVec2 CursorPosPrevLine;
-  !     ImVec2 CursorStartPos;
-  !     ImVec2 CursorMaxPos;
-  !     ImVec2 IdealMaxPos;
-  !     ImVec2 CurrLineSize;
-  !     ImVec2 PrevLineSize;
-  !     float CurrLineTextBaseOffset;
-  !     float PrevLineTextBaseOffset;
-  !     bool IsSameLine;
+  !     type(ImVec2) :: CursorPos;
+  !     type(ImVec2) :: CursorPosPrevLine;
+  !     type(ImVec2) :: CursorStartPos;
+  !     type(ImVec2) :: CursorMaxPos;
+  !     type(ImVec2) :: IdealMaxPos;
+  !     type(ImVec2) :: CurrLineSize;
+  !     type(ImVec2) :: PrevLineSize;
+  !     real(c_float) :: CurrLineTextBaseOffset;
+  !     real(c_float) :: PrevLineTextBaseOffset;
+  !     logical(c_bool) :: IsSameLine;
   !     ImVec1 Indent;
   !     ImVec1 ColumnsOffset;
   !     ImVec1 GroupOffset;
-  !     ImVec2 CursorStartPosLossyness;
+  !     type(ImVec2) :: CursorStartPosLossyness;
   !     ImGuiNavLayer NavLayerCurrent;
-  !     short NavLayersActiveMask;
-  !     short NavLayersActiveMaskNext;
+  !     integer(c_short) :: NavLayersActiveMask;
+  !     integer(c_short) :: NavLayersActiveMaskNext;
   !     ImGuiID NavFocusScopeIdCurrent;
-  !     bool NavHideHighlightOneFrame;
-  !     bool NavHasScroll;
-  !     bool MenuBarAppending;
-  !     ImVec2 MenuBarOffset;
+  !     logical(c_bool) :: NavHideHighlightOneFrame;
+  !     logical(c_bool) :: NavHasScroll;
+  !     logical(c_bool) :: MenuBarAppending;
+  !     type(ImVec2) :: MenuBarOffset;
   !     ImGuiMenuColumns MenuColumns;
-  !     int TreeDepth;
+  !     integer(c_int) :: TreeDepth;
   !     ImU32 TreeJumpToParentOnPopMask;
   !     ImVector_ImGuiWindowPtr ChildWindows;
   !     ImGuiStorage* StateStorage;
   !     ImGuiOldColumns* CurrentColumns;
-  !     int CurrentTableIdx;
+  !     integer(c_int) :: CurrentTableIdx;
   !     ImGuiLayoutType LayoutType;
   !     ImGuiLayoutType ParentLayoutType;
-  !     float ItemWidth;
-  !     float TextWrapPos;
+  !     real(c_float) :: ItemWidth;
+  !     real(c_float) :: TextWrapPos;
   !     ImVector_float ItemWidthStack;
   !     ImVector_float TextWrapPosStack;
   ! };
@@ -1302,50 +1323,50 @@
   !     ImGuiWindowClass WindowClass;
   !     ImGuiViewportP* Viewport;
   !     ImGuiID ViewportId;
-  !     ImVec2 ViewportPos;
-  !     int ViewportAllowPlatformMonitorExtend;
-  !     ImVec2 Pos;
-  !     ImVec2 Size;
-  !     ImVec2 SizeFull;
-  !     ImVec2 ContentSize;
-  !     ImVec2 ContentSizeIdeal;
-  !     ImVec2 ContentSizeExplicit;
-  !     ImVec2 WindowPadding;
-  !     float WindowRounding;
-  !     float WindowBorderSize;
-  !     int NameBufLen;
+  !     type(ImVec2) :: ViewportPos;
+  !     integer(c_int) :: ViewportAllowPlatformMonitorExtend;
+  !     type(ImVec2) :: Pos;
+  !     type(ImVec2) :: Size;
+  !     type(ImVec2) :: SizeFull;
+  !     type(ImVec2) :: ContentSize;
+  !     type(ImVec2) :: ContentSizeIdeal;
+  !     type(ImVec2) :: ContentSizeExplicit;
+  !     type(ImVec2) :: WindowPadding;
+  !     real(c_float) :: WindowRounding;
+  !     real(c_float) :: WindowBorderSize;
+  !     integer(c_int) :: NameBufLen;
   !     ImGuiID MoveId;
   !     ImGuiID TabId;
   !     ImGuiID ChildId;
-  !     ImVec2 Scroll;
-  !     ImVec2 ScrollMax;
-  !     ImVec2 ScrollTarget;
-  !     ImVec2 ScrollTargetCenterRatio;
-  !     ImVec2 ScrollTargetEdgeSnapDist;
-  !     ImVec2 ScrollbarSizes;
-  !     bool ScrollbarX, ScrollbarY;
-  !     bool ViewportOwned;
-  !     bool Active;
-  !     bool WasActive;
-  !     bool WriteAccessed;
-  !     bool Collapsed;
-  !     bool WantCollapseToggle;
-  !     bool SkipItems;
-  !     bool Appearing;
-  !     bool Hidden;
-  !     bool IsFallbackWindow;
-  !     bool IsExplicitChild;
-  !     bool HasCloseButton;
-  !     signed char ResizeBorderHeld;
-  !     short BeginCount;
-  !     short BeginOrderWithinParent;
-  !     short BeginOrderWithinContext;
-  !     short FocusOrder;
+  !     type(ImVec2) :: Scroll;
+  !     type(ImVec2) :: ScrollMax;
+  !     type(ImVec2) :: ScrollTarget;
+  !     type(ImVec2) :: ScrollTargetCenterRatio;
+  !     type(ImVec2) :: ScrollTargetEdgeSnapDist;
+  !     type(ImVec2) :: ScrollbarSizes;
+  !     logical(c_bool) :: ScrollbarX, ScrollbarY;
+  !     logical(c_bool) :: ViewportOwned;
+  !     logical(c_bool) :: Active;
+  !     logical(c_bool) :: WasActive;
+  !     logical(c_bool) :: WriteAccessed;
+  !     logical(c_bool) :: Collapsed;
+  !     logical(c_bool) :: WantCollapseToggle;
+  !     logical(c_bool) :: SkipItems;
+  !     logical(c_bool) :: Appearing;
+  !     logical(c_bool) :: Hidden;
+  !     logical(c_bool) :: IsFallbackWindow;
+  !     logical(c_bool) :: IsExplicitChild;
+  !     logical(c_bool) :: HasCloseButton;
+  !     integer(c_signed_char) :: ResizeBorderHeld;
+  !     integer(c_short) :: BeginCount;
+  !     integer(c_short) :: BeginOrderWithinParent;
+  !     integer(c_short) :: BeginOrderWithinContext;
+  !     integer(c_short) :: FocusOrder;
   !     ImGuiID PopupId;
   !     ImS8 AutoFitFramesX, AutoFitFramesY;
   !     ImS8 AutoFitChildAxises;
-  !     bool AutoFitOnlyGrows;
-  !     ImGuiDir AutoPosLastDirection;
+  !     logical(c_bool) :: AutoFitOnlyGrows;
+  !     integer(c_int) :: AutoPosLastDirection;
   !     ImS8 HiddenFramesCanSkipItems;
   !     ImS8 HiddenFramesCannotSkipItems;
   !     ImS8 HiddenFramesForRenderOnly;
@@ -1354,8 +1375,8 @@
   !     ImGuiCond SetWindowSizeAllowFlags : 8;
   !     ImGuiCond SetWindowCollapsedAllowFlags : 8;
   !     ImGuiCond SetWindowDockAllowFlags : 8;
-  !     ImVec2 SetWindowPosVal;
-  !     ImVec2 SetWindowPosPivot;
+  !     type(ImVec2) :: SetWindowPosVal;
+  !     type(ImVec2) :: SetWindowPosPivot;
   !     ImVector_ImGuiID IDStack;
   !     ImGuiWindowTempData DC;
   !     ImRect OuterRectClipped;
@@ -1367,15 +1388,15 @@
   !     ImRect ContentRegionRect;
   !     ImVec2ih HitTestHoleSize;
   !     ImVec2ih HitTestHoleOffset;
-  !     int LastFrameActive;
-  !     int LastFrameJustFocused;
-  !     float LastTimeActive;
-  !     float ItemWidthDefault;
+  !     integer(c_int) :: LastFrameActive;
+  !     integer(c_int) :: LastFrameJustFocused;
+  !     real(c_float) :: LastTimeActive;
+  !     real(c_float) :: ItemWidthDefault;
   !     ImGuiStorage StateStorage;
   !     ImVector_ImGuiOldColumns ColumnsStorage;
-  !     float FontWindowScale;
-  !     float FontDpiScale;
-  !     int SettingsOffset;
+  !     real(c_float) :: FontWindowScale;
+  !     real(c_float) :: FontDpiScale;
+  !     integer(c_int) :: SettingsOffset;
   !     ImDrawList* DrawList;
   !     ImDrawList DrawListInst;
   !     ImGuiWindow* ParentWindow;
@@ -1388,14 +1409,14 @@
   !     ImGuiWindow* NavLastChildNavWindow;
   !     ImGuiID NavLastIds[ImGuiNavLayer_COUNT];
   !     ImRect NavRectRel[ImGuiNavLayer_COUNT];
-  !     int MemoryDrawListIdxCapacity;
-  !     int MemoryDrawListVtxCapacity;
-  !     bool MemoryCompacted;
-  !     bool DockIsActive :1;
-  !     bool DockNodeIsVisible :1;
-  !     bool DockTabIsVisible :1;
-  !     bool DockTabWantClose :1;
-  !     short DockOrder;
+  !     integer(c_int) :: MemoryDrawListIdxCapacity;
+  !     integer(c_int) :: MemoryDrawListVtxCapacity;
+  !     logical(c_bool) :: MemoryCompacted;
+  !     logical(c_bool) :: DockIsActive :1;
+  !     logical(c_bool) :: DockNodeIsVisible :1;
+  !     logical(c_bool) :: DockTabIsVisible :1;
+  !     logical(c_bool) :: DockTabWantClose :1;
+  !     integer(c_short) :: DockOrder;
   !     ImGuiWindowDockStyle DockStyle;
   !     ImGuiDockNode* DockNode;
   !     ImGuiDockNode* DockNodeAsHost;
@@ -1408,16 +1429,16 @@
   !     ImGuiID ID;
   !     ImGuiTabItemFlags Flags;
   !     ImGuiWindow* Window;
-  !     int LastFrameVisible;
-  !     int LastFrameSelected;
-  !     float Offset;
-  !     float Width;
-  !     float ContentWidth;
-  !     float RequestedWidth;
+  !     integer(c_int) :: LastFrameVisible;
+  !     integer(c_int) :: LastFrameSelected;
+  !     real(c_float) :: Offset;
+  !     real(c_float) :: Width;
+  !     real(c_float) :: ContentWidth;
+  !     real(c_float) :: RequestedWidth;
   !     ImS32 NameOffset;
   !     ImS16 BeginOrder;
   !     ImS16 IndexDuringLayout;
-  !     bool WantClose;
+  !     logical(c_bool) :: WantClose;
   ! };
   ! typedef struct ImVector_ImGuiTabItem {int Size;int Capacity;ImGuiTabItem* Data;} ImVector_ImGuiTabItem;
 
@@ -1429,51 +1450,51 @@
   !     ImGuiID SelectedTabId;
   !     ImGuiID NextSelectedTabId;
   !     ImGuiID VisibleTabId;
-  !     int CurrFrameVisible;
-  !     int PrevFrameVisible;
+  !     integer(c_int) :: CurrFrameVisible;
+  !     integer(c_int) :: PrevFrameVisible;
   !     ImRect BarRect;
-  !     float CurrTabsContentsHeight;
-  !     float PrevTabsContentsHeight;
-  !     float WidthAllTabs;
-  !     float WidthAllTabsIdeal;
-  !     float ScrollingAnim;
-  !     float ScrollingTarget;
-  !     float ScrollingTargetDistToVisibility;
-  !     float ScrollingSpeed;
-  !     float ScrollingRectMinX;
-  !     float ScrollingRectMaxX;
+  !     real(c_float) :: CurrTabsContentsHeight;
+  !     real(c_float) :: PrevTabsContentsHeight;
+  !     real(c_float) :: WidthAllTabs;
+  !     real(c_float) :: WidthAllTabsIdeal;
+  !     real(c_float) :: ScrollingAnim;
+  !     real(c_float) :: ScrollingTarget;
+  !     real(c_float) :: ScrollingTargetDistToVisibility;
+  !     real(c_float) :: ScrollingSpeed;
+  !     real(c_float) :: ScrollingRectMinX;
+  !     real(c_float) :: ScrollingRectMaxX;
   !     ImGuiID ReorderRequestTabId;
   !     ImS16 ReorderRequestOffset;
   !     ImS8 BeginCount;
-  !     bool WantLayout;
-  !     bool VisibleTabWasSubmitted;
-  !     bool TabsAddedNew;
+  !     logical(c_bool) :: WantLayout;
+  !     logical(c_bool) :: VisibleTabWasSubmitted;
+  !     logical(c_bool) :: TabsAddedNew;
   !     ImS16 TabsActiveCount;
   !     ImS16 LastTabItemIdx;
-  !     float ItemSpacingY;
-  !     ImVec2 FramePadding;
-  !     ImVec2 BackupCursorPos;
+  !     real(c_float) :: ItemSpacingY;
+  !     type(ImVec2) :: FramePadding;
+  !     type(ImVec2) :: BackupCursorPos;
   !     ImGuiTextBuffer TabsNames;
   ! };
   ! struct ImGuiTableColumn
   ! {
   !     ImGuiTableColumnFlags Flags;
-  !     float WidthGiven;
-  !     float MinX;
-  !     float MaxX;
-  !     float WidthRequest;
-  !     float WidthAuto;
-  !     float StretchWeight;
-  !     float InitStretchWeightOrWidth;
+  !     real(c_float) :: WidthGiven;
+  !     real(c_float) :: MinX;
+  !     real(c_float) :: MaxX;
+  !     real(c_float) :: WidthRequest;
+  !     real(c_float) :: WidthAuto;
+  !     real(c_float) :: StretchWeight;
+  !     real(c_float) :: InitStretchWeightOrWidth;
   !     ImRect ClipRect;
   !     ImGuiID UserID;
-  !     float WorkMinX;
-  !     float WorkMaxX;
-  !     float ItemWidth;
-  !     float ContentMaxXFrozen;
-  !     float ContentMaxXUnfrozen;
-  !     float ContentMaxXHeadersUsed;
-  !     float ContentMaxXHeadersIdeal;
+  !     real(c_float) :: WorkMinX;
+  !     real(c_float) :: WorkMaxX;
+  !     real(c_float) :: ItemWidth;
+  !     real(c_float) :: ContentMaxXFrozen;
+  !     real(c_float) :: ContentMaxXUnfrozen;
+  !     real(c_float) :: ContentMaxXHeadersUsed;
+  !     real(c_float) :: ContentMaxXHeadersIdeal;
   !     ImS16 NameOffset;
   !     ImGuiTableColumnIdx DisplayOrder;
   !     ImGuiTableColumnIdx IndexWithinEnabledSet;
@@ -1483,14 +1504,14 @@
   !     ImGuiTableDrawChannelIdx DrawChannelCurrent;
   !     ImGuiTableDrawChannelIdx DrawChannelFrozen;
   !     ImGuiTableDrawChannelIdx DrawChannelUnfrozen;
-  !     bool IsEnabled;
-  !     bool IsUserEnabled;
-  !     bool IsUserEnabledNextFrame;
-  !     bool IsVisibleX;
-  !     bool IsVisibleY;
-  !     bool IsRequestOutput;
-  !     bool IsSkipItems;
-  !     bool IsPreserveWidthAuto;
+  !     logical(c_bool) :: IsEnabled;
+  !     logical(c_bool) :: IsUserEnabled;
+  !     logical(c_bool) :: IsUserEnabledNextFrame;
+  !     logical(c_bool) :: IsVisibleX;
+  !     logical(c_bool) :: IsVisibleY;
+  !     logical(c_bool) :: IsRequestOutput;
+  !     logical(c_bool) :: IsSkipItems;
+  !     logical(c_bool) :: IsPreserveWidthAuto;
   !     ImS8 NavLayerCurrent;
   !     ImU8 AutoFitQueue;
   !     ImU8 CannotSkipItemsQueue;
@@ -1506,8 +1527,8 @@
   ! };
   ! struct ImGuiTableInstanceData
   ! {
-  !     float LastOuterHeight;
-  !     float LastFirstRowHeight;
+  !     real(c_float) :: LastOuterHeight;
+  !     real(c_float) :: LastFirstRowHeight;
   ! };
   ! typedef struct ImSpan_ImGuiTableColumn {ImGuiTableColumn* Data;ImGuiTableColumn* DataEnd;} ImSpan_ImGuiTableColumn;
 
@@ -1523,7 +1544,7 @@
   ! {
   !     ImGuiID ID;
   !     ImGuiTableFlags Flags;
-  !     void* RawData;
+  !     type(c_ptr) :: RawData;
   !     ImGuiTableTempData* TempData;
   !     ImSpan_ImGuiTableColumn Columns;
   !     ImSpan_ImGuiTableColumnIdx DisplayOrderToIndex;
@@ -1533,40 +1554,40 @@
   !     ImU64 VisibleMaskByIndex;
   !     ImU64 RequestOutputMaskByIndex;
   !     ImGuiTableFlags SettingsLoadedFlags;
-  !     int SettingsOffset;
-  !     int LastFrameActive;
-  !     int ColumnsCount;
-  !     int CurrentRow;
-  !     int CurrentColumn;
+  !     integer(c_int) :: SettingsOffset;
+  !     integer(c_int) :: LastFrameActive;
+  !     integer(c_int) :: ColumnsCount;
+  !     integer(c_int) :: CurrentRow;
+  !     integer(c_int) :: CurrentColumn;
   !     ImS16 InstanceCurrent;
   !     ImS16 InstanceInteracted;
-  !     float RowPosY1;
-  !     float RowPosY2;
-  !     float RowMinHeight;
-  !     float RowTextBaseline;
-  !     float RowIndentOffsetX;
+  !     real(c_float) :: RowPosY1;
+  !     real(c_float) :: RowPosY2;
+  !     real(c_float) :: RowMinHeight;
+  !     real(c_float) :: RowTextBaseline;
+  !     real(c_float) :: RowIndentOffsetX;
   !     ImGuiTableRowFlags RowFlags : 16;
   !     ImGuiTableRowFlags LastRowFlags : 16;
-  !     int RowBgColorCounter;
+  !     integer(c_int) :: RowBgColorCounter;
   !     ImU32 RowBgColor[2];
   !     ImU32 BorderColorStrong;
   !     ImU32 BorderColorLight;
-  !     float BorderX1;
-  !     float BorderX2;
-  !     float HostIndentX;
-  !     float MinColumnWidth;
-  !     float OuterPaddingX;
-  !     float CellPaddingX;
-  !     float CellPaddingY;
-  !     float CellSpacingX1;
-  !     float CellSpacingX2;
-  !     float InnerWidth;
-  !     float ColumnsGivenWidth;
-  !     float ColumnsAutoFitWidth;
-  !     float ColumnsStretchSumWeights;
-  !     float ResizedColumnNextWidth;
-  !     float ResizeLockMinContentsX2;
-  !     float RefScale;
+  !     real(c_float) :: BorderX1;
+  !     real(c_float) :: BorderX2;
+  !     real(c_float) :: HostIndentX;
+  !     real(c_float) :: MinColumnWidth;
+  !     real(c_float) :: OuterPaddingX;
+  !     real(c_float) :: CellPaddingX;
+  !     real(c_float) :: CellPaddingY;
+  !     real(c_float) :: CellSpacingX1;
+  !     real(c_float) :: CellSpacingX2;
+  !     real(c_float) :: InnerWidth;
+  !     real(c_float) :: ColumnsGivenWidth;
+  !     real(c_float) :: ColumnsAutoFitWidth;
+  !     real(c_float) :: ColumnsStretchSumWeights;
+  !     real(c_float) :: ResizedColumnNextWidth;
+  !     real(c_float) :: ResizeLockMinContentsX2;
+  !     real(c_float) :: RefScale;
   !     ImRect OuterRect;
   !     ImRect InnerRect;
   !     ImRect WorkRect;
@@ -1610,40 +1631,40 @@
   !     ImGuiTableDrawChannelIdx DummyDrawChannel;
   !     ImGuiTableDrawChannelIdx Bg2DrawChannelCurrent;
   !     ImGuiTableDrawChannelIdx Bg2DrawChannelUnfrozen;
-  !     bool IsLayoutLocked;
-  !     bool IsInsideRow;
-  !     bool IsInitializing;
-  !     bool IsSortSpecsDirty;
-  !     bool IsUsingHeaders;
-  !     bool IsContextPopupOpen;
-  !     bool IsSettingsRequestLoad;
-  !     bool IsSettingsDirty;
-  !     bool IsDefaultDisplayOrder;
-  !     bool IsResetAllRequest;
-  !     bool IsResetDisplayOrderRequest;
-  !     bool IsUnfrozenRows;
-  !     bool IsDefaultSizingPolicy;
-  !     bool MemoryCompacted;
-  !     bool HostSkipItems;
+  !     logical(c_bool) :: IsLayoutLocked;
+  !     logical(c_bool) :: IsInsideRow;
+  !     logical(c_bool) :: IsInitializing;
+  !     logical(c_bool) :: IsSortSpecsDirty;
+  !     logical(c_bool) :: IsUsingHeaders;
+  !     logical(c_bool) :: IsContextPopupOpen;
+  !     logical(c_bool) :: IsSettingsRequestLoad;
+  !     logical(c_bool) :: IsSettingsDirty;
+  !     logical(c_bool) :: IsDefaultDisplayOrder;
+  !     logical(c_bool) :: IsResetAllRequest;
+  !     logical(c_bool) :: IsResetDisplayOrderRequest;
+  !     logical(c_bool) :: IsUnfrozenRows;
+  !     logical(c_bool) :: IsDefaultSizingPolicy;
+  !     logical(c_bool) :: MemoryCompacted;
+  !     logical(c_bool) :: HostSkipItems;
   ! };
   ! struct ImGuiTableTempData
   ! {
-  !     int TableIndex;
-  !     float LastTimeActive;
-  !     ImVec2 UserOuterSize;
+  !     integer(c_int) :: TableIndex;
+  !     real(c_float) :: LastTimeActive;
+  !     type(ImVec2) :: UserOuterSize;
   !     ImDrawListSplitter DrawSplitter;
   !     ImRect HostBackupWorkRect;
   !     ImRect HostBackupParentWorkRect;
-  !     ImVec2 HostBackupPrevLineSize;
-  !     ImVec2 HostBackupCurrLineSize;
-  !     ImVec2 HostBackupCursorMaxPos;
+  !     type(ImVec2) :: HostBackupPrevLineSize;
+  !     type(ImVec2) :: HostBackupCurrLineSize;
+  !     type(ImVec2) :: HostBackupCursorMaxPos;
   !     ImVec1 HostBackupColumnsOffset;
-  !     float HostBackupItemWidth;
-  !     int HostBackupItemWidthStackSize;
+  !     real(c_float) :: HostBackupItemWidth;
+  !     integer(c_int) :: HostBackupItemWidthStackSize;
   ! };
   ! struct ImGuiTableColumnSettings
   ! {
-  !     float WidthOrWeight;
+  !     real(c_float) :: WidthOrWeight;
   !     ImGuiID UserID;
   !     ImGuiTableColumnIdx Index;
   !     ImGuiTableColumnIdx DisplayOrder;
@@ -1656,10 +1677,10 @@
   ! {
   !     ImGuiID ID;
   !     ImGuiTableFlags SaveFlags;
-  !     float RefScale;
+  !     real(c_float) :: RefScale;
   !     ImGuiTableColumnIdx ColumnsCount;
   !     ImGuiTableColumnIdx ColumnsCountMax;
-  !     bool WantApply;
+  !     logical(c_bool) :: WantApply;
   ! };
   ! struct ImFontBuilderIO
   ! {
