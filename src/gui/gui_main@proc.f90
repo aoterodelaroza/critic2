@@ -162,8 +162,7 @@ contains
 
   ! Show the main menu
   subroutine show_main_menu()
-    use gui_interfaces_cimgui, only: igBeginMainMenuBar, igEndMainMenuBar, igBeginMenu,&
-       igEndMenu, igMenuItem_Bool, igGetContentRegionAvail, igSameLine, igText, ImVec2
+    use gui_interfaces_cimgui
     use gui_keybindings, only: BIND_QUIT, get_bind_keyname
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -181,6 +180,11 @@ contains
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)) &
              call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+          if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+             str1 = "bleh" // c_null_char
+             call igSetTooltip(c_loc(str1))
+          end if
+
           call igEndMenu()
        end if
 
