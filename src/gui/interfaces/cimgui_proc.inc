@@ -377,7 +377,14 @@ end subroutine igSetTooltip
 !x! bool igTabItemButton(const char* label,ImGuiTabItemFlags flags);
 !x! void igSetTabItemClosed(const char* tab_or_docked_window_label);
 !x! ImGuiID igDockSpace(ImGuiID id,const ImVec2 size,ImGuiDockNodeFlags flags,const ImGuiWindowClass* window_class);
-!x! ImGuiID igDockSpaceOverViewport(const ImGuiViewport* viewport,ImGuiDockNodeFlags flags,const ImGuiWindowClass* window_class);
+! ImGuiID igDockSpaceOverViewport(const ImGuiViewport* viewport,ImGuiDockNodeFlags flags,const ImGuiWindowClass* window_class);
+function igDockSpaceOverViewport(viewport,flags,window_class) bind(c,name="igDockSpaceOverViewport")
+  import c_int, c_ptr
+  integer(c_int) :: igDockSpaceOverViewport
+  type(c_ptr), intent(in), value :: viewport
+  integer(c_int), value :: flags
+  type(c_ptr), intent(in), value :: window_class
+end function igDockSpaceOverViewport
 !x! void igSetNextWindowDockID(ImGuiID dock_id,ImGuiCond cond);
 !x! void igSetNextWindowClass(const ImGuiWindowClass* window_class);
 !x! ImGuiID igGetWindowDockID(void);
@@ -423,7 +430,11 @@ end function igIsItemHovered
 !x! void igGetItemRectMax(ImVec2 *pOut);
 !x! void igGetItemRectSize(ImVec2 *pOut);
 !x! void igSetItemAllowOverlap(void);
-!x! ImGuiViewport* igGetMainViewport(void);
+! ImGuiViewport* igGetMainViewport(void);
+function igGetMainViewport() bind(c,name="igGetMainViewport")
+  import c_ptr
+  type(c_ptr) :: igGetMainViewport
+end function igGetMainViewport
 !x! ImDrawList* igGetBackgroundDrawList_Nil(void);
 !x! ImDrawList* igGetForegroundDrawList_Nil(void);
 !x! ImDrawList* igGetBackgroundDrawList_ViewportPtr(ImGuiViewport* viewport);

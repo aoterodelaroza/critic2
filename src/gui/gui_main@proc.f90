@@ -122,6 +122,11 @@ contains
        ! show main menu
        call show_main_menu()
 
+       ! show main dockspace
+       idum = igDockSpaceOverViewport(igGetMainViewport(),&
+          ImGuiDockNodeFlags_PassthruCentralNode,&
+          c_null_ptr)
+
        ! show demo window
        if (show_demo_window) &
           call igShowDemoWindow(show_demo_window)
@@ -195,17 +200,17 @@ contains
 
        !     if (BeginMenu("Edit")){
        !       if (MenuItem("Preferences..."))
-       ! 	OpenDialog(DLG_Preferences);
+       !        OpenDialog(DLG_Preferences);
        !       EndMenu();
        !     }
 
        !     if (BeginMenu("View")){
        !       if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
-       ! 	ToggleDialog(DLG_Tree);
+       !        ToggleDialog(DLG_Tree);
        !       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
-       ! 	ToggleDialog(DLG_Preferences);
+       !        ToggleDialog(DLG_Preferences);
        !       if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
-       ! 	ToggleDialog(DLG_StructInfo);
+       !        ToggleDialog(DLG_StructInfo);
        !       EndMenu();
        !     }
 
