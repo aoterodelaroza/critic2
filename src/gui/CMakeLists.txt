@@ -4,7 +4,7 @@ set(SOURCES
   imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/imgui_freetype.cpp
   imgui/gl3w.c
 
-  gui_interfaces_cimgui.f90 gui_interfaces_gl3w.f90 gui_interfaces_glfw.f90
+  gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
   gui_interfaces_opengl3.f90 interfaces/constants.cpp
 
   gui_main.f90 gui_main@proc.f90

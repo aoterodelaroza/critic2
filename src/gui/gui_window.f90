@@ -15,23 +15,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
-  use iso_c_binding
+! The class to handle ImGui windows.
+module gui_window
   implicit none
 
-contains
+  private
 
-  ! Returns true if the last item has been hovered for at least thr
-  ! seconds.
-  module function igIsItemHovered_delayed(flags,thr)
-    use gui_main, only: g
-    use gui_interfaces_cimgui, only: igIsItemHovered
-    integer(c_int), value :: flags
-    real(c_float), intent(in) :: thr
-    logical(c_bool) :: igIsItemHovered_delayed
-
-    igIsItemHovered_delayed = igIsItemHovered(flags) .and. (g%HoveredIdTimer >= thr)
-
-  end function igIsItemHovered_delayed
-
-end submodule proc
+end module gui_window
