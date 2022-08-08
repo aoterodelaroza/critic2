@@ -28,6 +28,8 @@ submodule (gui_main) proc
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
   !xx! private procedures
+  ! subroutine process_arguments()
+  ! function stack_create_window(type,isopen)
   ! subroutine show_main_menu()
 
 contains
@@ -48,6 +50,13 @@ contains
     character(kind=c_char,len=:), allocatable, target :: strc
     integer :: i
     logical :: firstpass
+
+    ! initialize the sys arrays
+    nsys = 0
+    allocate(sys(1),sys_status(1),sys_seed(1),sys_has_field(1))
+
+    ! Parse the command line and read as many systems as possible
+    call process_arguments()
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -195,6 +204,60 @@ contains
   end subroutine gui_start
 
   !xx! private procedures
+
+  subroutine process_arguments()
+    use crystalseedmod, only: read_seeds_from_file, crystalseed
+    use tools_io, only: uout
+    use types, only: realloc
+    integer :: argc
+    integer :: i
+    character(len=1024) :: argv
+
+    integer :: nseed, iseed, iafield, idx
+    type(crystalseed), allocatable :: seed(:)
+    character(len=:), allocatable :: errmsg
+    type(system), allocatable :: syaux(:)
+    type(crystalseed), allocatable :: seedaux(:)
+
+    argc = command_argument_count()
+    do i = 1, argc
+       call getarg(i,argv)
+       argv = adjustl(argv)
+       if (argv(1:1) == "-") cycle ! skip options
+       call read_seeds_from_file(argv,-1,nseed,seed,errmsg,iafield)
+
+       if (nseed > 0) then
+          ! increment and reallocate if necessary
+          nsys = nsys + nseed
+          if (nsys > size(sys,1)) then
+             allocate(syaux(2*nsys))
+             syaux(1:size(sys,1)) = sys
+             call move_alloc(syaux,sys)
+
+             allocate(seedaux(2*nsys))
+             seedaux(1:size(sys_seed,1)) = sys_seed
+             call move_alloc(seedaux,sys_seed)
+
+             call realloc(sys_has_field,2*nsys)
+             call realloc(sys_status,2*nsys)
+             sys_status(nsys-nseed+1:2*nsys) = 0
+          end if
+          do iseed = 1, nseed
+             idx = nsys - nseed + iseed
+             sys(idx)%isinit = .false.
+             sys_status(idx) = sys_loaded_not_init
+             sys_seed(idx) = seed(iseed)
+             sys_has_field(idx) = .false.
+          end do
+          if (iafield > 0) &
+             sys_has_field(nsys - nseed + iafield) = .true.
+       else
+          write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(argv)
+          write (uout,'("Error: ",A)') trim(errmsg)
+       end if
+    end do
+
+  end subroutine process_arguments
 
   !> Create a window in the window stack with the given type
   function stack_create_window(type,isopen)

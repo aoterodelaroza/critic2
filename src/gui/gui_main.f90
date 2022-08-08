@@ -23,6 +23,8 @@ module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int
   use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
   use gui_window, only: window
+  use systemmod, only: system
+  use crystalseedmod, only: crystalseed
   implicit none
 
   private
@@ -45,6 +47,16 @@ module gui_main
 
   ! the dockspace ID
   integer(c_int) :: iddock = 0
+
+  ! systems arrays
+  integer, parameter :: sys_empty = 0
+  integer, parameter :: sys_loaded_not_init = 1
+  integer, parameter :: sys_init = 2
+  integer :: nsys = 0
+  type(system), allocatable, target :: sys(:)
+  integer, allocatable :: sys_status(:)
+  type(crystalseed), allocatable :: sys_seed(:)
+  logical, allocatable :: sys_has_field(:)
 
   ! public procedures
   public :: gui_start
