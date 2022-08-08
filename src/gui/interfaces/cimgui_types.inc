@@ -1,5 +1,5 @@
   ! -*-F90-*-
-  
+
   !xx! cimgui user-defined types
   type, bind(c) :: ImVector_const_charPtr
      integer(c_int) :: Size

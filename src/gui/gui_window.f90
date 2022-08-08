@@ -40,6 +40,7 @@ module gui_window
    contains
      procedure :: init => window_init
      procedure :: draw => window_draw
+     procedure :: draw_tree
   end type window
   public :: window
 
@@ -52,6 +53,9 @@ module gui_window
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw
+     module subroutine draw_tree(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_tree
   end interface
 
 end module gui_window

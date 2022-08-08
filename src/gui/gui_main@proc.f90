@@ -27,6 +27,9 @@ submodule (gui_main) proc
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
+  ! the dockspace ID
+  integer(c_int) :: iddock = 0
+
   !xx! private procedures
   ! subroutine process_arguments()
   ! function stack_create_window(type,isopen)
@@ -153,7 +156,7 @@ contains
        ! first pass: use the dock builder routines to place the windows
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
-          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.15_c_float, idum, iright)
+          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.2_c_float, idum, iright)
           ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
 
           call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)

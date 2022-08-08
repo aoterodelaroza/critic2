@@ -189,7 +189,12 @@ end subroutine igSameLine
 !x! ImGuiID igGetID_Str(const char* str_id);
 !x! ImGuiID igGetID_StrStr(const char* str_id_begin,const char* str_id_end);
 !x! ImGuiID igGetID_Ptr(const void* ptr_id);
-!x! void igTextUnformatted(const char* text,const char* text_end);
+! void igTextUnformatted(const char* text,const char* text_end);
+subroutine igTextUnformatted(text, text_end) bind(c,name="igTextUnformatted")
+  import c_ptr
+  type(c_ptr), intent(in), value :: text
+  type(c_ptr), intent(in), value :: text_end
+end subroutine igTextUnformatted
 ! void igText(const char* fmt,...);
 subroutine igText(fmt) bind(c,name="igText")
   import c_ptr
@@ -200,7 +205,11 @@ end subroutine igText
 !x! void igTextColoredV(const ImVec4 col,const char* fmt,va_list args);
 !x! void igTextDisabled(const char* fmt,...);
 !x! void igTextDisabledV(const char* fmt,va_list args);
-!x! void igTextWrapped(const char* fmt,...);
+! void igTextWrapped(const char* fmt,...);
+subroutine igTextWrapped(fmt) bind(c,name="igTextWrapped")
+  import c_ptr
+  type(c_ptr), intent(in), value :: fmt
+end subroutine igTextWrapped
 !x! void igTextWrappedV(const char* fmt,va_list args);
 !x! void igLabelText(const char* label,const char* fmt,...);
 !x! void igLabelTextV(const char* label,const char* fmt,va_list args);
@@ -365,14 +374,44 @@ end subroutine igSetTooltip
 !x! bool igBeginPopupContextWindow(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupContextVoid(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igIsPopupOpen_Str(const char* str_id,ImGuiPopupFlags flags);
-!x! bool igBeginTable(const char* str_id,int column,ImGuiTableFlags flags,const ImVec2 outer_size,float inner_width);
-!x! void igEndTable(void);
-!x! void igTableNextRow(ImGuiTableRowFlags row_flags,float min_row_height);
+! bool igBeginTable(const char* str_id,int column,ImGuiTableFlags flags,const ImVec2 outer_size,float inner_width);
+function igBeginTable(str_id,column,flags,outer_size,inner_width) bind(c,name="igBeginTable")
+  import c_ptr, c_int, c_float, c_bool, ImVec2
+  type(c_ptr), intent(in), value :: str_id
+  integer(c_int), value :: column
+  integer(c_int), value :: flags
+  type(ImVec2), value :: outer_size
+  real(c_float), value :: inner_width
+  logical(c_bool) :: igBeginTable
+end function igBeginTable
+! void igEndTable(void);
+subroutine igEndTable() bind(c,name="igEndTable")
+end subroutine igEndTable
+! void igTableNextRow(ImGuiTableRowFlags row_flags,float min_row_height);
+subroutine igTableNextRow(row_flags,min_row_height) bind(c,name="igTableNextRow")
+  import c_int, c_float
+  integer(c_int), value :: row_flags
+  real(c_float), value :: min_row_height
+end subroutine igTableNextRow
 !x! bool igTableNextColumn(void);
-!x! bool igTableSetColumnIndex(int column_n);
-!x! void igTableSetupColumn(const char* label,ImGuiTableColumnFlags flags,float init_width_or_weight,ImGuiID user_id);
+! bool igTableSetColumnIndex(int column_n);
+function igTableSetColumnIndex(column_n) bind(c,name="igTableSetColumnIndex")
+  import c_int, c_bool
+  integer(c_int), value :: column_n
+  logical(c_bool) :: igTableSetColumnIndex
+end function igTableSetColumnIndex
+! void igTableSetupColumn(const char* label,ImGuiTableColumnFlags flags,float init_width_or_weight,ImGuiID user_id);
+subroutine igTableSetupColumn(label,flags,init_width_or_weight,user_id) bind(c,name="igTableSetupColumn")
+  import c_ptr, c_int, c_float
+  type(c_ptr), value, intent(in) :: label
+  integer(c_int), value :: flags
+  real(c_float), value :: init_width_or_weight
+  integer(c_int), value :: user_id
+end subroutine igTableSetupColumn
 !x! void igTableSetupScrollFreeze(int cols,int rows);
-!x! void igTableHeadersRow(void);
+! void igTableHeadersRow(void);
+subroutine igTableHeadersRow() bind(c,name="igTableHeadersRow")
+end subroutine igTableHeadersRow
 !x! void igTableHeader(const char* label);
 !x! ImGuiTableSortSpecs* igTableGetSortSpecs(void);
 !x! int igTableGetColumnCount(void);
@@ -1261,6 +1300,7 @@ function igDockBuilderSplitNode(node_id,split_dir,size_ratio_for_node_at_dir,out
   real(c_float), value :: size_ratio_for_node_at_dir
   integer(c_int) :: out_id_at_dir
   integer(c_int) :: out_id_at_opposite_dir
+  integer(c_int) :: igDockBuilderSplitNode
 end function igDockBuilderSplitNode
 !x! void igDockBuilderCopyDockSpace(ImGuiID src_dockspace_id,ImGuiID dst_dockspace_id,ImVector_const_charPtr* in_window_remap_pairs);
 !x! void igDockBuilderCopyNode(ImGuiID src_node_id,ImGuiID dst_node_id,ImVector_ImGuiID* out_node_remap_pairs);

@@ -39,24 +39,21 @@ module gui_main
   real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
 
   ! the window stack and named windows
-  integer :: nwin
-  type(window), allocatable, target :: win(:)
-  integer :: iwin_tree
-  integer :: iwin_console
-  integer :: iwin_view
-
-  ! the dockspace ID
-  integer(c_int) :: iddock = 0
+  integer, public :: nwin
+  type(window), allocatable, target, public :: win(:)
+  integer, public :: iwin_tree
+  integer, public :: iwin_console
+  integer, public :: iwin_view
 
   ! systems arrays
-  integer, parameter :: sys_empty = 0
-  integer, parameter :: sys_loaded_not_init = 1
-  integer, parameter :: sys_init = 2
-  integer :: nsys = 0
-  type(system), allocatable, target :: sys(:)
-  integer, allocatable :: sys_status(:)
-  type(crystalseed), allocatable :: sys_seed(:)
-  logical, allocatable :: sys_has_field(:)
+  integer, parameter, public :: sys_empty = 0
+  integer, parameter, public :: sys_loaded_not_init = 1
+  integer, parameter, public :: sys_init = 2
+  integer, public :: nsys = 0
+  type(system), allocatable, target, public :: sys(:)
+  integer, allocatable, public :: sys_status(:)
+  type(crystalseed), allocatable, public :: sys_seed(:)
+  logical, allocatable, public :: sys_has_field(:)
 
   ! public procedures
   public :: gui_start
