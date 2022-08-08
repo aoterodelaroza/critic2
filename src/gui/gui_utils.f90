@@ -26,9 +26,10 @@ module gui_utils
 
   ! module procedure interfaces
   interface
-     module function igIsItemHovered_delayed(flags,thr)
+     module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr
+       logical, intent(in) :: already_shown
        logical(c_bool) :: igIsItemHovered_delayed
      end function igIsItemHovered_delayed
   end interface

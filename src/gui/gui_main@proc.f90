@@ -228,6 +228,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
     logical(c_bool) :: ldum
+    logical, save :: ttshown(2) = (/.false.,.false./)! menu-level tooltips
 
     if (igBeginMainMenuBar()) then
        ! File
@@ -239,12 +240,15 @@ contains
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)) &
              call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
              str1 = "Quit the program" // c_null_char
              call igSetTooltip(c_loc(str1))
+             ttshown(1) = .true.
           end if
 
           call igEndMenu()
+       else
+          ttshown(1) = .false.
        end if
 
        ! Windows
@@ -254,29 +258,34 @@ contains
           str1 = "Tree" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
              str1 = "Toggle the Tree window" // c_null_char
              call igSetTooltip(c_loc(str1))
+             ttshown(2) = .true.
           end if
 
           ! File -> View
           str1 = "View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
              str1 = "Toggle the View window" // c_null_char
              call igSetTooltip(c_loc(str1))
+             ttshown(2) = .true.
           end if
 
           ! File -> Console
           str1 = "Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console)%isopen,.true._c_bool)) &
              win(iwin_console)%isopen = .not.win(iwin_console)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
              str1 = "Toggle the Console window" // c_null_char
              call igSetTooltip(c_loc(str1))
+             ttshown(2) = .true.
           end if
           call igEndMenu()
+       else
+          ttshown(2) = .false.
        end if
 
        ! fps message

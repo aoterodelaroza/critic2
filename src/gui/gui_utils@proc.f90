@@ -23,15 +23,17 @@ submodule (gui_utils) proc
 contains
 
   ! Returns true if the last item has been hovered for at least thr
-  ! seconds.
-  module function igIsItemHovered_delayed(flags,thr)
+  ! seconds. If already_shown (the tooltip has already been displayed),
+  ! do not use the delay.
+  module function igIsItemHovered_delayed(flags,thr,already_shown)
     use gui_main, only: g
     use gui_interfaces_cimgui, only: igIsItemHovered
     integer(c_int), value :: flags
     real(c_float), intent(in) :: thr
+       logical, intent(in) :: already_shown
     logical(c_bool) :: igIsItemHovered_delayed
 
-    igIsItemHovered_delayed = igIsItemHovered(flags) .and. (g%HoveredIdTimer >= thr)
+    igIsItemHovered_delayed = igIsItemHovered(flags) .and. (already_shown .or. g%HoveredIdTimer >= thr)
 
   end function igIsItemHovered_delayed
 

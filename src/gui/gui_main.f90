@@ -34,7 +34,7 @@ module gui_main
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
 
   ! GUI control parameters
-  real(c_float), public :: tooltip_delay = 2.5 ! tooltip delay, in seconds
+  real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
 
   ! the window stack and named windows
   integer :: nwin
