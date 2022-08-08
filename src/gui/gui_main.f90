@@ -22,6 +22,7 @@
 module gui_main
   use iso_c_binding, only: c_ptr, c_float
   use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
+  use gui_window, only: window
   implicit none
 
   private
@@ -34,6 +35,13 @@ module gui_main
 
   ! GUI control parameters
   real(c_float), public :: tooltip_delay = 2.5 ! tooltip delay, in seconds
+
+  ! the window stack and named windows
+  integer :: nwin
+  type(window), allocatable, target :: win(:)
+  integer :: iwin_tree
+  integer :: iwin_console
+  integer :: iwin_view
 
   ! public procedures
   public :: gui_start

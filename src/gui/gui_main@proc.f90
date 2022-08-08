@@ -37,6 +37,7 @@ contains
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
+    use gui_window, only: wintype_tree, wintype_view, wintype_console
     use gui_keybindings, only: is_bind_event, BIND_QUIT, set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
@@ -45,6 +46,7 @@ contains
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
+    integer :: i
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -103,6 +105,11 @@ contains
     ! set default keybindings
     call set_default_keybindings()
 
+    ! initialize the window stack with the toggle-able windows (open, for now)
+    iwin_tree = stack_create_window(wintype_tree,.true.)
+    iwin_view = stack_create_window(wintype_view,.true.)
+    iwin_console = stack_create_window(wintype_console,.true.)
+
     ! main loop
     show_demo_window = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)
@@ -126,6 +133,11 @@ contains
        idum = igDockSpaceOverViewport(igGetMainViewport(),&
           ImGuiDockNodeFlags_PassthruCentralNode,&
           c_null_ptr)
+
+       ! process the window stack
+       do i = 1, nwin
+          call win(i)%draw()
+       end do
 
        ! show demo window
        if (show_demo_window) &
@@ -168,6 +180,27 @@ contains
   end subroutine gui_start
 
   !xx! private procedures
+
+  !> Create a window in the window stack with the given type
+  function stack_create_window(type,isopen)
+    use gui_window, only: window
+    integer, intent(in) :: type
+    logical, intent(in) :: isopen
+    type(window), allocatable :: aux(:)
+    integer :: stack_create_window
+
+    nwin = nwin + 1
+    if (.not.allocated(win)) then
+       allocate(win(nwin))
+    elseif (nwin > size(win,1)) then
+       allocate(aux(2*nwin))
+       aux(1:size(win,1)) = win
+       call move_alloc(aux,win)
+    end if
+    call win(nwin)%init(type,isopen)
+    stack_create_window = nwin
+
+  end function stack_create_window
 
   ! Show the main menu
   subroutine show_main_menu()

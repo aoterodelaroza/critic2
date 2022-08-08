@@ -50,7 +50,11 @@ subroutine igShowDemoWindow(p_open) bind(c,name="igShowDemoWindow")
 end subroutine igShowDemoWindow
 !x! void igShowMetricsWindow(bool* p_open);
 !x! void igShowDebugLogWindow(bool* p_open);
-!x! void igShowStackToolWindow(bool* p_open);
+! void igShowStackToolWindow(bool* p_open);
+subroutine igShowStackToolWindow(p_open) bind(c,name="igShowStackToolWindow")
+  import c_bool
+  logical(c_bool) :: p_open
+end subroutine igShowStackToolWindow
 !x! void igShowAboutWindow(bool* p_open);
 !x! void igShowStyleEditor(ImGuiStyle* ref);
 !x! bool igShowStyleSelector(const char* label);
@@ -64,8 +68,17 @@ subroutine igStyleColorsDark(dst) bind(c,name="igStyleColorsDark")
 end subroutine igStyleColorsDark
 !x! void igStyleColorsLight(ImGuiStyle* dst);
 !x! void igStyleColorsClassic(ImGuiStyle* dst);
-!x! bool igBegin(const char* name,bool* p_open,ImGuiWindowFlags flags);
-!x! void igEnd(void);
+! bool igBegin(const char* name,bool* p_open,ImGuiWindowFlags flags);
+function igBegin(name,p_open,flags) bind(c,name="igBegin")
+  import c_ptr, c_bool, c_int
+  type(c_ptr), intent(in), value :: name
+  logical(c_bool) :: p_open
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBegin
+end function igBegin
+! void igEnd(void);
+subroutine igEnd() bind(c,name="igEnd")
+end subroutine igEnd
 !x! bool igBeginChild_Str(const char* str_id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
 !x! bool igBeginChild_ID(ImGuiID id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
 !x! void igEndChild(void);
@@ -257,7 +270,12 @@ end subroutine igText
 !x! bool igColorPicker4(const char* label,float col[4],ImGuiColorEditFlags flags,const float* ref_col);
 !x! bool igColorButton(const char* desc_id,const ImVec4 col,ImGuiColorEditFlags flags,const ImVec2 size);
 !x! void igSetColorEditOptions(ImGuiColorEditFlags flags);
-!x! bool igTreeNode_Str(const char* label);
+! bool igTreeNode_Str(const char* label);
+function igTreeNode_Str(label) bind(c,name="igTreeNode_Str")
+  import c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool) :: igTreeNode_Str
+end function igTreeNode_Str
 !x! bool igTreeNode_StrStr(const char* str_id,const char* fmt,...);
 !x! bool igTreeNode_Ptr(const void* ptr_id,const char* fmt,...);
 !x! bool igTreeNodeV_Str(const char* str_id,const char* fmt,va_list args);
@@ -269,7 +287,9 @@ end subroutine igText
 !x! bool igTreeNodeExV_Ptr(const void* ptr_id,ImGuiTreeNodeFlags flags,const char* fmt,va_list args);
 !x! void igTreePush_Str(const char* str_id);
 !x! void igTreePush_Ptr(const void* ptr_id);
-!x! void igTreePop(void);
+! void igTreePop(void);
+subroutine igTreePop() bind(c,name="igTreePop")
+end subroutine igTreePop
 !x! float igGetTreeNodeToLabelSpacing(void);
 !x! bool igCollapsingHeader_TreeNodeFlags(const char* label,ImGuiTreeNodeFlags flags);
 !x! bool igCollapsingHeader_BoolPtr(const char* label,bool* p_visible,ImGuiTreeNodeFlags flags);
@@ -1029,7 +1049,11 @@ end function igGetKeyName
 !x! void ImGuiTableSettings_destroy(ImGuiTableSettings* self);
 !x! ImGuiTableColumnSettings* ImGuiTableSettings_GetColumnSettings(ImGuiTableSettings* self);
 !x! ImGuiWindow* igGetCurrentWindowRead(void);
-!x! ImGuiWindow* igGetCurrentWindow(void);
+! ImGuiWindow* igGetCurrentWindow(void);
+function igGetCurrentWindow() bind(c,name="igGetCurrentWindow")
+  import c_ptr
+  type(c_ptr) :: igGetCurrentWindow
+end function igGetCurrentWindow
 !x! ImGuiWindow* igFindWindowByID(ImGuiID id);
 !x! ImGuiWindow* igFindWindowByName(const char* name);
 !x! void igUpdateWindowParentAndRootLinks(ImGuiWindow* window,ImGuiWindowFlags flags,ImGuiWindow* parent_window);

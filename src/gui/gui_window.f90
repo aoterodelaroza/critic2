@@ -17,8 +17,41 @@
 
 ! The class to handle ImGui windows.
 module gui_window
+  use iso_c_binding
   implicit none
 
   private
+
+  ! window types
+  integer, parameter, public :: wintype_tree = 1
+  integer, parameter, public :: wintype_view = 2
+  integer, parameter, public :: wintype_console = 3
+
+  ! Wrapper class to handle ImGui windows
+  type window
+     ! global window parameters
+     logical :: isinit = .false. ! whether this window has been initialized
+     logical(c_bool) :: isopen ! whether the window is open
+     integer :: type ! the window type
+     integer(c_int) :: id ! internal ID for this window
+     integer(c_int) :: flags ! window flags
+     character(kind=c_char,len=:), allocatable :: name ! name of the window
+     type(c_ptr) :: ptr ! ImGuiWindow* pointer to the ImGui window (use only after Begin())
+   contains
+     procedure :: init => window_init
+     procedure :: draw => window_draw
+  end type window
+  public :: window
+
+  interface
+     module subroutine window_init(w,type,isopen)
+       class(window), intent(inout) :: w
+       integer, intent(in) :: type
+       logical, intent(in) :: isopen
+     end subroutine window_init
+     module subroutine window_draw(w)
+       class(window), intent(inout), target :: w
+     end subroutine window_draw
+  end interface
 
 end module gui_window

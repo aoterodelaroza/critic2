@@ -16,6 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
+submodule (gui_utils) proc
   use iso_c_binding
   implicit none
 
