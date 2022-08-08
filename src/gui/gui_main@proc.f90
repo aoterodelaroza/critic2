@@ -41,12 +41,13 @@ contains
     use gui_keybindings, only: is_bind_event, BIND_QUIT, set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
-    integer(c_int) :: idum, display_w, display_h
+    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
     integer :: i
+    logical :: firstpass
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -112,6 +113,7 @@ contains
 
     ! main loop
     show_demo_window = .true.
+    firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events
        call glfwPollEvents()
@@ -130,7 +132,7 @@ contains
        call show_main_menu()
 
        ! show main dockspace
-       idum = igDockSpaceOverViewport(igGetMainViewport(),&
+       iddock = igDockSpaceOverViewport(igGetMainViewport(),&
           ImGuiDockNodeFlags_PassthruCentralNode,&
           c_null_ptr)
 
@@ -138,6 +140,18 @@ contains
        do i = 1, nwin
           call win(i)%draw()
        end do
+
+       ! first pass: use the dock builder routines to place the windows
+       ! https://github.com/ocornut/imgui/issues/2109
+       if (firstpass) then
+          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.15_c_float, idum, iright)
+          ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
+
+          call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)
+          call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
+          call igDockBuilderDockWindow(c_loc(win(iwin_console)%name), ibottom)
+          call igDockBuilderFinish(iddock);
+       end if
 
        ! show demo window
        if (show_demo_window) &
@@ -153,6 +167,7 @@ contains
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)
+       firstpass = .false.
     end do
 
     ! cleanup

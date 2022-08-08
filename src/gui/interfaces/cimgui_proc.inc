@@ -1225,20 +1225,51 @@ end function igGetCurrentWindow
 !x! void igBeginDockableDragDropSource(ImGuiWindow* window);
 !x! void igBeginDockableDragDropTarget(ImGuiWindow* window);
 !x! void igSetWindowDock(ImGuiWindow* window,ImGuiID dock_id,ImGuiCond cond);
-!x! void igDockBuilderDockWindow(const char* window_name,ImGuiID node_id);
-!x! ImGuiDockNode* igDockBuilderGetNode(ImGuiID node_id);
+! void igDockBuilderDockWindow(const char* window_name,ImGuiID node_id);
+subroutine igDockBuilderDockWindow(window_name,node_id) bind(c,name="igDockBuilderDockWindow")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: window_name
+  integer(c_int), value :: node_id
+end subroutine igDockBuilderDockWindow
+! ImGuiDockNode* igDockBuilderGetNode(ImGuiID node_id);
+function igDockBuilderGetNode(node_id) bind(c,name="igDockBuilderGetNode")
+  import c_int, c_ptr
+  integer(c_int), value :: node_id
+  type(c_ptr) :: igDockBuilderGetNode
+end function igDockBuilderGetNode
 !x! ImGuiDockNode* igDockBuilderGetCentralNode(ImGuiID node_id);
-!x! ImGuiID igDockBuilderAddNode(ImGuiID node_id,ImGuiDockNodeFlags flags);
-!x! void igDockBuilderRemoveNode(ImGuiID node_id);
+! ImGuiID igDockBuilderAddNode(ImGuiID node_id,ImGuiDockNodeFlags flags);
+function igDockBuilderAddNode(node_id,flags) bind(c,name="igDockBuilderAddNode")
+  import c_int, c_ptr
+  integer(c_int), value :: node_id, flags
+  integer(c_int) :: igDockBuilderAddNode
+end function igDockBuilderAddNode
+! void igDockBuilderRemoveNode(ImGuiID node_id);
+subroutine igDockBuilderRemoveNode(node_id) bind(c,name="igDockBuilderRemoveNode")
+  import c_int
+  integer(c_int), value :: node_id
+end subroutine igDockBuilderRemoveNode
 !x! void igDockBuilderRemoveNodeDockedWindows(ImGuiID node_id,bool clear_settings_refs);
 !x! void igDockBuilderRemoveNodeChildNodes(ImGuiID node_id);
 !x! void igDockBuilderSetNodePos(ImGuiID node_id,ImVec2 pos);
 !x! void igDockBuilderSetNodeSize(ImGuiID node_id,ImVec2 size);
-!x! ImGuiID igDockBuilderSplitNode(ImGuiID node_id,ImGuiDir split_dir,float size_ratio_for_node_at_dir,ImGuiID* out_id_at_dir,ImGuiID* out_id_at_opposite_dir);
+! ImGuiID igDockBuilderSplitNode(ImGuiID node_id,ImGuiDir split_dir,float size_ratio_for_node_at_dir,ImGuiID* out_id_at_dir,ImGuiID* out_id_at_opposite_dir);
+function igDockBuilderSplitNode(node_id,split_dir,size_ratio_for_node_at_dir,out_id_at_dir,out_id_at_opposite_dir) &
+   bind(c,name="igDockBuilderSplitNode")
+  import c_int, c_float
+  integer(c_int), value :: node_id, split_dir
+  real(c_float), value :: size_ratio_for_node_at_dir
+  integer(c_int) :: out_id_at_dir
+  integer(c_int) :: out_id_at_opposite_dir
+end function igDockBuilderSplitNode
 !x! void igDockBuilderCopyDockSpace(ImGuiID src_dockspace_id,ImGuiID dst_dockspace_id,ImVector_const_charPtr* in_window_remap_pairs);
 !x! void igDockBuilderCopyNode(ImGuiID src_node_id,ImGuiID dst_node_id,ImVector_ImGuiID* out_node_remap_pairs);
 !x! void igDockBuilderCopyWindowSettings(const char* src_name,const char* dst_name);
-!x! void igDockBuilderFinish(ImGuiID node_id);
+! void igDockBuilderFinish(ImGuiID node_id);
+subroutine igDockBuilderFinish(node_id) bind(c,name="igDockBuilderFinish")
+  import c_int
+  integer(c_int), value :: node_id
+end subroutine igDockBuilderFinish
 !x! bool igIsDragDropActive(void);
 !x! bool igBeginDragDropTargetCustom(const ImRect bb,ImGuiID id);
 !x! void igClearDragDrop(void);

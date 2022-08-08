@@ -51,13 +51,16 @@ contains
        idcount = idcount + 1
        w%id = idcount
        if (w%type == wintype_tree) then
-          w%name = "Tree###" // string(w%id) // c_null_char
+          ! w%name = "Tree###" // string(w%id) // c_null_char
+          w%name = "Tree" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_view) then
-          w%name = "View###" // string(w%id) // c_null_char
+          ! w%name = "View###" // string(w%id) // c_null_char
+          w%name = "View" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_console) then
-          w%name = "Console###" // string(w%id) // c_null_char
+          ! w%name = "Console###" // string(w%id) // c_null_char
+          w%name = "Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
        end if
     end if

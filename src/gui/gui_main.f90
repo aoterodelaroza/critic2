@@ -20,7 +20,7 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
-  use iso_c_binding, only: c_ptr, c_float
+  use iso_c_binding, only: c_ptr, c_float, c_int
   use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
   use gui_window, only: window
   implicit none
@@ -42,6 +42,9 @@ module gui_main
   integer :: iwin_tree
   integer :: iwin_console
   integer :: iwin_view
+
+  ! the dockspace ID
+  integer(c_int) :: iddock = 0
 
   ! public procedures
   public :: gui_start
