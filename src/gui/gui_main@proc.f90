@@ -227,6 +227,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
+    logical(c_bool) :: ldum
 
     if (igBeginMainMenuBar()) then
        ! File
@@ -246,22 +247,39 @@ contains
           call igEndMenu()
        end if
 
-       !     if (BeginMenu("Edit")){
-       !       if (MenuItem("Preferences..."))
-       !        OpenDialog(DLG_Preferences);
-       !       EndMenu();
-       !     }
+       ! Windows
+       str1 = "Windows" // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! File -> Tree
+          str1 = "Tree" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
+             win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+             str1 = "Toggle the Tree window" // c_null_char
+             call igSetTooltip(c_loc(str1))
+          end if
 
-       !     if (BeginMenu("View")){
-       !       if (MenuItem("Tree",NULL,dlgopen[DLG_Tree]))
-       !        ToggleDialog(DLG_Tree);
-       !       if (MenuItem("Preferences",NULL,dlgopen[DLG_Preferences]))
-       !        ToggleDialog(DLG_Preferences);
-       !       if (MenuItem("Structural Information",NULL,dlgopen[DLG_StructInfo]))
-       !        ToggleDialog(DLG_StructInfo);
-       !       EndMenu();
-       !     }
+          ! File -> View
+          str1 = "View" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
+             win(iwin_view)%isopen = .not.win(iwin_view)%isopen
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+             str1 = "Toggle the View window" // c_null_char
+             call igSetTooltip(c_loc(str1))
+          end if
 
+          ! File -> Console
+          str1 = "Console" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console)%isopen,.true._c_bool)) &
+             win(iwin_console)%isopen = .not.win(iwin_console)%isopen
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay)) then
+             str1 = "Toggle the Console window" // c_null_char
+             call igSetTooltip(c_loc(str1))
+          end if
+          call igEndMenu()
+       end if
+
+       ! fps message
        call igGetContentRegionAvail(v2)
        call igSameLine(0._c_float, v2%x - 180._c_float)
        str1 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
