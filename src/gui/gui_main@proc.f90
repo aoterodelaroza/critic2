@@ -59,7 +59,10 @@ contains
     allocate(sys(1),sys_status(1),sys_seed(1),sys_has_field(1))
 
     ! Parse the command line and read as many systems as possible
+    ! Initialize the first system, if available
     call process_arguments()
+    if (sys_status(1) == sys_loaded_not_init) &
+       call system_initialize(1)
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -156,7 +159,7 @@ contains
        ! first pass: use the dock builder routines to place the windows
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
-          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.2_c_float, idum, iright)
+          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.25_c_float, idum, iright)
           ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
 
           call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)
@@ -206,8 +209,39 @@ contains
     end subroutine error_callback
   end subroutine gui_start
 
+  ! initialize the system id if possible, flag it as init'd
+  module subroutine system_initialize(id)
+    use tools_io, only: string, uout
+    integer, intent(in) :: id
+    integer :: idum
+    character(len=:), allocatable :: errmsg
+
+    ! checks
+    if (id < 1 .or. id > nsys) return
+    if (sys_status(id) /= sys_loaded_not_init) return
+
+    ! initialize the system
+    call sys(id)%new_from_seed(sys_seed(id))
+
+    ! load any fields
+    if (sys_has_field(id)) then
+       call sys(id)%load_field_string(sys_seed(id)%file,idum,errmsg)
+       if (len_trim(errmsg) > 0) then
+          write (uout,'("!! Warning !! Could not read field for system: ",A)') string(id)
+       else
+          sys(id)%f(idum)%file = sys_seed(id)%file
+          sys(id)%f(idum)%name = sys_seed(id)%file
+       end if
+    end if
+
+    ! this system has been initialized
+    sys_status(id) = sys_init
+
+  end subroutine system_initialize
+
   !xx! private procedures
 
+  ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout

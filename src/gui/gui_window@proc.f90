@@ -89,20 +89,28 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_main, only: nsys, sys, sys_status, sys_empty, sys_init, sys_loaded_not_init,&
-       sys_seed
+       sys_seed, system_initialize
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str
-    type(ImVec2) :: outer_size
+    type(ImVec2) :: zero2
     integer(c_int) :: mycol_id, flags
     integer :: i
-    integer, save :: selected_item = 0
-    logical(c_bool) :: ldum
+    logical(c_bool) :: ldum, selected
 
+    ! initialize the currently selected system
+    if (w%table_selected_sys > 0 .and. w%table_selected_sys <= nsys) then
+       if (sys_status(w%table_selected_sys) /= sys_init) &
+          call system_initialize(w%table_selected_sys)
+    end if
+
+    ! two zeros
+    zero2%x = 0
+    zero2%y = 0
+
+    ! set up the table
     str = "Structures" // c_null_char
-    outer_size%x = 0
-    outer_size%y = 0
     flags = ImGuiTableFlags_Borders
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
@@ -113,7 +121,7 @@ contains
     ! flags = ior(flags,ImGuiTableFlags_NoHostExtendX)
     ! flags = ior(flags,ImGuiTableFlags_ScrollX)
     ! flags = ior(flags,)
-    if (igBeginTable(c_loc(str),8,flags,outer_size,0._c_float)) then
+    if (igBeginTable(c_loc(str),8,flags,zero2,0._c_float)) then
 
        ! set up the columns
        ! ID - name - spg - Z - nneq - ncel - Volume - nmol
@@ -184,20 +192,29 @@ contains
        ! draw the rows
        do i = 1, nsys
           if (sys_status(i) == sys_empty) cycle
-          !    const bool item_is_selected = selection.contains(item->ID);
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! ID
           ldum = igTableSetColumnIndex(0)
           str = string(i) // c_null_char
-          call igText(c_loc(str))
+          flags = ImGuiSelectableFlags_SpanAllColumns
+
+          selected = (w%table_selected_sys==i)
+          if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
+             w%table_selected_sys = i
+          end if
+
+          ! TableGetColumnFlags()
+          ! ImGuiTableColumnFlags_IsEnabled
+          ! flags = TableGetColumnFlags(int column_n = -1) -1 = current
+
           ! name
           ldum = igTableSetColumnIndex(1)
           str = trim(sys_seed(i)%name) // c_null_char
           call igTextWrapped(c_loc(str))
           if (sys_status(i) == sys_init) then
-             write (*,*) "write me, in the tree!"
-             stop 1
+             !write (*,*) "write me, in the tree!"
+             !stop 1
           end if
 
        end do

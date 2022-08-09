@@ -303,8 +303,24 @@ end subroutine igTreePop
 !x! bool igCollapsingHeader_TreeNodeFlags(const char* label,ImGuiTreeNodeFlags flags);
 !x! bool igCollapsingHeader_BoolPtr(const char* label,bool* p_visible,ImGuiTreeNodeFlags flags);
 !x! void igSetNextItemOpen(bool is_open,ImGuiCond cond);
-!x! bool igSelectable_Bool(const char* label,bool selected,ImGuiSelectableFlags flags,const ImVec2 size);
-!x! bool igSelectable_BoolPtr(const char* label,bool* p_selected,ImGuiSelectableFlags flags,const ImVec2 size);
+! bool igSelectable_Bool(const char* label,bool selected,ImGuiSelectableFlags flags,const ImVec2 size);
+function igSelectable_Bool(label, selected, flags, size) bind(c,name="igSelectable_Bool")
+  import c_ptr, c_bool, c_int, ImVec2
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool), value :: selected
+  integer(c_int), value :: flags
+  type(ImVec2), intent(in), value :: size
+  logical(c_bool) :: igSelectable_Bool
+end function igSelectable_Bool
+! bool igSelectable_BoolPtr(const char* label,bool* p_selected,ImGuiSelectableFlags flags,const ImVec2 size)
+function igSelectable_BoolPtr(label, p_selected, flags, size) bind(c,name="igSelectable_BoolPtr")
+  import c_ptr, c_bool, c_int, ImVec2
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool) :: p_selected
+  integer(c_int), value :: flags
+  type(ImVec2), intent(in), value :: size
+  logical(c_bool) :: igSelectable_BoolPtr
+end function igSelectable_BoolPtr
 !x! bool igBeginListBox(const char* label,const ImVec2 size);
 !x! void igEndListBox(void);
 !x! bool igListBox_Str_arr(const char* label,int* current_item,const char* const items[],int items_count,int height_in_items);

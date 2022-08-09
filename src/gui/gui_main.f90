@@ -57,10 +57,14 @@ module gui_main
 
   ! public procedures
   public :: gui_start
+  public :: system_initialize
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
+     module subroutine system_initialize(id)
+       integer, intent(in) :: id
+     end subroutine system_initialize
   end interface
 
 contains
