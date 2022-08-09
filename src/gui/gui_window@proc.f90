@@ -91,6 +91,7 @@ contains
     use gui_main, only: nsys, sys, sys_status, sys_empty, sys_init, sys_loaded_not_init,&
        sys_seed, system_initialize
     use tools_io, only: string
+    use param, only: bohrtoa
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str
@@ -121,10 +122,10 @@ contains
     ! flags = ior(flags,ImGuiTableFlags_NoHostExtendX)
     ! flags = ior(flags,ImGuiTableFlags_ScrollX)
     ! flags = ior(flags,)
-    if (igBeginTable(c_loc(str),8,flags,zero2,0._c_float)) then
+    if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
 
        ! set up the columns
-       ! ID - name - spg - Z - nneq - ncel - Volume - nmol
+       ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
        str = "ID" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        flags = ior(flags,ImGuiTableColumnFlags_PreferSortDescending)
@@ -138,7 +139,7 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
 
-       str = "Volume" // c_null_char
+       str = "V(A^3)" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
 
@@ -154,7 +155,27 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
 
-       str = "Z" // c_null_char
+       str = "a" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "b" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "c" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "alpha" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "beta" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "gamma" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
 
@@ -195,33 +216,112 @@ contains
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! ID
-          ldum = igTableSetColumnIndex(0)
-          str = string(i) // c_null_char
-          flags = ImGuiSelectableFlags_SpanAllColumns
-
-          selected = (w%table_selected_sys==i)
-          if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
-             w%table_selected_sys = i
+          if (igTableSetColumnIndex(0)) then
+             str = string(i) // c_null_char
+             flags = ImGuiSelectableFlags_SpanAllColumns
+             selected = (w%table_selected_sys==i)
+             if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
+                w%table_selected_sys = i
+             end if
           end if
 
-          ! TableGetColumnFlags()
-          ! ImGuiTableColumnFlags_IsEnabled
-          ! flags = TableGetColumnFlags(int column_n = -1) -1 = current
-
           ! name
-          ldum = igTableSetColumnIndex(1)
-          str = trim(sys_seed(i)%name) // c_null_char
-          call igTextWrapped(c_loc(str))
+          if (igTableSetColumnIndex(1)) then
+             str = trim(sys_seed(i)%file) // c_null_char
+             call igTextWrapped(c_loc(str))
+          end if
+
           if (sys_status(i) == sys_init) then
-             !write (*,*) "write me, in the tree!"
-             !stop 1
+             if (igTableSetColumnIndex(2)) then ! spg
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                elseif (.not.sys(i)%c%spgavail) then
+                   str = "n/a" // c_null_char
+                else
+                   str = trim(sys(i)%c%spg%international_symbol) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+
+             if (igTableSetColumnIndex(3)) then ! volume
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%omega,'f',decimal=2) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+
+             if (igTableSetColumnIndex(4)) then ! nneq
+                str = string(sys(i)%c%nneq) // c_null_char
+                call igText(c_loc(str))
+             end if
+
+             if (igTableSetColumnIndex(5)) then ! ncel
+                str = string(sys(i)%c%ncel) // c_null_char
+                call igText(c_loc(str))
+             end if
+
+             if (igTableSetColumnIndex(6)) then ! nmol
+                str = string(sys(i)%c%nmol) // c_null_char
+                call igText(c_loc(str))
+             end if
+
+             if (igTableSetColumnIndex(7)) then ! a
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+             if (igTableSetColumnIndex(8)) then ! b
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+             if (igTableSetColumnIndex(9)) then ! c
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+             if (igTableSetColumnIndex(10)) then ! alpha
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%bb(1),'f',decimal=2) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+             if (igTableSetColumnIndex(11)) then ! beta
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%bb(2),'f',decimal=2) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+             if (igTableSetColumnIndex(12)) then ! gamma
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>" // c_null_char
+                else
+                   str = string(sys(i)%c%bb(3),'f',decimal=2) // c_null_char
+                end if
+                call igText(c_loc(str))
+             end if
+
           end if
 
        end do
 
        call igEndTable()
     end if
-
 
   end subroutine draw_tree
 

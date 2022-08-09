@@ -434,7 +434,12 @@ end subroutine igTableHeadersRow
 !x! int igTableGetColumnIndex(void);
 !x! int igTableGetRowIndex(void);
 !x! const char* igTableGetColumnName_Int(int column_n);
-!x! ImGuiTableColumnFlags igTableGetColumnFlags(int column_n);
+! ImGuiTableColumnFlags igTableGetColumnFlags(int column_n);
+function  igTableGetColumnFlags(column_n) bind(c,name="igTableGetColumnFlags")
+  import c_int
+  integer(c_int), value :: column_n
+  integer(c_int) :: igTableGetColumnFlags
+end function igTableGetColumnFlags
 !x! void igTableSetColumnEnabled(int column_n,bool v);
 !x! void igTableSetBgColor(ImGuiTableBgTarget target,ImU32 color,int column_n);
 !x! void igColumns(int count,const char* id,bool border);
