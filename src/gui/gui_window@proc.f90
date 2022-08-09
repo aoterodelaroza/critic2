@@ -99,11 +99,15 @@ contains
     integer(c_int) :: mycol_id, flags
     integer :: i
     logical(c_bool) :: ldum, selected
+    logical :: sysupdated
 
     ! initialize the currently selected system
+    sysupdated = .false.
     if (w%table_selected_sys > 0 .and. w%table_selected_sys <= nsys) then
-       if (sys_status(w%table_selected_sys) /= sys_init) &
+       if (sys_status(w%table_selected_sys) /= sys_init) then
           call system_initialize(w%table_selected_sys)
+          sysupdated = .true.
+       end if
     end if
 
     ! two zeros
@@ -123,6 +127,8 @@ contains
     ! flags = ior(flags,ImGuiTableFlags_ScrollX)
     ! flags = ior(flags,)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
+       if (sysupdated) &
+          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
        ! set up the columns
        ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
@@ -207,6 +213,7 @@ contains
     ! // we will use this to trigger sorting when we know the data of this column has been modified.
     ! const bool sorts_specs_using_quantity = (ImGui::TableGetColumnFlags(3) & ImGuiTableColumnFlags_IsSorted) != 0;
 
+       ! TableSetColumnWidthAutoSingle(table, column_n);
        ! draw the header
        call igTableHeadersRow()
 

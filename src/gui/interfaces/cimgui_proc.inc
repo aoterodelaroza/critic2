@@ -1352,7 +1352,11 @@ end subroutine igDockBuilderFinish
 !x! float igTableGetHeaderRowHeight(void);
 !x! void igTablePushBackgroundChannel(void);
 !x! void igTablePopBackgroundChannel(void);
-!x! ImGuiTable* igGetCurrentTable(void);
+! ImGuiTable* igGetCurrentTable(void);
+function igGetCurrentTable() bind(c,name="igGetCurrentTable")
+  import c_ptr
+  type(c_ptr) :: igGetCurrentTable
+end function igGetCurrentTable
 !x! ImGuiTable* igTableFindByID(ImGuiID id);
 !x! bool igBeginTableEx(const char* name,ImGuiID id,int columns_count,ImGuiTableFlags flags,const ImVec2 outer_size,float inner_width);
 !x! void igTableBeginInitMemory(ImGuiTable* table,int columns_count);
@@ -1378,8 +1382,17 @@ end subroutine igDockBuilderFinish
 !x! const char* igTableGetColumnName_TablePtr(const ImGuiTable* table,int column_n);
 !x! ImGuiID igTableGetColumnResizeID(const ImGuiTable* table,int column_n,int instance_no);
 !x! float igTableGetMaxColumnWidth(const ImGuiTable* table,int column_n);
-!x! void igTableSetColumnWidthAutoSingle(ImGuiTable* table,int column_n);
-!x! void igTableSetColumnWidthAutoAll(ImGuiTable* table);
+! void igTableSetColumnWidthAutoSingle(ImGuiTable* table,int column_n);
+subroutine igTableSetColumnWidthAutoSingle(table, column_n) bind(c,name="igTableSetColumnWidthAutoSingle")
+  import c_ptr, c_int
+  type(c_ptr), value :: table
+  integer(c_int), value :: column_n
+end subroutine igTableSetColumnWidthAutoSingle
+! void igTableSetColumnWidthAutoAll(ImGuiTable* table);
+subroutine igTableSetColumnWidthAutoAll(table) bind(c,name="igTableSetColumnWidthAutoAll")
+  import c_ptr
+  type(c_ptr), value :: table
+end subroutine igTableSetColumnWidthAutoAll
 !x! void igTableRemove(ImGuiTable* table);
 !x! void igTableGcCompactTransientBuffers_TablePtr(ImGuiTable* table);
 !x! void igTableGcCompactTransientBuffers_TableTempDataPtr(ImGuiTableTempData* table);
