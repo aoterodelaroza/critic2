@@ -90,6 +90,7 @@ contains
   module subroutine draw_tree(w)
     use gui_main, only: nsys, sys, sys_status, sys_empty, sys_init, sys_loaded_not_init,&
        sys_seed, system_initialize
+    use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -101,6 +102,19 @@ contains
     logical(c_bool) :: ldum, selected
     logical :: sysupdated
 
+    ! two zeros
+    zero2%x = 0
+    zero2%y = 0
+
+    ! process keybindings
+    if (igIsWindowFocused(0_c_int)) then
+       if (is_bind_event(BIND_TREE_MOVE_UP)) then
+          w%table_selected_sys = max(w%table_selected_sys-1,1)
+       elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
+          w%table_selected_sys = min(w%table_selected_sys+1,nsys)
+       end if
+    end if
+
     ! initialize the currently selected system
     sysupdated = .false.
     if (w%table_selected_sys > 0 .and. w%table_selected_sys <= nsys) then
@@ -109,10 +123,6 @@ contains
           sysupdated = .true.
        end if
     end if
-
-    ! two zeros
-    zero2%x = 0
-    zero2%y = 0
 
     ! set up the table
     str = "Structures" // c_null_char
@@ -123,9 +133,6 @@ contains
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SortMulti)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    ! flags = ior(flags,ImGuiTableFlags_NoHostExtendX)
-    ! flags = ior(flags,ImGuiTableFlags_ScrollX)
-    ! flags = ior(flags,)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
        if (sysupdated) &
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -235,7 +242,7 @@ contains
           ! name
           if (igTableSetColumnIndex(1)) then
              str = trim(sys_seed(i)%file) // c_null_char
-             call igTextWrapped(c_loc(str))
+             call igText(c_loc(str))
           end if
 
           if (sys_status(i) == sys_init) then

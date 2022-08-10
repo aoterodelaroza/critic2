@@ -84,7 +84,12 @@ end subroutine igEnd
 !x! void igEndChild(void);
 !x! bool igIsWindowAppearing(void);
 !x! bool igIsWindowCollapsed(void);
-!x! bool igIsWindowFocused(ImGuiFocusedFlags flags);
+! bool igIsWindowFocused(ImGuiFocusedFlags flags);
+function igIsWindowFocused(flags) bind(c,name="igIsWindowFocused")
+  import c_int, c_bool
+  integer(c_int), value :: flags
+  logical(c_bool) :: igIsWindowFocused
+end function igIsWindowFocused
 !x! bool igIsWindowHovered(ImGuiHoveredFlags flags);
 !x! ImDrawList* igGetWindowDrawList(void);
 !x! float igGetWindowDpiScale(void);

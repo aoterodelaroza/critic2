@@ -50,7 +50,7 @@ module gui_main
   integer, parameter, public :: sys_loaded_not_init = 1
   integer, parameter, public :: sys_init = 2
   integer, public :: nsys = 0
-  type(system), allocatable, target, public :: sys(:)
+  type(system), allocatable, target, public :: sys(:) ! make sure to keep no emptys here
   integer, allocatable, public :: sys_status(:)
   type(crystalseed), allocatable, public :: sys_seed(:)
   logical, allocatable, public :: sys_has_field(:)
