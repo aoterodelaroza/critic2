@@ -409,6 +409,65 @@ contains
 
   end subroutine mergesort_i4
 
+  !> Sort a variable-length string array (arr(ini:n)) in ascending
+  !> order by mergesort. Returns the ordering permutation in array
+  !> iord (normally, iord = ini:n). This sort is stable and uses n
+  !> additional work space.
+  module subroutine mergesort_str(arr, iord, ini, n)
+    type(vstring), dimension(:), intent(in) :: arr
+    integer, dimension(:), intent(inout) :: iord
+    integer, intent(in) :: ini, n
+
+    integer :: w, i
+    integer :: ileft, iright, iend
+    integer :: i0, i1, k
+    integer, allocatable :: iaux(:)
+    logical :: doleft, useaux
+
+    if (n <= ini) return
+    w = 1
+    allocate(iaux(ini:n))
+
+    useaux = .false.
+    do while (w < n)
+       useaux = .not.useaux
+       do i = ini, n, 2*w
+          ileft = i
+          iright = min(i+w,n)
+          iend = min(i+2*w,n+1)
+
+          i0 = ileft
+          i1 = iright
+          do k = ileft, iend-1
+             doleft = (i1 >= iend)
+             if (useaux) then
+                if (.not.doleft) doleft = (arr(iord(i0))%s <= arr(iord(i1))%s)
+                if (i0 < iright .and. doleft) then
+                   iaux(k) = iord(i0)
+                   i0 = i0 + 1
+                else
+                   iaux(k) = iord(i1)
+                   i1 = i1 + 1
+                end if
+             else
+                if (.not.doleft) doleft = (arr(iaux(i0))%s <= arr(iaux(i1))%s)
+                if (i0 < iright .and. doleft) then
+                   iord(k) = iaux(i0)
+                   i0 = i0 + 1
+                else
+                   iord(k) = iaux(i1)
+                   i1 = i1 + 1
+                end if
+             end if
+          end do
+       end do
+       w = 2 * w
+    end do
+    if (useaux) iord(ini:n) = iaux
+    deallocate(iaux)
+
+  end subroutine mergesort_str
+
   !> Return the atom type for TINKER's tiny force field (see tiny.prm
   !> in the TINKER distribution). iz is the atomic number and nn is
   !> the number of neighbors. Return 0 if the atom is unknown.

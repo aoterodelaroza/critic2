@@ -149,7 +149,6 @@ contains
        if (sys_status(w%iord(w%table_selected)) /= sys_init) then
           call system_initialize(w%iord(w%table_selected))
           needcolresize = .true.
-          needsort = .true.
        end if
     end if
 
@@ -381,16 +380,19 @@ contains
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sys_status, sys_init
+    use gui_main, only: sys, sys_status, sys_init, sys_seed, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
+    use tools_io, only: ferror, faterr
+    use types, only: vstring
     class(window), intent(inout) :: w
     integer(c_int), intent(in) :: cid, dir
 
-    integer :: i, n, m, iaux
-    integer, allocatable :: ival(:), iperm(:), ipermorig(:)
+    integer :: i, n, m, iaux, nvalid, nnovalid
+    integer, allocatable :: ival(:), iperm(:), ivalid(:), inovalid(:)
     logical, allocatable :: valid(:)
     real*8, allocatable :: rval(:)
+    type(vstring), allocatable :: sval(:)
     logical :: doit
 
     ! initialize the identity permutation
@@ -453,25 +455,55 @@ contains
        end do
        call mergesort(rval,iperm,1,n)
        deallocate(rval)
-    else
-       ! integer(c_int), parameter :: ic_name = 1
-       ! integer(c_int), parameter :: ic_spg = 2
-
-       write (*,*) "not implemented"
-    end if
-
-    ! reverse the permutation, if requested
-    if (dir == 2) then
+    elseif (cid == ic_name .or. cid == ic_spg) then
+       ! sort by string
+       allocate(sval(n))
        do i = 1, n
-          m = i-1
-          if (.not.valid(i)) exit
+          if (cid == ic_name .and. sys_status(w%iord(i)) /= sys_empty) then
+             sval(i)%s = trim(sys_seed(w%iord(i))%file)
+          else
+             doit = (cid == ic_spg) .and. (sys_status(w%iord(i)) == sys_init)
+             if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
+             if (doit) doit = sys(w%iord(i))%c%spgavail
+             if (doit) then
+                sval(i)%s = trim(sys(w%iord(i))%c%spg%international_symbol)
+             else
+                sval(i)%s = ""
+                valid(i) = .false.
+             end if
+          end if
        end do
-       do i = 1, m/2
-          iaux = iperm(i)
-          iperm(i) = iperm(m-i+1)
-          iperm(m-i+1) = iaux
-       end do
+       call mergesort(sval,iperm,1,n)
+       deallocate(sval)
+    else
+       call ferror('sort_tree','column sorting not implemented',faterr)
     end if
+    valid = valid(iperm)
+
+    ! reverse the permutation, if requested; put the no-valids at the end
+    allocate(ivalid(count(valid)),inovalid(n-count(valid)))
+    nvalid = 0
+    nnovalid = 0
+    do i = 1, n
+       if (valid(i)) then
+          nvalid = nvalid + 1
+          ivalid(nvalid) = iperm(i)
+       else
+          nnovalid = nnovalid + 1
+          inovalid(nnovalid) = iperm(i)
+       end if
+    end do
+    do i = nvalid, 1, -1
+       if (dir == 2) then
+          iperm(nvalid-i+1) = ivalid(i)
+       else
+          iperm(i) = ivalid(i)
+       end if
+    end do
+    do i = 1, nnovalid
+       iperm(nvalid+i) = inovalid(i)
+    end do
+    deallocate(ivalid,inovalid)
 
     ! apply the permutation
     w%iord = w%iord(iperm)

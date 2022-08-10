@@ -17,6 +17,7 @@
 
 ! Toolbox with miscellaneous tools.
 module tools
+  use types, only: vstring
   implicit none
 
   private
@@ -38,6 +39,7 @@ module tools
   interface mergesort
      module procedure mergesort_r8
      module procedure mergesort_i4
+     module procedure mergesort_str
   end interface mergesort
 
   interface
@@ -75,6 +77,11 @@ module tools
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_i4
+     module subroutine mergesort_str(arr, iord, ini, n)
+       type(vstring), dimension(:), intent(in) :: arr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: ini, n
+     end subroutine mergesort_str
      module function tiny_atom_type(iz,nn)
        integer, intent(in) :: iz, nn
        integer :: tiny_atom_type
