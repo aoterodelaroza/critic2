@@ -429,12 +429,20 @@ subroutine igTableSetupColumn(label,flags,init_width_or_weight,user_id) bind(c,n
   real(c_float), value :: init_width_or_weight
   integer(c_int), value :: user_id
 end subroutine igTableSetupColumn
-!x! void igTableSetupScrollFreeze(int cols,int rows);
+! void igTableSetupScrollFreeze(int cols,int rows);
+subroutine igTableSetupScrollFreeze(cols,rows) bind(c,name="igTableSetupScrollFreeze")
+  import c_int
+  integer(c_int), value :: cols, rows
+end subroutine igTableSetupScrollFreeze
 ! void igTableHeadersRow(void);
 subroutine igTableHeadersRow() bind(c,name="igTableHeadersRow")
 end subroutine igTableHeadersRow
 !x! void igTableHeader(const char* label);
-!x! ImGuiTableSortSpecs* igTableGetSortSpecs(void);
+! ImGuiTableSortSpecs* igTableGetSortSpecs(void);
+function igTableGetSortSpecs() bind(c,name="igTableGetSortSpecs")
+  import c_ptr
+  type(c_ptr) :: igTableGetSortSpecs
+end function igTableGetSortSpecs
 !x! int igTableGetColumnCount(void);
 !x! int igTableGetColumnIndex(void);
 !x! int igTableGetRowIndex(void);

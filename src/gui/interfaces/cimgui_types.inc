@@ -218,19 +218,17 @@
      logical(c_bool) :: Delivery
   end type ImGuiPayload
 
-  ! struct ImGuiTableColumnSortSpecs
-  ! {
-  !     integer(c_int) :: ColumnUserID
-  !     ImS16 ColumnIndex
-  !     ImS16 SortOrder
-  !     ImGuiSortDirection SortDirection : 8
-  ! }
-  ! struct ImGuiTableSortSpecs
-  ! {
-  !     const ImGuiTableColumnSortSpecs* Specs
-  !     integer(c_int) :: SpecsCount
-  !     logical(c_bool) :: SpecsDirty
-  ! }
+  type, bind(c) :: ImGuiTableColumnSortSpecs
+     integer(c_int) :: ColumnUserID
+     integer(c_short) :: ColumnIndex
+     integer(c_short) :: SortOrder
+     integer(c_int) :: SortDirection
+  end type ImGuiTableColumnSortSpecs
+  type, bind(c) :: ImGuiTableSortSpecs
+     type(c_ptr) :: Specs  ! const ImGuiTableColumnSortSpecs*
+     integer(c_int) :: SpecsCount
+     logical(c_bool) :: SpecsDirty
+  end type ImGuiTableSortSpecs
   ! struct ImGuiOnceUponAFrame
   ! {
   !      integer(c_int) :: RefFrame
@@ -1621,8 +1619,8 @@
   !     real(c_float) :: ContentWidth
   !     real(c_float) :: RequestedWidth
   !     ImS32 NameOffset
-  !     ImS16 BeginOrder
-  !     ImS16 IndexDuringLayout
+  !     type(c_short) :: BeginOrder
+  !     type(c_short) :: IndexDuringLayout
   !     logical(c_bool) :: WantClose
   ! }
   ! typedef struct ImVector_ImGuiTabItem {int Size;int Capacity;ImGuiTabItem* Data;} ImVector_ImGuiTabItem;
@@ -1649,13 +1647,13 @@
   !     real(c_float) :: ScrollingRectMinX
   !     real(c_float) :: ScrollingRectMaxX
   !     integer(c_int) :: ReorderRequestTabId
-  !     ImS16 ReorderRequestOffset
+  !     type(c_short) :: ReorderRequestOffset
   !     ImS8 BeginCount
   !     logical(c_bool) :: WantLayout
   !     logical(c_bool) :: VisibleTabWasSubmitted
   !     logical(c_bool) :: TabsAddedNew
-  !     ImS16 TabsActiveCount
-  !     ImS16 LastTabItemIdx
+  !     type(c_short) :: TabsActiveCount
+  !     type(c_short) :: LastTabItemIdx
   !     real(c_float) :: ItemSpacingY
   !     type(ImVec2) :: FramePadding
   !     type(ImVec2) :: BackupCursorPos
@@ -1680,7 +1678,7 @@
   !     real(c_float) :: ContentMaxXUnfrozen
   !     real(c_float) :: ContentMaxXHeadersUsed
   !     real(c_float) :: ContentMaxXHeadersIdeal
-  !     ImS16 NameOffset
+  !     type(c_short) :: NameOffset
   !     ImGuiTableColumnIdx DisplayOrder
   !     ImGuiTableColumnIdx IndexWithinEnabledSet
   !     ImGuiTableColumnIdx PrevEnabledColumn
@@ -1744,8 +1742,8 @@
   !     integer(c_int) :: ColumnsCount
   !     integer(c_int) :: CurrentRow
   !     integer(c_int) :: CurrentColumn
-  !     ImS16 InstanceCurrent
-  !     ImS16 InstanceInteracted
+  !     type(c_short) :: InstanceCurrent
+  !     type(c_short) :: InstanceInteracted
   !     real(c_float) :: RowPosY1
   !     real(c_float) :: RowPosY2
   !     real(c_float) :: RowMinHeight

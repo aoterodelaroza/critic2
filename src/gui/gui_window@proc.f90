@@ -101,6 +101,23 @@ contains
     integer :: i
     logical(c_bool) :: ldum, selected
     logical :: sysupdated
+    type(c_ptr) :: ptrc
+    type(ImGuiTableSortSpecs), pointer :: sortspecs
+    type(ImGuiTableColumnSortSpecs), pointer :: colspecs
+    ! column ids
+    integer(c_int), parameter :: ic_id = 0
+    integer(c_int), parameter :: ic_name = 1
+    integer(c_int), parameter :: ic_spg = 2
+    integer(c_int), parameter :: ic_v = 3
+    integer(c_int), parameter :: ic_nneq = 4
+    integer(c_int), parameter :: ic_ncel = 5
+    integer(c_int), parameter :: ic_nmol = 6
+    integer(c_int), parameter :: ic_a = 7
+    integer(c_int), parameter :: ic_b = 8
+    integer(c_int), parameter :: ic_c = 9
+    integer(c_int), parameter :: ic_alpha = 10
+    integer(c_int), parameter :: ic_beta = 11
+    integer(c_int), parameter :: ic_gamma = 12
 
     ! two zeros
     zero2%x = 0
@@ -142,85 +159,67 @@ contains
        str = "ID" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        flags = ior(flags,ImGuiTableColumnFlags_PreferSortDescending)
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_id)
 
        str = "Name" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_name)
 
        str = "spg" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_spg)
 
        str = "V(A^3)" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_v)
 
        str = "nneq" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nneq)
 
        str = "ncel" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_ncel)
 
        str = "nmol" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nmol)
 
        str = "a" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_a)
 
        str = "b" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_b)
 
        str = "c" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_c)
 
        str = "alpha" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_alpha)
 
        str = "beta" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_beta)
 
        str = "gamma" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
 
-    ! // Declare columns
-    ! // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
-    ! // This is so our sort function can identify a column given our own identifier. We could also identify them based on their index!
-    ! ImGui::TableSetupColumn("ID",           ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHide, 0.0f, MyItemColumnID_ID);
-    ! ImGui::TableSetupColumn("Name",         ImGuiTableColumnFlags_WidthFixed, 0.0f, MyItemColumnID_Name);
-    ! ImGui::TableSetupColumn("Action",       ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_WidthFixed, 0.0f, MyItemColumnID_Action);
-    ! ImGui::TableSetupColumn("Quantity",     ImGuiTableColumnFlags_PreferSortDescending, 0.0f, MyItemColumnID_Quantity);
-    ! ImGui::TableSetupColumn("Description",  (flags & ImGuiTableFlags_NoHostExtendX) ? 0 : ImGuiTableColumnFlags_WidthStretch, 0.0f, MyItemColumnID_Description);
-    ! ImGui::TableSetupColumn("Hidden",       ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoSort);
-    ! ImGui::TableSetupScrollFreeze(freeze_cols, freeze_rows);
+       ! sort the data if specs have changed
+       ptrc = igTableGetSortSpecs()
+       if (c_associated(ptrc)) then
+          call c_f_pointer(ptrc,sortspecs)
+          if (sortspecs%SpecsDirty .and. nsys > 1) then
+             call c_f_pointer(sortspecs%Specs,colspecs)
+             call sort_table(colspecs%ColumnUserID,colspecs%SortDirection)
+             sortspecs%SpecsDirty = .false.
+          end if
+       end if
 
-    ! // Sort our data if sort specs have been changed!
-    ! ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs();
-    ! if (sorts_specs && sorts_specs->SpecsDirty)
-    !     items_need_sort = true;
-    ! if (sorts_specs && items_need_sort && items.Size > 1)
-    ! {
-    !     MyItem::s_current_sort_specs = sorts_specs; // Store in variable accessible by the sort function.
-    !     qsort(&items[0], (size_t)items.Size, sizeof(items[0]), MyItem::CompareWithSortSpecs);
-    !     MyItem::s_current_sort_specs = NULL;
-    !     sorts_specs->SpecsDirty = false;
-    ! }
-    ! items_need_sort = false;
-
-    ! // Take note of whether we are currently sorting based on the Quantity field,
-    ! // we will use this to trigger sorting when we know the data of this column has been modified.
-    ! const bool sorts_specs_using_quantity = (ImGui::TableGetColumnFlags(3) & ImGuiTableColumnFlags_IsSorted) != 0;
-
-       ! TableSetColumnWidthAutoSingle(table, column_n);
        ! draw the header
        call igTableHeadersRow()
 
@@ -230,7 +229,7 @@ contains
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! ID
-          if (igTableSetColumnIndex(0)) then
+          if (igTableSetColumnIndex(ic_id)) then
              str = string(i) // c_null_char
              flags = ImGuiSelectableFlags_SpanAllColumns
              selected = (w%table_selected_sys==i)
@@ -240,13 +239,13 @@ contains
           end if
 
           ! name
-          if (igTableSetColumnIndex(1)) then
+          if (igTableSetColumnIndex(ic_name)) then
              str = trim(sys_seed(i)%file) // c_null_char
              call igText(c_loc(str))
           end if
 
           if (sys_status(i) == sys_init) then
-             if (igTableSetColumnIndex(2)) then ! spg
+             if (igTableSetColumnIndex(ic_spg)) then ! spg
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 elseif (.not.sys(i)%c%spgavail) then
@@ -257,7 +256,7 @@ contains
                 call igText(c_loc(str))
              end if
 
-             if (igTableSetColumnIndex(3)) then ! volume
+             if (igTableSetColumnIndex(ic_v)) then ! volume
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -266,22 +265,22 @@ contains
                 call igText(c_loc(str))
              end if
 
-             if (igTableSetColumnIndex(4)) then ! nneq
+             if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq) // c_null_char
                 call igText(c_loc(str))
              end if
 
-             if (igTableSetColumnIndex(5)) then ! ncel
+             if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel) // c_null_char
                 call igText(c_loc(str))
              end if
 
-             if (igTableSetColumnIndex(6)) then ! nmol
+             if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol) // c_null_char
                 call igText(c_loc(str))
              end if
 
-             if (igTableSetColumnIndex(7)) then ! a
+             if (igTableSetColumnIndex(ic_a)) then ! a
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -289,7 +288,7 @@ contains
                 end if
                 call igText(c_loc(str))
              end if
-             if (igTableSetColumnIndex(8)) then ! b
+             if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -297,7 +296,7 @@ contains
                 end if
                 call igText(c_loc(str))
              end if
-             if (igTableSetColumnIndex(9)) then ! c
+             if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -305,7 +304,7 @@ contains
                 end if
                 call igText(c_loc(str))
              end if
-             if (igTableSetColumnIndex(10)) then ! alpha
+             if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -313,7 +312,7 @@ contains
                 end if
                 call igText(c_loc(str))
              end if
-             if (igTableSetColumnIndex(11)) then ! beta
+             if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -321,7 +320,7 @@ contains
                 end if
                 call igText(c_loc(str))
              end if
-             if (igTableSetColumnIndex(12)) then ! gamma
+             if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
@@ -336,6 +335,14 @@ contains
 
        call igEndTable()
     end if
+
+  contains
+    subroutine sort_table(cid,dir)
+      integer(c_int) :: cid, dir
+
+      write (*,*) "here ", cid, dir
+
+    end subroutine sort_table
 
   end subroutine draw_tree
 
