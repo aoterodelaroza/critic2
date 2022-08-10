@@ -387,26 +387,22 @@ contains
     class(window), intent(inout) :: w
     integer(c_int), intent(in) :: cid, dir
 
-    integer :: i, n, iaux, inul
-    real*8 :: rnul
-    integer, allocatable :: ival(:), iperm(:)
+    integer :: i, n, m, iaux
+    integer, allocatable :: ival(:), iperm(:), ipermorig(:)
+    logical, allocatable :: valid(:)
     real*8, allocatable :: rval(:)
     logical :: doit
 
     ! initialize the identity permutation
     n = size(w%iord,1)
-    allocate(iperm(n))
+    allocate(iperm(n),valid(n))
     do i = 1, n
        iperm(i) = i
     end do
+    valid = .true.
 
     ! different types, different sorts
     if (cid == ic_id .or. cid == ic_nneq .or. cid == ic_ncel .or. cid == ic_nmol) then
-       if (dir == 1) then
-          inul = huge(0)
-       else
-          inul = -huge(0)
-       end if
        ! sort by integer
        allocate(ival(n))
        do i = 1, n
@@ -421,18 +417,14 @@ contains
                 ival(i) = sys(w%iord(i))%c%nmol
              end if
           else
-             ival(i) = inul
+             ival(i) = huge(1)
+             valid(i) = .false.
           end if
        end do
        call mergesort(ival,iperm,1,n)
        deallocate(ival)
     elseif (cid == ic_v .or. cid == ic_a .or. cid == ic_b .or. cid == ic_c .or.&
        cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma) then
-       if (dir == 1) then
-          rnul = huge(0d0)
-       else
-          rnul = -huge(0d0)
-       end if
        ! sort by real
        allocate(rval(n))
        do i = 1, n
@@ -455,7 +447,8 @@ contains
                 rval(i) = sys(w%iord(i))%c%bb(3)
              end if
           else
-             rval(i) = rnul
+             rval(i) = huge(1d0)
+             valid(i) = .false.
           end if
        end do
        call mergesort(rval,iperm,1,n)
@@ -469,10 +462,14 @@ contains
 
     ! reverse the permutation, if requested
     if (dir == 2) then
-       do i = 1, n/2
+       do i = 1, n
+          m = i-1
+          if (.not.valid(i)) exit
+       end do
+       do i = 1, m/2
           iaux = iperm(i)
-          iperm(i) = iperm(n-i+1)
-          iperm(n-i+1) = iaux
+          iperm(i) = iperm(m-i+1)
+          iperm(m-i+1) = iaux
        end do
     end if
 
