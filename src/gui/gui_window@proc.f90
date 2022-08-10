@@ -23,6 +23,21 @@ submodule (gui_window) proc
   ! Count ID for keeping track of windows and widgets
   integer :: idcount = 0
 
+  ! column ids for the table in the tree widget
+  integer(c_int), parameter :: ic_id = 0
+  integer(c_int), parameter :: ic_name = 1
+  integer(c_int), parameter :: ic_spg = 2
+  integer(c_int), parameter :: ic_v = 3
+  integer(c_int), parameter :: ic_nneq = 4
+  integer(c_int), parameter :: ic_ncel = 5
+  integer(c_int), parameter :: ic_nmol = 6
+  integer(c_int), parameter :: ic_a = 7
+  integer(c_int), parameter :: ic_b = 8
+  integer(c_int), parameter :: ic_c = 9
+  integer(c_int), parameter :: ic_alpha = 10
+  integer(c_int), parameter :: ic_beta = 11
+  integer(c_int), parameter :: ic_gamma = 12
+
 contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
@@ -104,20 +119,6 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    ! column ids
-    integer(c_int), parameter :: ic_id = 0
-    integer(c_int), parameter :: ic_name = 1
-    integer(c_int), parameter :: ic_spg = 2
-    integer(c_int), parameter :: ic_v = 3
-    integer(c_int), parameter :: ic_nneq = 4
-    integer(c_int), parameter :: ic_ncel = 5
-    integer(c_int), parameter :: ic_nmol = 6
-    integer(c_int), parameter :: ic_a = 7
-    integer(c_int), parameter :: ic_b = 8
-    integer(c_int), parameter :: ic_c = 9
-    integer(c_int), parameter :: ic_alpha = 10
-    integer(c_int), parameter :: ic_beta = 11
-    integer(c_int), parameter :: ic_gamma = 12
 
     ! two zeros
     zero2%x = 0
@@ -152,7 +153,6 @@ contains
     flags = ior(flags,ImGuiTableFlags_Reorderable)
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
-    flags = ior(flags,ImGuiTableFlags_SortMulti)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
        if (sysupdated) &
@@ -162,7 +162,6 @@ contains
        ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
        str = "ID" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
-       flags = ior(flags,ImGuiTableColumnFlags_PreferSortDescending)
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_id)
 
        str = "Name" // c_null_char
@@ -219,8 +218,7 @@ contains
           call c_f_pointer(ptrc,sortspecs)
           if (sortspecs%SpecsDirty .and. nshown > 1) then
              call c_f_pointer(sortspecs%Specs,colspecs)
-             ! call sort_table(colspecs%ColumnUserID,colspecs%SortDirection)
-             ! xxxx !
+             call w%sort_tree(colspecs%ColumnUserID,colspecs%SortDirection)
              sortspecs%SpecsDirty = .false.
           end if
        end if
@@ -344,7 +342,9 @@ contains
 
   end subroutine draw_tree
 
-  ! Update the table row order. This is used if the systems have changed.
+  ! Update the table rows by building a new row index array
+  ! (iord). Only the systems that are not empty are pointed by
+  ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
     use gui_main, only: sys_status, nsys, sys_empty
     class(window), intent(inout) :: w
@@ -366,12 +366,102 @@ contains
 
   end subroutine update_tree
 
-  ! Sort the table row order.
+  ! Sort the table row order by column cid and in direction dir
+  ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
+    use gui_main, only: sys, sys_status, sys_init
+    use tools, only: mergesort
+    use tools_math, only: invert_permutation
     class(window), intent(inout) :: w
     integer(c_int), intent(in) :: cid, dir
 
-    write (*,*) "here ", cid, dir
+    integer :: i, n, iaux, inul
+    real*8 :: rnul
+    integer, allocatable :: ival(:), iperm(:)
+    real*8, allocatable :: rval(:)
+    logical :: doit
+
+    ! initialize the identity permutation
+    n = size(w%iord,1)
+    allocate(iperm(n))
+    do i = 1, n
+       iperm(i) = i
+    end do
+
+    ! different types, different sorts
+    if (cid == ic_id .or. cid == ic_nneq .or. cid == ic_ncel .or. cid == ic_nmol) then
+       if (dir == 1) then
+          inul = huge(0)
+       else
+          inul = -huge(0)
+       end if
+       ! sort by integer
+       allocate(ival(n))
+       do i = 1, n
+          if (cid == ic_id) then
+             ival(i) = w%iord(i)
+          elseif (sys_status(w%iord(i)) == sys_init) then
+             if (cid == ic_nneq) then
+                ival(i) = sys(w%iord(i))%c%nneq
+             elseif (cid == ic_ncel) then
+                ival(i) = sys(w%iord(i))%c%ncel
+             elseif (cid == ic_nmol) then
+                ival(i) = sys(w%iord(i))%c%nmol
+             end if
+          else
+             ival(i) = inul
+          end if
+       end do
+       call mergesort(ival,iperm,1,n)
+       deallocate(ival)
+    elseif (cid == ic_v .or. cid == ic_a .or. cid == ic_b .or. cid == ic_c .or.&
+       cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma) then
+       ! sort by real
+       allocate(rval(n))
+       do i = 1, n
+          doit = sys_status(w%iord(i)) == sys_init
+          if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
+          if (doit) then
+             if (cid == ic_v) then
+                rval(i) = sys(w%iord(i))%c%omega
+             elseif (cid == ic_a) then
+                rval(i) = sys(w%iord(i))%c%aa(1)
+             elseif (cid == ic_b) then
+                rval(i) = sys(w%iord(i))%c%aa(2)
+             elseif (cid == ic_c) then
+                rval(i) = sys(w%iord(i))%c%aa(3)
+             elseif (cid == ic_alpha) then
+                rval(i) = sys(w%iord(i))%c%bb(1)
+             elseif (cid == ic_beta) then
+                rval(i) = sys(w%iord(i))%c%bb(2)
+             elseif (cid == ic_gamma) then
+                rval(i) = sys(w%iord(i))%c%bb(3)
+             end if
+          else
+             rval(i) = huge(0d0)
+          end if
+       end do
+       call mergesort(rval,iperm,1,n)
+       deallocate(rval)
+    else
+       ! integer(c_int), parameter :: ic_name = 1
+       ! integer(c_int), parameter :: ic_spg = 2
+
+       write (*,*) "not implemented"
+    end if
+
+    ! reverse the permutation, if requested
+    if (dir == 2) then
+       do i = 1, n
+          iaux = iperm(i)
+          iperm(i) = iperm(n-i+1)
+          iperm(n-i+1) = iaux
+       end do
+    end if
+
+    ! apply the permutation
+    w%iord = w%iord(iperm)
+    w%table_selected = findloc(iperm,w%table_selected,1)
 
   end subroutine sort_tree
 

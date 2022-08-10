@@ -38,7 +38,7 @@ module gui_window
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer to the ImGui window (use only after Begin())
      ! table parameters
-     integer :: table_selected = 1 ! the system selected in a table (after iord)
+     integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
    contains
      procedure :: init => window_init
