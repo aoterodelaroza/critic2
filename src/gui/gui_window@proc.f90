@@ -155,7 +155,7 @@ contains
     ! set up the table
     str = "Structures" // c_null_char
     flags = ImGuiTableFlags_Borders
-    flags = ior(flags,ImGuiTableFlags_Resizable)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
@@ -217,6 +217,7 @@ contains
        str = "gamma" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! fetch the sort specs, sort the data if necessary
        ptrc = igTableGetSortSpecs()
