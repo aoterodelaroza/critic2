@@ -113,9 +113,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
     integer(c_int) :: mycol_id, flags
-    integer :: i, j, nshown
+    integer :: i, j, nshown, sortcid, sortdir
     logical(c_bool) :: ldum, selected
-    logical :: sysupdated
+    logical :: needcolresize, needsort
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
@@ -125,7 +125,12 @@ contains
     zero2%y = 0
 
     ! initialize table
-    if (.not.allocated(w%iord)) call w%update_tree()
+    if (.not.allocated(w%iord)) then
+       call w%update_tree()
+       w%table_sortcid = 0
+       w%table_sortdir = 1
+       w%table_selected = 1
+    end if
     nshown = size(w%iord,1)
 
     ! process keybindings
@@ -138,11 +143,13 @@ contains
     end if
 
     ! initialize the currently selected system
-    sysupdated = .false.
+    needcolresize = .false.
+    needsort = .false.
     if (w%table_selected > 0 .and. w%table_selected <= nshown) then
        if (sys_status(w%iord(w%table_selected)) /= sys_init) then
           call system_initialize(w%iord(w%table_selected))
-          sysupdated = .true.
+          needcolresize = .true.
+          needsort = .true.
        end if
     end if
 
@@ -155,7 +162,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
-       if (sysupdated) &
+       if (needcolresize) &
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
        ! set up the columns
@@ -212,15 +219,20 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
 
-       ! sort the data if specs have changed
+       ! fetch the sort specs, sort the data if necessary
        ptrc = igTableGetSortSpecs()
        if (c_associated(ptrc)) then
           call c_f_pointer(ptrc,sortspecs)
+          call c_f_pointer(sortspecs%Specs,colspecs)
+          w%table_sortcid = colspecs%ColumnUserID
+          w%table_sortdir = colspecs%SortDirection
           if (sortspecs%SpecsDirty .and. nshown > 1) then
-             call c_f_pointer(sortspecs%Specs,colspecs)
-             call w%sort_tree(colspecs%ColumnUserID,colspecs%SortDirection)
+             needsort = .true.
              sortspecs%SpecsDirty = .false.
           end if
+       end if
+       if (needsort) then
+          call w%sort_tree(w%table_sortcid,w%table_sortdir)
        end if
 
        ! draw the header
@@ -416,6 +428,11 @@ contains
        deallocate(ival)
     elseif (cid == ic_v .or. cid == ic_a .or. cid == ic_b .or. cid == ic_c .or.&
        cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma) then
+       if (dir == 1) then
+          rnul = huge(0d0)
+       else
+          rnul = -huge(0d0)
+       end if
        ! sort by real
        allocate(rval(n))
        do i = 1, n
@@ -438,7 +455,7 @@ contains
                 rval(i) = sys(w%iord(i))%c%bb(3)
              end if
           else
-             rval(i) = huge(0d0)
+             rval(i) = rnul
           end if
        end do
        call mergesort(rval,iperm,1,n)
@@ -452,7 +469,7 @@ contains
 
     ! reverse the permutation, if requested
     if (dir == 2) then
-       do i = 1, n
+       do i = 1, n/2
           iaux = iperm(i)
           iperm(i) = iperm(n-i+1)
           iperm(n-i+1) = iaux
