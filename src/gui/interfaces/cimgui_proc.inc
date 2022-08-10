@@ -95,7 +95,11 @@ end function igIsWindowFocused
 !x! float igGetWindowDpiScale(void);
 !x! void igGetWindowPos(ImVec2 *pOut);
 !x! void igGetWindowSize(ImVec2 *pOut);
-!x! float igGetWindowWidth(void);
+! float igGetWindowWidth(void);
+function igGetWindowWidth() bind(c,name="igGetWindowWidth")
+  import c_float
+  real(c_float) :: igGetWindowWidth
+end function igGetWindowWidth
 !x! float igGetWindowHeight(void);
 !x! ImGuiViewport* igGetWindowViewport(void);
 !x! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
@@ -135,9 +139,23 @@ end subroutine igGetContentRegionAvail
 !x! void igSetScrollFromPosY_Float(float local_y,float center_y_ratio);
 !x! void igPushFont(ImFont* font);
 !x! void igPopFont(void);
-!x! void igPushStyleColor_U32(ImGuiCol idx,ImU32 col);
-!x! void igPushStyleColor_Vec4(ImGuiCol idx,const ImVec4 col);
-!x! void igPopStyleColor(int count);
+! void igPushStyleColor_U32(ImGuiCol idx,ImU32 col);
+subroutine igPushStyleColor_U32(idx,col) bind(c,name="igPushStyleColor_U32")
+  import c_int
+  integer(c_int),value :: idx
+  integer(c_int),value :: col
+end subroutine igPushStyleColor_U32
+! void igPushStyleColor_Vec4(ImGuiCol idx,const ImVec4 col);
+subroutine igPushStyleColor_Vec4(idx,col) bind(c,name="igPushStyleColor_Vec4")
+  import c_int, ImVec4
+  integer(c_int), value :: idx
+  type(ImVec4), intent(in), value :: col
+end subroutine igPushStyleColor_Vec4
+! void igPopStyleColor(int count);
+subroutine igPopStyleColor(count) bind(c,name="igPopStyleColor")
+  import c_int
+  integer(c_int), value :: count
+end subroutine igPopStyleColor
 !x! void igPushStyleVar_Float(ImGuiStyleVar idx,float val);
 !x! void igPushStyleVar_Vec2(ImGuiStyleVar idx,const ImVec2 val);
 !x! void igPopStyleVar(int count);
@@ -145,8 +163,14 @@ end subroutine igGetContentRegionAvail
 !x! void igPopAllowKeyboardFocus(void);
 !x! void igPushButtonRepeat(bool repeat);
 !x! void igPopButtonRepeat(void);
-!x! void igPushItemWidth(float item_width);
-!x! void igPopItemWidth(void);
+! void igPushItemWidth(float item_width);
+subroutine igPushItemWidth(item_width) bind(c,name="igPushItemWidth")
+  import c_float
+  real(c_float), value :: item_width
+end subroutine igPushItemWidth
+! void igPopItemWidth(void);
+subroutine igPopItemWidth() bind(c,name="igPopItemWidth")
+end subroutine igPopItemWidth
 !x! void igSetNextItemWidth(float item_width);
 !x! float igCalcItemWidth(void);
 !x! void igPushTextWrapPos(float wrap_local_pos_x);
@@ -154,10 +178,21 @@ end subroutine igGetContentRegionAvail
 !x! ImFont* igGetFont(void);
 !x! float igGetFontSize(void);
 !x! void igGetFontTexUvWhitePixel(ImVec2 *pOut);
-!x! ImU32 igGetColorU32_Col(ImGuiCol idx,float alpha_mul);
+! ImU32 igGetColorU32_Col(ImGuiCol idx,float alpha_mul);
+function igGetColorU32_Col(idx,alpha_mul) bind(c,name="igGetColorU32_Col")
+  import c_int, c_float
+  integer(c_int), value :: idx
+  real(c_float), value :: alpha_mul
+  integer(c_int) :: igGetColorU32_Col
+end function igGetColorU32_Col
 !x! ImU32 igGetColorU32_Vec4(const ImVec4 col);
 !x! ImU32 igGetColorU32_U32(ImU32 col);
-!x! const ImVec4* igGetStyleColorVec4(ImGuiCol idx);
+! const ImVec4* igGetStyleColorVec4(ImGuiCol idx)
+function igGetStyleColorVec4(idx) bind(c,name="igGetStyleColorVec4")
+  import c_int, c_ptr
+  integer(c_int), value :: idx
+  type(c_ptr) :: igGetStyleColorVec4
+end function igGetStyleColorVec4
 !x! void igSeparator(void);
 ! void igSameLine(float offset_from_start_x,float spacing);
 subroutine igSameLine(offset_from_start_x, spacing) bind(c,name="igSameLine")
@@ -264,7 +299,16 @@ end subroutine igTextWrapped
 !x! bool igVSliderFloat(const char* label,const ImVec2 size,float* v,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igVSliderInt(const char* label,const ImVec2 size,int* v,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igVSliderScalar(const char* label,const ImVec2 size,ImGuiDataType data_type,void* p_data,const void* p_min,const void* p_max,const char* format,ImGuiSliderFlags flags);
-!x! bool igInputText(const char* label,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
+! bool igInputText(const char* label,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
+function igInputText(label,buf,buf_size,flags,callback,user_data) bind(c,name="igInputText")
+  import c_ptr, c_size_t, c_int, c_funptr
+  type(c_ptr), intent(in), value :: label
+  type(c_ptr), value :: buf
+  integer(c_size_t), value :: buf_size
+  integer(c_int), value :: flags
+  type(c_funptr), value :: callback
+  type(c_ptr), value :: user_data
+end function igInputText
 !x! bool igInputTextMultiline(const char* label,char* buf,size_t buf_size,const ImVec2 size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 !x! bool igInputTextWithHint(const char* label,const char* hint,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 !x! bool igInputFloat(const char* label,float* v,float step,float step_fast,const char* format,ImGuiInputTextFlags flags);

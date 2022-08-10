@@ -108,6 +108,7 @@ contains
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
+    use c_interface_module
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str
