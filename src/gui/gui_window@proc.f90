@@ -98,7 +98,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
     integer(c_int) :: mycol_id, flags
-    integer :: i
+    integer :: i, j, nshown
     logical(c_bool) :: ldum, selected
     logical :: sysupdated
     type(c_ptr) :: ptrc
@@ -123,20 +123,24 @@ contains
     zero2%x = 0
     zero2%y = 0
 
+    ! initialize table
+    if (.not.allocated(w%iord)) call w%update_tree()
+    nshown = size(w%iord,1)
+
     ! process keybindings
     if (igIsWindowFocused(0_c_int)) then
        if (is_bind_event(BIND_TREE_MOVE_UP)) then
-          w%table_selected_sys = max(w%table_selected_sys-1,1)
+          w%table_selected = max(w%table_selected-1,1)
        elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-          w%table_selected_sys = min(w%table_selected_sys+1,nsys)
+          w%table_selected = min(w%table_selected+1,nshown)
        end if
     end if
 
     ! initialize the currently selected system
     sysupdated = .false.
-    if (w%table_selected_sys > 0 .and. w%table_selected_sys <= nsys) then
-       if (sys_status(w%table_selected_sys) /= sys_init) then
-          call system_initialize(w%table_selected_sys)
+    if (w%table_selected > 0 .and. w%table_selected <= nshown) then
+       if (sys_status(w%iord(w%table_selected)) /= sys_init) then
+          call system_initialize(w%iord(w%table_selected))
           sysupdated = .true.
        end if
     end if
@@ -213,9 +217,10 @@ contains
        ptrc = igTableGetSortSpecs()
        if (c_associated(ptrc)) then
           call c_f_pointer(ptrc,sortspecs)
-          if (sortspecs%SpecsDirty .and. nsys > 1) then
+          if (sortspecs%SpecsDirty .and. nshown > 1) then
              call c_f_pointer(sortspecs%Specs,colspecs)
-             call sort_table(colspecs%ColumnUserID,colspecs%SortDirection)
+             ! call sort_table(colspecs%ColumnUserID,colspecs%SortDirection)
+             ! xxxx !
              sortspecs%SpecsDirty = .false.
           end if
        end if
@@ -224,7 +229,8 @@ contains
        call igTableHeadersRow()
 
        ! draw the rows
-       do i = 1, nsys
+       do j = 1, nshown
+          i = w%iord(j)
           if (sys_status(i) == sys_empty) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
@@ -232,9 +238,9 @@ contains
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i) // c_null_char
              flags = ImGuiSelectableFlags_SpanAllColumns
-             selected = (w%table_selected_sys==i)
+             selected = (w%table_selected==j)
              if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
-                w%table_selected_sys = i
+                w%table_selected = j
              end if
           end if
 
@@ -336,15 +342,38 @@ contains
        call igEndTable()
     end if
 
-  contains
-    subroutine sort_table(cid,dir)
-      integer(c_int) :: cid, dir
-
-      write (*,*) "here ", cid, dir
-
-    end subroutine sort_table
-
   end subroutine draw_tree
+
+  ! Update the table row order. This is used if the systems have changed.
+  module subroutine update_tree(w)
+    use gui_main, only: sys_status, nsys, sys_empty
+    class(window), intent(inout) :: w
+
+    integer :: i, n
+
+    if (allocated(w%iord)) deallocate(w%iord)
+    n = count(sys_status(1:nsys) /= sys_empty)
+    if (n > 0) then
+       allocate(w%iord(n))
+       n = 0
+       do i = 1, nsys
+          if (sys_status(i) /= sys_empty) then
+             n = n + 1
+             w%iord(n) = i
+          end if
+       end do
+    end if
+
+  end subroutine update_tree
+
+  ! Sort the table row order.
+  module subroutine sort_tree(w,cid,dir)
+    class(window), intent(inout) :: w
+    integer(c_int), intent(in) :: cid, dir
+
+    write (*,*) "here ", cid, dir
+
+  end subroutine sort_tree
 
   !xx! private procedures
 

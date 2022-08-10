@@ -38,11 +38,14 @@ module gui_window
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer to the ImGui window (use only after Begin())
      ! table parameters
-     integer :: table_selected_sys = 1 ! the system selected in a table
+     integer :: table_selected = 1 ! the system selected in a table (after iord)
+     integer, allocatable :: iord(:) ! table order
    contains
      procedure :: init => window_init
      procedure :: draw => window_draw
      procedure :: draw_tree
+     procedure :: update_tree
+     procedure :: sort_tree
   end type window
   public :: window
 
@@ -58,6 +61,13 @@ module gui_window
      module subroutine draw_tree(w)
        class(window), intent(inout), target :: w
      end subroutine draw_tree
+     module subroutine update_tree(w)
+       class(window), intent(inout) :: w
+     end subroutine update_tree
+     module subroutine sort_tree(w,cid,dir)
+       class(window), intent(inout) :: w
+       integer(c_int), intent(in) :: cid, dir
+     end subroutine sort_tree
   end interface
 
 end module gui_window
