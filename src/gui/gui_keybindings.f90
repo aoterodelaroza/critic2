@@ -30,9 +30,10 @@ module gui_keybindings
 
   ! Public list of binds
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
-  integer, parameter, public :: BIND_TREE_MOVE_UP = 2 ! tree: move one system up
-  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 3 ! tree: move one system down
-  integer, parameter, public :: BIND_NUM = 3 ! total number of binds
+  integer, parameter, public :: BIND_CLOSE_POPUP = 2 ! total number of binds
+  integer, parameter, public :: BIND_TREE_MOVE_UP = 3 ! tree: move one system up
+  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 4 ! tree: move one system down
+  integer, parameter, public :: BIND_NUM = 4 ! total number of binds
   ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
   ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
   ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis

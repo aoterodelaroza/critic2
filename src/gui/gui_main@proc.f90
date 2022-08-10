@@ -43,7 +43,7 @@ contains
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
     use gui_window, only: wintype_tree, wintype_view, wintype_console
-    use gui_keybindings, only: is_bind_event, BIND_QUIT, set_default_keybindings
+    use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
@@ -140,8 +140,7 @@ contains
        call igNewFrame()
 
        ! handle quit key binding
-       if (is_bind_event(BIND_QUIT)) &
-          call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+       call process_global_keybindings()
 
        ! show main menu
        call show_main_menu()
@@ -398,5 +397,21 @@ contains
     call igEndMainMenuBar()
 
   end subroutine show_main_menu
+
+  ! Process the global keybindings
+  subroutine process_global_keybindings()
+    use gui_interfaces_cimgui
+    use gui_keybindings, only: is_bind_event, BIND_QUIT, BIND_CLOSE_POPUP
+    use gui_interfaces_glfw, only: glfwSetWindowShouldClose,GLFW_TRUE
+
+    ! quit
+    if (is_bind_event(BIND_QUIT)) &
+       call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+
+    ! close last popup
+    if (is_bind_event(BIND_CLOSE_POPUP)) &
+       call igClosePopupsExceptModals()
+
+  end subroutine process_global_keybindings
 
 end submodule proc

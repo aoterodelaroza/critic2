@@ -390,7 +390,9 @@ end subroutine igSetTooltip
 !x! void igOpenPopup_Str(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! void igOpenPopup_ID(ImGuiID id,ImGuiPopupFlags popup_flags);
 !x! void igOpenPopupOnItemClick(const char* str_id,ImGuiPopupFlags popup_flags);
-!x! void igCloseCurrentPopup(void);
+! void igCloseCurrentPopup(void);
+subroutine igCloseCurrentPopup() bind(c,name="igCloseCurrentPopup")
+end subroutine igCloseCurrentPopup
 !x! bool igBeginPopupContextItem(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupContextWindow(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupContextVoid(const char* str_id,ImGuiPopupFlags popup_flags);
@@ -1224,7 +1226,9 @@ end function igGetCurrentWindow
 !x! void igOpenPopupEx(ImGuiID id,ImGuiPopupFlags popup_flags);
 !x! void igClosePopupToLevel(int remaining,bool restore_focus_to_window_under_popup);
 !x! void igClosePopupsOverWindow(ImGuiWindow* ref_window,bool restore_focus_to_window_under_popup);
-!x! void igClosePopupsExceptModals(void);
+! void igClosePopupsExceptModals(void);
+subroutine igClosePopupsExceptModals() bind(c,name="igClosePopupsExceptModals")
+end subroutine igClosePopupsExceptModals
 !x! bool igIsPopupOpen_ID(ImGuiID id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupEx(ImGuiID id,ImGuiWindowFlags extra_flags);
 !x! void igBeginTooltipEx(ImGuiTooltipFlags tooltip_flags,ImGuiWindowFlags extra_window_flags);
