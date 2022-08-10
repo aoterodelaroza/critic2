@@ -155,6 +155,7 @@ contains
     ! set up the table
     str = "Structures" // c_null_char
     flags = ImGuiTableFlags_Borders
+    flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_ScrollY)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
     flags = ior(flags,ImGuiTableFlags_Hideable)
