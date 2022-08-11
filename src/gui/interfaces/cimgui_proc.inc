@@ -301,13 +301,14 @@ end subroutine igTextWrapped
 !x! bool igVSliderScalar(const char* label,const ImVec2 size,ImGuiDataType data_type,void* p_data,const void* p_min,const void* p_max,const char* format,ImGuiSliderFlags flags);
 ! bool igInputText(const char* label,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 function igInputText(label,buf,buf_size,flags,callback,user_data) bind(c,name="igInputText")
-  import c_ptr, c_size_t, c_int, c_funptr
+  import c_bool, c_ptr, c_size_t, c_int, c_funptr
   type(c_ptr), intent(in), value :: label
   type(c_ptr), value :: buf
   integer(c_size_t), value :: buf_size
   integer(c_int), value :: flags
   type(c_funptr), value :: callback
   type(c_ptr), value :: user_data
+  logical(c_bool) :: igInputText
 end function igInputText
 !x! bool igInputTextMultiline(const char* label,char* buf,size_t buf_size,const ImVec2 size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 !x! bool igInputTextWithHint(const char* label,const char* hint,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
@@ -553,12 +554,20 @@ function igIsItemHovered(flags) bind(c,name="igIsItemHovered")
   integer(c_int), value :: flags
   logical(c_bool) :: igIsItemHovered
 end function igIsItemHovered
-!x! bool igIsItemActive(void);
+! bool igIsItemActive(void);
+function igIsItemActive() bind(c,name="igIsItemActive")
+  import c_bool
+  logical(c_bool) :: igIsItemActive
+end function igIsItemActive
 !x! bool igIsItemFocused(void);
 !x! bool igIsItemClicked(ImGuiMouseButton mouse_button);
 !x! bool igIsItemVisible(void);
 !x! bool igIsItemEdited(void);
-!x! bool igIsItemActivated(void);
+! bool igIsItemActivated(void);
+function igIsItemActivated() bind(c,name="igIsItemActivated")
+  import c_bool
+  logical(c_bool) :: igIsItemActivated
+end function igIsItemActivated
 !x! bool igIsItemDeactivated(void);
 !x! bool igIsItemDeactivatedAfterEdit(void);
 !x! bool igIsItemToggledOpen(void);

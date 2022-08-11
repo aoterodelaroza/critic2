@@ -135,7 +135,7 @@ contains
     nshown = size(w%iord,1)
 
     ! process keybindings
-    if (igIsWindowFocused(0_c_int)) then
+    if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
        if (is_bind_event(BIND_TREE_MOVE_UP)) then
           w%table_selected = max(w%table_selected-1,1)
        elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
