@@ -855,16 +855,50 @@ end function igGetKeyName
 !x! ImFontAtlas* ImFontAtlas_ImFontAtlas(void);
 !x! void ImFontAtlas_destroy(ImFontAtlas* self);
 !x! ImFont* ImFontAtlas_AddFont(ImFontAtlas* self,const ImFontConfig* font_cfg);
-!x! ImFont* ImFontAtlas_AddFontDefault(ImFontAtlas* self,const ImFontConfig* font_cfg);
+! ImFont* ImFontAtlas_AddFontDefault(ImFontAtlas* self,const ImFontConfig* font_cfg);
+function ImFontAtlas_AddFontDefault(self, font_cfg) bind(c,name="ImFontAtlas_AddFontDefault")
+  import c_ptr
+  type(c_ptr), value :: self
+  type(c_ptr), value :: font_cfg
+  type(c_ptr) :: ImFontAtlas_AddFontDefault
+end function ImFontAtlas_AddFontDefault
 !x! ImFont* ImFontAtlas_AddFontFromFileTTF(ImFontAtlas* self,const char* filename,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
 !x! ImFont* ImFontAtlas_AddFontFromMemoryTTF(ImFontAtlas* self,void* font_data,int font_size,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
-!x! ImFont* ImFontAtlas_AddFontFromMemoryCompressedTTF(ImFontAtlas* self,const void* compressed_font_data,int compressed_font_size,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
-!x! ImFont* ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(ImFontAtlas* self,const char* compressed_font_data_base85,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
+! ImFont* ImFontAtlas_AddFontFromMemoryCompressedTTF(ImFontAtlas* self,const void* compressed_font_data,int compressed_font_size,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
+function ImFontAtlas_AddFontFromMemoryCompressedTTF(self,&
+   compressed_font_data,compressed_font_size,size_pixels,font_cfg,glyph_ranges)&
+   bind(c,name="ImFontAtlas_AddFontFromMemoryCompressedTTF")
+  import c_ptr, c_int, c_float
+  type(c_ptr), value :: self
+  type(c_ptr), value, intent(in) :: compressed_font_data
+  integer(c_int), value :: compressed_font_size
+  real(c_float), value :: size_pixels
+  type(c_ptr), value, intent(in) :: font_cfg
+  type(c_ptr), value, intent(in) :: glyph_ranges
+  type(c_ptr) :: ImFontAtlas_AddFontFromMemoryCompressedTTF
+end function ImFontAtlas_AddFontFromMemoryCompressedTTF
+! ImFont* ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(ImFontAtlas* self,const char* compressed_font_data_base85,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
+function ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(self,&
+   compressed_font_data_base85,size_pixels,font_cfg,glyph_ranges)&
+   bind(c,name="ImFontAtlas_AddFontFromMemoryCompressedBase85TTF")
+  import c_ptr, c_int, c_float, c_short
+  type(c_ptr), value :: self
+  type(c_ptr), value, intent(in) :: compressed_font_data_base85
+  real(c_float), value :: size_pixels
+  type(c_ptr), value, intent(in) :: font_cfg
+  type(c_ptr), value, intent(in) :: glyph_ranges
+  type(c_ptr) :: ImFontAtlas_AddFontFromMemoryCompressedBase85TTF
+end function ImFontAtlas_AddFontFromMemoryCompressedBase85TTF
 !x! void ImFontAtlas_ClearInputData(ImFontAtlas* self);
 !x! void ImFontAtlas_ClearTexData(ImFontAtlas* self);
 !x! void ImFontAtlas_ClearFonts(ImFontAtlas* self);
 !x! void ImFontAtlas_Clear(ImFontAtlas* self);
-!x! bool ImFontAtlas_Build(ImFontAtlas* self);
+! bool ImFontAtlas_Build(ImFontAtlas* self);
+function ImFontAtlas_Build(self) bind(c,name="ImFontAtlas_Build")
+  import c_ptr, c_bool
+  type(c_ptr), value :: self
+  logical(c_bool) :: ImFontAtlas_Build
+end function ImFontAtlas_Build
 !x! void ImFontAtlas_GetTexDataAsAlpha8(ImFontAtlas* self,unsigned char** out_pixels,int* out_width,int* out_height,int* out_bytes_per_pixel);
 !x! void ImFontAtlas_GetTexDataAsRGBA32(ImFontAtlas* self,unsigned char** out_pixels,int* out_width,int* out_height,int* out_bytes_per_pixel);
 !x! bool ImFontAtlas_IsBuilt(ImFontAtlas* self);

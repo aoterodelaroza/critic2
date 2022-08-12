@@ -48,11 +48,12 @@ contains
     use tools_io, only: ferror, faterr, string
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
     type(c_funptr) :: fdum
-    type(c_ptr) :: ptrc
+    type(c_ptr) :: ptrc, pdum
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
     integer :: i
     logical :: firstpass
+    integer(c_short), allocatable, target :: range(:)
 
     ! initialize the sys arrays
     nsys = 0
@@ -112,7 +113,16 @@ contains
     ptrc = igGetIO()
     call c_f_pointer(ptrc,io)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
+    io%configflags = ior(io%configflags,ImGuiConfigFlags_DpiEnableScaleFonts)
     io%inifilename = c_null_ptr ! do not save the ini file, for now
+
+    ! default font, 16 pt and with Greek letters and letter-like symbols
+    range = (/32_c_short, 255_c_short, & ! default (basic latin + supplement)
+       880_c_short, 1023_c_short, & ! Greek and Coptic
+       8488_c_short, 8527_c_short, & ! letter-like symbols
+       0_c_short/)
+    pdum = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
+       16._c_float,c_null_ptr,c_loc(range))
 
     ! get the ImGUI context pointer
     ptrc = igGetCurrentContext()
@@ -326,7 +336,6 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
-    logical(c_bool) :: ldum
     logical, save :: ttshown(2) = (/.false.,.false./)! menu-level tooltips
 
     if (igBeginMainMenuBar()) then

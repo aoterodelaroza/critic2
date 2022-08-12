@@ -103,7 +103,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_main, only: nsys, sys, sys_status, sys_empty, sys_init, sys_loaded_not_init,&
+    use gui_main, only: sys, sys_status, sys_empty, sys_init,&
        sys_seed, system_initialize
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
@@ -113,9 +113,9 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
-    integer(c_int) :: mycol_id, flags
-    integer :: i, j, nshown, sortcid, sortdir
-    logical(c_bool) :: ldum, selected
+    integer(c_int) :: flags
+    integer :: i, j, nshown
+    logical(c_bool) :: selected
     logical :: needcolresize, needsort
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -391,7 +391,7 @@ contains
     class(window), intent(inout) :: w
     integer(c_int), intent(in) :: cid, dir
 
-    integer :: i, n, m, iaux, nvalid, nnovalid
+    integer :: i, n, nvalid, nnovalid
     integer, allocatable :: ival(:), iperm(:), ivalid(:), inovalid(:)
     logical, allocatable :: valid(:)
     real*8, allocatable :: rval(:)

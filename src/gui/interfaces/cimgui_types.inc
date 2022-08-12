@@ -393,28 +393,27 @@
   !     type(ImVec2) :: FramebufferScale
   !     ImGuiViewport* OwnerViewport
   ! }
-  ! struct ImFontConfig
-  ! {
-  !     type(c_ptr) :: FontData
-  !     integer(c_int) :: FontDataSize
-  !     logical(c_bool) :: FontDataOwnedByAtlas
-  !     integer(c_int) :: FontNo
-  !     real(c_float) :: SizePixels
-  !     integer(c_int) :: OversampleH
-  !     integer(c_int) :: OversampleV
-  !     logical(c_bool) :: PixelSnapH
-  !     type(ImVec2) :: GlyphExtraSpacing
-  !     type(ImVec2) :: GlyphOffset
-  !     const ImWchar* GlyphRanges
-  !     real(c_float) :: GlyphMinAdvanceX
-  !     real(c_float) :: GlyphMaxAdvanceX
-  !     logical(c_bool) :: MergeMode
-  !     integer(c_int) :: FontBuilderFlags
-  !     real(c_float) :: RasterizerMultiply
-  !     integer(c_short) :: EllipsisChar
-  !     character(c_char) :: Name[40]
-  !     type(c_ptr) :: DstFont
-  ! }
+  type, bind(c) :: ImFontConfig
+     type(c_ptr) :: FontData
+     integer(c_int) :: FontDataSize
+     logical(c_bool) :: FontDataOwnedByAtlas
+     integer(c_int) :: FontNo
+     real(c_float) :: SizePixels
+     integer(c_int) :: OversampleH
+     integer(c_int) :: OversampleV
+     logical(c_bool) :: PixelSnapH
+     type(ImVec2) :: GlyphExtraSpacing
+     type(ImVec2) :: GlyphOffset
+     type(c_ptr) :: GlyphRanges
+     real(c_float) :: GlyphMinAdvanceX
+     real(c_float) :: GlyphMaxAdvanceX
+     logical(c_bool) :: MergeMode
+     integer(c_int) :: FontBuilderFlags
+     real(c_float) :: RasterizerMultiply
+     integer(c_short) :: EllipsisChar
+     character(c_char) :: Name(40)
+     type(c_ptr) :: DstFont
+  end type ImFontConfig
   ! struct ImFontGlyph
   ! {
   !     integer(c_int) :: Colored : 1
@@ -447,34 +446,41 @@
      type(c_ptr) :: Data
   end type ImVector_ImFontPtr
 
-  ! typedef struct ImVector_ImFontAtlasCustomRect {int Size;int Capacity;ImFontAtlasCustomRect* Data;} ImVector_ImFontAtlasCustomRect;
+  type, bind(c) :: ImVector_ImFontAtlasCustomRect
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImFontAtlasCustomRect
 
-  ! typedef struct ImVector_ImFontConfig {int Size;int Capacity;ImFontConfig* Data;} ImVector_ImFontConfig;
+  type, bind(c) :: ImVector_ImFontConfig
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImFontConfig
 
-  ! struct ImFontAtlas
-  ! {
-  !     ImFontAtlasFlags Flags
-  !     type(c_ptr) :: TexID
-  !     integer(c_int) :: TexDesiredWidth
-  !     integer(c_int) :: TexGlyphPadding
-  !     logical(c_bool) :: Locked
-  !     logical(c_bool) :: TexReady
-  !     logical(c_bool) :: TexPixelsUseColors
-  !     unsigned char* TexPixelsAlpha8
-  !     unsigned int* TexPixelsRGBA32
-  !     integer(c_int) :: TexWidth
-  !     integer(c_int) :: TexHeight
-  !     type(ImVec2) :: TexUvScale
-  !     type(ImVec2) :: TexUvWhitePixel
-  !     type(ImVector_ImFontPtr) :: Fonts
-  !     ImVector_ImFontAtlasCustomRect CustomRects
-  !     ImVector_ImFontConfig ConfigData
-  !     type(ImVec4) :: TexUvLines[(63) + 1]
-  !     const ImFontBuilderIO* FontBuilderIO
-  !     integer(c_int) :: FontBuilderFlags
-  !     integer(c_int) :: PackIdMouseCursors
-  !     integer(c_int) :: PackIdLines
-  ! }
+  type, bind(c) :: ImFontAtlas
+      integer(c_int) :: Flags
+      type(c_ptr) :: TexID
+      integer(c_int) :: TexDesiredWidth
+      integer(c_int) :: TexGlyphPadding
+      logical(c_bool) :: Locked
+      logical(c_bool) :: TexReady
+      logical(c_bool) :: TexPixelsUseColors
+      type(c_ptr) :: TexPixelsAlpha8
+      type(c_ptr) :: TexPixelsRGBA32
+      integer(c_int) :: TexWidth
+      integer(c_int) :: TexHeight
+      type(ImVec2) :: TexUvScale
+      type(ImVec2) :: TexUvWhitePixel
+      type(ImVector_ImFontPtr) :: Fonts
+      type(ImVector_ImFontAtlasCustomRect) :: CustomRects
+      type(ImVector_ImFontConfig) :: ConfigData
+      type(ImVec4) :: TexUvLines(64)
+      type(c_ptr) :: FontBuilderIO
+      integer(c_int) :: FontBuilderFlags
+      integer(c_int) :: PackIdMouseCursors
+      integer(c_int) :: PackIdLines
+   end type ImFontAtlas
 
   type, bind(c) :: ImVector_float
      integer(c_int) :: Size

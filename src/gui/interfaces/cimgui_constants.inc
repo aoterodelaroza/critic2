@@ -936,13 +936,16 @@
   integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Unsorted") :: ImGuiTabItemFlags_Unsorted
   integer(c_int), bind(C,name="const_ImGuiTabItemFlags_Preview") :: ImGuiTabItemFlags_Preview
   ! enum ImGuiFreeTypeBuilderFlags
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoHinting") :: ImGuiFreeTypeBuilderFlags_NoHinting
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoAutoHint") :: ImGuiFreeTypeBuilderFlags_NoAutoHint
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_ForceAutoHint") :: ImGuiFreeTypeBuilderFlags_ForceAutoHint
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LightHinting") :: ImGuiFreeTypeBuilderFlags_LightHinting
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_MonoHinting") :: ImGuiFreeTypeBuilderFlags_MonoHinting
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bold") :: ImGuiFreeTypeBuilderFlags_Bold
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Oblique") :: ImGuiFreeTypeBuilderFlags_Oblique
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Monochrome") :: ImGuiFreeTypeBuilderFlags_Monochrome
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LoadColor") :: ImGuiFreeTypeBuilderFlags_LoadColor
-  ! integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bitmap") :: ImGuiFreeTypeBuilderFlags_Bitmap
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoHinting") :: ImGuiFreeTypeBuilderFlags_NoHinting
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_NoAutoHint") :: ImGuiFreeTypeBuilderFlags_NoAutoHint
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_ForceAutoHint") :: ImGuiFreeTypeBuilderFlags_ForceAutoHint
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LightHinting") :: ImGuiFreeTypeBuilderFlags_LightHinting
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_MonoHinting") :: ImGuiFreeTypeBuilderFlags_MonoHinting
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bold") :: ImGuiFreeTypeBuilderFlags_Bold
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Oblique") :: ImGuiFreeTypeBuilderFlags_Oblique
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Monochrome") :: ImGuiFreeTypeBuilderFlags_Monochrome
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LoadColor") :: ImGuiFreeTypeBuilderFlags_LoadColor
+  integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bitmap") :: ImGuiFreeTypeBuilderFlags_Bitmap
+
+  ! default font for the critic2 GUI (POINTER)
+  type(c_ptr), bind(C,name="const_myfont_ttf_compressed_data_base85_ptr") :: myfont_ttf_compressed_data_base85_ptr
