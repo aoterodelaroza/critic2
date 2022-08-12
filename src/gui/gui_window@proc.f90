@@ -180,7 +180,7 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_spg)
 
-       str = "V(A^3)" // c_null_char
+       str = "V/Å³" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_v)
 
@@ -196,27 +196,27 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nmol)
 
-       str = "a" // c_null_char
+       str = "a/Å" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_a)
 
-       str = "b" // c_null_char
+       str = "b/Å" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_b)
 
-       str = "c" // c_null_char
+       str = "c/Å" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_c)
 
-       str = "alpha" // c_null_char
+       str = "α/°" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_alpha)
 
-       str = "beta" // c_null_char
+       str = "β/°" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_beta)
 
-       str = "gamma" // c_null_char
+       str = "γ/°" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
