@@ -1,8 +1,7 @@
 set(SOURCES
   imgui/cimgui.cpp imgui/imgui_impl_glfw.cpp imgui/imgui_impl_opengl3.cpp
   imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp
-  imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/imgui_freetype.cpp
-  imgui/gl3w.c
+  imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/gl3w.c
 
   gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
   gui_interfaces_opengl3.f90 interfaces/constants.cpp
@@ -12,6 +11,12 @@ set(SOURCES
   gui_utils.f90 gui_utils@proc.f90
   gui_window.f90 gui_window@proc.f90
   )
+if (FREETYPE2_FOUND)
+  set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
+  add_definitions("-DIMGUI_ENABLE_FREETYPE")
+  set_property(SOURCE imgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
+endif()
+
 add_library(fgui OBJECT ${SOURCES})
 
 target_include_directories(fgui PRIVATE "${CMAKE_BINARY_DIR}/src/")

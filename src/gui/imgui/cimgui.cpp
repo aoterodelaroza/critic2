@@ -3,13 +3,22 @@
 //with imgui_internal.h api
 //with imgui_freetype.h api
 //docking branch
-#define CIMGUI_FREETYPE
-#define IMGUI_ENABLE_FREETYPE
+#ifdef IMGUI_ENABLE_FREETYPE
+#ifndef CIMGUI_FREETYPE
+#error "IMGUI_FREETYPE should be defined for Freetype linking"
+#endif
+#else
+#ifdef CIMGUI_FREETYPE
+#error "IMGUI_FREETYPE should not be defined without freetype generated cimgui"
+#endif
+#endif
 #include "imgui.h"
+#ifdef IMGUI_ENABLE_FREETYPE
 #include "imgui_freetype.h"
+#endif
 #include "imgui_internal.h"
 #include "cimgui.h"
-#include "cimgui_impl.h"
+
 
 
 CIMGUI_API ImVec2* ImVec2_ImVec2_Nil(void)
@@ -5111,6 +5120,7 @@ CIMGUI_API void igImFontAtlasBuildMultiplyRectAlpha8(const unsigned char table[2
 {
     return ImFontAtlasBuildMultiplyRectAlpha8(table,pixels,x,y,w,h,stride);
 }
+#ifdef CIMGUI_FREETYPE
 CIMGUI_API const ImFontBuilderIO* ImGuiFreeType_GetBuilderForFreeType()
 {
     return ImGuiFreeType::GetBuilderForFreeType();
@@ -5119,6 +5129,7 @@ CIMGUI_API void ImGuiFreeType_SetAllocatorFunctions(void*(*alloc_func)(size_t sz
 {
     return ImGuiFreeType::SetAllocatorFunctions(alloc_func,free_func,user_data);
 }
+#endif
 
 
 

@@ -47,6 +47,8 @@ include(CTest)
 
 ## GUI requirements
 if (ENABLE_GUI)
+  option(USE_FREETYPE2 "Use the freetype2 library (improved font rendering in GUI)." OFF)
+
   ## needs -fPIC
   enable_language(CXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -54,8 +56,10 @@ if (ENABLE_GUI)
   ## find GUI libraries
   find_package(PkgConfig REQUIRED)
   pkg_search_module(GLFW REQUIRED glfw3)
-  pkg_search_module(FREETYPE2 REQUIRED freetype2)
   pkg_search_module(GL REQUIRED gl)
+  if (USE_FREETYPE2)
+    pkg_search_module(FREETYPE2 freetype2)
+  endif()
 endif()
 
 ## perform a static build
