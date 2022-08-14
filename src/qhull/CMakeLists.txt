@@ -1,5 +1,5 @@
-set(SOURCES geom2.c geom.c global.c io.c libqhull.c mem.c merge.c
-  poly2.c poly.c qset.c random.c rboxlib.c stat.c user.c usermem.c
-  userprintf.c userprintf_rbox.c)
+set(SOURCES accessors_r.c geom2_r.c geom_r.c global_r.c io_r.c libqhull_r.c
+            mem_r.c merge_r.c poly2_r.c poly_r.c qset_r.c random_r.c rboxlib_r.c
+            stat_r.c usermem_r.c userprintf_rbox_r.c userprintf_r.c user_r.c)
 
 add_library(qhull OBJECT ${SOURCES})

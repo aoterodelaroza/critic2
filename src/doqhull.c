@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "libqhull.h"
+#include "libqhull_r.h"
 
 static FILE *fidsave_voronoi = NULL;
 static FILE *fidsave_basintri = NULL;
@@ -31,6 +31,8 @@ static FILE *fidsave_basintri = NULL;
 // The temporary file containing the vertex/edge/face information
 // remains open until the user calls step2. The handle is saved in fidsave_voronoi.
 void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv){
+  qhT qhT_;
+
   // write input file
   FILE *fid1 = tmpfile();
   fprintf(fid1,"3\n");
@@ -50,31 +52,34 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   // p: print vertices
   // Fv: print facet vertex indices
   // Fa: print areas
-  int nopts = 7;
-  char *opts[] = {"qhull","v","Qbb","QV0","Fv","p","Qs"};
-  qh_init_A(fid1, fid2, stderr, nopts, opts);
-  qh_initflags(qh qhull_command);
+  qh_init_A(&qhT_, fid1, fid2, stderr, 0, NULL);
+  qhT_.NOerrexit= False;
+  char options [2000];
+  sprintf(options,"qhull v Qbb QV0 Fv p Qs");
+  qh_initflags(&qhT_, options);
 
   int dim, numpoints;
   boolT ismalloc;
   coordT *points;
-  points = qh_readpoints(&numpoints, &dim, &ismalloc);
+  points = qh_readpoints(&qhT_, &numpoints, &dim, &ismalloc);
 
-  qh_init_B(points, numpoints, dim, ismalloc);
-  qh_qhull();
-  qh_check_output();
-  qh_produce_output();
-  qh_freeqhull(True);
+  qh_init_B(&qhT_, points, numpoints, dim, ismalloc);
+  qh_qhull(&qhT_);
+  qh_check_output(&qhT_);
+  qh_produce_output(&qhT_);
+  qh_freeqhull(&qhT_, True);
   int curlong, totlong;
-  qh_memfreeshort (&curlong, &totlong);
+  qh_memfreeshort(&qhT_, &curlong, &totlong);
   fclose(fid1);
 
   // read the file and write down the dimensions for the arrays
+  printf("here!\n");
   *mnfv = 0;
   rewind(fid2);
   char buf[1024];
   fgets(buf, sizeof(buf), fid2);
   sscanf(buf,"%d",nf);
+  printf("here! %d\n",*nf);
   for (int i=0; i<*nf; i++){
     fgets(buf, sizeof(buf), fid2);
     int kk;
@@ -130,8 +135,9 @@ void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[
 // containing the face information remains open until the user calls
 // step2. The handle is saved in fidsave_basintri.
 void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], int *nf){
-  // write input file
+  qhT qhT_;
 
+  // write input file
   FILE *fid1 = tmpfile();
   fprintf(fid1,"3\n");
   fprintf(fid1,"%d\n", n);
@@ -149,23 +155,24 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
   // qhull (no options = convex hull)
   // Fv: print facet vertex indices
   // Qt: faces are triangles
-  int nopts = 3;
-  char *opts[] = {"qhull","Fv","Qt"};
-  qh_init_A(fid1, fid2, stderr, nopts, opts);
-  qh_initflags(qh qhull_command);
+  qh_init_A(&qhT_, fid1, fid2, stderr, 0, NULL);
+  qhT_.NOerrexit= False;
+  char options [2000];
+  sprintf(options,"qhull Fv Qt");
+  qh_initflags(&qhT_, options);
 
   int dim, numpoints;
   boolT ismalloc;
   coordT *points;
-  points = qh_readpoints(&numpoints, &dim, &ismalloc);
+  points = qh_readpoints(&qhT_, &numpoints, &dim, &ismalloc);
 
-  qh_init_B(points, numpoints, dim, ismalloc);
-  qh_qhull();
-  qh_check_output();
-  qh_produce_output();
-  qh_freeqhull(True);
+  qh_init_B(&qhT_, points, numpoints, dim, ismalloc);
+  qh_qhull(&qhT_);
+  qh_check_output(&qhT_);
+  qh_produce_output(&qhT_);
+  qh_freeqhull(&qhT_, True);
   int curlong, totlong;
-  qh_memfreeshort (&curlong, &totlong);
+  qh_memfreeshort(&qhT_, &curlong, &totlong);
   fclose(fid1);
 
   // read the file and write down the dimensions for the arrays
