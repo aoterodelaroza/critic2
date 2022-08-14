@@ -20,7 +20,7 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
-  use iso_c_binding, only: c_ptr, c_float, c_int
+  use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
   use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
   use gui_window, only: window
   use systemmod, only: system
@@ -54,11 +54,15 @@ module gui_main
      integer :: status = sys_empty
      type(crystalseed) :: seed
      logical :: has_field
-     type(c_ptr) :: thread_lock
+     type(c_ptr) :: thread_lock = c_null_ptr
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
+
+  ! number of threads in execution
+  integer :: nthread = 0
+  type(c_ptr) :: nthread_lock = c_null_ptr
 
   ! public procedures
   public :: gui_start

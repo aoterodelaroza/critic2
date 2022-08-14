@@ -20,6 +20,18 @@
 
 // Preprocessor-constants for Fortran.
 
+// threads
+/* Function return values */
+extern "C" const int const_thrd_error;
+extern "C" const int const_thrd_success;
+extern "C" const int const_thrd_timedout;
+extern "C" const int const_thrd_busy;
+extern "C" const int const_thrd_nomem;
+/* Mutex types */
+extern "C" const int const_mtx_plain;
+extern "C" const int const_mtx_timed;
+extern "C" const int const_mtx_recursive;
+
 // OpenGL
 extern "C" const int const_GL_COLOR_BUFFER_BIT;
 

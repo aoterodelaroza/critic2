@@ -59,9 +59,15 @@ contains
     nsys = 0
     allocate(sys(1),sysc(1))
 
+    ! initialize the thread count
+    ! xxxx
+    ! int mtx_init(mtx_t *mtx, int type);
+    ! use nthreads and the thread lock
+
     ! Parse the command line and read as many systems as possible
     ! Initialize the first system, if available
     call process_arguments()
+    call launch_initialization_thread()
     ! xxxx!
     ! if (sysc(1)%status == sys_loaded_not_init) &
     !    call system_initialize(1)
@@ -199,6 +205,8 @@ contains
     call ImGui_ImplOpenGL3_Shutdown()
     call ImGui_ImplGlfw_Shutdown()
     call igDestroyContext(c_null_ptr)
+    ! xxxx
+    ! void mtx_destroy(mtx_t *mtx);
 
     ! terminate
     call glfwDestroyWindow(rootwin)
@@ -248,6 +256,11 @@ contains
   !   sys_status(id) = sys_init
 
   ! end subroutine system_initialize
+
+  subroutine launch_initialization_thread()
+    write (*,*) "bleh!"
+    stop 1
+  end subroutine launch_initialization_thread
 
   !xx! private procedures
 

@@ -28,6 +28,19 @@
 #include "../imgui/cimgui.h"
 #include <GLFW/glfw3.h>
 #include "constants.h"
+#include "../threads/tinycthread.h"
+
+// threads
+/* Function return values */
+const int const_thrd_error = thrd_error;
+const int const_thrd_success = thrd_success;
+const int const_thrd_timedout = thrd_timedout;
+const int const_thrd_busy = thrd_busy;
+const int const_thrd_nomem = thrd_nomem;
+/* Mutex types */
+const int const_mtx_plain = mtx_plain;
+const int const_mtx_timed = mtx_timed;
+const int const_mtx_recursive = mtx_recursive;
 
 // OpenGL
 const int const_GL_COLOR_BUFFER_BIT = GL_COLOR_BUFFER_BIT;

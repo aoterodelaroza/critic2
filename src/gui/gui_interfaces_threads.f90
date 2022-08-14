@@ -22,14 +22,12 @@ module gui_interfaces_threads
 
   public
 
+  !xx! tinycthread constants
+  include "interfaces/threads_constants.inc"
+
   interface
-     ! int mtx_init(mtx_t *mtx, int type);
-     function mtx_init(mtx, type) bind(c,name="mtx_init")
-       import c_int, c_ptr
-       type(c_ptr), value :: mtx
-       integer(c_int), value :: type
-       integer(c_int) :: mtx_init
-     end function mtx_init
+     !xx! tinycthread procedures
+     include "interfaces/threads_proc.inc"
   end interface
 
 end module gui_interfaces_threads
