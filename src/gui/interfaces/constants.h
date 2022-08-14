@@ -20,6 +20,9 @@
 
 // Preprocessor-constants for Fortran.
 
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
 // threads
 /* Function return values */
 extern "C" const int const_thrd_error;
@@ -969,3 +972,5 @@ extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bitmap;
 
 // The default font for the critic2 GUI
 extern "C" const char *const_myfont_ttf_compressed_data_base85_ptr;
+
+#endif CONSTANTS_H

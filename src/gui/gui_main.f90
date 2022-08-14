@@ -60,20 +60,16 @@ module gui_main
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
 
-  ! number of threads in execution
-  integer :: nthread = 0
-  type(c_ptr) :: nthread_lock = c_null_ptr
-
   ! public procedures
   public :: gui_start
-  public :: system_initialize
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
-     module subroutine system_initialize(id)
-       integer, intent(in) :: id
-     end subroutine system_initialize
+     ! module subroutine system_initialize(id)
+     !   integer, intent(in) :: id
+     ! end subroutine system_initialize
+     ! xxxx
   end interface
 
 contains

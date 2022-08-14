@@ -3,7 +3,7 @@ set(SOURCES
   imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp
   imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/gl3w.c
 
-  threads/tinycthread.c
+  threads/tinycthread.c threads/tinycwrapper.c
 
   gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
   gui_interfaces_opengl3.f90 gui_interfaces_threads.f90

@@ -30,6 +30,10 @@ submodule (gui_main) proc
   ! the dockspace ID
   integer(c_int) :: iddock = 0
 
+  ! threads in execution
+  integer, parameter :: nthread = 4
+  type(c_ptr), target :: thread(nthread)
+
   !xx! private procedures
   ! subroutine process_arguments()
   ! function stack_create_window(type,isopen)
@@ -39,6 +43,7 @@ contains
 
   ! Start the critic2 GUI.
   module subroutine gui_start()
+    use gui_interfaces_threads
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
@@ -59,18 +64,15 @@ contains
     nsys = 0
     allocate(sys(1),sysc(1))
 
-    ! initialize the thread count
-    ! xxxx
-    ! int mtx_init(mtx_t *mtx, int type);
-    ! use nthreads and the thread lock
+    ! initialize threads
+    do i = 1, size(thread,1)
+       thread(i) = allocate_thrd()
+    end do
 
     ! Parse the command line and read as many systems as possible
     ! Initialize the first system, if available
     call process_arguments()
     call launch_initialization_thread()
-    ! xxxx!
-    ! if (sysc(1)%status == sys_loaded_not_init) &
-    !    call system_initialize(1)
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -205,8 +207,14 @@ contains
     call ImGui_ImplOpenGL3_Shutdown()
     call ImGui_ImplGlfw_Shutdown()
     call igDestroyContext(c_null_ptr)
-    ! xxxx
-    ! void mtx_destroy(mtx_t *mtx);
+
+    ! cleanup threads & mutexes
+    do i = 1, nthread
+       if (c_associated(thread(i))) call deallocate_thrd(thread(i))
+    end do
+    do i = 1, nsys
+       if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
+    end do
 
     ! terminate
     call glfwDestroyWindow(rootwin)
@@ -227,45 +235,22 @@ contains
     end subroutine error_callback
   end subroutine gui_start
 
-  ! ! initialize the system id if possible, flag it as init'd
-  ! module subroutine system_initialize(id)
-  !   use tools_io, only: string, uout
-  !   integer, intent(in) :: id
-  !   integer :: idum
-  !   character(len=:), allocatable :: errmsg
-
-  !   ! checks
-  !   if (id < 1 .or. id > nsys) return
-  !   if (sys_status(id) /= sys_loaded_not_init) return
-
-  !   ! initialize the system
-  !   call sys(id)%new_from_seed(sys_seed(id))
-
-  !   ! load any fields
-  !   if (sys_has_field(id)) then
-  !      call sys(id)%load_field_string(sys_seed(id)%file,idum,errmsg)
-  !      if (len_trim(errmsg) > 0) then
-  !         write (uout,'("!! Warning !! Could not read field for system: ",A)') string(id)
-  !      else
-  !         sys(id)%f(idum)%file = sys_seed(id)%file
-  !         sys(id)%f(idum)%name = sys_seed(id)%file
-  !      end if
-  !   end if
-
-  !   ! this system has been initialized
-  !   sys_status(id) = sys_init
-
-  ! end subroutine system_initialize
-
+  !> Launch the initialization threads.
   subroutine launch_initialization_thread()
-    write (*,*) "bleh!"
-    stop 1
+    use gui_interfaces_threads
+    integer :: i, idum
+
+    do i = 1, nthread
+       idum = thrd_create(c_loc(thread(i)), c_funloc(thread_worker), c_null_ptr)
+    end do
+
   end subroutine launch_initialization_thread
 
   !xx! private procedures
 
   ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
+    use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout
     use types, only: realloc
@@ -278,6 +263,7 @@ contains
     character(len=:), allocatable :: errmsg
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
+    integer(c_int) :: idum
 
     argc = command_argument_count()
     do i = 1, argc
@@ -304,6 +290,10 @@ contains
              sysc(idx)%status = sys_loaded_not_init
              sysc(idx)%seed = seed(iseed)
              sysc(idx)%has_field = .false.
+             if (.not.c_associated(sysc(idx)%thread_lock)) then
+                sysc(idx)%thread_lock = allocate_mtx()
+                idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
+             end if
           end do
           if (iafield > 0) &
              sysc(nsys - nseed + iafield)%has_field = .true.
@@ -432,5 +422,49 @@ contains
        call igClosePopupsExceptModals()
 
   end subroutine process_global_keybindings
+
+  ! Thread worker: run over all systems and initialize the ones that are not locked
+  function thread_worker(arg)
+    use gui_interfaces_threads
+    use tools_io, only: string, uout
+    type(c_ptr), value :: arg
+    integer(c_int) :: thread_worker
+
+    integer :: i
+    integer(c_int) :: idum
+    integer :: iff
+    character(len=:), allocatable :: errmsg
+
+    do i = 1, nsys
+       if (c_associated(sysc(i)%thread_lock)) then
+          idum = mtx_trylock(sysc(i)%thread_lock)
+          if (idum == thrd_success) then
+             if (sysc(i)%status == sys_loaded_not_init) then
+                sysc(i)%status = sys_initializing
+                ! xxxxx !
+                call sleep(1)
+                ! load the seed
+                call sys(i)%new_from_seed(sysc(i)%seed)
+
+                ! load any fields
+                if (sysc(i)%has_field) then
+                   call sys(i)%load_field_string(sysc(i)%seed%file,iff,errmsg)
+                   if (len_trim(errmsg) > 0) then
+                      write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                   else
+                      sys(i)%f(iff)%file = sysc(i)%seed%file
+                      sys(i)%f(iff)%name = sysc(i)%seed%file
+                   end if
+                end if
+
+                ! this system has been initialized
+                sysc(i)%status = sys_init
+                idum = mtx_unlock(sysc(i)%thread_lock)
+             end if
+          end if
+       end if
+    end do
+
+  end function thread_worker
 
 end submodule proc

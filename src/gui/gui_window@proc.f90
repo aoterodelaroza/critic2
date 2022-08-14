@@ -103,7 +103,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init, system_initialize
+    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
