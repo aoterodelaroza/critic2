@@ -48,12 +48,17 @@ module gui_main
   ! systems arrays
   integer, parameter, public :: sys_empty = 0
   integer, parameter, public :: sys_loaded_not_init = 1
-  integer, parameter, public :: sys_init = 2
+  integer, parameter, public :: sys_initializing = 2
+  integer, parameter, public :: sys_init = 3
+  type :: sysconf
+     integer :: status = sys_empty
+     type(crystalseed) :: seed
+     logical :: has_field
+     type(c_ptr) :: thread_lock
+  end type sysconf
   integer, public :: nsys = 0
-  type(system), allocatable, target, public :: sys(:) ! make sure to keep no emptys here
-  integer, allocatable, public :: sys_status(:)
-  type(crystalseed), allocatable, public :: sys_seed(:)
-  logical, allocatable, public :: sys_has_field(:)
+  type(system), allocatable, target, public :: sys(:)
+  type(sysconf), allocatable, target, public :: sysc(:)
 
   ! public procedures
   public :: gui_start

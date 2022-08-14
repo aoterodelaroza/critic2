@@ -57,13 +57,14 @@ contains
 
     ! initialize the sys arrays
     nsys = 0
-    allocate(sys(1),sys_status(1),sys_seed(1),sys_has_field(1))
+    allocate(sys(1),sysc(1))
 
     ! Parse the command line and read as many systems as possible
     ! Initialize the first system, if available
     call process_arguments()
-    if (sys_status(1) == sys_loaded_not_init) &
-       call system_initialize(1)
+    ! xxxx!
+    ! if (sysc(1)%status == sys_loaded_not_init) &
+    !    call system_initialize(1)
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -218,35 +219,35 @@ contains
     end subroutine error_callback
   end subroutine gui_start
 
-  ! initialize the system id if possible, flag it as init'd
-  module subroutine system_initialize(id)
-    use tools_io, only: string, uout
-    integer, intent(in) :: id
-    integer :: idum
-    character(len=:), allocatable :: errmsg
+  ! ! initialize the system id if possible, flag it as init'd
+  ! module subroutine system_initialize(id)
+  !   use tools_io, only: string, uout
+  !   integer, intent(in) :: id
+  !   integer :: idum
+  !   character(len=:), allocatable :: errmsg
 
-    ! checks
-    if (id < 1 .or. id > nsys) return
-    if (sys_status(id) /= sys_loaded_not_init) return
+  !   ! checks
+  !   if (id < 1 .or. id > nsys) return
+  !   if (sys_status(id) /= sys_loaded_not_init) return
 
-    ! initialize the system
-    call sys(id)%new_from_seed(sys_seed(id))
+  !   ! initialize the system
+  !   call sys(id)%new_from_seed(sys_seed(id))
 
-    ! load any fields
-    if (sys_has_field(id)) then
-       call sys(id)%load_field_string(sys_seed(id)%file,idum,errmsg)
-       if (len_trim(errmsg) > 0) then
-          write (uout,'("!! Warning !! Could not read field for system: ",A)') string(id)
-       else
-          sys(id)%f(idum)%file = sys_seed(id)%file
-          sys(id)%f(idum)%name = sys_seed(id)%file
-       end if
-    end if
+  !   ! load any fields
+  !   if (sys_has_field(id)) then
+  !      call sys(id)%load_field_string(sys_seed(id)%file,idum,errmsg)
+  !      if (len_trim(errmsg) > 0) then
+  !         write (uout,'("!! Warning !! Could not read field for system: ",A)') string(id)
+  !      else
+  !         sys(id)%f(idum)%file = sys_seed(id)%file
+  !         sys(id)%f(idum)%name = sys_seed(id)%file
+  !      end if
+  !   end if
 
-    ! this system has been initialized
-    sys_status(id) = sys_init
+  !   ! this system has been initialized
+  !   sys_status(id) = sys_init
 
-  end subroutine system_initialize
+  ! end subroutine system_initialize
 
   !xx! private procedures
 
@@ -263,7 +264,7 @@ contains
     type(crystalseed), allocatable :: seed(:)
     character(len=:), allocatable :: errmsg
     type(system), allocatable :: syaux(:)
-    type(crystalseed), allocatable :: seedaux(:)
+    type(sysconf), allocatable :: syscaux(:)
 
     argc = command_argument_count()
     do i = 1, argc
@@ -280,23 +281,19 @@ contains
              syaux(1:size(sys,1)) = sys
              call move_alloc(syaux,sys)
 
-             allocate(seedaux(2*nsys))
-             seedaux(1:size(sys_seed,1)) = sys_seed
-             call move_alloc(seedaux,sys_seed)
-
-             call realloc(sys_has_field,2*nsys)
-             call realloc(sys_status,2*nsys)
-             sys_status(nsys-nseed+1:2*nsys) = 0
+             allocate(syscaux(2*nsys))
+             syscaux(1:size(sysc,1)) = sysc
+             call move_alloc(syscaux,sysc)
           end if
           do iseed = 1, nseed
              idx = nsys - nseed + iseed
              sys(idx)%isinit = .false.
-             sys_status(idx) = sys_loaded_not_init
-             sys_seed(idx) = seed(iseed)
-             sys_has_field(idx) = .false.
+             sysc(idx)%status = sys_loaded_not_init
+             sysc(idx)%seed = seed(iseed)
+             sysc(idx)%has_field = .false.
           end do
           if (iafield > 0) &
-             sys_has_field(nsys - nseed + iafield) = .true.
+             sysc(nsys - nseed + iafield)%has_field = .true.
        else
           write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(argv)
           write (uout,'("Error: ",A)') trim(errmsg)

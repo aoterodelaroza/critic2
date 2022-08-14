@@ -103,8 +103,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_main, only: sys, sys_status, sys_empty, sys_init,&
-       sys_seed, system_initialize
+    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init, system_initialize
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
@@ -147,8 +146,9 @@ contains
     needcolresize = .false.
     needsort = .false.
     if (w%table_selected > 0 .and. w%table_selected <= nshown) then
-       if (sys_status(w%iord(w%table_selected)) /= sys_init) then
-          call system_initialize(w%iord(w%table_selected))
+       if (sysc(w%iord(w%table_selected))%status == sys_loaded_not_init) then
+          ! xxxx
+          ! call system_initialize(w%iord(w%table_selected))
           needcolresize = .true.
        end if
     end if
@@ -243,7 +243,7 @@ contains
        ! draw the rows
        do j = 1, nshown
           i = w%iord(j)
-          if (sys_status(i) == sys_empty) cycle
+          if (sysc(i)%status == sys_empty) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! ID
@@ -258,11 +258,11 @@ contains
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
-             str = trim(sys_seed(i)%file) // c_null_char
+             str = trim(sysc(i)%seed%file) // c_null_char
              call igText(c_loc(str))
           end if
 
-          if (sys_status(i) == sys_init) then
+          if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_spg)) then ! spg
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
@@ -360,18 +360,19 @@ contains
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
-    use gui_main, only: sys_status, nsys, sys_empty
+    use gui_main, only: sysc, nsys, sys_empty
     class(window), intent(inout) :: w
 
     integer :: i, n
 
     if (allocated(w%iord)) deallocate(w%iord)
-    n = count(sys_status(1:nsys) /= sys_empty)
+    n = count(sysc(1:nsys)%status /= sys_empty)
+    allocate(w%iord(max(n,1)))
+    w%iord(1) = 1
     if (n > 0) then
-       allocate(w%iord(n))
        n = 0
        do i = 1, nsys
-          if (sys_status(i) /= sys_empty) then
+          if (sysc(i)%status /= sys_empty) then
              n = n + 1
              w%iord(n) = i
           end if
@@ -383,7 +384,7 @@ contains
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sys_status, sys_init, sys_seed, sys_empty
+    use gui_main, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -413,7 +414,7 @@ contains
        do i = 1, n
           if (cid == ic_id) then
              ival(i) = w%iord(i)
-          elseif (sys_status(w%iord(i)) == sys_init) then
+          elseif (sysc(w%iord(i))%status == sys_init) then
              if (cid == ic_nneq) then
                 ival(i) = sys(w%iord(i))%c%nneq
              elseif (cid == ic_ncel) then
@@ -433,7 +434,7 @@ contains
        ! sort by real
        allocate(rval(n))
        do i = 1, n
-          doit = sys_status(w%iord(i)) == sys_init
+          doit = sysc(w%iord(i))%status == sys_init
           if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
           if (doit) then
              if (cid == ic_v) then
@@ -462,10 +463,10 @@ contains
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (cid == ic_name .and. sys_status(w%iord(i)) /= sys_empty) then
-             sval(i)%s = trim(sys_seed(w%iord(i))%file)
+          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty) then
+             sval(i)%s = trim(sysc(w%iord(i))%seed%file)
           else
-             doit = (cid == ic_spg) .and. (sys_status(w%iord(i)) == sys_init)
+             doit = (cid == ic_spg) .and. (sysc(w%iord(i))%status == sys_init)
              if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
              if (doit) doit = sys(w%iord(i))%c%spgavail
              if (doit) then
