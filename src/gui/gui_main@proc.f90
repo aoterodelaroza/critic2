@@ -31,8 +31,8 @@ submodule (gui_main) proc
   integer(c_int) :: iddock = 0
 
   ! threads in execution
-  integer, parameter :: nthread = 4
-  type(c_ptr), target :: thread(nthread)
+  integer :: nthread = 1
+  type(c_ptr), target, allocatable :: thread(:)
 
   !xx! private procedures
   ! subroutine process_arguments()
@@ -53,6 +53,7 @@ contains
     use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
+    use omp_lib, only: omp_get_max_threads
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc, pdum
@@ -67,7 +68,10 @@ contains
     allocate(sys(1),sysc(1))
 
     ! initialize threads
-    do i = 1, size(thread,1)
+    nthread = omp_get_max_threads()
+    if (allocated(thread)) deallocate(thread)
+    allocate(thread(nthread))
+    do i = 1, nthread
        thread(i) = allocate_thrd()
     end do
 
