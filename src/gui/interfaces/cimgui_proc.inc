@@ -243,7 +243,11 @@ end subroutine igText
 !x! void igTextV(const char* fmt,va_list args);
 !x! void igTextColored(const ImVec4 col,const char* fmt,...);
 !x! void igTextColoredV(const ImVec4 col,const char* fmt,va_list args);
-!x! void igTextDisabled(const char* fmt,...);
+! void igTextDisabled(const char* fmt,...);
+subroutine igTextDisabled(fmt) bind(c,name="igTextDisabled")
+  import c_ptr
+  type(c_ptr), intent(in), value :: fmt
+end subroutine igTextDisabled
 !x! void igTextDisabledV(const char* fmt,va_list args);
 ! void igTextWrapped(const char* fmt,...);
 subroutine igTextWrapped(fmt) bind(c,name="igTextWrapped")

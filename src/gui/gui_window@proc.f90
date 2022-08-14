@@ -259,7 +259,11 @@ contains
           ! name
           if (igTableSetColumnIndex(ic_name)) then
              str = trim(sysc(i)%seed%file) // c_null_char
-             call igText(c_loc(str))
+             if (sysc(i)%status == sys_init) then
+                call igText(c_loc(str))
+             else
+                call igTextDisabled(c_loc(str))
+             end if
           end if
 
           if (sysc(i)%status == sys_init) then
