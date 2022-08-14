@@ -3,8 +3,11 @@ set(SOURCES
   imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp
   imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/gl3w.c
 
+  threads/tinycthread.c
+
   gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
-  gui_interfaces_opengl3.f90 interfaces/constants.cpp
+  gui_interfaces_opengl3.f90 gui_interfaces_threads.f90
+  interfaces/constants.cpp
 
   gui_main.f90 gui_main@proc.f90
   gui_keybindings.f90 gui_keybindings@proc.f90
