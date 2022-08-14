@@ -22,15 +22,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <math.h>
 #include "libqhull_r.h"
 
-static FILE *fidsave_voronoi = NULL;
-static FILE *fidsave_basintri = NULL;
-
 // From a list of n vertices (xstar), calculate the Voronoi polyhedron
 // of the first point in xstar and return its number of faces (nf),
 // number of vertices (nv), and the maximum number of vertex per face (mnfv).
 // The temporary file containing the vertex/edge/face information
 // remains open until the user calls step2. The handle is saved in fidsave_voronoi.
-void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv){
+void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv, FILE **fid){
   qhT qhT_;
 
   // write input file
@@ -73,13 +70,11 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   fclose(fid1);
 
   // read the file and write down the dimensions for the arrays
-  printf("here!\n");
   *mnfv = 0;
   rewind(fid2);
   char buf[1024];
   fgets(buf, sizeof(buf), fid2);
   sscanf(buf,"%d",nf);
-  printf("here! %d\n",*nf);
   for (int i=0; i<*nf; i++){
     fgets(buf, sizeof(buf), fid2);
     int kk;
@@ -90,7 +85,7 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   fgets(buf, sizeof(buf), fid2);
   fgets(buf, sizeof(buf), fid2);
   sscanf(buf,"%d",nv);
-  fidsave_voronoi = fid2;
+  *fid = fid2;
 }
 
 // Read the Voronoi polyhedron calculated in step 1. Input: number of faces
@@ -99,33 +94,33 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
 // of the polyhedron (xvws), the number of vertices for each face (nfvws), and
 // the list of vertices for each face (fvws).
 void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[nv][3],
-	       int nfvws[nf], int fvws[nf][mnfv]){
+	       int nfvws[nf], int fvws[nf][mnfv], FILE *fid){
 
-  rewind(fidsave_voronoi);
+  rewind(fid);
   char buf[1024];
 
   // read the faces
-  fgets(buf, sizeof(buf), fidsave_voronoi);
+  fgets(buf, sizeof(buf), fid);
   for (int i=0; i<nf; i++){
     int idum;
-    fscanf(fidsave_voronoi,"%d %d %d", &(nfvws[i]),&idum,&(ivws[i]));
+    fscanf(fid,"%d %d %d", &(nfvws[i]),&idum,&(ivws[i]));
     nfvws[i] -= 2;
     for (int j=0; j<nfvws[i]; j++)
-      fscanf(fidsave_voronoi,"%d", &(fvws[i][j]));
+      fscanf(fid,"%d", &(fvws[i][j]));
     for (int j=nfvws[i]; j<mnfv; j++)
       fvws[i][j] = 0;
   }
-  fgets(buf, sizeof(buf), fidsave_voronoi);
+  fgets(buf, sizeof(buf), fid);
 
   // read the vertices
-  fgets(buf, sizeof(buf), fidsave_voronoi);
-  fgets(buf, sizeof(buf), fidsave_voronoi);
+  fgets(buf, sizeof(buf), fid);
+  fgets(buf, sizeof(buf), fid);
   for (int i=0; i<nv; i++){
-    fgets(buf, sizeof(buf), fidsave_voronoi);
+    fgets(buf, sizeof(buf), fid);
     sscanf(buf,"%lf %lf %lf",&(xvws[i][0]),&(xvws[i][1]),&(xvws[i][2]));
   }
 
-  fclose(fidsave_voronoi);
+  fclose(fid);
 }
 
 // From a list of n vertices (xvert), and an inside point (x0),
@@ -134,7 +129,7 @@ void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[
 // of faces in the convex hull (nf) is returned.  The temporary file
 // containing the face information remains open until the user calls
 // step2. The handle is saved in fidsave_basintri.
-void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], int *nf){
+void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], int *nf, FILE **fid){
   qhT qhT_;
 
   // write input file
@@ -178,24 +173,24 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
   // read the file and write down the dimensions for the arrays
   rewind(fid2);
   fscanf(fid2,"%d",nf);
-  fidsave_basintri = fid2;
+  *fid = fid2;
 }
 
 // Read the convex hull faces calculated in step 1. Input: number of
 // faces (nf). Returns: the list of vertex identifiers for each face
 // (iface).
-void runqhull_basintriangulate_step2(int nf, int iface[nf][3]){
-  rewind(fidsave_basintri);
+void runqhull_basintriangulate_step2(int nf, int iface[nf][3], FILE *fid){
+  rewind(fid);
   char buf[1024];
 
   // read the faces
-  fgets(buf, sizeof(buf), fidsave_basintri);
+  fgets(buf, sizeof(buf), fid);
   for (int i=0; i<nf; i++){
     int idum;
-    fscanf(fidsave_basintri,"%d %d %d %d", &idum, &(iface[i][0]), &(iface[i][1]), &(iface[i][2]));
+    fscanf(fid,"%d %d %d %d", &idum, &(iface[i][0]), &(iface[i][1]), &(iface[i][2]));
     for (int j=0; j<3; j++)
       iface[i][j] += 1;
   }
 
-  fclose(fidsave_basintri);
+  fclose(fid);
 }

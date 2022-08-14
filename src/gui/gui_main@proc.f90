@@ -38,6 +38,8 @@ submodule (gui_main) proc
   ! subroutine process_arguments()
   ! function stack_create_window(type,isopen)
   ! subroutine show_main_menu()
+  ! subroutine process_global_keybindings()
+  ! function initialization_thread_worker(arg)
 
 contains
 
@@ -82,7 +84,7 @@ contains
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1)
-    !xx! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
+    ! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
 
     ! set up window
     strc = gui_title
@@ -241,7 +243,7 @@ contains
     integer :: i, idum
 
     do i = 1, nthread
-       idum = thrd_create(c_loc(thread(i)), c_funloc(thread_worker), c_null_ptr)
+       idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_null_ptr)
     end do
 
   end subroutine launch_initialization_thread
@@ -250,12 +252,13 @@ contains
 
   ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
+    use grid1mod, only: grid1_register_ae
     use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout
     use types, only: realloc
     integer :: argc
-    integer :: i
+    integer :: i, j
     character(len=1024) :: argv
 
     integer :: nseed, iseed, iafield, idx
@@ -285,15 +288,23 @@ contains
              call move_alloc(syscaux,sysc)
           end if
           do iseed = 1, nseed
+             ! make a new system for this seed
              idx = nsys - nseed + iseed
              sys(idx)%isinit = .false.
              sysc(idx)%status = sys_loaded_not_init
              sysc(idx)%seed = seed(iseed)
              sysc(idx)%has_field = .false.
+
+             ! initialize the mutex
              if (.not.c_associated(sysc(idx)%thread_lock)) then
                 sysc(idx)%thread_lock = allocate_mtx()
                 idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
              end if
+
+             ! register all all-electron densities (global - should not be done by threads)
+             do j = 1, seed(iseed)%nspc
+                call grid1_register_ae(seed(iseed)%spc(j)%z)
+             end do
           end do
           if (iafield > 0) &
              sysc(nsys - nseed + iafield)%has_field = .true.
@@ -424,11 +435,11 @@ contains
   end subroutine process_global_keybindings
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
-  function thread_worker(arg)
+  function initialization_thread_worker(arg)
     use gui_interfaces_threads
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
-    integer(c_int) :: thread_worker
+    integer(c_int) :: initialization_thread_worker
 
     integer :: i
     integer(c_int) :: idum
@@ -441,8 +452,6 @@ contains
           if (idum == thrd_success) then
              if (sysc(i)%status == sys_loaded_not_init) then
                 sysc(i)%status = sys_initializing
-                ! xxxxx !
-                call sleep(1)
                 ! load the seed
                 call sys(i)%new_from_seed(sysc(i)%seed)
 
@@ -464,7 +473,8 @@ contains
           end if
        end if
     end do
+    initialization_thread_worker = 0
 
-  end function thread_worker
+  end function initialization_thread_worker
 
 end submodule proc

@@ -2095,7 +2095,7 @@ contains
 
   !> Calculate the coordination polyedra.
   module subroutine struct_polyhedra(s,line)
-    use iso_c_binding, only: c_int, c_double
+    use iso_c_binding, only: c_int, c_double, c_ptr
     use systemmod, only: system
     use tools_io, only: equali, zatguess, ferror, faterr, getword, uout, string, ioj_left, ioj_center
     use tools_math, only: mixed
@@ -2119,20 +2119,23 @@ contains
     real(c_double), allocatable :: xstar(:,:)
     integer(c_int), allocatable :: iface(:,:)
     type(environ), pointer :: eptr
+    type(c_ptr), target :: fid
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf) bind(c)
-         import c_int, c_double
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,fid) bind(c)
+         import c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: x0(3)
          real(c_double) :: xvert(3,n)
          integer(c_int) :: nf
+         type(c_ptr) :: fid
        end subroutine runqhull_basintriangulate_step1
-       subroutine runqhull_basintriangulate_step2(nf,iface) bind(c)
-         import c_int, c_double
+       subroutine runqhull_basintriangulate_step2(nf,iface,fid) bind(c)
+         import c_int, c_double, c_ptr
          integer(c_int), value :: nf
          integer(c_int) :: iface(3,nf)
+         type(c_ptr), value :: fid
        end subroutine runqhull_basintriangulate_step2
     end interface
 
@@ -2229,10 +2232,10 @@ contains
           xstar(:,j) = eptr%xr2x(eptr%at(eid(j))%x) + lvec
           xstar(:,j) = s%c%x2c(xstar(:,j))
        end do
-       call runqhull_basintriangulate_step1(nat,x0,xstar,nf)
+       call runqhull_basintriangulate_step1(nat,x0,xstar,nf,fid)
        if (allocated(iface)) deallocate(iface)
        allocate(iface(3,nf))
-       call runqhull_basintriangulate_step2(nf,iface)
+       call runqhull_basintriangulate_step2(nf,iface,fid)
 
        ! calculate the polyhedron volume
        vol = 0d0
@@ -3649,7 +3652,7 @@ contains
 
   !> Calculate and print information about the Brilloun zone.
   module subroutine struct_bz(s)
-    use, intrinsic :: iso_c_binding, only: c_int, c_double
+    use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use global, only: iunitname0, iunit, dunit0
     use tools_math, only: matinv
     use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center
@@ -3659,19 +3662,21 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
+         type(c_ptr) :: fid
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
+         type(c_ptr), value :: fid
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -3683,6 +3688,7 @@ contains
     integer :: bz_nf, bz_nv, bz_mnfv, bz_nside(14), bz_ineighx(3,14)
     integer, allocatable :: bz_iside(:,:)
     real*8, allocatable :: bz_x(:,:)
+    type(c_ptr), target :: fid
 
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
     character*2, parameter :: lvecname(3) = (/"a*","b*","c*"/)
@@ -3728,10 +3734,10 @@ contains
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    call runqhull_voronoi_step1(n,xstar,bz_nf,bz_nv,bz_mnfv)
+    call runqhull_voronoi_step1(n,xstar,bz_nf,bz_nv,bz_mnfv,fid)
     allocate(ivws(bz_nf),bz_iside(bz_mnfv,bz_nf),xvws(3,bz_nv))
     bz_nside = 0
-    call runqhull_voronoi_step2(bz_nf,bz_nv,bz_mnfv,ivws,xvws,bz_nside(1:bz_nf),bz_iside)
+    call runqhull_voronoi_step2(bz_nf,bz_nv,bz_mnfv,ivws,xvws,bz_nside(1:bz_nf),bz_iside,fid)
 
     if (allocated(bz_x)) deallocate(bz_x)
     allocate(bz_x(3,bz_nv))

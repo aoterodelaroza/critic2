@@ -678,7 +678,7 @@ contains
   module subroutine wscell(m_x2c,doreduction,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
      isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
      isortho_del)
-    use, intrinsic :: iso_c_binding, only: c_int, c_double
+    use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use tools_math, only: cross, matinv, mnorm2
     use tools_io, only: ferror, faterr
     use param, only: eye
@@ -707,19 +707,21 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
+         type(c_ptr) :: fid
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
+         type(c_ptr), value :: fid
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -747,6 +749,7 @@ contains
     real*8 :: m_xr2c_(3,3) !< reduced cryst -> input cartesian matrix
     real*8 :: m_c2xr_(3,3) !< cartesian -> reduced cryst matrix
     integer, allocatable :: ineighxr_(:,:) !< WS neighbor lattice points (del cell, cryst.)
+    type(c_ptr), target :: fid ! file handle
 
     ! delaunay reduction
     call delaunay_reduction(m_x2c,rmat,rbas=rdel)
@@ -775,10 +778,10 @@ contains
     end do
 
     ! determine the WS cell
-    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_)
+    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_,fid)
     allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
     nside_ = 0
-    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_)
+    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
     if (present(nf)) nf = nf_
     if (present(nv)) nv = nv_
     if (present(mnfv)) mnfv = mnfv_

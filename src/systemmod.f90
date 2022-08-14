@@ -17,6 +17,7 @@
 
 ! system class and associated routines
 module systemmod
+  use grid1mod, only: grid1
   use hashmod, only: hash
   use types, only: integrable, pointpropable
   use fieldmod, only: field
