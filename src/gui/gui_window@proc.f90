@@ -115,7 +115,7 @@ contains
     integer(c_int) :: flags
     integer :: i, j, nshown
     logical(c_bool) :: selected
-    logical :: needcolresize, needsort
+    logical :: needsort
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
@@ -142,17 +142,6 @@ contains
        end if
     end if
 
-    ! initialize the currently selected system
-    needcolresize = .false.
-    needsort = .false.
-    if (w%table_selected > 0 .and. w%table_selected <= nshown) then
-       if (sysc(w%iord(w%table_selected))%status == sys_loaded_not_init) then
-          ! xxxx
-          ! call system_initialize(w%iord(w%table_selected))
-          needcolresize = .true.
-       end if
-    end if
-
     ! set up the table
     str = "Structures" // c_null_char
     flags = ImGuiTableFlags_Borders
@@ -163,8 +152,10 @@ contains
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
-       if (needcolresize) &
+       if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+          w%forceresize = .false.
+       end if
 
        ! set up the columns
        ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
@@ -222,6 +213,7 @@ contains
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! fetch the sort specs, sort the data if necessary
+       needsort = .false.
        ptrc = igTableGetSortSpecs()
        if (c_associated(ptrc)) then
           call c_f_pointer(ptrc,sortspecs)

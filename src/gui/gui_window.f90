@@ -42,6 +42,7 @@ module gui_window
      integer, allocatable :: iord(:) ! table order
      integer(c_int) :: table_sortcid = 0 ! sort table by this column id
      integer(c_int) :: table_sortdir = 1 ! sort table with this direction
+     logical :: forceresize = .false. ! make true to force resize of columns
    contains
      procedure :: init => window_init
      procedure :: draw => window_draw

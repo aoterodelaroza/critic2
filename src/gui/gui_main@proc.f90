@@ -235,9 +235,11 @@ contains
     end subroutine error_callback
   end subroutine gui_start
 
-  !> Launch the initialization threads.
-  subroutine launch_initialization_thread()
+  !> Launch the initialization threads, which will go over all systems
+  !> trying to initialize them.
+  module subroutine launch_initialization_thread()
     use gui_interfaces_threads
+
     integer :: i, idum
 
     do i = 1, nthread
@@ -289,6 +291,7 @@ contains
              ! make a new system for this seed
              idx = nsys - nseed + iseed
              sys(idx)%isinit = .false.
+             sysc(idx)%id = idx
              sysc(idx)%status = sys_loaded_not_init
              sysc(idx)%seed = seed(iseed)
              sysc(idx)%has_field = .false.
@@ -439,12 +442,21 @@ contains
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
 
-    integer :: i
+    integer :: i, i0, i1
     integer(c_int) :: idum
     integer :: iff
     character(len=:), allocatable :: errmsg
+    integer, pointer :: idx
 
-    do i = 1, nsys
+    i0 = 1
+    i1 = nsys
+    if (c_associated(arg)) then
+       call c_f_pointer(arg,idx)
+       i0 = idx
+       i1 = idx
+    end if
+
+    do i = i0, i1
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
           if (idum == thrd_success) then
@@ -467,6 +479,9 @@ contains
                 ! this system has been initialized
                 sysc(i)%status = sys_init
                 idum = mtx_unlock(sysc(i)%thread_lock)
+
+                ! force resize of table columns (no lock needed for this)
+                win(iwin_tree)%forceresize = .true.
              end if
           end if
        end if

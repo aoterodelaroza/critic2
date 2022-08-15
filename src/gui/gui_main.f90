@@ -51,6 +51,7 @@ module gui_main
   integer, parameter, public :: sys_initializing = 2
   integer, parameter, public :: sys_init = 3
   type :: sysconf
+     integer :: id
      integer :: status = sys_empty
      type(crystalseed) :: seed
      logical :: has_field
@@ -66,10 +67,8 @@ module gui_main
   interface
      module subroutine gui_start()
      end subroutine gui_start
-     ! module subroutine system_initialize(id)
-     !   integer, intent(in) :: id
-     ! end subroutine system_initialize
-     ! xxxx
+     module subroutine launch_initialization_thread()
+     end subroutine launch_initialization_thread
   end interface
 
 contains
