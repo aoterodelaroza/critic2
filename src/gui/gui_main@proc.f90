@@ -481,7 +481,8 @@ contains
                 idum = mtx_unlock(sysc(i)%thread_lock)
 
                 ! force resize of table columns (no lock needed for this)
-                win(iwin_tree)%forceresize = .true.
+                if (iwin_tree > 0 .and. iwin_tree <= nwin) &
+                   win(iwin_tree)%forceresize = .true.
              end if
           end if
        end if
