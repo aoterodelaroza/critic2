@@ -20,40 +20,9 @@ submodule (crystalmod) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine pointgroup_info(hmpg,schpg,holo,laue)
   ! subroutine typeop(rot,type,vec,order)
   ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
   ! function perm3(p,r,t) result(res)
-
-  ! holohedry identifier
-  integer, parameter :: holo_unk = 0 ! unknown
-  integer, parameter :: holo_tric = 1 ! triclinic
-  integer, parameter :: holo_mono = 2 ! monoclinic
-  integer, parameter :: holo_ortho = 3 ! orthorhombic
-  integer, parameter :: holo_tetra = 4 ! tetragonal
-  integer, parameter :: holo_trig = 5 ! trigonal
-  integer, parameter :: holo_hex = 6 ! hexagonal
-  integer, parameter :: holo_cub = 7 ! cubic
-  character(len=12), parameter :: holo_string(0:7) = (/ &
-     "unknown     ","triclinic   ","monoclinic  ","orthorhombic",&
-     "tetragonal  ","trigonal    ","hexagonal   ","cubic       "/)
-
-  ! Laue class identifier
-  integer, parameter :: laue_unk = 0 ! unknown
-  integer, parameter :: laue_1 = 1 ! -1
-  integer, parameter :: laue_2m = 2 ! 2/m
-  integer, parameter :: laue_mmm = 3 ! mmm
-  integer, parameter :: laue_4m = 4 ! 4/m
-  integer, parameter :: laue_4mmm = 5 ! 4/mmm
-  integer, parameter :: laue_3 = 6 ! -3
-  integer, parameter :: laue_3m = 7 ! -3m
-  integer, parameter :: laue_6m = 8 ! 6/m
-  integer, parameter :: laue_6mmm = 9 ! 6/mmm
-  integer, parameter :: laue_m3 = 10 ! m-3
-  integer, parameter :: laue_m3m = 11 ! m-3m
-  character(len=12), parameter :: laue_string(0:11) = (/ &
-     "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
-     "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
 
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
@@ -6663,12 +6632,10 @@ contains
 
   end subroutine promolecular_grid
 
-  !xx! private procedures
-
   !> Get the holohedry and the Laue class from the Hermann-Mauguin
   !> point group label. Adapted from spglib, takes spglib HM point
   !> group labels.
-  subroutine pointgroup_info(hmpg,schpg,holo,laue)
+  module subroutine pointgroup_info(hmpg,schpg,holo,laue)
     use tools_io, only: equal
     character*(*), intent(in) :: hmpg
     character(len=3), intent(out) :: schpg
@@ -6810,6 +6777,8 @@ contains
     end if
 
   end subroutine pointgroup_info
+
+  !xx! private procedures
 
   !> For the symmetry operation rot, compute the order and
   !> characteristic direction of the operation. The output is given in

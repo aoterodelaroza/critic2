@@ -348,7 +348,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
-    logical, save :: ttshown(2) = (/.false.,.false./)! menu-level tooltips
+    logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
 
     if (igBeginMainMenuBar()) then
        ! File

@@ -103,7 +103,8 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init
+    use gui_utils, only: igIsItemHovered_delayed
+    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init, tooltip_delay
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
@@ -117,6 +118,7 @@ contains
     logical(c_bool) :: selected
     logical :: needsort
     type(c_ptr) :: ptrc
+    logical, save :: ttshown = .false. ! delayed tooltips
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
@@ -246,6 +248,12 @@ contains
              if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
                 w%table_selected = j
              end if
+
+             ! delayed tooltip with info about the system
+             if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+                str = tree_tooltip_string(i)
+                call igSetTooltip(c_loc(str))
+             end if
           end if
 
           ! name
@@ -274,7 +282,7 @@ contains
                 if (sys(i)%c%ismolecule) then
                    str = "<mol>" // c_null_char
                 else
-                   str = string(sys(i)%c%omega,'f',decimal=2) // c_null_char
+                   str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // c_null_char
                 end if
                 call igText(c_loc(str))
              end if
@@ -512,5 +520,139 @@ contains
   end subroutine sort_tree
 
   !xx! private procedures
+
+  ! Return the string for the tooltip shown by the tree window,
+  ! corresponding to system i.
+  function tree_tooltip_string(i) result(str)
+    use crystalmod, only: pointgroup_info, holo_string, laue_string
+    use gui_main, only: sys, sysc, nsys, sys_init
+    use tools_io, only: string
+    use param, only: bohrtoa, maxzat, atmass, pcamu, bohr2cm
+    use tools_math, only: gcd
+    integer, intent(in) :: i
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    integer, allocatable :: nis(:)
+    integer :: j, k, iz
+    real*8 :: maxdv, mass, dens
+    integer :: nelec
+    character(len=3) :: schpg
+    integer :: holo, laue
+    integer :: izp0
+
+    str = ""
+    if (i < 1 .or. i > nsys) return
+
+    ! file
+    str = "||" // trim(sysc(i)%seed%file) // "||" // new_line(str)
+    if (sysc(i)%status == sys_init) then
+       ! system type
+       if (sys(i)%c%ismolecule) then
+          if (sys(i)%c%nmol == 1) then
+             str = str // "A molecule." // new_line(str)
+          else
+             str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments." //&
+                new_line(str)
+          end if
+       elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+          str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol) // " and "
+          izp0 = 0
+          do k = 1, sys(i)%c%nmol
+             if (sys(i)%c%idxmol(k) < 0) then
+                izp0 = -1
+                exit
+             elseif (sys(i)%c%idxmol(k) == 0) then
+                izp0 = izp0 + 1
+             end if
+          end do
+          if (izp0 > 0) then
+             str = str // "Z'=" // string(izp0) // new_line(str)
+          else
+             str = str // "Z'<1" // new_line(str)
+          end if
+       elseif (sys(i)%c%nlvac == 2) then
+          str = str // "A 1D periodic (polymer) structure." //&
+             new_line(str)
+       elseif (sys(i)%c%nlvac == 1) then
+          str = str // "A 2D periodic (layered) structure." //&
+             new_line(str)
+       else
+          str = str // "A periodic crystal." //&
+             new_line(str)
+       end if
+       str = str // new_line(str)
+
+       ! number of atoms, electrons, molar mass
+       str = str // string(sys(i)%c%ncel) // " atoms, " //&
+          string(sys(i)%c%nneq) // " non-eq atoms, "//&
+          string(sys(i)%c%nspc) // " species," // new_line(str)
+       nelec = 0
+       mass = 0d0
+       do k = 1, sys(i)%c%nneq
+          iz = sys(i)%c%spc(sys(i)%c%at(k)%is)%z
+          if (iz >= maxzat .or. iz <= 0) cycle
+          nelec = nelec + iz * sys(i)%c%at(k)%mult
+          mass = mass + atmass(iz) * sys(i)%c%at(k)%mult
+       end do
+       str = str // string(nelec) // " electrons, " //&
+          string(mass,'f',decimal=3) // " amu per cell" // new_line(str)
+       ! empirical formula
+       allocate(nis(sys(i)%c%nspc))
+       nis = 0
+       do k = 1, sys(i)%c%nneq
+          nis(sys(i)%c%at(k)%is) = nis(sys(i)%c%at(k)%is) + sys(i)%c%at(k)%mult
+       end do
+       maxdv = gcd(nis,sys(i)%c%nspc)
+       str = str // "Formula: "
+       do k = 1, sys(i)%c%nspc
+          str = str // string(sys(i)%c%spc(k)%name) // string(nint(nis(k)/maxdv)) // " "
+       end do
+       str = str // new_line(str) // new_line(str)
+
+       if (.not.sys(i)%c%ismolecule) then
+          ! cell parameters, volume, density
+          str = str // "a/b/c (Å): " // &
+             string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // " " //&
+             string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // " " //&
+             string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4) //&
+             new_line(str)
+          str = str // "α/β/γ (°): " // &
+             string(sys(i)%c%bb(1),'f',decimal=2) // " " //&
+             string(sys(i)%c%bb(2),'f',decimal=2) // " " //&
+             string(sys(i)%c%bb(3),'f',decimal=2) // " " //&
+             new_line(str)
+          str = str // "V (Å³): " // &
+             string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // new_line(str)
+          dens = (mass*pcamu) / (sys(i)%c%omega*bohr2cm**3)
+          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // new_line(str) &
+             // new_line(str)
+
+          ! symmetry
+          if (sys(i)%c%spgavail) then
+             call pointgroup_info(sys(i)%c%spg%pointgroup_symbol,schpg,holo,laue)
+             str = str // "Symmetry: " // &
+                string(sys(i)%c%spg%international_symbol) // " (" //&
+                string(sys(i)%c%spg%spacegroup_number) // "), " //&
+                string(holo_string(holo)) // "," //&
+                new_line(str)
+
+             str = str // string(sys(i)%c%neqv) // " symm-ops, " //&
+                string(sys(i)%c%ncv) // " cent-vecs" //&
+                new_line(str)
+          else
+             str = str // "Symmetry info not available" // new_line(str)
+          end if
+          str = str // new_line(str)
+       end if
+
+       ! number of scalar fields
+       str = str // string(sys(i)%nf) // " scalar fields loaded" // new_line(str)
+    else
+       ! not initialized
+       str = str // "Not initialized" // new_line(str)
+    end if
+    str = str // c_null_char
+
+  end function tree_tooltip_string
 
 end submodule proc
