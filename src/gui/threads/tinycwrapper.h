@@ -25,7 +25,5 @@
 
 void *allocate_mtx();
 void deallocate_mtx(void *p);
-void *allocate_thrd();
-void deallocate_thrd(void *p);
 
 #endif

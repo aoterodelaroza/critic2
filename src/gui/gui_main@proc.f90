@@ -71,9 +71,6 @@ contains
     nthread = omp_get_max_threads()
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread))
-    do i = 1, nthread
-       thread(i) = allocate_thrd()
-    end do
 
     ! Parse the command line and read as many systems as possible
     ! Initialize the first system, if available
@@ -214,10 +211,7 @@ contains
     call ImGui_ImplGlfw_Shutdown()
     call igDestroyContext(c_null_ptr)
 
-    ! cleanup threads & mutexes
-    do i = 1, nthread
-       if (c_associated(thread(i))) call deallocate_thrd(thread(i))
-    end do
+    ! cleanup mutexes
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
     end do

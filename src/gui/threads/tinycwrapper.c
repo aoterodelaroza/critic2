@@ -30,11 +30,3 @@ void deallocate_mtx(void *p){
   if (p) free(p);
 }
 
-// Allocate and deallocate mutex threads
-void *allocate_thrd(){
-  return (void *) malloc(sizeof(thrd_t));
-}
-void deallocate_thrd(void *p){
-  if (p) free(p);
-}
-

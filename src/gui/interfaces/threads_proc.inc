@@ -13,16 +13,6 @@ subroutine deallocate_mtx(p) bind(c,name="deallocate_mtx")
   import c_ptr
   type(c_ptr), value :: p
 end subroutine deallocate_mtx
-! void *allocate_thrd();
-function allocate_thrd() bind(c,name="allocate_thrd")
-  import c_ptr
-  type(c_ptr) :: allocate_thrd
-end function allocate_thrd
-!void deallocate_thrd(void *p);
-subroutine deallocate_thrd(p) bind(c,name="deallocate_thrd")
-  import c_ptr
-  type(c_ptr), value :: p
-end subroutine deallocate_thrd
 !! tinycthread
 ! int mtx_init(mtx_t *mtx, int type);
 function mtx_init(mtx, type) bind(c,name="mtx_init")
