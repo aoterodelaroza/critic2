@@ -555,21 +555,24 @@ contains
                 new_line(str)
           end if
        elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
-          str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol) // " and "
-          izp0 = 0
-          do k = 1, sys(i)%c%nmol
-             if (sys(i)%c%idxmol(k) < 0) then
-                izp0 = -1
-                exit
-             elseif (sys(i)%c%idxmol(k) == 0) then
-                izp0 = izp0 + 1
+          str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol)
+          if (sys(i)%c%spgavail) then
+             izp0 = 0
+             do k = 1, sys(i)%c%nmol
+                if (sys(i)%c%idxmol(k) < 0) then
+                   izp0 = -1
+                   exit
+                elseif (sys(i)%c%idxmol(k) == 0) then
+                   izp0 = izp0 + 1
+                end if
+             end do
+             if (izp0 > 0) then
+                str = str // " and Z'=" // string(izp0)
+             else
+                str = str // " and Z'<1"
              end if
-          end do
-          if (izp0 > 0) then
-             str = str // "Z'=" // string(izp0) // new_line(str)
-          else
-             str = str // "Z'<1" // new_line(str)
           end if
+          str = str // "." // new_line(str)
        elseif (sys(i)%c%nlvac == 2) then
           str = str // "A 1D periodic (polymer) structure." //&
              new_line(str)
