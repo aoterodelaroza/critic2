@@ -47,6 +47,7 @@ include(CTest)
 
 ## GUI requirements
 if (ENABLE_GUI)
+  ## option to use freetype
   option(USE_FREETYPE2 "Use the freetype2 library (improved font rendering in GUI)." OFF)
 
   ## needs -fPIC
@@ -60,6 +61,9 @@ if (ENABLE_GUI)
   if (USE_FREETYPE2)
     pkg_search_module(FREETYPE2 freetype2)
   endif()
+
+  ## the GUI requires threads
+  set(ENABLE_OPENMP ON)
 endif()
 
 ## perform a static build
