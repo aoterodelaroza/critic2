@@ -104,7 +104,10 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_utils, only: igIsItemHovered_delayed
-    use gui_main, only: sys, sysc, sys_empty, sys_init, sys_loaded_not_init, tooltip_delay
+    use gui_main, only: sys, sysc, sys_empty, sys_init, tooltip_delay, TableCellBg_Mol,&
+       TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
+       TableCellBg_Crys1d
+
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
@@ -113,7 +116,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
-    integer(c_int) :: flags
+    integer(c_int) :: flags, color
     integer :: i, j, nshown
     logical(c_bool) :: selected
     logical :: needsort
@@ -239,6 +242,26 @@ contains
           i = w%iord(j)
           if (sysc(i)%status == sys_empty) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+
+          ! set background color for the name cell
+          if (sysc(i)%seed%ismolecule) then
+             color = igGetColorU32_Vec4(TableCellBg_Mol)
+             if (sysc(i)%status == sys_init) then
+                if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(TableCellBg_MolClus)
+             endif
+          else
+             color = igGetColorU32_Vec4(TableCellBg_Crys3d)
+             if (sysc(i)%status == sys_init) then
+                if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+                   color = igGetColorU32_Vec4(TableCellBg_MolCrys)
+                elseif (sys(i)%c%nlvac == 2) then
+                   color = igGetColorU32_Vec4(TableCellBg_Crys1d)
+                elseif (sys(i)%c%nlvac == 1) then
+                   color = igGetColorU32_Vec4(TableCellBg_Crys2d)
+                end if
+             end if
+          end if
+          call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
 
           ! ID
           if (igTableSetColumnIndex(ic_id)) then
@@ -524,7 +547,7 @@ contains
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system i.
   function tree_tooltip_string(i) result(str)
-    use crystalmod, only: pointgroup_info, holo_string, laue_string
+    use crystalmod, only: pointgroup_info, holo_string
     use gui_main, only: sys, sysc, nsys, sys_init
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohr2cm
@@ -533,7 +556,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
 
     integer, allocatable :: nis(:)
-    integer :: j, k, iz
+    integer :: k, iz
     real*8 :: maxdv, mass, dens
     integer :: nelec
     character(len=3) :: schpg

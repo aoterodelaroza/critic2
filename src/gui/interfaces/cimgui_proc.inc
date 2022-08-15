@@ -185,7 +185,12 @@ function igGetColorU32_Col(idx,alpha_mul) bind(c,name="igGetColorU32_Col")
   real(c_float), value :: alpha_mul
   integer(c_int) :: igGetColorU32_Col
 end function igGetColorU32_Col
-!x! ImU32 igGetColorU32_Vec4(const ImVec4 col);
+! ImU32 igGetColorU32_Vec4(const ImVec4 col);
+function igGetColorU32_Vec4(col) bind(c,name="igGetColorU32_Vec4")
+  import c_int, ImVec4
+  type(ImVec4), value, intent(in) :: col
+  integer(c_int) :: igGetColorU32_Vec4
+end function igGetColorU32_Vec4
 !x! ImU32 igGetColorU32_U32(ImU32 col);
 ! const ImVec4* igGetStyleColorVec4(ImGuiCol idx)
 function igGetStyleColorVec4(idx) bind(c,name="igGetStyleColorVec4")
@@ -505,7 +510,13 @@ function  igTableGetColumnFlags(column_n) bind(c,name="igTableGetColumnFlags")
   integer(c_int) :: igTableGetColumnFlags
 end function igTableGetColumnFlags
 !x! void igTableSetColumnEnabled(int column_n,bool v);
-!x! void igTableSetBgColor(ImGuiTableBgTarget target,ImU32 color,int column_n);
+! void igTableSetBgColor(ImGuiTableBgTarget target,ImU32 color,int column_n);
+subroutine igTableSetBgColor(target_, color, column_n) bind(c,name="igTableSetBgColor")
+  import c_int
+  integer(c_int), value :: target_
+  integer(c_int), value :: color
+  integer(c_int), value :: column_n
+end subroutine igTableSetBgColor
 !x! void igColumns(int count,const char* id,bool border);
 !x! void igNextColumn(void);
 !x! int igGetColumnIndex(void);

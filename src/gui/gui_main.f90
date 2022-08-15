@@ -21,7 +21,7 @@
 ! Structure class and routines for basic crystallography computations
 module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
-  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext
+  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4
   use gui_window, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -37,6 +37,14 @@ module gui_main
 
   ! GUI control parameters
   real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
+
+  ! GUI colors
+  type(ImVec4), parameter, public :: TableCellBg_Mol     = ImVec4(0.43,1.,  0.  ,0.2)  ! tree table name cell, molecule
+  type(ImVec4), parameter, public :: TableCellBg_MolClus = ImVec4(0.0, 1.,  0.43,0.2)  ! tree table name cell, molecular cluster
+  type(ImVec4), parameter, public :: TableCellBg_MolCrys = ImVec4(0.0, 0.68,1.  ,0.2)  ! tree table name cell, molecular crystal
+  type(ImVec4), parameter, public :: TableCellBg_Crys3d  = ImVec4(0.0, 0.  ,1.  ,0.2)  ! tree table name cell, 3d crystal
+  type(ImVec4), parameter, public :: TableCellBg_Crys2d  = ImVec4(0.68,0.  ,1.  ,0.2)  ! tree table name cell, 2d crystal
+  type(ImVec4), parameter, public :: TableCellBg_Crys1d  = ImVec4(0.68,0.68,1.  ,0.2)  ! tree table name cell, 1d crystal
 
   ! the window stack and named windows
   integer, public :: nwin
