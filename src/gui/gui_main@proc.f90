@@ -472,7 +472,7 @@ contains
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                    else
                       sys(i)%f(iff)%file = sysc(i)%seed%file
-                      sys(i)%f(iff)%name = sysc(i)%seed%file
+                      sys(i)%f(iff)%name = sysc(i)%seed%name
                    end if
                 end if
 

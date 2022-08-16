@@ -281,7 +281,7 @@ contains
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
-             str = trim(sysc(i)%seed%file) // c_null_char
+             str = trim(sysc(i)%seed%name) // c_null_char
              if (sysc(i)%status == sys_init) then
                 call igText(c_loc(str))
              else
@@ -491,7 +491,7 @@ contains
        allocate(sval(n))
        do i = 1, n
           if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty) then
-             sval(i)%s = trim(sysc(w%iord(i))%seed%file)
+             sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
              doit = (cid == ic_spg) .and. (sysc(w%iord(i))%status == sys_init)
              if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
@@ -567,7 +567,7 @@ contains
     if (i < 1 .or. i > nsys) return
 
     ! file
-    str = "||" // trim(sysc(i)%seed%file) // "||" // new_line(str)
+    str = "||" // trim(sysc(i)%seed%name) // "||" // new_line(str)
     if (sysc(i)%status == sys_init) then
        ! system type
        if (sys(i)%c%ismolecule) then

@@ -1741,6 +1741,8 @@ contains
     seed%isused = .true.
     seed%cubic = .false.
     seed%border = 0d0
+    seed%file = file
+    seed%name = file
 
   end subroutine read_bincube
 
@@ -4210,9 +4212,7 @@ contains
     ok = getline_raw(lu,line,.false.)
     ok = ok .and. isinteger(seed%nat,line,lp)
     if (.not.ok) goto 999
-    seed%name = trim(adjustl(line(lp:)))
-    if (len_trim(seed%name) == 0) &
-       seed%name = seed%file
+    seed%name = seed%file
 
     ! line 2: cell parameters
     read (lu,*,err=999) seed%aa, seed%bb
@@ -4906,10 +4906,10 @@ contains
        nseed = nseed + 1
        if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
 
-       seed(nseed)%file = file
-       seed(nseed)%name = file
-
        call read_cif_items(seed(nseed),mol,errmsg)
+       seed(nseed)%file = file
+       seed(nseed)%name = trim(file) // "//" // trim(bloc_)
+
        if (len_trim(errmsg) > 0) then
           if (allocated(seed)) deallocate(seed)
           nseed = 0
@@ -4940,13 +4940,12 @@ contains
 
   !> Read one or all structures from a QE output (filename file) and
   !> return the corresponding crystal seeds in seed. If istruct < 0,
-  !> read all seeds and return the number of seeds read in nseed.  The
-  !> first seed is a repeat of the last. If istruct = 0, return a
-  !> single seed for the last structure. If istruct > 0, return that
-  !> particular structure. If mol=.true., interpret the structure as a
-  !> molecule (currently, this only sets the %ismolecule field). If
-  !> an error condition is found, return the error message in errmsg
-  !> (zero-length string if no error).
+  !> read all seeds and return the number of seeds read in nseed. If
+  !> istruct = 0, return a single seed for the last structure. If
+  !> istruct > 0, return that particular structure. If mol=.true.,
+  !> interpret the structure as a molecule (currently, this only sets
+  !> the %ismolecule field). If an error condition is found, return
+  !> the error message in errmsg (zero-length string if no error).
   subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
@@ -4995,19 +4994,12 @@ contains
     end if
     if (allocated(seed)) deallocate(seed)
 
+    is0 = 0
     if (istruct >= 0) then
-       is0 = 0
        allocate(seed(1))
        seed(1)%nspc = 0
        seed(1)%nat = 0
     else
-       if (nseed > 1) then
-          nseed = nseed + 1
-          is0 = 1
-       else
-          nseed = 1
-          is0 = 0
-       end if
        allocate(seed(nseed))
        do i = 1, nseed
           seed(i)%nspc = 0
@@ -5223,18 +5215,22 @@ contains
 
              read (line,*,err=999) sdum, sdum, sdum, sdum, sene
              read (sene,*,err=999) rdum
-             seed(iuse)%name = trim(adjustl(string(rdum,'f',20,8))) // " Ry"
+             if (istruct < 0) then
+                if (is0 == nseed) then
+                   seed(iuse)%name = trim(file) // "//final (" //&
+                      trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
+                else
+                   seed(iuse)%name = trim(file) // "//" // string(iuse,5) // " (" //&
+                      trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
+                end if
+             else
+                seed(iuse)%name = file
+             end if
           end if
        end if
     end do
 
-    if (istruct >= 0) then
-       nseed = 1
-    else if (nseed > 1) then
-       seed(1) = seed(nseed)
-       seed(1)%name = "(final) " // trim(seed(1)%name)
-       seed(2)%name = "(initial) " // trim(seed(2)%name)
-    end if
+    if (istruct >= 0) nseed = 1
 
     errmsg = ""
 999 continue
@@ -5246,7 +5242,7 @@ contains
 
   end subroutine read_all_qeout
 
-  !> Read all structures from an xyz file. Returns all crystal seeds.
+  !> Read all structures from an xyz file. Returns all seeds.
   subroutine read_all_xyz(nseed,seed,file,errmsg)
     use global, only: rborder_def
     use hashmod, only: hash
@@ -5300,11 +5296,7 @@ contains
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        seed(nseed)%file = file
-       if (len_trim(line) > 0) then
-          seed(nseed)%name = trim(adjustl(line))
-       else
-          seed(nseed)%name = seed(nseed)%file
-       end if
+       seed(nseed)%name = seed(nseed)%file
 
        seed(nseed)%nspc = 0
        allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10))
@@ -5353,6 +5345,12 @@ contains
        seed(nseed)%havex0 = .false.
        seed(nseed)%molx0 = 0d0
     end do
+
+    if (nseed > 1) then
+       do i = 1, nseed
+          seed(i)%name = trim(seed(i)%name) // "//" // string(i)
+       end do
+    end if
 
     errmsg = ""
 999 continue
