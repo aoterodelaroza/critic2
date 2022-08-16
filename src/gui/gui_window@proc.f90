@@ -571,7 +571,8 @@ contains
     ! file
     str = "||" // trim(sysc(i)%seed%name) // "||" // new_line(str)
     if (sysc(i)%status == sys_init) then
-       ! system type
+       ! file and system type
+       str = str // trim(sysc(i)%seed%file) // new_line(str)
        if (sys(i)%c%ismolecule) then
           if (sys(i)%c%nmol == 1) then
              str = str // "A molecule." // new_line(str)
