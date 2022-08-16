@@ -243,25 +243,27 @@ contains
           if (sysc(i)%status == sys_empty) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
-          ! set background color for the name cell
-          if (sysc(i)%seed%ismolecule) then
-             color = igGetColorU32_Vec4(TableCellBg_Mol)
-             if (sysc(i)%status == sys_init) then
-                if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(TableCellBg_MolClus)
-             endif
-          else
-             color = igGetColorU32_Vec4(TableCellBg_Crys3d)
-             if (sysc(i)%status == sys_init) then
-                if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
-                   color = igGetColorU32_Vec4(TableCellBg_MolCrys)
-                elseif (sys(i)%c%nlvac == 2) then
-                   color = igGetColorU32_Vec4(TableCellBg_Crys1d)
-                elseif (sys(i)%c%nlvac == 1) then
-                   color = igGetColorU32_Vec4(TableCellBg_Crys2d)
+          ! set background color for the name cell, if not selected
+          if (w%table_selected /= j) then
+             if (sysc(i)%seed%ismolecule) then
+                color = igGetColorU32_Vec4(TableCellBg_Mol)
+                if (sysc(i)%status == sys_init) then
+                   if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(TableCellBg_MolClus)
+                endif
+             else
+                color = igGetColorU32_Vec4(TableCellBg_Crys3d)
+                if (sysc(i)%status == sys_init) then
+                   if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+                      color = igGetColorU32_Vec4(TableCellBg_MolCrys)
+                   elseif (sys(i)%c%nlvac == 2) then
+                      color = igGetColorU32_Vec4(TableCellBg_Crys1d)
+                   elseif (sys(i)%c%nlvac == 1) then
+                      color = igGetColorU32_Vec4(TableCellBg_Crys2d)
+                   end if
                 end if
              end if
+             call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
           end if
-          call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
 
           ! ID
           if (igTableSetColumnIndex(ic_id)) then
