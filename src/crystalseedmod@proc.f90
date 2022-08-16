@@ -1065,9 +1065,7 @@ contains
        lp = 1
        word = lgetword(line,lp)
        if (len_trim(word) > 4) word = word(1:4)
-       if (equal(word,"titl")) then
-          seed%name = trim(line(lp:))
-       elseif (equal(word,"cell")) then
+       if (equal(word,"cell")) then
           ! read the cell parameters from the cell card
           ok = isreal(raux,line,lp)
           ok = ok .and. isreal(seed%aa(1),line,lp)
@@ -1793,7 +1791,7 @@ contains
     ! second pass -> actually process the information
     rewind(lut)
     READ(lut,102,err=999) TITEL
-    seed%name = trim(TITEL)
+    seed%name = file
 
     READ(lut,103,err=999) LATTIC, seed%nat, cform
 102 FORMAT(A80)
@@ -4659,17 +4657,17 @@ contains
 
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call read_all_cif(nseed,seed,file,mol,errmsg) ! xx
+       call read_all_cif(nseed,seed,file,mol,errmsg)
     elseif (isformat == isformat_pwc) then
-       call seed(1)%read_pwc(file,mol,errmsg) ! xx
+       call seed(1)%read_pwc(file,mol,errmsg)
     elseif (isformat == isformat_shelx) then
        call seed(1)%read_shelx(file,mol,errmsg)
     elseif (isformat == isformat_f21) then
-       call seed(1)%read_f21(file,mol,errmsg) ! xx
+       call seed(1)%read_f21(file,mol,errmsg)
     else if (isformat == isformat_cube) then
-       call seed(1)%read_cube(file,mol,errmsg) ! xx
+       call seed(1)%read_cube(file,mol,errmsg)
     else if (isformat == isformat_bincube) then
-       call seed(1)%read_bincube(file,mol,errmsg) ! xx
+       call seed(1)%read_bincube(file,mol,errmsg)
     elseif (isformat == isformat_struct) then
        call seed(1)%read_wien(file,mol,errmsg)
     elseif (isformat == isformat_vasp) then
@@ -4696,11 +4694,11 @@ contains
     elseif (isformat == isformat_elk) then
        call seed(1)%read_elk(file,mol,errmsg)
     elseif (isformat == isformat_qeout) then
-       call read_all_qeout(nseed,seed,file,mol,-1,errmsg) ! xx
+       call read_all_qeout(nseed,seed,file,mol,-1,errmsg)
     elseif (isformat == isformat_crystal) then
-       call seed(1)%read_crystalout(file,mol,errmsg) ! xx
+       call seed(1)%read_crystalout(file,mol,errmsg)
     elseif (isformat == isformat_qein) then
-       call seed(1)%read_qein(file,mol,errmsg) ! xx
+       call seed(1)%read_qein(file,mol,errmsg)
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
     elseif (isformat == isformat_gaussian) then
@@ -4709,7 +4707,7 @@ contains
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat .or. isformat == isformat_pgout.or.&
        isformat == isformat_orca) then
-       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg) ! xx
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg)
     elseif (isformat == isformat_dmain) then
@@ -4719,7 +4717,7 @@ contains
     elseif (isformat == isformat_aimsout) then
        call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_tinkerfrac) then
-       call seed(1)%read_tinkerfrac(file,mol,errmsg) ! xx
+       call seed(1)%read_tinkerfrac(file,mol,errmsg)
     elseif (isformat == isformat_axsf) then
        call seed(1)%read_axsf(file,1,0d0,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_xsf) then
@@ -5184,7 +5182,7 @@ contains
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
                    seed(iuse)%name = trim(file) // "//" // string(iuse,5) // " (" //&
-                      trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
+                      trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
                 end if
              else
                 seed(iuse)%name = file
@@ -5329,7 +5327,7 @@ contains
   !> all crystal seeds.
   subroutine read_all_log(nseed,seed,file,errmsg)
     use global, only: rborder_def
-    use tools_io, only: fopen_read, fclose, getline_raw, nameguess
+    use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
     use types, only: species
     use param, only: maxzat, bohrtoa
     integer, intent(out) :: nseed !< number of seeds
@@ -5343,6 +5341,7 @@ contains
     integer :: usez(0:maxzat), idx, in
     logical :: ok, laste
     type(species), allocatable :: spc(:)
+    real*8 :: energy
 
     errmsg = ""
 
@@ -5404,10 +5403,10 @@ contains
     if (allocated(seed)) deallocate(seed)
     allocate(seed(nseed))
     rewind(lu)
-    in = 1
+    in = 0
     do while (getline_raw(lu,line))
        if (index(line,"Input orientation:") > 0) then
-          in = mod(in,nseed) + 1
+          in = in + 1
           seed(in)%nat = nat
           allocate(seed(in)%x(3,nat),seed(in)%is(nat))
 
@@ -5443,15 +5442,23 @@ contains
           idx = index(line,"=")
           if (idx > 0) then
              line = line(idx+1:)
-             read (line,*) word
-             seed(in)%name = trim(adjustl(word))
+             read (line,*) energy
+             seed(in)%name = trim(file) // "//" // string(in,5) // " (" //&
+                trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
           end if
           laste = .true.
        end if
     end do
-    if (.not.laste .and. nseed > 1) then
-       seed(1)%name = "(final) " // trim(seed(nseed)%name)
-       seed(2)%name = "(initial) " // trim(seed(2)%name)
+    if (.not.laste.and.nseed > 1) then
+       nseed = nseed - 1
+       call realloc_crystalseed(seed,nseed)
+    end if
+
+    if (nseed > 1 .or. (nseed == 1 .and. laste)) then
+       seed(nseed)%name = trim(file) // "//final (" //&
+          trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
+    else
+       seed(in)%name = trim(file)
     end if
 
     errmsg = ""
