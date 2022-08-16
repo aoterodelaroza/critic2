@@ -257,16 +257,17 @@ contains
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout
     use types, only: realloc
+    use param, only: dirsep
     integer :: argc
     integer :: i, j
     character(len=1024) :: argv
-
     integer :: nseed, iseed, iafield, idx
     type(crystalseed), allocatable :: seed(:)
     character(len=:), allocatable :: errmsg
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     integer(c_int) :: idum
+    character(len=:), allocatable :: str
 
     argc = command_argument_count()
     do i = 1, argc
@@ -314,6 +315,27 @@ contains
           write (uout,'("Error: ",A)') trim(errmsg)
        end if
     end do
+
+    ! remove all common path strings up to the last dirsep
+    if (nsys > 0) then
+       main: do while (.true.)
+          ! grab string up to the first dirsep
+          idx = index(sysc(1)%seed%name,dirsep,.true.)
+          if (idx == 0) exit main
+          str = sysc(1)%seed%name(1:idx)
+
+          ! check all names start with the same string
+          do i = 2, nsys
+             if (len_trim(sysc(i)%seed%name) < idx) exit main
+             if (sysc(i)%seed%name(1:idx) /= str) exit main
+          end do
+
+          ! remove the string
+          do i = 1, nsys
+             sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
+          end do
+       end do main
+    end if
 
   end subroutine process_arguments
 

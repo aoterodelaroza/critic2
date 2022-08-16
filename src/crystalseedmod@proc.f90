@@ -971,7 +971,7 @@ contains
     ! rest of the seed information
     seed%file = file
     if (len_trim(dblock) > 0) then
-       seed%name = trim(dblock)
+       seed%name = file // "||" // trim(dblock)
     else
        seed%name = file
     end if
@@ -4869,7 +4869,7 @@ contains
 
        call read_cif_items(seed(nseed),mol,errmsg)
        seed(nseed)%file = file
-       seed(nseed)%name = trim(file) // "//" // trim(bloc_)
+       seed(nseed)%name = trim(file) // "||" // trim(bloc_)
 
        if (len_trim(errmsg) > 0) then
           if (allocated(seed)) deallocate(seed)
@@ -5178,10 +5178,10 @@ contains
              read (sene,*,err=999) rdum
              if (istruct < 0) then
                 if (is0 == nseed) then
-                   seed(iuse)%name = trim(file) // "//final (" //&
+                   seed(iuse)%name = trim(file) // "||final (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
-                   seed(iuse)%name = trim(file) // "//" // string(iuse,5) // " (" //&
+                   seed(iuse)%name = trim(file) // "||" // string(iuse,5) // " (" //&
                       trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
                 end if
              else
@@ -5309,7 +5309,7 @@ contains
 
     if (nseed > 1) then
        do i = 1, nseed
-          seed(i)%name = trim(seed(i)%name) // "//" // string(i)
+          seed(i)%name = trim(seed(i)%name) // "||" // string(i)
        end do
     end if
 
@@ -5443,7 +5443,7 @@ contains
           if (idx > 0) then
              line = line(idx+1:)
              read (line,*) energy
-             seed(in)%name = trim(file) // "//" // string(in,5) // " (" //&
+             seed(in)%name = trim(file) // "||" // string(in,5) // " (" //&
                 trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
           end if
           laste = .true.
@@ -5455,7 +5455,7 @@ contains
     end if
 
     if (nseed > 1 .or. (nseed == 1 .and. laste)) then
-       seed(nseed)%name = trim(file) // "//final (" //&
+       seed(nseed)%name = trim(file) // "||final (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
     else
        seed(in)%name = trim(file)
