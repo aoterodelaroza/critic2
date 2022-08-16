@@ -1564,11 +1564,7 @@ contains
     ok = getline_raw(lu,line,.false.)
     if (.not.ok) goto 999
     seed%file = file
-    if (len_trim(line) > 0) then
-       seed%name = line
-    else
-       seed%name = file
-    end if
+    seed%name = file
 
     ! ignore the title lines
     read (lu,*,err=999)
@@ -3649,9 +3645,10 @@ contains
 
   end subroutine read_pwc
 
-  !> Read the structure from an axsf file (xcrysden). Read the coordinates
-  !> from PRIMCOORD block and nudge them using the eigenvector on the same block
-  !> scaled by the value of xnudge (bohr).
+  !> Read the structure from an axsf file (xcrysden). Read the
+  !> coordinates from PRIMCOORD block and nudge them using the
+  !> eigenvector on the same block scaled by the value of xnudge
+  !> (bohr).
   module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
        string, getword, isreal, nameguess, zatguess
@@ -4615,7 +4612,8 @@ contains
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian,&
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
-       isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_xsf, &
+       isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
+       isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        dirsep
@@ -4655,37 +4653,26 @@ contains
        call struct_detect_ismol(file,isformat,mol)
     end if
 
+    ! by default, we expect one seed only
+    nseed = 1
+    allocate(seed(1))
+
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call read_all_cif(nseed,seed,file,mol,errmsg)
+       call read_all_cif(nseed,seed,file,mol,errmsg) ! xx
     elseif (isformat == isformat_pwc) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_pwc(file,mol,errmsg)
+       call seed(1)%read_pwc(file,mol,errmsg) ! xx
     elseif (isformat == isformat_shelx) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_shelx(file,mol,errmsg)
     elseif (isformat == isformat_f21) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_f21(file,mol,errmsg)
+       call seed(1)%read_f21(file,mol,errmsg) ! xx
     else if (isformat == isformat_cube) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_cube(file,mol,errmsg)
+       call seed(1)%read_cube(file,mol,errmsg) ! xx
     else if (isformat == isformat_bincube) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_bincube(file,mol,errmsg)
+       call seed(1)%read_bincube(file,mol,errmsg) ! xx
     elseif (isformat == isformat_struct) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_wien(file,mol,errmsg)
     elseif (isformat == isformat_vasp) then
-       nseed = 1
-       allocate(seed(1))
-
        ! try to read the types from the file directly
        call seed(1)%read_vasp(file,mol,hastypes,errmsg)
 
@@ -4705,23 +4692,15 @@ contains
           end if
        end if
     elseif (isformat == isformat_abinit) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_abinit(file,mol,errmsg)
     elseif (isformat == isformat_elk) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_elk(file,mol,errmsg)
     elseif (isformat == isformat_qeout) then
-       call read_all_qeout(nseed,seed,file,mol,-1,errmsg)
+       call read_all_qeout(nseed,seed,file,mol,-1,errmsg) ! xx
     elseif (isformat == isformat_crystal) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_crystalout(file,mol,errmsg)
+       call seed(1)%read_crystalout(file,mol,errmsg) ! xx
     elseif (isformat == isformat_qein) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_qein(file,mol,errmsg)
+       call seed(1)%read_qein(file,mol,errmsg) ! xx
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg)
     elseif (isformat == isformat_gaussian) then
@@ -4730,42 +4709,26 @@ contains
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat .or. isformat == isformat_pgout.or.&
        isformat == isformat_orca) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg) ! xx
     elseif (isformat == isformat_siesta) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_siesta(file,mol,errmsg)
     elseif (isformat == isformat_dmain) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_dmain(file,mol,errmsg)
     elseif (isformat == isformat_aimsin) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_aimsout) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_tinkerfrac) then
-       nseed = 1
-       allocate(seed(1))
-       call seed(1)%read_tinkerfrac(file,mol,errmsg)
+       call seed(1)%read_tinkerfrac(file,mol,errmsg) ! xx
+    elseif (isformat == isformat_axsf) then
+       call seed(1)%read_axsf(file,1,0d0,rborder_def,.false.,errmsg)
     elseif (isformat == isformat_xsf) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_xsf(file,rborder_def,.false.,errmsg)
-       if (mol0 /= -1) &
-          seed(1)%ismolecule = mol
     elseif (isformat == isformat_gen) then
-       nseed = 1
-       allocate(seed(1))
        call seed(1)%read_dftbp(file,rborder_def,.false.,errmsg)
-       if (mol0 /= -1) &
-          seed(1)%ismolecule = mol
     end if
+    if (mol0 /= -1) &
+       seed(1)%ismolecule = mol
 
 999 continue
     if (len_trim(errmsg) > 0) then
