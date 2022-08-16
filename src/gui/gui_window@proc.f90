@@ -122,6 +122,7 @@ contains
     logical :: needsort
     type(c_ptr) :: ptrc
     logical, save :: ttshown = .false. ! delayed tooltips
+    logical, save :: ttshown_button = .false. ! delayed tooltips for buttons
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
@@ -269,6 +270,7 @@ contains
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i) // c_null_char
              flags = ImGuiSelectableFlags_SpanAllColumns
+             flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
              selected = (w%table_selected==j)
              if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
                 w%table_selected = j
@@ -283,6 +285,18 @@ contains
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
+             if (i == 1) then
+                ! extend button for multi-seed entries
+                str = "▼###" // string(j) // c_null_char
+                call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
+                if (igSmallButton(c_loc(str))) then
+                   write (*,*) "Chop!"
+                end if
+                call igPopStyleVar(1_c_int)
+                call igSameLine(0._c_float,-1._c_float)
+             end if
+
+             ! the actual name
              str = trim(sysc(i)%seed%name) // c_null_char
              if (sysc(i)%status == sys_init) then
                 call igText(c_loc(str))

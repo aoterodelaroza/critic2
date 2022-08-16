@@ -156,9 +156,18 @@ subroutine igPopStyleColor(count) bind(c,name="igPopStyleColor")
   import c_int
   integer(c_int), value :: count
 end subroutine igPopStyleColor
-!x! void igPushStyleVar_Float(ImGuiStyleVar idx,float val);
+! void igPushStyleVar_Float(ImGuiStyleVar idx,float val);
+subroutine igPushStyleVar_Float(idx,val) bind(c,name="igPushStyleVar_Float")
+  import c_int, c_float
+  integer(c_int), value :: idx
+  real(c_float), value :: val
+end subroutine igPushStyleVar_Float
 !x! void igPushStyleVar_Vec2(ImGuiStyleVar idx,const ImVec2 val);
-!x! void igPopStyleVar(int count);
+! void igPopStyleVar(int count)
+subroutine igPopStyleVar(count) bind(c,name="igPopStyleVar")
+  import c_int
+  integer(c_int), value :: count
+end subroutine igPopStyleVar
 !x! void igPushAllowKeyboardFocus(bool allow_keyboard_focus);
 !x! void igPopAllowKeyboardFocus(void);
 !x! void igPushButtonRepeat(bool repeat);
@@ -265,7 +274,12 @@ end subroutine igTextWrapped
 !x! void igBulletText(const char* fmt,...);
 !x! void igBulletTextV(const char* fmt,va_list args);
 !x! bool igButton(const char* label,const ImVec2 size);
-!x! bool igSmallButton(const char* label);
+! bool igSmallButton(const char* label);
+function igSmallButton(label) bind(c,name="igSmallButton")
+  import c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool) :: igSmallButton
+end function igSmallButton
 !x! bool igInvisibleButton(const char* str_id,const ImVec2 size,ImGuiButtonFlags flags);
 !x! bool igArrowButton(const char* str_id,ImGuiDir dir);
 !x! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
@@ -592,7 +606,9 @@ end function igIsItemActivated
 !x! void igGetItemRectMin(ImVec2 *pOut);
 !x! void igGetItemRectMax(ImVec2 *pOut);
 !x! void igGetItemRectSize(ImVec2 *pOut);
-!x! void igSetItemAllowOverlap(void);
+! void igSetItemAllowOverlap(void);
+subroutine igSetItemAllowOverlap() bind(c,name="igSetItemAllowOverlap")
+end subroutine igSetItemAllowOverlap
 ! ImGuiViewport* igGetMainViewport(void);
 function igGetMainViewport() bind(c,name="igGetMainViewport")
   import c_ptr
