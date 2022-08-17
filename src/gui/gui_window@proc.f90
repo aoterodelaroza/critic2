@@ -336,6 +336,8 @@ contains
                          end if
                       end do
                       sysc(i)%collapse = -1
+                      ! selected goes to master
+                      if (sysc(w%table_selected)%collapse == i) w%table_selected = i
                    end if
                 end if
                 call igPopStyleVar(1_c_int)
