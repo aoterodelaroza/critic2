@@ -4928,10 +4928,10 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: lu, ideq, i, j, is0, ier
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, str
     character*10 :: atn, sdum
     character*40 :: sene
-    integer :: idum
+    integer :: idum, npad
     real*8 :: alat, r(3,3), qaux, rfac, cfac, rdum
     logical :: ok, tox
     ! interim copy of seed info
@@ -4975,6 +4975,7 @@ contains
        end do
     end if
     alat = 1d0
+    npad = ceiling(log10(nseed-1+0.1d0))
 
     ! rewind and read all the structures
     rewind(lu)
@@ -5188,7 +5189,9 @@ contains
                    seed(iuse)%name = trim(file) // "||(final) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
-                   seed(iuse)%name = trim(file) // "||" // string(iuse,5) // " (" //&
+                   str = string(iuse,npad,pad0=.true.)
+                   str = string(str,length=max(5,len(str)))
+                   seed(iuse)%name = trim(file) // "||" // str // " (" //&
                       trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
                 end if
              else
@@ -5342,13 +5345,14 @@ contains
     character*(*), intent(in) :: file !< Input file name
     character(len=:), allocatable, intent(out) :: errmsg
 
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, str
     character*64 :: word
-    integer :: lu, nat, idum, iz, nspc, i
+    integer :: lu, nat, idum, iz, nspc, i, npad
     integer :: usez(0:maxzat), idx, in
     logical :: ok, laste
     type(species), allocatable :: spc(:)
     real*8 :: energy
+    real*8, allocatable :: esave(:)
 
     errmsg = ""
 
@@ -5408,7 +5412,7 @@ contains
     end do
 
     if (allocated(seed)) deallocate(seed)
-    allocate(seed(nseed))
+    allocate(seed(nseed),esave(nseed))
     rewind(lu)
     in = 0
     do while (getline_raw(lu,line))
@@ -5450,8 +5454,7 @@ contains
           if (idx > 0) then
              line = line(idx+1:)
              read (line,*) energy
-             seed(in)%name = trim(file) // "||" // string(in,5) // " (" //&
-                trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
+             esave(in) = energy
           end if
           laste = .true.
        end if
@@ -5461,7 +5464,14 @@ contains
        call realloc_crystalseed(seed,nseed)
     end if
 
-    if (nseed > 1 .or. (nseed == 1 .and. laste)) then
+    if (nseed > 1) then
+       npad = ceiling(log10(nseed-1+0.1d0))
+       do i = 1, nseed-1
+          str = string(i,npad,pad0=.true.)
+          str = string(str,length=max(5,len(str)))
+          seed(i)%name = trim(file) // "||" // str // " (" //&
+             trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
+       end do
        seed(nseed)%name = trim(file) // "||(final) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
     else
