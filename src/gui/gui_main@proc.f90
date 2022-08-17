@@ -513,7 +513,7 @@ contains
 
                 ! load any fields
                 if (sysc(i)%has_field) then
-                   call sys(i)%load_field_string(sysc(i)%seed%file,iff,errmsg)
+                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                    else

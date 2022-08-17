@@ -429,9 +429,9 @@ contains
   end subroutine new_from_seed
 
   !> Load a new field from a command string. Return id number in id or
-  !> -1 if failed. If the field could not be loaded, return the
-  !> reason in errmsg.
-  module subroutine load_field_string(s,line,id,errmsg)
+  !> -1 if failed. If the field could not be loaded, return the reason
+  !> in errmsg. If verbose, write to standard output.
+  module subroutine load_field_string(s,line,verbose,id,errmsg)
     use tools_io, only: getword, lgetword, equal, uout, string
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
@@ -443,6 +443,7 @@ contains
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
     integer, intent(out) :: id
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -649,15 +650,17 @@ contains
     isnewref = .not.s%refset
     call s%set_reference(id,.true.)
 
-    ! write some info
-    write (uout,'("+ Field number ",A)') string(id)
-    call s%f(id)%printinfo(.true.,.true.)
-    call s%aliasstring(id,nal,str)
-    if (nal > 0) &
-       write (uout,'("  Alias for this field (",A,"):",A)') string(nal), str
-    write (uout,*)
-    if (isnewref) then
-       write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
+    if (verbose) then
+       ! write some info
+       write (uout,'("+ Field number ",A)') string(id)
+       call s%f(id)%printinfo(.true.,.true.)
+       call s%aliasstring(id,nal,str)
+       if (nal > 0) &
+          write (uout,'("  Alias for this field (",A,"):",A)') string(nal), str
+       write (uout,*)
+       if (isnewref) then
+          write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
+       end if
     end if
 
     ! Test the muffin tin discontinuity, if applicable. Ignore the

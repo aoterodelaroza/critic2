@@ -150,9 +150,10 @@ module systemmod
        class(system), intent(inout) :: s
        type(crystalseed), intent(in) :: seed
      end subroutine new_from_seed
-     module subroutine load_field_string(s,line,id,errmsg)
+     module subroutine load_field_string(s,line,verbose,id,errmsg)
        class(system), intent(inout), target :: s
        character*(*), intent(in) :: line
+       logical, intent(in) :: verbose
        integer, intent(out) :: id
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine load_field_string
