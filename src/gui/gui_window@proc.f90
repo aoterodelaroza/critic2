@@ -345,7 +345,11 @@ contains
              end if
 
              ! the actual name
-             str = trim(sysc(i)%seed%name) // c_null_char
+             str = ""
+             if (sysc(i)%collapse > 0) then
+                str = "├[" // string(sysc(i)%collapse) // "]─"
+             end if
+             str = str // trim(sysc(i)%seed%name) // c_null_char
              if (sysc(i)%status == sys_init) then
                 call igText(c_loc(str))
              else

@@ -129,11 +129,12 @@ contains
     io%inifilename = c_null_ptr ! do not save the ini file, for now
 
     ! default font, 16 pt and with Greek letters and letter-like symbols
-    range = (/32_c_short, 255_c_short, & ! default (basic latin + supplement)
-       880_c_short, 1023_c_short, & ! Greek and Coptic
-       8488_c_short, 8527_c_short, & ! letter-like symbols
-       9632_c_short, 9727_c_short, & ! geometric shapes
-       0_c_short/)
+    range = (/32_c_short,  255_c_short,& ! default (basic latin + supplement)
+             880_c_short, 1023_c_short,& ! Greek and Coptic
+            8488_c_short, 8527_c_short,& ! letter-like symbols
+            9472_c_short, 9599_c_short,& ! box drawing
+            9632_c_short, 9727_c_short,& ! geometric shapes
+               0_c_short/)
     pdum = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
        16._c_float,c_null_ptr,c_loc(range))
 
