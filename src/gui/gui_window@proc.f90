@@ -117,7 +117,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
     integer(c_int) :: flags, color
-    integer :: i, j, k, nshown
+    integer :: i, j, k, nshown, newts
     logical(c_bool) :: selected
     type(c_ptr) :: ptrc
     logical, save :: ttshown = .false. ! delayed tooltips
@@ -146,9 +146,27 @@ contains
     ! process keybindings
     if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
        if (is_bind_event(BIND_TREE_MOVE_UP)) then
-          w%table_selected = max(w%table_selected-1,1)
+          newts = w%table_selected
+          do while (.true.)
+             newts = newts - 1
+             if (newts < 1) exit
+             if (sysc(newts)%status /= sys_empty.and.sysc(newts)%status /= sys_loaded_not_init_hidden.and.&
+                sysc(newts)%status /= sys_init_hidden) then
+                w%table_selected = newts
+                exit
+             end if
+          end do
        elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-          w%table_selected = min(w%table_selected+1,nshown)
+          newts = w%table_selected
+          do while (.true.)
+             newts = newts + 1
+             if (newts > nsys) exit
+             if (sysc(newts)%status /= sys_empty.and.sysc(newts)%status /= sys_loaded_not_init_hidden.and.&
+                sysc(newts)%status /= sys_init_hidden) then
+                w%table_selected = newts
+                exit
+             end if
+          end do
        end if
     end if
 
@@ -246,7 +264,7 @@ contains
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! set background color for the name cell, if not selected
-          if (w%table_selected /= j) then
+          if (w%table_selected /= i) then
              if (sysc(i)%seed%ismolecule) then
                 color = igGetColorU32_Vec4(TableCellBg_Mol)
                 if (sysc(i)%status == sys_init) then
@@ -272,9 +290,9 @@ contains
              str = string(i) // c_null_char
              flags = ImGuiSelectableFlags_SpanAllColumns
              flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-             selected = (w%table_selected==j)
+             selected = (w%table_selected==i)
              if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
-                w%table_selected = j
+                w%table_selected = i
              end if
 
              ! delayed tooltip with info about the system
@@ -587,7 +605,6 @@ contains
 
     ! apply the permutation
     w%iord = w%iord(iperm)
-    w%table_selected = findloc(iperm,w%table_selected,1)
     w%forcesort = .false.
 
   end subroutine sort_tree
