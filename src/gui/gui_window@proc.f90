@@ -307,9 +307,9 @@ contains
              if (sysc(i)%collapse < 0) then
                 ! extend button for multi-seed entries
                 if (sysc(i)%collapse == -1) then
-                   str = "▼###" // string(j) // c_null_char ! collapsed
+                   str = "▶###" // string(j) // c_null_char ! collapsed
                 else
-                   str = "▶###" // string(j) // c_null_char ! extended
+                   str = "▼###" // string(j) // c_null_char ! extended
                 end if
                 call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
                 if (igSmallButton(c_loc(str))) then
