@@ -688,7 +688,7 @@ contains
   !         [MOVEATOMS] [MAXDE maxde.r] [NONEG] [OUTPUTPOSCAR]
   subroutine trick_uspex_unpack(line0)
     use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed, read_seeds_from_file
+    use crystalseedmod, only: crystalseed
     use global, only: fileroot, rborder_def, eval_next
     use tools_io, only: lgetword, getword, ferror, faterr, getline_raw, fopen_read,&
        fclose, zatguess, isinteger, string, uout, equal, lower

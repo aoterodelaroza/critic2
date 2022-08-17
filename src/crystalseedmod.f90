@@ -306,11 +306,12 @@ module crystalseedmod
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine read_potcar
-     module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
+     module subroutine read_seeds_from_file(file,mol0,nseed,seed,collapse,errmsg,iafield)
        character*(*), intent(in) :: file
        integer, intent(in) :: mol0
        integer, intent(out) :: nseed
        type(crystalseed), allocatable, intent(inout) :: seed(:)
+       logical, intent(out) :: collapse
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
      end subroutine read_seeds_from_file

@@ -68,7 +68,7 @@ contains
     allocate(sys(1),sysc(1))
 
     ! initialize threads
-    nthread = omp_get_max_threads()
+     nthread = omp_get_max_threads()
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread))
 
@@ -262,20 +262,21 @@ contains
     integer :: argc
     integer :: i, j
     character(len=1024) :: argv
-    integer :: nseed, iseed, iafield, idx
+    integer :: nseed, iseed, iseed_, iafield, idx
     type(crystalseed), allocatable :: seed(:)
     character(len=:), allocatable :: errmsg
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     integer(c_int) :: idum
     character(len=:), allocatable :: str
+    logical :: collapse
 
     argc = command_argument_count()
     do i = 1, argc
        call getarg(i,argv)
        argv = adjustl(argv)
        if (argv(1:1) == "-") cycle ! skip options
-       call read_seeds_from_file(argv,-1,nseed,seed,errmsg,iafield)
+       call read_seeds_from_file(argv,-1,nseed,seed,collapse,errmsg,iafield)
 
        if (nseed > 0) then
           ! increment and reallocate if necessary
@@ -289,14 +290,36 @@ contains
              syscaux(1:size(sysc,1)) = sysc
              call move_alloc(syscaux,sysc)
           end if
+
           do iseed = 1, nseed
+             ! re-order if collapse to have the final structure be first, flag them
+             if (collapse) then
+                iseed_ = mod(iseed,nseed)+1
+             else
+                iseed_ = iseed
+             end if
+
              ! make a new system for this seed
-             idx = nsys - nseed + iseed
+             idx = nsys - nseed + iseed_
              sys(idx)%isinit = .false.
              sysc(idx)%id = idx
-             sysc(idx)%status = sys_loaded_not_init
              sysc(idx)%seed = seed(iseed)
              sysc(idx)%has_field = .false.
+
+             ! initialization status
+             if (collapse.and.iseed_ == 1) then
+                ! master
+                sysc(idx)%collapse = -1
+                sysc(idx)%status = sys_loaded_not_init
+             elseif (collapse) then
+                ! dependent
+                sysc(idx)%collapse = nsys - nseed + 1
+                sysc(idx)%status = sys_loaded_not_init_hidden
+             else
+                ! independent
+                sysc(idx)%collapse = 0
+                sysc(idx)%status = sys_loaded_not_init
+             end if
 
              ! initialize the mutex
              if (.not.c_associated(sysc(idx)%thread_lock)) then
@@ -501,12 +524,14 @@ contains
 
                 ! this system has been initialized
                 sysc(i)%status = sys_init
-                idum = mtx_unlock(sysc(i)%thread_lock)
 
                 ! force resize of table columns (no lock needed for this)
                 if (iwin_tree > 0 .and. iwin_tree <= nwin) &
                    win(iwin_tree)%forceresize = .true.
              end if
+
+             ! unlock
+             idum = mtx_unlock(sysc(i)%thread_lock)
           end if
        end if
     end do

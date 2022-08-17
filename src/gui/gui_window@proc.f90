@@ -104,10 +104,10 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_utils, only: igIsItemHovered_delayed
-    use gui_main, only: sys, sysc, sys_empty, sys_init, tooltip_delay, TableCellBg_Mol,&
+    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
+       sys_loaded_not_init, sys_init_hidden, tooltip_delay, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
-       TableCellBg_Crys1d
-
+       TableCellBg_Crys1d, launch_initialization_thread
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
@@ -117,12 +117,11 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
     integer(c_int) :: flags, color
-    integer :: i, j, nshown
+    integer :: i, j, k, nshown
     logical(c_bool) :: selected
-    logical :: needsort
+    logical :: needsort, needinit, needupdate
     type(c_ptr) :: ptrc
     logical, save :: ttshown = .false. ! delayed tooltips
-    logical, save :: ttshown_button = .false. ! delayed tooltips for buttons
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
@@ -133,11 +132,13 @@ contains
     ! initialize table
     if (.not.allocated(w%iord)) then
        call w%update_tree()
-       w%table_sortcid = 0
+       w%table_sortcid = ic_id
        w%table_sortdir = 1
        w%table_selected = 1
     end if
     nshown = size(w%iord,1)
+    needupdate = .false.
+    needinit = .false.
 
     ! process keybindings
     if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
@@ -241,7 +242,8 @@ contains
        ! draw the rows
        do j = 1, nshown
           i = w%iord(j)
-          if (sysc(i)%status == sys_empty) cycle
+          if (sysc(i)%status == sys_empty .or. sysc(i)%status == sys_loaded_not_init_hidden.or.&
+             sysc(i)%status == sys_init_hidden) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
 
           ! set background color for the name cell, if not selected
@@ -285,12 +287,40 @@ contains
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
-             if (i == 1) then
+             if (sysc(i)%collapse < 0) then
                 ! extend button for multi-seed entries
-                str = "▼###" // string(j) // c_null_char
+                if (sysc(i)%collapse == -1) then
+                   str = "▼###" // string(j) // c_null_char ! collapsed
+                else
+                   str = "▶###" // string(j) // c_null_char ! extended
+                end if
                 call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
                 if (igSmallButton(c_loc(str))) then
-                   write (*,*) "Chop!"
+                   ! extend or collapse
+                   needupdate = .true.
+                   needinit = .false.
+                   if (sysc(i)%collapse == -1) then
+                      ! un-hide the dependents and set as extended
+                      do k = 1, nsys
+                         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init_hidden) then
+                            needinit = .true.
+                            sysc(k)%status = sys_loaded_not_init
+                         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init_hidden) then
+                            sysc(k)%status = sys_init
+                         end if
+                      end do
+                      sysc(i)%collapse = -2
+                   else
+                      ! hide the dependents and set as collapsed
+                      do k = 1, nsys
+                         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init) then
+                            sysc(k)%status = sys_loaded_not_init_hidden
+                         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init) then
+                            sysc(k)%status = sys_init_hidden
+                         end if
+                      end do
+                      sysc(i)%collapse = -1
+                   end if
                 end if
                 call igPopStyleVar(1_c_int)
                 call igSameLine(0._c_float,-1._c_float)
@@ -397,25 +427,35 @@ contains
        call igEndTable()
     end if
 
+    if (needupdate) then
+       call w%update_tree()
+       call w%sort_tree(w%table_sortcid,w%table_sortdir)
+    end if
+    if (needinit) then
+       call launch_initialization_thread()
+    end if
+
   end subroutine draw_tree
 
   ! Update the table rows by building a new row index array
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
-    use gui_main, only: sysc, nsys, sys_empty
+    use gui_main, only: sysc, nsys, sys_empty, sys_loaded_not_init_hidden, sys_init_hidden
     class(window), intent(inout) :: w
 
     integer :: i, n
 
     if (allocated(w%iord)) deallocate(w%iord)
-    n = count(sysc(1:nsys)%status /= sys_empty)
+    n = count(sysc(1:nsys)%status /= sys_empty.and.sysc(1:nsys)%status/=sys_loaded_not_init_hidden.and.&
+       sysc(1:nsys)%status/=sys_init_hidden)
     allocate(w%iord(max(n,1)))
     w%iord(1) = 1
     if (n > 0) then
        n = 0
        do i = 1, nsys
-          if (sysc(i)%status /= sys_empty) then
+          if (sysc(i)%status /= sys_empty .and. sysc(i)%status /= sys_loaded_not_init_hidden.and.&
+             sysc(i)%status /= sys_init_hidden) then
              n = n + 1
              w%iord(n) = i
           end if
@@ -427,7 +467,7 @@ contains
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sysc, sys_init, sys_empty
+    use gui_main, only: sys, sysc, sys_init, sys_empty, sys_loaded_not_init_hidden, sys_init_hidden
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -506,7 +546,9 @@ contains
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty) then
+          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty .and.&
+             sysc(w%iord(i))%status /= sys_loaded_not_init_hidden.and.&
+             sysc(w%iord(i))%status /= sys_init_hidden) then
              sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
              doit = (cid == ic_spg) .and. (sysc(w%iord(i))%status == sys_init)

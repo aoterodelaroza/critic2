@@ -4602,8 +4602,10 @@ contains
   !> the seed number for which the file can be read as a field (or 0
   !> if none). If mol0 == 1, force reading molecules, if mol0 == 0,
   !> force reading crystals, if mol0 == -1, let the routine figure it
-  !> out.
-  module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
+  !> out. Returns the number of seeds read (nseed), the seeds themselves
+  !> (seed) and collapse=.true. if the seeds are the steps of a
+  !> geometry optimization.
+  module subroutine read_seeds_from_file(file,mol0,nseed,seed,collapse,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
@@ -4619,6 +4621,7 @@ contains
     integer, intent(in) :: mol0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
+    logical, intent(out) :: collapse
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(out), optional :: iafield
 
@@ -4749,7 +4752,7 @@ contains
        end if
     end do
 
-    ! output
+    ! output iafield
     if (present(iafield)) then
        if (alsofield) then
           iafield = 1
@@ -4757,6 +4760,10 @@ contains
           iafield = 0
        end if
     end if
+
+    ! output collapse
+    collapse = ((isformat == isformat_qeout .or. isformat == isformat_gaussian).and.&
+       nseed > 1)
 
   end subroutine read_seeds_from_file
 
@@ -5178,7 +5185,7 @@ contains
              read (sene,*,err=999) rdum
              if (istruct < 0) then
                 if (is0 == nseed) then
-                   seed(iuse)%name = trim(file) // "||final (" //&
+                   seed(iuse)%name = trim(file) // "||(final) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
                    seed(iuse)%name = trim(file) // "||" // string(iuse,5) // " (" //&
@@ -5455,7 +5462,7 @@ contains
     end if
 
     if (nseed > 1 .or. (nseed == 1 .and. laste)) then
-       seed(nseed)%name = trim(file) // "||final (" //&
+       seed(nseed)%name = trim(file) // "||(final) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
     else
        seed(in)%name = trim(file)
