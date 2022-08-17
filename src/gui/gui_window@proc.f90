@@ -119,26 +119,29 @@ contains
     integer(c_int) :: flags, color
     integer :: i, j, k, nshown
     logical(c_bool) :: selected
-    logical :: needsort, needinit, needupdate
     type(c_ptr) :: ptrc
     logical, save :: ttshown = .false. ! delayed tooltips
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
-    ! two zeros
+    ! initialize
     zero2%x = 0
     zero2%y = 0
-
-    ! initialize table
     if (.not.allocated(w%iord)) then
-       call w%update_tree()
        w%table_sortcid = ic_id
        w%table_sortdir = 1
        w%table_selected = 1
+       w%forceupdate = .true.
+    end if
+
+    ! process force options
+    if (w%forceupdate) call w%update_tree()
+    if (w%forceupdate .or. w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
+    if (w%forceinit) then
+       call launch_initialization_thread()
+       w%forceinit = .false.
     end if
     nshown = size(w%iord,1)
-    needupdate = .false.
-    needinit = .false.
 
     ! process keybindings
     if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
@@ -220,7 +223,6 @@ contains
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! fetch the sort specs, sort the data if necessary
-       needsort = .false.
        ptrc = igTableGetSortSpecs()
        if (c_associated(ptrc)) then
           call c_f_pointer(ptrc,sortspecs)
@@ -228,12 +230,9 @@ contains
           w%table_sortcid = colspecs%ColumnUserID
           w%table_sortdir = colspecs%SortDirection
           if (sortspecs%SpecsDirty .and. nshown > 1) then
-             needsort = .true.
+             w%forcesort = .true.
              sortspecs%SpecsDirty = .false.
           end if
-       end if
-       if (needsort) then
-          call w%sort_tree(w%table_sortcid,w%table_sortdir)
        end if
 
        ! draw the header
@@ -297,13 +296,12 @@ contains
                 call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
                 if (igSmallButton(c_loc(str))) then
                    ! extend or collapse
-                   needupdate = .true.
-                   needinit = .false.
+                   w%forceupdate = .true.
                    if (sysc(i)%collapse == -1) then
                       ! un-hide the dependents and set as extended
                       do k = 1, nsys
                          if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init_hidden) then
-                            needinit = .true.
+                            w%forceinit = .true.
                             sysc(k)%status = sys_loaded_not_init
                          elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init_hidden) then
                             sysc(k)%status = sys_init
@@ -427,14 +425,6 @@ contains
        call igEndTable()
     end if
 
-    if (needupdate) then
-       call w%update_tree()
-       call w%sort_tree(w%table_sortcid,w%table_sortdir)
-    end if
-    if (needinit) then
-       call launch_initialization_thread()
-    end if
-
   end subroutine draw_tree
 
   ! Update the table rows by building a new row index array
@@ -461,6 +451,7 @@ contains
           end if
        end do
     end if
+    w%forceupdate = .false.
 
   end subroutine update_tree
 
@@ -597,6 +588,7 @@ contains
     ! apply the permutation
     w%iord = w%iord(iperm)
     w%table_selected = findloc(iperm,w%table_selected,1)
+    w%forcesort = .false.
 
   end subroutine sort_tree
 

@@ -43,6 +43,9 @@ module gui_window
      integer(c_int) :: table_sortcid = 0 ! sort table by this column id
      integer(c_int) :: table_sortdir = 1 ! sort table with this direction
      logical :: forceresize = .false. ! make true to force resize of columns
+     logical :: forcesort = .false. ! make true to force a sort of the tree
+     logical :: forceupdate = .false. ! make true to force an update of the tree
+     logical :: forceinit = .false. ! make true to force an initialization of the systems
    contains
      procedure :: init => window_init
      procedure :: draw => window_draw
