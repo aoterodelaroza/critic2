@@ -526,9 +526,11 @@ contains
                 ! this system has been initialized
                 sysc(i)%status = sys_init
 
-                ! force resize of table columns (no lock needed for this)
-                if (iwin_tree > 0 .and. iwin_tree <= nwin) &
+                ! force resize and sort of table columns (no lock needed for this)
+                if (iwin_tree > 0 .and. iwin_tree <= nwin) then
                    win(iwin_tree)%forceresize = .true.
+                   win(iwin_tree)%forcesort = .true.
+                end if
              end if
 
              ! unlock

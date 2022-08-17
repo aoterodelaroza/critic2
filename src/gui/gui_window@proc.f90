@@ -136,7 +136,7 @@ contains
 
     ! process force options
     if (w%forceupdate) call w%update_tree()
-    if (w%forceupdate .or. w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
+    if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
     if (w%forceinit) then
        call launch_initialization_thread()
        w%forceinit = .false.
@@ -476,6 +476,7 @@ contains
        end do
     end if
     w%forceupdate = .false.
+    w%forcesort = .true.
 
   end subroutine update_tree
 
