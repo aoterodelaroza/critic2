@@ -207,7 +207,9 @@ function igGetStyleColorVec4(idx) bind(c,name="igGetStyleColorVec4")
   integer(c_int), value :: idx
   type(c_ptr) :: igGetStyleColorVec4
 end function igGetStyleColorVec4
-!x! void igSeparator(void);
+! void igSeparator(void);
+subroutine igSeparator() bind(c,name="igSeparator")
+end subroutine igSeparator
 ! void igSameLine(float offset_from_start_x,float spacing);
 subroutine igSameLine(offset_from_start_x, spacing) bind(c,name="igSameLine")
   import c_float
@@ -452,12 +454,23 @@ subroutine igSetTooltip(fmt) bind(c,name="igSetTooltip")
   type(c_ptr), intent(in), value :: fmt
 end subroutine igSetTooltip
 !x! void igSetTooltipV(const char* fmt,va_list args);
-!x! bool igBeginPopup(const char* str_id,ImGuiWindowFlags flags);
+! bool igBeginPopup(const char* str_id,ImGuiWindowFlags flags);
+function igBeginPopup(str_id,flags) bind(c,name="igBeginPopup")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), value :: str_id
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginPopup
+end function igBeginPopup
 !x! bool igBeginPopupModal(const char* name,bool* p_open,ImGuiWindowFlags flags);
 ! void igEndPopup(void);
 subroutine igEndPopup() bind(c,name="igEndPopup")
 end subroutine igEndPopup
-!x! void igOpenPopup_Str(const char* str_id,ImGuiPopupFlags popup_flags);
+! void igOpenPopup_Str(const char* str_id,ImGuiPopupFlags popup_flags);
+subroutine igOpenPopup_Str(str_id,popup_flags) bind(c,name="igOpenPopup_Str")
+  import c_ptr, c_int
+  type(c_ptr), value, intent(in) :: str_id
+  integer(c_int), value :: popup_flags
+end subroutine igOpenPopup_Str
 !x! void igOpenPopup_ID(ImGuiID id,ImGuiPopupFlags popup_flags);
 !x! void igOpenPopupOnItemClick(const char* str_id,ImGuiPopupFlags popup_flags);
 ! void igCloseCurrentPopup(void);
@@ -472,7 +485,13 @@ function igBeginPopupContextItem(str_id,popup_flags) bind(c,name="igBeginPopupCo
 end function igBeginPopupContextItem
 !x! bool igBeginPopupContextWindow(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupContextVoid(const char* str_id,ImGuiPopupFlags popup_flags);
-!x! bool igIsPopupOpen_Str(const char* str_id,ImGuiPopupFlags flags);
+! bool igIsPopupOpen_Str(const char* str_id,ImGuiPopupFlags flags);
+function igIsPopupOpen_Str(str_id,flags) bind(c,name="igIsPopupOpen_Str")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), value, intent(in) :: str_id
+  integer(c_int), value :: flags
+  logical(c_bool) :: igIsPopupOpen_Str
+end function igIsPopupOpen_Str
 ! bool igBeginTable(const char* str_id,int column,ImGuiTableFlags flags,const ImVec2 outer_size,float inner_width);
 function igBeginTable(str_id,column,flags,outer_size,inner_width) bind(c,name="igBeginTable")
   import c_ptr, c_int, c_float, c_bool, ImVec2
@@ -675,7 +694,12 @@ end function igGetKeyName
 !x! bool igIsMouseDown(ImGuiMouseButton button);
 !x! bool igIsMouseClicked(ImGuiMouseButton button,bool repeat);
 !x! bool igIsMouseReleased(ImGuiMouseButton button);
-!x! bool igIsMouseDoubleClicked(ImGuiMouseButton button);
+! bool igIsMouseDoubleClicked(ImGuiMouseButton button);
+function igIsMouseDoubleClicked(button) bind(c,name="igIsMouseDoubleClicked")
+  import c_int, c_bool
+  integer(c_int), value :: button
+  logical(c_bool) :: igIsMouseDoubleClicked
+end function igIsMouseDoubleClicked
 !x! int igGetMouseClickedCount(ImGuiMouseButton button);
 !x! bool igIsMouseHoveringRect(const ImVec2 r_min,const ImVec2 r_max,bool clip);
 !x! bool igIsMousePosValid(const ImVec2* mouse_pos);

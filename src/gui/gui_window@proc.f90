@@ -444,7 +444,7 @@ contains
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected
       logical, save :: ttshown = .false. ! delayed tooltips
-      character(kind=c_char,len=:), allocatable, target :: strpop
+      character(kind=c_char,len=:), allocatable, target :: strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
       str = str // c_null_char
@@ -458,21 +458,21 @@ contains
          ! selectable that spans all columns
          flags = ImGuiSelectableFlags_SpanAllColumns
          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+         flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
          selected = (w%table_selected==isys)
-         if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
+         if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) &
             w%table_selected = isys
-         end if
 
-         ! the context menu (right click)
+         ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
             ! rename option
             strpop = "Rename" // c_null_char
             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-               strpop = "##inputrename"
+               strpop2 = "##inputrename" // c_null_char
                txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
                call igSetKeyboardFocusHere(0_c_int)
                flags = ImGuiInputTextFlags_EnterReturnsTrue
-               if (igInputText(c_loc(strpop),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+               if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
                   ll = index(txtinp,c_null_char)
                   sysc(isys)%seed%name = txtinp(1:ll-1)
                   call igCloseCurrentPopup()
