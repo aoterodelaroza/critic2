@@ -101,6 +101,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
+    use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
     use gui_utils, only: igIsItemHovered_delayed
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
@@ -114,7 +115,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
     integer(c_int) :: flags, color, idx
-    integer :: i, j, k, nshown, newts
+    integer :: i, j, k, nshown, newts, newsel
     logical(c_bool) :: selected
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -133,16 +134,26 @@ contains
 
     ! process force options
     if (w%forceremove /= 0) then
+       ! remove a system and move the table selection if the system was selected
        call remove_system(w%forceremove)
        if (w%forceremove == w%table_selected) then
-          ! first init system or 1 to deactivate selection
-          w%table_selected = 1
-          do i = 1, nsys
+          newsel = 0
+          do i = w%table_selected, nsys
              if (sysc(i)%status == sys_init) then
-                w%table_selected = i
+                newsel = i
                 exit
              end if
           end do
+          if (newsel == 0) then
+             do i = w%table_selected, 1, -1
+                if (sysc(i)%status == sys_init) then
+                   newsel = i
+                   exit
+                end if
+             end do
+             if (newsel == 0) newsel = 1
+          end if
+          w%table_selected = newsel
        end if
        w%forceremove = 0
     end if
@@ -431,6 +442,13 @@ contains
 
           end if
        end do
+
+       ! process the keybindings
+       if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
+          if (is_bind_event(BIND_TREE_REMOVE_SYSTEM)) &
+             w%forceremove = w%table_selected
+       end if
+
        call igEndTable()
     end if
 
