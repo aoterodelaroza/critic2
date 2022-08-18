@@ -203,8 +203,8 @@ contains
     if (key == ImGuiKey_None .or.(mod /= ImGuiKey_None.and..not.igIsKeyDown(mod))) then
        ! no key or the mod is not down
        return
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.&
-       .not.io%WantCaptureKeyboard .and..not.io%WantTextInput) then
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END) then
+       ! .and..not.io%WantCaptureKeyboard .and..not.io%WantTextInput ! this prevents using ESC with textinput
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)

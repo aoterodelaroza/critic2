@@ -441,11 +441,13 @@ contains
       integer(c_int), intent(in) :: ic
       character(kind=c_char,len=:), allocatable, target :: str
 
-      integer(c_int) :: flags
+      integer(c_int) :: flags, ll
       logical(c_bool) :: selected
       logical, save :: ttshown = .false. ! delayed tooltips
+      character(kind=c_char,len=:), allocatable, target :: strpop
+      character(kind=c_char,len=1024), target :: txtinp
 
-      str = str // "##" // string(ic) // "," // string(isys) // c_null_char
+      str = str // c_null_char
       if (hadenabledrow) then
          if (sysc(isys)%status == sys_init) then
             call igText(c_loc(str))
@@ -460,6 +462,26 @@ contains
          if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
             w%table_selected = isys
          end if
+
+         ! the context menu (right click)
+         if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+            ! rename option
+            strpop = "Rename" // c_null_char
+            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+               strpop = "##inputrename"
+               txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
+               call igSetKeyboardFocusHere(0_c_int)
+               flags = ImGuiInputTextFlags_EnterReturnsTrue
+               if (igInputText(c_loc(strpop),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+                  ll = index(txtinp,c_null_char)
+                  sysc(isys)%seed%name = txtinp(1:ll-1)
+                  call igCloseCurrentPopup()
+               end if
+               call igEndMenu()
+            end if
+            call igEndPopup()
+         end if
+
          ! delayed tooltip with info about the system
          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
             str = tree_tooltip_string(isys)
@@ -467,14 +489,6 @@ contains
          end if
       end if
       hadenabledrow = .true.
-
-      ! if (ImGui::BeginPopupContextItem()) // <-- use last item id as popup id
-      ! {
-      !     ImGui::Text("This a popup for \"%s\"!", names[n]);
-      !     if (ImGui::Button("Close"))
-      !         ImGui::CloseCurrentPopup();
-      !     ImGui::EndPopup();
-      ! }
 
     end subroutine write_text_maybe_selectable
 

@@ -454,14 +454,22 @@ end subroutine igSetTooltip
 !x! void igSetTooltipV(const char* fmt,va_list args);
 !x! bool igBeginPopup(const char* str_id,ImGuiWindowFlags flags);
 !x! bool igBeginPopupModal(const char* name,bool* p_open,ImGuiWindowFlags flags);
-!x! void igEndPopup(void);
+! void igEndPopup(void);
+subroutine igEndPopup() bind(c,name="igEndPopup")
+end subroutine igEndPopup
 !x! void igOpenPopup_Str(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! void igOpenPopup_ID(ImGuiID id,ImGuiPopupFlags popup_flags);
 !x! void igOpenPopupOnItemClick(const char* str_id,ImGuiPopupFlags popup_flags);
 ! void igCloseCurrentPopup(void);
 subroutine igCloseCurrentPopup() bind(c,name="igCloseCurrentPopup")
 end subroutine igCloseCurrentPopup
-!x! bool igBeginPopupContextItem(const char* str_id,ImGuiPopupFlags popup_flags);
+! bool igBeginPopupContextItem(const char* str_id,ImGuiPopupFlags popup_flags);
+function igBeginPopupContextItem(str_id,popup_flags) bind(c,name="igBeginPopupContextItem")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: str_id
+  integer(c_int), value :: popup_flags
+  logical(c_bool) :: igBeginPopupContextItem
+end function igBeginPopupContextItem
 !x! bool igBeginPopupContextWindow(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igBeginPopupContextVoid(const char* str_id,ImGuiPopupFlags popup_flags);
 !x! bool igIsPopupOpen_Str(const char* str_id,ImGuiPopupFlags flags);
@@ -576,7 +584,11 @@ end function igDockSpaceOverViewport
 !x! void igPushClipRect(const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
 !x! void igPopClipRect(void);
 !x! void igSetItemDefaultFocus(void);
-!x! void igSetKeyboardFocusHere(int offset);
+! void igSetKeyboardFocusHere(int offset);
+subroutine igSetKeyboardFocusHere(offset) bind(c,name="igSetKeyboardFocusHere")
+  import c_int
+  integer(c_int), value :: offset
+end subroutine igSetKeyboardFocusHere
 ! bool igIsItemHovered(ImGuiHoveredFlags flags);
 function igIsItemHovered(flags) bind(c,name="igIsItemHovered")
   import c_int, c_bool
@@ -1342,7 +1354,12 @@ end function igGetCurrentWindow
 !x! void igLogSetNextTextDecoration(const char* prefix,const char* suffix);
 !x! bool igBeginChildEx(const char* name,ImGuiID id,const ImVec2 size_arg,bool border,ImGuiWindowFlags flags);
 !x! void igOpenPopupEx(ImGuiID id,ImGuiPopupFlags popup_flags);
-!x! void igClosePopupToLevel(int remaining,bool restore_focus_to_window_under_popup);
+! void igClosePopupToLevel(int remaining,bool restore_focus_to_window_under_popup);
+subroutine igClosePopupToLevel(remaining,restore_focus_to_window_under_popup) bind(c,name="igClosePopupToLevel")
+  import c_int, c_bool
+  integer(c_int), value :: remaining
+  logical(c_bool), value :: restore_focus_to_window_under_popup
+end subroutine igClosePopupToLevel
 !x! void igClosePopupsOverWindow(ImGuiWindow* ref_window,bool restore_focus_to_window_under_popup);
 ! void igClosePopupsExceptModals(void);
 subroutine igClosePopupsExceptModals() bind(c,name="igClosePopupsExceptModals")

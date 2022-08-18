@@ -54,7 +54,7 @@
   integer(c_int), bind(C,name="const_ImGuiWindowFlags_ChildMenu") :: ImGuiWindowFlags_ChildMenu
   integer(c_int), bind(C,name="const_ImGuiWindowFlags_DockNodeHost") :: ImGuiWindowFlags_DockNodeHost
   ! enum ImGuiInputTextFlags_
-  ! ImGuiInputTextFlags_None
+  integer(c_int), bind(C,name="const_ImGuiInputTextFlags_None") :: ImGuiInputTextFlags_None
   integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsDecimal") :: ImGuiInputTextFlags_CharsDecimal
   integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsHexadecimal") :: ImGuiInputTextFlags_CharsHexadecimal
   integer(c_int), bind(C,name="const_ImGuiInputTextFlags_CharsUppercase") :: ImGuiInputTextFlags_CharsUppercase
