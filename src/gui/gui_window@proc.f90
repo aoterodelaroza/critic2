@@ -66,15 +66,12 @@ contains
        idcount = idcount + 1
        w%id = idcount
        if (w%type == wintype_tree) then
-          ! w%name = "Tree###" // string(w%id) // c_null_char
           w%name = "Tree" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_view) then
-          ! w%name = "View###" // string(w%id) // c_null_char
           w%name = "View" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_console) then
-          ! w%name = "Console###" // string(w%id) // c_null_char
           w%name = "Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
        end if
@@ -105,7 +102,7 @@ contains
   module subroutine draw_tree(w)
     use gui_utils, only: igIsItemHovered_delayed
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
-       sys_loaded_not_init, sys_init_hidden, tooltip_delay, TableCellBg_Mol,&
+       sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread
     use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
@@ -120,9 +117,9 @@ contains
     integer :: i, j, k, nshown, newts
     logical(c_bool) :: selected
     type(c_ptr) :: ptrc
-    logical, save :: ttshown = .false. ! delayed tooltips
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
+    logical :: hadenabledrow = .false.
 
     ! initialize
     zero2%x = 0
@@ -171,7 +168,7 @@ contains
     end if
 
     ! set up the table
-    str = "Structures" // c_null_char
+    str = "Structures##0,0" // c_null_char
     flags = ImGuiTableFlags_Borders
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_ScrollY)
@@ -180,6 +177,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
+       ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
           w%forceresize = .false.
@@ -187,55 +185,55 @@ contains
 
        ! set up the columns
        ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
-       str = "ID" // c_null_char
+       str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_id)
 
-       str = "Name" // c_null_char
+       str = "Name##0" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_name)
 
-       str = "spg" // c_null_char
+       str = "spg##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_spg)
 
-       str = "V/Å³" // c_null_char
+       str = "V/Å³##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_v)
 
-       str = "nneq" // c_null_char
+       str = "nneq##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nneq)
 
-       str = "ncel" // c_null_char
+       str = "ncel##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_ncel)
 
-       str = "nmol" // c_null_char
+       str = "nmol##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nmol)
 
-       str = "a/Å" // c_null_char
+       str = "a/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_a)
 
-       str = "b/Å" // c_null_char
+       str = "b/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_b)
 
-       str = "c/Å" // c_null_char
+       str = "c/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_c)
 
-       str = "α/°" // c_null_char
+       str = "α/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_alpha)
 
-       str = "β/°" // c_null_char
+       str = "β/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_beta)
 
-       str = "γ/°" // c_null_char
+       str = "γ/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -262,6 +260,7 @@ contains
           if (sysc(i)%status == sys_empty .or. sysc(i)%status == sys_loaded_not_init_hidden.or.&
              sysc(i)%status == sys_init_hidden) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+          hadenabledrow = .false.
 
           ! set background color for the name cell, if not selected
           if (w%table_selected /= i) then
@@ -285,21 +284,10 @@ contains
              call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
           end if
 
-          ! ID
+          ! ID column
           if (igTableSetColumnIndex(ic_id)) then
-             str = string(i) // c_null_char
-             flags = ImGuiSelectableFlags_SpanAllColumns
-             flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-             selected = (w%table_selected==i)
-             if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
-                w%table_selected = i
-             end if
-
-             ! delayed tooltip with info about the system
-             if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-                str = tree_tooltip_string(i)
-                call igSetTooltip(c_loc(str))
-             end if
+             str = string(i)
+             call write_text_maybe_selectable(i,ic_id,str)
           end if
 
           ! name
@@ -307,9 +295,9 @@ contains
              if (sysc(i)%collapse < 0) then
                 ! extend button for multi-seed entries
                 if (sysc(i)%collapse == -1) then
-                   str = "▶###" // string(j) // c_null_char ! collapsed
+                   str = "▶##" // string(ic_name) // "," // string(i) // c_null_char ! collapsed
                 else
-                   str = "▼###" // string(j) // c_null_char ! extended
+                   str = "▼##" // string(ic_name) // "," // string(i) // c_null_char ! extended
                 end if
                 call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
                 if (igSmallButton(c_loc(str))) then
@@ -349,97 +337,93 @@ contains
              if (sysc(i)%collapse > 0) then
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
-             str = str // trim(sysc(i)%seed%name) // c_null_char
-             if (sysc(i)%status == sys_init) then
-                call igText(c_loc(str))
-             else
-                call igTextDisabled(c_loc(str))
-             end if
+             str = str // trim(sysc(i)%seed%name)
+             call write_text_maybe_selectable(i,ic_name,str)
           end if
 
           if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_spg)) then ! spg
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 elseif (.not.sys(i)%c%spgavail) then
-                   str = "n/a" // c_null_char
+                   str = "n/a"
                 else
-                   str = trim(sys(i)%c%spg%international_symbol) // c_null_char
+                   str = trim(sys(i)%c%spg%international_symbol)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_spg,str)
              end if
 
              if (igTableSetColumnIndex(ic_v)) then ! volume
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // c_null_char
+                   str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_v,str)
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
-                str = string(sys(i)%c%nneq) // c_null_char
-                call igText(c_loc(str))
+                str = string(sys(i)%c%nneq)
+                call write_text_maybe_selectable(i,ic_nneq,str)
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
-                str = string(sys(i)%c%ncel) // c_null_char
-                call igText(c_loc(str))
+                str = string(sys(i)%c%ncel)
+                call write_text_maybe_selectable(i,ic_ncel,str)
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
-                str = string(sys(i)%c%nmol) // c_null_char
-                call igText(c_loc(str))
+                str = string(sys(i)%c%nmol)
+                call write_text_maybe_selectable(i,ic_nmol,str)
              end if
 
              if (igTableSetColumnIndex(ic_a)) then ! a
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // c_null_char
+                   str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_a,str)
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // c_null_char
+                   str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_b,str)
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4) // c_null_char
+                   str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_c,str)
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%bb(1),'f',decimal=2) // c_null_char
+                   str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_alpha,str)
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%bb(2),'f',decimal=2) // c_null_char
+                   str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_beta,str)
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
-                   str = "<mol>" // c_null_char
+                   str = "<mol>"
                 else
-                   str = string(sys(i)%c%bb(3),'f',decimal=2) // c_null_char
+                   str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
-                call igText(c_loc(str))
+                call write_text_maybe_selectable(i,ic_gamma,str)
              end if
 
           end if
@@ -448,6 +432,51 @@ contains
 
        call igEndTable()
     end if
+
+  contains
+
+    subroutine write_text_maybe_selectable(isys,ic,str)
+      use gui_main, only: tooltip_delay
+      integer, intent(in) :: isys
+      integer(c_int), intent(in) :: ic
+      character(kind=c_char,len=:), allocatable, target :: str
+
+      integer(c_int) :: flags
+      logical(c_bool) :: selected
+      logical, save :: ttshown = .false. ! delayed tooltips
+
+      str = str // "##" // string(ic) // "," // string(isys) // c_null_char
+      if (hadenabledrow) then
+         if (sysc(isys)%status == sys_init) then
+            call igText(c_loc(str))
+         else
+            call igTextDisabled(c_loc(str))
+         end if
+      else
+         ! selectable that spans all columns
+         flags = ImGuiSelectableFlags_SpanAllColumns
+         flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+         selected = (w%table_selected==isys)
+         if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) then
+            w%table_selected = isys
+         end if
+         ! delayed tooltip with info about the system
+         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+            str = tree_tooltip_string(isys)
+            call igSetTooltip(c_loc(str))
+         end if
+      end if
+      hadenabledrow = .true.
+
+      ! if (ImGui::BeginPopupContextItem()) // <-- use last item id as popup id
+      ! {
+      !     ImGui::Text("This a popup for \"%s\"!", names[n]);
+      !     if (ImGui::Button("Close"))
+      !         ImGui::CloseCurrentPopup();
+      !     ImGui::EndPopup();
+      ! }
+
+    end subroutine write_text_maybe_selectable
 
   end subroutine draw_tree
 
