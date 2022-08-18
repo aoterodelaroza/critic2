@@ -272,15 +272,15 @@
      type(ImVector_ImGuiStoragePair) :: Data
   end type ImGuiStorage
 
-  ! struct ImGuiListClipper
-  ! {
-  !     integer(c_int) :: DisplayStart
-  !     integer(c_int) :: DisplayEnd
-  !     integer(c_int) :: ItemsCount
-  !     real(c_float) :: ItemsHeight
-  !     real(c_float) :: StartPosY
-  !     type(c_ptr) :: TempData
-  ! }
+  type, bind(c) :: ImGuiListClipper
+     integer(c_int) :: DisplayStart
+     integer(c_int) :: DisplayEnd
+     integer(c_int) :: ItemsCount
+     real(c_float) :: ItemsHeight
+     real(c_float) :: StartPosY
+     type(c_ptr) :: TempData
+  end type ImGuiListClipper
+
   ! struct ImColor
   ! {
   !     type(ImVec4) :: Value

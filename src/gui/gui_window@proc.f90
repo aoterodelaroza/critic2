@@ -399,9 +399,7 @@ contains
              end if
 
           end if
-
        end do
-
        call igEndTable()
     end if
 

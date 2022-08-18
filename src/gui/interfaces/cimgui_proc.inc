@@ -820,11 +820,34 @@ end function igIsMouseDoubleClicked
 !x! void** ImGuiStorage_GetVoidPtrRef(ImGuiStorage* self,ImGuiID key,void* default_val);
 !x! void ImGuiStorage_SetAllInt(ImGuiStorage* self,int val);
 !x! void ImGuiStorage_BuildSortByKey(ImGuiStorage* self);
-!x! ImGuiListClipper* ImGuiListClipper_ImGuiListClipper(void);
-!x! void ImGuiListClipper_destroy(ImGuiListClipper* self);
-!x! void ImGuiListClipper_Begin(ImGuiListClipper* self,int items_count,float items_height);
-!x! void ImGuiListClipper_End(ImGuiListClipper* self);
-!x! bool ImGuiListClipper_Step(ImGuiListClipper* self);
+! ImGuiListClipper* ImGuiListClipper_ImGuiListClipper(void);
+function ImGuiListClipper_ImGuiListClipper() bind(c,name="ImGuiListClipper_ImGuiListClipper")
+  import c_ptr
+  type(c_ptr) :: ImGuiListClipper_ImGuiListClipper
+end function ImGuiListClipper_ImGuiListClipper
+! void ImGuiListClipper_destroy(ImGuiListClipper* self);
+subroutine ImGuiListClipper_destroy(self) bind(c,name="ImGuiListClipper_destroy")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImGuiListClipper_destroy
+! void ImGuiListClipper_Begin(ImGuiListClipper* self,int items_count,float items_height);
+subroutine ImGuiListClipper_Begin(self,items_count,items_height) bind(c,name="ImGuiListClipper_Begin")
+  import c_ptr, c_int, c_float
+  type(c_ptr), value :: self
+  integer(c_int), value :: items_count
+  real(c_float), value :: items_height
+end subroutine ImGuiListClipper_Begin
+! void ImGuiListClipper_End(ImGuiListClipper* self);
+subroutine ImGuiListClipper_End(self) bind(c,name="ImGuiListClipper_End")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImGuiListClipper_End
+! bool ImGuiListClipper_Step(ImGuiListClipper* self);
+function ImGuiListClipper_Step(self) bind(c,name="ImGuiListClipper_Step")
+  import c_ptr, c_bool
+  type(c_ptr), value :: self
+  logical(c_bool) :: ImGuiListClipper_Step
+end function ImGuiListClipper_Step
 !x! void ImGuiListClipper_ForceDisplayRangeByIndices(ImGuiListClipper* self,int item_min,int item_max);
 !x! ImColor* ImColor_ImColor_Nil(void);
 !x! void ImColor_destroy(ImColor* self);
