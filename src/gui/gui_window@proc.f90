@@ -105,7 +105,6 @@ contains
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread
-    use gui_keybindings, only: is_bind_event, BIND_TREE_MOVE_UP, BIND_TREE_MOVE_DOWN
     use tools_io, only: string
     use param, only: bohrtoa
     use c_interface_module
@@ -113,7 +112,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str
     type(ImVec2) :: zero2
-    integer(c_int) :: flags, color
+    integer(c_int) :: flags, color, idx
     integer :: i, j, k, nshown, newts
     logical(c_bool) :: selected
     type(c_ptr) :: ptrc
@@ -139,33 +138,6 @@ contains
        w%forceinit = .false.
     end if
     nshown = size(w%iord,1)
-
-    ! process keybindings
-    if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
-       if (is_bind_event(BIND_TREE_MOVE_UP)) then
-          newts = w%table_selected
-          do while (.true.)
-             newts = newts - 1
-             if (newts < 1) exit
-             if (sysc(newts)%status /= sys_empty.and.sysc(newts)%status /= sys_loaded_not_init_hidden.and.&
-                sysc(newts)%status /= sys_init_hidden) then
-                w%table_selected = newts
-                exit
-             end if
-          end do
-       elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-          newts = w%table_selected
-          do while (.true.)
-             newts = newts + 1
-             if (newts > nsys) exit
-             if (sysc(newts)%status /= sys_empty.and.sysc(newts)%status /= sys_loaded_not_init_hidden.and.&
-                sysc(newts)%status /= sys_init_hidden) then
-                w%table_selected = newts
-                exit
-             end if
-          end do
-       end if
-    end if
 
     ! set up the table
     str = "Structures##0,0" // c_null_char
@@ -287,7 +259,7 @@ contains
           ! ID column
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i)
-             call write_text_maybe_selectable(i,ic_id,str)
+             call write_text_maybe_selectable(i,str)
           end if
 
           ! name
@@ -338,7 +310,7 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call write_text_maybe_selectable(i,ic_name,str)
+             call write_text_maybe_selectable(i,str)
           end if
 
           if (sysc(i)%status == sys_init) then
@@ -350,7 +322,7 @@ contains
                 else
                    str = trim(sys(i)%c%spg%international_symbol)
                 end if
-                call write_text_maybe_selectable(i,ic_spg,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
              if (igTableSetColumnIndex(ic_v)) then ! volume
@@ -359,22 +331,22 @@ contains
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,ic_v,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq)
-                call write_text_maybe_selectable(i,ic_nneq,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel)
-                call write_text_maybe_selectable(i,ic_ncel,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol)
-                call write_text_maybe_selectable(i,ic_nmol,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
              if (igTableSetColumnIndex(ic_a)) then ! a
@@ -383,7 +355,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,ic_a,str)
+                call write_text_maybe_selectable(i,str)
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
@@ -391,7 +363,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,ic_b,str)
+                call write_text_maybe_selectable(i,str)
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
@@ -399,7 +371,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,ic_c,str)
+                call write_text_maybe_selectable(i,str)
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
@@ -407,7 +379,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,ic_alpha,str)
+                call write_text_maybe_selectable(i,str)
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
@@ -415,7 +387,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,ic_beta,str)
+                call write_text_maybe_selectable(i,str)
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
@@ -423,7 +395,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,ic_gamma,str)
+                call write_text_maybe_selectable(i,str)
              end if
 
           end if
@@ -435,10 +407,9 @@ contains
 
   contains
 
-    subroutine write_text_maybe_selectable(isys,ic,str)
+    subroutine write_text_maybe_selectable(isys,str)
       use gui_main, only: tooltip_delay
       integer, intent(in) :: isys
-      integer(c_int), intent(in) :: ic
       character(kind=c_char,len=:), allocatable, target :: str
 
       integer(c_int) :: flags, ll
@@ -459,6 +430,7 @@ contains
          flags = ImGuiSelectableFlags_SpanAllColumns
          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
          flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
+         flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
          selected = (w%table_selected==isys)
          if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) &
             w%table_selected = isys

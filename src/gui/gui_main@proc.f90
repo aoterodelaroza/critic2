@@ -126,6 +126,7 @@ contains
     call c_f_pointer(ptrc,io)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DpiEnableScaleFonts)
+    io%configflags = ior(io%configflags,ImGuiConfigFlags_NavEnableKeyboard)
     io%inifilename = c_null_ptr ! do not save the ini file, for now
 
     ! default font, 16 pt and with Greek letters and letter-like symbols

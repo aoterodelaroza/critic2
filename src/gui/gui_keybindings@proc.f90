@@ -28,9 +28,7 @@ submodule (gui_keybindings) proc
   ! Bind names
   character(len=16), parameter :: bindnames(BIND_NUM) = (/&
      "Quit            ",& ! BIND_QUIT
-     "Close last popup",& ! BIND_CLOSE_POPUP
-     "Tree: Move up   ",& ! BIND_TREE_MOVE_UP
-     "Tree: Move down "/) ! BIND_TREE_MOVE_DOWN
+     "Close last popup"/) ! BIND_CLOSE_POPUP
   !   "Close last dialog",
   !   "Close all dialogs",
   !   "Align view with a axis",
@@ -49,9 +47,7 @@ submodule (gui_keybindings) proc
   integer, parameter :: group_tree = 2 ! if the tree is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
-     group_global,& ! BIND_CLOSE_POPUP
-     group_tree,&   ! BIND_TREE_MOVE_UP
-     group_tree/)   ! BIND_TREE_MOVE_DOWN
+     group_global/) ! BIND_CLOSE_POPUP
   !   1, // close last dialog
   !   1, // close all dialogs
   !   2, // align view with a axis
@@ -156,8 +152,6 @@ contains
     ! Default keybindings
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     call set_bind(BIND_CLOSE_POPUP,ImGuiKey_Escape,ImGuiKey_None)
-    call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_UpArrow,ImGuiKey_None)
-    call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_DownArrow,ImGuiKey_None)
     !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !

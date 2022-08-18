@@ -127,8 +127,16 @@ end subroutine igGetContentRegionAvail
 !x! void igGetContentRegionMax(ImVec2 *pOut);
 !x! void igGetWindowContentRegionMin(ImVec2 *pOut);
 !x! void igGetWindowContentRegionMax(ImVec2 *pOut);
-!x! float igGetScrollX(void);
-!x! float igGetScrollY(void);
+! float igGetScrollX(void);
+function igGetScrollX() bind(c,name="igGetScrollX")
+  import c_float
+  real(c_float) :: igGetScrollX
+end function igGetScrollX
+! float igGetScrollY(void);
+function igGetScrollY() bind(c,name="igGetScrollY")
+  import c_float
+  real(c_float) :: igGetScrollY
+end function igGetScrollY
 !x! void igSetScrollX_Float(float scroll_x);
 !x! void igSetScrollY_Float(float scroll_y);
 !x! float igGetScrollMaxX(void);
