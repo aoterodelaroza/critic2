@@ -104,7 +104,7 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
-       TableCellBg_Crys1d, launch_initialization_thread
+       TableCellBg_Crys1d, launch_initialization_thread, remove_system
     use tools_io, only: string
     use param, only: bohrtoa
     use c_interface_module
@@ -131,6 +131,11 @@ contains
     end if
 
     ! process force options
+    if (w%forceremove /= 0) then
+       call remove_system(w%forceremove)
+       if (w%forceremove == w%table_selected) w%table_selected = 1
+       w%forceremove = 0
+    end if
     if (w%forceupdate) call w%update_tree()
     if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
     if (w%forceinit) then
@@ -435,6 +440,11 @@ contains
 
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+            ! remove option
+            strpop = "Remove" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+               w%forceremove = isys
+
             ! rename option
             strpop = "Rename" // c_null_char
             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
@@ -449,6 +459,7 @@ contains
                end if
                call igEndMenu()
             end if
+
             call igEndPopup()
          end if
 

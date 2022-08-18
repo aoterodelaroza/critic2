@@ -251,6 +251,40 @@ contains
 
   end subroutine launch_initialization_thread
 
+  ! Remove system with index idx and leave behind a sys_empty spot. If
+  ! master and collapsed, kill all dependents. If master and extended,
+  ! make all dependents master.
+  recursive module subroutine remove_system(idx)
+    use gui_interfaces_threads, only: deallocate_mtx
+    integer, intent(in) :: idx
+
+    integer :: i
+
+    if (idx < 1 .or. idx > nsys) return
+    call sys(idx)%end()
+    call sysc(idx)%seed%end()
+    if (c_associated(sysc(idx)%thread_lock)) then
+       call deallocate_mtx(sysc(idx)%thread_lock)
+       sysc(idx)%thread_lock = c_null_ptr
+    end if
+    sysc(idx)%status = sys_empty
+
+    if (sysc(idx)%collapse == -1) then
+       ! kill all dependents if collapsed
+       do i = 1, nsys
+          if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
+             call remove_system(i)
+       end do
+    else
+       ! make all dependents their own master if extended
+       do i = 1, nsys
+          if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
+             sysc(i)%collapse = 0
+       end do
+    end if
+
+  end subroutine remove_system
+
   !xx! private procedures
 
   ! Process the command-line arguments. Skip the options and load the files.

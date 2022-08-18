@@ -75,12 +75,16 @@ module gui_main
   ! public procedures
   public :: gui_start
   public :: launch_initialization_thread
+  public :: remove_system
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
      module subroutine launch_initialization_thread()
      end subroutine launch_initialization_thread
+     recursive module subroutine remove_system(idx)
+       integer, intent(in) :: idx
+     end subroutine remove_system
   end interface
 
 contains
