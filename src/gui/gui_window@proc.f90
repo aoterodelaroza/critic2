@@ -24,19 +24,20 @@ submodule (gui_window) proc
   integer :: idcount = 0
 
   ! column ids for the table in the tree widget
-  integer(c_int), parameter :: ic_id = 0
-  integer(c_int), parameter :: ic_name = 1
-  integer(c_int), parameter :: ic_spg = 2
-  integer(c_int), parameter :: ic_v = 3
-  integer(c_int), parameter :: ic_nneq = 4
-  integer(c_int), parameter :: ic_ncel = 5
-  integer(c_int), parameter :: ic_nmol = 6
-  integer(c_int), parameter :: ic_a = 7
-  integer(c_int), parameter :: ic_b = 8
-  integer(c_int), parameter :: ic_c = 9
-  integer(c_int), parameter :: ic_alpha = 10
-  integer(c_int), parameter :: ic_beta = 11
-  integer(c_int), parameter :: ic_gamma = 12
+  integer(c_int), parameter :: ic_closebutton = 0
+  integer(c_int), parameter :: ic_id = 1
+  integer(c_int), parameter :: ic_name = 2
+  integer(c_int), parameter :: ic_spg = 3
+  integer(c_int), parameter :: ic_v = 4
+  integer(c_int), parameter :: ic_nneq = 5
+  integer(c_int), parameter :: ic_ncel = 6
+  integer(c_int), parameter :: ic_nmol = 7
+  integer(c_int), parameter :: ic_a = 8
+  integer(c_int), parameter :: ic_b = 9
+  integer(c_int), parameter :: ic_c = 10
+  integer(c_int), parameter :: ic_alpha = 11
+  integer(c_int), parameter :: ic_beta = 12
+  integer(c_int), parameter :: ic_gamma = 13
 
 contains
 
@@ -133,7 +134,16 @@ contains
     ! process force options
     if (w%forceremove /= 0) then
        call remove_system(w%forceremove)
-       if (w%forceremove == w%table_selected) w%table_selected = 1
+       if (w%forceremove == w%table_selected) then
+          ! first init system or 1 to deactivate selection
+          w%table_selected = 1
+          do i = 1, nsys
+             if (sysc(i)%status == sys_init) then
+                w%table_selected = i
+                exit
+             end if
+          end do
+       end if
        w%forceremove = 0
     end if
     if (w%forceupdate) call w%update_tree()
@@ -153,7 +163,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),13,flags,zero2,0._c_float)) then
+    if (igBeginTable(c_loc(str),14,flags,zero2,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -161,7 +171,16 @@ contains
        end if
 
        ! set up the columns
-       ! ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
+       ! closebutton - ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
+       str = "##0closebutton" // c_null_char
+       flags = ImGuiTableColumnFlags_NoResize
+       flags = ior(flags,ImGuiTableColumnFlags_NoReorder)
+       flags = ior(flags,ImGuiTableColumnFlags_NoHide)
+       flags = ior(flags,ImGuiTableColumnFlags_NoSort)
+       flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
+       flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_closebutton)
+
        str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_id)
@@ -238,6 +257,13 @@ contains
              sysc(i)%status == sys_init_hidden) cycle
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
           hadenabledrow = .false.
+
+          if (igTableSetColumnIndex(ic_closebutton)) then
+             str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
+             call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
+             if (igSmallButton(c_loc(str))) w%forceremove = i
+             call igPopStyleVar(1_c_int)
+          end if
 
           ! set background color for the name cell, if not selected
           if (w%table_selected /= i) then
