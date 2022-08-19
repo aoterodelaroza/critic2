@@ -1,5 +1,5 @@
   ! -*-F90-*-
-
+  
   !xx! cimgui user-defined types
   type, bind(c) :: ImVector_const_charPtr
      integer(c_int) :: Size
@@ -229,22 +229,23 @@
      integer(c_int) :: SpecsCount
      logical(c_bool) :: SpecsDirty
   end type ImGuiTableSortSpecs
-  ! struct ImGuiOnceUponAFrame
-  ! {
-  !      integer(c_int) :: RefFrame
-  ! }
-  ! struct ImGuiTextRange
-  ! {
-  !         type(c_ptr) :: b
-  !         type(c_ptr) :: e
-  ! }
-  ! typedef struct ImVector_ImGuiTextRange {int Size;int Capacity;ImGuiTextRange* Data;} ImVector_ImGuiTextRange;
-  ! struct ImGuiTextFilter
-  ! {
-  !     character(c_char) :: InputBuf[256]
-  !     ImVector_ImGuiTextRange Filters
-  !     integer(c_int) :: CountGrep
-  ! }
+  type, bind(c) ::ImGuiOnceUponAFrame
+     integer(c_int) :: RefFrame
+  end type ImGuiOnceUponAFrame
+  type, bind(c) :: ImGuiTextRange
+     type(c_ptr) :: b
+     type(c_ptr) :: e
+  end type ImGuiTextRange
+  type, bind(c) :: ImVector_ImGuiTextRange
+     integer(c_int) :: Size
+     integer(c_int) :: Capacity
+     type(c_ptr) :: Data
+  end type ImVector_ImGuiTextRange
+  type, bind(c) :: ImGuiTextFilter
+     character(c_char) :: InputBuf(256)
+     type(ImVector_ImGuiTextRange) :: Filters
+     integer(c_int) :: CountGrep
+  end type ImGuiTextFilter
 
   type, bind(c) :: ImVector_char
      integer(c_int) :: Size
@@ -459,28 +460,28 @@
   end type ImVector_ImFontConfig
 
   type, bind(c) :: ImFontAtlas
-      integer(c_int) :: Flags
-      type(c_ptr) :: TexID
-      integer(c_int) :: TexDesiredWidth
-      integer(c_int) :: TexGlyphPadding
-      logical(c_bool) :: Locked
-      logical(c_bool) :: TexReady
-      logical(c_bool) :: TexPixelsUseColors
-      type(c_ptr) :: TexPixelsAlpha8
-      type(c_ptr) :: TexPixelsRGBA32
-      integer(c_int) :: TexWidth
-      integer(c_int) :: TexHeight
-      type(ImVec2) :: TexUvScale
-      type(ImVec2) :: TexUvWhitePixel
-      type(ImVector_ImFontPtr) :: Fonts
-      type(ImVector_ImFontAtlasCustomRect) :: CustomRects
-      type(ImVector_ImFontConfig) :: ConfigData
-      type(ImVec4) :: TexUvLines(64)
-      type(c_ptr) :: FontBuilderIO
-      integer(c_int) :: FontBuilderFlags
-      integer(c_int) :: PackIdMouseCursors
-      integer(c_int) :: PackIdLines
-   end type ImFontAtlas
+     integer(c_int) :: Flags
+     type(c_ptr) :: TexID
+     integer(c_int) :: TexDesiredWidth
+     integer(c_int) :: TexGlyphPadding
+     logical(c_bool) :: Locked
+     logical(c_bool) :: TexReady
+     logical(c_bool) :: TexPixelsUseColors
+     type(c_ptr) :: TexPixelsAlpha8
+     type(c_ptr) :: TexPixelsRGBA32
+     integer(c_int) :: TexWidth
+     integer(c_int) :: TexHeight
+     type(ImVec2) :: TexUvScale
+     type(ImVec2) :: TexUvWhitePixel
+     type(ImVector_ImFontPtr) :: Fonts
+     type(ImVector_ImFontAtlasCustomRect) :: CustomRects
+     type(ImVector_ImFontConfig) :: ConfigData
+     type(ImVec4) :: TexUvLines(64)
+     type(c_ptr) :: FontBuilderIO
+     integer(c_int) :: FontBuilderFlags
+     integer(c_int) :: PackIdMouseCursors
+     integer(c_int) :: PackIdLines
+  end type ImFontAtlas
 
   type, bind(c) :: ImVector_float
      integer(c_int) :: Size

@@ -778,10 +778,33 @@ end function igIsMouseDoubleClicked
 !x! void ImGuiTableSortSpecs_destroy(ImGuiTableSortSpecs* self);
 !x! ImGuiOnceUponAFrame* ImGuiOnceUponAFrame_ImGuiOnceUponAFrame(void);
 !x! void ImGuiOnceUponAFrame_destroy(ImGuiOnceUponAFrame* self);
-!x! ImGuiTextFilter* ImGuiTextFilter_ImGuiTextFilter(const char* default_filter);
-!x! void ImGuiTextFilter_destroy(ImGuiTextFilter* self);
-!x! bool ImGuiTextFilter_Draw(ImGuiTextFilter* self,const char* label,float width);
-!x! bool ImGuiTextFilter_PassFilter(ImGuiTextFilter* self,const char* text,const char* text_end);
+! ImGuiTextFilter* ImGuiTextFilter_ImGuiTextFilter(const char* default_filter);
+function ImGuiTextFilter_ImGuiTextFilter(default_filter) bind(c,name="ImGuiTextFilter_ImGuiTextFilter")
+  import c_ptr
+  type(c_ptr), intent(in), value :: default_filter
+  type(c_ptr) :: ImGuiTextFilter_ImGuiTextFilter
+end function ImGuiTextFilter_ImGuiTextFilter
+! void ImGuiTextFilter_destroy(ImGuiTextFilter* self);
+subroutine ImGuiTextFilter_destroy(self) bind(c,name="ImGuiTextFilter_destroy")
+  import c_ptr
+  type(c_ptr), intent(in), value :: self
+end subroutine ImGuiTextFilter_destroy
+! bool ImGuiTextFilter_Draw(ImGuiTextFilter* self,const char* label,float width);
+function ImGuiTextFilter_Draw(self,label,width) bind(c,name="ImGuiTextFilter_Draw")
+  import c_ptr, c_float, c_bool
+  type(c_ptr), value :: self
+  type(c_ptr), intent(in), value :: label
+  real(c_float), value :: width
+  logical(c_bool) :: ImGuiTextFilter_Draw
+end function ImGuiTextFilter_Draw
+! bool ImGuiTextFilter_PassFilter(ImGuiTextFilter* self,const char* text,const char* text_end);
+function ImGuiTextFilter_PassFilter(self,text,text_end) bind(c,name="ImGuiTextFilter_PassFilter")
+  import c_ptr, c_bool
+  type(c_ptr), value :: self
+  type(c_ptr), intent(in), value :: text
+  type(c_ptr), intent(in), value :: text_end
+  logical(c_bool) :: ImGuiTextFilter_PassFilter
+end function ImGuiTextFilter_PassFilter
 !x! void ImGuiTextFilter_Build(ImGuiTextFilter* self);
 !x! void ImGuiTextFilter_Clear(ImGuiTextFilter* self);
 !x! bool ImGuiTextFilter_IsActive(ImGuiTextFilter* self);

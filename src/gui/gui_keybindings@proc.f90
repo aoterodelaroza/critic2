@@ -176,7 +176,6 @@ contains
   ! the event happens only if the button is held down (for mouse).
   module function is_bind_event(bind,held)
     use gui_interfaces_cimgui
-    use gui_main, only: io
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
     logical :: is_bind_event

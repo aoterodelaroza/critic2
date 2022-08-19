@@ -112,17 +112,19 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str
+    character(kind=c_char,len=:), allocatable, target :: str, zeroc
     type(ImVec2) :: zero2
-    integer(c_int) :: flags, color, idx
-    integer :: i, j, k, nshown, newts, newsel
-    logical(c_bool) :: selected
+    integer(c_int) :: flags, color
+    integer :: i, j, k, nshown, newsel
+    logical(c_bool) :: ldum
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledrow = .false.
+    logical :: hadenabledcolumn = .false.
+    type(c_ptr), save :: cfilter = c_null_ptr
 
     ! initialize
+    zeroc = "" // c_null_char
     zero2%x = 0
     zero2%y = 0
     if (.not.allocated(w%iord)) then
@@ -132,6 +134,12 @@ contains
        w%forceupdate = .true.
     end if
 
+    ! text filter
+    if (.not.c_associated(cfilter)) &
+       cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
+    str = "Filter (inc,-exc)" // c_null_char
+    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0.0_c_float)
+
     ! process force options
     if (w%forceremove /= 0) then
        ! remove a system and move the table selection if the system was selected
@@ -139,17 +147,23 @@ contains
        if (w%forceremove == w%table_selected) then
           newsel = 0
           do i = w%table_selected, nsys
-             if (sysc(i)%status == sys_init) then
-                newsel = i
-                exit
+             if (sysc(i)%status /= sys_init) cycle
+             if (c_associated(cfilter)) then
+                str = trim(sysc(i)%seed%name) // c_null_char
+                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
              end if
+             newsel = i
+             exit
           end do
           if (newsel == 0) then
              do i = w%table_selected, 1, -1
-                if (sysc(i)%status == sys_init) then
-                   newsel = i
-                   exit
+                if (sysc(i)%status /= sys_init) cycle
+                if (c_associated(cfilter)) then
+                   str = trim(sysc(i)%seed%name) // c_null_char
+                   if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
                 end if
+                newsel = i
+                exit
              end do
              if (newsel == 0) newsel = 1
           end if
@@ -266,8 +280,13 @@ contains
           i = w%iord(j)
           if (sysc(i)%status == sys_empty .or. sysc(i)%status == sys_loaded_not_init_hidden.or.&
              sysc(i)%status == sys_init_hidden) cycle
+          if (c_associated(cfilter)) then
+             str = trim(sysc(i)%seed%name) // c_null_char
+             if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+          end if
+
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
-          hadenabledrow = .false.
+          hadenabledcolumn = .false.
 
           if (igTableSetColumnIndex(ic_closebutton)) then
              str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
@@ -444,13 +463,16 @@ contains
        end do
 
        ! process the keybindings
-       if (igIsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) then
+       if (igIsWindowFocused(ImGuiFocusedFlags_None)) then
           if (is_bind_event(BIND_TREE_REMOVE_SYSTEM)) &
              w%forceremove = w%table_selected
        end if
 
        call igEndTable()
     end if
+
+    ! clean up
+    ! call ImGuiTextFilter_destroy(cfilter)
 
   contains
 
@@ -466,7 +488,7 @@ contains
       character(kind=c_char,len=1024), target :: txtinp
 
       str = str // c_null_char
-      if (hadenabledrow) then
+      if (hadenabledcolumn) then
          if (sysc(isys)%status == sys_init) then
             call igText(c_loc(str))
          else
@@ -513,7 +535,7 @@ contains
             call igSetTooltip(c_loc(str))
          end if
       end if
-      hadenabledrow = .true.
+      hadenabledcolumn = .true.
 
     end subroutine write_text_maybe_selectable
 
