@@ -806,7 +806,11 @@ function ImGuiTextFilter_PassFilter(self,text,text_end) bind(c,name="ImGuiTextFi
   logical(c_bool) :: ImGuiTextFilter_PassFilter
 end function ImGuiTextFilter_PassFilter
 !x! void ImGuiTextFilter_Build(ImGuiTextFilter* self);
-!x! void ImGuiTextFilter_Clear(ImGuiTextFilter* self);
+! void ImGuiTextFilter_Clear(ImGuiTextFilter* self);
+subroutine ImGuiTextFilter_Clear(self) bind(c,name="ImGuiTextFilter_Clear")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImGuiTextFilter_Clear
 !x! bool ImGuiTextFilter_IsActive(ImGuiTextFilter* self);
 !x! ImGuiTextRange* ImGuiTextRange_ImGuiTextRange_Nil(void);
 !x! void ImGuiTextRange_destroy(ImGuiTextRange* self);

@@ -505,16 +505,12 @@ contains
   ! Process the global keybindings
   subroutine process_global_keybindings()
     use gui_interfaces_cimgui
-    use gui_keybindings, only: is_bind_event, BIND_QUIT, BIND_CLOSE_POPUP
+    use gui_keybindings, only: is_bind_event, BIND_QUIT
     use gui_interfaces_glfw, only: glfwSetWindowShouldClose,GLFW_TRUE
 
     ! quit
     if (is_bind_event(BIND_QUIT)) &
        call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
-
-    ! close last popup
-    if (is_bind_event(BIND_CLOSE_POPUP)) &
-       call igClosePopupsExceptModals()
 
   end subroutine process_global_keybindings
 

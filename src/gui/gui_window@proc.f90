@@ -263,12 +263,17 @@ contains
        ptrc = igTableGetSortSpecs()
        if (c_associated(ptrc)) then
           call c_f_pointer(ptrc,sortspecs)
-          call c_f_pointer(sortspecs%Specs,colspecs)
-          w%table_sortcid = colspecs%ColumnUserID
-          w%table_sortdir = colspecs%SortDirection
-          if (sortspecs%SpecsDirty .and. nshown > 1) then
-             w%forcesort = .true.
-             sortspecs%SpecsDirty = .false.
+          if (c_associated(sortspecs%Specs)) then
+             call c_f_pointer(sortspecs%Specs,colspecs)
+             w%table_sortcid = colspecs%ColumnUserID
+             w%table_sortdir = colspecs%SortDirection
+             if (sortspecs%SpecsDirty .and. nshown > 1) then
+                w%forcesort = .true.
+                sortspecs%SpecsDirty = .false.
+             end if
+          else
+             w%table_sortcid = ic_id
+             w%table_sortdir = 1
           end if
        end if
 

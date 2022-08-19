@@ -28,7 +28,6 @@ submodule (gui_keybindings) proc
   ! Bind names
   character(len=22), parameter :: bindnames(BIND_NUM) = (/&
      "Quit                  ",& ! BIND_QUIT
-     "Close last popup      ",& ! BIND_CLOSE_POPUP
      "Remove selected system"/) ! BIND_TREE_REMOVE_SYSTEM
   !   "Close last dialog",
   !   "Close all dialogs",
@@ -48,7 +47,6 @@ submodule (gui_keybindings) proc
   integer, parameter :: group_tree = 2 ! if the tree is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
-     group_global,& ! BIND_CLOSE_POPUP
      group_tree/)   ! BIND_TREE_REMOVE_SYSTEM
   !   1, // close last dialog
   !   1, // close all dialogs
@@ -153,7 +151,6 @@ contains
 
     ! Default keybindings
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
-    call set_bind(BIND_CLOSE_POPUP,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
     !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
