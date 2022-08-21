@@ -947,5 +947,24 @@
   integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_LoadColor") :: ImGuiFreeTypeBuilderFlags_LoadColor
   integer(c_int), bind(C,name="const_ImGuiFreeTypeBuilderFlags_Bitmap") :: ImGuiFreeTypeBuilderFlags_Bitmap
 
+  !! filedialog
+  ! enum ImGuiFileDialogFlags
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_None") :: ImGuiFileDialogFlags_None
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_ConfirmOverwrite") :: &
+     ImGuiFileDialogFlags_ConfirmOverwrite
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_DontShowHiddenFiles") :: &
+     ImGuiFileDialogFlags_DontShowHiddenFiles
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_DisableCreateDirectoryButton") :: &
+     ImGuiFileDialogFlags_DisableCreateDirectoryButton
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_HideColumnType") :: ImGuiFileDialogFlags_HideColumnType
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_HideColumnSize") :: ImGuiFileDialogFlags_HideColumnSize
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_HideColumnDate") :: ImGuiFileDialogFlags_HideColumnDate
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_NoDialog") :: ImGuiFileDialogFlags_NoDialog
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_ReadOnlyFileNameField") :: &
+     ImGuiFileDialogFlags_ReadOnlyFileNameField
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_CaseInsensitiveExtention") :: &
+     ImGuiFileDialogFlags_CaseInsensitiveExtention
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_Modal") :: ImGuiFileDialogFlags_Modal
+
   ! default font for the critic2 GUI (POINTER)
   type(c_ptr), bind(C,name="const_myfont_ttf_compressed_data_base85_ptr") :: myfont_ttf_compressed_data_base85_ptr

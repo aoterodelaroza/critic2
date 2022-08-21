@@ -970,6 +970,20 @@ extern "C" const int const_ImGuiFreeTypeBuilderFlags_Monochrome;
 extern "C" const int const_ImGuiFreeTypeBuilderFlags_LoadColor;
 extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bitmap;
 
+//// filedialog
+// enum ImGuiFileDialogFlags;
+extern "C" const int const_ImGuiFileDialogFlags_None;
+extern "C" const int const_ImGuiFileDialogFlags_ConfirmOverwrite;
+extern "C" const int const_ImGuiFileDialogFlags_DontShowHiddenFiles;
+extern "C" const int const_ImGuiFileDialogFlags_DisableCreateDirectoryButton;
+extern "C" const int const_ImGuiFileDialogFlags_HideColumnType;
+extern "C" const int const_ImGuiFileDialogFlags_HideColumnSize;
+extern "C" const int const_ImGuiFileDialogFlags_HideColumnDate;
+extern "C" const int const_ImGuiFileDialogFlags_NoDialog;
+extern "C" const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField;
+extern "C" const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention;
+extern "C" const int const_ImGuiFileDialogFlags_Modal;
+
 // The default font for the critic2 GUI
 extern "C" const char *const_myfont_ttf_compressed_data_base85_ptr;
 

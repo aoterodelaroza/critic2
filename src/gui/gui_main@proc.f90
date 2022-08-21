@@ -34,6 +34,9 @@ submodule (gui_main) proc
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
 
+  ! open dialog
+  type(c_ptr), target :: opendialog
+
   !xx! private procedures
   ! subroutine process_arguments()
   ! function stack_create_window(type,isopen)
@@ -152,6 +155,9 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.)
     iwin_console = stack_create_window(wintype_console,.true.)
 
+    ! initialize open dialog
+    opendialog = IGFD_Create()
+
     ! main loop
     show_demo_window = .true.
     firstpass = .true.
@@ -219,6 +225,9 @@ contains
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
     end do
+
+    ! cleanup dialog
+    call IGFD_Destroy(opendialog)
 
     ! terminate
     call glfwDestroyWindow(rootwin)
@@ -429,14 +438,27 @@ contains
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
+    character(kind=c_char,len=:), allocatable, target :: str5
     type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
+    type(ImVec2) :: minsize, maxsize
 
     if (igBeginMainMenuBar()) then
        ! File
        str1 = "File" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+
+          str1 = "Open..." // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             str1 = "opendialog" // c_null_char
+             str2 = "Open File" // c_null_char
+             str3 = "*.*" // c_null_char
+             str4 = "." // c_null_char
+             str5 = "" // c_null_char
+             call IGFD_OpenDialog(opendialog, c_loc(str1), c_loc(str2), c_loc(str3), c_loc(str4),&
+                c_loc(str5), 0_c_int, c_null_ptr, ImGuiFileDialogFlags_None)
+          end if
 
           ! File -> Quit
           str1 = "Quit" // c_null_char
@@ -493,12 +515,22 @@ contains
 
        ! fps message
        call igGetContentRegionAvail(v2)
-       call igSameLine(0._c_float, v2%x - 180._c_float)
+       call igSameLine(0._c_float, v2%x - 220._c_float)
        str1 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
           string(io%Framerate,'f',decimal=1) // " FPS)" // c_null_char
        call igText(c_loc(str1))
     end if
     call igEndMainMenuBar()
+
+    str1 = "opendialog" // c_null_char
+    minsize%x = 0._c_float
+    minsize%y = 0._c_float
+    maxsize%x = 1000000._c_float
+    maxsize%y = 1000000._c_float
+    if (IGFD_DisplayDialog(opendialog,c_loc(str1),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
+       write (*,*) "bleh!"
+       call IGFD_CloseDialog(opendialog)
+    end if
 
   end subroutine show_main_menu
 

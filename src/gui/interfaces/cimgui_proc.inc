@@ -1755,3 +1755,136 @@ end subroutine igTableSetColumnWidthAutoAll
 !x! void ImVector_ImWchar_destroy(ImVector_ImWchar* self);
 !x! void ImVector_ImWchar_Init(ImVector_ImWchar* p);
 !x! void ImVector_ImWchar_UnInit(ImVector_ImWchar* p);
+
+
+! filedialog
+! IMGUIFILEDIALOG_API ImGuiFileDialog* IGFD_Create(void);
+function IGFD_Create() bind(c,name="IGFD_Create")
+  import c_ptr
+  type(c_ptr) :: IGFD_Create
+end function IGFD_Create
+! IMGUIFILEDIALOG_API void IGFD_Destroy(ImGuiFileDialog* vContext);
+subroutine IGFD_Destroy(vContext) bind(c,name="IGFD_Destroy")
+  import c_ptr
+  type(c_ptr), value :: vContext
+end subroutine IGFD_Destroy
+!x! IMGUIFILEDIALOG_API void IGFD_OpenDialog(
+!       ImGuiFileDialog* vContext,const char* vKey,const char* vTitle,const char* vFilters,const char* vPath,
+!       const char* vFileName,const int vCountSelectionMax,void* vUserDatas, ImGuiFileDialogFlags vFlags);
+subroutine IGFD_OpenDialog(vContext, vKey, vTitle, vFilter, vPath, vFilename, VCountSelectionMax, vUserDatas, vFlags) &
+   bind(c,name="IGFD_OpenDialog")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: vContext
+  type(c_ptr), intent(in), value :: vKey
+  type(c_ptr), intent(in), value :: vTitle
+  type(c_ptr), intent(in), value :: vFilter
+  type(c_ptr), intent(in), value :: vPath
+  type(c_ptr), intent(in), value :: vFilename
+  integer(c_int), intent(in), value :: VCountSelectionMax
+  type(c_ptr), value :: vUserDatas
+  integer(c_int), value :: vFlags
+end subroutine IGFD_OpenDialog
+!x! IMGUIFILEDIALOG_API void IGFD_OpenDialog2(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const char* vKey,                                                                               // key dialog
+!       const char* vTitle,                                                                             // title
+!       const char* vFilters,                                                                   // filters/filter collections. set it to null for directory mode
+!       const char* vFilePathName,                                                              // defaut file path name (path and filename witl be extracted from it)
+!       const int vCountSelectionMax,                                                   // count selection max
+!       void* vUserDatas,                                                                               // user datas (can be retrieved in pane)
+!       ImGuiFileDialogFlags vFlags);                                                   // ImGuiFileDialogFlags
+!x! IMGUIFILEDIALOG_API void IGFD_OpenPaneDialog(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const char* vKey,                                                                               // key dialog
+!       const char* vTitle,                                                                             // title
+!       const char* vFilters,                                                                   // filters/filter collections. set it to null for directory mode
+!       const char* vPath,                                                                              // path
+!       const char* vFileName,                                                                  // defaut file name
+!       const IGFD_PaneFun vSidePane,                                                   // side pane
+!       const float vSidePaneWidth,                                                             // side pane base width
+!       const int vCountSelectionMax,                                                   // count selection max
+!       void* vUserDatas,                                                                               // user datas (can be retrieved in pane)
+!       ImGuiFileDialogFlags vFlags);                                                   // ImGuiFileDialogFlags
+!x! IMGUIFILEDIALOG_API void IGFD_OpenPaneDialog2(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const char* vKey,                                                                               // key dialog
+!       const char* vTitle,                                                                             // title
+!       const char* vFilters,                                                                   // filters/filter collections. set it to null for directory mode
+!       const char* vFilePathName,                                                              // defaut file name (path and filename witl be extracted from it)
+!       const IGFD_PaneFun vSidePane,                                                   // side pane
+!       const float vSidePaneWidth,                                                             // side pane base width
+!       const int vCountSelectionMax,                                                   // count selection max
+!       void* vUserDatas,                                                                               // user datas (can be retrieved in pane)
+!       ImGuiFileDialogFlags vFlags);                                                   // ImGuiFileDialogFlags
+!x! IMGUIFILEDIALOG_API bool IGFD_DisplayDialog(
+!       ImGuiFileDialog* vContext,const char* vKey,ImGuiWindowFlags vFlags,ImVec2 vMinSize,ImVec2 vMaxSize);
+function IGFD_DisplayDialog(vContext,vKey,vFlags,vMinSize,vMaxSize) bind(c,name="IGFD_DisplayDialog")
+  import c_ptr, c_int, ImVec2, c_bool
+  type(c_ptr), value :: vContext
+  type(c_ptr), intent(in), value :: vKey
+  integer(c_int), value :: vFlags
+  type(ImVec2), value :: vMinSize
+  type(ImVec2), value :: vMaxSize
+  logical(c_bool) :: IGFD_DisplayDialog
+end function IGFD_DisplayDialog
+! IMGUIFILEDIALOG_API void IGFD_CloseDialog(ImGuiFileDialog* vContext);
+subroutine IGFD_CloseDialog(vContext) bind(c,name="IGFD_CloseDialog")
+  import c_ptr
+  type(c_ptr), value :: vContext
+end subroutine IGFD_CloseDialog
+!x! IMGUIFILEDIALOG_API bool IGFD_IsOk(ImGuiFileDialog* vContext);
+function IGFD_IsOk(vContext) bind(c,name="IGFD_IsOk")
+  import c_ptr, c_bool
+  type(c_ptr), value :: vContext
+  logical(c_bool) :: IGFD_IsOk
+end function IGFD_IsOk
+!x! IMGUIFILEDIALOG_API bool IGFD_WasKeyOpenedThisFrame(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const char* vKey);
+!x! IMGUIFILEDIALOG_API bool IGFD_WasOpenedThisFrame(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API bool IGFD_IsKeyOpened(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const char* vCurrentOpenedKey);                                                 // the dialog key
+!x! IMGUIFILEDIALOG_API bool IGFD_IsOpened(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API IGFD_Selection IGFD_GetSelection(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API char* IGFD_GetFilePathName(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFileName(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentPath(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFilter(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API void* IGFD_GetUserDatas(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API void IGFD_SetFileStyle(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type
+!       const char* vFilter,                                                                    // extention filter to tune
+!       ImVec4 vColor,                                                                                  // wanted color for the display of the file with extention filter
+!       const char* vIconText,                                                                  // wanted text or icon of the file with extention filter (can be sued with font icon)
+!       ImFont* vFont);                                                                                 // wanted font pointer
+!x! IMGUIFILEDIALOG_API void IGFD_SetFileStyle2(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type
+!       const char* vFilter,                                                                    // extention filter to tune
+!       float vR, float vG, float vB, float vA,                                 // wanted color channels RGBA for the display of the file with extention filter
+!       const char* vIconText,                                                                  // wanted text or icon of the file with extention filter (can be sued with font icon)
+!       ImFont* vFont);                                                                                 // wanted font pointer
+!x! IMGUIFILEDIALOG_API bool IGFD_GetFileStyle(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type
+!       const char* vFilter,                                                                    // extention filter (same as used in SetExtentionInfos)
+!       ImVec4* vOutColor,                                                                              // color to retrieve
+!       char** vOutIconText,                                                                    // icon or text to retrieve, WARNINGS you are responsible to free it
+!       ImFont** vOutFont);                                                                             // font pointer to retrived
+!x! IMGUIFILEDIALOG_API void IGFD_ClearFilesStyle(
+!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+!x! IMGUIFILEDIALOG_API void SetLocales(
+!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
+!       const int vCategory,                                                                    // set local category
+!       const char* vBeginLocale,                                                               // locale to use at begining of the dialog display
+!       const char* vEndLocale);                                                                // locale to set at end of the dialog display

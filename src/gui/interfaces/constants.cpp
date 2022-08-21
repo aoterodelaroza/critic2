@@ -29,6 +29,7 @@
 #include <GLFW/glfw3.h>
 #include "constants.h"
 #include "../threads/tinycthread.h"
+#include "../filedialog/ImGuiFileDialog.h"
 
 // threads
 /* Function return values */
@@ -976,6 +977,21 @@ const int const_ImGuiFreeTypeBuilderFlags_Oblique = ImGuiFreeTypeBuilderFlags_Ob
 const int const_ImGuiFreeTypeBuilderFlags_Monochrome = ImGuiFreeTypeBuilderFlags_Monochrome;
 const int const_ImGuiFreeTypeBuilderFlags_LoadColor = ImGuiFreeTypeBuilderFlags_LoadColor;
 const int const_ImGuiFreeTypeBuilderFlags_Bitmap = ImGuiFreeTypeBuilderFlags_Bitmap;
+
+//// filedialog
+// enum ImGuiFileDialogFlags;
+const int const_ImGuiFileDialogFlags_None = ImGuiFileDialogFlags_None;
+const int const_ImGuiFileDialogFlags_ConfirmOverwrite = ImGuiFileDialogFlags_ConfirmOverwrite;
+const int const_ImGuiFileDialogFlags_DontShowHiddenFiles = ImGuiFileDialogFlags_DontShowHiddenFiles;
+const int const_ImGuiFileDialogFlags_DisableCreateDirectoryButton = ImGuiFileDialogFlags_DisableCreateDirectoryButton;
+const int const_ImGuiFileDialogFlags_HideColumnType = ImGuiFileDialogFlags_HideColumnType;
+const int const_ImGuiFileDialogFlags_HideColumnSize = ImGuiFileDialogFlags_HideColumnSize;
+const int const_ImGuiFileDialogFlags_HideColumnDate = ImGuiFileDialogFlags_HideColumnDate;
+const int const_ImGuiFileDialogFlags_NoDialog = ImGuiFileDialogFlags_NoDialog;
+const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField = ImGuiFileDialogFlags_ReadOnlyFileNameField;
+const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention = ImGuiFileDialogFlags_CaseInsensitiveExtention;
+const int const_ImGuiFileDialogFlags_Modal = ImGuiFileDialogFlags_Modal;
+
 
 // The default font for the critic2 GUI
 // DejaVu Sans Mono

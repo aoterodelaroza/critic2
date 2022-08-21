@@ -5,6 +5,8 @@ set(SOURCES
 
   threads/tinycthread.c threads/tinycwrapper.c
 
+  filedialog/ImGuiFileDialog.cpp
+
   gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
   gui_interfaces_opengl3.f90 gui_interfaces_threads.f90
   interfaces/constants.cpp
