@@ -965,6 +965,14 @@
   integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_CaseInsensitiveExtention") :: &
      ImGuiFileDialogFlags_CaseInsensitiveExtention
   integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_Modal") :: ImGuiFileDialogFlags_Modal
+  ! enum IGFD_FileStyle
+  integer(c_int), bind(C,name="const_IGFD_FileStyle_None") :: IGFD_FileStyle_None
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByTypeFile") :: IGFD_FileStyleByTypeFile
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByTypeDir") :: IGFD_FileStyleByTypeDir
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByTypeLink") :: IGFD_FileStyleByTypeLink
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByExtention") :: IGFD_FileStyleByExtention
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByFullName") :: IGFD_FileStyleByFullName
+  integer(c_int), bind(C,name="const_IGFD_FileStyleByContainedInFullName") :: IGFD_FileStyleByContainedInFullName
 
   ! default font for the critic2 GUI (POINTER)
   type(c_ptr), bind(C,name="const_myfont_ttf_compressed_data_base85_ptr") :: myfont_ttf_compressed_data_base85_ptr

@@ -1860,20 +1860,30 @@ end function IGFD_IsOk
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
 !x! IMGUIFILEDIALOG_API void* IGFD_GetUserDatas(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
-!x! IMGUIFILEDIALOG_API void IGFD_SetFileStyle(
-!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
-!       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type
-!       const char* vFilter,                                                                    // extention filter to tune
-!       ImVec4 vColor,                                                                                  // wanted color for the display of the file with extention filter
-!       const char* vIconText,                                                                  // wanted text or icon of the file with extention filter (can be sued with font icon)
-!       ImFont* vFont);                                                                                 // wanted font pointer
-!x! IMGUIFILEDIALOG_API void IGFD_SetFileStyle2(
-!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
-!       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type
-!       const char* vFilter,                                                                    // extention filter to tune
-!       float vR, float vG, float vB, float vA,                                 // wanted color channels RGBA for the display of the file with extention filter
-!       const char* vIconText,                                                                  // wanted text or icon of the file with extention filter (can be sued with font icon)
-!       ImFont* vFont);                                                                                 // wanted font pointer
+! IMGUIFILEDIALOG_API void IGFD_SetFileStyle(ImGuiFileDialog* vContext,IGFD_FileStyleFlags vFileStyleFlags,
+!       const char* vFilter,ImVec4 vColor,const char* vIconText,ImFont* vFont);
+subroutine IGFD_SetFileStyle(vContext,vFileStyleFlags,vFilter,vColor,vIconText,vFont) &
+   bind(c,name="IGFD_SetFileStyle")
+  import c_ptr, c_int, ImVec4
+  type(c_ptr), value :: vContext
+  integer(c_int), value :: vFileStyleFlags
+  type(c_ptr), intent(in), value :: vFilter
+  type(ImVec4), value :: vColor
+  type(c_ptr), intent(in), value :: vIconText
+  type(c_ptr), value :: vFont
+end subroutine IGFD_SetFileStyle
+! IMGUIFILEDIALOG_API void IGFD_SetFileStyle2(ImGuiFileDialog* vContext,IGFD_FileStyleFlags vFileStyleFlags,const char* vFilter,
+!       float vR, float vG, float vB, float vA, const char* vIconText, ImFont* vFont)
+subroutine IGFD_SetFileStyle2(vContext,vFileStyleFlags,vFilter,vR,vG,vB,vA,vIconText,vFont) &
+   bind(c,name="IGFD_SetFileStyle2")
+  import c_ptr, c_int, c_float
+  type(c_ptr), value :: vContext
+  integer(c_int), value :: vFileStyleFlags
+  type(c_ptr), intent(in), value :: vFilter
+  real(c_float), value :: vR, vG, vB, vA
+  type(c_ptr), intent(in), value :: vIconText
+  type(c_ptr), value :: vFont
+end subroutine IGFD_SetFileStyle2
 !x! IMGUIFILEDIALOG_API bool IGFD_GetFileStyle(
 !       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
 !       IGFD_FileStyleFlags vFileStyleFlags,                                    // file style type

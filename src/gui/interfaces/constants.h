@@ -983,6 +983,14 @@ extern "C" const int const_ImGuiFileDialogFlags_NoDialog;
 extern "C" const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField;
 extern "C" const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention;
 extern "C" const int const_ImGuiFileDialogFlags_Modal;
+// enum IGFD_FileStyle
+extern "C" const int const_IGFD_FileStyle_None;
+extern "C" const int const_IGFD_FileStyleByTypeFile;
+extern "C" const int const_IGFD_FileStyleByTypeDir;
+extern "C" const int const_IGFD_FileStyleByTypeLink;
+extern "C" const int const_IGFD_FileStyleByExtention;
+extern "C" const int const_IGFD_FileStyleByFullName;
+extern "C" const int const_IGFD_FileStyleByContainedInFullName;
 
 // The default font for the critic2 GUI
 extern "C" const char *const_myfont_ttf_compressed_data_base85_ptr;

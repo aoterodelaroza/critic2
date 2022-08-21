@@ -37,7 +37,7 @@ module gui_window
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer to the ImGui window (use only after Begin())
-     ! table parameters
+     ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
      integer(c_int) :: table_sortcid = 0 ! sort table by this column id
@@ -50,6 +50,7 @@ module gui_window
    contains
      procedure :: init => window_init
      procedure :: draw => window_draw
+     ! tree procedures
      procedure :: draw_tree
      procedure :: update_tree
      procedure :: sort_tree

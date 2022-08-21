@@ -34,7 +34,8 @@ submodule (gui_main) proc
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
 
-  ! open dialog
+  ! open dialog (used in menu->open... option)
+  logical(c_bool) :: opendialog_isopen = .false.
   type(c_ptr), target :: opendialog
 
   !xx! private procedures
@@ -155,8 +156,12 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.)
     iwin_console = stack_create_window(wintype_console,.true.)
 
-    ! initialize open dialog
+    ! initialize menu dialogs
     opendialog = IGFD_Create()
+    strc = "+" // c_null_char
+    call IGFD_SetFileStyle(opendialog,IGFD_FileStyleByTypeDir,c_null_ptr,DialogDir,c_loc(strc),c_null_ptr)
+    strc = " " // c_null_char
+    call IGFD_SetFileStyle(opendialog,IGFD_FileStyleByTypeFile,c_null_ptr,DialogFile,c_loc(strc),c_null_ptr)
 
     ! main loop
     show_demo_window = .true.
@@ -226,7 +231,7 @@ contains
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
     end do
 
-    ! cleanup dialog
+    ! cleanup menu dialogs
     call IGFD_Destroy(opendialog)
 
     ! terminate
@@ -450,14 +455,15 @@ contains
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
           str1 = "Open..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
-             str1 = "opendialog" // c_null_char
-             str2 = "Open File" // c_null_char
-             str3 = "*.*" // c_null_char
-             str4 = "." // c_null_char
-             str5 = "" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.not.opendialog_isopen)) then
+             str1 = "opendialog" // c_null_char ! key
+             str2 = "Open File(s)..." // c_null_char ! title
+             str3 = "*.*" // c_null_char ! extension
+             str4 = "." // c_null_char ! default path
+             str5 = "" // c_null_char ! default name
              call IGFD_OpenDialog(opendialog, c_loc(str1), c_loc(str2), c_loc(str3), c_loc(str4),&
                 c_loc(str5), 0_c_int, c_null_ptr, ImGuiFileDialogFlags_None)
+             opendialog_isopen = .true._c_bool
           end if
 
           ! File -> Quit
@@ -522,14 +528,16 @@ contains
     end if
     call igEndMainMenuBar()
 
-    str1 = "opendialog" // c_null_char
-    minsize%x = 0._c_float
-    minsize%y = 0._c_float
-    maxsize%x = 1000000._c_float
-    maxsize%y = 1000000._c_float
-    if (IGFD_DisplayDialog(opendialog,c_loc(str1),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
-       write (*,*) "bleh!"
-       call IGFD_CloseDialog(opendialog)
+    if (opendialog_isopen) then
+       str1 = "opendialog" // c_null_char
+       minsize%x = 0._c_float
+       minsize%y = 0._c_float
+       maxsize%x = 1000000._c_float
+       maxsize%y = 1000000._c_float
+       if (IGFD_DisplayDialog(opendialog,c_loc(str1),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
+          call IGFD_CloseDialog(opendialog)
+          opendialog_isopen = .false._c_bool
+       end if
     end if
 
   end subroutine show_main_menu

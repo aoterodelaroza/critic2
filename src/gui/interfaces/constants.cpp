@@ -991,6 +991,14 @@ const int const_ImGuiFileDialogFlags_NoDialog = ImGuiFileDialogFlags_NoDialog;
 const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField = ImGuiFileDialogFlags_ReadOnlyFileNameField;
 const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention = ImGuiFileDialogFlags_CaseInsensitiveExtention;
 const int const_ImGuiFileDialogFlags_Modal = ImGuiFileDialogFlags_Modal;
+// enum IGFD_FileStyle
+const int const_IGFD_FileStyle_None = IGFD_FileStyle_None;
+const int const_IGFD_FileStyleByTypeFile = IGFD_FileStyleByTypeFile;
+const int const_IGFD_FileStyleByTypeDir = IGFD_FileStyleByTypeDir;
+const int const_IGFD_FileStyleByTypeLink = IGFD_FileStyleByTypeLink;
+const int const_IGFD_FileStyleByExtention = IGFD_FileStyleByExtention;
+const int const_IGFD_FileStyleByFullName = IGFD_FileStyleByFullName;
+const int const_IGFD_FileStyleByContainedInFullName = IGFD_FileStyleByContainedInFullName;
 
 
 // The default font for the critic2 GUI

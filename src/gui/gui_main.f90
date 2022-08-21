@@ -45,6 +45,8 @@ module gui_main
   type(ImVec4), parameter, public :: TableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.3)  ! tree table name cell, 3d crystal
   type(ImVec4), parameter, public :: TableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.3)  ! tree table name cell, 2d crystal
   type(ImVec4), parameter, public :: TableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.3)  ! tree table name cell, 1d crystal
+  type(ImVec4), parameter, public :: DialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
+  type(ImVec4), parameter, public :: DialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
 
   ! the window stack and named windows
   integer, public :: nwin
