@@ -414,8 +414,6 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
-    integer(c_int) :: flags
-    integer :: idum
     integer, save :: idopendialog = 0
     logical(c_bool) :: enabled
     logical :: launchquit, launchopen

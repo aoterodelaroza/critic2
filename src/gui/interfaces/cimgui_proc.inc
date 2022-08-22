@@ -229,9 +229,17 @@ subroutine igSameLine(offset_from_start_x, spacing) bind(c,name="igSameLine")
   real(c_float), value :: offset_from_start_x
   real(c_float), value :: spacing
 end subroutine igSameLine
-!x! void igNewLine(void);
-!x! void igSpacing(void);
-!x! void igDummy(const ImVec2 size);
+! void igNewLine(void);
+subroutine igNewLine() bind(c,name="igNewLine")
+end subroutine igNewLine
+! void igSpacing(void);
+subroutine igSpacing() bind(c,name="igSpacing")
+end subroutine igSpacing
+! void igDummy(const ImVec2 size);
+subroutine igDummy(size) bind(c,name="igDummy")
+  import ImVec2
+  type(ImVec2), intent(in) :: size
+end subroutine igDummy
 !x! void igIndent(float indent_w);
 !x! void igUnindent(float indent_w);
 !x! void igBeginGroup(void);
@@ -247,7 +255,11 @@ end subroutine igSameLine
 !x! void igSetCursorScreenPos(const ImVec2 pos);
 !x! void igAlignTextToFramePadding(void);
 !x! float igGetTextLineHeight(void);
-!x! float igGetTextLineHeightWithSpacing(void);
+! float igGetTextLineHeightWithSpacing(void);
+function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSpacing")
+  import c_float
+  real(c_float) :: igGetTextLineHeightWithSpacing
+end function igGetTextLineHeightWithSpacing
 !x! float igGetFrameHeight(void);
 !x! float igGetFrameHeightWithSpacing(void);
 !x! void igPushID_Str(const char* str_id);
@@ -270,7 +282,12 @@ subroutine igText(fmt) bind(c,name="igText")
   type(c_ptr), intent(in), value :: fmt
 end subroutine igText
 !x! void igTextV(const char* fmt,va_list args);
-!x! void igTextColored(const ImVec4 col,const char* fmt,...);
+! void igTextColored(const ImVec4 col,const char* fmt,...);
+subroutine igTextColored(col,fmt) bind(c,name="igTextColored")
+  import ImVec4, c_ptr
+  type(ImVec4), intent(in), value :: col
+  type(c_ptr), intent(in), value :: fmt
+end subroutine igTextColored
 !x! void igTextColoredV(const ImVec4 col,const char* fmt,va_list args);
 ! void igTextDisabled(const char* fmt,...);
 subroutine igTextDisabled(fmt) bind(c,name="igTextDisabled")
@@ -299,17 +316,39 @@ end function igSmallButton
 !x! bool igArrowButton(const char* str_id,ImGuiDir dir);
 !x! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
 !x! bool igImageButton(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,int frame_padding,const ImVec4 bg_col,const ImVec4 tint_col);
-!x! bool igCheckbox(const char* label,bool* v);
+! bool igCheckbox(const char* label,bool* v);
+function igCheckbox(label,v) bind(c,name="igCheckbox")
+  import c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool) :: v
+  logical(c_bool) :: igCheckbox
+end function igCheckbox
 !x! bool igCheckboxFlags_IntPtr(const char* label,int* flags,int flags_value);
 !x! bool igCheckboxFlags_UintPtr(const char* label,unsigned int* flags,unsigned int flags_value);
 !x! bool igRadioButton_Bool(const char* label,bool active);
-!x! bool igRadioButton_IntPtr(const char* label,int* v,int v_button);
+! bool igRadioButton_IntPtr(const char* label,int* v,int v_button);
+function igRadioButton_IntPtr(label,v,v_button) bind(c,name="igRadioButton_IntPtr")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int) :: v
+  integer(c_int), value :: v_button
+  logical(c_bool) :: igRadioButton_IntPtr
+end function igRadioButton_IntPtr
 !x! void igProgressBar(float fraction,const ImVec2 size_arg,const char* overlay);
 !x! void igBullet(void);
 !x! bool igBeginCombo(const char* label,const char* preview_value,ImGuiComboFlags flags);
 !x! void igEndCombo(void);
 !x! bool igCombo_Str_arr(const char* label,int* current_item,const char* const items[],int items_count,int popup_max_height_in_items);
-!x! bool igCombo_Str(const char* label,int* current_item,const char* items_separated_by_zeros,int popup_max_height_in_items);
+! bool igCombo_Str(const char* label,int* current_item,const char* items_separated_by_zeros,int popup_max_height_in_items);
+function igCombo_Str(label,current_item,items_separated_by_zeros,popup_max_height_in_items) &
+   bind(c,name="igCombo_Str")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int) :: current_item
+  type(c_ptr), intent(in), value :: items_separated_by_zeros
+  integer(c_int), value :: popup_max_height_in_items
+  logical(c_bool) :: igCombo_Str
+end function igCombo_Str
 !x! bool igCombo_FnBoolPtr(const char* label,int* current_item,bool(*items_getter)(void* data,int idx,const char** out_text),void* data,int items_count,int popup_max_height_in_items);
 !x! bool igDragFloat(const char* label,float* v,float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igDragFloat2(const char* label,float v[2],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);

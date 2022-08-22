@@ -39,6 +39,7 @@ submodule (gui_window) proc
   integer(c_int), parameter :: ic_beta = 12
   integer(c_int), parameter :: ic_gamma = 13
 
+
   !xx! private procedures
   ! function tree_tooltip_string(i)
   ! subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue)
@@ -94,12 +95,16 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
+    ! initialization
     w%isinit = .true.
     w%isopen = isopen
     w%type = type
     w%id = -1
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
+    w%od_data%mol = -1
+    w%od_data%showhidden = .false._c_bool
+    w%od_data%isformat = isformat_unknown
 
     ! type-specific initialization
     if (type == wintype_opendialog) then
@@ -184,7 +189,7 @@ contains
              &"// c_null_char
           str2 = "" // c_null_char ! default path
           call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-             c_funloc(opendialog_user_callback),200._c_float,0_c_int,c_null_ptr,w%flags)
+             c_funloc(opendialog_user_callback),280._c_float,0_c_int,c_loc(w%od_data),w%flags)
        end if
     end if
 
@@ -833,7 +838,7 @@ contains
     type(ImVec2) :: minsize, maxsize, inisize
 
     ! set initial, minimum, and maximum sizes
-    inisize%x = 640._c_float
+    inisize%x = 800._c_float
     inisize%y = 480._c_float
     minsize%x = 0._c_float
     minsize%y = 0._c_float
@@ -992,15 +997,99 @@ contains
 
   ! the callback for the right-hand-side pane of the opendialog
   subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
+    use gui_main, only: DialogDir, tooltip_delay
+    use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
 
-    character(kind=c_char,len=:), allocatable, target :: str
+    character(kind=c_char,len=:), allocatable, target :: str, stropt
+    type(opendialog_userdata), pointer :: data
+    logical(c_bool) :: ldum
+    logical, save :: ttshown = .false.
 
-    str = "hello, callback!" // c_null_char
-    call igText(c_loc(str))
+    ! generate the data pointer
+    call c_f_pointer(vUserData,data)
+
+    ! header
+    str = "Dialog Options" // c_null_char
+    call igTextColored(DialogDir,c_loc(str))
+
+    ! show hidden files
+    str = "Show hidden files" // c_null_char
+    ldum = igCheckbox(c_loc(str),data%showhidden)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Show the OS hidden files and directories in this dialog" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igNewLine()
+
+    ! radio buttons for auto/crystal/molecule
+    str = "Read structures as..." // c_null_char
+    call igTextColored(DialogDir,c_loc(str))
+    str = "Auto-detect" // c_null_char
+    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Auto-detect whether new structures are read as crystals or molecules" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    str = "Crystal" // c_null_char
+    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,0)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Force new structures to be read as crystals" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    str = "Molecule" // c_null_char
+    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,1)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Force new structures to be read as molecules" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igNewLine()
+
+    ! Input structure format (isformat)
+    str = "Read file format" // c_null_char
+    call igTextColored(DialogDir,c_loc(str))
+    str = "##formatcombo" // c_null_char
+    stropt = "Auto-detect" // c_null_char &          ! isformat_unknown = 0
+       // "CIF file" // c_null_char &                ! isformat_cif = 1
+       // "SHELX" // c_null_char &                   ! isformat_shelx = 2
+       // "DMACRYS .21 file" // c_null_char &        ! isformat_f21 = 3
+       // "Cube" // c_null_char &                    ! isformat_cube = 4
+       // "Binary cube" // c_null_char &             ! isformat_bincube = 5
+       // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
+       // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit = 7
+       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk = 8
+       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein = 9
+       // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout = 10
+       // "CRYSTAL output" // c_null_char &          ! isformat_crystal = 11
+       // "xyz file" // c_null_char &                ! isformat_xyz = 12
+       // "Gaussian wfn" // c_null_char &            ! isformat_wfn = 13
+       // "Gaussian wfx" // c_null_char &            ! isformat_wfx = 14
+       // "Gaussian fchk" // c_null_char &           ! isformat_fchk = 15
+       // "psi4 molden file" // c_null_char &        ! isformat_molden = 16
+       // "Gaussian output" // c_null_char &         ! isformat_gaussian = 17
+       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta = 18
+       // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
+       // "DFTB+ gen file" // c_null_char &          ! isformat_gen = 20
+       // "VASP" // c_null_char &                    ! isformat_vasp = 21
+       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc = 22
+       // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
+       // "psi4 output" // c_null_char &             ! isformat_dat = 24
+       // "postg output" // c_null_char &            ! isformat_pgout = 25
+       // "ORCA molden file" // c_null_char &        ! isformat_orca = 26
+       // "DMACRYS dmain file" // c_null_char &      ! isformat_dmain = 27
+       // "FHIaims input" // c_null_char &           ! isformat_aimsin = 28
+       // "FHIaims output" // c_null_char &          ! isformat_aimsout = 29
+       // "TINKER frac file" // c_null_char &        ! isformat_tinkerfrac = 30
+       // c_null_char
+    ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Force new structures read with a given file format, or auto-detect" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igNewLine()
 
   end subroutine opendialog_user_callback
 

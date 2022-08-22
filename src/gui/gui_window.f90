@@ -18,9 +18,17 @@
 ! The class to handle ImGui windows.
 module gui_window
   use iso_c_binding
+  use param, only: isformat_unknown
   implicit none
 
   private
+
+  ! user data for the file open dialog
+  type, bind(c) :: opendialog_userdata
+     integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
+     logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
+     integer(c_int) :: isformat = isformat_unknown ! force structure format
+  end type opendialog_userdata
 
   ! Wrapper class to handle ImGui windows
   type window
@@ -42,6 +50,8 @@ module gui_window
      logical :: forceupdate = .false. ! make true to force an update of the tree
      logical :: forceinit = .false. ! make true to force an initialization of the systems
      integer :: forceremove = 0 ! make an integer to remove one of the systems
+     ! opendialog parameters
+     type(opendialog_userdata) :: od_data ! for the side pane callback
    contains
      procedure :: init => window_init
      procedure :: end => window_end
