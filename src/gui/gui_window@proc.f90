@@ -20,7 +20,7 @@ submodule (gui_window) proc
   use gui_interfaces_cimgui
   implicit none
 
-  ! Count ID for keeping track of windows and widgets
+  ! Count unique IDs for keeping track of windows and widget
   integer :: idcount = 0
 
   ! column ids for the table in the tree widget
@@ -38,6 +38,10 @@ submodule (gui_window) proc
   integer(c_int), parameter :: ic_alpha = 11
   integer(c_int), parameter :: ic_beta = 12
   integer(c_int), parameter :: ic_gamma = 13
+
+  !xx! private procedures
+  ! function tree_tooltip_string(i)
+  ! subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue)
 
 contains
 
@@ -83,9 +87,12 @@ contains
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen)
+    use gui_main, only: DialogDir, DialogFile
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
+
+    character(kind=c_char,len=:), allocatable, target :: str1
 
     w%isinit = .true.
     w%isopen = isopen
@@ -94,12 +101,28 @@ contains
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
 
+    ! type-specific initialization
+    if (type == wintype_opendialog) then
+       ! create the opendialog object and set up the style
+       w%ptr = IGFD_Create()
+       str1 = "+" // c_null_char
+       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeDir,c_null_ptr,DialogDir,c_loc(str1),c_null_ptr)
+       str1 = " " // c_null_char
+       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeFile,c_null_ptr,DialogFile,c_loc(str1),c_null_ptr)
+    end if
+
   end subroutine window_init
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
     class(window), intent(inout) :: w
 
+    ! window-specific destruction
+    if (w%isinit .and. w%type == wintype_opendialog .and. c_associated(w%ptr)) then
+       call IGFD_Destroy(w%ptr)
+    end if
+
+    ! deallocate the rest of the data
     w%isinit = .false.
     w%isopen = .false.
     w%id = -1
@@ -113,7 +136,10 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    if (.not.w%isinit) return
+    if (.not.w%isopen) return
 
     ! First pass: assign ID, name, and flags
     if (w%id < 0) then
@@ -128,28 +154,63 @@ contains
        elseif (w%type == wintype_console) then
           w%name = "Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
+       elseif (w%type == wintype_opendialog) then
+          w%name = "Open File(s)..." // c_null_char
+          w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
+          str1 = &
+             "&
+             &All files (*.*){*.*},&
+             &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
+             &ADF (molden){.molden},&
+             &cif (cif){.cif},&
+             &CRYSTAL (out){.out},&
+             &cube (cube|bincube){.cube,.bincube},&
+             &DFTB+ (gen){.gen},&
+             &DMACRYS (dmain|16|21){.dmain,.16,.21},&
+             &elk (OUT){.OUT},&
+             &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
+             &Gaussian (log|wfn|wfx|fchk|cube){.log,.wfn,.wfx,.fchk,.cube},&
+             &ORCA (molden|molden.input){.molden,.input},&
+             &postg (pgout){.pgout},&
+             &psi4 (molden|dat){.molden,.dat},&
+             &Quantum ESPRESSO (out|in|cube|pwc) {.out,.in,.cube,.pwc},&
+             &SHELX (res|ins){.res,.ins.16},&
+             &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
+             &TINKER (frac) {.frac},&
+             &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+             &WIEN2k (struct){.struct},&
+             &Xcrysden (xsf|axsf) {.xsf,.axsf},&
+             &xyz (xyz){.xyz},&
+             &"// c_null_char
+          str2 = "" // c_null_char ! default path
+          call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             c_funloc(opendialog_user_callback),200._c_float,0_c_int,c_null_ptr,w%flags)
        end if
     end if
 
     if (w%isopen) then
        if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
-          ! assign the pointer ID
-          w%ptr = igGetCurrentWindow()
-
           ! draw the window contents, depending on type
+          ! assign the pointer ID for the window, if not a dialog
           if (w%type == wintype_tree) then
+             w%ptr = igGetCurrentWindow()
              call w%draw_tree()
           elseif (w%type == wintype_view) then
-             str = "Hello View!"
-             call igText(c_loc(str))
+             w%ptr = igGetCurrentWindow()
+             str1 = "Hello View!"
+             call igText(c_loc(str1))
           elseif (w%type == wintype_console) then
-             str = "Hello Console!"
-             call igText(c_loc(str))
+             w%ptr = igGetCurrentWindow()
+             str1 = "Hello Console!"
+             call igText(c_loc(str1))
+          elseif (w%type == wintype_opendialog) then
+             call w%draw_opendialog()
           end if
        end if
        call igEnd()
     end if
 
+  contains
   end subroutine window_draw
 
   !> Draw the contents of a tree window
@@ -764,6 +825,29 @@ contains
 
   end subroutine sort_tree
 
+  module subroutine draw_opendialog(w)
+    class(window), intent(inout), target :: w
+
+    type(ImVec2) :: minsize, maxsize, inisize
+
+    ! set initial, minimum, and maximum sizes
+    inisize%x = 640._c_float
+    inisize%y = 480._c_float
+    minsize%x = 0._c_float
+    minsize%y = 0._c_float
+    maxsize%x = 1e10_c_float
+    maxsize%y = 1e10_c_float
+    call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+
+    ! process the dialog
+    if (IGFD_DisplayDialog(w%ptr,c_loc(w%name),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
+       ! the dialog has been closed (either OK or CANCEL)
+       call IGFD_CloseDialog(w%ptr)
+       call w%end()
+    end if
+
+  end subroutine draw_opendialog
+
   !xx! private procedures
 
   ! Return the string for the tooltip shown by the tree window,
@@ -903,5 +987,19 @@ contains
     str = str // c_null_char
 
   end function tree_tooltip_string
+
+  ! the callback for the right-hand-side pane of the opendialog
+  subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
+    use gui_interfaces_cimgui
+    type(c_ptr), intent(in), value :: vFilter ! const char *
+    type(c_ptr), value :: vUserData ! void *
+    logical(c_bool) :: vCantContinue ! bool *
+
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    str = "hello, callback!" // c_null_char
+    call igText(c_loc(str))
+
+  end subroutine opendialog_user_callback
 
 end submodule proc

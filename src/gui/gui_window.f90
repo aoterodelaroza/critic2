@@ -31,7 +31,7 @@ module gui_window
      integer(c_int) :: id ! internal ID for this window
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
-     type(c_ptr) :: ptr ! ImGuiWindow* pointer to the ImGui window (use only after Begin())
+     type(c_ptr) :: ptr ! ImGuiWindow*/ImGuiFileDialog* pointer (use only after Begin())
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
@@ -50,6 +50,8 @@ module gui_window
      procedure :: draw_tree
      procedure :: update_tree
      procedure :: sort_tree
+     ! opendialog procedures
+     procedure :: draw_opendialog
   end type window
   public :: window
 
@@ -64,6 +66,7 @@ module gui_window
   integer, parameter, public :: wintype_tree = 1
   integer, parameter, public :: wintype_view = 2
   integer, parameter, public :: wintype_console = 3
+  integer, parameter, public :: wintype_opendialog = 4
 
   ! routines to manipulate the window stack
   public :: stack_create_window
@@ -95,6 +98,9 @@ module gui_window
        class(window), intent(inout) :: w
        integer(c_int), intent(in) :: cid, dir
      end subroutine sort_tree
+     module subroutine draw_opendialog(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_opendialog
   end interface
 
 end module gui_window

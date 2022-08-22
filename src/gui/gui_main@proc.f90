@@ -34,10 +34,6 @@ submodule (gui_main) proc
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
 
-  ! open dialog (used in menu->open... option)
-  logical(c_bool) :: opendialog_isopen = .false.
-  type(c_ptr), target :: opendialog
-
   !xx! private procedures
   ! subroutine process_arguments()
   ! subroutine show_main_menu()
@@ -156,13 +152,6 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.)
     iwin_console = stack_create_window(wintype_console,.true.)
 
-    ! initialize menu dialogs
-    opendialog = IGFD_Create()
-    strc = "+" // c_null_char
-    call IGFD_SetFileStyle(opendialog,IGFD_FileStyleByTypeDir,c_null_ptr,DialogDir,c_loc(strc),c_null_ptr)
-    strc = " " // c_null_char
-    call IGFD_SetFileStyle(opendialog,IGFD_FileStyleByTypeFile,c_null_ptr,DialogFile,c_loc(strc),c_null_ptr)
-
     ! main loop
     show_demo_window = .true.
     firstpass = .true.
@@ -221,6 +210,11 @@ contains
        firstpass = .false.
     end do
 
+    ! cleanup windows
+    do i = 1, nwin
+       call win(i)%end()
+    end do
+
     ! cleanup
     call ImGui_ImplOpenGL3_Shutdown()
     call ImGui_ImplGlfw_Shutdown()
@@ -230,9 +224,6 @@ contains
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
     end do
-
-    ! cleanup menu dialogs
-    call IGFD_Destroy(opendialog)
 
     ! terminate
     call glfwDestroyWindow(rootwin)
@@ -417,18 +408,18 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use gui_interfaces_cimgui
-    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console
+    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console, stack_create_window,&
+       wintype_opendialog
     use gui_utils, only: igIsItemHovered_delayed
     use gui_keybindings, only: BIND_QUIT, get_bind_keyname
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
-    character(kind=c_char,len=:), allocatable, target :: str5
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
-    type(ImVec2) :: minsize, maxsize, zeros
     integer(c_int) :: flags
+    integer :: idum
 
     if (igBeginMainMenuBar()) then
        ! File
@@ -436,41 +427,8 @@ contains
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
           str1 = "Open..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.not.opendialog_isopen)) then
-             str1 = "opendialog" // c_null_char ! key
-             str2 = "Open File(s)..." // c_null_char ! title
-             ! str3 = "*.*" // c_null_char ! extension filter
-             str3 = &
-                "&
-                &All files (*.*){*.*},&
-                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
-                &ADF (molden){.molden},&
-                &cif (cif){.cif},&
-                &CRYSTAL (out){.out},&
-                &cube (cube|bincube){.cube,.bincube},&
-                &DFTB+ (gen){.gen},&
-                &DMACRYS (dmain|16|21){.dmain,.16,.21},&
-                &elk (OUT){.OUT},&
-                &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
-                &Gaussian (log|wfn|wfx|fchk|cube){.log,.wfn,.wfx,.fchk,.cube},&
-                &ORCA (molden|molden.input){.molden,.input},&
-                &postg (pgout){.pgout},&
-                &psi4 (molden|dat){.molden,.dat},&
-                &Quantum ESPRESSO (out|in|cube|pwc) {.out,.in,.cube,.pwc},&
-                &SHELX (res|ins){.res,.ins.16},&
-                &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
-                &TINKER (frac) {.frac},&
-                &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
-                &WIEN2k (struct){.struct},&
-                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
-                &xyz (xyz){.xyz},&
-                &"// c_null_char
-             str4 = "./" // c_null_char ! default path
-             str5 = "" // c_null_char ! default name
-             flags = ImGuiFileDialogFlags_DontShowHiddenFiles
-             call IGFD_OpenPaneDialog2(opendialog,c_loc(str1),c_loc(str2),c_loc(str3),c_loc(str4),&
-                c_funloc(opendialog_user_callback),200._c_float,0_c_int,c_null_ptr,flags)
-             opendialog_isopen = .true._c_bool
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             idum = stack_create_window(wintype_opendialog,.true.)
           end if
 
           ! File -> Quit
@@ -535,36 +493,7 @@ contains
     end if
     call igEndMainMenuBar()
 
-    if (opendialog_isopen) then
-       zeros%x = 640._c_float
-       zeros%y = 480._c_float
-       call igSetNextWindowSize(zeros,ImGuiCond_FirstUseEver)
-
-       str1 = "opendialog" // c_null_char
-       minsize%x = 0._c_float
-       minsize%y = 0._c_float
-       maxsize%x = 1e10_c_float
-       maxsize%y = 1e10_c_float
-       if (IGFD_DisplayDialog(opendialog,c_loc(str1),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
-          call IGFD_CloseDialog(opendialog)
-          opendialog_isopen = .false._c_bool
-       end if
-    end if
-
   end subroutine show_main_menu
-
-  subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c,name="opendialog_user_callback")
-    use gui_interfaces_cimgui
-    type(c_ptr), intent(in), value :: vFilter ! const char *
-    type(c_ptr), value :: vUserData ! void *
-    logical(c_bool) :: vCantContinue ! bool *
-
-    character(kind=c_char,len=:), allocatable, target :: str
-
-    str = "hello, callback!" // c_null_char
-    call igText(c_loc(str))
-
-  end subroutine opendialog_user_callback
 
   ! Process the global keybindings
   subroutine process_global_keybindings()
