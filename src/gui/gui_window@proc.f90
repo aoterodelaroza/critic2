@@ -229,7 +229,8 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
-       TableCellBg_Crys1d, launch_initialization_thread, remove_system
+       TableCellBg_Crys1d, launch_initialization_thread, system_shorten_names,&
+       remove_system
     use tools_io, only: string
     use param, only: bohrtoa
     use c_interface_module
@@ -835,7 +836,8 @@ contains
   end subroutine sort_tree
 
   module subroutine draw_opendialog(w)
-    use gui_main, only: add_systems_from_name, launch_initialization_thread
+    use gui_main, only: add_systems_from_name, launch_initialization_thread,&
+       system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
     use param, only: dirsep
     class(window), intent(inout), target :: w
@@ -872,6 +874,7 @@ contains
           end do
           call c_free(cstr)
           call launch_initialization_thread()
+          call system_shorten_names()
        end if
 
        ! close the dialog and terminate the window

@@ -71,6 +71,7 @@ module gui_main
   ! public procedures
   public :: gui_start
   public :: launch_initialization_thread
+  public :: system_shorten_names
   public :: add_systems_from_name
   public :: remove_system
 
@@ -79,6 +80,8 @@ module gui_main
      end subroutine gui_start
      module subroutine launch_initialization_thread()
      end subroutine launch_initialization_thread
+     module subroutine system_shorten_names()
+     end subroutine system_shorten_names
      module subroutine add_systems_from_name(name,mol,isformat)
        character(len=*), intent(in) :: name
        integer, intent(in) :: mol

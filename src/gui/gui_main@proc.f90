@@ -75,6 +75,7 @@ contains
     ! Initialize the first system, if available
     call process_arguments()
     call launch_initialization_thread()
+    call system_shorten_names()
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
@@ -253,6 +254,54 @@ contains
 
   end subroutine launch_initialization_thread
 
+  ! Re-write the seed names from the full-path names to remove as much
+  ! of the prefixes as possible
+  module subroutine system_shorten_names()
+    use param, only: dirsep
+
+    integer :: idx, i, i1
+    character(len=:), allocatable :: str
+
+    ! reset all names to the full-path name
+    do i = 1, nsys
+       if (sysc(i)%status /= sys_empty) &
+          sysc(i)%seed%name = sysc(i)%fullname
+    end do
+
+    ! remove as much as possible from the beginning
+    if (nsys > 0) then
+       i1 = 0
+       do i = 1, nsys
+          if (sysc(i)%status /= sys_empty) then
+             i1 = i
+             exit
+          end if
+       end do
+       if (i1 > 0) then
+          idx = len_trim(sysc(i1)%seed%name)+1
+          main: do while (.true.)
+             ! grab string up to the first dirsep
+             idx = index(sysc(i1)%seed%name(1:idx-1),dirsep,.true.)
+             if (idx == 0) exit main
+             str = sysc(i1)%seed%name(1:idx)
+
+             ! check all names start with the same string
+             do i = i1+1, nsys
+                if (sysc(i)%status == sys_empty) cycle
+                if (len_trim(sysc(i)%seed%name) < idx) exit
+                if (sysc(i)%seed%name(1:idx) /= str) cycle main
+             end do
+
+             ! remove the string
+             do i = 1, nsys
+                sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
+             end do
+          end do main
+       end if
+    end if
+
+  end subroutine system_shorten_names
+
   !> Add systems by reading them from a file, passed by name. mol = 1
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
   !> force file format if /= 0.
@@ -333,6 +382,7 @@ contains
           if (str(1:1) == dirsep) then
              sysc(idx)%fullname = str
           else
+             if (allocated(strc)) deallocate(strc)
              allocate(character(len=2049) :: strc)
              idum = getCurrentWorkDir(c_loc(strc),2048_c_size_t)
              in = index(strc,c_null_char)-1
