@@ -238,7 +238,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
-    type(ImVec2) :: zero2
+    type(ImVec2) :: zero2, sz
     integer(c_int) :: flags, color
     integer :: i, j, k, nshown, newsel
     logical(c_bool) :: ldum
@@ -263,8 +263,16 @@ contains
     ! text filter
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
-    str = "Filter (inc,-exc)" // c_null_char
-    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0.0_c_float)
+    str = "Filter" // c_null_char
+    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),igGetWindowWidth() - 1.5*sz%x)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = &
+          "Filter systems by name in the list below. Use comma-separated fields" // new_line('a') //&
+          "and - for excluding. Example: inc1,inc2,-exc includes all systems   " // new_line('a') //&
+          "with inc1 or inc2 and excludes systems with exc." // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
 
     ! process force options
     if (w%forceremove /= 0) then
@@ -604,7 +612,6 @@ contains
   contains
 
     subroutine write_text_maybe_selectable(isys,str)
-      use gui_main, only: tooltip_delay
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, target :: str
 

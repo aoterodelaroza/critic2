@@ -713,7 +713,16 @@ end function igGetMainViewport
 !x! ImGuiStorage* igGetStateStorage(void);
 !x! bool igBeginChildFrame(ImGuiID id,const ImVec2 size,ImGuiWindowFlags flags);
 !x! void igEndChildFrame(void);
-!x! void igCalcTextSize(ImVec2 *pOut,const char* text,const char* text_end,bool hide_text_after_double_hash,float wrap_width);
+! void igCalcTextSize(ImVec2 *pOut,const char* text,const char* text_end,bool hide_text_after_double_hash,float wrap_width);
+subroutine igCalcTextSize(pOut,text,text_end,hide_text_after_double_hash,wrap_width) &
+   bind(c,name="igCalcTextSize")
+  import ImVec2, c_ptr, c_bool, c_float
+  type(ImVec2) :: pOut
+  type(c_ptr), intent(in), value :: text
+  type(c_ptr), intent(in), value :: text_end
+  logical(c_bool), value :: hide_text_after_double_hash
+  real(c_float), value :: wrap_width
+end subroutine igCalcTextSize
 !x! void igColorConvertU32ToFloat4(ImVec4 *pOut,ImU32 in);
 !x! ImU32 igColorConvertFloat4ToU32(const ImVec4 in);
 !x! void igColorConvertRGBtoHSV(float r,float g,float b,float* out_h,float* out_s,float* out_v);
