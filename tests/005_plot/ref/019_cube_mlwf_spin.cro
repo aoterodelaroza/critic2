@@ -331,7 +331,7 @@
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -1.289399214204E-03  6.990943231355E-03  2.770303600602E-02
-  Last elements... -6.353106157154E-05  1.418068838317E-02  2.567610357050E-02
+  Last elements... -6.353106157153E-05  1.418068838317E-02  2.567610357050E-02
   Sum of elements... 4.565808098626E+01
   Sum of squares of elements... 1.184278061188E+01
   Cell integral (grid SUM) = 0.13421842
@@ -794,7 +794,7 @@
   Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 1.008603254599E-04  3.915448714158E-04  1.103457999214E-03
   Last elements... 1.505140627360E-03  -8.161618850793E-04  -2.772696600531E-03
-  Sum of elements... -4.652148427919E-01
+  Sum of elements... -4.652148427918E-01
   Sum of squares of elements... 3.403275582423E+00
   Cell integral (grid SUM) = -0.00136757
   Min: -7.51212934E-02
@@ -859,11 +859,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... -9.889864151500E-06  -1.787904058265E-04  -1.747737008262E-03
   Last elements... -2.619170786950E-03  -2.598427240063E-04  6.947229587849E-04
-  Sum of elements... -8.502736709159E-12
+  Sum of elements... -8.505389101354E-12
   Sum of squares of elements... 1.431162223277E-01
   Cell integral (grid SUM) = -0.00000000
   Min: -1.99924923E-02
-  Average: -1.82243156E-16
+  Average: -1.82300006E-16
   Max: 2.84589615E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

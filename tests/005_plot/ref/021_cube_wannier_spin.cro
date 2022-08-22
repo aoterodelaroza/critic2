@@ -528,7 +528,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -1.076652805520E-09  -4.264811407315E-03  -1.491419422060E-02
+  First elements... -1.076652805613E-09  -4.264811407315E-03  -1.491419422060E-02
   Last elements... 3.140502291255E-02  2.398270724994E-02  1.309300957402E-02
   Sum of elements... -2.799225325230E+01
   Sum of squares of elements... 1.149460859882E+01
@@ -572,7 +572,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -1.076652800780E-09  3.449234746778E-04  6.827876502041E-04
+  First elements... -1.076652800687E-09  3.449234746778E-04  6.827876502041E-04
   Last elements... -1.709423782530E-02  -1.717979789257E-02  -1.418650899651E-02
   Sum of elements... 3.530744702338E+01
   Sum of squares of elements... 2.707537796479E+01
@@ -704,7 +704,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -4.339430344355E-08  -2.152766325705E-03  -8.401682506297E-03
+  First elements... -4.339430344385E-08  -2.152766325705E-03  -8.401682506297E-03
   Last elements... 2.007404197811E-02  1.574800043584E-02  9.314005017596E-03
   Sum of elements... -3.551955335938E+01
   Sum of squares of elements... 4.600276314839E+01
@@ -726,7 +726,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -4.339430344711E-08  1.934959011426E-03  3.728292927760E-03
+  First elements... -4.339430344710E-08  1.934959011426E-03  3.728292927760E-03
   Last elements... 1.763698784909E-03  3.688443740199E-03  3.702038042223E-03
   Sum of elements... 2.783125842041E+01
   Sum of squares of elements... 1.844894795795E+01
@@ -792,7 +792,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -4.339430344385E-08  1.935149692540E-03  3.728635463692E-03
+  First elements... -4.339430344370E-08  1.935149692540E-03  3.728635463692E-03
   Last elements... -1.805477590503E-02  -1.661405363181E-02  -1.326188893941E-02
   Sum of elements... 6.719487587530E+01
   Sum of squares of elements... 6.044681577019E+01
@@ -814,7 +814,7 @@
   Type: grid
   Grid dimensions : 36  36  36
   Max. length Voronoi-relevant vector (bohr):  0.16079
-  First elements... -4.339430344326E-08  3.171152468436E-03  1.018195253024E-02
+  First elements... -4.339430344355E-08  3.171152468436E-03  1.018195253024E-02
   Last elements... -1.964185037035E-02  -1.473902665146E-02  -7.650311013190E-03
   Sum of elements... 3.844064095511E+00
   Sum of squares of elements... 1.449196759895E+01
@@ -859,11 +859,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.16079
   First elements... 2.452844327207E-09  1.264156071801E-04  1.997454590226E-03
   Last elements... 8.044716379598E-03  3.687124692851E-03  2.420184613516E-04
-  Sum of elements... 7.421201240337E-15
+  Sum of elements... 8.444688091164E-15
   Sum of squares of elements... 6.169027947977E-02
   Cell integral (grid SUM) = 0.00000000
   Min: -1.21424868E-02
-  Average: 1.59062098E-19
+  Average: 1.80998973E-19
   Max: 1.32304741E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
