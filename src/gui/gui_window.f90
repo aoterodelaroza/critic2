@@ -22,11 +22,6 @@ module gui_window
 
   private
 
-  ! window types
-  integer, parameter, public :: wintype_tree = 1
-  integer, parameter, public :: wintype_view = 2
-  integer, parameter, public :: wintype_console = 3
-
   ! Wrapper class to handle ImGui windows
   type window
      ! global window parameters
@@ -49,6 +44,7 @@ module gui_window
      integer :: forceremove = 0 ! make an integer to remove one of the systems
    contains
      procedure :: init => window_init
+     procedure :: end => window_end
      procedure :: draw => window_draw
      ! tree procedures
      procedure :: draw_tree
@@ -57,12 +53,35 @@ module gui_window
   end type window
   public :: window
 
+  ! the window stack and named windows
+  integer, public :: nwin
+  type(window), allocatable, target, public :: win(:)
+  integer, public :: iwin_tree
+  integer, public :: iwin_console
+  integer, public :: iwin_view
+
+  ! window types
+  integer, parameter, public :: wintype_tree = 1
+  integer, parameter, public :: wintype_view = 2
+  integer, parameter, public :: wintype_console = 3
+
+  ! routines to manipulate the window stack
+  public :: stack_create_window
+
   interface
+     module function stack_create_window(type,isopen)
+       integer, intent(in) :: type
+       logical, intent(in) :: isopen
+       integer :: stack_create_window
+     end function stack_create_window
      module subroutine window_init(w,type,isopen)
        class(window), intent(inout) :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
      end subroutine window_init
+     module subroutine window_end(w)
+       class(window), intent(inout) :: w
+     end subroutine window_end
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw

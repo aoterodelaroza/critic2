@@ -48,13 +48,6 @@ module gui_main
   type(ImVec4), parameter, public :: DialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: DialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
 
-  ! the window stack and named windows
-  integer, public :: nwin
-  type(window), allocatable, target, public :: win(:)
-  integer, public :: iwin_tree
-  integer, public :: iwin_console
-  integer, public :: iwin_view
-
   ! systems arrays
   integer, parameter, public :: sys_empty = 0
   integer, parameter, public :: sys_loaded_not_init = 1

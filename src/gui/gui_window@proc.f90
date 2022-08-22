@@ -41,6 +41,45 @@ submodule (gui_window) proc
 
 contains
 
+  !> Create a window in the window stack with the given type. Returns
+  !> the window ID.
+  function stack_create_window(type,isopen)
+    use gui_window, only: window, nwin, win
+    integer, intent(in) :: type
+    logical, intent(in) :: isopen
+    type(window), allocatable :: aux(:)
+    integer :: stack_create_window
+
+    integer :: i, id
+
+    ! find the first unused window or create a new one
+    id = 0
+    do i = 1, nwin
+       if (.not.win(i)%isinit) then
+          id = i
+          exit
+       end if
+    end do
+    if (id == 0) then
+       nwin = nwin + 1
+       id = nwin
+    end if
+
+    ! reallocate if necessary
+    if (.not.allocated(win)) then
+       allocate(win(nwin))
+    elseif (nwin > size(win,1)) then
+       allocate(aux(2*nwin))
+       aux(1:size(win,1)) = win
+       call move_alloc(aux,win)
+    end if
+
+    ! initialize the new window
+    call win(id)%init(type,isopen)
+    stack_create_window = id
+
+  end function stack_create_window
+
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen)
@@ -52,8 +91,22 @@ contains
     w%isopen = isopen
     w%type = type
     w%id = -1
+    w%name = ""
+    if (allocated(w%iord)) deallocate(w%iord)
 
   end subroutine window_init
+
+  !> End a window and deallocate the data.
+  module subroutine window_end(w)
+    class(window), intent(inout) :: w
+
+    w%isinit = .false.
+    w%isopen = .false.
+    w%id = -1
+    w%name = ""
+    if (allocated(w%iord)) deallocate(w%iord)
+
+  end subroutine window_end
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)

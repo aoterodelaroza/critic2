@@ -40,7 +40,6 @@ submodule (gui_main) proc
 
   !xx! private procedures
   ! subroutine process_arguments()
-  ! function stack_create_window(type,isopen)
   ! subroutine show_main_menu()
   ! subroutine process_global_keybindings()
   ! function initialization_thread_worker(arg)
@@ -53,7 +52,8 @@ contains
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
-    use gui_window, only: wintype_tree, wintype_view, wintype_console
+    use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console,&
+       iwin_tree, iwin_view, iwin_console, stack_create_window
     use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string
@@ -414,30 +414,10 @@ contains
 
   end subroutine process_arguments
 
-  !> Create a window in the window stack with the given type
-  function stack_create_window(type,isopen)
-    use gui_window, only: window
-    integer, intent(in) :: type
-    logical, intent(in) :: isopen
-    type(window), allocatable :: aux(:)
-    integer :: stack_create_window
-
-    nwin = nwin + 1
-    if (.not.allocated(win)) then
-       allocate(win(nwin))
-    elseif (nwin > size(win,1)) then
-       allocate(aux(2*nwin))
-       aux(1:size(win,1)) = win
-       call move_alloc(aux,win)
-    end if
-    call win(nwin)%init(type,isopen)
-    stack_create_window = nwin
-
-  end function stack_create_window
-
   ! Show the main menu
   subroutine show_main_menu()
     use gui_interfaces_cimgui
+    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console
     use gui_utils, only: igIsItemHovered_delayed
     use gui_keybindings, only: BIND_QUIT, get_bind_keyname
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -601,6 +581,7 @@ contains
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
     use gui_interfaces_threads
+    use gui_window, only: nwin, win, iwin_tree
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
