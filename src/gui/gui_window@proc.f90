@@ -102,6 +102,7 @@ contains
     w%id = -1
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
+    w%od_data%ptr = c_null_ptr
     w%od_data%mol = -1
     w%od_data%showhidden = .false._c_bool
     w%od_data%isformat = isformat_unknown
@@ -162,6 +163,7 @@ contains
        elseif (w%type == wintype_opendialog) then
           w%name = "Open File(s)..." // c_null_char
           w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
+          w%od_data%ptr = w%ptr
           str1 = &
              "&
              &All files (*.*){*.*},&
@@ -1018,7 +1020,13 @@ contains
 
     ! show hidden files
     str = "Show hidden files" // c_null_char
-    ldum = igCheckbox(c_loc(str),data%showhidden)
+    if (igCheckbox(c_loc(str),data%showhidden)) then
+       if (data%showhidden) then
+          call IGFD_SetFlags(data%ptr,ImGuiFileDialogFlags_None)
+       else
+          call IGFD_SetFlags(data%ptr,ImGuiFileDialogFlags_DontShowHiddenFiles)
+       end if
+    end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "Show the OS hidden files and directories in this dialog" // c_null_char
        call igSetTooltip(c_loc(str))

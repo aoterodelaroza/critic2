@@ -1537,6 +1537,9 @@ namespace IGFD
 		FileDialog();												// ImGuiFileDialog Constructor. can be used for have many dialog at same tiem (not possible with singleton)
 		virtual ~FileDialog();										// ImGuiFileDialog Destructor
 
+	        // set the flags
+	        void SetFlags(ImGuiFileDialogFlags vFlags = 0);
+
 		// standard dialog
 		void OpenDialog(											// open simple dialog (path and fileName can be specified)
 			const std::string& vKey,								// key dialog
@@ -1742,6 +1745,8 @@ typedef void (*IGFD_PaneFun)(const char*, void*, bool*);											// callback f
 typedef void (*IGFD_CreateThumbnailFun)(IGFD_Thumbnail_Info*);										// callback function for create thumbnail texture
 typedef void (*IGFD_DestroyThumbnailFun)(IGFD_Thumbnail_Info*);										// callback fucntion for destroy thumbnail texture
 #endif // USE_THUMBNAILS
+
+IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags vFlags); // set the flags of a dialog
 
 IMGUIFILEDIALOG_API void IGFD_OpenDialog(					// open a standard dialog
 	ImGuiFileDialog* vContext,								// ImGuiFileDialog context

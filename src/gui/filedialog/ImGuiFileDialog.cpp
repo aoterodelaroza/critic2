@@ -3637,6 +3637,12 @@ namespace IGFD
 	///// FILE DIALOG STANDARD DIALOG ////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
+        // set the flags in the dialog
+	void IGFD::FileDialog::SetFlags(ImGuiFileDialogFlags vFlags){
+	  prFileDialogInternal.puDLGflags = vFlags;
+	  prFileDialogInternal.puFileManager.OpenCurrentPath(prFileDialogInternal);
+	}
+
 	// path and fileNameExt can be specified
 	void IGFD::FileDialog::OpenDialog(
 		const std::string& vKey,
@@ -5094,6 +5100,12 @@ IMGUIFILEDIALOG_API void IGFD_Destroy(ImGuiFileDialog* vContext)
 		delete vContext;
 		vContext = nullptr;
 	}
+}
+
+// set the flags of a dialog
+IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags flags){
+  if (vContext)
+    vContext->SetFlags(flags);
 }
 
 // standard dialog

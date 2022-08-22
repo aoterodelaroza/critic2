@@ -1948,3 +1948,9 @@ end subroutine IGFD_SetFileStyle2
 !       const int vCategory,                                                                    // set local category
 !       const char* vBeginLocale,                                                               // locale to use at begining of the dialog display
 !       const char* vEndLocale);                                                                // locale to set at end of the dialog display
+! IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags flags);
+subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
+  import c_ptr, c_int
+  type(c_ptr), value :: vContext
+  integer(c_int), value :: flags
+end subroutine IGFD_SetFlags

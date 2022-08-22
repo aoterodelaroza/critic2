@@ -25,6 +25,7 @@ module gui_window
 
   ! user data for the file open dialog
   type, bind(c) :: opendialog_userdata
+     type(c_ptr) :: ptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
      integer(c_int) :: isformat = isformat_unknown ! force structure format
