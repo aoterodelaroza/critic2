@@ -835,9 +835,16 @@ contains
   end subroutine sort_tree
 
   module subroutine draw_opendialog(w)
+    use c_interface_module, only: C_F_string_alloc
+    use param, only: dirsep
     class(window), intent(inout), target :: w
 
     type(ImVec2) :: minsize, maxsize, inisize
+    type(IGFD_Selection_Pair), pointer :: s(:)
+    type(IGFD_Selection) :: sel
+    type(c_ptr) :: cstr
+    integer(c_size_t) :: i
+    character(len=:), allocatable :: name, path
 
     ! set initial, minimum, and maximum sizes
     inisize%x = 800._c_float
@@ -849,8 +856,27 @@ contains
     call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
     ! process the dialog
-    if (IGFD_DisplayDialog(w%ptr,c_loc(w%name),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
-       ! the dialog has been closed (either OK or CANCEL)
+    if (IGFD_DisplayDialog(w%ptr,c_loc(w%name),ImGuiWindowFlags_None,minsize,maxsize)) then
+       ! the dialog has been closed
+       if (IGFD_IsOk(w%ptr)) then
+          ! with an OK, gather information
+          sel = IGFD_GetSelection(w%ptr)
+          call c_f_pointer(sel%table,s,(/sel%count/))
+          cstr = IGFD_GetCurrentPath(w%ptr)
+          call C_F_string_alloc(cstr,path)
+          do i = 1, sel%count
+             call C_F_string_alloc(s(i)%fileName,name)
+             name = trim(path) // dirsep // trim(name)
+
+             ! call read_seeds_from_file(name,-1,nseed,seed,collapse,errmsg,iafield)
+             write (*,*) "entry number ", i
+             write (*,*) "name: ", trim(name)
+             write (*,*) "mol: ", w%od_data%mol
+             write (*,*) "isformat: ", w%od_data%isformat
+          end do
+       end if
+
+       ! close the dialog and terminate the window
        call IGFD_CloseDialog(w%ptr)
        call w%end()
     end if

@@ -1876,3 +1876,15 @@
   ! {
   !     bool (*FontBuilder_Build)(ImFontAtlas* atlas)
   ! }
+
+
+!!! filedialog !!!
+type, bind(c) :: IGFD_Selection_Pair
+   type(c_ptr) :: fileName
+   type(c_ptr) :: filePathName
+end type IGFD_Selection_Pair
+
+type, bind(c) :: IGFD_Selection
+   type(c_ptr) :: table
+   integer(c_size_t) :: count
+end type IGFD_Selection

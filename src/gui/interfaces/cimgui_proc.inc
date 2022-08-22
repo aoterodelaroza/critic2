@@ -1801,7 +1801,7 @@ end subroutine igTableSetColumnWidthAutoAll
 !x! void ImVector_ImWchar_UnInit(ImVector_ImWchar* p);
 
 
-! filedialog
+!!! filedialog !!!
 ! IMGUIFILEDIALOG_API ImGuiFileDialog* IGFD_Create(void);
 function IGFD_Create() bind(c,name="IGFD_Create")
   import c_ptr
@@ -1898,14 +1898,22 @@ end function IGFD_IsOk
 !       const char* vCurrentOpenedKey);                                                 // the dialog key
 !x! IMGUIFILEDIALOG_API bool IGFD_IsOpened(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
-!x! IMGUIFILEDIALOG_API IGFD_Selection IGFD_GetSelection(
-!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+! IMGUIFILEDIALOG_API IGFD_Selection IGFD_GetSelection(ImGuiFileDialog* vContext)
+function IGFD_GetSelection(vContext) bind(c,name="IGFD_GetSelection")
+  import c_ptr, IGFD_Selection
+  type(c_ptr), value :: vContext
+  type(IGFD_Selection) :: IGFD_GetSelection
+end function IGFD_GetSelection
 !x! IMGUIFILEDIALOG_API char* IGFD_GetFilePathName(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
 !x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFileName(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
-!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentPath(
-!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+! IMGUIFILEDIALOG_API char* IGFD_GetCurrentPath(ImGuiFileDialog* vContext);
+function IGFD_GetCurrentPath(vContext) bind(c,name="IGFD_GetCurrentPath")
+  import c_ptr
+  type(c_ptr), value :: vContext
+  type(c_ptr) :: IGFD_GetCurrentPath
+end function IGFD_GetCurrentPath
 !x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFilter(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
 !x! IMGUIFILEDIALOG_API void* IGFD_GetUserDatas(
