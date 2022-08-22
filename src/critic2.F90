@@ -22,7 +22,9 @@
 !                 \___|_|  |_|\__|_|\___|_____|
 !
 program critic
+#ifdef HAVE_GUI
   use gui_main, only: gui_start
+#endif
   use systemmod, only: systemmod_init
   use grid1mod, only: grid1_clean_grids
   use global, only: fileroot, quiet, testing, initial_banner, config_write, help_me,&
@@ -69,8 +71,10 @@ program critic
   endif
 
   if (usegui) then
+#ifdef HAVE_GUI
      ! the GUI
      call gui_start()
+#endif
   else
      ! the text interface
      call critic_main()

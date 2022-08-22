@@ -77,6 +77,7 @@ contains
 
     ! check if the -g argument is present -> usegui
     argc = command_argument_count()
+#ifdef HAVE_GUI
     do n = 1, argc
        call getarg(n,argv)
        argv = adjustl(argv)
@@ -87,6 +88,7 @@ contains
           end if
        end if
     end do
+#endif
 
     ! process arguments
     if (argc > 0) then

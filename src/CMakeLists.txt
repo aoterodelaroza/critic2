@@ -145,6 +145,9 @@ if (ENABLE_GUI)
 
   ## add dependency to the core critic2 files
   add_dependencies(fgui critic2_core)
+
+  ## add the HAVE_GUI definition
+  add_definitions("-DHAVE_GUI")
 endif()
 
 ## install the binary
