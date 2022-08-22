@@ -257,6 +257,7 @@ contains
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
   !> force file format if /= 0.
   module subroutine add_systems_from_name(name,mol,isformat)
+    use gui_interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_window, only: nwin, win, iwin_tree
     use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
@@ -270,9 +271,10 @@ contains
 
     integer :: i, j, nid
     integer :: nseed, iafield
-    integer :: iseed, iseed_, idx
+    integer :: iseed, iseed_, idx, in
     type(crystalseed), allocatable :: seed(:)
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, str
+    character(kind=c_char,len=:), allocatable, target :: strc
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     integer(c_int) :: idum
@@ -325,6 +327,18 @@ contains
           sysc(idx)%id = idx
           sysc(idx)%seed = seed(iseed)
           sysc(idx)%has_field = .false.
+
+          ! write down the full name
+          str = trim(adjustl(sysc(idx)%seed%name))
+          if (str(1:1) == dirsep) then
+             sysc(idx)%fullname = str
+          else
+             allocate(character(len=2049) :: strc)
+             idum = getCurrentWorkDir(c_loc(strc),2048_c_size_t)
+             in = index(strc,c_null_char)-1
+             if (strc(in:in) == dirsep.and.in > 0) in = in - 1
+             sysc(idx)%fullname = strc(1:in) // dirsep // str
+          end if
 
           ! initialization status
           if (collapse.and.iseed_ == 1) then

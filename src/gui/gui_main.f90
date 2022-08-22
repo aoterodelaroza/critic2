@@ -62,6 +62,7 @@ module gui_main
      logical :: has_field
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
      type(c_ptr) :: thread_lock = c_null_ptr
+     character(len=:), allocatable :: fullname ! full-path name
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)

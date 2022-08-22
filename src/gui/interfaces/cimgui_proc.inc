@@ -1,6 +1,6 @@
 ! -*-F90-*-
 
-!xx! cimgui procedures
+!!! cimgui procedures !!!
 
 !x! ImVec2* ImVec2_ImVec2_Nil(void);
 !x! void ImVec2_destroy(ImVec2* self);
@@ -1962,3 +1962,12 @@ subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
   type(c_ptr), value :: vContext
   integer(c_int), value :: flags
 end subroutine IGFD_SetFlags
+
+!!! utils !!!
+! int getCurrentWorkDir(char *str, size_t siz);
+function getCurrentWorkDir(str,siz) bind(c,name="getCurrentWorkDir")
+  import c_ptr, c_int, c_size_t
+  type(c_ptr), value :: str
+  integer(c_size_t), value :: siz
+  integer(c_int) :: getCurrentWorkDir
+end function getCurrentWorkDir

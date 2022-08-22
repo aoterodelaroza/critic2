@@ -9,7 +9,7 @@ set(SOURCES
 
   gui_interfaces_cimgui.f90 gui_interfaces_glfw.f90
   gui_interfaces_opengl3.f90 gui_interfaces_threads.f90
-  interfaces/constants.cpp
+  interfaces/constants.cpp interfaces/utils.c
 
   gui_main.f90 gui_main@proc.f90
   gui_keybindings.f90 gui_keybindings@proc.f90
