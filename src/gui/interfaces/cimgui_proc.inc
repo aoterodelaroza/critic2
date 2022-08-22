@@ -103,7 +103,12 @@ end function igGetWindowWidth
 !x! float igGetWindowHeight(void);
 !x! ImGuiViewport* igGetWindowViewport(void);
 !x! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
-!x! void igSetNextWindowSize(const ImVec2 size,ImGuiCond cond);
+! void igSetNextWindowSize(const ImVec2 size,ImGuiCond cond);
+subroutine igSetNextWindowSize(size, cond) bind(c,name="igSetNextWindowSize")
+  import ImVec2, c_int
+  type(ImVec2), value :: size
+  integer(c_int), value :: cond
+end subroutine igSetNextWindowSize
 !x! void igSetNextWindowSizeConstraints(const ImVec2 size_min,const ImVec2 size_max,ImGuiSizeCallback custom_callback,void* custom_callback_data);
 !x! void igSetNextWindowContentSize(const ImVec2 size);
 !x! void igSetNextWindowCollapsed(bool collapsed,ImGuiCond cond);

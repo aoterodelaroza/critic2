@@ -447,7 +447,8 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str5
     type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
-    type(ImVec2) :: minsize, maxsize
+    type(ImVec2) :: minsize, maxsize, zeros
+    integer(c_int) :: flags
 
     if (igBeginMainMenuBar()) then
        ! File
@@ -458,11 +459,37 @@ contains
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.not.opendialog_isopen)) then
              str1 = "opendialog" // c_null_char ! key
              str2 = "Open File(s)..." // c_null_char ! title
-             str3 = "*.*" // c_null_char ! extension
+             ! str3 = "*.*" // c_null_char ! extension filter
+             str3 = &
+                "&
+                &All files (*.*){*.*},&
+                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
+                &ADF (molden){.molden},&
+                &cif (cif){.cif},&
+                &CRYSTAL (out){.out},&
+                &cube (cube|bincube){.cube,.bincube},&
+                &DFTB+ (gen){.gen},&
+                &DMACRYS (dmain|16|21){.dmain,.16,.21},&
+                &elk (OUT){.OUT},&
+                &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
+                &Gaussian (log|wfn|wfx|fchk|cube){.log,.wfn,.wfx,.fchk,.cube},&
+                &ORCA (molden|molden.input){.molden,.input},&
+                &postg (pgout){.pgout},&
+                &psi4 (molden|dat){.molden,.dat},&
+                &Quantum ESPRESSO (out|in|cube|pwc) {.out,.in,.cube,.pwc},&
+                &SHELX (res|ins){.res,.ins.16},&
+                &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
+                &TINKER (frac) {.frac},&
+                &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+                &WIEN2k (struct){.struct},&
+                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
+                &xyz (xyz){.xyz},&
+                &"// c_null_char
              str4 = "." // c_null_char ! default path
              str5 = "" // c_null_char ! default name
+             flags = ImGuiFileDialogFlags_DontShowHiddenFiles
              call IGFD_OpenDialog(opendialog, c_loc(str1), c_loc(str2), c_loc(str3), c_loc(str4),&
-                c_loc(str5), 0_c_int, c_null_ptr, ImGuiFileDialogFlags_None)
+                c_loc(str5), 0_c_int, c_null_ptr, flags)
              opendialog_isopen = .true._c_bool
           end if
 
@@ -529,11 +556,15 @@ contains
     call igEndMainMenuBar()
 
     if (opendialog_isopen) then
+       zeros%x = 640._c_float
+       zeros%y = 480._c_float
+       call igSetNextWindowSize(zeros,ImGuiCond_FirstUseEver)
+
        str1 = "opendialog" // c_null_char
        minsize%x = 0._c_float
        minsize%y = 0._c_float
-       maxsize%x = 1000000._c_float
-       maxsize%y = 1000000._c_float
+       maxsize%x = 1e10_c_float
+       maxsize%y = 1e10_c_float
        if (IGFD_DisplayDialog(opendialog,c_loc(str1),ImGuiWindowFlags_NoCollapse,minsize,maxsize)) then
           call IGFD_CloseDialog(opendialog)
           opendialog_isopen = .false._c_bool
