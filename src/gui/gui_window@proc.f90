@@ -835,7 +835,8 @@ contains
   end subroutine sort_tree
 
   module subroutine draw_opendialog(w)
-    use c_interface_module, only: C_F_string_alloc
+    use gui_main, only: add_systems_from_name, launch_initialization_thread
+    use c_interface_module, only: C_F_string_alloc, c_free
     use param, only: dirsep
     class(window), intent(inout), target :: w
 
@@ -867,13 +868,10 @@ contains
           do i = 1, sel%count
              call C_F_string_alloc(s(i)%fileName,name)
              name = trim(path) // dirsep // trim(name)
-
-             ! call read_seeds_from_file(name,-1,nseed,seed,collapse,errmsg,iafield)
-             write (*,*) "entry number ", i
-             write (*,*) "name: ", trim(name)
-             write (*,*) "mol: ", w%od_data%mol
-             write (*,*) "isformat: ", w%od_data%isformat
+             call add_systems_from_name(name,w%od_data%mol,w%od_data%isformat)
           end do
+          call c_free(cstr)
+          call launch_initialization_thread()
        end if
 
        ! close the dialog and terminate the window

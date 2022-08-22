@@ -253,6 +253,120 @@ contains
 
   end subroutine launch_initialization_thread
 
+  !> Add systems by reading them from a file, passed by name. mol = 1
+  !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
+  !> force file format if /= 0.
+  module subroutine add_systems_from_name(name,mol,isformat)
+    use grid1mod, only: grid1_register_ae
+    use gui_window, only: nwin, win, iwin_tree
+    use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
+    use crystalseedmod, only: read_seeds_from_file, crystalseed
+    use tools_io, only: uout
+    use types, only: realloc
+    use param, only: dirsep
+    character(len=*), intent(in) :: name
+    integer, intent(in) :: mol
+    integer, intent(in) :: isformat
+
+    integer :: i, j, nid
+    integer :: nseed, iafield
+    integer :: iseed, iseed_, idx
+    type(crystalseed), allocatable :: seed(:)
+    character(len=:), allocatable :: errmsg
+    type(system), allocatable :: syaux(:)
+    type(sysconf), allocatable :: syscaux(:)
+    integer(c_int) :: idum
+    logical :: collapse
+    integer, allocatable :: id(:)
+
+    ! read all seeds from the file
+    call read_seeds_from_file(name,mol,nseed,seed,collapse,errmsg,iafield)
+
+    if (nseed > 0) then
+       ! find the contiguous IDs for the new systems
+       allocate(id(nseed))
+       nid = 0
+       do i = 1, nsys
+          if (sysc(i)%status == sys_empty) then
+             nid = nid + 1
+             id(nid) = i
+             if (nid == nseed) exit
+          else
+             nid = 0
+          end if
+       end do
+       do i = nid+1, nseed
+          id(i) = nsys + i - nid
+       end do
+
+       ! increment and reallocate if necessary
+       nsys = max(nsys,id(nseed))
+       if (nsys > size(sys,1)) then
+          allocate(syaux(2*nsys))
+          syaux(1:size(sys,1)) = sys
+          call move_alloc(syaux,sys)
+
+          allocate(syscaux(2*nsys))
+          syscaux(1:size(sysc,1)) = sysc
+          call move_alloc(syscaux,sysc)
+       end if
+
+       do iseed = 1, nseed
+          ! re-order if collapse to have the final structure be first, flag them
+          if (collapse) then
+             iseed_ = mod(iseed,nseed)+1
+          else
+             iseed_ = iseed
+          end if
+
+          ! make a new system for this seed
+          idx = id(iseed_)
+          sys(idx)%isinit = .false.
+          sysc(idx)%id = idx
+          sysc(idx)%seed = seed(iseed)
+          sysc(idx)%has_field = .false.
+
+          ! initialization status
+          if (collapse.and.iseed_ == 1) then
+             ! master
+             sysc(idx)%collapse = -1
+             sysc(idx)%status = sys_loaded_not_init
+          elseif (collapse) then
+             ! dependent
+             sysc(idx)%collapse = nsys - nseed + 1
+             sysc(idx)%status = sys_loaded_not_init_hidden
+          else
+             ! independent
+             sysc(idx)%collapse = 0
+             sysc(idx)%status = sys_loaded_not_init
+          end if
+
+          ! initialize the mutex
+          if (.not.c_associated(sysc(idx)%thread_lock)) then
+             sysc(idx)%thread_lock = allocate_mtx()
+             idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
+          end if
+
+          ! register all all-electron densities (global - should not be done by threads)
+          do j = 1, seed(iseed)%nspc
+             call grid1_register_ae(seed(iseed)%spc(j)%z)
+          end do
+
+          ! set the iafield
+          if (iseed == iafield) sysc(idx)%has_field = .true.
+       end do
+       deallocate(id)
+    else
+       write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(name)
+       write (uout,'("Error: ",A)') trim(errmsg)
+    end if
+
+    ! update the tree
+    if (iwin_tree > 0 .and. iwin_tree <= nwin) &
+       win(iwin_tree)%forceupdate = .true.
+
+  end subroutine add_systems_from_name
+
   ! Remove system with index idx and leave behind a sys_empty spot. If
   ! master and collapsed, kill all dependents. If master and extended,
   ! make all dependents master.
@@ -291,113 +405,18 @@ contains
 
   ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
-    use grid1mod, only: grid1_register_ae
-    use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
-    use crystalseedmod, only: read_seeds_from_file, crystalseed
-    use tools_io, only: uout
-    use types, only: realloc
-    use param, only: dirsep
+    use param, only: isformat_unknown
     integer :: argc
-    integer :: i, j
+    integer :: i
     character(len=1024) :: argv
-    integer :: nseed, iseed, iseed_, iafield, idx
-    type(crystalseed), allocatable :: seed(:)
-    character(len=:), allocatable :: errmsg
-    type(system), allocatable :: syaux(:)
-    type(sysconf), allocatable :: syscaux(:)
-    integer(c_int) :: idum
-    character(len=:), allocatable :: str
-    logical :: collapse
 
     argc = command_argument_count()
     do i = 1, argc
        call getarg(i,argv)
        argv = adjustl(argv)
        if (argv(1:1) == "-") cycle ! skip options
-       call read_seeds_from_file(argv,-1,nseed,seed,collapse,errmsg,iafield)
-
-       if (nseed > 0) then
-          ! increment and reallocate if necessary
-          nsys = nsys + nseed
-          if (nsys > size(sys,1)) then
-             allocate(syaux(2*nsys))
-             syaux(1:size(sys,1)) = sys
-             call move_alloc(syaux,sys)
-
-             allocate(syscaux(2*nsys))
-             syscaux(1:size(sysc,1)) = sysc
-             call move_alloc(syscaux,sysc)
-          end if
-
-          do iseed = 1, nseed
-             ! re-order if collapse to have the final structure be first, flag them
-             if (collapse) then
-                iseed_ = mod(iseed,nseed)+1
-             else
-                iseed_ = iseed
-             end if
-
-             ! make a new system for this seed
-             idx = nsys - nseed + iseed_
-             sys(idx)%isinit = .false.
-             sysc(idx)%id = idx
-             sysc(idx)%seed = seed(iseed)
-             sysc(idx)%has_field = .false.
-
-             ! initialization status
-             if (collapse.and.iseed_ == 1) then
-                ! master
-                sysc(idx)%collapse = -1
-                sysc(idx)%status = sys_loaded_not_init
-             elseif (collapse) then
-                ! dependent
-                sysc(idx)%collapse = nsys - nseed + 1
-                sysc(idx)%status = sys_loaded_not_init_hidden
-             else
-                ! independent
-                sysc(idx)%collapse = 0
-                sysc(idx)%status = sys_loaded_not_init
-             end if
-
-             ! initialize the mutex
-             if (.not.c_associated(sysc(idx)%thread_lock)) then
-                sysc(idx)%thread_lock = allocate_mtx()
-                idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
-             end if
-
-             ! register all all-electron densities (global - should not be done by threads)
-             do j = 1, seed(iseed)%nspc
-                call grid1_register_ae(seed(iseed)%spc(j)%z)
-             end do
-          end do
-          if (iafield > 0) &
-             sysc(nsys - nseed + iafield)%has_field = .true.
-       else
-          write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(argv)
-          write (uout,'("Error: ",A)') trim(errmsg)
-       end if
+       call add_systems_from_name(argv,-1,isformat_unknown)
     end do
-
-    ! remove all common path strings up to the last dirsep
-    if (nsys > 0) then
-       main: do while (.true.)
-          ! grab string up to the first dirsep
-          idx = index(sysc(1)%seed%name,dirsep,.true.)
-          if (idx == 0) exit main
-          str = sysc(1)%seed%name(1:idx)
-
-          ! check all names start with the same string
-          do i = 2, nsys
-             if (len_trim(sysc(i)%seed%name) < idx) exit main
-             if (sysc(i)%seed%name(1:idx) /= str) exit main
-          end do
-
-          ! remove the string
-          do i = 1, nsys
-             sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
-          end do
-       end do main
-    end if
 
   end subroutine process_arguments
 

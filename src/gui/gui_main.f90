@@ -70,6 +70,7 @@ module gui_main
   ! public procedures
   public :: gui_start
   public :: launch_initialization_thread
+  public :: add_systems_from_name
   public :: remove_system
 
   interface
@@ -77,6 +78,11 @@ module gui_main
      end subroutine gui_start
      module subroutine launch_initialization_thread()
      end subroutine launch_initialization_thread
+     module subroutine add_systems_from_name(name,mol,isformat)
+       character(len=*), intent(in) :: name
+       integer, intent(in) :: mol
+       integer, intent(in) :: isformat
+     end subroutine add_systems_from_name
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx
      end subroutine remove_system
