@@ -420,15 +420,28 @@ contains
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
     integer(c_int) :: flags
     integer :: idum
+    integer, save :: idopendialog = 0
+    logical(c_bool) :: enabled
 
+    ! check if the opendialog is still open
+    if (idopendialog > 0) then
+       if (idopendialog < 1 .or. idopendialog > nwin) then
+          idopendialog = 0
+       elseif (.not.win(idopendialog)%isinit .or. .not.win(idopendialog)%isopen) then
+          idopendialog = 0
+       end if
+    end if
+
+    ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
        str1 = "File" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
           str1 = "Open..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
-             idum = stack_create_window(wintype_opendialog,.true.)
+          enabled = (idopendialog == 0)
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,enabled)) then
+             idopendialog = stack_create_window(wintype_opendialog,.true.)
           end if
 
           ! File -> Quit
