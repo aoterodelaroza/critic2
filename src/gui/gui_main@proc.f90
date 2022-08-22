@@ -264,7 +264,7 @@ contains
 
     ! reset all names to the full-path name
     do i = 1, nsys
-       if (sysc(i)%status /= sys_empty) &
+       if (sysc(i)%status /= sys_empty .and..not.sysc(i)%renamed) &
           sysc(i)%seed%name = sysc(i)%fullname
     end do
 
@@ -272,7 +272,7 @@ contains
     if (nsys > 0) then
        i1 = 0
        do i = 1, nsys
-          if (sysc(i)%status /= sys_empty) then
+          if (sysc(i)%status /= sys_empty.and..not.sysc(i)%renamed) then
              i1 = i
              exit
           end if
@@ -287,13 +287,14 @@ contains
 
              ! check all names start with the same string
              do i = i1+1, nsys
-                if (sysc(i)%status == sys_empty) cycle
+                if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
                 if (len_trim(sysc(i)%seed%name) < idx) exit
                 if (sysc(i)%seed%name(1:idx) /= str) cycle main
              end do
 
              ! remove the string
              do i = 1, nsys
+                if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
                 sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
              end do
           end do main
@@ -376,6 +377,7 @@ contains
           sysc(idx)%id = idx
           sysc(idx)%seed = seed(iseed)
           sysc(idx)%has_field = .false.
+          sysc(idx)%renamed = .false.
 
           ! write down the full name
           str = trim(adjustl(sysc(idx)%seed%name))

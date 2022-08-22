@@ -650,6 +650,7 @@ contains
                if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
                   ll = index(txtinp,c_null_char)
                   sysc(isys)%seed%name = txtinp(1:ll-1)
+                  sysc(isys)%renamed = .true.
                   call igCloseCurrentPopup()
                end if
                call igEndMenu()
