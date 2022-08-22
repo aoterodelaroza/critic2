@@ -220,7 +220,6 @@ contains
        end if
     end if
 
-  contains
   end subroutine window_draw
 
   !> Draw the contents of a tree window
@@ -233,6 +232,7 @@ contains
        TableCellBg_Crys1d, launch_initialization_thread, system_shorten_names,&
        remove_system, tooltip_delay
     use tools_io, only: string
+    use types, only: realloc
     use param, only: bohrtoa
     use c_interface_module
     class(window), intent(inout), target :: w
@@ -263,9 +263,9 @@ contains
     ! text filter
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
-    str = "Filter" // c_null_char
+    str = "##treefilter" // c_null_char
     call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),igGetWindowWidth() - 1.5*sz%x)
+    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = &
           "Filter systems by name in the list below. Use comma-separated fields" // new_line('a') //&
@@ -273,24 +273,90 @@ contains
           "with inc1 or inc2 and excludes systems with exc." // c_null_char
        call igSetTooltip(c_loc(str))
     end if
+    call igSameLine(0._c_float,-1._c_float)
+    str = "Clear" // c_null_char
+    if (igButton(c_loc(str),zero2)) then
+       if (c_associated(cfilter)) &
+          call ImGuiTextFilter_Clear(cfilter)
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Clear the filter" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+
+    ! row of buttons
+    ! button: expand
+    str = "Expand" // c_null_char
+    if (igButton(c_loc(str),zero2)) then
+       do i = 1, nsys
+          call expand_system(i)
+       end do
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Expand all systems in the tree" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! button: collapse
+    str = "Collapse" // c_null_char
+    if (igButton(c_loc(str),zero2)) then
+       do i = 1, nsys
+          call collapse_system(i)
+       end do
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Collapse all systems in the tree" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+
+    ! button: close
+    call igSameLine(0._c_float,-1._c_float)
+    str = "Close" // c_null_char
+    if (igButton(c_loc(str),zero2)) then
+       if (allocated(w%forceremove)) deallocate(w%forceremove)
+       allocate(w%forceremove(nsys))
+       k = 0
+       do i = 1, nsys
+          if (c_associated(cfilter)) then
+             str = trim(sysc(i)%seed%name) // c_null_char
+             if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+          end if
+          k = k + 1
+          w%forceremove(k) = i
+       end do
+       call realloc(w%forceremove,k)
+       if (c_associated(cfilter)) &
+          call ImGuiTextFilter_Clear(cfilter)
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Close all visible systems" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+
+    ! button: close all
+    call igSameLine(0._c_float,-1._c_float)
+    str = "Close all" // c_null_char
+    if (igButton(c_loc(str),zero2)) then
+       if (allocated(w%forceremove)) deallocate(w%forceremove)
+       allocate(w%forceremove(nsys))
+       do i = 1, nsys
+          w%forceremove(i) = i
+       end do
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Close all systems" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
 
     ! process force options
-    if (w%forceremove /= 0) then
+    if (allocated(w%forceremove)) then
        ! remove a system and move the table selection if the system was selected
-       call remove_system(w%forceremove)
-       if (w%forceremove == w%table_selected) then
-          newsel = 0
-          do i = w%table_selected, nsys
-             if (sysc(i)%status /= sys_init) cycle
-             if (c_associated(cfilter)) then
-                str = trim(sysc(i)%seed%name) // c_null_char
-                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-             end if
-             newsel = i
-             exit
-          end do
-          if (newsel == 0) then
-             do i = w%table_selected, 1, -1
+       do k = 1, size(w%forceremove,1)
+          call remove_system(w%forceremove(k))
+          if (w%forceremove(k) == w%table_selected) then
+             newsel = 0
+             do i = w%table_selected, nsys
                 if (sysc(i)%status /= sys_init) cycle
                 if (c_associated(cfilter)) then
                    str = trim(sysc(i)%seed%name) // c_null_char
@@ -299,11 +365,22 @@ contains
                 newsel = i
                 exit
              end do
-             if (newsel == 0) newsel = 1
+             if (newsel == 0) then
+                do i = w%table_selected, 1, -1
+                   if (sysc(i)%status /= sys_init) cycle
+                   if (c_associated(cfilter)) then
+                      str = trim(sysc(i)%seed%name) // c_null_char
+                      if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+                   end if
+                   newsel = i
+                   exit
+                end do
+                if (newsel == 0) newsel = 1
+             end if
+             w%table_selected = newsel
           end if
-          w%table_selected = newsel
-       end if
-       w%forceremove = 0
+       end do
+       deallocate(w%forceremove)
     end if
     if (w%forceupdate) call w%update_tree()
     if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
@@ -429,7 +506,7 @@ contains
 
           if (igTableSetColumnIndex(ic_closebutton)) then
              str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
-             if (igSmallButton(c_loc(str))) w%forceremove = i
+             if (igSmallButton(c_loc(str))) w%forceremove = (/i/)
           end if
 
           ! set background color for the name cell, if not selected
@@ -471,30 +548,10 @@ contains
                 end if
                 if (igSmallButton(c_loc(str))) then
                    ! extend or collapse
-                   w%forceupdate = .true.
                    if (sysc(i)%collapse == -1) then
-                      ! un-hide the dependents and set as extended
-                      do k = 1, nsys
-                         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init_hidden) then
-                            w%forceinit = .true.
-                            sysc(k)%status = sys_loaded_not_init
-                         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init_hidden) then
-                            sysc(k)%status = sys_init
-                         end if
-                      end do
-                      sysc(i)%collapse = -2
+                      call expand_system(i)
                    else
-                      ! hide the dependents and set as collapsed
-                      do k = 1, nsys
-                         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init) then
-                            sysc(k)%status = sys_loaded_not_init_hidden
-                         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init) then
-                            sysc(k)%status = sys_init_hidden
-                         end if
-                      end do
-                      sysc(i)%collapse = -1
-                      ! selected goes to master
-                      if (sysc(w%table_selected)%collapse == i) w%table_selected = i
+                      call collapse_system(i)
                    end if
                 end if
                 call igSameLine(0._c_float,-1._c_float)
@@ -600,7 +657,7 @@ contains
        ! process the keybindings
        if (igIsWindowFocused(ImGuiFocusedFlags_None)) then
           if (is_bind_event(BIND_TREE_REMOVE_SYSTEM)) &
-             w%forceremove = w%table_selected
+             w%forceremove = (/w%table_selected/)
        end if
 
        call igEndTable()
@@ -643,7 +700,7 @@ contains
             ! remove option
             strpop = "Remove" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
-               w%forceremove = isys
+               w%forceremove = (/isys/)
 
             ! rename option
             strpop = "Rename" // c_null_char
@@ -673,6 +730,49 @@ contains
       hadenabledcolumn = .true.
 
     end subroutine write_text_maybe_selectable
+
+    ! un-hide the dependents and set as extended
+    subroutine expand_system(i)
+      integer, intent(in) :: i
+
+      integer :: k
+
+      if (sysc(i)%status == sys_empty) return
+      if (sysc(i)%collapse /= -1) return
+      do k = 1, nsys
+         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init_hidden) then
+            w%forceinit = .true.
+            sysc(k)%status = sys_loaded_not_init
+         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init_hidden) then
+            sysc(k)%status = sys_init
+         end if
+      end do
+      sysc(i)%collapse = -2
+      w%forceupdate = .true.
+
+    end subroutine expand_system
+
+    ! hide the dependents and set as collapsed
+    subroutine collapse_system(i)
+      integer, intent(in) :: i
+
+      integer :: k
+
+      if (sysc(i)%status == sys_empty) return
+      if (sysc(i)%collapse /= -2) return
+      do k = 1, nsys
+         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init) then
+            sysc(k)%status = sys_loaded_not_init_hidden
+         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init) then
+            sysc(k)%status = sys_init_hidden
+         end if
+      end do
+      sysc(i)%collapse = -1
+      ! selected goes to master
+      if (sysc(w%table_selected)%collapse == i) w%table_selected = i
+      w%forceupdate = .true.
+
+    end subroutine collapse_system
 
   end subroutine draw_tree
 
@@ -1140,8 +1240,10 @@ contains
        // c_null_char
     ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Force new structures read with a given file format," //&
-          new_line('a') // "or auto-detect from the extension" // c_null_char
+       str = &
+          "Force new structures read with a given file format, or auto-detect"//new_line('a')//&
+          "from the extension"//c_null_char
+
        call igSetTooltip(c_loc(str))
     end if
     call igNewLine()

@@ -444,6 +444,7 @@ contains
     integer :: i
 
     if (idx < 1 .or. idx > nsys) return
+    if (sysc(idx)%status == sys_empty) return
     call sys(idx)%end()
     call sysc(idx)%seed%end()
     if (c_associated(sysc(idx)%thread_lock)) then

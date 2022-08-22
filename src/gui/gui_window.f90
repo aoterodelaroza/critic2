@@ -51,7 +51,7 @@ module gui_window
      logical :: forcesort = .false. ! make true to force a sort of the tree
      logical :: forceupdate = .false. ! make true to force an update of the tree
      logical :: forceinit = .false. ! make true to force an initialization of the systems
-     integer :: forceremove = 0 ! make an integer to remove one of the systems
+     integer, allocatable :: forceremove(:) ! make an integer to remove one of the systems
      ! opendialog parameters
      type(opendialog_userdata) :: od_data ! for the side pane callback
    contains

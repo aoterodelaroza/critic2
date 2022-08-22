@@ -307,7 +307,13 @@ end subroutine igTextWrapped
 !x! void igLabelTextV(const char* label,const char* fmt,va_list args);
 !x! void igBulletText(const char* fmt,...);
 !x! void igBulletTextV(const char* fmt,va_list args);
-!x! bool igButton(const char* label,const ImVec2 size);
+! bool igButton(const char* label,const ImVec2 size);
+function igButton(label,size) bind(c,name="igButton")
+  import c_ptr, ImVec2, c_bool
+  type(c_ptr), intent(in), value :: label
+  type(ImVec2), intent(in), value :: size
+  logical(c_bool) :: igButton
+end function igButton
 ! bool igSmallButton(const char* label);
 function igSmallButton(label) bind(c,name="igSmallButton")
   import c_ptr, c_bool
