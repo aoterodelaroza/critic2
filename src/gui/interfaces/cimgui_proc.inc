@@ -253,7 +253,9 @@ end subroutine igDummy
 !x! void igGetCursorStartPos(ImVec2 *pOut);
 !x! void igGetCursorScreenPos(ImVec2 *pOut);
 !x! void igSetCursorScreenPos(const ImVec2 pos);
-!x! void igAlignTextToFramePadding(void);
+! void igAlignTextToFramePadding(void);
+subroutine igAlignTextToFramePadding() bind(c,name="igAlignTextToFramePadding")
+end subroutine igAlignTextToFramePadding
 !x! float igGetTextLineHeight(void);
 ! float igGetTextLineHeightWithSpacing(void);
 function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSpacing")

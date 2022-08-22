@@ -421,9 +421,7 @@ contains
 
           if (igTableSetColumnIndex(ic_closebutton)) then
              str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
-             call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
              if (igSmallButton(c_loc(str))) w%forceremove = i
-             call igPopStyleVar(1_c_int)
           end if
 
           ! set background color for the name cell, if not selected
@@ -463,7 +461,6 @@ contains
                 else
                    str = "▼##" // string(ic_name) // "," // string(i) // c_null_char ! extended
                 end if
-                call igPushStyleVar_Float(ImGuiStyleVar_FrameRounding, 24._c_float)
                 if (igSmallButton(c_loc(str))) then
                    ! extend or collapse
                    w%forceupdate = .true.
@@ -492,7 +489,6 @@ contains
                       if (sysc(w%table_selected)%collapse == i) w%table_selected = i
                    end if
                 end if
-                call igPopStyleVar(1_c_int)
                 call igSameLine(0._c_float,-1._c_float)
              end if
 
