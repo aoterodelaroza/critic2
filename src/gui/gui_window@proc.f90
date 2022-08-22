@@ -189,25 +189,27 @@ contains
     end if
 
     if (w%isopen) then
-       if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
-          ! draw the window contents, depending on type
-          ! assign the pointer ID for the window, if not a dialog
-          if (w%type == wintype_tree) then
-             w%ptr = igGetCurrentWindow()
-             call w%draw_tree()
-          elseif (w%type == wintype_view) then
-             w%ptr = igGetCurrentWindow()
-             str1 = "Hello View!"
-             call igText(c_loc(str1))
-          elseif (w%type == wintype_console) then
-             w%ptr = igGetCurrentWindow()
-             str1 = "Hello Console!"
-             call igText(c_loc(str1))
-          elseif (w%type == wintype_opendialog) then
-             call w%draw_opendialog()
+       if (w%type == wintype_tree .or. w%type == wintype_console .or. w%type == wintype_view) then
+          if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
+             ! draw the window contents, depending on type
+             ! assign the pointer ID for the window, if not a dialog
+             if (w%type == wintype_tree) then
+                w%ptr = igGetCurrentWindow()
+                call w%draw_tree()
+             elseif (w%type == wintype_view) then
+                w%ptr = igGetCurrentWindow()
+                str1 = "Hello View!"
+                call igText(c_loc(str1))
+             elseif (w%type == wintype_console) then
+                w%ptr = igGetCurrentWindow()
+                str1 = "Hello Console!"
+                call igText(c_loc(str1))
+             end if
           end if
+          call igEnd()
+       elseif (w%type == wintype_opendialog) then
+          call w%draw_opendialog()
        end if
-       call igEnd()
     end if
 
   contains
