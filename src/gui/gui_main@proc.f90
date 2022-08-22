@@ -485,11 +485,11 @@ contains
                 &Xcrysden (xsf|axsf) {.xsf,.axsf},&
                 &xyz (xyz){.xyz},&
                 &"// c_null_char
-             str4 = "." // c_null_char ! default path
+             str4 = "./" // c_null_char ! default path
              str5 = "" // c_null_char ! default name
              flags = ImGuiFileDialogFlags_DontShowHiddenFiles
-             call IGFD_OpenDialog(opendialog, c_loc(str1), c_loc(str2), c_loc(str3), c_loc(str4),&
-                c_loc(str5), 0_c_int, c_null_ptr, flags)
+             call IGFD_OpenPaneDialog2(opendialog,c_loc(str1),c_loc(str2),c_loc(str3),c_loc(str4),&
+                c_funloc(opendialog_user_callback),200._c_float,0_c_int,c_null_ptr,flags)
              opendialog_isopen = .true._c_bool
           end if
 
@@ -572,6 +572,19 @@ contains
     end if
 
   end subroutine show_main_menu
+
+  subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c,name="opendialog_user_callback")
+    use gui_interfaces_cimgui
+    type(c_ptr), intent(in), value :: vFilter ! const char *
+    type(c_ptr), value :: vUserData ! void *
+    logical(c_bool) :: vCantContinue ! bool *
+
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    str = "hello, callback!" // c_null_char
+    call igText(c_loc(str))
+
+  end subroutine opendialog_user_callback
 
   ! Process the global keybindings
   subroutine process_global_keybindings()

@@ -1810,17 +1810,23 @@ end subroutine IGFD_OpenDialog
 !       const int vCountSelectionMax,                                                   // count selection max
 !       void* vUserDatas,                                                                               // user datas (can be retrieved in pane)
 !       ImGuiFileDialogFlags vFlags);                                                   // ImGuiFileDialogFlags
-!x! IMGUIFILEDIALOG_API void IGFD_OpenPaneDialog2(
-!       ImGuiFileDialog* vContext,                                                              // ImGuiFileDialog context
-!       const char* vKey,                                                                               // key dialog
-!       const char* vTitle,                                                                             // title
-!       const char* vFilters,                                                                   // filters/filter collections. set it to null for directory mode
-!       const char* vFilePathName,                                                              // defaut file name (path and filename witl be extracted from it)
-!       const IGFD_PaneFun vSidePane,                                                   // side pane
-!       const float vSidePaneWidth,                                                             // side pane base width
-!       const int vCountSelectionMax,                                                   // count selection max
-!       void* vUserDatas,                                                                               // user datas (can be retrieved in pane)
-!       ImGuiFileDialogFlags vFlags);                                                   // ImGuiFileDialogFlags
+! IMGUIFILEDIALOG_API void IGFD_OpenPaneDialog2(ImGuiFileDialog* vContext,const char* vKey,const char* vTitle,
+!       const char* vFilters,const char* vFilePathName,const IGFD_PaneFun vSidePane,const float vSidePaneWidth,
+!       const int vCountSelectionMax,void* vUserDatas,ImGuiFileDialogFlags vFlags);
+subroutine IGFD_OpenPaneDialog2(vContext,vKey,vTitle,vFilters,vFilePathName,vSidePane,&
+   vSidePaneWidth,vCountSelectionMax,vUserDatas,vFlags) bind(c,name="IGFD_OpenPaneDialog2")
+  import c_ptr, c_funptr, c_float, c_int
+  type(c_ptr), value :: vContext
+  type(c_ptr), intent(in), value :: vKey
+  type(c_ptr), intent(in), value :: vTitle
+  type(c_ptr), intent(in), value :: vFilters
+  type(c_ptr), intent(in), value :: vFilePathName
+  type(c_funptr), value :: vSidePane
+  real(c_float), intent(in), value :: vSidePaneWidth
+  integer(c_int), intent(in), value :: vCountSelectionMax
+  type(c_ptr), value :: vUserDatas
+  integer(c_int), value :: vFlags
+end subroutine IGFD_OpenPaneDialog2
 !x! IMGUIFILEDIALOG_API bool IGFD_DisplayDialog(
 !       ImGuiFileDialog* vContext,const char* vKey,ImGuiWindowFlags vFlags,ImVec2 vMinSize,ImVec2 vMaxSize);
 function IGFD_DisplayDialog(vContext,vKey,vFlags,vMinSize,vMaxSize) bind(c,name="IGFD_DisplayDialog")
