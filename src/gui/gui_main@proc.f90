@@ -37,7 +37,6 @@ submodule (gui_main) proc
   !xx! private procedures
   ! subroutine process_arguments()
   ! subroutine show_main_menu()
-  ! subroutine process_global_keybindings()
   ! function initialization_thread_worker(arg)
 
 contains
@@ -164,9 +163,6 @@ contains
        call ImGui_ImplOpenGL3_NewFrame()
        call ImGui_ImplGlfw_NewFrame()
        call igNewFrame()
-
-       ! handle quit key binding
-       call process_global_keybindings()
 
        ! show main menu
        call show_main_menu()
@@ -411,7 +407,7 @@ contains
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console, stack_create_window,&
        wintype_opendialog
     use gui_utils, only: igIsItemHovered_delayed
-    use gui_keybindings, only: BIND_QUIT, get_bind_keyname
+    use gui_keybindings, only: BIND_QUIT, BIND_OPEN, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
@@ -422,6 +418,7 @@ contains
     integer :: idum
     integer, save :: idopendialog = 0
     logical(c_bool) :: enabled
+    logical :: launchquit, launchopen
 
     ! check if the opendialog is still open
     if (idopendialog > 0) then
@@ -432,6 +429,11 @@ contains
        end if
     end if
 
+    ! calculate enabled and launches from keybindings
+    enabled = (idopendialog == 0)
+    launchopen = (enabled .and. is_bind_event(BIND_OPEN))
+    launchquit = is_bind_event(BIND_QUIT)
+
     ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
@@ -439,16 +441,18 @@ contains
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
           str1 = "Open..." // c_null_char
-          enabled = (idopendialog == 0)
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,enabled)) then
-             idopendialog = stack_create_window(wintype_opendialog,.true.)
+          str2 = get_bind_keyname(BIND_OPEN) // c_null_char
+          launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled)
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
+             str1 = "Read molecule or crystal structures from file(s)" // c_null_char
+             call igSetTooltip(c_loc(str1))
+             ttshown(1) = .true.
           end if
 
           ! File -> Quit
           str1 = "Quit" // c_null_char
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)) &
-             call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+          launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
           if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
              str1 = "Quit the program" // c_null_char
              call igSetTooltip(c_loc(str1))
@@ -506,19 +510,13 @@ contains
     end if
     call igEndMainMenuBar()
 
-  end subroutine show_main_menu
-
-  ! Process the global keybindings
-  subroutine process_global_keybindings()
-    use gui_interfaces_cimgui
-    use gui_keybindings, only: is_bind_event, BIND_QUIT
-    use gui_interfaces_glfw, only: glfwSetWindowShouldClose,GLFW_TRUE
-
-    ! quit
-    if (is_bind_event(BIND_QUIT)) &
+    ! process launches
+    if (launchopen) &
+       idopendialog = stack_create_window(wintype_opendialog,.true.)
+    if (launchquit) &
        call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
 
-  end subroutine process_global_keybindings
+  end subroutine show_main_menu
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
