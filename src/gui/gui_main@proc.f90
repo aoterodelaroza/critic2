@@ -306,7 +306,7 @@ contains
   !> Add systems by reading them from a file, passed by name. mol = 1
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
   !> force file format if /= 0.
-  module subroutine add_systems_from_name(name,mol,isformat)
+  module subroutine add_systems_from_name(name,mol,isformat,readlastonly)
     use gui_interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_window, only: nwin, win, iwin_tree
@@ -318,6 +318,7 @@ contains
     character(len=*), intent(in) :: name
     integer, intent(in) :: mol
     integer, intent(in) :: isformat
+    logical, intent(in) :: readlastonly
 
     integer :: i, j, nid
     integer :: nseed, iafield
@@ -332,7 +333,7 @@ contains
     integer, allocatable :: id(:)
 
     ! read all seeds from the file
-    call read_seeds_from_file(name,mol,isformat,nseed,seed,collapse,errmsg,iafield)
+    call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,iafield)
 
     if (nseed > 0) then
        ! find the contiguous IDs for the new systems
@@ -481,7 +482,7 @@ contains
        call getarg(i,argv)
        argv = adjustl(argv)
        if (argv(1:1) == "-") cycle ! skip options
-       call add_systems_from_name(argv,-1,isformat_unknown)
+       call add_systems_from_name(argv,-1,isformat_unknown,.false.)
     end do
 
   end subroutine process_arguments

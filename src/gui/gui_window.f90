@@ -29,6 +29,7 @@ module gui_window
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
      integer(c_int) :: isformat = isformat_unknown ! force structure format
+     logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
   end type opendialog_userdata
 
   ! Wrapper class to handle ImGui windows

@@ -106,6 +106,7 @@ contains
     w%od_data%mol = -1
     w%od_data%showhidden = .false._c_bool
     w%od_data%isformat = isformat_unknown
+    w%od_data%readlastonly = .false._c_bool
 
     ! type-specific initialization
     if (type == wintype_opendialog) then
@@ -230,7 +231,7 @@ contains
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread, system_shorten_names,&
-       remove_system
+       remove_system, tooltip_delay
     use tools_io, only: string
     use param, only: bohrtoa
     use c_interface_module
@@ -246,6 +247,7 @@ contains
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn = .false.
     type(c_ptr), save :: cfilter = c_null_ptr
+    logical, save :: ttshown = .false.
 
     ! initialize
     zeroc = "" // c_null_char
@@ -849,6 +851,7 @@ contains
     type(c_ptr) :: cstr
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path
+    logical :: readlastonly
 
     ! permutation for the format list (see opendialog_user_callback)
     integer, parameter :: isperm(0:30) = (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,&
@@ -875,7 +878,8 @@ contains
           do i = 1, sel%count
              call C_F_string_alloc(s(i)%fileName,name)
              name = trim(path) // dirsep // trim(name)
-             call add_systems_from_name(name,w%od_data%mol,isperm(w%od_data%isformat))
+             readlastonly = w%od_data%readlastonly
+             call add_systems_from_name(name,w%od_data%mol,isperm(w%od_data%isformat),readlastonly)
           end do
           call c_free(cstr)
           call launch_initialization_thread()
@@ -1047,7 +1051,7 @@ contains
     call c_f_pointer(vUserData,data)
 
     ! header
-    str = "Dialog Options" // c_null_char
+    str = "Open Options" // c_null_char
     call igTextColored(DialogDir,c_loc(str))
 
     ! show hidden files
@@ -1061,6 +1065,12 @@ contains
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "Show the OS hidden files and directories in this dialog" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    str = "Read last structure only" // c_null_char
+    ldum = igCheckbox(c_loc(str),data%readlastonly)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Read only the last structure in the file" // c_null_char
        call igSetTooltip(c_loc(str))
     end if
     call igNewLine()

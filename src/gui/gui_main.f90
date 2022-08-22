@@ -83,10 +83,11 @@ module gui_main
      end subroutine launch_initialization_thread
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
-     module subroutine add_systems_from_name(name,mol,isformat)
+     module subroutine add_systems_from_name(name,mol,isformat,readlastonly)
        character(len=*), intent(in) :: name
        integer, intent(in) :: mol
        integer, intent(in) :: isformat
+       logical, intent(in) :: readlastonly
      end subroutine add_systems_from_name
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx

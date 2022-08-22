@@ -4605,7 +4605,8 @@ contains
   !> out. Returns the number of seeds read (nseed), the seeds themselves
   !> (seed) and collapse=.true. if the seeds are the steps of a
   !> geometry optimization.
-  module subroutine read_seeds_from_file(file,mol0,isformat0,nseed,seed,collapse,errmsg,iafield)
+  module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
+     nseed,seed,collapse,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
@@ -4620,6 +4621,7 @@ contains
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
+    logical, intent(in) :: readlastonly
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     logical, intent(out) :: collapse
@@ -4740,6 +4742,13 @@ contains
        if (allocated(seed)) deallocate(seed)
     end if
 
+    ! handle the readlastonly option
+    if (readlastonly .and. nseed > 1) then
+       seed(1) = seed(nseed)
+       nseed = 1
+       call realloc_crystalseed(seed,1)
+    end if
+
     ! handle the doguess option
     do i = 1, nseed
        if (.not.seed(i)%ismolecule) then
@@ -4758,7 +4767,7 @@ contains
     ! output iafield
     if (present(iafield)) then
        if (alsofield) then
-          iafield = 1
+          iafield = nseed
        else
           iafield = 0
        end if
