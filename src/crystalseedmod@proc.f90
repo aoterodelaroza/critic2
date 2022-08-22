@@ -4605,7 +4605,7 @@ contains
   !> out. Returns the number of seeds read (nseed), the seeds themselves
   !> (seed) and collapse=.true. if the seeds are the steps of a
   !> geometry optimization.
-  module subroutine read_seeds_from_file(file,mol0,nseed,seed,collapse,errmsg,iafield)
+  module subroutine read_seeds_from_file(file,mol0,isformat0,nseed,seed,collapse,errmsg,iafield)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
@@ -4619,6 +4619,7 @@ contains
        dirsep
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
+    integer, intent(in) :: isformat0
     integer, intent(out) :: nseed
     type(crystalseed), allocatable, intent(inout) :: seed(:)
     logical, intent(out) :: collapse
@@ -4626,12 +4627,13 @@ contains
     integer, intent(out), optional :: iafield
 
     character(len=:), allocatable :: path, ofile
-    integer :: isformat, mol0_, i
+    integer :: isformat, is, mol0_, i
     logical :: mol, hastypes, alsofield, ok
 
     errmsg = ""
     alsofield = .false.
     mol0_ = mol0
+    isformat = isformat0
     nseed = 0
     if (allocated(seed)) deallocate(seed)
 
@@ -4641,7 +4643,8 @@ contains
        goto 999
     end if
 
-    call struct_detect_format(file,isformat,alsofield)
+    call struct_detect_format(file,is,alsofield)
+    if (isformat == isformat_unknown) isformat = is
     if (isformat == isformat_unknown) then
        errmsg = "Unknown file format/extension."
        goto 999
@@ -5346,7 +5349,6 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: line, str
-    character*64 :: word
     integer :: lu, nat, idum, iz, nspc, i, npad
     integer :: usez(0:maxzat), idx, in
     logical :: ok, laste

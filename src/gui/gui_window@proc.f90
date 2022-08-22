@@ -850,6 +850,10 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path
 
+    ! permutation for the format list (see opendialog_user_callback)
+    integer, parameter :: isperm(0:30) = (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,&
+       14,26,25,16,24,9,10,22,2,18,30,21,6,23,19,12/)
+
     ! set initial, minimum, and maximum sizes
     inisize%x = 800._c_float
     inisize%y = 480._c_float
@@ -871,7 +875,7 @@ contains
           do i = 1, sel%count
              call C_F_string_alloc(s(i)%fileName,name)
              name = trim(path) // dirsep // trim(name)
-             call add_systems_from_name(name,w%od_data%mol,w%od_data%isformat)
+             call add_systems_from_name(name,w%od_data%mol,isperm(w%od_data%isformat))
           end do
           call c_free(cstr)
           call launch_initialization_thread()
@@ -1088,41 +1092,43 @@ contains
     str = "Read file format" // c_null_char
     call igTextColored(DialogDir,c_loc(str))
     str = "##formatcombo" // c_null_char
-    stropt = "Auto-detect" // c_null_char &          ! isformat_unknown = 0
-       // "CIF file" // c_null_char &                ! isformat_cif = 1
-       // "SHELX" // c_null_char &                   ! isformat_shelx = 2
-       // "DMACRYS .21 file" // c_null_char &        ! isformat_f21 = 3
-       // "Cube" // c_null_char &                    ! isformat_cube = 4
-       // "Binary cube" // c_null_char &             ! isformat_bincube = 5
-       // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
+    stropt = "" &
+       // "Auto-detect" // c_null_char &             ! isformat_unknown = 0
        // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit = 7
-       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk = 8
-       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein = 9
-       // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout = 10
+       // "Binary cube" // c_null_char &             ! isformat_bincube = 5
+       // "CIF file" // c_null_char &                ! isformat_cif = 1
        // "CRYSTAL output" // c_null_char &          ! isformat_crystal = 11
-       // "xyz file" // c_null_char &                ! isformat_xyz = 12
-       // "Gaussian wfn" // c_null_char &            ! isformat_wfn = 13
-       // "Gaussian wfx" // c_null_char &            ! isformat_wfx = 14
-       // "Gaussian fchk" // c_null_char &           ! isformat_fchk = 15
-       // "psi4 molden file" // c_null_char &        ! isformat_molden = 16
-       // "Gaussian output" // c_null_char &         ! isformat_gaussian = 17
-       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta = 18
-       // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
+       // "Cube" // c_null_char &                    ! isformat_cube = 4
        // "DFTB+ gen file" // c_null_char &          ! isformat_gen = 20
-       // "VASP" // c_null_char &                    ! isformat_vasp = 21
-       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc = 22
-       // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
-       // "psi4 output" // c_null_char &             ! isformat_dat = 24
-       // "postg output" // c_null_char &            ! isformat_pgout = 25
-       // "ORCA molden file" // c_null_char &        ! isformat_orca = 26
+       // "DMACRYS .21 file" // c_null_char &        ! isformat_f21 = 3
        // "DMACRYS dmain file" // c_null_char &      ! isformat_dmain = 27
+       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk = 8
        // "FHIaims input" // c_null_char &           ! isformat_aimsin = 28
        // "FHIaims output" // c_null_char &          ! isformat_aimsout = 29
+       // "Gaussian fchk" // c_null_char &           ! isformat_fchk = 15
+       // "Gaussian output" // c_null_char &         ! isformat_gaussian = 17
+       // "Gaussian wfn" // c_null_char &            ! isformat_wfn = 13
+       // "Gaussian wfx" // c_null_char &            ! isformat_wfx = 14
+       // "ORCA molden file" // c_null_char &        ! isformat_orca = 26
+       // "postg output" // c_null_char &            ! isformat_pgout = 25
+       // "psi4 molden file" // c_null_char &        ! isformat_molden = 16
+       // "psi4 output" // c_null_char &             ! isformat_dat = 24
+       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein = 9
+       // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout = 10
+       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc = 22
+       // "SHELX" // c_null_char &                   ! isformat_shelx = 2
+       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta = 18
        // "TINKER frac file" // c_null_char &        ! isformat_tinkerfrac = 30
+       // "VASP" // c_null_char &                    ! isformat_vasp = 21
+       // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
+       // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
+       // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
+       // "xyz file" // c_null_char &                ! isformat_xyz = 12
        // c_null_char
     ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Force new structures read with a given file format, or auto-detect" // c_null_char
+       str = "Force new structures read with a given file format," //&
+          new_line('a') // "or auto-detect from the extension" // c_null_char
        call igSetTooltip(c_loc(str))
     end if
     call igNewLine()

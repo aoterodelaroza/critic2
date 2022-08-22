@@ -332,7 +332,7 @@ contains
     integer, allocatable :: id(:)
 
     ! read all seeds from the file
-    call read_seeds_from_file(name,mol,nseed,seed,collapse,errmsg,iafield)
+    call read_seeds_from_file(name,mol,isformat,nseed,seed,collapse,errmsg,iafield)
 
     if (nseed > 0) then
        ! find the contiguous IDs for the new systems
