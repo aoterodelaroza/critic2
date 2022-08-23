@@ -18,12 +18,8 @@ module qe_private
 
   public :: qe_latgen
   public :: sup_spacegroup
-  public :: nattot, tautot, extfortot, ityptot, if_postot
 
   integer, parameter :: dp = selected_real_kind(14,200)
-  integer :: nattot
-  real(dp), allocatable :: tautot(:,:), extfortot(:,:)
-  integer, allocatable :: ityptot(:), if_postot(:,:)
 
   interface
      module subroutine qe_latgen(ibrav,celldm,a1,a2,a3,errmsg)
@@ -34,7 +30,8 @@ module qe_private
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine qe_latgen
      module subroutine sup_spacegroup(tau,ityp,extfor,if_pos,space_group_number,not_eq,&
-        uniqueb,rhombohedral,choice,ibrav)
+        uniqueb,rhombohedral,choice,ibrav,nattot,tautot,ityptot)
+       integer, parameter :: dp = selected_real_kind(14,200)
        INTEGER, INTENT(IN) :: space_group_number, choice
        LOGICAL, INTENT (IN) :: uniqueb, rhombohedral
        INTEGER, INTENT (INOUT) ::  not_eq
@@ -42,6 +39,9 @@ module qe_private
        REAL(DP), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: tau, extfor
        INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(IN) :: ityp
        INTEGER, DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: if_pos
+       integer, intent(out) :: nattot
+       real(dp), allocatable, intent(inout) :: tautot(:,:)
+       integer, allocatable, intent(inout) :: ityptot(:)
      end subroutine sup_spacegroup
   end interface
 

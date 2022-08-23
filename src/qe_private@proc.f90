@@ -291,7 +291,7 @@ contains
   end subroutine qe_latgen
 
   module subroutine sup_spacegroup(tau,ityp,extfor,if_pos,space_group_number,not_eq,&
-     uniqueb,rhombohedral,choice,ibrav)
+     uniqueb,rhombohedral,choice,ibrav,nattot,tautot,ityptot)
     INTEGER, INTENT(IN) :: space_group_number, choice
     LOGICAL, INTENT (IN) :: uniqueb, rhombohedral
     INTEGER, INTENT (INOUT) ::  not_eq
@@ -299,12 +299,17 @@ contains
     REAL(DP), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: tau, extfor
     INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(IN) :: ityp
     INTEGER, DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: if_pos
+    integer, intent(out) :: nattot
+    real(dp), allocatable, intent(inout) :: tautot(:,:)
+    integer, allocatable, intent(inout) :: ityptot(:)
+
     INTEGER :: i,k,l,sym_n
     INTEGER,DIMENSION(:),allocatable :: msym_n
     character(LEN=1) :: unique
     REAL(DP), DIMENSION(:,:), ALLOCATABLE :: inco
     REAL(DP), DIMENSION(:,:,:), ALLOCATABLE :: outco
-
+    real(dp), allocatable :: extfortot(:,:)
+    integer, allocatable :: if_postot(:,:)
 
     ALLOCATE(inco(3,not_eq))
     ALLOCATE(msym_n(not_eq))

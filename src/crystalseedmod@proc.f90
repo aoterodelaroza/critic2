@@ -2450,18 +2450,21 @@ contains
     ! GNU General Public License. See the file `License'
     ! in the root directory of the present distribution,
     ! or http://www.gnu.org/copyleft/gpl.txt .
-    use qe_private, only: qe_latgen, sup_spacegroup, nattot, tautot, ityptot
+    use qe_private, only: qe_latgen, sup_spacegroup
     use tools_io, only: fopen_read, getline_raw, lower, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
     use types, only: realloc
+    integer, parameter :: dp = selected_real_kind(14,200)
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    integer :: nattot
+    real(dp), allocatable :: tautot(:,:)
+    integer, allocatable :: ityptot(:)
 
-    integer, parameter :: dp = selected_real_kind(14,200)
     integer, parameter :: ntypx = 10
     integer, parameter :: nsx = ntypx
     integer, parameter :: nspinx = 2
@@ -2788,7 +2791,8 @@ contains
        rd_if_pos = 1
        rd_for = 0d0
        CALL sup_spacegroup(seed%x,seed%is,rd_for,rd_if_pos,space_group,&
-          nat,uniqueb,rhombohedral,origin_choice,ibrav_sg)
+          nat,uniqueb,rhombohedral,origin_choice,ibrav_sg,nattot,tautot,&
+          ityptot)
        deallocate(rd_if_pos, rd_for)
 
        if (ibrav/=-1 .and. ibrav /= ibrav_sg) then
