@@ -22,6 +22,7 @@ module types
 
   private
   public :: vstring
+  public :: thread_info
   public :: species
   public :: basicatom
   public :: neqatom
@@ -70,6 +71,12 @@ module types
   type vstring
      character(len=:), allocatable :: s
   end type vstring
+
+  ! thread-specific variables
+  type thread_info
+     integer :: id ! the ID for the thread
+     integer :: lu ! a logical unit, for opening files
+  end type thread_info
 
   !> Atomic species
   type species

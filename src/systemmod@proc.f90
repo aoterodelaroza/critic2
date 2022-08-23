@@ -409,10 +409,11 @@ contains
 
   !> Set up a new system using the information contained in a crystal
   !> seed.
-  module subroutine new_from_seed(s,seed)
+  module subroutine new_from_seed(s,seed,ti)
     use crystalseedmod, only: crystalseed
     class(system), intent(inout) :: s
     type(crystalseed), intent(in) :: seed
+    type(thread_info), intent(in), optional :: ti
 
     call s%init()
     call s%c%struct_new(seed,.true.)
@@ -431,7 +432,7 @@ contains
   !> Load a new field from a command string. Return id number in id or
   !> -1 if failed. If the field could not be loaded, return the reason
   !> in errmsg. If verbose, write to standard output.
-  module subroutine load_field_string(s,line,verbose,id,errmsg)
+  module subroutine load_field_string(s,line,verbose,id,errmsg,ti)
     use tools_io, only: getword, lgetword, equal, uout, string
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
@@ -446,6 +447,7 @@ contains
     logical, intent(in) :: verbose
     integer, intent(out) :: id
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, oid, nal, id1, id2, nn, n(3)
     logical :: ok, isnewref

@@ -22,6 +22,7 @@ module systemmod
   use types, only: integrable, pointpropable
   use fieldmod, only: field
   use crystalmod, only: crystal
+  use types, only: thread_info
   implicit none
 
   private
@@ -145,17 +146,19 @@ module systemmod
        integer, intent(out) :: nal
        character(len=:), allocatable, intent(out) :: str
      end subroutine aliasstring
-     module subroutine new_from_seed(s,seed)
+     module subroutine new_from_seed(s,seed,ti)
        use crystalseedmod, only: crystalseed
        class(system), intent(inout) :: s
        type(crystalseed), intent(in) :: seed
+       type(thread_info), intent(in), optional :: ti
      end subroutine new_from_seed
-     module subroutine load_field_string(s,line,verbose,id,errmsg)
+     module subroutine load_field_string(s,line,verbose,id,errmsg,ti)
        class(system), intent(inout), target :: s
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
        integer, intent(out) :: id
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine load_field_string
      module function goodfield(s,id,key,type,n,idout) result(ok)
        use fieldmod, only: type_grid

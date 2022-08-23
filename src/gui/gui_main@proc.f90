@@ -17,6 +17,7 @@
 
 submodule (gui_main) proc
   use iso_c_binding
+  use types, only: thread_info
   implicit none
 
   ! opengl & shader version
@@ -33,6 +34,7 @@ submodule (gui_main) proc
   ! threads in execution
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
+  type(thread_info), target, allocatable :: thread_ti(:)
 
   !xx! private procedures
   ! subroutine process_arguments()
@@ -51,7 +53,7 @@ contains
        iwin_tree, iwin_view, iwin_console, stack_create_window
     use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use omp_lib, only: omp_get_max_threads
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
     type(c_funptr) :: fdum
@@ -69,7 +71,11 @@ contains
     ! initialize threads
      nthread = omp_get_max_threads()
     if (allocated(thread)) deallocate(thread)
-    allocate(thread(nthread))
+    allocate(thread(nthread),thread_ti(nthread))
+    do i = 1, nthread
+       thread_ti(i)%id = i
+       thread_ti(i)%lu = falloc()
+    end do
 
     ! Parse the command line and read as many systems as possible
     ! Initialize the first system, if available
@@ -217,9 +223,12 @@ contains
     call ImGui_ImplGlfw_Shutdown()
     call igDestroyContext(c_null_ptr)
 
-    ! cleanup mutexes
+    ! cleanup mutexes and threads
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
+    end do
+    do i = 1, nthread
+       call fdealloc(thread_ti(i)%lu)
     end do
 
     ! terminate
@@ -249,7 +258,7 @@ contains
     integer :: i, idum
 
     do i = 1, nthread
-       idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_null_ptr)
+       idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_loc(thread_ti(i)))
     end do
 
   end subroutine launch_initialization_thread
@@ -414,7 +423,8 @@ contains
              idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
           end if
 
-          ! register all all-electron densities (global - should not be done by threads)
+          ! register all all-electron densities (global - should not
+          ! be done by threads because agrid and cgrid are common)
           do j = 1, seed(iseed)%nspc
              call grid1_register_ae(seed(iseed)%spc(j)%z)
           end do
@@ -610,6 +620,7 @@ contains
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
+    type(thread_info), pointer :: ti
 
     integer :: i, i0, i1
     integer(c_int) :: idum
@@ -617,14 +628,11 @@ contains
     character(len=:), allocatable :: errmsg
     integer, pointer :: idx
 
+    ! recover the thread info pointer
+    call c_f_pointer(arg,ti)
+
     i0 = 1
     i1 = nsys
-    if (c_associated(arg)) then
-       call c_f_pointer(arg,idx)
-       i0 = idx
-       i1 = idx
-    end if
-
     do i = i0, i1
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
@@ -632,11 +640,11 @@ contains
              if (sysc(i)%status == sys_loaded_not_init) then
                 sysc(i)%status = sys_initializing
                 ! load the seed
-                call sys(i)%new_from_seed(sysc(i)%seed)
+                call sys(i)%new_from_seed(sysc(i)%seed,ti)
 
                 ! load any fields
                 if (sysc(i)%has_field) then
-                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg)
+                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                    else
