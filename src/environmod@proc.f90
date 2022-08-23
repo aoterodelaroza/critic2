@@ -21,7 +21,7 @@ submodule (environmod) proc
 
   integer, parameter :: menv0 = 10
 
-  real*8 :: boxsize_default = 4.0 ! length of the region side (bohr)
+  real*8, parameter :: boxsize_default = 4.0 ! length of the region side (bohr)
 
   !xx! private procedures
   ! function packoffset(i1,i2,i3,nr,nr21) result(ip)
