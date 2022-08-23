@@ -66,11 +66,6 @@ include_directories("${CMAKE_BINARY_DIR}/src/cubpack")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
 add_dependencies(critic2_core cubpack)
 
-## ciftbx
-add_subdirectory(ciftbx)
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:ciftbx>)
-add_dependencies(critic2_core ciftbx)
-
 ## openmp
 if (OPENMP_FOUND)
   target_link_libraries(critic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})

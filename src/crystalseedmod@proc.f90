@@ -24,9 +24,9 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
   ! subroutine read_all_xyz(nseed,seed,file,errmsg)
   ! subroutine read_all_log(nseed,seed,file,errmsg)
-  ! subroutine read_cif_items(seed,mol,errmsg)
   ! function which_out_format(file)
   ! subroutine which_in_format(file,isformat)
+  ! function string_to_symop(str)
 
 contains
 
@@ -905,88 +905,448 @@ contains
 
   end subroutine read_any_file
 
-  !> Read the structure from a CIF file (uses ciftbx) and returns a
-  !> crystal seed.
+  !> Read a structure from a CIF file.
   module subroutine read_cif(seed,file,dblock,mol,errmsg)
-    use arithmetic, only: eval, isvariable, setvariable
-    use global, only: critic_home
-    use tools_io, only: falloc, uout, lower, zatguess, fdealloc, nameguess
-    use param, only: dirsep
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
+       isreal, zatguess
     use types, only: realloc
-
+    use param, only: tab
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
-    include 'ciftbx/ciftbx.cmv'
-    include 'ciftbx/ciftbx.cmf'
+    real*8 :: rdum, aa(3), bb(3)
+    integer :: lu, idx, leng, lp, nhead, i
+    character(len=:), allocatable :: word, line, blockname, spg
+    logical :: indata, inloopheader, inloop, ldum, ok
+    logical :: havefields(10) ! 1-3 = abc, 4-6 = angles, 7=symbol, 8-10=xyz
+    integer :: looptype ! 1 = symmetry, 2 = atoms
+    integer :: cols(5) ! 1=symbol, 2=x, 3=y, 4=z, 5=symop
+    integer :: nat, nop
+    real*8, allocatable :: xat(:,:)
+    integer, allocatable :: zat(:)
+    character*256, allocatable :: ops(:)
 
-    character(len=1024) :: dictfile
-    logical :: fl
-    integer :: ludum, luscr
-
+    ! initialize
     errmsg = ""
-    ludum = falloc()
-    luscr = falloc()
-    fl = init_(ludum, uout, luscr, uout)
-    if (.not.checkcifop()) goto 999
 
-    ! open dictionary
-    dictfile = trim(adjustl(critic_home)) // dirsep // "cif" // dirsep // 'cif_core.dic'
-    fl = dict_(dictfile,'valid')
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "Dictionary file (cif_core.dic) not found. Check CRITIC_HOME"
-       goto 999
-    end if
+    ! initialize atom list
+    nat = 0
+    nop = 0
+    allocate(xat(3,20),zat(20))
+    allocate(ops(48))
 
-    ! open cif file
-    fl = ocif_(file)
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "CIF file not found: " // trim(file)
-       goto 999
-    end if
+    ! run over lines in the file
+    indata = .false.
+    inloopheader = .false.
+    inloop = .false.
+    spg = ""
+    havefields = .false.
+    lu = fopen_read(file)
+    main: do while (getline_raw(lu,line))
+       line = adjustl(line)
 
-    ! move to the beginning of the data block
-    fl = data_(dblock)
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "incorrect named data block: " // trim(dblock)
-       goto 999
-    end if
+       ! replace tabs with blanks
+       do while (.true.)
+          idx = index(line,tab)
+          if (idx == 0) exit
+          line = line(1:idx-1) // " " // line(idx+1:)
+       end do
 
-    ! read all the items
-    call read_cif_items(seed,mol,errmsg)
+       ! skip blank lines and comments
+       leng = len_trim(line)
+       if (leng == 0) cycle
+       if (line(1:1) == "#") cycle
 
-999 continue
+       ! data_
+       if (leng >= 5) then
+          if (lower(line(1:5)) == "data_") then
+             ! finalize the previous seeed
+             if (indata) then
+                call fill_seed(seed)
+                return
+             end if
+             spg = ""
+             indata = .false.
+             blockname = trim(line(6:))
+             havefields = .false.
+             inloopheader = .false.
+             inloop = .false.
+             nat = 0
+             nop = 0
 
-    ! clean up
-    call purge_()
-    call fdealloc(ludum)
-    call fdealloc(luscr)
+             ! reset the flags and set the block name
+             if (len_trim(dblock) == 0 .or. blockname == dblock) &
+                indata = .true.
+             cycle
+          end if
+       end if
+       if (.not.indata) cycle
 
-    ! rest of the seed information
-    seed%file = file
-    if (len_trim(dblock) > 0) then
-       seed%name = file // "||" // trim(dblock)
-    else
-       seed%name = file
-    end if
+       ! loop_
+       if (leng >= 5) then
+          if (lower(line(1:5)) == "loop_") then
+             inloop = .false.
+             inloopheader = .true.
+             looptype = 0
+             cols = 0
+             nhead = 0
+             cycle
+          end if
+       end if
+
+       ! A _ keyword
+       lp = 1
+       if (line(1:1) == "_") then
+          inloop = .false.
+          ldum = isexpression_or_word(word,line,lp)
+          word = lower(word)
+          if (.not.inloopheader) then
+             ! one of the variables not in a loop
+             if (word == "_cell_length_a") then
+                aa(1) = read_field_float()
+                havefields(1) = .true.
+             elseif (word == "_cell_length_b") then
+                aa(2) = read_field_float()
+                havefields(2) = .true.
+             elseif (word == "_cell_length_c") then
+                aa(3) = read_field_float()
+                havefields(3) = .true.
+             elseif (word == "_cell_angle_alpha") then
+                bb(1) = read_field_float()
+                havefields(4) = .true.
+             elseif (word == "_cell_angle_beta") then
+                bb(2) = read_field_float()
+                havefields(5) = .true.
+             elseif (word == "_cell_angle_gamma") then
+                bb(3) = read_field_float()
+                havefields(6) = .true.
+             elseif (word == "_symmetry_space_group_name_h-m") then
+                spg = read_field_string()
+             elseif (word == "_space_group_name_h-m_alt") then
+                if (len_trim(spg) == 0) spg = read_field_string()
+             end if
+             if (len_trim(errmsg) /= 0) return
+          else
+             nhead = nhead + 1
+             if (word == "_atom_site_type_symbol" .or. word == "_atom_site_label" .or.&
+                word == "_atom_site_fract_x" .or. word == "_atom_site_fract_y" .or.&
+                word == "_atom_site_fract_z") then
+                ! an atom loop
+                looptype = 2
+                nat = 0
+                if (word == "_atom_site_type_symbol") then
+                   cols(1) = nhead
+                elseif (word == "_atom_site_label") then
+                   if (cols(1) == 0) cols(1) = nhead
+                elseif (word == "_atom_site_fract_x") then
+                   cols(2) = nhead
+                elseif (word == "_atom_site_fract_y") then
+                   cols(3) = nhead
+                elseif (word == "_atom_site_fract_z") then
+                   cols(4) = nhead
+                end if
+             elseif (word == "_symmetry_equiv_pos_as_xyz" .or. &
+                word == "_space_group_symop_operation_xyz") then
+                ! a symmetry loop
+                looptype = 1
+                nop = 0
+                if (word == "_symmetry_equiv_pos_as_xyz") then
+                   cols(5) = nhead
+                elseif (word == "_space_group_symop_operation_xyz") then
+                   if (cols(5) == 0) cols(5) = nhead
+                end if
+             end if
+          end if
+          cycle
+       else
+          if (inloopheader) inloop = .true.
+          inloopheader = .false.
+       end if
+
+       ! we must be in a loop, read or skip
+       if (inloop) then
+          if (looptype == 2) then
+             ! the atoms loop
+             ! add one atom
+             nat = nat + 1
+             if (nat > size(zat,1)) then
+                call realloc(xat,3,2*nat)
+                call realloc(zat,2*nat)
+             end if
+
+             ! read the fields
+             lp = 1
+             do i = 1, maxval(cols(1:4))
+                ok = isexpression_or_word(word,line,lp)
+                if (ok) then
+                   if (cols(2)==i .or. cols(3)==i .or. cols(4)==i) then
+                      if (ok) ok = isreal(rdum,word)
+                      if (ok) then
+                         if (cols(2) == i) then
+                            xat(1,nat) = rdum
+                            havefields(8) = .true.
+                         elseif (cols(3) == i) then
+                            xat(2,nat) = rdum
+                            havefields(9) = .true.
+                         elseif (cols(4) == i) then
+                            xat(3,nat) = rdum
+                            havefields(10) = .true.
+                         end if
+                      end if
+                   elseif (cols(1)==i) then
+                      zat(nat) = zatguess(word)
+                      ok = (zat(nat) /= 0)
+                      havefields(7) = .true.
+                   end if
+                end if
+
+                if (.not.ok) then
+                   errmsg = "Error reading cif file (atom loop)"
+                   return
+                end if
+             end do
+          elseif (looptype == 1) then
+             ! the symmetry operations loop
+             ! add one operation
+             nop = nop + 1
+             if (nop > size(ops,1)) call realloc(ops,2*nop)
+
+             ! read the fields
+             lp = 1
+             do i = 1, cols(5)
+                ok = isexpression_or_word(word,line,lp)
+                if (ok.and.cols(5)==i) ops(nop) = word
+                if (.not.ok) then
+                   errmsg = "Error reading cif file (symop loop)"
+                   return
+                end if
+             end do
+          end if
+          cycle
+       end if
+
+       ! skip the ; blocks associated with an unknown field
+       if (line(1:1) == ";") then
+          do while (getline_raw(lu,line))
+             line = adjustl(line)
+             if (len_trim(line) == 0) cycle
+             if (line(1:1) == ";") cycle main
+          end do
+       end if
+    end do main
+    call fclose(lu)
+
+    ! fill the seed
+    call fill_seed(seed)
 
   contains
-    function checkcifop()
-      use tools_io, only: string
-      logical :: checkcifop
-      checkcifop = (cifelin_ == 0)
-      if (checkcifop) then
-         errmsg = ""
-      else
-         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
+    function read_field_float()
+      use tools_io, only: isreal
+      real*8 :: read_field_float
+
+      read_field_float = 0d0
+      if (len_trim(line(lp:)) == 0) then
+         ! read the next line if empty
+         ok = getline_raw(lu,line)
+         if (.not.ok) then
+            errmsg = "Error reading cif file (float read error)"
+            return
+         end if
+         line = adjustl(line)
+         lp = 1
       end if
-    end function checkcifop
+      if (.not.isreal(read_field_float,line,lp)) &
+         errmsg = "Error reading cif file (float read error)"
+
+    end function read_field_float
+
+    function read_field_string()
+      use tools_io, only: isexpression_or_word
+      character(len=:), allocatable :: read_field_string
+
+      ! read the next line if empty
+      read_field_string = ""
+      if (len_trim(line(lp:)) == 0) then
+         ok = getline_raw(lu,line)
+         if (.not.ok) then
+            errmsg = "Error reading cif file (float read error)"
+            return
+         end if
+         line = adjustl(line)
+         lp = 1
+      end if
+
+      if (line(1:1) /= ";") then
+         if (isexpression_or_word(read_field_string,line,lp)) return
+         errmsg = "Error reading cif file (float read error)"
+      else
+         ! read a ; block
+         do while (getline_raw(lu,line))
+            line = adjustl(line)
+            if (len_trim(line) == 0) cycle
+            if (line(1:1) == ";") then
+               errmsg = ""
+               return
+            end if
+            read_field_string = read_field_string // trim(line) // new_line('a')
+         end do
+      end if
+
+    end function read_field_string
+
+    subroutine fill_seed(seed)
+      use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
+      use types, only: realloc
+      use tools_io, only: nameguess
+      use param, only: bohrtoa, maxzat, eyet, eye
+      type(crystalseed), intent(out) :: seed
+
+      integer :: zspc(maxzat), hnum
+      integer :: i, j
+      real*8 :: rot0(3,4)
+      logical :: ok, foundsym
+
+      ! check we have all the info
+      if (.not.all(havefields)) then
+         errmsg = "Error reading cif file (missing fields in data block)"
+         return
+      end if
+
+      ! initialize seed
+      call seed%end()
+      seed%file = trim(file)
+      seed%name = trim(file) // trim(blockname)
+      seed%useabr = 1
+      seed%aa = aa / bohrtoa
+      seed%bb = bb
+
+      ! fill the species
+      zspc = 0
+      do i = 1, nat
+         zspc(zat(i)) = maxzat+1
+      end do
+      if (allocated(seed%spc)) deallocate(seed%spc)
+      allocate(seed%spc(count(zspc > 0)))
+      seed%nspc = 0
+      do i = 1, maxzat
+         if (zspc(i) > 0) then
+            seed%nspc = seed%nspc + 1
+            seed%spc(seed%nspc)%z = i
+            seed%spc(seed%nspc)%name = nameguess(i,.true.)
+            zspc(i) = seed%nspc
+         end if
+      end do
+
+      ! fill the atoms
+      seed%nat = nat
+      if (allocated(seed%x)) deallocate(seed%x)
+      if (allocated(seed%is)) deallocate(seed%is)
+      allocate(seed%x(3,nat),seed%is(nat))
+      do i = 1, nat
+         seed%is(i) = zspc(zat(i))
+         seed%x(:,i) = xat(:,i)
+      end do
+
+      ! pre-allocate the symmetry
+      seed%neqv = 0
+      seed%ncv = 1
+      if (allocated(seed%rotm)) deallocate(seed%rotm)
+      if (allocated(seed%cen)) deallocate(seed%cen)
+      allocate(seed%rotm(3,4,48),seed%cen(3,4))
+      seed%cen = 0d0
+
+      ! fill the symmetry with the symops from the cif file
+      foundsym = .false.
+      if (nop > 0) then
+         foundsym = .true.
+         ! from the symmetry operations in the cif file
+         do j = 1, nop
+            rot0 = string_to_symop(ops(j),errmsg)
+            if (len_trim(errmsg) > 0) return
+
+            if (all(abs(eyet - rot0) < 1d-12)) then
+               ! the identity
+               seed%neqv = seed%neqv + 1
+               if (seed%neqv > size(seed%rotm,3)) &
+                  call realloc(seed%rotm,3,4,2*seed%neqv)
+               seed%rotm(:,:,seed%neqv) = rot0
+            elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
+               ! a non-zero pure translation
+               ! check if I have it already
+               ok = .true.
+               do i = 1, seed%ncv
+                  if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
+                     ok = .false.
+                     exit
+                  endif
+               end do
+               if (ok) then
+                  seed%ncv = seed%ncv + 1
+                  if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
+                  seed%cen(:,seed%ncv) = rot0(:,4)
+               endif
+            else
+               ! a rotation, with some pure translation in it
+               ! check if I have this rotation matrix already
+               ok = .true.
+               do i = 1, seed%neqv
+                  if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
+                     ok = .false.
+                     exit
+                  endif
+               end do
+               if (ok) then
+                  seed%neqv = seed%neqv + 1
+                  seed%rotm(:,:,seed%neqv) = rot0
+               endif
+            endif
+         end do
+      end if
+
+      ! get the symmetry from the space group label
+      if (.not.foundsym) then
+         hnum = spg_get_hall_number_from_symbol(spg)
+         if (hnum > 0) &
+            call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
+         foundsym = (seed%neqv > 0) .and. (seed%ncv > 0)
+      end if
+
+      if (.not.foundsym) then
+         ! could not find symmetry in the cif file, calculate it later
+         seed%neqv = 1
+         seed%ncv = 1
+         if (allocated(seed%rotm)) deallocate(seed%rotm)
+         if (allocated(seed%cen)) deallocate(seed%cen)
+         allocate(seed%rotm(3,4,1),seed%cen(3,1))
+         seed%rotm(:,:,1) = eyet
+         seed%cen(:,1) = 0d0
+         seed%havesym = 0
+         seed%checkrepeats = .false.
+         seed%findsym = -1
+      else
+         ! we have symmetry, check for repeats
+         seed%havesym = 1
+         seed%checkrepeats = .true.
+         seed%findsym = 0
+      end if
+
+      ! reallocate
+      if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
+      if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
+
+      ! rest of the seed information
+      seed%isused = .true.
+      seed%ismolecule = mol
+      seed%cubic = .false.
+      seed%border = 0d0
+      seed%havex0 = .false.
+      seed%molx0 = 0d0
+
+    end subroutine fill_seed
+
   end subroutine read_cif
 
   !> Read the structure from a res or ins (shelx) file
@@ -4837,8 +5197,7 @@ contains
 
   !xx! private subroutines
 
-  !> Read all structures from a CIF file (uses ciftbx) and returns all
-  !> crystal seeds.
+  !> Read all structures from a CIF file.
   subroutine read_all_cif(nseed,seed,file,mol,errmsg)
     use arithmetic, only: eval, isvariable, setvariable
     use global, only: critic_home
@@ -4846,80 +5205,16 @@ contains
     use param, only: dirsep
     use types, only: realloc
 
-    include 'ciftbx/ciftbx.cmv'
-    include 'ciftbx/ciftbx.cmf'
-
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
-    character(len=1024) :: dictfile
-    logical :: fl
-    integer :: ludum, luscr
+    ! xxxx !
+    write (*,*) "bleh read_all_cif"
+    stop 1
 
-    errmsg = ""
-    nseed = 0
-    if (allocated(seed)) deallocate(seed)
-    ludum = falloc()
-    luscr = falloc()
-    fl = init_(ludum, uout, luscr, uout)
-    if (.not.checkcifop()) goto 999
-
-    ! open dictionary
-    dictfile = trim(adjustl(critic_home)) // dirsep // "cif" // dirsep // 'cif_core.dic'
-    fl = dict_(dictfile,'valid')
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "Dictionary file (cif_core.dic) not found."
-       goto 999
-    end if
-
-    ! open cif file
-    fl = ocif_(file)
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "Error opening file."
-       goto 999
-    end if
-
-    allocate(seed(1))
-    ! read data blocks
-    do while (data_(" "))
-       nseed = nseed + 1
-       if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
-
-       call read_cif_items(seed(nseed),mol,errmsg)
-       seed(nseed)%file = file
-       seed(nseed)%name = trim(file) // "||" // trim(bloc_)
-
-       if (len_trim(errmsg) > 0) then
-          if (allocated(seed)) deallocate(seed)
-          nseed = 0
-          goto 999
-       end if
-    end do
-    call realloc_crystalseed(seed,nseed)
-
-999 continue
-
-    ! clean up
-    call purge_()
-    call fdealloc(ludum)
-    call fdealloc(luscr)
-
-  contains
-    function checkcifop()
-      use tools_io, only: string
-      logical :: checkcifop
-      checkcifop = (cifelin_ == 0)
-      if (checkcifop) then
-         errmsg = ""
-      else
-         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
-      end if
-    end function checkcifop
   end subroutine read_all_cif
 
   !> Read one or all structures from a QE output (filename file) and
@@ -5503,313 +5798,6 @@ contains
 
   end subroutine read_all_log
 
-  !> Read all items in a cif file when the cursor has already been
-  !> moved to the corresponding data block. Fills seed.
-  subroutine read_cif_items(seed,mol,errmsg)
-    use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
-    use arithmetic, only: eval, isvariable, setvariable
-    use param, only: bohrtoa
-    use tools_io, only: lower, zatguess, nameguess
-    use param, only: bohrtoa, eye, eyet
-    use types, only: realloc
-
-    include 'ciftbx/ciftbx.cmv'
-    include 'ciftbx/ciftbx.cmf'
-
-    type(crystalseed), intent(inout) :: seed
-    logical, intent(in) :: mol
-    character(len=:), allocatable, intent(out) :: errmsg
-
-    integer :: hnum
-    character(len=1024) :: sym, tok
-    character*30 :: atname, spg
-    integer :: i, j, it, iznum, idx
-    logical :: found, foundsym, fl, ix, iy, iz, fl1, fl2, ok, iok
-    real*8 :: sigx, rot0(3,4), x(3), xo, yo, zo
-
-    character*(1), parameter :: ico(3) = (/"x","y","z"/)
-
-    call seed%end()
-    ix = .false.
-    iy = .false.
-    iz = .false.
-    errmsg = ""
-
-    if (len_trim(bloc_) > 0) &
-       seed%name = trim(bloc_)
-
-    ! read cell dimensions
-    seed%useabr = 1
-    fl = numd_('_cell_length_a',seed%aa(1),sigx)
-    if (.not.checkcifop()) goto 999
-    fl = fl .and. numd_('_cell_length_b',seed%aa(2),sigx)
-    if (.not.checkcifop()) goto 999
-    fl = fl .and. numd_('_cell_length_c',seed%aa(3),sigx)
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "Error reading cell lengths."
-       return
-    end if
-    seed%aa = seed%aa / bohrtoa
-
-    ! read cell angles
-    fl = numd_('_cell_angle_alpha',seed%bb(1),sigx)
-    if (.not.checkcifop()) goto 999
-    fl = fl .and. numd_('_cell_angle_beta',seed%bb(2),sigx)
-    if (.not.checkcifop()) goto 999
-    fl = fl .and. numd_('_cell_angle_gamma',seed%bb(3),sigx)
-    if (.not.checkcifop()) goto 999
-    if (.not.fl) then
-       errmsg = "Error readinig cell angles."
-       return
-    end if
-
-    ! read atomic positions
-    seed%nat = 1
-    seed%nspc = 0
-    allocate(seed%spc(1))
-    allocate(seed%x(3,10),seed%is(10))
-    do while(.true.)
-       if (seed%nat > size(seed%is)) then
-          call realloc(seed%is,2*seed%nat)
-          call realloc(seed%x,3,2*seed%nat)
-       end if
-       atname = ""
-       fl = char_('_atom_site_type_symbol',atname)
-       if (.not.checkcifop()) goto 999
-       if (.not.fl) then
-          fl = char_('_atom_site_label',atname)
-          if (.not.checkcifop()) goto 999
-       end if
-       iznum = zatguess(atname)
-       if (iznum < 0) then
-          errmsg = "Unknown atomic symbol: "//trim(atname)//"."
-          return
-       end if
-
-       found = .false.
-       do i = 1, seed%nspc
-          if (seed%spc(i)%z == iznum) then
-             it = i
-             found = .true.
-             exit
-          end if
-       end do
-       if (.not.found) then
-          seed%nspc = seed%nspc + 1
-          if (seed%nspc > size(seed%spc,1)) &
-             call realloc(seed%spc,2*seed%nspc)
-          seed%spc(seed%nspc)%z = iznum
-          seed%spc(seed%nspc)%name = nameguess(iznum,.true.)
-          it = seed%nspc
-       end if
-       seed%is(seed%nat) = it
-
-       fl = fl .and. numd_('_atom_site_fract_x',x(1),sigx)
-       if (.not.checkcifop()) goto 999
-       fl = fl .and. numd_('_atom_site_fract_y',x(2),sigx)
-       if (.not.checkcifop()) goto 999
-       fl = fl .and. numd_('_atom_site_fract_z',x(3),sigx)
-       if (.not.checkcifop()) goto 999
-       seed%x(:,seed%nat) = x
-       if (.not.fl) then
-          errmsg = "Error reading atomic positions."
-          return
-       end if
-       if (.not.loop_) exit
-       seed%nat = seed%nat + 1
-    end do
-    call realloc(seed%spc,seed%nspc)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%x,3,seed%nat)
-
-    ! save the old value of x, y, and z variables
-    ix = isvariable("x",xo)
-    iy = isvariable("y",yo)
-    iz = isvariable("z",zo)
-
-    ! use the symmetry information from _symmetry_equiv_pos_as_xyz
-    foundsym = .false.
-    fl1 = .false.
-    fl2 = .false.
-    seed%neqv = 0
-    seed%ncv = 1
-    if (.not.allocated(seed%cen)) allocate(seed%cen(3,4))
-    seed%cen(:,1) = 0d0
-    if (.not.allocated(seed%rotm)) allocate(seed%rotm(3,4,48))
-    seed%rotm = 0d0
-    seed%rotm(:,:,1) = eyet
-    do while(.true.)
-       if (.not.foundsym) then
-          fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-          if (.not.checkcifop()) goto 999
-          if (.not.fl1) then
-             fl2 = char_('_space_group_symop_operation_xyz',sym)
-             if (.not.checkcifop()) goto 999
-          end if
-          if (.not.(fl1.or.fl2)) exit
-          foundsym = .true.
-       else
-          if (fl1) then
-             fl1 = char_('_symmetry_equiv_pos_as_xyz',sym)
-             if (.not.checkcifop()) goto 999
-          end if
-          if (fl2) then
-             fl2 = char_('_space_group_symop_operation_xyz',sym)
-             if (.not.checkcifop()) goto 999
-          end if
-       endif
-
-       ! do stuff with sym
-       if (.not.(fl1.or.fl2)) then
-          errmsg = "Error reading symmetry xyz elements."
-          goto 999
-       end if
-
-       ! process the three symmetry elements
-       rot0 = 0d0
-       sym = trim(adjustl(lower(sym))) // ","
-       do i = 1, 3
-          ! extract the next token
-          idx = index(sym,",")
-          if (idx == 0) then
-             errmsg = "Error reading symmetry operation."
-             goto 999
-          end if
-          tok = sym(1:idx-1)
-          sym = sym(idx+1:)
-
-          ! the translation component
-          do j = 1, 3
-             call setvariable(ico(j),0d0)
-          end do
-          rot0(i,4) = eval(tok,.false.,iok)
-          if (.not.iok) then
-             errmsg = "Error evaluating expression: " // trim(tok)
-             goto 999
-          end if
-
-          ! the x-, y-, z- components
-          do j = 1, 3
-             call setvariable(ico(j),1d0)
-             rot0(i,j) = eval(tok,.false.,iok) - rot0(i,4)
-             if (.not.iok) then
-                errmsg = "Error evaluating expression: " // trim(tok)
-                goto 999
-             end if
-             call setvariable(ico(j),0d0)
-          enddo
-       enddo
-
-       ! now we have a rot0
-       if (all(abs(eyet - rot0) < 1d-12)) then
-          ! the identity
-          seed%neqv = seed%neqv + 1
-          if (seed%neqv > size(seed%rotm,3)) &
-             call realloc(seed%rotm,3,4,2*seed%neqv)
-          seed%rotm(:,:,seed%neqv) = rot0
-       elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
-          ! a non-zero pure translation
-          ! check if I have it already
-          ok = .true.
-          do i = 1, seed%ncv
-             if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
-                ok = .false.
-                exit
-             endif
-          end do
-          if (ok) then
-             seed%ncv = seed%ncv + 1
-             if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
-             seed%cen(:,seed%ncv) = rot0(:,4)
-          endif
-       else
-          ! a rotation, with some pure translation in it
-          ! check if I have this rotation matrix already
-          ok = .true.
-          do i = 1, seed%neqv
-             if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
-                ok = .false.
-                exit
-             endif
-          end do
-          if (ok) then
-             seed%neqv = seed%neqv + 1
-             seed%rotm(:,:,seed%neqv) = rot0
-          endif
-       endif
-       ! exit the loop
-       if (.not.loop_) exit
-    end do
-    if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
-    if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
-
-    ! read and process spg information
-    if (.not.foundsym) then
-       ! the "official" Hermann-Mauginn symbol from the dictionary: many cif files don't have one
-       fl = char_('_symmetry_space_group_name_H-M',spg)
-       if (.not.checkcifop()) goto 999
-
-       ! the "alternative" symbol... the core dictionary says I shouldn't be using this
-       if (.not.fl) fl = char_('_space_group_name_H-M_alt',spg)
-       if (.not.checkcifop()) goto 999
-
-       ! oh, well, that's that... let's get out of here
-       if (.not.fl) then
-          errmsg = "Error reading symmetry."
-          goto 999
-       end if
-
-       ! call spglib and hope for the best
-       seed%neqv = 0
-       hnum = spg_get_hall_number_from_symbol(spg)
-       if (hnum > 0) &
-          call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
-       foundsym = (seed%neqv > 0)
-    endif
-
-    ! assign symmetry actions
-    if (.not.foundsym) then
-       seed%neqv = 1
-       seed%rotm(:,:,1) = eyet
-       seed%rotm = 0d0
-       seed%havesym = 0
-       seed%checkrepeats = .false.
-       seed%findsym = -1
-    else
-       seed%havesym = 1
-       seed%checkrepeats = .true.
-       seed%findsym = 0
-    end if
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-
-999 continue
-
-    ! restore the old values of x, y, and z
-    if (ix) call setvariable("x",xo)
-    if (iy) call setvariable("y",yo)
-    if (iz) call setvariable("z",zo)
-
-  contains
-    function checkcifop()
-      use tools_io, only: string
-      logical :: checkcifop
-      checkcifop = (cifelin_ == 0)
-      if (checkcifop) then
-         errmsg = ""
-      else
-         errmsg = trim(cifemsg_) // " (Line: " // string(cifelin_) // ")"
-      end if
-    end function checkcifop
-  end subroutine read_cif_items
-
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.
   subroutine which_out_format(file,isformat)
@@ -5910,5 +5898,86 @@ contains
     call fclose(lu)
 
   end subroutine which_in_format
+
+  !> Convert a cif-file-style string to a symmetry operation.
+  function string_to_symop(str,errmsg) result(rot0)
+    use arithmetic, only: eval
+    use tools_io, only: lower
+    character*(*), intent(in) :: str
+    character(len=:), allocatable, intent(out) :: errmsg
+    real*8 :: rot0(3,4)
+
+    character(len=:), allocatable :: sym, tok, tok0
+    integer :: i, j, idx
+    logical :: ok
+
+    errmsg = ""
+    rot0 = 0d0
+    sym = str
+    sym = trim(adjustl(lower(sym))) // ","
+    do i = 1, 3
+       ! extract the next token
+       idx = index(sym,",")
+       if (idx == 0) then
+          errmsg = "Error reading symmetry operation."
+          return
+       end if
+       tok0 = sym(1:idx-1)
+       sym = sym(idx+1:)
+
+       ! the translation component
+       tok = tok0
+       call replace(tok,'x',0)
+       call replace(tok,'y',0)
+       call replace(tok,'z',0)
+       rot0(i,4) = eval(tok,.false.,ok)
+       if (.not.ok) then
+          errmsg = "Error reading symmetry operation."
+          return
+       end if
+
+       ! the other components
+       do j = 1, 3
+          tok = tok0
+          if (j == 1) then
+             call replace(tok,'x',1)
+             call replace(tok,'y',0)
+             call replace(tok,'z',0)
+          elseif (j == 2) then
+             call replace(tok,'x',0)
+             call replace(tok,'y',1)
+             call replace(tok,'z',0)
+          elseif (j == 3) then
+             call replace(tok,'x',0)
+             call replace(tok,'y',0)
+             call replace(tok,'z',1)
+          end if
+          rot0(i,j) = eval(tok,.false.,ok) - rot0(i,4)
+          if (.not.ok) then
+             errmsg = "Error reading symmetry operation."
+             return
+          end if
+       enddo
+    enddo
+
+  contains
+    ! Replace character ch in string tok with integer ival.
+    subroutine replace(tok,ch,ival)
+      use tools_io, only: string
+      character(len=:), allocatable, intent(inout) :: tok
+      character*1, intent(in) :: ch
+      integer, intent(in) :: ival
+
+      integer :: idx
+
+      do while (.true.)
+         idx = index(tok,ch)
+         if (idx == 0) return
+         tok = tok(1:idx-1) // "(" // string(ival) // ")" // tok(idx+1:)
+      end do
+
+    end subroutine replace
+
+  end function string_to_symop
 
 end submodule proc

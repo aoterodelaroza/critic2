@@ -756,7 +756,7 @@ contains
   function tokenize(expr,ntok,toklist,lpexit,syl)
     use systemmod, only: system
     use tools_io, only: lower, isinteger
-    use param, only: vh
+    use param, only: vh, tab
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
@@ -795,7 +795,7 @@ contains
     main: do while (lp <= ll)
        lpexit = lp
        ! skip blanks and quotes
-       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == '\t'.or.expr(lp:lp)=='\n'.or.&
+       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == tab.or.expr(lp:lp)==new_line('a').or.&
           expr(lp:lp) == '"'.or.expr(lp:lp) == "'")
           lp = lp + 1
           if (lp > ll) exit main

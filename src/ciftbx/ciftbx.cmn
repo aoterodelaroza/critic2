@@ -1,9 +1,0 @@
-
-!
-! >>>>>> Common and Function declararations 'ciftbx.cmn'
-!
-!        These declarations must be included in ciftbx user
-!        applications.
-!
-      include  'ciftbx.cmv'
-      include  'ciftbx.cmf'

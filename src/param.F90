@@ -60,6 +60,7 @@ module param
   real*8, parameter :: eye(3,3) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0/),shape(eye))
   real*8, parameter :: eyet(3,4) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0/),shape(eyet))
   complex*16, parameter :: img = (0d0,1d0)
+  character*1, parameter :: tab = char(9)
 
   ! Physical constants and conversion factors.
   ! Most of them involve atomic units:  hartree (Hy), bohr, ...
