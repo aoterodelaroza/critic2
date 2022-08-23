@@ -782,7 +782,6 @@ contains
   !> message
   module subroutine read_any_file(seed,file,mol0,errmsg)
     use global, only: rborder_def
-    use tools_io, only: ferror, faterr
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
        isformat_elk,&
@@ -812,7 +811,8 @@ contains
     elseif (mol0 == -1) then
        call struct_detect_ismol(file,isformat,mol)
     else
-       call ferror("read_any_file","unknown mol0",faterr)
+       errmsg = "read_any_file: unknown mol0"
+       return
     end if
 
     ! build the seed
@@ -1743,7 +1743,7 @@ contains
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
   module subroutine read_wien(seed,file,mol,errmsg)
-    use tools_io, only: fopen_read, ferror, zatguess, fclose, equal, equali
+    use tools_io, only: fopen_read, zatguess, fclose, equal, equali
     use types, only: realloc
     use param, only: pi
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2131,7 +2131,7 @@ contains
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
   module subroutine read_abinit(seed,file,mol,errmsg)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, nameguess, ferror, fclose
+    use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -3566,7 +3566,7 @@ contains
   !> Read the structure from a pwc file.
   module subroutine read_pwc(seed,file,mol,errmsg)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, fclose, zatguess, ferror, faterr
+    use tools_io, only: fopen_read, fclose, zatguess
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -3589,8 +3589,10 @@ contains
 
     ! header
     read (lu,err=999) version
-    if (version < 2) &
-       call ferror('read_pwc','This pwc file is too old. Please update your QE and regenerate it.',faterr)
+    if (version < 2) then
+       errmsg = "This pwc file is too old. Please update your QE and regenerate it."
+       goto 999
+    end if
 
     read (lu,err=999) seed%nspc, seed%nat, alat
 
@@ -4264,7 +4266,6 @@ contains
 
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
-    use tools_io, only: ferror, faterr
 
     type(crystalseed), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
@@ -4272,8 +4273,7 @@ contains
     type(crystalseed), allocatable :: temp(:)
     integer :: l1, u1
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_crystalseed','array not allocated',faterr)
+    if (.not.allocated(a)) return
     l1 = lbound(a,1)
     u1 = ubound(a,1)
     if (u1 == nnew) return

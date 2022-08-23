@@ -73,7 +73,6 @@ submodule (grid3mod) proc
   !   ig = i3-1+n(3)-n(3)/2 + (i2-1+n(2)-n(2)/2) * n(3) + (i1-1+n(1)-n(1)/2) * n(3) * n(2) + 1
   !
 
-
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
      1d0,  0d0, -3d0,  2d0,  0d0,  0d0,  0d0,  0d0, -3d0,  0d0,   9d0,  -6d0,  2d0,  0d0,  -6d0,   4d0,&  ! 1-16, 1
