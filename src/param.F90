@@ -593,7 +593,7 @@ module param
        "erf","erfc","min","max","xc"/)
 
   ! directory separator
-#ifdef WIN
+#if defined(WIN) || defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
   character*1, parameter :: dirsep = "\" ! "
 #else
   character*1, parameter :: dirsep = "/"

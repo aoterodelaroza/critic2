@@ -1772,11 +1772,16 @@ contains
 #ifdef HAVE_LIBXC
        ia = tointeger(q(nq))
 
+       ! dirty trick for syncing the threads
        if (.not.ifun(ia)%init) then
-          ifun(ia)%id = ia
-          ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
-          call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
-          ifun(ia)%init = .true.
+          !$omp critical (ifuninit)
+          if (.not.ifun(ia)%init) then
+             ifun(ia)%id = ia
+             ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
+             call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
+             ifun(ia)%init = .true.
+          end if
+          !$omp end critical (ifuninit)
        endif
 
        if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
