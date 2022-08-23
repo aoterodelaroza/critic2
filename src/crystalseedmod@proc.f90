@@ -20,7 +20,7 @@ submodule (crystalseedmod) proc
   implicit none
 
   !xx! private subroutines
-  ! subroutine read_all_cif(nseed,seed,file,mol,errmsg)
+  ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock)
   ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
   ! subroutine read_all_xyz(nseed,seed,file,errmsg)
   ! subroutine read_all_log(nseed,seed,file,errmsg)
@@ -905,447 +905,18 @@ contains
 
   end subroutine read_any_file
 
-  !> Read a structure from a CIF file.
+  !> Read a structure seed from a CIF file. If dblock is not empty, return
+  !> the first structure in the cif, otherwise return the seed with data
+  !> name equal to dblock. If mol, force a molecule/crystal system.
+  !> If error, return non-empty errmsg.
   module subroutine read_cif(seed,file,dblock,mol,errmsg)
-    use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
-       isreal, zatguess
-    use types, only: realloc
-    use param, only: tab
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
 
-    real*8 :: rdum, aa(3), bb(3)
-    integer :: lu, idx, leng, lp, nhead, i
-    character(len=:), allocatable :: word, line, blockname, spg
-    logical :: indata, inloopheader, inloop, ldum, ok
-    logical :: havefields(10) ! 1-3 = abc, 4-6 = angles, 7=symbol, 8-10=xyz
-    integer :: looptype ! 1 = symmetry, 2 = atoms
-    integer :: cols(5) ! 1=symbol, 2=x, 3=y, 4=z, 5=symop
-    integer :: nat, nop
-    real*8, allocatable :: xat(:,:)
-    integer, allocatable :: zat(:)
-    character*256, allocatable :: ops(:)
-
-    ! initialize
-    errmsg = ""
-
-    ! initialize atom list
-    nat = 0
-    nop = 0
-    allocate(xat(3,20),zat(20))
-    allocate(ops(48))
-
-    ! run over lines in the file
-    indata = .false.
-    inloopheader = .false.
-    inloop = .false.
-    spg = ""
-    havefields = .false.
-    lu = fopen_read(file)
-    main: do while (getline_raw(lu,line))
-       line = adjustl(line)
-
-       ! replace tabs with blanks
-       do while (.true.)
-          idx = index(line,tab)
-          if (idx == 0) exit
-          line = line(1:idx-1) // " " // line(idx+1:)
-       end do
-
-       ! skip blank lines and comments
-       leng = len_trim(line)
-       if (leng == 0) cycle
-       if (line(1:1) == "#") cycle
-
-       ! data_
-       if (leng >= 5) then
-          if (lower(line(1:5)) == "data_") then
-             ! finalize the previous seeed
-             if (indata) then
-                call fill_seed(seed)
-                return
-             end if
-             spg = ""
-             indata = .false.
-             blockname = trim(line(6:))
-             havefields = .false.
-             inloopheader = .false.
-             inloop = .false.
-             nat = 0
-             nop = 0
-
-             ! reset the flags and set the block name
-             if (len_trim(dblock) == 0 .or. blockname == dblock) &
-                indata = .true.
-             cycle
-          end if
-       end if
-       if (.not.indata) cycle
-
-       ! loop_
-       if (leng >= 5) then
-          if (lower(line(1:5)) == "loop_") then
-             inloop = .false.
-             inloopheader = .true.
-             looptype = 0
-             cols = 0
-             nhead = 0
-             cycle
-          end if
-       end if
-
-       ! A _ keyword
-       lp = 1
-       if (line(1:1) == "_") then
-          inloop = .false.
-          ldum = isexpression_or_word(word,line,lp)
-          word = lower(word)
-          if (.not.inloopheader) then
-             ! one of the variables not in a loop
-             if (word == "_cell_length_a") then
-                aa(1) = read_field_float()
-                havefields(1) = .true.
-             elseif (word == "_cell_length_b") then
-                aa(2) = read_field_float()
-                havefields(2) = .true.
-             elseif (word == "_cell_length_c") then
-                aa(3) = read_field_float()
-                havefields(3) = .true.
-             elseif (word == "_cell_angle_alpha") then
-                bb(1) = read_field_float()
-                havefields(4) = .true.
-             elseif (word == "_cell_angle_beta") then
-                bb(2) = read_field_float()
-                havefields(5) = .true.
-             elseif (word == "_cell_angle_gamma") then
-                bb(3) = read_field_float()
-                havefields(6) = .true.
-             elseif (word == "_symmetry_space_group_name_h-m") then
-                spg = read_field_string()
-             elseif (word == "_space_group_name_h-m_alt") then
-                if (len_trim(spg) == 0) spg = read_field_string()
-             end if
-             if (len_trim(errmsg) /= 0) return
-          else
-             nhead = nhead + 1
-             if (word == "_atom_site_type_symbol" .or. word == "_atom_site_label" .or.&
-                word == "_atom_site_fract_x" .or. word == "_atom_site_fract_y" .or.&
-                word == "_atom_site_fract_z") then
-                ! an atom loop
-                looptype = 2
-                nat = 0
-                if (word == "_atom_site_type_symbol") then
-                   cols(1) = nhead
-                elseif (word == "_atom_site_label") then
-                   if (cols(1) == 0) cols(1) = nhead
-                elseif (word == "_atom_site_fract_x") then
-                   cols(2) = nhead
-                elseif (word == "_atom_site_fract_y") then
-                   cols(3) = nhead
-                elseif (word == "_atom_site_fract_z") then
-                   cols(4) = nhead
-                end if
-             elseif (word == "_symmetry_equiv_pos_as_xyz" .or. &
-                word == "_space_group_symop_operation_xyz") then
-                ! a symmetry loop
-                looptype = 1
-                nop = 0
-                if (word == "_symmetry_equiv_pos_as_xyz") then
-                   cols(5) = nhead
-                elseif (word == "_space_group_symop_operation_xyz") then
-                   if (cols(5) == 0) cols(5) = nhead
-                end if
-             end if
-          end if
-          cycle
-       else
-          if (inloopheader) inloop = .true.
-          inloopheader = .false.
-       end if
-
-       ! we must be in a loop, read or skip
-       if (inloop) then
-          if (looptype == 2) then
-             ! the atoms loop
-             ! add one atom
-             nat = nat + 1
-             if (nat > size(zat,1)) then
-                call realloc(xat,3,2*nat)
-                call realloc(zat,2*nat)
-             end if
-
-             ! read the fields
-             lp = 1
-             do i = 1, maxval(cols(1:4))
-                ok = isexpression_or_word(word,line,lp)
-                if (ok) then
-                   if (cols(2)==i .or. cols(3)==i .or. cols(4)==i) then
-                      if (ok) ok = isreal(rdum,word)
-                      if (ok) then
-                         if (cols(2) == i) then
-                            xat(1,nat) = rdum
-                            havefields(8) = .true.
-                         elseif (cols(3) == i) then
-                            xat(2,nat) = rdum
-                            havefields(9) = .true.
-                         elseif (cols(4) == i) then
-                            xat(3,nat) = rdum
-                            havefields(10) = .true.
-                         end if
-                      end if
-                   elseif (cols(1)==i) then
-                      zat(nat) = zatguess(word)
-                      ok = (zat(nat) /= 0)
-                      havefields(7) = .true.
-                   end if
-                end if
-
-                if (.not.ok) then
-                   errmsg = "Error reading cif file (atom loop)"
-                   return
-                end if
-             end do
-          elseif (looptype == 1) then
-             ! the symmetry operations loop
-             ! add one operation
-             nop = nop + 1
-             if (nop > size(ops,1)) call realloc(ops,2*nop)
-
-             ! read the fields
-             lp = 1
-             do i = 1, cols(5)
-                ok = isexpression_or_word(word,line,lp)
-                if (ok.and.cols(5)==i) ops(nop) = word
-                if (.not.ok) then
-                   errmsg = "Error reading cif file (symop loop)"
-                   return
-                end if
-             end do
-          end if
-          cycle
-       end if
-
-       ! skip the ; blocks associated with an unknown field
-       if (line(1:1) == ";") then
-          do while (getline_raw(lu,line))
-             line = adjustl(line)
-             if (len_trim(line) == 0) cycle
-             if (line(1:1) == ";") cycle main
-          end do
-       end if
-    end do main
-    call fclose(lu)
-
-    ! fill the seed
-    call fill_seed(seed)
-
-  contains
-    function read_field_float()
-      use tools_io, only: isreal
-      real*8 :: read_field_float
-
-      read_field_float = 0d0
-      if (len_trim(line(lp:)) == 0) then
-         ! read the next line if empty
-         ok = getline_raw(lu,line)
-         if (.not.ok) then
-            errmsg = "Error reading cif file (float read error)"
-            return
-         end if
-         line = adjustl(line)
-         lp = 1
-      end if
-      if (.not.isreal(read_field_float,line,lp)) &
-         errmsg = "Error reading cif file (float read error)"
-
-    end function read_field_float
-
-    function read_field_string()
-      use tools_io, only: isexpression_or_word
-      character(len=:), allocatable :: read_field_string
-
-      ! read the next line if empty
-      read_field_string = ""
-      if (len_trim(line(lp:)) == 0) then
-         ok = getline_raw(lu,line)
-         if (.not.ok) then
-            errmsg = "Error reading cif file (float read error)"
-            return
-         end if
-         line = adjustl(line)
-         lp = 1
-      end if
-
-      if (line(1:1) /= ";") then
-         if (isexpression_or_word(read_field_string,line,lp)) return
-         errmsg = "Error reading cif file (float read error)"
-      else
-         ! read a ; block
-         do while (getline_raw(lu,line))
-            line = adjustl(line)
-            if (len_trim(line) == 0) cycle
-            if (line(1:1) == ";") then
-               errmsg = ""
-               return
-            end if
-            read_field_string = read_field_string // trim(line) // new_line('a')
-         end do
-      end if
-
-    end function read_field_string
-
-    subroutine fill_seed(seed)
-      use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
-      use types, only: realloc
-      use tools_io, only: nameguess
-      use param, only: bohrtoa, maxzat, eyet, eye
-      type(crystalseed), intent(out) :: seed
-
-      integer :: zspc(maxzat), hnum
-      integer :: i, j
-      real*8 :: rot0(3,4)
-      logical :: ok, foundsym
-
-      ! check we have all the info
-      if (.not.all(havefields)) then
-         errmsg = "Error reading cif file (missing fields in data block)"
-         return
-      end if
-
-      ! initialize seed
-      call seed%end()
-      seed%file = trim(file)
-      seed%name = trim(file) // trim(blockname)
-      seed%useabr = 1
-      seed%aa = aa / bohrtoa
-      seed%bb = bb
-
-      ! fill the species
-      zspc = 0
-      do i = 1, nat
-         zspc(zat(i)) = maxzat+1
-      end do
-      if (allocated(seed%spc)) deallocate(seed%spc)
-      allocate(seed%spc(count(zspc > 0)))
-      seed%nspc = 0
-      do i = 1, maxzat
-         if (zspc(i) > 0) then
-            seed%nspc = seed%nspc + 1
-            seed%spc(seed%nspc)%z = i
-            seed%spc(seed%nspc)%name = nameguess(i,.true.)
-            zspc(i) = seed%nspc
-         end if
-      end do
-
-      ! fill the atoms
-      seed%nat = nat
-      if (allocated(seed%x)) deallocate(seed%x)
-      if (allocated(seed%is)) deallocate(seed%is)
-      allocate(seed%x(3,nat),seed%is(nat))
-      do i = 1, nat
-         seed%is(i) = zspc(zat(i))
-         seed%x(:,i) = xat(:,i)
-      end do
-
-      ! pre-allocate the symmetry
-      seed%neqv = 0
-      seed%ncv = 1
-      if (allocated(seed%rotm)) deallocate(seed%rotm)
-      if (allocated(seed%cen)) deallocate(seed%cen)
-      allocate(seed%rotm(3,4,48),seed%cen(3,4))
-      seed%cen = 0d0
-
-      ! fill the symmetry with the symops from the cif file
-      foundsym = .false.
-      if (nop > 0) then
-         foundsym = .true.
-         ! from the symmetry operations in the cif file
-         do j = 1, nop
-            rot0 = string_to_symop(ops(j),errmsg)
-            if (len_trim(errmsg) > 0) return
-
-            if (all(abs(eyet - rot0) < 1d-12)) then
-               ! the identity
-               seed%neqv = seed%neqv + 1
-               if (seed%neqv > size(seed%rotm,3)) &
-                  call realloc(seed%rotm,3,4,2*seed%neqv)
-               seed%rotm(:,:,seed%neqv) = rot0
-            elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
-               ! a non-zero pure translation
-               ! check if I have it already
-               ok = .true.
-               do i = 1, seed%ncv
-                  if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
-                     ok = .false.
-                     exit
-                  endif
-               end do
-               if (ok) then
-                  seed%ncv = seed%ncv + 1
-                  if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
-                  seed%cen(:,seed%ncv) = rot0(:,4)
-               endif
-            else
-               ! a rotation, with some pure translation in it
-               ! check if I have this rotation matrix already
-               ok = .true.
-               do i = 1, seed%neqv
-                  if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
-                     ok = .false.
-                     exit
-                  endif
-               end do
-               if (ok) then
-                  seed%neqv = seed%neqv + 1
-                  seed%rotm(:,:,seed%neqv) = rot0
-               endif
-            endif
-         end do
-      end if
-
-      ! get the symmetry from the space group label
-      if (.not.foundsym) then
-         hnum = spg_get_hall_number_from_symbol(spg)
-         if (hnum > 0) &
-            call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
-         foundsym = (seed%neqv > 0) .and. (seed%ncv > 0)
-      end if
-
-      if (.not.foundsym) then
-         ! could not find symmetry in the cif file, calculate it later
-         seed%neqv = 1
-         seed%ncv = 1
-         if (allocated(seed%rotm)) deallocate(seed%rotm)
-         if (allocated(seed%cen)) deallocate(seed%cen)
-         allocate(seed%rotm(3,4,1),seed%cen(3,1))
-         seed%rotm(:,:,1) = eyet
-         seed%cen(:,1) = 0d0
-         seed%havesym = 0
-         seed%checkrepeats = .false.
-         seed%findsym = -1
-      else
-         ! we have symmetry, check for repeats
-         seed%havesym = 1
-         seed%checkrepeats = .true.
-         seed%findsym = 0
-      end if
-
-      ! reallocate
-      if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
-      if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
-
-      ! rest of the seed information
-      seed%isused = .true.
-      seed%ismolecule = mol
-      seed%cubic = .false.
-      seed%border = 0d0
-      seed%havex0 = .false.
-      seed%molx0 = 0d0
-
-    end subroutine fill_seed
+    call read_all_cif(file,mol,errmsg,seed0=seed,dblock=dblock)
 
   end subroutine read_cif
 
@@ -5029,7 +4600,7 @@ contains
 
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call read_all_cif(nseed,seed,file,mol,errmsg)
+       call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed)
     elseif (isformat == isformat_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg)
     elseif (isformat == isformat_shelx) then
@@ -5197,23 +4768,485 @@ contains
 
   !xx! private subroutines
 
-  !> Read all structures from a CIF file.
-  subroutine read_all_cif(nseed,seed,file,mol,errmsg)
-    use arithmetic, only: eval, isvariable, setvariable
-    use global, only: critic_home
-    use tools_io, only: falloc, uout, lower, zatguess, fdealloc, nameguess
-    use param, only: dirsep
+  !> Read multiple structure seeds from a CIF file. If mol, force a
+  !> molecule/crystal system.  If error, return non-empty errmsg.
+  !> If nseed and mseed are present, read all seeds into the mseed
+  !> array and return the number of seeds in nseed. If seed0 is
+  !> present, return the data block dblock. If dblock is not present
+  !> or is empty, return the first data block in seed0.
+  subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock)
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
+       isreal, zatguess
     use types, only: realloc
-
-    integer, intent(out) :: nseed !< number of seeds
-    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
-    character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< Is this a molecule?
+    use param, only: tab
+    integer, intent(out), optional :: nseed
+    type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
+    type(crystalseed), intent(inout), optional :: seed0
+    character*(*), intent(in), optional :: dblock
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
 
-    ! xxxx !
-    write (*,*) "bleh read_all_cif"
-    stop 1
+    real*8 :: rdum, aa(3), bb(3)
+    integer :: lu, idx, leng, lp, nhead, i
+    character(len=:), allocatable :: word, line, blockname, spg
+    logical :: indata, inloopheader, inloop, ldum, ok
+    logical :: havefields(10) ! 1-3 = abc, 4-6 = angles, 7=symbol, 8-10=xyz
+    integer :: looptype ! 1 = symmetry, 2 = atoms
+    integer :: cols(5) ! 1=symbol, 2=x, 3=y, 4=z, 5=symop
+    integer :: nat, nop
+    real*8, allocatable :: xat(:,:)
+    integer, allocatable :: zat(:)
+    character*256, allocatable :: ops(:)
+    type(crystalseed) :: seed
+
+    ! consistency check
+    if (.not.(present(nseed).and.present(mseed)).and..not.present(seed0)) then
+       errmsg = "Error reading cif file (incorrect use of the interface)"
+       return
+    end if
+
+    ! initialize
+    errmsg = ""
+    if (present(nseed).and.present(mseed)) then
+       nseed = 0
+       if (allocated(mseed)) deallocate(mseed)
+       allocate(mseed(10))
+    end if
+
+    ! initialize atom list
+    nat = 0
+    nop = 0
+    allocate(xat(3,20),zat(20))
+    allocate(ops(48))
+
+    ! run over lines in the file
+    indata = .false.
+    inloopheader = .false.
+    inloop = .false.
+    spg = ""
+    havefields = .false.
+    lu = fopen_read(file)
+    main: do while (getline_raw(lu,line))
+       line = adjustl(line)
+
+       ! replace tabs with blanks
+       do while (.true.)
+          idx = index(line,tab)
+          if (idx == 0) exit
+          line = line(1:idx-1) // " " // line(idx+1:)
+       end do
+
+       ! skip blank lines and comments
+       leng = len_trim(line)
+       if (leng == 0) cycle
+       if (line(1:1) == "#") cycle
+
+       ! data_
+       if (leng >= 5) then
+          if (lower(line(1:5)) == "data_") then
+             ! finalize the previous seeed
+             if (indata) then
+                call fill_seed(seed)
+                if (present(nseed).and.present(mseed)) then
+                   nseed = nseed + 1
+                   if (nseed > size(mseed,1)) call realloc_crystalseed(mseed,2*nseed)
+                   mseed(nseed) = seed
+                elseif (present(seed0)) then
+                   seed0 = seed
+                   return
+                else
+                   errmsg = "Error reading cif file (incorrect use of the interface)"
+                   return
+                end if
+             end if
+             spg = ""
+             indata = .false.
+             blockname = trim(line(6:))
+             havefields = .false.
+             inloopheader = .false.
+             inloop = .false.
+             nat = 0
+             nop = 0
+
+             ! reset the flags and set the block name
+             ok = .not.present(dblock)
+             if (.not.ok) &
+                ok = (len_trim(dblock) == 0 .or. blockname == dblock)
+             if (ok) indata = .true.
+             cycle
+          end if
+       end if
+       if (.not.indata) cycle
+
+       ! loop_
+       if (leng >= 5) then
+          if (lower(line(1:5)) == "loop_") then
+             inloop = .false.
+             inloopheader = .true.
+             looptype = 0
+             cols = 0
+             nhead = 0
+             cycle
+          end if
+       end if
+
+       ! A _ keyword
+       lp = 1
+       if (line(1:1) == "_") then
+          inloop = .false.
+          ldum = isexpression_or_word(word,line,lp)
+          word = lower(word)
+          if (.not.inloopheader) then
+             ! one of the variables not in a loop
+             if (word == "_cell_length_a") then
+                aa(1) = read_field_float()
+                havefields(1) = .true.
+             elseif (word == "_cell_length_b") then
+                aa(2) = read_field_float()
+                havefields(2) = .true.
+             elseif (word == "_cell_length_c") then
+                aa(3) = read_field_float()
+                havefields(3) = .true.
+             elseif (word == "_cell_angle_alpha") then
+                bb(1) = read_field_float()
+                havefields(4) = .true.
+             elseif (word == "_cell_angle_beta") then
+                bb(2) = read_field_float()
+                havefields(5) = .true.
+             elseif (word == "_cell_angle_gamma") then
+                bb(3) = read_field_float()
+                havefields(6) = .true.
+             elseif (word == "_symmetry_space_group_name_h-m") then
+                spg = read_field_string()
+             elseif (word == "_space_group_name_h-m_alt") then
+                if (len_trim(spg) == 0) spg = read_field_string()
+             end if
+             if (len_trim(errmsg) /= 0) return
+          else
+             nhead = nhead + 1
+             if (word == "_atom_site_type_symbol" .or. word == "_atom_site_label" .or.&
+                word == "_atom_site_fract_x" .or. word == "_atom_site_fract_y" .or.&
+                word == "_atom_site_fract_z") then
+                ! an atom loop
+                looptype = 2
+                nat = 0
+                if (word == "_atom_site_type_symbol") then
+                   cols(1) = nhead
+                elseif (word == "_atom_site_label") then
+                   if (cols(1) == 0) cols(1) = nhead
+                elseif (word == "_atom_site_fract_x") then
+                   cols(2) = nhead
+                elseif (word == "_atom_site_fract_y") then
+                   cols(3) = nhead
+                elseif (word == "_atom_site_fract_z") then
+                   cols(4) = nhead
+                end if
+             elseif (word == "_symmetry_equiv_pos_as_xyz" .or. &
+                word == "_space_group_symop_operation_xyz") then
+                ! a symmetry loop
+                looptype = 1
+                nop = 0
+                if (word == "_symmetry_equiv_pos_as_xyz") then
+                   cols(5) = nhead
+                elseif (word == "_space_group_symop_operation_xyz") then
+                   if (cols(5) == 0) cols(5) = nhead
+                end if
+             end if
+          end if
+          cycle
+       else
+          if (inloopheader) inloop = .true.
+          inloopheader = .false.
+       end if
+
+       ! we must be in a loop, read or skip
+       if (inloop) then
+          if (looptype == 2) then
+             ! the atoms loop
+             ! add one atom
+             nat = nat + 1
+             if (nat > size(zat,1)) then
+                call realloc(xat,3,2*nat)
+                call realloc(zat,2*nat)
+             end if
+
+             ! read the fields
+             lp = 1
+             do i = 1, maxval(cols(1:4))
+                ok = isexpression_or_word(word,line,lp)
+                if (ok) then
+                   if (cols(2)==i .or. cols(3)==i .or. cols(4)==i) then
+                      if (ok) ok = isreal(rdum,word)
+                      if (ok) then
+                         if (cols(2) == i) then
+                            xat(1,nat) = rdum
+                            havefields(8) = .true.
+                         elseif (cols(3) == i) then
+                            xat(2,nat) = rdum
+                            havefields(9) = .true.
+                         elseif (cols(4) == i) then
+                            xat(3,nat) = rdum
+                            havefields(10) = .true.
+                         end if
+                      end if
+                   elseif (cols(1)==i) then
+                      zat(nat) = zatguess(word)
+                      ok = (zat(nat) /= 0)
+                      havefields(7) = .true.
+                   end if
+                end if
+
+                if (.not.ok) then
+                   errmsg = "Error reading cif file (atom loop)"
+                   return
+                end if
+             end do
+          elseif (looptype == 1) then
+             ! the symmetry operations loop
+             ! add one operation
+             nop = nop + 1
+             if (nop > size(ops,1)) call realloc(ops,2*nop)
+
+             ! read the fields
+             lp = 1
+             do i = 1, cols(5)
+                ok = isexpression_or_word(word,line,lp)
+                if (ok.and.cols(5)==i) ops(nop) = word
+                if (.not.ok) then
+                   errmsg = "Error reading cif file (symop loop)"
+                   return
+                end if
+             end do
+          end if
+          cycle
+       end if
+
+       ! skip the ; blocks associated with an unknown field
+       if (line(1:1) == ";") then
+          do while (getline_raw(lu,line))
+             line = adjustl(line)
+             if (len_trim(line) == 0) cycle
+             if (line(1:1) == ";") cycle main
+          end do
+       end if
+    end do main
+    call fclose(lu)
+
+    ! fill the last seed
+    call fill_seed(seed)
+    if (present(nseed).and.present(mseed)) then
+       nseed = nseed + 1
+       call realloc_crystalseed(mseed,nseed)
+       mseed(nseed) = seed
+    elseif (present(seed0)) then
+       seed0 = seed
+    end if
+
+  contains
+    function read_field_float()
+      use tools_io, only: isreal
+      real*8 :: read_field_float
+
+      read_field_float = 0d0
+      if (len_trim(line(lp:)) == 0) then
+         ! read the next line if empty
+         ok = getline_raw(lu,line)
+         if (.not.ok) then
+            errmsg = "Error reading cif file (float read error)"
+            return
+         end if
+         line = adjustl(line)
+         lp = 1
+      end if
+      if (.not.isreal(read_field_float,line,lp)) &
+         errmsg = "Error reading cif file (float read error)"
+
+    end function read_field_float
+
+    function read_field_string()
+      use tools_io, only: isexpression_or_word
+      character(len=:), allocatable :: read_field_string
+
+      ! read the next line if empty
+      read_field_string = ""
+      if (len_trim(line(lp:)) == 0) then
+         ok = getline_raw(lu,line)
+         if (.not.ok) then
+            errmsg = "Error reading cif file (float read error)"
+            return
+         end if
+         line = adjustl(line)
+         lp = 1
+      end if
+
+      if (line(1:1) /= ";") then
+         if (isexpression_or_word(read_field_string,line,lp)) return
+         errmsg = "Error reading cif file (float read error)"
+      else
+         ! read a ; block
+         do while (getline_raw(lu,line))
+            line = adjustl(line)
+            if (len_trim(line) == 0) cycle
+            if (line(1:1) == ";") then
+               errmsg = ""
+               return
+            end if
+            read_field_string = read_field_string // trim(line) // new_line('a')
+         end do
+      end if
+
+    end function read_field_string
+
+    subroutine fill_seed(seed)
+      use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
+      use types, only: realloc
+      use tools_io, only: nameguess
+      use param, only: bohrtoa, maxzat, eyet, eye
+      type(crystalseed), intent(out) :: seed
+
+      integer :: zspc(maxzat), hnum
+      integer :: i, j
+      real*8 :: rot0(3,4)
+      logical :: ok, foundsym
+
+      ! check we have all the info
+      if (.not.all(havefields)) then
+         errmsg = "Error reading cif file (missing fields or data block not found)"
+         return
+      end if
+
+      ! initialize seed
+      call seed%end()
+      seed%file = trim(file)
+      seed%name = trim(file) // "|" // trim(blockname)
+      seed%useabr = 1
+      seed%aa = aa / bohrtoa
+      seed%bb = bb
+
+      ! fill the species
+      zspc = 0
+      do i = 1, nat
+         zspc(zat(i)) = maxzat+1
+      end do
+      if (allocated(seed%spc)) deallocate(seed%spc)
+      allocate(seed%spc(count(zspc > 0)))
+      seed%nspc = 0
+      do i = 1, maxzat
+         if (zspc(i) > 0) then
+            seed%nspc = seed%nspc + 1
+            seed%spc(seed%nspc)%z = i
+            seed%spc(seed%nspc)%name = nameguess(i,.true.)
+            zspc(i) = seed%nspc
+         end if
+      end do
+
+      ! fill the atoms
+      seed%nat = nat
+      if (allocated(seed%x)) deallocate(seed%x)
+      if (allocated(seed%is)) deallocate(seed%is)
+      allocate(seed%x(3,nat),seed%is(nat))
+      do i = 1, nat
+         seed%is(i) = zspc(zat(i))
+         seed%x(:,i) = xat(:,i)
+      end do
+
+      ! pre-allocate the symmetry
+      seed%neqv = 0
+      seed%ncv = 1
+      if (allocated(seed%rotm)) deallocate(seed%rotm)
+      if (allocated(seed%cen)) deallocate(seed%cen)
+      allocate(seed%rotm(3,4,48),seed%cen(3,4))
+      seed%cen = 0d0
+
+      ! fill the symmetry with the symops from the cif file
+      foundsym = .false.
+      if (nop > 0) then
+         foundsym = .true.
+         ! from the symmetry operations in the cif file
+         do j = 1, nop
+            rot0 = string_to_symop(ops(j),errmsg)
+            if (len_trim(errmsg) > 0) return
+
+            if (all(abs(eyet - rot0) < 1d-12)) then
+               ! the identity
+               seed%neqv = seed%neqv + 1
+               if (seed%neqv > size(seed%rotm,3)) &
+                  call realloc(seed%rotm,3,4,2*seed%neqv)
+               seed%rotm(:,:,seed%neqv) = rot0
+            elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
+               ! a non-zero pure translation
+               ! check if I have it already
+               ok = .true.
+               do i = 1, seed%ncv
+                  if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
+                     ok = .false.
+                     exit
+                  endif
+               end do
+               if (ok) then
+                  seed%ncv = seed%ncv + 1
+                  if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
+                  seed%cen(:,seed%ncv) = rot0(:,4)
+               endif
+            else
+               ! a rotation, with some pure translation in it
+               ! check if I have this rotation matrix already
+               ok = .true.
+               do i = 1, seed%neqv
+                  if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
+                     ok = .false.
+                     exit
+                  endif
+               end do
+               if (ok) then
+                  seed%neqv = seed%neqv + 1
+                  seed%rotm(:,:,seed%neqv) = rot0
+               endif
+            endif
+         end do
+      end if
+
+      ! get the symmetry from the space group label
+      if (.not.foundsym) then
+         hnum = spg_get_hall_number_from_symbol(spg)
+         if (hnum > 0) &
+            call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
+         foundsym = (seed%neqv > 0) .and. (seed%ncv > 0)
+      end if
+
+      if (.not.foundsym) then
+         ! could not find symmetry in the cif file, calculate it later
+         seed%neqv = 1
+         seed%ncv = 1
+         if (allocated(seed%rotm)) deallocate(seed%rotm)
+         if (allocated(seed%cen)) deallocate(seed%cen)
+         allocate(seed%rotm(3,4,1),seed%cen(3,1))
+         seed%rotm(:,:,1) = eyet
+         seed%cen(:,1) = 0d0
+         seed%havesym = 0
+         seed%checkrepeats = .false.
+         seed%findsym = -1
+      else
+         ! we have symmetry, check for repeats
+         seed%havesym = 1
+         seed%checkrepeats = .true.
+         seed%findsym = 0
+      end if
+
+      ! reallocate
+      if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
+      if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
+
+      ! rest of the seed information
+      seed%isused = .true.
+      seed%ismolecule = mol
+      seed%cubic = .false.
+      seed%border = 0d0
+      seed%havex0 = .false.
+      seed%molx0 = 0d0
+
+    end subroutine fill_seed
 
   end subroutine read_all_cif
 
@@ -5497,12 +5530,12 @@ contains
              read (sene,*,err=999) rdum
              if (istruct < 0) then
                 if (is0 == nseed) then
-                   seed(iuse)%name = trim(file) // "||(final) (" //&
+                   seed(iuse)%name = trim(file) // "|(final) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
                    str = string(iuse,npad,pad0=.true.)
                    str = string(str,length=max(5,len(str)))
-                   seed(iuse)%name = trim(file) // "||" // str // " (" //&
+                   seed(iuse)%name = trim(file) // "|" // str // " (" //&
                       trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
                 end if
              else
@@ -5630,7 +5663,7 @@ contains
 
     if (nseed > 1) then
        do i = 1, nseed
-          seed(i)%name = trim(seed(i)%name) // "||" // string(i)
+          seed(i)%name = trim(seed(i)%name) // "|" // string(i)
        end do
     end if
 
@@ -5779,10 +5812,10 @@ contains
        do i = 1, nseed-1
           str = string(i,npad,pad0=.true.)
           str = string(str,length=max(5,len(str)))
-          seed(i)%name = trim(file) // "||" // str // " (" //&
+          seed(i)%name = trim(file) // "|" // str // " (" //&
              trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
        end do
-       seed(nseed)%name = trim(file) // "||(final) (" //&
+       seed(nseed)%name = trim(file) // "|(final) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
     else
        seed(in)%name = trim(file)
