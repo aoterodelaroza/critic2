@@ -14,10 +14,6 @@
   Crystal 1 : <current>
   Crystal 2 : 017_compare_crystals_gen.scf.in
   Crystal 3 : 017_compare_crystals_gen.cif
- ciftbx warning: 017_compare_crystals_gen.cif data_017_compare_crystals line:     12
-  Category key _space_group_id not given for space_group
- ciftbx warning: 017_compare_crystals_gen.cif data_017_compare_crystals line:     29
-  Category key _atom_site_aniso_label not given for atom_site
 # Using cross-correlated POWDER diffraction patterns.
 # Two structures are exactly equal if DIFF = 0.
     Crystal        <derived>    017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif
