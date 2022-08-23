@@ -64,7 +64,7 @@ module tools_math
   public :: good_lebedev
   public :: select_lebedev
   !xx! sobol submodule !xx!
-  public :: sobol_sequence
+  public :: sobol_sequence ! NOT THREAD-SAFE
 
   ! types of contour level choosing strategies
   integer, parameter, public :: niso_manual = 0
@@ -329,7 +329,7 @@ module tools_math
        integer, intent(in) :: npts
        real*8, intent(out) :: xleb(:), yleb(:), zleb(:), wleb(:)
      end subroutine select_lebedev
-     !xx! sobol submodule
+     !xx! sobol submodule (not thread safe)
      module subroutine sobol_sequence(n,x,seed)
        integer, intent(in) :: n
        real*8, intent(out) :: x(n)

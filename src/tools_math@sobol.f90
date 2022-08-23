@@ -62,6 +62,7 @@ submodule (tools_math) sobol
 contains
 
   !> Return an n-dimensional real*8 vector following a Sobol sequence.
+  !> This routine is NOT thread-safe.
   module subroutine sobol_sequence(n,x,seed)
     integer, intent(in) :: n
     real*8, intent(out) :: x(n)
