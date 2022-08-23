@@ -71,9 +71,6 @@ if (ENABLE_GUI)
     set_property(TARGET critic2 PROPERTY COMPILE_OPTIONS "-pthread")
     set_property(TARGET critic2 PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
   endif()
-  if(CMAKE_THREAD_LIBS_INIT)
-    target_link_libraries(critic2 "${CMAKE_THREAD_LIBS_INIT}")
-  endif()
 endif()
 
 ## perform a static build

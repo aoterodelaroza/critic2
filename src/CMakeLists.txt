@@ -138,6 +138,11 @@ if (ENABLE_GUI)
   ## the dynamic linking library
   target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
 
+  ## the threads library
+  if(CMAKE_THREAD_LIBS_INIT)
+    target_link_libraries(critic2 PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+  endif()
+
   ## process subdirectory
   add_subdirectory(gui)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:fgui>)
