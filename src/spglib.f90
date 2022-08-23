@@ -23,6 +23,7 @@ module spglib
 
   private
 
+  public :: spg_build_hall_mapping
   public :: SpglibSpaceGroupType
   public :: SpglibDataset
   public :: spg_get_major_version
@@ -41,7 +42,6 @@ module spglib
   public :: spg_get_pointgroup
   public :: spg_refine_cell, spgat_refine_cell
   public :: spg_get_error_code
-
   public :: spg_get_error_message
   public :: spg_get_dataset
   public :: spg_get_spacegroup_type
@@ -103,6 +103,11 @@ module spglib
   end type SpglibDataset
 
   interface
+     ! ! build the mapping of international numbers/names for spg
+     ! ! (run once at the beginning)
+     module subroutine spg_build_hall_mapping()
+     end subroutine spg_build_hall_mapping
+
      ! ## spglib.h
      ! int spg_get_major_version(void)
      !   Returns the major version number
@@ -388,7 +393,7 @@ module spglib
      end function spgat_refine_cell
 
      ! SpglibError spg_get_error_code(void);
-     ! Get the error code from the last operation
+     ! Get the error code from the last operation (NOT THREAD-SAFE)
      function spg_get_error_code() bind(c)
        integer(kind(SPGLIB_SUCCESS)) :: spg_get_error_code
      end function spg_get_error_code
@@ -396,7 +401,7 @@ module spglib
      !xx! functions implemented in the submodule
 
      ! char *spg_get_error_message(SpglibError spglib_error);
-     ! Returns the error message based on the id from the last operation.
+     ! Returns the error message based on the id from the last operation. (NOT THREAD-SAFE)
      module function spg_get_error_message(spglib_error)
        integer(kind(SPGLIB_SUCCESS)) :: spglib_error
        character(len=32) :: spg_get_error_message

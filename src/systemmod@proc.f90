@@ -416,7 +416,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     call s%init()
-    call s%c%struct_new(seed,.true.)
+    call s%c%struct_new(seed,.true.,ti=ti)
 
     if (s%c%isinit) then
        s%isinit = .true.

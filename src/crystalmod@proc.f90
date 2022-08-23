@@ -169,7 +169,7 @@ contains
   !> failed and crashfail is true, crash the program. Otherwise,
   !> return a the error status through c%isinit. If noenv is present
   !> and true, do not load the atomic grids or the environment.
-  module subroutine struct_new(c,seed,crashfail,noenv)
+  module subroutine struct_new(c,seed,crashfail,noenv,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, atomeps
@@ -183,6 +183,7 @@ contains
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
     logical, intent(in), optional :: noenv
+    type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
     logical :: good, clearsym
@@ -449,7 +450,7 @@ contains
        if ((seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) .and. haveatoms) then
           ! symmetry was not available, and I want it
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
-          call c%calcsym(.true.,errmsg)
+          call c%calcsym(.true.,errmsg,ti=ti)
           if (len_trim(errmsg) > 0) then
              call ferror("struct_new","spglib: "//errmsg,faterr)
           else
@@ -459,7 +460,7 @@ contains
 
     else if (.not.seed%ismolecule .and. c%havesym > 0) then
        ! symmetry was already available, but I still want the space group details
-       call c%spglib_wrap(c%spg,.false.,errmsg)
+       call c%spglib_wrap(c%spg,.false.,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
           call ferror("struct_new","spglib: "//errmsg,faterr)
        else
@@ -3587,7 +3588,7 @@ contains
   !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
   !> If error, return the error in errmsg. Otherwise, return
   !> a zero-length string.
-  module subroutine spglib_wrap(c,spg,usenneq,errmsg)
+  module subroutine spglib_wrap(c,spg,usenneq,errmsg,ti)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
     use global, only: symprec
@@ -3598,6 +3599,7 @@ contains
     type(SpglibDataset), intent(inout) :: spg
     logical, intent(in) :: usenneq
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     real(c_double) :: lattice(3,3)
     real(c_double), allocatable :: x(:,:)
@@ -3631,11 +3633,14 @@ contains
     spg = spg_get_dataset(lattice,x,typ,nat,symprec)
     deallocate(x,typ)
 
-    ! check error messages
-    error = trim(spg_get_error_message(c%spg%spglib_error))
-    if (.not.equal(error,"no error")) then
-       errmsg = string(error)
-       return
+    ! check error messages (only if this is not threaded, because
+    ! this routine is not thread-safe)
+    if (.not.present(ti)) then
+       error = trim(spg_get_error_message(c%spg%spglib_error))
+       if (.not.equal(error,"no error")) then
+          errmsg = string(error)
+          return
+       end if
     end if
 
   end subroutine spglib_wrap
@@ -3680,7 +3685,7 @@ contains
   !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
   !> If error, errmsg in output has length > 0 and contains the error
   !> message.
-  module subroutine calcsym(c,usenneq,errmsg)
+  module subroutine calcsym(c,usenneq,errmsg,ti)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_error_message
     use global, only: symprec
@@ -3690,6 +3695,7 @@ contains
     class(crystal), intent(inout) :: c
     logical, intent(in) :: usenneq
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: iidx(:)
     integer :: i, j, k, iat, idx
@@ -3697,7 +3703,7 @@ contains
     real*8 :: rotm(3,3), x0(3)
 
     c%spgavail = .false.
-    call c%spglib_wrap(c%spg,usenneq,errmsg)
+    call c%spglib_wrap(c%spg,usenneq,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
     c%spgavail = .true.
 

@@ -25,6 +25,7 @@ program critic
 #ifdef HAVE_GUI
   use gui_main, only: gui_start
 #endif
+  use spglib, only: spg_build_hall_mapping
   use systemmod, only: systemmod_init
   use grid1mod, only: grid1_clean_grids
   use global, only: fileroot, quiet, testing, initial_banner, config_write, help_me,&
@@ -49,6 +50,7 @@ program critic
   ! set default values and initialize the rest of the modules
   call global_init(ghome,getstring(istring_datadir))
   call systemmod_init(1)
+  call spg_build_hall_mapping() ! for spglib
 
   ! parse global control options
   testing = (index(optv,"t") /= 0)

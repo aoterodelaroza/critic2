@@ -25,6 +25,7 @@ module crystalmod
   use types, only: neqatom, celatom, neighstar, species
   use fragmentmod, only: fragment
   use param, only: maxzat0, mlen
+  use types, only: thread_info
   implicit none
 
   private
@@ -274,12 +275,13 @@ module crystalmod
      module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
-     module subroutine struct_new(c,seed,crashfail,noenv)
+     module subroutine struct_new(c,seed,crashfail,noenv,ti)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
        type(crystalseed), intent(in) :: seed
        logical, intent(in) :: crashfail
        logical, intent(in), optional :: noenv
+       type(thread_info), intent(in), optional :: ti
      end subroutine struct_new
      module function identify_spc(c,str) result(res)
        use crystalseedmod, only: crystalseed
@@ -552,20 +554,22 @@ module crystalmod
        type(json_core), intent(inout) :: json
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
-     module subroutine spglib_wrap(c,spg,usenneq,errmsg)
+     module subroutine spglib_wrap(c,spg,usenneq,errmsg,ti)
        class(crystal), intent(in) :: c
        type(SpglibDataset), intent(inout) :: spg
        logical, intent(in) :: usenneq
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine spglib_wrap
      module subroutine spgtowyc(c,spg)
        class(crystal), intent(inout) :: c
        type(SpglibDataset), intent(inout), optional :: spg
      end subroutine spgtowyc
-     module subroutine calcsym(c,usenneq,errmsg)
+     module subroutine calcsym(c,usenneq,errmsg,ti)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: usenneq
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine calcsym
      module subroutine clearsym(c,cel2neq,neq2cel)
        class(crystal), intent(inout) :: c
