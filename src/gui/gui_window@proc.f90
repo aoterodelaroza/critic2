@@ -245,11 +245,12 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn = .false.
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand
     type(c_ptr), save :: cfilter = c_null_ptr
     logical, save :: ttshown = .false.
 
     ! initialize
+    hadenabledcolumn = .false.
     zeroc = "" // c_null_char
     zero2%x = 0
     zero2%y = 0
@@ -504,9 +505,12 @@ contains
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
           hadenabledcolumn = .false.
 
+          ! close button
+          buttonhovered_close = .false.
           if (igTableSetColumnIndex(ic_closebutton)) then
              str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
              if (igSmallButton(c_loc(str))) w%forceremove = (/i/)
+             buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
           end if
 
           ! set background color for the name cell, if not selected
@@ -531,13 +535,8 @@ contains
              call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
           end if
 
-          ! ID column
-          if (igTableSetColumnIndex(ic_id)) then
-             str = string(i)
-             call write_text_maybe_selectable(i,str)
-          end if
-
           ! name
+          buttonhovered_expand = .false.
           if (igTableSetColumnIndex(ic_name)) then
              if (sysc(i)%collapse < 0) then
                 ! extend button for multi-seed entries
@@ -554,6 +553,7 @@ contains
                       call collapse_system(i)
                    end if
                 end if
+                buttonhovered_expand = igIsItemHovered(ImGuiHoveredFlags_None)
                 call igSameLine(0._c_float,-1._c_float)
              end if
 
@@ -563,7 +563,13 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call write_text_maybe_selectable(i,str)
+             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+          end if
+
+          ! ID column
+          if (igTableSetColumnIndex(ic_id)) then
+             str = string(i)
+             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
           end if
 
           if (sysc(i)%status == sys_init) then
@@ -575,7 +581,7 @@ contains
                 else
                    str = trim(sys(i)%c%spg%international_symbol)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
              if (igTableSetColumnIndex(ic_v)) then ! volume
@@ -584,22 +590,22 @@ contains
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq)
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel)
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol)
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
              if (igTableSetColumnIndex(ic_a)) then ! a
@@ -608,7 +614,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
@@ -616,7 +622,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
@@ -624,7 +630,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
@@ -632,7 +638,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
@@ -640,7 +646,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
@@ -648,7 +654,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str)
+                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              end if
 
           end if
@@ -668,9 +674,10 @@ contains
 
   contains
 
-    subroutine write_text_maybe_selectable(isys,str)
+    subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, target :: str
+      logical, intent(in) :: bclose, bexpand
 
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected
@@ -723,7 +730,13 @@ contains
 
          ! delayed tooltip with info about the system
          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-            str = tree_tooltip_string(isys)
+            if (bclose) then
+               str = "Close this system" // c_null_char
+            elseif (bexpand) then
+               str = "Expand this system" // c_null_char
+            else
+               str = tree_tooltip_string(isys)
+            end if
             call igSetTooltip(c_loc(str))
          end if
       end if
