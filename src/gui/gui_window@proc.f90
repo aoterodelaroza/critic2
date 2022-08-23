@@ -240,7 +240,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
     type(ImVec2) :: zero2, sz
     integer(c_int) :: flags, color
-    integer :: i, j, k, nshown, newsel
+    integer :: i, j, k, nshown, newsel, jsel
     logical(c_bool) :: ldum
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -355,19 +355,19 @@ contains
        ! remove a system and move the table selection if the system was selected
        do k = 1, size(w%forceremove,1)
           call remove_system(w%forceremove(k))
+          ! if we removed the selected system, go to the next; either, go to the previous
           if (w%forceremove(k) == w%table_selected) then
-             newsel = 0
-             do i = w%table_selected, nsys
-                if (sysc(i)%status /= sys_init) cycle
-                if (c_associated(cfilter)) then
-                   str = trim(sysc(i)%seed%name) // c_null_char
-                   if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+             jsel = 0
+             do j = 1, size(w%iord,1)
+                if (w%iord(j) == w%table_selected) then
+                   jsel = j
+                   exit
                 end if
-                newsel = i
-                exit
              end do
-             if (newsel == 0) then
-                do i = w%table_selected, 1, -1
+             if (jsel > 0) then
+                newsel = 0
+                do j = jsel, size(w%iord,1)
+                   i = w%iord(j)
                    if (sysc(i)%status /= sys_init) cycle
                    if (c_associated(cfilter)) then
                       str = trim(sysc(i)%seed%name) // c_null_char
@@ -376,7 +376,21 @@ contains
                    newsel = i
                    exit
                 end do
-                if (newsel == 0) newsel = 1
+                if (newsel == 0) then
+                   do j = jsel, 1, -1
+                      i = w%iord(j)
+                      if (sysc(i)%status /= sys_init) cycle
+                      if (c_associated(cfilter)) then
+                         str = trim(sysc(i)%seed%name) // c_null_char
+                         if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+                      end if
+                      newsel = i
+                      exit
+                   end do
+                   if (newsel == 0) newsel = 1
+                end if
+             else
+                newsel = 1
              end if
              w%table_selected = newsel
           end if
