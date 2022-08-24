@@ -1,1 +1,1 @@
-install(DIRECTORY cif lib wfc DESTINATION "${CMAKE_INSTALL_DATADIR}/critic2")
+install(DIRECTORY lib wfc DESTINATION "${CMAKE_INSTALL_DATADIR}/critic2")
