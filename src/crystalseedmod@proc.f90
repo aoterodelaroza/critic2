@@ -924,7 +924,6 @@ contains
 
   !> Read the structure from a res or ins (shelx) file
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
-    use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
@@ -936,27 +935,19 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, ilat
-    logical :: ok, iscent, iok, havecell
-    character(len=1024) :: tok
+    logical :: ok, iscent, havecell
     character(len=:), allocatable :: word, line, aux
     real*8 :: raux, rot0(3,4)
-    integer :: i, j, idx, n
+    integer :: i, j, n
     integer :: iz
-    real*8 :: xo, yo, zo
-    logical :: iix, iiy, iiz
     integer :: lncv
     real*8, allocatable :: lcen(:,:)
-
-    character*(1), parameter :: ico(3) = (/"x","y","z"/)
 
     ! file and seed name
     call seed%end()
     seed%file = file
     seed%name = file
     errmsg = ""
-    iix = .false.
-    iiy = .false.
-    iiz = .false.
 
     ! initialize symmetry
     iscent = .false.
@@ -979,17 +970,9 @@ contains
     allocate(lcen(3,1))
     lcen = 0d0
 
-    ! save the old value of x, y, and z variables
-    iix = isvariable("x",xo)
-    iiy = isvariable("y",yo)
-    iiz = isvariable("z",zo)
-
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
-       if (iix) call setvariable("x",xo)
-       if (iiy) call setvariable("y",yo)
-       if (iiz) call setvariable("z",zo)
        return
     end if
 
@@ -1068,27 +1051,8 @@ contains
        elseif (equal(word,"symm")) then
           ! symmetry operations from the symm card
           aux = lower(line(lp:)) // ","
-          line = aux
-          rot0 = 0d0
-          do i = 1, 3
-             idx = index(line,",")
-             tok = lower(line(1:idx-1))
-             aux = line(idx+1:)
-             line = aux
-
-             ! the translation component
-             do j = 1, 3
-                call setvariable(ico(j),0d0)
-             end do
-             rot0(i,4) = eval(tok,.true.,iok)
-
-             ! the x-, y-, z- components
-             do j = 1, 3
-                call setvariable(ico(j),1d0)
-                rot0(i,j) = eval(tok,.true.,iok) - rot0(i,4)
-                call setvariable(ico(j),0d0)
-             enddo
-          end do
+          rot0 = string_to_symop(aux,errmsg)
+          if (len_trim(errmsg) > 0) goto 999
 
           if (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
              ! a non-zero pure translation or the identity
@@ -1262,11 +1226,6 @@ contains
 
 999 continue
     call fclose(lu)
-
-    ! restore the old values of x, y, and z
-    if (iix) call setvariable("x",xo)
-    if (iiy) call setvariable("y",yo)
-    if (iiz) call setvariable("z",zo)
 
     ! rest of the seed information
     seed%isused = .true.
@@ -5961,7 +5920,7 @@ contains
 
   end subroutine which_in_format
 
-  !> Convert a cif-file-style string to a symmetry operation.
+  !> Convert a cif-file-style string to a symmetry operation
   function string_to_symop(str,errmsg) result(rot0)
     use arithmetic, only: eval
     use tools_io, only: lower
