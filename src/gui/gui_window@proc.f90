@@ -1085,7 +1085,7 @@ contains
           str = str // "A 2D periodic (layered) structure." //&
              new_line(str)
        else
-          str = str // "A periodic crystal." //&
+          str = str // "A crystal." //&
              new_line(str)
        end if
        str = str // new_line(str)
