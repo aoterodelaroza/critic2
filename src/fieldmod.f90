@@ -27,7 +27,7 @@ module fieldmod
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
   use param, only: maxzat0, mlen, mmlen
-  use types, only: cp_type, scalar_value, gpathp
+  use types, only: cp_type, scalar_value, gpathp, thread_info
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
@@ -133,13 +133,14 @@ module fieldmod
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
-     module subroutine field_new(f,seed,c,id,sptr,errmsg)
+     module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        type(c_ptr), intent(in) :: sptr
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine field_new
      module subroutine load_ghost(f,c,id,name,expr,sptr)
        class(field), intent(inout) :: f
@@ -242,10 +243,11 @@ module fieldmod
        real*8, intent(in) :: eps
        integer :: identify_cp
      end function identify_cp
-     module subroutine testrmt(f,ilvl,errmsg)
+     module subroutine testrmt(f,ilvl,errmsg,ti)
        class(field), intent(inout) :: f
        integer, intent(in) :: ilvl
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine testrmt
      module subroutine benchmark(f,npts)
        class(field), intent(inout) :: f

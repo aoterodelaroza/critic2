@@ -823,13 +823,14 @@ contains
   !> Identify a fragment in the unit cell from an external xyz
   !> file. An instance of a fragment object is returned. If any of the
   !> atoms is not correctly identified, return 0.
-  module function identify_fragment_from_xyz(c,file) result(fr)
+  module function identify_fragment_from_xyz(c,file,ti) result(fr)
     use tools_io, only: fopen_read, string, ferror, faterr, fclose
     use param, only: bohrtoa, icrd_cart, mlen
     use types, only: realloc
 
     class(crystal), intent(in) :: c
     character*(*) :: file
+    type(thread_info), intent(in), optional :: ti
     type(fragment) :: fr
 
     integer :: lu, nat
@@ -837,7 +838,7 @@ contains
     real*8 :: x0(3)
     character(len=mlen) :: word
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     read(lu,*,err=999) nat
     read(lu,*,err=999)
 
@@ -2483,10 +2484,11 @@ contains
   !> Create a new structure by reordering the atoms in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).
-  module subroutine reorder_atoms(c,iperm)
+  module subroutine reorder_atoms(c,iperm,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iperm(:)
+    type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8, allocatable :: x(:,:)
@@ -2507,7 +2509,7 @@ contains
     deallocate(x,is)
 
     ! reload the crystal
-    call c%struct_new(seed,.true.)
+    call c%struct_new(seed,.true.,ti=ti)
 
   end subroutine reorder_atoms
 
@@ -2554,7 +2556,7 @@ contains
   !> new positions (xnew) and species (isnew). If noenv is present
   !> and true, do not load the atomic grids or the environments in
   !> the new cell.
-  module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv)
+  module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
@@ -2566,6 +2568,7 @@ contains
     real*8, intent(in), optional :: xnew(:,:)
     integer, intent(in), optional :: isnew(:)
     logical, intent(in), optional :: noenv
+    type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: ncseed
     logical :: ok, found, atgiven
@@ -2727,7 +2730,7 @@ contains
     ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_new(ncseed,.true.,noenv)
+    call c%struct_new(ncseed,.true.,noenv,ti=ti)
 
   end subroutine newcell
 
@@ -2736,7 +2739,7 @@ contains
   !> transformation to the primitive even if it does not lead to a
   !> smaller cell. Return the transformation matrix, or a matrix
   !> of zeros if no change was done.
-  module function cell_standard(c,toprim,doforce,refine) result(x0)
+  module function cell_standard(c,toprim,doforce,refine,ti) result(x0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell
     use global, only: symprec
@@ -2749,6 +2752,7 @@ contains
     logical, intent(in) :: doforce
     logical, intent(in) :: refine
     real*8 :: x0(3,3)
+    type(thread_info), intent(in), optional :: ti
 
     integer :: ntyp, nat
     integer :: i, nnew, iprim, inorefine
@@ -2792,12 +2796,12 @@ contains
 
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
     if (refine) then
-       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_)
+       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_,ti=ti)
     else
        ! if a primitive is wanted but det is not less than 1, do not make the change
        if (all(abs(rmat - eye) < symprec)) return
        if (toprim .and. .not.(det3(rmat) < 1d0-symprec) .and..not.doforce) return
-       call c%newcell(rmat)
+       call c%newcell(rmat,ti=ti)
     end if
     x0 = rmat
 
@@ -2805,13 +2809,14 @@ contains
 
   !> Transform to the Niggli cell. Return the transformation matrix,
   !> or a matrix of zeros if no change was done.
-  module function cell_niggli(c) result(x0)
+  module function cell_niggli(c,ti) result(x0)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
+    type(thread_info), intent(in), optional :: ti
     real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
@@ -2837,7 +2842,7 @@ contains
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
-       call c%newcell(rmat)
+       call c%newcell(rmat,ti=ti)
        x0 = rmat
     end if
 
@@ -2845,13 +2850,14 @@ contains
 
   !> Transform to the Delaunay cell. Return the transformation matrix,
   !> or a matrix of zeros if no change was done.
-  module function cell_delaunay(c) result(x0)
+  module function cell_delaunay(c,ti) result(x0)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
+    type(thread_info), intent(in), optional :: ti
     real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
@@ -2877,7 +2883,7 @@ contains
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
-       call c%newcell(rmat)
+       call c%newcell(rmat,ti=ti)
        x0 = rmat
     end if
 
@@ -4002,13 +4008,14 @@ contains
   end subroutine checkgroup
 
   !> Re-assign atomic types to have an asymmetric unit with whole molecules
-  module subroutine wholemols(c)
+  module subroutine wholemols(c,ti)
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
     use tools_io, only: ferror, faterr
     use types, only: realloc
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
+    type(thread_info), intent(in), optional :: ti
 
     logical, allocatable :: ismap(:,:), ldone(:)
     integer :: i, j, k, l, id
@@ -4215,7 +4222,7 @@ contains
     ncseed%checkrepeats = .false.
 
     ! build the new crystal
-    call c%struct_new(ncseed,.true.)
+    call c%struct_new(ncseed,.true.,ti=ti)
 
   end subroutine wholemols
 
@@ -4368,10 +4375,11 @@ contains
 
   !> Write the structure to a file. Use the format derived from the
   !> extension of file and use default values for all options.
-  module subroutine write_simple_driver(c,file)
+  module subroutine write_simple_driver(c,file,ti)
     use tools_io, only: lower, ferror, faterr, equal
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: wext, wext2, wroot
     integer :: idx
@@ -4380,61 +4388,61 @@ contains
     wroot = file(:index(file,'.',.true.)-1)
 
     if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-       call c%write_mol(file,wext)
+       call c%write_mol(file,wext,ti=ti)
     else if(equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
-       call c%write_3dmodel(file,wext)
+       call c%write_3dmodel(file,wext,ti=ti)
     elseif (equal(wext,'gau')) then
-       call c%write_gaussian(file)
+       call c%write_gaussian(file,ti=ti)
     elseif (equal(wext,'in')) then
        idx = index(wroot,'.',.true.)
        if (idx > 0) then
           wext2 = lower(wroot(idx+1:))
           if (equal(wext2,'scf')) then
-             call c%write_espresso(file)
+             call c%write_espresso(file,ti=ti)
           else
              idx = 0
           end if
        end if
        if (idx == 0) &
-            call c%write_fhi(file,.true.)
+            call c%write_fhi(file,.true.,ti=ti)
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
-       call c%write_vasp(file,.false.)
+       call c%write_vasp(file,.false.,ti=ti)
     elseif (equal(wext,'abin')) then
-       call c%write_abinit(file)
+       call c%write_abinit(file,ti=ti)
     elseif (equal(wext,'elk')) then
-       call c%write_elk(file)
+       call c%write_elk(file,ti=ti)
     elseif (equal(wext,'tess')) then
-       call c%write_tessel(file)
+       call c%write_tessel(file,ti=ti)
     elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
-       call c%write_critic(file)
+       call c%write_critic(file,ti=ti)
     elseif (equal(wext,'cif')) then
-       call c%write_cif(file,.true.)
+       call c%write_cif(file,.true.,ti=ti)
     elseif (equal(wext,'d12').or.equal(wext,'34')) then
-       call c%write_d12(file,.true.)
+       call c%write_d12(file,.true.,ti=ti)
     elseif (equal(wext,'res')) then
-       call c%write_res(file,-1)
+       call c%write_res(file,-1,ti=ti)
     elseif (equal(wext,'m')) then
-       call c%write_escher(file)
+       call c%write_escher(file,ti=ti)
     elseif (equal(wext,'db')) then
-       call c%write_db(file)
+       call c%write_db(file,ti=ti)
     elseif (equal(wext,'gin')) then
-       call c%write_gulp(file)
+       call c%write_gulp(file,ti=ti)
     elseif (equal(wext,'lammps')) then
-       call c%write_lammps(file)
+       call c%write_lammps(file,ti=ti)
     elseif (equal(wext,'fdf')) then
-       call c%write_siesta_fdf(file)
+       call c%write_siesta_fdf(file,ti=ti)
     elseif (equal(wext,'struct_in')) then
-       call c%write_siesta_in(file)
+       call c%write_siesta_in(file,ti=ti)
     elseif (equal(wext,'hsd')) then
-       call c%write_dftbp_hsd(file)
+       call c%write_dftbp_hsd(file,ti=ti)
     elseif (equal(wext,'gen')) then
-       call c%write_dftbp_gen(file)
+       call c%write_dftbp_gen(file,ti=ti)
     elseif (equal(wext,'pyscf')) then
-       call c%write_pyscf(file)
+       call c%write_pyscf(file,ti=ti)
     elseif (equal(wext,'fhi')) then
-       call c%write_fhi(file,.true.)
+       call c%write_fhi(file,.true.,ti=ti)
     elseif (equal(wext,'frac')) then
-       call c%write_tinkerfrac(file)
+       call c%write_tinkerfrac(file,ti=ti)
     else
        call ferror('struct_write','unrecognized file format',faterr)
     end if
@@ -4455,7 +4463,7 @@ contains
   !> (cryst.). If luout is present, return the LU in that argument
   !> and do not close the file.
   module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout)
+     environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
     use global, only: dunit0, iunit
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
@@ -4474,6 +4482,7 @@ contains
     real*8, intent(in), optional :: rcub0, xcub0(3)
     logical, intent(in), optional :: usenames0
     integer, intent(out), optional :: luout
+    type(thread_info), intent(in), optional :: ti
 
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
@@ -4641,7 +4650,7 @@ contains
 
     if (.not.lnmer) then
        ! normal write
-       call dowrite(file,fr)
+       call dowrite(file,fr,ti=ti)
     else
        wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
@@ -4654,7 +4663,7 @@ contains
              ! monomers
              do j = 1, nlimj
                 file0 = trim(wroot) // "_" // string(j) // "." // fmt
-                call dowrite(file0,fr0(j))
+                call dowrite(file0,fr0(j),ti=ti)
              end do
              write (uout,'("+ Written ",A," ",A,"-mers")') string(c%nmol), string(i)
           elseif (i == nmer) then
@@ -4675,7 +4684,7 @@ contains
                    end do
                    aux = trim(file0) // "." // fmt
                    file0 = aux
-                   call dowrite(file0,fr)
+                   call dowrite(file0,fr,ti=ti)
                    icount = icount + 1
                 end do
              end do
@@ -4697,7 +4706,7 @@ contains
                 end do
                 aux = trim(file0) // "." // fmt
                 file0 = aux
-                call dowrite(file0,fr)
+                call dowrite(file0,fr,ti=ti)
                 icount = icount + 1
              end do
              deallocate(icomb)
@@ -4707,19 +4716,20 @@ contains
     end if
 
   contains
-    subroutine dowrite(fileo,fro)
+    subroutine dowrite(fileo,fro,ti)
       character*(*) :: fileo
       type(fragment) :: fro
+      type(thread_info), intent(in), optional :: ti
 
       if (equal(fmt,"xyz")) then
-         call fro%writexyz(fileo,usenames)
+         call fro%writexyz(fileo,usenames,ti=ti)
       elseif (equal(fmt,"gjf")) then
-         call fro%writegjf(fileo)
+         call fro%writegjf(fileo,ti=ti)
       elseif (equal(fmt,"cml")) then
          if (c%ismolecule) then
-            call fro%writecml(fileo,luout=luout)
+            call fro%writecml(fileo,luout=luout,ti=ti)
          else
-            call fro%writecml(fileo,c%m_x2c,luout=luout)
+            call fro%writecml(fileo,c%m_x2c,luout=luout,ti=ti)
          end if
       else
          call ferror("write_mol","Unknown format",faterr)
@@ -4760,7 +4770,7 @@ contains
   !> (cryst.). If gr0 is present, then return the graphics handle and
   !> do not close the files.
   module subroutine write_3dmodel(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-     docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0)
+     docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0,ti)
     use graphics, only: grhandle
     use fragmentmod, only: fragment
     use tools_io, only: equal
@@ -4774,6 +4784,7 @@ contains
     real*8, intent(in), optional :: rsph0, xsph0(3)
     real*8, intent(in), optional :: rcub0, xcub0(3)
     type(grhandle), intent(out), optional :: gr0
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j
     real*8 :: d, xd(3), x0(3), x1(3), rr
@@ -4849,7 +4860,7 @@ contains
        end do
     end if
 
-    call gr%open(fmt,file)
+    call gr%open(fmt,file,ti=ti)
 
     ! add the balls
     do i = 1, fr%nat
@@ -4905,7 +4916,7 @@ contains
     if (present(gr0)) then
        gr0 = gr
     else
-       call gr%close()
+       call gr%close(ti=ti)
     end if
 
     if (allocated(fr0)) deallocate(fr0)
@@ -4913,12 +4924,13 @@ contains
   end subroutine write_3dmodel
 
   !> Write a quantum espresso input template
-  module subroutine write_espresso(c,file,rklength)
+  module subroutine write_espresso(c,file,rklength,ti)
     use tools_io, only: fopen_write, lower, fclose, string
     use param, only: atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     real*8, intent(in), optional :: rklength
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, lu, nk(3)
     real*8 :: rk
@@ -4926,7 +4938,7 @@ contains
     rk = 40d0
     if (present(rklength)) rk = rklength
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("&control")')
     write (lu,'(" title=''crystal'',")')
     write (lu,'(" prefix=''crystal'',")')
@@ -4966,13 +4978,14 @@ contains
 
   !> Write a VASP POSCAR file. If verbose, write the atom sequence
   !> to the output. If append, append to an existing file.
-  module subroutine write_vasp(c,file,verbose,append)
+  module subroutine write_vasp(c,file,verbose,append,ti)
     use tools_io, only: fopen_write, fopen_append, string, uout, fclose, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: verbose
     logical, intent(in), optional :: append
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: lbl1, lbl2, aux, auxname
     integer :: i, j, lu, ntyp
@@ -4986,12 +4999,12 @@ contains
     if (append_) then
        inquire(file=file,exist=ok)
        if (ok) then
-          lu = fopen_append(file)
+          lu = fopen_append(file,ti=ti)
        else
-          lu = fopen_write(file)
+          lu = fopen_write(file,ti=ti)
        end if
     else
-       lu = fopen_write(file)
+       lu = fopen_write(file,ti=ti)
     end if
     write (lu,'("critic2 | ",A)') string(c%file)
     write (lu,'("1.0")')
@@ -5032,11 +5045,12 @@ contains
   end subroutine write_vasp
 
   !> Write an abinit input template
-  module subroutine write_abinit(c,file)
+  module subroutine write_abinit(c,file,ti)
     use tools_io, only: fopen_write, string, fclose
     use param, only: pi
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: lbl1, aux
     integer :: ntyp
@@ -5053,7 +5067,7 @@ contains
     bbp(3)=acos(gpq(1,2)/sqrt(gpq(1,1)*gpq(2,2)))/pi*180d0
 
     ! Write input
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("acell ",3(F14.10,X))') aap
     write (lu,'("angdeg ",3(F14.10,X))') bbp
     write (lu,'("ntypat ",I3)') c%nspc
@@ -5109,16 +5123,17 @@ contains
   end subroutine write_abinit
 
   !> Write an elk input template
-  module subroutine write_elk(c,file)
+  module subroutine write_elk(c,file,ti)
     use tools_io, only: fopen_write, fclose
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: ntyp
     integer :: i, j, lu
 
     ! Write input
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("tasks"/,"0"/)')
     write (lu,'("xctype"/,"20"/)')
     write (lu,'("avec")')
@@ -5154,18 +5169,19 @@ contains
   end subroutine write_elk
 
   !> Write a Gaussian template input (periodic).
-  module subroutine write_gaussian(c,file)
+  module subroutine write_gaussian(c,file,ti)
     use tools_io, only: fopen_write, string, nameguess, ioj_left, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: wroot
     integer :: lu, i, j
 
     wroot = file(:index(file,'.',.true.)-1)
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("%chk=",A,".chk")') wroot
     write (lu,'("%nprocs=8")')
     write (lu,'("%mem=2GB")')
@@ -5191,15 +5207,16 @@ contains
   end subroutine write_gaussian
 
   !> Write a tessel input template
-  module subroutine write_tessel(c,file)
+  module subroutine write_tessel(c,file,ti)
     use global, only: fileroot
     use tools_io, only: fopen_write, fclose
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     write (lu,'("set camangle 75 -10 45")')
     write (lu,'("set background background {color rgb <1,1,1>}")')
@@ -5242,14 +5259,15 @@ contains
   end subroutine write_tessel
 
   !> Write a critic2 input template
-  module subroutine write_critic(c,file)
+  module subroutine write_critic(c,file,ti)
     use tools_io, only: fopen_write, fclose, string
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     write (lu,'("crystal")')
     write (lu,'("  cell ",6(A,X))') (string(c%aa(i),'f',decimal=10),i=1,3),&
@@ -5267,7 +5285,7 @@ contains
   !> Write a simple cif file (filename = file) with the c crystal
   !> structure. If usesym0, write symmetry to the cif file; otherwise
   !> use P1.
-  module subroutine write_cif(c,file,usesym0)
+  module subroutine write_cif(c,file,usesym0,ti)
     use global, only: fileroot, testing
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
        ferror, faterr
@@ -5276,6 +5294,7 @@ contains
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: usesym0
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, iz, lu, idx, gcdz
     character(len=mlen), allocatable :: strfin(:)
@@ -5301,7 +5320,7 @@ contains
     usesym = usesym0 .and. c%spgavail
 
     ! open output file
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! header (date and time mucks up testing)
     write (lu,'("data_",A)') string(deblank(fileroot))
@@ -5443,12 +5462,13 @@ contains
   end subroutine write_cif
 
   !> Write a simple d12 file
-  module subroutine write_d12(c,file,dosym)
+  module subroutine write_d12(c,file,dosym,ti)
     use tools_io, only: fopen_write, fclose, string
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: dosym
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: file34
     character(len=3) :: schpg
@@ -5457,7 +5477,7 @@ contains
     real*8 :: x(3)
     real*8 :: dum(3,3)
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("Title")')
     if (c%ismolecule) then
        write (lu,'("MOLECULE")')
@@ -5487,7 +5507,7 @@ contains
 
     if (.not.c%ismolecule.and.dosym) then
        file34 = file(:index(file,'.',.true.)-1) // ".fort.34"
-       lu = fopen_write(file34)
+       lu = fopen_write(file34,ti=ti)
 
        ! for a crystal, if symmetry is available
        ! header: dimensionality, centring type, and crystal holohedry
@@ -5526,13 +5546,14 @@ contains
   !> structure. If usesym0, write symmetry to the cif file; otherwise
   !> use P1. dosym = 0 (do not use symmetry), 1 (use symmetry), or
   !> -1 (use symmetry only if possible, do not emit warnings)
-  module subroutine write_res(c,file,dosym)
+  module subroutine write_res(c,file,dosym,ti)
     use tools_io, only: fopen_write, fclose, string, ferror, warning, nameguess
     use tools_math, only: det3
     use param, only: bohrtoa, eye
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: dosym
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, lu, ilatt
     character(len=mlen), allocatable :: strfin(:)
@@ -5554,7 +5575,7 @@ contains
 10  continue
 
     ! open output file
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! header
     write (lu,'("TITL critic2 | ",A)') trim(c%file)
@@ -5666,17 +5687,18 @@ contains
   end subroutine write_res
 
   !> Write an escher octave script
-  module subroutine write_escher(c,file)
+  module subroutine write_escher(c,file,ti)
     use global, only: fileroot
     use tools_io, only: fopen_write, string, fclose
     use param, only: pi
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: lbl1, aux
     integer :: lu, i, n
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! count number of atoms per type
     write (lu,'("cr = struct();")')
@@ -5740,15 +5762,16 @@ contains
   end subroutine write_escher
 
   !> Write a db file for the dcp automatic input generator
-  module subroutine write_db(c,file)
+  module subroutine write_db(c,file,ti)
     use tools_io, only: fopen_write, string, fclose, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("type crystal_energy")')
     write (lu,'("kpts 4")')
     write (lu,'("crys")')
@@ -5763,15 +5786,16 @@ contains
   end subroutine write_db
 
   !> Write a gulp input script
-  module subroutine write_gulp(c,file)
+  module subroutine write_gulp(c,file,ti)
     use tools_io, only: fopen_write, nameguess, fclose, string
     use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("eem")')
     write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
        (string(c%bb(j),'f',10,5),j=1,3)
@@ -5786,18 +5810,19 @@ contains
   end subroutine write_gulp
 
   !> Write a lammps data file
-  module subroutine write_lammps(c,file)
+  module subroutine write_lammps(c,file,ti)
     use tools_io, only: fopen_write, ferror, faterr, fclose
     use tools_math, only: m_x2c_from_cellpar
     use param, only: bohrtoa, atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, l
     integer :: lu
     real*8 :: rnew(3,3)
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! header
     write (lu,'("LAMMPS data file created by critic2. (experimental)",/)')
@@ -5838,16 +5863,17 @@ contains
   end subroutine write_lammps
 
   !> Write a siesta fdf data file
-  module subroutine write_siesta_fdf(c,file)
+  module subroutine write_siesta_fdf(c,file,ti)
     use tools_io, only: fopen_write, nameguess, lower, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j
     integer :: lu
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! header
     write (lu,'("# fdf file created by critic2.",/)')
@@ -5909,17 +5935,18 @@ contains
   end subroutine write_siesta_fdf
 
   !> Write a siesta STRUCT_IN data file
-  module subroutine write_siesta_in(c,file)
+  module subroutine write_siesta_in(c,file,ti)
     use tools_io, only: fopen_write, uout, nameguess, string, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     real*8 :: r(3,3)
     integer :: i, j, k
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! lattice vectors
     r = transpose(c%m_x2c) * bohrtoa
@@ -5951,11 +5978,12 @@ contains
   end subroutine write_siesta_in
 
   !> Write a DFTB+ human-friendly structured data format (hsd) file
-  module subroutine write_dftbp_hsd(c,file)
+  module subroutine write_dftbp_hsd(c,file,ti)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: maxzat0
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     real*8, parameter :: hderiv(maxzat0) = (/&
      -0.1857d0,      0.d0,      0.d0,    0.d0,      0.d0, -0.1492d0,& ! 1:6   (H-C)
@@ -6005,9 +6033,9 @@ contains
 
     integer :: lu, i
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("Geometry = GenFormat {")')
-    call c%write_dftbp_gen(file,lu)
+    call c%write_dftbp_gen(file,lu,ti=ti)
     write(lu,'("}")')
     write(lu,'("")')
     write(lu,'("Driver = ConjugateGradient {")')
@@ -6066,14 +6094,15 @@ contains
   end subroutine write_dftbp_hsd
 
   !> Write the crystal structure in pyscf format (python script)
-  module subroutine write_pyscf(c,file)
+  module subroutine write_pyscf(c,file,ti)
     use tools_io, only: fopen_write, fclose, string, nameguess
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     if (c%ismolecule) then
        write (lu,'("from pyscf import gto")')
        write (lu,'("")')
@@ -6118,13 +6147,14 @@ contains
   !> Write the crystal or molecualr structure in FHIaims geometry.in
   !> format.  If frac = .true., use atom_frac instead of atom if c is
   !> a crystal.
-  module subroutine write_fhi(c,file,frac,rklength)
+  module subroutine write_fhi(c,file,frac,rklength,ti)
     use tools_io, only: fopen_write, fclose, string, nameguess
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: frac
     real*8, intent(in), optional :: rklength
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, nk(3)
     character*2 :: name
@@ -6133,7 +6163,7 @@ contains
     if (present(rklength)) &
        call c%get_kpoints(rklength,nk)
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("## FHIaims input file generated by critic2.")')
     if (.not.c%ismolecule) then
        do i = 1, 3
@@ -6153,7 +6183,7 @@ contains
     call fclose(lu)
 
     if (present(rklength) .and. all(nk > 0)) then
-       lu = fopen_write(trim(file) // "_control")
+       lu = fopen_write(trim(file) // "_control",ti=ti)
        write (lu,'("xc b86bpbe")')
        write (lu,'("spin none")')
        write (lu,'("charge 0")')
@@ -6174,7 +6204,7 @@ contains
   end subroutine write_fhi
 
   !> Write a TINKER frac file with tiny FF parametrization.
-  module subroutine write_tinkerfrac(c,file)
+  module subroutine write_tinkerfrac(c,file,ti)
     use tools_io, only: fopen_write, string, fclose, nameguess, ioj_right, ioj_left, ferror, faterr,&
        warning
     use tools, only: tiny_atom_type
@@ -6183,6 +6213,7 @@ contains
     use fragmentmod, only: fragment
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, nn, lu
     integer :: iz, nneig, ityp
@@ -6191,7 +6222,7 @@ contains
     logical :: dowarn
 
     ! open file
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
 
     ! line 1: number of atoms and title
     write (lu,'(A,X,A)') string(c%ncel) ,"generated by critic2"
@@ -6245,12 +6276,13 @@ contains
   end subroutine write_tinkerfrac
 
   !> Write a DFTB+ human-friendly gen structure file
-  module subroutine write_dftbp_gen(c,file,lu0)
+  module subroutine write_dftbp_gen(c,file,lu0,ti)
     use tools_io, only: fopen_write, nameguess, string, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in), optional :: lu0
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, k
     real*8 :: r(3,3)
@@ -6260,7 +6292,7 @@ contains
     if (present(lu0)) then
        lu = lu0
     else
-       lu = fopen_write(file)
+       lu = fopen_write(file,ti=ti)
     end if
 
     ! atom types
@@ -6316,7 +6348,7 @@ contains
   !> is given, use it as the metric of the cube; otherwise, use the
   !> unit cell. If x00 is given, use it as the origin of the cube
   !> (in bohr). Otherwise, use the crystal's molx0.
-  module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
+  module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0,ti)
     use global, only: precisecube
     use tools_io, only: fopen_write, fclose
     use param, only: eye
@@ -6328,6 +6360,7 @@ contains
     real*8, intent(in), optional :: xd0(3,3)
     real*8, intent(in), optional :: x00(3)
     integer, intent(in), optional :: ishift0(3)
+    type(thread_info), intent(in), optional :: ti
 
     integer :: n(3), i, ix, iy, lu, ishift(3)
     integer :: iix, iiy, iiz
@@ -6366,7 +6399,7 @@ contains
 
     ! write
     if (binary) then
-       lu = fopen_write(file,form="unformatted")
+       lu = fopen_write(file,form="unformatted",ti=ti)
        write(lu) c%ncel, x0
        write(lu) n, xd
        do i = 1, c%ncel
@@ -6374,7 +6407,7 @@ contains
        end do
        write (lu) g
     else
-       lu = fopen_write(file)
+       lu = fopen_write(file,ti=ti)
        write(lu,'("critic2-cube")')
        write(lu,'("critic2-cube")')
        if (precisecube) then
@@ -6417,7 +6450,7 @@ contains
   !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader).
-  module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0)
+  module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0,ti)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
@@ -6425,6 +6458,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
     integer, intent(in), optional :: ishift0(3)
+    type(thread_info), intent(in), optional :: ti
 
     integer :: n(3), i, j, ix, iy, iz, lu, ishift(3), nat
     character(len=:), allocatable :: line0, aux
@@ -6446,7 +6480,7 @@ contains
     end if
     xshift = real(ishift,8) / n
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("CHGCAR generated by critic2")')
     write (lu,'("1.0")')
     do i = 1, 3
@@ -6495,7 +6529,7 @@ contains
   !> Write a grid to a xsf file. The input is the crystal (c), the
   !> grid in 3D array form (g), the filename (file), and whether to
   !> write the whole xsf or only the structure (onlyheader).
-  module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0)
+  module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0,ti)
     use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
@@ -6503,6 +6537,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
     integer, intent(in), optional :: ishift0(3)
+    type(thread_info), intent(in), optional :: ti
 
     real*8 :: x(3), rshift(3)
     integer :: n(3), i, j, ix, iy, iz, lu, ishift(3)
@@ -6528,7 +6563,7 @@ contains
     rshift = real(ishift,8) / n
     rshift = c%x2c(rshift)
 
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("## xsf file generated by critic2")')
     write (lu,'("CRYSTAL")')
     write (lu,'("PRIMVEC")')

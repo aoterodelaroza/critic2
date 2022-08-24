@@ -18,6 +18,7 @@
 ! Class for 3d grids and related tools.
 module grid3mod
   use environmod, only: environ
+  use types, only: thread_info
   use param, only: mlen
   implicit none
 
@@ -144,51 +145,58 @@ module grid3mod
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
      end subroutine from_array3
-     module subroutine read_cube(f,file,x2c,env)
+     module subroutine read_cube(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_cube
-     module subroutine read_bincube(f,file,x2c,env)
+     module subroutine read_bincube(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_bincube
-     module subroutine read_siesta(f,file,x2c,env)
+     module subroutine read_siesta(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_siesta
-     module subroutine read_abinit(f,file,x2c,env)
+     module subroutine read_abinit(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_abinit
-     module subroutine read_vasp(f,file,x2c,vscal,ibl,env)
+     module subroutine read_vasp(f,file,x2c,vscal,ibl,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        logical, intent(in) :: vscal
        integer, intent(in), optional :: ibl
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_vasp
-     module subroutine read_qub(f,file,x2c,env)
+     module subroutine read_qub(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_qub
-     module subroutine read_xsf(f,file,x2c,env)
+     module subroutine read_xsf(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_xsf
-     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env)
+     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc
        integer, intent(in) :: ispin
@@ -197,17 +205,20 @@ module grid3mod
        real*8, intent(in) :: emin, emax
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_pwc
-     module subroutine read_elk(f,file,x2c,env)
+     module subroutine read_elk(f,file,x2c,env,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_elk
-     module subroutine read_wannier_chk(f,fileup,filedn)
+     module subroutine read_wannier_chk(f,fileup,filedn,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fileup
        character*(*), intent(in), optional :: filedn
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_wannier_chk
      module subroutine interp(f,xi,y,yp,ypp)
        class(grid3), intent(inout) :: f !< Grid to interpolate
@@ -242,11 +253,12 @@ module grid3mod
        type(grid3), intent(in) :: frho
        integer, intent(in) :: n2(3)
      end subroutine resample
-     module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
+     module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu,ti)
        class(grid3), intent(inout) :: f
        integer, intent(out) :: luevc(2)
        integer, intent(out) :: luevc_ibnd(2)
        logical, intent(in) :: useu
+       type(thread_info), intent(in), optional :: ti
      end subroutine rotate_qe_evc
      module subroutine get_qe_wnr(f,omega,ibnd,ispin,luevc,luevc_ibnd,fout)
        class(grid3), intent(in) :: f
@@ -257,7 +269,7 @@ module grid3mod
        integer, intent(inout) :: luevc_ibnd(2)
        complex*16, intent(out) :: fout(:,:,:,:)
      end subroutine get_qe_wnr
-     module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout)
+     module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout,ti)
        class(grid3), intent(in) :: f
        real*8, intent(in) :: omega
        integer, intent(in) :: ibnd
@@ -265,8 +277,9 @@ module grid3mod
        integer, intent(in) :: inr(3)
        logical, intent(in) :: rotate
        complex*16, intent(out) :: fout(:,:,:)
+       type(thread_info), intent(in), optional :: ti
      end subroutine get_qe_wnr_standalone
-     module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout)
+     module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout,ti)
        class(grid3), intent(in) :: f
        real*8, intent(in) :: omega
        integer, intent(in) :: ibnd
@@ -275,6 +288,7 @@ module grid3mod
        logical :: usephase
        integer, intent(in) :: inr(3)
        complex*16, intent(out) :: fout(:,:,:)
+       type(thread_info), intent(in), optional :: ti
      end subroutine get_qe_psink_standalone
   end interface
 

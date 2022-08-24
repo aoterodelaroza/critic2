@@ -57,7 +57,7 @@ contains
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,filexml,filebin,filehsd,env)
+  module subroutine dftb_read(f,filexml,filebin,filehsd,env,ti)
     use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
     use param, only: tpi
@@ -66,6 +66,7 @@ contains
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
     type(environ), intent(in), target :: env !< environment of the cell
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, k, idum, n, id
     character(len=:), allocatable :: line
@@ -74,7 +75,7 @@ contains
     real*8, allocatable :: dw(:)
 
     ! detailed.xml, first pass
-    lu = fopen_read(filexml)
+    lu = fopen_read(filexml,ti=ti)
     iread = .false.
     do while (.true.)
        ok = getline_raw(lu,line)
@@ -117,7 +118,7 @@ contains
     deallocate(dw)
 
     ! eigenvec.bin
-    lu = fopen_read(filebin,"unformatted")
+    lu = fopen_read(filebin,"unformatted",ti=ti)
     read (lu) idum ! this is the identity number
 
     ! read the eigenvectors
@@ -143,7 +144,7 @@ contains
     call fclose(lu)
 
     ! open the hsd file with the basis definition
-    lu = fopen_read(filehsd)
+    lu = fopen_read(filehsd,ti=ti)
     if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(10))
     n = 0

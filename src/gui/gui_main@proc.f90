@@ -626,7 +626,6 @@ contains
     integer(c_int) :: idum
     integer :: iff
     character(len=:), allocatable :: errmsg
-    integer, pointer :: idx
 
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
@@ -640,11 +639,11 @@ contains
              if (sysc(i)%status == sys_loaded_not_init) then
                 sysc(i)%status = sys_initializing
                 ! load the seed
-                call sys(i)%new_from_seed(sysc(i)%seed,ti)
+                call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
 
                 ! load any fields
                 if (sysc(i)%has_field) then
-                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti)
+                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                    else

@@ -378,9 +378,10 @@ module crystalmod
        real*8, intent(in) :: x0(3,nat)
        type(fragment) :: fr
      end function identify_fragment
-     module function identify_fragment_from_xyz(c,file) result(fr)
+     module function identify_fragment_from_xyz(c,file,ti) result(fr)
        class(crystal), intent(in) :: c
        character*(*) :: file
+       type(thread_info), intent(in), optional :: ti
        type(fragment) :: fr
      end function identify_fragment_from_xyz
      module subroutine symeqv(c,xp0,mmult,vec,irotm,icenv,eps0)
@@ -502,16 +503,17 @@ module crystalmod
        type(crystalseed), intent(out) :: seed
        logical, intent(in) :: copysym
      end subroutine makeseed
-     module subroutine reorder_atoms(c,iperm)
+     module subroutine reorder_atoms(c,iperm,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
+       type(thread_info), intent(in), optional :: ti
      end subroutine reorder_atoms
      module subroutine nearest_atom_grid(c,n,idg)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: n(3)
        integer, allocatable, intent(inout) :: idg(:,:,:)
      end subroutine nearest_atom_grid
-     module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv)
+     module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
        real*8, intent(in), optional :: t0(3)
@@ -519,20 +521,24 @@ module crystalmod
        real*8, intent(in), optional :: xnew(:,:)
        integer, intent(in), optional :: isnew(:)
        logical, intent(in), optional :: noenv
+       type(thread_info), intent(in), optional :: ti
      end subroutine newcell
-     module function cell_standard(c,toprim,doforce,refine) result(x0)
+     module function cell_standard(c,toprim,doforce,refine,ti) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
        logical, intent(in) :: refine
+       type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_standard
-     module function cell_niggli(c) result(x0)
+     module function cell_niggli(c,ti) result(x0)
        class(crystal), intent(inout) :: c
+       type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_niggli
-     module function cell_delaunay(c) result(x0)
+     module function cell_delaunay(c,ti) result(x0)
        class(crystal), intent(inout) :: c
+       type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
      module subroutine struct_report(c,lcrys,lq)
@@ -579,8 +585,9 @@ module crystalmod
      module subroutine checkgroup(c)
        class(crystal), intent(inout) :: c
      end subroutine checkgroup
-     module subroutine wholemols(c)
+     module subroutine wholemols(c,ti)
        class(crystal), intent(inout) :: c
+       type(thread_info), intent(in), optional :: ti
      end subroutine wholemols
      module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c
@@ -592,12 +599,13 @@ module crystalmod
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
      end subroutine search_lattice
-     module subroutine write_simple_driver(c,file)
+     module subroutine write_simple_driver(c,file,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_simple_driver
      module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout)
+        environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*3, intent(in) :: fmt
@@ -610,9 +618,10 @@ module crystalmod
        real*8, intent(in), optional :: rcub0, xcub0(3)
        logical, intent(in), optional :: usenames0
        integer, intent(out), optional :: luout
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_mol
      module subroutine write_3dmodel(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
-        docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0)
+        docell0,domolcell0,rsph0,xsph0,rcub0,xcub0,gr0,ti)
        use graphics, only: grhandle
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
@@ -623,101 +632,123 @@ module crystalmod
        real*8, intent(in), optional :: rsph0, xsph0(3)
        real*8, intent(in), optional :: rcub0, xcub0(3)
        type(grhandle), intent(out), optional :: gr0
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_3dmodel
-     module subroutine write_espresso(c,file,rklength)
+     module subroutine write_espresso(c,file,rklength,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        real*8, intent(in), optional :: rklength
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_espresso
-     module subroutine write_vasp(c,file,verbose,append)
+     module subroutine write_vasp(c,file,verbose,append,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: verbose
        logical, intent(in), optional :: append
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_vasp
-     module subroutine write_abinit(c,file)
+     module subroutine write_abinit(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_abinit
-     module subroutine write_elk(c,file)
+     module subroutine write_elk(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_elk
-     module subroutine write_gaussian(c,file)
+     module subroutine write_gaussian(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_gaussian
-     module subroutine write_tessel(c,file)
+     module subroutine write_tessel(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_tessel
-     module subroutine write_critic(c,file)
+     module subroutine write_critic(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_critic
-     module subroutine write_cif(c,file,usesym0)
+     module subroutine write_cif(c,file,usesym0,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: usesym0
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_cif
-     module subroutine write_d12(c,file,dosym)
+     module subroutine write_d12(c,file,dosym,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: dosym
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_d12
-     module subroutine write_res(c,file,dosym)
+     module subroutine write_res(c,file,dosym,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        integer, intent(in) :: dosym
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_res
-     module subroutine write_escher(c,file)
+     module subroutine write_escher(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_escher
-     module subroutine write_db(c,file)
+     module subroutine write_db(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_db
-     module subroutine write_gulp(c,file)
+     module subroutine write_gulp(c,file,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_gulp
-     module subroutine write_lammps(c,file)
+     module subroutine write_lammps(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_lammps
-     module subroutine write_siesta_fdf(c,file)
+     module subroutine write_siesta_fdf(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_siesta_fdf
-     module subroutine write_siesta_in(c,file)
+     module subroutine write_siesta_in(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_siesta_in
-     module subroutine write_dftbp_hsd(c,file)
+     module subroutine write_dftbp_hsd(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_dftbp_hsd
-     module subroutine write_dftbp_gen(c,file,lu0)
+     module subroutine write_dftbp_gen(c,file,lu0,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        integer, intent(in), optional :: lu0
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_dftbp_gen
-     module subroutine write_pyscf(c,file)
+     module subroutine write_pyscf(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_pyscf
-     module subroutine write_fhi(c,file,frac,rklength)
+     module subroutine write_fhi(c,file,frac,rklength,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: frac
        real*8, intent(in), optional :: rklength
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_fhi
-     module subroutine write_tinkerfrac(c,file)
+     module subroutine write_tinkerfrac(c,file,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine write_tinkerfrac
-     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0)
+     module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
@@ -726,20 +757,23 @@ module crystalmod
        real*8, intent(in), optional :: xd0(3,3)
        real*8, intent(in), optional :: x00(3)
        integer, intent(in), optional :: ishift0(3)
+       type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_cube
-     module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0)
+     module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
        integer, intent(in), optional :: ishift0(3)
+       type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_vasp
-     module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0)
+     module subroutine writegrid_xsf(c,g,file,onlyheader,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
        integer, intent(in), optional :: ishift0(3)
+       type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c

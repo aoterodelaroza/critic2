@@ -20,12 +20,12 @@ submodule (crystalseedmod) proc
   implicit none
 
   !xx! private subroutines
-  ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock)
-  ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
-  ! subroutine read_all_xyz(nseed,seed,file,errmsg)
-  ! subroutine read_all_log(nseed,seed,file,errmsg)
-  ! function which_out_format(file)
-  ! subroutine which_in_format(file,isformat)
+  ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock,ti)
+  ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg,ti)
+  ! subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
+  ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
+  ! function which_out_format(file,ti)
+  ! subroutine which_in_format(file,isformat,ti)
   ! function string_to_symop(str)
 
 contains
@@ -599,15 +599,15 @@ contains
   end subroutine parse_molecule_env
 
   !> Read a structure from the critic2 structure library
-  module subroutine read_library(seed,line,mol,oksyn)
+  module subroutine read_library(seed,line,mol,oksyn,ti)
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
        equal, getword, fclose
-
     class(crystalseed), intent(inout) :: seed !< Crystal seed result
     character*(*), intent(in) :: line !< Library entry
     logical, intent(in) :: mol !< Is this a molecule?
     logical, intent(out) :: oksyn !< Did this have a syntax error?
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: word, l2, stru, aux, libfile
     logical :: lchk, found, ok
@@ -636,7 +636,7 @@ contains
        call ferror("read_library","library file not found!",faterr,syntax=.true.)
        return
     endif
-    lu = fopen_read(libfile,abspath0=.true.)
+    lu = fopen_read(libfile,abspath0=.true.,ti=ti)
 
     ! find the block
     found = .false.
@@ -780,7 +780,7 @@ contains
   !> 0, force a crystal. If mol0 == -1, let the format detection
   !> decide.  If the read was successful, return an empty error
   !> message
-  module subroutine read_any_file(seed,file,mol0,errmsg)
+  module subroutine read_any_file(seed,file,mol0,errmsg,ti)
     use global, only: rborder_def
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
@@ -795,13 +795,14 @@ contains
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: isformat
     logical :: mol, hastypes
 
     ! detect the format for this file
     errmsg = ""
-    call struct_detect_format(file,isformat)
+    call struct_detect_format(file,isformat,ti=ti)
 
     ! is this a crystal or a molecule?
     if (mol0 == 1) then
@@ -809,7 +810,7 @@ contains
     elseif (mol0 == 0) then
        mol = .false.
     elseif (mol0 == -1) then
-       call struct_detect_ismol(file,isformat,mol)
+       call struct_detect_ismol(file,isformat,mol,ti=ti)
     else
        errmsg = "read_any_file: unknown mol0"
        return
@@ -817,86 +818,86 @@ contains
 
     ! build the seed
     if (isformat == isformat_cif) then
-       call seed%read_cif(file," ",mol,errmsg)
+       call seed%read_cif(file," ",mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_shelx) then
-       call seed%read_shelx(file,mol,errmsg)
+       call seed%read_shelx(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_f21) then
-       call seed%read_f21(file,mol,errmsg)
+       call seed%read_f21(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_cube) then
-       call seed%read_cube(file,mol,errmsg)
+       call seed%read_cube(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_bincube) then
-       call seed%read_bincube(file,mol,errmsg)
+       call seed%read_bincube(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_struct) then
-       call seed%read_wien(file,mol,errmsg)
+       call seed%read_wien(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_vasp) then
-       call seed%read_vasp(file,mol,hastypes,errmsg)
+       call seed%read_vasp(file,mol,hastypes,errmsg,ti=ti)
        if (len_trim(errmsg) == 0 .and..not.hastypes) then
           errmsg = "Atom types not found in VASP file"
           return
        end if
 
     elseif (isformat == isformat_abinit) then
-       call seed%read_abinit(file,mol,errmsg)
+       call seed%read_abinit(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_elk) then
-       call seed%read_elk(file,mol,errmsg)
+       call seed%read_elk(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_qeout) then
-       call seed%read_qeout(file,mol,0,errmsg)
+       call seed%read_qeout(file,mol,0,errmsg,ti=ti)
 
     elseif (isformat == isformat_crystal) then
-       call seed%read_crystalout(file,mol,errmsg)
+       call seed%read_crystalout(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_qein) then
-       call seed%read_qein(file,mol,errmsg)
+       call seed%read_qein(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca) then
-       call seed%read_mol(file,isformat,rborder_def,.false.,errmsg)
+       call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_siesta) then
-       call seed%read_siesta(file,mol,errmsg)
+       call seed%read_siesta(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_xsf) then
-       call seed%read_xsf(file,rborder_def,.false.,errmsg)
+       call seed%read_xsf(file,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
     elseif (isformat == isformat_gen) then
-       call seed%read_dftbp(file,rborder_def,.false.,errmsg)
+       call seed%read_dftbp(file,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
     elseif (isformat == isformat_pwc) then
-       call seed%read_pwc(file,mol,errmsg)
+       call seed%read_pwc(file,mol,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
     elseif (isformat == isformat_axsf) then
-       call seed%read_axsf(file,1,0d0,rborder_def,.false.,errmsg)
+       call seed%read_axsf(file,1,0d0,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
     elseif (isformat == isformat_dmain) then
-       call seed%read_dmain(file,mol,errmsg)
+       call seed%read_dmain(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_aimsin) then
-       call seed%read_aimsin(file,mol,rborder_def,.false.,errmsg)
+       call seed%read_aimsin(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_aimsout) then
-       call seed%read_aimsout(file,mol,rborder_def,.false.,errmsg)
+       call seed%read_aimsout(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_tinkerfrac) then
-       call seed%read_tinkerfrac(file,mol,errmsg)
+       call seed%read_tinkerfrac(file,mol,errmsg,ti=ti)
 
     else
        errmsg = "unrecognized file format"
@@ -909,19 +910,20 @@ contains
   !> the first structure in the cif, otherwise return the seed with data
   !> name equal to dblock. If mol, force a molecule/crystal system.
   !> If error, return non-empty errmsg.
-  module subroutine read_cif(seed,file,dblock,mol,errmsg)
+  module subroutine read_cif(seed,file,dblock,mol,errmsg,ti)
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character*(*), intent(in) :: dblock !< Data block
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
-    call read_all_cif(file,mol,errmsg,seed0=seed,dblock=dblock)
+    call read_all_cif(file,mol,errmsg,seed0=seed,dblock=dblock,ti=ti)
 
   end subroutine read_cif
 
   !> Read the structure from a res or ins (shelx) file
-  module subroutine read_shelx(seed,file,mol,errmsg)
+  module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use arithmetic, only: isvariable, eval, setvariable
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose
@@ -931,6 +933,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, ilat
     logical :: ok, iscent, iok, havecell
@@ -981,7 +984,7 @@ contains
     iiy = isvariable("y",yo)
     iiz = isvariable("z",zo)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        if (iix) call setvariable("x",xo)
@@ -1292,7 +1295,7 @@ contains
   end subroutine read_shelx
 
   !> Read the structure from a fort.21 from neighcrys
-  module subroutine read_f21(seed,file,mol,errmsg)
+  module subroutine read_f21(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess
     use param, only: bohrtoa, maxzat0, mlen
     use types, only: realloc
@@ -1300,6 +1303,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: line
@@ -1313,7 +1317,7 @@ contains
     ! open the file for reading
     call seed%end()
     errmsg = "Error reading file."
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -1466,7 +1470,7 @@ contains
   end subroutine read_f21
 
   !> Read the structure from a gaussian cube file
-  module subroutine read_cube(seed,file,mol,errmsg)
+  module subroutine read_cube(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
@@ -1474,6 +1478,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
@@ -1483,7 +1488,7 @@ contains
 
     call seed%end()
     errmsg = "Error reading file."
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -1575,7 +1580,7 @@ contains
   end subroutine read_cube
 
   !> Read the structure from a binary cube file
-  module subroutine read_bincube(seed,file,mol,errmsg)
+  module subroutine read_bincube(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
@@ -1583,6 +1588,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ier
     integer :: i, j, nstep(3), nn, iz, it
@@ -1590,7 +1596,7 @@ contains
 
     call seed%end()
     errmsg = "Error reading file."
-    lu = fopen_read(file,form="unformatted")
+    lu = fopen_read(file,form="unformatted",ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -1673,7 +1679,7 @@ contains
 
   !> Read the crystal structure from a WIEN2k STRUCT file.
   !> Code adapted from the WIEN2k distribution.
-  module subroutine read_wien(seed,file,mol,errmsg)
+  module subroutine read_wien(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose, equal, equali
     use types, only: realloc
     use param, only: pi
@@ -1681,6 +1687,7 @@ contains
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lut
     integer :: i, j, i1, i2, j1, iat, iat0, istart, it
@@ -1698,7 +1705,7 @@ contains
     seed%file = file
 
     ! first pass to see whether we have symmetry or not
-    lut = fopen_read(file)
+    lut = fopen_read(file,ti=ti)
     if (lut < 0) then
        errmsg = "Error opening file."
        return
@@ -1887,7 +1894,7 @@ contains
   !> If hastypes is present, it is equal to .true. if the file
   !> could be read successfully or .false. if the atomic types
   !> are missing.
-  module subroutine read_vasp(seed,file,mol,hastypes,errmsg)
+  module subroutine read_vasp(seed,file,mol,hastypes,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
@@ -1898,6 +1905,7 @@ contains
     logical, intent(in) :: mol !< Is this a molecule?
     logical, intent(out) :: hastypes
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, nn
     character(len=:), allocatable :: word, line
@@ -1911,7 +1919,7 @@ contains
     ! open
     errmsg = "Error reading file."
     hastypes = .true.
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -2060,7 +2068,7 @@ contains
   end subroutine read_vasp
 
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
-  module subroutine read_abinit(seed,file,mol,errmsg)
+  module subroutine read_abinit(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
@@ -2069,6 +2077,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, fform0
     type(hdr_type) :: hdr
@@ -2077,7 +2086,7 @@ contains
 
     call seed%end()
     errmsg = ""
-    lu = fopen_read(file,"unformatted",errstop=.false.)
+    lu = fopen_read(file,"unformatted",errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -2135,7 +2144,7 @@ contains
   ! The following code has been adapted from the elk distribution, version 1.3.2
   ! Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma and C. Ambrosch-Draxl.
   ! This file is distributed under the terms of the GNU General Public License.
-  module subroutine read_elk(seed,file,mol,errmsg)
+  module subroutine read_elk(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, equal, getword,&
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
@@ -2144,6 +2153,7 @@ contains
     character*(*), intent(in) :: file !< input filename
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, zat, j, lp, idx
@@ -2152,7 +2162,7 @@ contains
 
     call seed%end()
     errmsg = "Error reading file."
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -2240,7 +2250,7 @@ contains
   end subroutine read_elk
 
   !> Read the structure from an xyz/wfn/wfx file
-  module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
+  module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,ti)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
        wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry,&
@@ -2250,13 +2260,13 @@ contains
        isformat_pgout, isformat_orca
     use tools_io, only: equali
     use types, only: realloc
-
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     integer, intent(in) :: fmt !< wfn/wfx/xyz
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: z(:)
     character*(10), allocatable :: name(:) !< Atomic names
@@ -2266,31 +2276,31 @@ contains
     errmsg = ""
     if (fmt == isformat_xyz) then
        ! xyz
-       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_wfn) then
        ! wfn
-       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_wfx) then
        ! wfx
-       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_fchk) then
        ! fchk
-       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_molden) then
        ! molden (psi4)
-       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_gaussian) then
        ! Gaussian output file
-       call wfn_read_log_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_log_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_dat) then
        ! psi4 output file
-       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_pgout) then
        ! postg output file
-       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_orca) then
        ! orca output file
-       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg)
+       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -2350,22 +2360,19 @@ contains
   !> last geometry; otherwise, read geometry number istruct. If an
   !> error condition is found, return the error message in errmsg
   !> (zero-length string if no error).
-  module subroutine read_qeout(seed,file,mol,istruct,errmsg)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
-       zatguess, fclose, equali
-    use tools_math, only: matinv
-    use types, only: realloc
+  module subroutine read_qeout(seed,file,mol,istruct,errmsg,ti)
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     integer, intent(in) :: istruct !< structure number
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     type(crystalseed), allocatable :: seedaux(:)
     integer :: nseed
 
     call seed%end()
-    call read_all_qeout(nseed,seedaux,file,mol,istruct,errmsg)
+    call read_all_qeout(nseed,seedaux,file,mol,istruct,errmsg,ti=ti)
     if (allocated(seedaux) .and. nseed >= 1) then
        seed = seedaux(1)
     end if
@@ -2373,7 +2380,7 @@ contains
   end subroutine read_qeout
 
   !> Read the structure from a quantum espresso input
-  module subroutine read_qein(seed,file,mol,errmsg)
+  module subroutine read_qein(seed,file,mol,errmsg,ti)
     ! This subroutine has been adapted from parts of the Quantum
     ! ESPRESSO code, version 4.3.2 and later.
     ! Copyright (C) 2002-2009 Quantum ESPRESSO group
@@ -2392,6 +2399,8 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
     integer :: nattot
     real(dp), allocatable :: tautot(:,:)
     integer, allocatable :: ityptot(:)
@@ -2588,7 +2597,7 @@ contains
 
     ! open
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -2807,7 +2816,7 @@ contains
   end subroutine read_qein
 
   !> Read the structure from a crystal output
-  module subroutine read_crystalout(seed,file,mol,errmsg)
+  module subroutine read_crystalout(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
     use tools_math, only: matinv
@@ -2817,6 +2826,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, ier
     character(len=:), allocatable :: line
@@ -2827,7 +2837,7 @@ contains
 
     call seed%end()
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -2959,7 +2969,7 @@ contains
   end subroutine read_crystalout
 
   !> Read the structure from a siesta OUT input
-  module subroutine read_siesta(seed,file,mol,errmsg)
+  module subroutine read_siesta(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
     use param, only: bohrtoa
@@ -2968,6 +2978,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     real*8 :: r(3,3)
@@ -2976,7 +2987,7 @@ contains
     call seed%end()
     errmsg = ""
     ! open
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3029,7 +3040,7 @@ contains
   end subroutine read_siesta
 
   !> Read the structure from a DMACRYS input file (dmain)
-  module subroutine read_dmain(seed,file,mol,errmsg)
+  module subroutine read_dmain(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose, getline_raw, lgetword, isreal,&
        getword, zatguess, isinteger, lower
     use tools_math, only: matinv
@@ -3039,6 +3050,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: usedz(:)
     character(len=:), allocatable :: line, word, lword
@@ -3051,7 +3063,7 @@ contains
     call seed%end()
     errmsg = ""
     ! open
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3180,7 +3192,7 @@ contains
   end subroutine read_dmain
 
   !> Read the structure from a file in DFTB+ gen format.
-  module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
+  module subroutine read_dftbp(seed,file,rborder,docube,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, &
        getword, zatguess, nameguess, fclose
@@ -3191,6 +3203,7 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ier
     real*8 :: r(3,3)
@@ -3203,7 +3216,7 @@ contains
     call seed%end()
     molout = .false.
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3313,7 +3326,7 @@ contains
   end subroutine read_dftbp
 
   !> Read the structure from an xsf file.
-  module subroutine read_xsf(seed,file,rborder,docube,errmsg)
+  module subroutine read_xsf(seed,file,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        zatguess, isinteger, getword, isreal, lower, string
     use tools_math, only: matinv
@@ -3325,6 +3338,7 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word, name
     character*10 :: atn, latn
@@ -3337,7 +3351,7 @@ contains
     call seed%end()
     ismol = .false.
     errmsg = ""
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3499,13 +3513,14 @@ contains
   end subroutine read_xsf
 
   !> Read the structure from a pwc file.
-  module subroutine read_pwc(seed,file,mol,errmsg)
+  module subroutine read_pwc(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, zatguess
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     integer :: version, i, ier
@@ -3515,7 +3530,7 @@ contains
     call seed%end()
     errmsg = ""
     ! open
-    lu = fopen_read(file,errstop=.false.,form="unformatted")
+    lu = fopen_read(file,errstop=.false.,form="unformatted",ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3584,7 +3599,7 @@ contains
   !> coordinates from PRIMCOORD block and nudge them using the
   !> eigenvector on the same block scaled by the value of xnudge
   !> (bohr).
-  module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
+  module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
        string, getword, isreal, nameguess, zatguess
     use tools_math, only: matinv
@@ -3597,6 +3612,7 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word, name
     integer :: lu, lp, iprim, i, it, iz, j, ier
@@ -3607,7 +3623,7 @@ contains
     call seed%end()
     ismol = .false.
     errmsg = ""
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3750,7 +3766,7 @@ contains
   end subroutine read_axsf
 
   !> Read an FHIaims input file.
-  module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg)
+  module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
        getword, zatguess
     use tools_math, only: matinv
@@ -3763,6 +3779,7 @@ contains
     real*8, intent(in) :: rborder
     logical, intent(in) :: docube
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, nlat, i, idx, ier
     logical :: is_file_mol, ok
@@ -3774,7 +3791,7 @@ contains
     ! open
     call seed%end()
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -3901,7 +3918,7 @@ contains
   end subroutine read_aimsin
 
   !> Read an FHI aims output file.
-  module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg)
+  module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
        getword, zatguess
     use tools_math, only: matinv
@@ -3914,6 +3931,7 @@ contains
     real*8, intent(in) :: rborder
     logical, intent(in) :: docube
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, nlat, i, j, idx, ier, nupdate, iup, iat
     logical :: is_file_mol, ok, isfinal
@@ -3927,7 +3945,7 @@ contains
     ! open
     call seed%end()
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -4114,7 +4132,7 @@ contains
 
   !> Read the structure from a TINKER frac file (must have cell
   !> parameters in the second line).
-  module subroutine read_tinkerfrac(seed,file,mol,errmsg)
+  module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
     use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
     use param, only: bohrtoa, maxzat
     use types, only: realloc
@@ -4122,6 +4140,7 @@ contains
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, i, iz, idum
     logical :: ok
@@ -4132,7 +4151,7 @@ contains
     ! open the file
     call seed%end()
     errmsg = "Error reading file."
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -4225,7 +4244,7 @@ contains
   !> whether the file contains a molecule or crysatl is returned.
   !> If alsofield is present, then return .true. if the file also
   !> contains a scalar field.
-  module subroutine struct_detect_format(file,isformat,alsofield)
+  module subroutine struct_detect_format(file,isformat,alsofield,ti)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
        isformat_f21, isformat_xyz,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
@@ -4239,6 +4258,7 @@ contains
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
     logical, intent(out), optional :: alsofield
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: basename, wextdot, wextdot2, wext_, line
     logical :: isvasp, alsofield_
@@ -4292,14 +4312,14 @@ contains
     elseif (equal(wextdot,'OUT')) then
        isformat = isformat_elk
     elseif (equal(wextdot,'out')) then
-       call which_out_format(file,isformat)
+       call which_out_format(file,isformat,ti=ti)
     elseif (equal(wextdot,'own')) then
-       call which_out_format(file,isformat)
+       call which_out_format(file,isformat,ti=ti)
        if (isformat /= isformat_aimsout) goto 999
     elseif (equal(wextdot,'in')) then
-       call which_in_format(file,isformat)
+       call which_in_format(file,isformat,ti=ti)
     elseif (equal(wextdot2,'in.next_step')) then
-       call which_in_format(file,isformat)
+       call which_in_format(file,isformat,ti=ti)
        if (isformat /= isformat_aimsin) goto 999
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
@@ -4326,7 +4346,7 @@ contains
        isformat = isformat_dmain
     elseif (equal(wextdot,'xsf')) then
        isformat = isformat_xsf
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) goto 999
        do while (getline(lu,.false.,line))
           if (len_trim(line) > 0) exit
@@ -4344,7 +4364,7 @@ contains
        isformat = isformat_gen
 
        ! determine whether it is a molecule or crystal
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) goto 999
        do while (getline_raw(lu,line))
           if (len_trim(line) > 0) exit
@@ -4379,7 +4399,7 @@ contains
 
   !> Detect whether a file with format isformat contains a molecule
   !> (ismol=.true.)  or a crystal (.false.)
-  module subroutine struct_detect_ismol(file,isformat,ismol)
+  module subroutine struct_detect_ismol(file,isformat,ismol,ti)
     use tools_io, only: fopen_read, fclose, getline, equali,&
        getline_raw, lgetword, equal, lower
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
@@ -4392,6 +4412,7 @@ contains
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word
     integer :: lu, ios, lp, nat
@@ -4413,7 +4434,7 @@ contains
        ismol = .true.
 
     case(isformat_aimsout)
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        ismol = .false.
        do while(getline_raw(lu,line))
           if (adjustl(trim(line)) == "Input geometry:") then
@@ -4432,7 +4453,7 @@ contains
 
     case (isformat_aimsin)
        ismol = .true.
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
        do while(getline_raw(lu,line))
           lp = 1
@@ -4446,7 +4467,7 @@ contains
 
     case (isformat_gen)
        ismol = .false.
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
        do while (getline_raw(lu,line))
           if (len_trim(line) > 0) exit
@@ -4463,7 +4484,7 @@ contains
 
     case (isformat_xsf)
        ismol = .false.
-       lu = fopen_read(file,errstop=.false.)
+       lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
        do while (getline(lu,.false.,line))
           if (len_trim(line) > 0) exit
@@ -4482,12 +4503,13 @@ contains
   end subroutine struct_detect_ismol
 
   !> Read the species into the seed from a VASP POTCAR file.
-  module subroutine read_potcar(seed,file,errmsg)
+  module subroutine read_potcar(seed,file,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, getword, fclose, zatguess
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp
     character(len=:), allocatable :: aux1, aatom, line
@@ -4499,7 +4521,7 @@ contains
     allocate(seed%spc(2))
 
     ! open
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening POTCAR file."
        return
@@ -4541,7 +4563,7 @@ contains
   !> (seed) and collapse=.true. if the seeds are the steps of a
   !> geometry optimization.
   module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
-     nseed,seed,collapse,errmsg,iafield)
+     nseed,seed,collapse,errmsg,iafield,ti)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
@@ -4562,6 +4584,7 @@ contains
     logical, intent(out) :: collapse
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(out), optional :: iafield
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: path, ofile
     integer :: isformat, is, mol0_, i
@@ -4580,7 +4603,7 @@ contains
        goto 999
     end if
 
-    call struct_detect_format(file,is,alsofield)
+    call struct_detect_format(file,is,alsofield,ti=ti)
     if (isformat == isformat_unknown) isformat = is
     if (isformat == isformat_unknown) then
        errmsg = "Unknown file format/extension."
@@ -4591,7 +4614,7 @@ contains
     elseif (mol0_ == 0) then
        mol = .false.
     elseif (mol0_ == -1) then
-       call struct_detect_ismol(file,isformat,mol)
+       call struct_detect_ismol(file,isformat,mol,ti=ti)
     end if
 
     ! by default, we expect one seed only
@@ -4600,22 +4623,22 @@ contains
 
     ! read all available seeds in the file
     if (isformat == isformat_cif) then
-       call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed)
+       call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_pwc) then
-       call seed(1)%read_pwc(file,mol,errmsg)
+       call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_shelx) then
-       call seed(1)%read_shelx(file,mol,errmsg)
+       call seed(1)%read_shelx(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_f21) then
-       call seed(1)%read_f21(file,mol,errmsg)
+       call seed(1)%read_f21(file,mol,errmsg,ti=ti)
     else if (isformat == isformat_cube) then
-       call seed(1)%read_cube(file,mol,errmsg)
+       call seed(1)%read_cube(file,mol,errmsg,ti=ti)
     else if (isformat == isformat_bincube) then
-       call seed(1)%read_bincube(file,mol,errmsg)
+       call seed(1)%read_bincube(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_struct) then
-       call seed(1)%read_wien(file,mol,errmsg)
+       call seed(1)%read_wien(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_vasp) then
        ! try to read the types from the file directly
-       call seed(1)%read_vasp(file,mol,hastypes,errmsg)
+       call seed(1)%read_vasp(file,mol,hastypes,errmsg,ti=ti)
 
        if (len_trim(errmsg) == 0 .and. .not.hastypes) then
           ! see if we can locate a POTCAR in the same path
@@ -4623,50 +4646,50 @@ contains
           if (len_trim(path) < 1) &
              path = "."
           ofile = trim(path) // "/POTCAR"
-          call seed(1)%read_potcar(ofile,errmsg)
+          call seed(1)%read_potcar(ofile,errmsg,ti=ti)
           if (len_trim(errmsg) == 0) then
              if (seed(1)%nspc > 0) then
-                call seed(1)%read_vasp(file,mol,hastypes,errmsg)
+                call seed(1)%read_vasp(file,mol,hastypes,errmsg,ti=ti)
              else
                 errmsg = "No atoms found in POTCAR."
              end if
           end if
        end if
     elseif (isformat == isformat_abinit) then
-       call seed(1)%read_abinit(file,mol,errmsg)
+       call seed(1)%read_abinit(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_elk) then
-       call seed(1)%read_elk(file,mol,errmsg)
+       call seed(1)%read_elk(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_qeout) then
-       call read_all_qeout(nseed,seed,file,mol,-1,errmsg)
+       call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_crystal) then
-       call seed(1)%read_crystalout(file,mol,errmsg)
+       call seed(1)%read_crystalout(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_qein) then
-       call seed(1)%read_qein(file,mol,errmsg)
+       call seed(1)%read_qein(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_xyz) then
-       call read_all_xyz(nseed,seed,file,errmsg)
+       call read_all_xyz(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_gaussian) then
-       call read_all_log(nseed,seed,file,errmsg)
+       call read_all_log(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat .or. isformat == isformat_pgout.or.&
        isformat == isformat_orca) then
-       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg)
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_siesta) then
-       call seed(1)%read_siesta(file,mol,errmsg)
+       call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_dmain) then
-       call seed(1)%read_dmain(file,mol,errmsg)
+       call seed(1)%read_dmain(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_aimsin) then
-       call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg)
+       call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_aimsout) then
-       call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg)
+       call seed(1)%read_aimsout(file,mol,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_tinkerfrac) then
-       call seed(1)%read_tinkerfrac(file,mol,errmsg)
+       call seed(1)%read_tinkerfrac(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_axsf) then
-       call seed(1)%read_axsf(file,1,0d0,rborder_def,.false.,errmsg)
+       call seed(1)%read_axsf(file,1,0d0,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_xsf) then
-       call seed(1)%read_xsf(file,rborder_def,.false.,errmsg)
+       call seed(1)%read_xsf(file,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_gen) then
-       call seed(1)%read_dftbp(file,rborder_def,.false.,errmsg)
+       call seed(1)%read_dftbp(file,rborder_def,.false.,errmsg,ti=ti)
     end if
     if (mol0 /= -1) &
        seed(1)%ismolecule = mol
@@ -4774,7 +4797,7 @@ contains
   !> array and return the number of seeds in nseed. If seed0 is
   !> present, return the data block dblock. If dblock is not present
   !> or is empty, return the first data block in seed0.
-  subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock)
+  subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
        isreal, zatguess
     use types, only: realloc
@@ -4786,6 +4809,7 @@ contains
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     real*8 :: rdum, aa(3), bb(3)
     integer :: lu, idx, leng, lp, nhead, i
@@ -4826,7 +4850,7 @@ contains
     inloop = .false.
     spg = ""
     havefields = .false.
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     main: do while (getline_raw(lu,line))
        line = adjustl(line)
 
@@ -5258,7 +5282,7 @@ contains
   !> interpret the structure as a molecule (currently, this only sets
   !> the %ismolecule field). If an error condition is found, return
   !> the error message in errmsg (zero-length string if no error).
-  subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg)
+  subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
     use tools_math, only: matinv
@@ -5270,6 +5294,7 @@ contains
     integer, intent(in) :: istruct !< ID of the structure
     logical, intent(in) :: mol !< Is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ideq, i, j, is0, ier
     character(len=:), allocatable :: line, str
@@ -5287,7 +5312,7 @@ contains
     logical :: hasx, hasis, hasspc, hasr
 
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -5558,7 +5583,7 @@ contains
   end subroutine read_all_qeout
 
   !> Read all structures from an xyz file. Returns all seeds.
-  subroutine read_all_xyz(nseed,seed,file,errmsg)
+  subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
     use global, only: rborder_def
     use hashmod, only: hash
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
@@ -5569,6 +5594,7 @@ contains
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, nat, i, iz
     logical :: ok
@@ -5577,7 +5603,7 @@ contains
     type(hash) :: usen
 
     errmsg = ""
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -5679,7 +5705,7 @@ contains
 
   !> Read all structures from a Gaussian output (log) file. Returns
   !> all crystal seeds.
-  subroutine read_all_log(nseed,seed,file,errmsg)
+  subroutine read_all_log(nseed,seed,file,errmsg,ti)
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
     use types, only: species
@@ -5688,6 +5714,7 @@ contains
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, str
     integer :: lu, nat, idum, iz, nspc, i, npad
@@ -5699,7 +5726,7 @@ contains
 
     errmsg = ""
 
-    lu = fopen_read(file,errstop=.false.)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file."
        return
@@ -5833,18 +5860,19 @@ contains
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.
-  subroutine which_out_format(file,isformat)
+  subroutine which_out_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
     use param, only: isformat_qeout, isformat_crystal, isformat_orca, isformat_aimsout
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: line
     logical :: ok
 
     isformat = 0
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
@@ -5885,18 +5913,19 @@ contains
 
   !> Determine whether a given input file (.in) comes from an FHIaims
   !> or a quantum espresso calculation.
-  subroutine which_in_format(file,isformat)
+  subroutine which_in_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
     use param, only: isformat_qein, isformat_aimsin
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp
     character(len=:), allocatable :: line, word, lline
 
     ! parse the input file looking for mandatory keywords
     isformat = 0
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))

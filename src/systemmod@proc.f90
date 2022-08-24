@@ -636,7 +636,7 @@ contains
        end if
 
        syl => s
-       call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg)
+       call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg,ti=ti)
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
@@ -668,7 +668,7 @@ contains
     ! Test the muffin tin discontinuity, if applicable. Ignore the
     ! error message.
     if (seed%testrmt) &
-       call s%f(id)%testrmt(0,aux)
+       call s%f(id)%testrmt(0,aux,ti=ti)
 
   end subroutine load_field_string
 

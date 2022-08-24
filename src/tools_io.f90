@@ -17,7 +17,7 @@
 
 ! Library for I/O and error handling.
 module tools_io
-  use types, only: vstring
+  use types, only: vstring, thread_info
   implicit none
 
   public
@@ -262,36 +262,41 @@ module tools_io
      end subroutine history_init
      module subroutine history_end()
      end subroutine history_end
-     module function fopen_read(file,form,abspath0,errstop) result(lu)
+     module function fopen_read(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_read
-     module function fopen_write(file,form,abspath0,errstop) result(lu)
+     module function fopen_write(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_write
-     module function fopen_append(file,form,abspath0,errstop) result(lu)
+     module function fopen_append(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_append
-     module function fopen_scratch(form,errstop) result(lu)
+     module function fopen_scratch(form,errstop,ti) result(lu)
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_scratch
      module subroutine fclose(lu)
        integer, intent(in) :: lu
      end subroutine fclose
-     module function falloc()
+     module function falloc(ti)
+       type(thread_info), intent(in), optional :: ti
        integer :: falloc
      end function falloc
      module subroutine fdealloc(u)

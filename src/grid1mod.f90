@@ -17,6 +17,7 @@
 
 !> One-dimensional grid class
 module grid1mod
+  use types, only: thread_info
   implicit none
 
   private
@@ -52,10 +53,11 @@ module grid1mod
      module subroutine grid1_end(g)
        class(grid1), intent(inout) :: g
      end subroutine grid1_end
-     module subroutine read_db(g,z,q)
+     module subroutine read_db(g,z,q,ti)
        class(grid1), intent(inout) :: g
        integer, intent(in) :: z
        integer, intent(in) :: q
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_db
      module subroutine interp(g,r0,f,fp,fpp)
        class(grid1), intent(in) :: g

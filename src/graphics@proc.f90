@@ -21,7 +21,7 @@ submodule (graphics) proc
 
   !xx! private procedures
   ! subroutine graphics_init()
-  ! subroutine obj_open(g)
+  ! subroutine obj_open(g,ti)
   ! subroutine obj_close(g)
   ! subroutine obj_ball(g,x,rgb,r)
   ! subroutine obj_polygon(g,x,rgb)
@@ -29,15 +29,15 @@ submodule (graphics) proc
   ! subroutine obj_surf(g,srf,fsurf)
   ! subroutine obj_triangulation(g,srf,nv,xv,nf,if,xrho)
   ! function register_texture(g,rgb) result(imtl)
-  ! subroutine ply_open(g)
-  ! subroutine ply_close(g)
+  ! subroutine ply_open(g,ti)
+  ! subroutine ply_close(g,ti)
   ! subroutine ply_ball(g,x,rgb,r)
   ! subroutine ply_polygon(g,x,rgb)
   ! subroutine ply_stick(g,x1,x2,rgb,r)
   ! subroutine ply_surf(g,srf,fsurf)
   ! subroutine ply_triangulation(g,srf,nv,xv,nf,if,xrho)
-  ! subroutine off_open(g)
-  ! subroutine off_close(g)
+  ! subroutine off_open(g,ti)
+  ! subroutine off_close(g,ti)
   ! subroutine off_ball(g,x,rgb,r)
   ! subroutine off_polygon(g,x,rgb)
   ! subroutine off_stick(g,x1,x2,rgb,r)
@@ -67,11 +67,12 @@ contains
 
   !> Open a graphics file (file) with format fmt. Returns the logical
   !> unit and (in obj files) the mtl file.
-  module subroutine graphics_open(g,fmt,file)
+  module subroutine graphics_open(g,fmt,file,ti)
     use tools_io, only: equal, lower
     class(grhandle), intent(inout) :: g
     character*3, intent(in) :: fmt
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character*3 :: fmt0
 
@@ -88,28 +89,29 @@ contains
 
     if (equal(fmt0,"obj")) then
        g%fmt = ifmt_obj
-       call obj_open(g)
+       call obj_open(g,ti=ti)
     elseif (equal(fmt0,"ply")) then
        g%fmt = ifmt_ply
-       call ply_open(g)
+       call ply_open(g,ti=ti)
     elseif (equal(fmt0,"off")) then
        g%fmt = ifmt_off
-       call off_open(g)
+       call off_open(g,ti=ti)
     end if
 
   end subroutine graphics_open
 
   !> Open a graphics file (lu, lumtl) with format fmt.
-  module subroutine graphics_close(g)
+  module subroutine graphics_close(g,ti)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     if (g%fmt == ifmt_obj) then
        call obj_close(g)
     elseif (g%fmt == ifmt_ply) then
-       call ply_close(g)
+       call ply_close(g,ti=ti)
     elseif (g%fmt == ifmt_off) then
-       call off_close(g)
+       call off_close(g,ti=ti)
     end if
     g%lu = 0
     g%lumtl = 0
@@ -2991,15 +2993,16 @@ contains
   end subroutine graphics_init
 
   !> Open an obj file (and its mtl companion)
-  subroutine obj_open(g)
+  subroutine obj_open(g,ti)
     use tools_io, only: faterr, ferror, fopen_write
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: idx
     character(len=:), allocatable :: filemtl, aux
 
     ! open the obj
-    g%lu = fopen_write(g%file)
+    g%lu = fopen_write(g%file,ti=ti)
 
     ! name of the mtl
     filemtl = g%file
@@ -3009,7 +3012,7 @@ contains
     filemtl = aux
 
     ! open the mtl
-    g%lumtl = fopen_write(filemtl)
+    g%lumtl = fopen_write(filemtl,ti=ti)
 
     ! clear and initialize the mtl database
     g%nmtl = 0
@@ -3303,12 +3306,13 @@ contains
   end function register_texture
 
   !> Open a ply file
-  subroutine ply_open(g)
+  subroutine ply_open(g,ti)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     ! open the temporary ply file
-    g%lu = fopen_scratch("formatted")
+    g%lu = fopen_scratch("formatted",ti=ti)
 
     ! clear and initialize the database
     g%nv = 0
@@ -3317,9 +3321,10 @@ contains
   end subroutine ply_open
 
   !> Close a ply file
-  subroutine ply_close(g)
+  subroutine ply_close(g,ti)
     use tools_io, only: ferror, getline_raw, fopen_write, string, fclose
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: file, line
@@ -3327,7 +3332,7 @@ contains
 
     ! get the temporary file name from the first line and open
     rewind(g%lu)
-    lu = fopen_write(g%file)
+    lu = fopen_write(g%file,ti=ti)
 
     ! write the header
     write (lu,'("ply ")')
@@ -3587,12 +3592,13 @@ contains
   end subroutine ply_triangulation
 
   !> Open an off file
-  subroutine off_open(g)
+  subroutine off_open(g,ti)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     ! open the temporary off file
-    g%lu = fopen_scratch("formatted")
+    g%lu = fopen_scratch("formatted",ti=ti)
 
     ! clear and initialize the database
     g%nv = 0
@@ -3601,9 +3607,10 @@ contains
   end subroutine off_open
 
   !> Close a off file
-  subroutine off_close(g)
+  subroutine off_close(g,ti)
     use tools_io, only: ferror, getline_raw, string, fopen_write, fclose
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: file, line
@@ -3611,7 +3618,7 @@ contains
 
     ! get the temporary file name from the first line and open
     rewind(g%lu)
-    lu = fopen_write(g%file)
+    lu = fopen_write(g%file,ti=ti)
 
     ! write the header
     write (lu,'("COFF")')

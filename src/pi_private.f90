@@ -22,6 +22,7 @@
 module pi_private
   use environmod, only: environ
   use grid1mod, only: grid1
+  use types, only: thread_info
   implicit none
 
   private
@@ -59,7 +60,7 @@ module pi_private
      module subroutine pi_end(f)
        class(piwfn), intent(inout) :: f
      end subroutine pi_end
-     module subroutine pi_read(f,nfile,piat,file,env,errmsg)
+     module subroutine pi_read(f,nfile,piat,file,env,errmsg,ti)
        use param, only: mlen
        class(piwfn), intent(inout) :: f
        integer, intent(in) :: nfile
@@ -67,6 +68,7 @@ module pi_private
        character(len=mlen), intent(in) :: file(:)
        type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine pi_read
      module subroutine rho2(f,xpos,exact,rho,grad,h)
        class(piwfn), intent(in) :: f

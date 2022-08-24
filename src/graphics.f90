@@ -18,6 +18,7 @@
 ! Output routines for several common graphics formats
 module graphics
   use param, only: mlen
+  use types, only: thread_info
   implicit none
 
   private
@@ -47,13 +48,15 @@ module graphics
   public :: grhandle
 
   interface
-     module subroutine graphics_open(g,fmt,file)
+     module subroutine graphics_open(g,fmt,file,ti)
        class(grhandle), intent(inout) :: g
        character*3, intent(in) :: fmt
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine graphics_open
-     module subroutine graphics_close(g)
+     module subroutine graphics_close(g,ti)
        class(grhandle), intent(inout) :: g
+       type(thread_info), intent(in), optional :: ti
      end subroutine graphics_close
      module subroutine graphics_ball(g,x,rgb,r)
        class(grhandle), intent(inout) :: g

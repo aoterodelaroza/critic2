@@ -19,6 +19,7 @@
 module dftb_private
   use grid1mod, only: grid1
   use environmod, only: environ
+  use types, only: thread_info
   implicit none
 
   private
@@ -70,13 +71,14 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,env)
+     module subroutine dftb_read(f,filexml,filebin,filehsd,env,ti)
        use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
        class(dftbwfn), intent(inout) :: f

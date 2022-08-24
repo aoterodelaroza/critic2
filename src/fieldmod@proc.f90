@@ -244,7 +244,7 @@ contains
   !> and the parent system's C pointer (sptr). If an error was
   !> found, returns a non-zero-length error message (errmsg).
   !> Some new fields are handled at system level (see load_field_string).
-  module subroutine field_new(f,seed,c,id,sptr,errmsg)
+  module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
@@ -267,6 +267,7 @@ contains
     integer, intent(in) :: id
     type(c_ptr), intent(in) :: sptr
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, k, n(3)
     type(fragment) :: fr
@@ -298,30 +299,30 @@ contains
 
     elseif (seed%iff == ifformat_wien) then
        call f%wien%end()
-       call f%wien%read_clmsum(seed%file(1),seed%file(2))
+       call f%wien%read_clmsum(seed%file(1),seed%file(2),ti=ti)
        f%type = type_wien
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
           call f%grid%end()
-          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
+          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3),ti=ti)
           f%type = type_elk
           f%file = seed%file(3)
        endif
 
     elseif (seed%iff == ifformat_pi) then
-       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg)
+       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
           call f%end()
           return
@@ -331,55 +332,55 @@ contains
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
-       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        call f%grid%end()
-       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        call f%grid%end()
-       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env)
+       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
        call f%grid%end()
-       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        call f%grid%end()
-       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
        call f%grid%end()
-       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
        call f%grid%end()
-       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env)
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -389,34 +390,34 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env)
+          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env,ti=ti)
        if (seed%nfile == 2) then
-          call f%grid%read_wannier_chk(seed%file(2))
+          call f%grid%read_wannier_chk(seed%file(2),ti=ti)
        elseif (seed%nfile == 3) then
-          call f%grid%read_wannier_chk(seed%file(2),seed%file(3))
+          call f%grid%read_wannier_chk(seed%file(2),seed%file(3),ti=ti)
        end if
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1),f%c%env)
+       call f%wfn%read_wfn(seed%file(1),f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1),f%c%env)
+       call f%wfn%read_wfx(seed%file(1),f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env)
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env)
+       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
@@ -424,7 +425,7 @@ contains
        call f%load_promolecular(f%c,id,"<promolecular>")
 
     elseif (seed%iff == ifformat_promolecular_fragment) then
-       fr = f%c%identify_fragment_from_xyz(seed%file(1))
+       fr = f%c%identify_fragment_from_xyz(seed%file(1),ti=ti)
        if (fr%nat == 0) then
           errmsg = "fragment contains unknown atoms"
           call f%end()
@@ -435,7 +436,7 @@ contains
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
        if (seed%iff == ifformat_as_promolecular) then
           if (seed%nfile > 0) then
-             fr = c%identify_fragment_from_xyz(seed%file(1))
+             fr = c%identify_fragment_from_xyz(seed%file(1),ti=ti)
              if (fr%nat == 0) then
                 errmsg = "zero atoms in the fragment"
                 call f%end()
@@ -1642,13 +1643,14 @@ contains
 
   !> Test the muffin tin discontinuity. ilvl = 0: quiet. ilvl = 1:
   !> normal output.  ilvl = 2: verbose output.
-  module subroutine testrmt(f,ilvl,errmsg)
+  module subroutine testrmt(f,ilvl,errmsg,ti)
     use tools_io, only: uout, ferror, warning, string, fopen_write, fclose
     use types, only: scalar_value
     use param, only: pi
     class(field), intent(inout) :: f
     integer, intent(in) :: ilvl
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: n, i, j
     integer :: ntheta, nphi
@@ -1708,7 +1710,7 @@ contains
        if (ilvl > 1) then
           ! write line
           linefile = "plane_" // string(n,2,pad0=.true.) // ".dbg"
-          luplane = fopen_write(linefile)
+          luplane = fopen_write(linefile,ti=ti)
           write (luplane,'("#",A,I3)') " atom: ", n
           write (luplane,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
           write (luplane,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
@@ -1752,7 +1754,7 @@ contains
                    ! write line
                    linefile = "line_" // string(n,2,pad0=.true.) // "_" // string(nt,3,pad0=.true.) //&
                       "_" // string(np,3,pad0=.true.) // ".dbg"
-                   luline = fopen_write(linefile)
+                   luline = fopen_write(linefile,ti=ti)
                    write (luline,'("#",A,I3)') " atom: ", n
                    write (luline,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
                    write (luline,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc

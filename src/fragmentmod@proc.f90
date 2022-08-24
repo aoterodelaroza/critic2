@@ -184,17 +184,18 @@ contains
   end function cmass
 
   !> write an xyz-style file from an array of atomic coordinates.
-  module subroutine writexyz(fr,file,usenames)
+  module subroutine writexyz(fr,file,usenames,ti)
     use tools_io, only: fopen_write, nameguess, fclose
     use param, only: bohrtoa
     class(fragment), intent(in) :: fr
     character*(*), intent(in) :: file
     logical, intent(in) :: usenames
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, lu
 
     ! write it
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,*) fr%nat
     write (lu,*)
     do i = 1, fr%nat
@@ -211,7 +212,7 @@ contains
   end subroutine writexyz
 
   !> Write a cml file (molecule) from an array of atomic coordinates.
-  module subroutine writecml(fr,file,r,luout)
+  module subroutine writecml(fr,file,r,luout,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: pi, bohrtoa
@@ -219,12 +220,13 @@ contains
     character*(*), intent(in) :: file
     real*8, intent(in), optional :: r(3,3)
     integer, intent(out), optional :: luout
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, lu, iz
     real*8 :: g(3,3), aa(3), bb(3), x(3), ri(3,3)
 
     ! write it
-    lu = fopen_write(file)
+    lu = fopen_write(file,ti=ti)
     write (lu,'("<molecule>")')
 
     ! crystal structure
@@ -278,11 +280,12 @@ contains
   end subroutine writecml
 
   !> write an Gaussian-style input file from an array of atomic coordinates.
-  module subroutine writegjf(fr,file)
+  module subroutine writegjf(fr,file,ti)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa
     class(fragment), intent(in) :: fr
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: aux
     integer :: i, lu, isum, iz
@@ -290,7 +293,7 @@ contains
     aux = file
 
     ! write it
-    lu = fopen_write(aux)
+    lu = fopen_write(aux,ti=ti)
     write (lu,'("#p b3lyp sto-3g")')
     write (lu,'("")')
     write (lu,'("title")')

@@ -1333,12 +1333,13 @@ contains
   !> present, file in input is as an absolute path. If errstop is
   !> present, stop the execution if the file could not be opened;
   !> otherwise, return a negative lu. Default is errstop = .true.
-  module function fopen_read(file,form,abspath0,errstop) result(lu)
+  module function fopen_read(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1353,7 +1354,7 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='old',iostat=ios,form=form)
     else
@@ -1370,12 +1371,13 @@ contains
   !> Open a file for reading. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
-  module function fopen_write(file,form,abspath0,errstop) result(lu)
+  module function fopen_write(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1390,7 +1392,7 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='unknown',iostat=ios,form=form)
     else
@@ -1405,12 +1407,13 @@ contains
   end function fopen_write
 
   !> Open a file for appending
-  module function fopen_append(file,form,abspath0,errstop) result(lu)
+  module function fopen_append(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1425,7 +1428,7 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios,form=form)
     else
@@ -1440,9 +1443,10 @@ contains
   end function fopen_append
 
   !> Open a scratch file for writing
-  module function fopen_scratch(form,errstop) result(lu)
+  module function fopen_scratch(form,errstop,ti) result(lu)
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1450,7 +1454,7 @@ contains
 
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        if (lower(form) == "unformatted") then
           open(unit=lu,status='scratch',form=form,access="stream",iostat=ios)
@@ -1478,8 +1482,9 @@ contains
   end subroutine fclose
 
   !> Allocate a logical unit
-  module function falloc()
+  module function falloc(ti)
     integer :: falloc
+    type(thread_info), intent(in), optional :: ti
 
     do falloc = 1, size(alloc)
        if (.not.alloc(falloc)) exit

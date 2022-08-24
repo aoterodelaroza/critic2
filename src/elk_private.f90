@@ -25,6 +25,7 @@
 !> Interface to ELK densities and structures.
 module elk_private
   use environmod, only: environ
+  use types, only: thread_info
   implicit none
 
   private
@@ -57,11 +58,12 @@ module elk_private
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
      end subroutine elkwfn_end
-     module subroutine read_out(f,env,file,file2,file3)
+     module subroutine read_out(f,env,file,file2,file3,ti)
        class(elkwfn), intent(inout) :: f
        type(environ), intent(in), target :: env
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_out
      module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
        class(elkwfn), intent(in) :: f

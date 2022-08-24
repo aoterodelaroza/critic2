@@ -20,7 +20,7 @@ submodule (wien_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine wien_read_struct(f,file)
+  ! subroutine wien_read_struct(f,file,ti)
   ! subroutine readslm(f,lu)
   ! subroutine readk(f,lu)
   ! subroutine gbass(rbas,gbas)
@@ -136,18 +136,19 @@ contains
 
   ! Read a clmsum (file) and struct (file2) file and returns the
   ! wien2k field f.
-  module subroutine read_clmsum(f,file,file2)
+  module subroutine read_clmsum(f,file,file2,ti)
     use tools_io, only: fopen_read, fclose
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ntot, i, j
 
     ! load field data from the struct file and save it in f
-    call wien_read_struct(f,file2)
+    call wien_read_struct(f,file2,ti)
 
     ! read the clmsum
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
 
     call readslm(f,lu)
     call readk(f,lu)
@@ -476,11 +477,12 @@ contains
 
   !> Read the crystal structure from a STRUCT file, with logical unit lut.
   !> Store WIEN2k variables (rmt, etc.) in the module.
-  subroutine wien_read_struct(f,file)
+  subroutine wien_read_struct(f,file,ti)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use param, only: pi
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lut
     character*80 :: titel
@@ -499,7 +501,7 @@ contains
     integer, dimension(:), allocatable :: temp_iatnr
     real*8, dimension(:,:), allocatable :: temp_pos
 
-    lut = fopen_read(file)
+    lut = fopen_read(file,ti=ti)
     READ(lut,102) TITEL
     READ(lut,103) LATTIC,f%NAT,cform
     f%ishlat = (lattic.eq.'H   ')

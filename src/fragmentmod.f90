@@ -20,7 +20,7 @@
 
 ! Molecular fragment class.
 module fragmentmod
-  use types, only: anyatom, species
+  use types, only: anyatom, species, thread_info
   implicit none
 
   private
@@ -64,20 +64,23 @@ module fragmentmod
        logical, intent(in), optional :: weight0
        real*8 :: x(3)
      end function cmass
-     module subroutine writexyz(fr,file,usenames)
+     module subroutine writexyz(fr,file,usenames,ti)
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
        logical, intent(in) :: usenames
+       type(thread_info), intent(in), optional :: ti
      end subroutine writexyz
-     module subroutine writecml(fr,file,r,luout)
+     module subroutine writecml(fr,file,r,luout,ti)
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
        real*8, intent(in), optional :: r(3,3)
        integer, intent(out), optional :: luout
+       type(thread_info), intent(in), optional :: ti
      end subroutine writecml
-     module subroutine writegjf(fr,file)
+     module subroutine writegjf(fr,file,ti)
        class(fragment), intent(in) :: fr
        character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine writegjf
      module subroutine realloc_fragment(a,nnew)
        type(fragment), intent(inout), allocatable :: a(:)

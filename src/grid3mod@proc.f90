@@ -490,12 +490,13 @@ contains
   end subroutine from_array3
 
   !> Read a grid in Gaussian CUBE format
-  module subroutine read_cube(f,file,x2c,env)
+  module subroutine read_cube(f,file,x2c,env,ti)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: nat
@@ -503,7 +504,7 @@ contains
     logical :: ismo
 
     call f%end()
-    luc = fopen_read(file)
+    luc = fopen_read(file,ti=ti)
 
     read (luc,*)
     read (luc,*)
@@ -541,13 +542,14 @@ contains
   end subroutine read_cube
 
   !> Read a grid in binary CUBE format
-  module subroutine read_bincube(f,file,x2c,env)
+  module subroutine read_bincube(f,file,x2c,env,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: nat
@@ -556,7 +558,7 @@ contains
     real*8 :: x0(3), xd(3,3), rdum
 
     call f%end()
-    luc = fopen_read(file,form="unformatted")
+    luc = fopen_read(file,form="unformatted",ti=ti)
 
     read (luc,iostat=istat) nat, x0
     ismo = (nat < 0)
@@ -588,13 +590,14 @@ contains
   end subroutine read_bincube
 
   !> Read a grid in siesta RHO format
-  module subroutine read_siesta(f,file,x2c,env)
+  module subroutine read_siesta(f,file,x2c,env,ti)
     use tools_io, only: fopen_read, faterr, ferror, fclose
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
@@ -609,7 +612,7 @@ contains
     f%mode = mode_default
 
     ! open file
-    luc = fopen_read(file,'unformatted')
+    luc = fopen_read(file,'unformatted',ti=ti)
 
     ! assume unformatted
     read (luc) r
@@ -638,7 +641,7 @@ contains
   end subroutine read_siesta
 
   !> Read a grid in abinit format
-  module subroutine read_abinit(f,file,x2c,env)
+  module subroutine read_abinit(f,file,x2c,env,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use abinit_private, only: hdr_type, hdr_io
@@ -646,6 +649,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: errmsg
     integer :: luc
@@ -654,7 +658,7 @@ contains
     real*8, allocatable :: g(:,:,:)
 
     call f%end()
-    luc = fopen_read(file,'unformatted')
+    luc = fopen_read(file,'unformatted',ti=ti)
 
     ! read the header
     call hdr_io(fform0,hdr,1,luc,errmsg)
@@ -686,7 +690,7 @@ contains
   !> density * omega). In CHGCAR containing more than one grid block,
   !> ibl can be used to choose which block to read (density, spin
   !> density, etc.). If vscal, scale by volume.
-  module subroutine read_vasp(f,file,x2c,vscal,ibl,env)
+  module subroutine read_vasp(f,file,x2c,vscal,ibl,env,ti)
     use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
        isinteger
@@ -696,6 +700,7 @@ contains
     logical, intent(in) :: vscal
     integer, intent(in), optional :: ibl
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: istat, n(3), i, j, k, ibcur, nnew(3)
@@ -703,7 +708,7 @@ contains
     logical :: ok
 
     call f%end()
-    luc = fopen_read(file)
+    luc = fopen_read(file,ti=ti)
 
     do while(.true.)
        ok = getline_raw(luc,line,.true.)
@@ -752,19 +757,20 @@ contains
   end subroutine read_vasp
 
   !> Read a grid in aimpac qub format
-  module subroutine read_qub(f,file,x2c,env)
+  module subroutine read_qub(f,file,x2c,env,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: istat, n(3), i, j, k
 
     call f%end()
-    luc = fopen_read(file)
+    luc = fopen_read(file,ti=ti)
 
     read (luc,*,iostat=istat) n
     if (istat /= 0) &
@@ -787,7 +793,7 @@ contains
   end subroutine read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  module subroutine read_xsf(f,file,x2c,env)
+  module subroutine read_xsf(f,file,x2c,env,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
        fclose
@@ -796,6 +802,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: istat, n(3), lp, i, j, k
@@ -808,7 +815,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file)
+    luc = fopen_read(file,ti=ti)
 
     ! position at the beginning of the first grid, ignore the rest
     found = .false.
@@ -877,7 +884,7 @@ contains
   !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
   !> ikpt = use only the indicated k-points. ibnd = use only the
   !> indicated bands. emin,emax: only the bands in the energy range.
-  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env)
+  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,ti)
     use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, fclose, ferror, faterr
     class(grid3), intent(inout) :: f
@@ -888,6 +895,7 @@ contains
     real*8, intent(in) :: emin, emax
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, is, ik, ib, iver, n(3)
     integer :: luc
@@ -905,7 +913,7 @@ contains
     f%iswan = .false.
 
     ! open file
-    luc = fopen_read(fpwc,form="unformatted")
+    luc = fopen_read(fpwc,form="unformatted",ti=ti)
 
     ! header and lattice vectors
     read (luc) iver ! version
@@ -1036,13 +1044,14 @@ contains
   end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  module subroutine read_elk(f,file,x2c,env)
+  module subroutine read_elk(f,file,x2c,env,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, ferror, faterr, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luc, ios
     integer :: n(3), i, j, k
@@ -1051,7 +1060,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file)
+    luc = fopen_read(file,ti=ti)
 
     ! grid dimension
     read (luc,*,iostat=ios) n
@@ -1083,13 +1092,14 @@ contains
   !> Reads information from a wannier90 checkpoint file (.chk). Sets
   !> the wannier information in the qe field only (center, spread, u).
   !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
-  module subroutine read_wannier_chk(f,fileup,filedn)
+  module subroutine read_wannier_chk(f,fileup,filedn,ti)
     use tools_math, only: matinv
     use tools_io, only: faterr, ferror, uout, fopen_read, fclose
     use param, only: bohrtoa
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fileup
     character*(*), intent(in), optional :: filedn
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu(2)
     character(len=33) :: header
@@ -1119,9 +1129,9 @@ contains
     nspin = f%qe%nspin
 
     ! open files and initialize
-    lu(1) = fopen_read(fileup,form="unformatted")
+    lu(1) = fopen_read(fileup,form="unformatted",ti=ti)
     if (nspin == 2) &
-       lu(2) = fopen_read(filedn,form="unformatted")
+       lu(2) = fopen_read(filedn,form="unformatted",ti=ti)
 
     ! header and number of bands
     do is = nspin, 1, -1
@@ -1544,12 +1554,13 @@ contains
   !> pwc files, which remain open. luevc_ibnd keeps track of the next
   !> band in the LU (returns 1 for both spins). If useu is false, do
   !> not rotate the coefficients (but still write the scratch files).
-  module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu)
+  module subroutine rotate_qe_evc(f,luevc,luevc_ibnd,useu,ti)
     use tools_io, only: fopen_scratch, string, fopen_read, fclose
     class(grid3), intent(inout) :: f
     integer, intent(out) :: luevc(2)
     integer, intent(out) :: luevc_ibnd(2)
     logical, intent(in) :: useu
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, ik, ibnd, jbnd, luc, ireg
     complex*16, allocatable :: evc(:), evcnew(:)
@@ -1557,7 +1568,7 @@ contains
     luevc = -1
     luevc_ibnd = 0
 
-    luc = fopen_read(f%qe%fpwc,form="unformatted")
+    luc = fopen_read(f%qe%fpwc,form="unformatted",ti=ti)
 
     ! skip the header of the pwc file
     if (f%qe%gamma_only) then
@@ -1569,7 +1580,7 @@ contains
     allocate(evc(maxval(f%qe%ngk(1:f%qe%nks))),evcnew(maxval(f%qe%ngk(1:f%qe%nks))))
 
     do i = 1, f%qe%nspin
-       luevc(i) = fopen_scratch(form="unformatted")
+       luevc(i) = fopen_scratch(form="unformatted",ti=ti)
     end do
     do ibnd = 1, f%qe%nbnd
        rewind(luc)
@@ -1723,7 +1734,7 @@ contains
   !> function for lattice vector inr in cell grid fout. This version
   !> works on its own (c.f. get_qe_wnr) and is therefore slower. omega
   !> is the cell volume (used for normalization).
-  module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout)
+  module subroutine get_qe_wnr_standalone(f,omega,ibnd,ispin,inr,rotate,fout,ti)
     use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
@@ -1733,6 +1744,7 @@ contains
     integer, intent(in) :: inr(3)
     logical, intent(in) :: rotate
     complex*16, intent(out) :: fout(:,:,:)
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, k, is, ik, jbnd, luc, ireg
     complex*16, allocatable :: evcaux(:), evc(:,:), rseq(:), raux(:,:,:)
@@ -1744,7 +1756,7 @@ contains
        call ferror("get_qe_wnr_standalone","wannier transformation only possible with uniform grids (no symmetry)",faterr)
 
     ! open the pwc file
-    luc = fopen_read(f%qe%fpwc,form="unformatted")
+    luc = fopen_read(f%qe%fpwc,form="unformatted",ti=ti)
 
     ! skip the header of the pwc file
     if (f%qe%gamma_only) then
@@ -1824,7 +1836,7 @@ contains
   !> ik, and spin ispin from QEs Bloch coefficients, standalone
   !> version. Returns the unk(r) in cell grid fout. omega is the cell
   !> volume (used for normalization).
-  module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout)
+  module subroutine get_qe_psink_standalone(f,omega,ibnd,ik,ispin,usephase,inr,fout,ti)
     use tools_io, only: fopen_read, fopen_scratch, fclose, ferror, faterr
     use param, only: tpi, img
     class(grid3), intent(in) :: f
@@ -1835,6 +1847,7 @@ contains
     logical :: usephase
     integer, intent(in) :: inr(3)
     complex*16, intent(out) :: fout(:,:,:)
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, k, is, ik_, jbnd, luc, ireg
     complex*16, allocatable :: evc(:), evcaux(:), rseq(:)
@@ -1844,7 +1857,7 @@ contains
        call ferror("get_qe_psink_standalone","inconsistent grid size",faterr)
 
     ! open the pwc file
-    luc = fopen_read(f%qe%fpwc,form="unformatted")
+    luc = fopen_read(f%qe%fpwc,form="unformatted",ti=ti)
 
     ! skip the header of the pwc file
     if (f%qe%gamma_only) then
