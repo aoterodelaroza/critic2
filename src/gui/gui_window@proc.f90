@@ -712,7 +712,7 @@ contains
          call igSameLine(0._c_float,-1._c_float)
 
          ! right click to open the context menu
-         if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+         if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
             ! remove option
             strpop = "Remove" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
@@ -740,13 +740,13 @@ contains
          ! delayed tooltip with info about the system
          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
             if (bclose) then
-               str = "Close this system" // c_null_char
+               strl = "Close this system" // c_null_char
             elseif (bexpand) then
-               str = "Expand this system" // c_null_char
+               strl = "Expand this system" // c_null_char
             else
-               str = tree_tooltip_string(isys)
+               strl = tree_tooltip_string(isys)
             end if
-            call igSetTooltip(c_loc(str))
+            call igSetTooltip(c_loc(strl))
          end if
       end if
       str = str // c_null_char
