@@ -65,7 +65,8 @@ module gui_window
      ! opendialog procedures
      procedure :: draw_opendialog
      ! console procedures
-     procedure :: draw_console
+     procedure :: draw_console_input
+     procedure :: draw_console_output
   end type window
   public :: window
 
@@ -73,14 +74,16 @@ module gui_window
   integer, public :: nwin
   type(window), allocatable, target, public :: win(:)
   integer, public :: iwin_tree
-  integer, public :: iwin_console
+  integer, public :: iwin_console_input
+  integer, public :: iwin_console_output
   integer, public :: iwin_view
 
   ! window types
   integer, parameter, public :: wintype_tree = 1
   integer, parameter, public :: wintype_view = 2
-  integer, parameter, public :: wintype_console = 3
-  integer, parameter, public :: wintype_opendialog = 4
+  integer, parameter, public :: wintype_console_input = 3
+  integer, parameter, public :: wintype_console_output = 4
+  integer, parameter, public :: wintype_opendialog = 5
 
   ! routines to manipulate the window stack
   public :: stack_create_window
@@ -115,9 +118,12 @@ module gui_window
      module subroutine draw_opendialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_opendialog
-     module subroutine draw_console(w)
+     module subroutine draw_console_input(w)
        class(window), intent(inout), target :: w
-     end subroutine draw_console
+     end subroutine draw_console_input
+     module subroutine draw_console_output(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_console_output
   end interface
 
 end module gui_window

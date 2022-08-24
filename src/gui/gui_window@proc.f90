@@ -158,8 +158,11 @@ contains
        elseif (w%type == wintype_view) then
           w%name = "View" // c_null_char
           w%flags = ImGuiWindowFlags_None
-       elseif (w%type == wintype_console) then
-          w%name = "Console" // c_null_char
+       elseif (w%type == wintype_console_input) then
+          w%name = "Input Console" // c_null_char
+          w%flags = ImGuiWindowFlags_None
+       elseif (w%type == wintype_console_output) then
+          w%name = "Output Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_opendialog) then
           w%name = "Open File(s)..." // c_null_char
@@ -197,7 +200,8 @@ contains
     end if
 
     if (w%isopen) then
-       if (w%type == wintype_tree .or. w%type == wintype_console .or. w%type == wintype_view) then
+       if (w%type == wintype_tree .or. w%type == wintype_console_input .or.&
+          w%type == wintype_console_output .or. w%type == wintype_view) then
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              ! assign the pointer ID for the window, if not a dialog
              w%ptr = igGetCurrentWindow()
@@ -208,8 +212,10 @@ contains
              elseif (w%type == wintype_view) then
                 str1 = "Hello View!"
                 call igText(c_loc(str1))
-             elseif (w%type == wintype_console) then
-                call w%draw_console()
+             elseif (w%type == wintype_console_input) then
+                call w%draw_console_input()
+             elseif (w%type == wintype_console_output) then
+                call w%draw_console_output()
              end if
           end if
           call igEnd()
@@ -1024,17 +1030,15 @@ contains
 
   end subroutine draw_opendialog
 
-  !> Draw the contents of a tree window
-  module subroutine draw_console(w)
+  !> Draw the contents of the output console
+  module subroutine draw_console_output(w)
     use gui_main, only: g, HighlightText
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: savail, sz, wp, zero
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(ImVec2) :: sz, zero
     logical(c_bool) :: ldum
-    integer(c_int) :: flags, flagsml_left, flagsml_right
-    character(kind=c_char,len=:), allocatable, target :: buffer
-    integer(c_size_t) :: buflen
+    logical :: doscroll
     ! the output buffer
     character(kind=c_char,len=:), allocatable, target, save :: outputb
     integer(c_size_t), save :: lob = 0
@@ -1043,56 +1047,39 @@ contains
     ! read new output, if available
     call read_output_unit()
 
-    ! calculate sizes and flags
-    call igGetContentRegionAvail(savail)
-    wp = g%Style%WindowPadding
-    sz%x = (savail%x-wp%x) * 0.5
-    sz%y = savail%y
-    flags = ImGuiWindowFlags_AlwaysUseWindowPadding
-    flagsml_left = ImGuiInputTextFlags_None
-    flagsml_right = ImGuiInputTextFlags_ReadOnly
+    ! calculate sizes
+    call igGetContentRegionAvail(sz)
+    sz%y = sz%y - igGetTextLineHeightWithSpacing()
+    zero%x = 0._c_float
+    zero%y = 0._c_float
 
-    ! !!! left child: input !!!
-    str1 = "childleft" // c_null_char
-    ldum = igBeginChild_Str(c_loc(str1),sz,.true._c_bool,flags)
-
-    str1 = "Input" // c_null_char
-    call igTextColored(HighlightText,c_loc(str1))
-
-    allocate(character(len=2049) :: buffer)
-    buffer(1:22) = "This is a sample text" // c_null_char
-    buflen = len(buffer)
-    str1 = "##leftmultiline"
-    ldum = igInputTextMultiline(c_loc(str1),c_loc(buffer),buflen,zero,flagsml_left,c_null_ptr,c_null_ptr)
-
-    call igEndChild()
-    ! !!! end of left child !!!
-
-    call igSameLine(0._c_float,-1._c_float)
-
-    ! !!! right child: output !!!
-    str1 = "childright" // c_null_char
-    ldum = igBeginChild_Str(c_loc(str1),sz,.true._c_bool,flags)
-
+    ! write content
     str1 = "Output" // c_null_char
     call igTextColored(HighlightText,c_loc(str1))
 
-    str2 = "##rightmultiline"
-    ldum = igInputTextMultiline(c_loc(str2),c_loc(outputb),lob,zero,flagsml_right,c_null_ptr,c_null_ptr)
+    str1 = "##outputmultiline" // c_null_char
+    ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
 
-    call igEndChild()
-    ! !!! end of right child !!!
+    ! auto-scroll to the end if we have new output
+    if (doscroll) then
+       ldum = igBeginChild_Str(c_loc(str1),zero,.false._c_bool,ImGuiWindowFlags_None)
+       call igSetScrollHereY(1._c_float)
+       call igEndChild()
+    end if
 
   contains
     ! read new output from the scratch LU uout
     subroutine read_output_unit()
       use gui_main, only: are_threads_running
-      use tools_io, only: uout, getline_raw, ferror, faterr
+      use tools_io, only: uout, getline_raw
 
       character(len=:), allocatable :: line
       integer(c_size_t) :: pos, lshift, ll
       integer :: idx
       logical :: ok
+
+      ! do not scroll for now
+      doscroll = .false.
 
       ! allocate the output buffer if not allocated
       if (.not.allocated(outputb)) then
@@ -1148,10 +1135,45 @@ contains
          end do
          outputb(lob+1:lob+1) = c_null_char
          rewind(uout)
+
+         ! scroll to keep up with the new output
+         doscroll = .true.
       end if
 
     end subroutine read_output_unit
-  end subroutine draw_console
+  end subroutine draw_console_output
+
+  !> Draw the contents of the input console
+  module subroutine draw_console_input(w)
+    use gui_main, only: g, HighlightText
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(ImVec2) :: sz
+    logical(c_bool) :: ldum
+    ! the input buffer
+    character(kind=c_char,len=:), allocatable, target, save :: inputb
+    integer(c_size_t) :: lib
+    integer(c_size_t), parameter :: maxlib = 40000
+
+    ! allocate the input buffer if not already done
+    if (.not.allocated(inputb)) then
+       allocate(character(len=maxlib+1) :: inputb)
+       inputb(1:1) = c_null_char
+    end if
+
+    ! calculate sizes
+    call igGetContentRegionAvail(sz)
+    sz%y = sz%y - igGetTextLineHeightWithSpacing()
+
+    ! write content
+    str1 = "Input" // c_null_char
+    call igTextColored(HighlightText,c_loc(str1))
+
+    str1 = "##inputmultiline" // c_null_char
+    ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
+
+  end subroutine draw_console_input
 
   !xx! private procedures
 

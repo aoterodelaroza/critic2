@@ -417,6 +417,8 @@ contains
 
     call s%init()
     call s%c%struct_new(seed,.true.,ti=ti)
+    ! ! xxxx
+    ! call s%c%report(.true.,.false.)
 
     if (s%c%isinit) then
        s%isinit = .true.

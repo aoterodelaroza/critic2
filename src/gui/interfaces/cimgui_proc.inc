@@ -88,7 +88,7 @@ function igBeginChild_Str(str_id,size,border,flags) bind(c,name="igBeginChild_St
   integer(c_int), value :: flags
   logical(c_bool) :: igBeginChild_Str
 end function igBeginChild_Str
-!x! bool igBeginChild_ID(ImGuiID id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
+!xx! bool igBeginChild_ID(ImGuiID id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
 ! void igEndChild(void);
 subroutine igEndChild() bind(c,name="igEndChild")
 end subroutine igEndChild
@@ -156,8 +156,16 @@ end function igGetScrollY
 !x! void igSetScrollY_Float(float scroll_y);
 !x! float igGetScrollMaxX(void);
 !x! float igGetScrollMaxY(void);
-!x! void igSetScrollHereX(float center_x_ratio);
-!x! void igSetScrollHereY(float center_y_ratio);
+! void igSetScrollHereX(float center_x_ratio);
+subroutine igSetScrollHereX(center_x_ratio) bind(c,name="igSetScrollHereX")
+  import c_float
+  real(c_float), value :: center_x_ratio
+end subroutine igSetScrollHereX
+! void igSetScrollHereY(float center_y_ratio);
+subroutine igSetScrollHereY(center_y_ratio) bind(c,name="igSetScrollHereY")
+  import c_float
+  real(c_float), value :: center_y_ratio
+end subroutine igSetScrollHereY
 !x! void igSetScrollFromPosX_Float(float local_x,float center_x_ratio);
 !x! void igSetScrollFromPosY_Float(float local_y,float center_y_ratio);
 !x! void igPushFont(ImFont* font);
@@ -266,7 +274,11 @@ end subroutine igDummy
 ! void igAlignTextToFramePadding(void);
 subroutine igAlignTextToFramePadding() bind(c,name="igAlignTextToFramePadding")
 end subroutine igAlignTextToFramePadding
-!x! float igGetTextLineHeight(void);
+! float igGetTextLineHeight(void);
+function igGetTextLineHeight() bind(c,name="igGetTextLineHeight")
+  import c_float
+  real(c_float) :: igGetTextLineHeight
+end function igGetTextLineHeight
 ! float igGetTextLineHeightWithSpacing(void);
 function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSpacing")
   import c_float

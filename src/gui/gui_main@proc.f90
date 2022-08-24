@@ -50,13 +50,14 @@ contains
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
-    use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console,&
-       iwin_tree, iwin_view, iwin_console, stack_create_window
+    use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
+       wintype_console_output, iwin_tree, iwin_view, iwin_console_input,&
+       iwin_console_output, stack_create_window
     use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use omp_lib, only: omp_get_max_threads
-    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
+    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom, ileft2, iright2
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc, pdum
     logical(c_bool) :: ldum, show_demo_window
@@ -165,7 +166,8 @@ contains
     ! initialize the window stack with the toggle-able windows (open, for now)
     iwin_tree = stack_create_window(wintype_tree,.true.)
     iwin_view = stack_create_window(wintype_view,.true.)
-    iwin_console = stack_create_window(wintype_console,.true.)
+    iwin_console_input = stack_create_window(wintype_console_input,.true.)
+    iwin_console_output = stack_create_window(wintype_console_output,.true.)
 
     ! main loop
     show_demo_window = .true.
@@ -198,10 +200,12 @@ contains
        if (firstpass) then
           ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.25_c_float, idum, iright)
           ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
+          ileft2 = igDockBuilderSplitNode(ibottom, ImGuiDir_Left, 0.4_c_float, idum, iright2)
 
           call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
-          call igDockBuilderDockWindow(c_loc(win(iwin_console)%name), ibottom)
+          call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft2)
+          call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), iright2)
           call igDockBuilderFinish(iddock);
        end if
 
@@ -535,8 +539,8 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use gui_interfaces_cimgui
-    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console, stack_create_window,&
-       wintype_opendialog
+    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
+       iwin_console_output, stack_create_window, wintype_opendialog
     use gui_utils, only: igIsItemHovered_delayed
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -616,12 +620,22 @@ contains
              ttshown(2) = .true.
           end if
 
-          ! File -> Console
-          str1 = "Console" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console)%isopen,.true._c_bool)) &
-             win(iwin_console)%isopen = .not.win(iwin_console)%isopen
+          ! File -> Input Console
+          str1 = "Input Console" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
+             win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
           if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
-             str1 = "Toggle the Console window" // c_null_char
+             str1 = "Toggle the Input Console window" // c_null_char
+             call igSetTooltip(c_loc(str1))
+             ttshown(2) = .true.
+          end if
+
+          ! File -> Output Console
+          str1 = "Output Console" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
+             win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
+             str1 = "Toggle the Output Console window" // c_null_char
              call igSetTooltip(c_loc(str1))
              ttshown(2) = .true.
           end if
