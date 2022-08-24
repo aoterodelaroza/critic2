@@ -79,9 +79,19 @@ end function igBegin
 ! void igEnd(void);
 subroutine igEnd() bind(c,name="igEnd")
 end subroutine igEnd
-!x! bool igBeginChild_Str(const char* str_id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
+! bool igBeginChild_Str(const char* str_id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
+function igBeginChild_Str(str_id,size,border,flags) bind(c,name="igBeginChild_Str")
+  import c_ptr, ImVec2, c_bool, c_int
+  type(c_ptr), intent(in), value :: str_id
+  type(ImVec2), intent(in), value :: size
+  logical(c_bool), value :: border
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginChild_Str
+end function igBeginChild_Str
 !x! bool igBeginChild_ID(ImGuiID id,const ImVec2 size,bool border,ImGuiWindowFlags flags);
-!x! void igEndChild(void);
+! void igEndChild(void);
+subroutine igEndChild() bind(c,name="igEndChild")
+end subroutine igEndChild
 !x! bool igIsWindowAppearing(void);
 !x! bool igIsWindowCollapsed(void);
 ! bool igIsWindowFocused(ImGuiFocusedFlags flags);
@@ -395,7 +405,18 @@ function igInputText(label,buf,buf_size,flags,callback,user_data) bind(c,name="i
   type(c_ptr), value :: user_data
   logical(c_bool) :: igInputText
 end function igInputText
-!x! bool igInputTextMultiline(const char* label,char* buf,size_t buf_size,const ImVec2 size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
+! bool igInputTextMultiline(const char* label,char* buf,size_t buf_size,const ImVec2 size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
+function igInputTextMultiline(label,buf,buf_size,size,flags,callback,user_data) bind(c,name="igInputTextMultiline")
+  import c_ptr, c_size_t, ImVec2, c_int, c_funptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  type(c_ptr), value :: buf
+  integer(c_size_t), value :: buf_size
+  type(ImVec2), value :: size
+  integer(c_int), value :: flags
+  type(c_funptr), value :: callback
+  type(c_ptr), value :: user_data
+  logical(c_bool) :: igInputTextMultiline
+end function igInputTextMultiline
 !x! bool igInputTextWithHint(const char* label,const char* hint,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 !x! bool igInputFloat(const char* label,float* v,float step,float step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputFloat2(const char* label,float v[2],const char* format,ImGuiInputTextFlags flags);

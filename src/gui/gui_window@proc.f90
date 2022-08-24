@@ -199,19 +199,17 @@ contains
     if (w%isopen) then
        if (w%type == wintype_tree .or. w%type == wintype_console .or. w%type == wintype_view) then
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
-             ! draw the window contents, depending on type
              ! assign the pointer ID for the window, if not a dialog
+             w%ptr = igGetCurrentWindow()
+
+             ! draw the window contents, depending on type
              if (w%type == wintype_tree) then
-                w%ptr = igGetCurrentWindow()
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
-                w%ptr = igGetCurrentWindow()
                 str1 = "Hello View!"
                 call igText(c_loc(str1))
              elseif (w%type == wintype_console) then
-                w%ptr = igGetCurrentWindow()
-                str1 = "Hello Console!"
-                call igText(c_loc(str1))
+                call w%draw_console()
              end if
           end if
           call igEnd()
@@ -1026,6 +1024,65 @@ contains
 
   end subroutine draw_opendialog
 
+  !> Draw the contents of a tree window
+  module subroutine draw_console(w)
+    use gui_main, only: g, HighlightText
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: savail, sz, wp, zero
+    logical(c_bool) :: ldum
+    integer(c_int) :: flags, flagsml_left, flagsml_right
+    character(kind=c_char,len=:), allocatable, target :: buffer
+    integer(c_size_t) :: buflen
+    character(kind=c_char,len=:), allocatable, target :: buffer2
+    integer(c_size_t) :: buflen2
+
+    ! calculate sizes and flags
+    call igGetContentRegionAvail(savail)
+    wp = g%Style%WindowPadding
+    sz%x = (savail%x-wp%x) * 0.5
+    sz%y = savail%y
+    flags = ImGuiWindowFlags_AlwaysUseWindowPadding
+    flagsml_left = ImGuiInputTextFlags_None
+    flagsml_right = ImGuiInputTextFlags_ReadOnly
+
+    ! !!! left child: input !!!
+    str1 = "childleft" // c_null_char
+    ldum = igBeginChild_Str(c_loc(str1),sz,.true._c_bool,flags)
+
+    str1 = "Input" // c_null_char
+    call igTextColored(HighlightText,c_loc(str1))
+
+    allocate(character(len=2049) :: buffer)
+    buffer(1:22) = "This is a sample text" // c_null_char
+    buflen = len(buffer)
+    str1 = "##leftmultiline"
+    ldum = igInputTextMultiline(c_loc(str1),c_loc(buffer),buflen,zero,flagsml_left,c_null_ptr,c_null_ptr)
+
+    call igEndChild()
+    ! !!! end of left child !!!
+
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! !!! right child: output !!!
+    str1 = "childright" // c_null_char
+    ldum = igBeginChild_Str(c_loc(str1),sz,.true._c_bool,flags)
+
+    str1 = "Output" // c_null_char
+    call igTextColored(HighlightText,c_loc(str1))
+
+    allocate(character(len=2049) :: buffer2)
+    buffer2(1:22) = "This is a sample text" // c_null_char
+    buflen2 = len(buffer2)
+    str2 = "##rightmultiline"
+    ldum = igInputTextMultiline(c_loc(str2),c_loc(buffer2),buflen2,zero,flagsml_right,c_null_ptr,c_null_ptr)
+
+    call igEndChild()
+    ! !!! end of right child !!!
+
+  end subroutine draw_console
+
   !xx! private procedures
 
   ! Return the string for the tooltip shown by the tree window,
@@ -1168,7 +1225,7 @@ contains
 
   ! the callback for the right-hand-side pane of the opendialog
   subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
-    use gui_main, only: DialogDir, tooltip_delay
+    use gui_main, only: HighlightText, tooltip_delay
     use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -1185,7 +1242,7 @@ contains
 
     ! header
     str = "Open Options" // c_null_char
-    call igTextColored(DialogDir,c_loc(str))
+    call igTextColored(HighlightText,c_loc(str))
 
     ! show hidden files
     str = "Show hidden files" // c_null_char
@@ -1210,7 +1267,7 @@ contains
 
     ! radio buttons for auto/crystal/molecule
     str = "Read structures as..." // c_null_char
-    call igTextColored(DialogDir,c_loc(str))
+    call igTextColored(HighlightText,c_loc(str))
     str = "Auto-detect" // c_null_char
     ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1233,7 +1290,7 @@ contains
 
     ! Input structure format (isformat)
     str = "Read file format" // c_null_char
-    call igTextColored(DialogDir,c_loc(str))
+    call igTextColored(HighlightText,c_loc(str))
     str = "##formatcombo" // c_null_char
     stropt = "" &
        // "Auto-detect" // c_null_char &             ! isformat_unknown = 0

@@ -46,6 +46,7 @@ module gui_main
   type(ImVec4), parameter, public :: TableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.3)  ! tree table name cell, 1d crystal
   type(ImVec4), parameter, public :: DialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: DialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
+  type(ImVec4), parameter, public :: HighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
 
   ! systems arrays
   integer, parameter, public :: sys_empty = 0

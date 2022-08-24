@@ -64,6 +64,8 @@ module gui_window
      procedure :: sort_tree
      ! opendialog procedures
      procedure :: draw_opendialog
+     ! console procedures
+     procedure :: draw_console
   end type window
   public :: window
 
@@ -113,6 +115,9 @@ module gui_window
      module subroutine draw_opendialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_opendialog
+     module subroutine draw_console(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_console
   end interface
 
 end module gui_window

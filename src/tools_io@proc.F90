@@ -59,6 +59,7 @@ contains
     integer :: argc, idx
     character(len=arglen) :: argv, aux
     logical :: local
+    integer :: ios
 
     ! initialize the alloc array
     call lualloc_init()
@@ -139,9 +140,13 @@ contains
 
     ! the gui imposes a few restrictions
     if (usegui) then
-       interactive = .true.
-       ucopy = -1
-       uroot = "gui"
+       interactive = .true. ! to not crash on syntax ferror
+       ucopy = -1           ! do not copy errors and warnings
+       uroot = "gui"        ! the root is "gui"
+       uout = falloc()      ! write to a formatted stream scratch file
+       open(unit=uout,status='scratch',form='formatted',access='stream',iostat=ios)
+       if (ios /= 0) &
+          call ferror("stdargs","cannot open buffer for critic2 output",faterr)
     end if
 
   end subroutine stdargs
