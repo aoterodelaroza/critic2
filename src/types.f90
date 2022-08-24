@@ -76,6 +76,7 @@ module types
   type thread_info
      integer :: id ! the ID for the thread
      integer :: lu(4) ! logical units, for opening files
+     logical :: active = .false. ! whether the thread is active
   end type thread_info
 
   !> Atomic species

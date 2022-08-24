@@ -719,7 +719,7 @@ contains
     ok = .true.
     do while(.true.)
        read(u,'(A)',advance="no",iostat=ios,size=nread) aux
-       line = line(1:len(line)) // aux
+       line = line(1:len(line)) // aux(1:nread)
        ok = .not.is_iostat_end(ios)
        if (is_iostat_eor(ios) .or. is_iostat_end(ios)) exit
     end do
@@ -1555,6 +1555,7 @@ contains
     if (errortype.eq.faterr) then
        !$omp critical (IO)
        write (uout,100) trim(chtype),trim(routine), trim(message)
+       write (*,100) trim(chtype),trim(routine), trim(message)
        !$omp end critical (IO)
        if (present(syntax)) then
           if (syntax .and. interactive) return

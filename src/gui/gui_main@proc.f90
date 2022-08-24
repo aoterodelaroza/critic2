@@ -284,6 +284,12 @@ contains
 
   end subroutine kill_initialization_thread
 
+  ! Returns .true. if there are any initialization threads running
+  module function are_threads_running()
+    logical :: are_threads_running
+    are_threads_running = any(thread_ti(1:nthread)%active)
+  end function are_threads_running
+
   ! Re-write the seed names from the full-path names to remove as much
   ! of the prefixes as possible
   module subroutine system_shorten_names()
@@ -631,7 +637,8 @@ contains
     if (launchopen) &
        idopendialog = stack_create_window(wintype_opendialog,.true.)
     if (launchquit) then
-       call kill_initialization_thread()
+       if (are_threads_running()) &
+          call kill_initialization_thread()
        call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
     end if
 
@@ -653,6 +660,7 @@ contains
 
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
+    ti%active = .true.
 
     ! run over systems
     i0 = 1
@@ -697,6 +705,7 @@ contains
        end if
     end do
     initialization_thread_worker = 0
+    ti%active = .false.
 
   end function initialization_thread_worker
 

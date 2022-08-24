@@ -72,6 +72,7 @@ module gui_main
   public :: gui_start
   public :: launch_initialization_thread
   public :: kill_initialization_thread
+  public :: are_threads_running
   public :: system_shorten_names
   public :: add_systems_from_name
   public :: remove_system
@@ -83,6 +84,9 @@ module gui_main
      end subroutine launch_initialization_thread
      module subroutine kill_initialization_thread()
      end subroutine kill_initialization_thread
+     module function are_threads_running()
+       logical :: are_threads_running
+     end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly)

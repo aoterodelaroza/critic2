@@ -1086,26 +1086,66 @@ contains
   contains
     ! read new output from the scratch LU uout
     subroutine read_output_unit()
-      use tools_io, only: uout, getline_raw
+      use gui_main, only: are_threads_running
+      use tools_io, only: uout, getline_raw, ferror, faterr
 
       character(len=:), allocatable :: line
-      integer*8 :: pos
-      integer :: ll
+      integer(c_size_t) :: pos, lshift, ll, sum
+      integer :: idx
+      logical :: ok
 
       ! allocate the output buffer if not allocated
-      if (.not.allocated(outputb)) &
+      if (.not.allocated(outputb)) then
          allocate(character(len=maxlob+1) :: outputb)
+         outputb(1:1) = c_null_char
+         lob = 0
+      end if
 
+      ! do not read if initialization threads are still running (may generate output)
+      if (are_threads_running()) return
+
+      ! get size of the new output
       inquire(uout,pos=pos)
       if (pos > 1) then
          ! there is new output, rewind, read it, and rewind again
+
+         ! I am going to need pos-1 new characters
+         ll = pos-1
          rewind(uout)
+
+         ! do not have enough room to accomodate this much output = discard new text
+         sum = 0
          do while(getline_raw(uout,line))
-            ll = len_trim(line)
-            outputb(lob+1:lob+ll) = line(1:ll)
-            lob = lob + ll
+            sum = sum + len(line) + 1
+            ll = ll - (len(line)+1)
+            if (ll <= maxlob) exit
+         end do
+
+         ! check whether we can accomodate the new text = discard from the beginning
+         if (lob + ll > maxlob) then
+            lshift = maxlob - ll - lob
+            outputb(1:lob-lshift) = outputb(lshift+1:lob)
+            lob = lob - lshift
+            ! adjust to the next newline
+            idx = index(outputb,new_line('a'))
+            if (idx == 0) then
+               lob = 0
+            else
+               outputb(1:lob-idx) = outputb(idx+1:lob)
+               lob = lob - idx
+            end if
+         end if
+
+         ! read the new output and rewind
+         do while(getline_raw(uout,line))
+            ll = len(line)
+            if (ll > 0) then
+               outputb(lob+1:lob+ll) = line(1:ll)
+               lob = lob + ll
+            end if
             outputb(lob+1:lob+1) = new_line('a')
             lob = lob + 1
+            inquire(uout,pos=pos)
          end do
          outputb(lob+1:lob+1) = c_null_char
          rewind(uout)
