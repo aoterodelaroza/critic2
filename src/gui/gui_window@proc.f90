@@ -226,8 +226,8 @@ contains
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
     use gui_utils, only: igIsItemHovered_delayed
-    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
-       sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
+    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
+       sys_loaded_not_init, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread, kill_initialization_thread,&
        system_shorten_names, remove_system, tooltip_delay
@@ -400,14 +400,12 @@ contains
        end do
        deallocate(w%forceremove)
        ! restart initialization if any system remains to be initialized
-       if (any(sysc(1:nsys)%status == sys_loaded_not_init) .or.&
-          any(sysc(1:nsys)%status == sys_loaded_not_init_hidden)) then
-          call launch_initialization_thread()
-       end if
+       if (any(sysc(1:nsys)%status == sys_loaded_not_init)) w%forceinit = .true.
     end if
     if (w%forceupdate) call w%update_tree()
     if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
     if (w%forceinit) then
+       call kill_initialization_thread()
        call launch_initialization_thread()
        w%forceinit = .false.
     end if
@@ -517,8 +515,7 @@ contains
        ! draw the rows
        do j = 1, nshown
           i = w%iord(j)
-          if (sysc(i)%status == sys_empty .or. sysc(i)%status == sys_loaded_not_init_hidden.or.&
-             sysc(i)%status == sys_init_hidden) cycle
+          if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
           if (c_associated(cfilter)) then
              str = trim(sysc(i)%seed%name) // c_null_char
              if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
@@ -776,11 +773,9 @@ contains
       if (sysc(i)%status == sys_empty) return
       if (sysc(i)%collapse /= -1) return
       do k = 1, nsys
-         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init_hidden) then
-            w%forceinit = .true.
-            sysc(k)%status = sys_loaded_not_init
-         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init_hidden) then
-            sysc(k)%status = sys_init
+         if (sysc(k)%collapse == i) then
+            if (sysc(k)%status == sys_loaded_not_init) w%forceinit = .true.
+            sysc(k)%hidden = .false.
          end if
       end do
       sysc(i)%collapse = -2
@@ -797,11 +792,7 @@ contains
       if (sysc(i)%status == sys_empty) return
       if (sysc(i)%collapse /= -2) return
       do k = 1, nsys
-         if (sysc(k)%collapse == i.and.sysc(k)%status == sys_loaded_not_init) then
-            sysc(k)%status = sys_loaded_not_init_hidden
-         elseif (sysc(k)%collapse == i.and.sysc(k)%status == sys_init) then
-            sysc(k)%status = sys_init_hidden
-         end if
+         if (sysc(k)%collapse == i) sysc(k)%hidden = .true.
       end do
       sysc(i)%collapse = -1
       ! selected goes to master
@@ -816,21 +807,19 @@ contains
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
-    use gui_main, only: sysc, nsys, sys_empty, sys_loaded_not_init_hidden, sys_init_hidden
+    use gui_main, only: sysc, nsys, sys_empty
     class(window), intent(inout) :: w
 
     integer :: i, n
 
     if (allocated(w%iord)) deallocate(w%iord)
-    n = count(sysc(1:nsys)%status /= sys_empty.and.sysc(1:nsys)%status/=sys_loaded_not_init_hidden.and.&
-       sysc(1:nsys)%status/=sys_init_hidden)
+    n = count(sysc(1:nsys)%status /= sys_empty.and..not.sysc(1:nsys)%hidden)
     allocate(w%iord(max(n,1)))
     w%iord(1) = 1
     if (n > 0) then
        n = 0
        do i = 1, nsys
-          if (sysc(i)%status /= sys_empty .and. sysc(i)%status /= sys_loaded_not_init_hidden.and.&
-             sysc(i)%status /= sys_init_hidden) then
+          if (sysc(i)%status /= sys_empty .and..not.sysc(i)%hidden) then
              n = n + 1
              w%iord(n) = i
           end if
@@ -844,7 +833,7 @@ contains
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sysc, sys_init, sys_empty, sys_loaded_not_init_hidden, sys_init_hidden
+    use gui_main, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -923,9 +912,7 @@ contains
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty .and.&
-             sysc(w%iord(i))%status /= sys_loaded_not_init_hidden.and.&
-             sysc(w%iord(i))%status /= sys_init_hidden) then
+          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty .and..not.sysc(w%iord(i))%hidden) then
              sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
              doit = (cid == ic_spg) .and. (sysc(w%iord(i))%status == sys_init)

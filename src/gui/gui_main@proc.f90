@@ -424,18 +424,19 @@ contains
           end if
 
           ! initialization status
+          sysc(idx)%status = sys_loaded_not_init
           if (collapse.and.iseed_ == 1) then
              ! master
              sysc(idx)%collapse = -1
-             sysc(idx)%status = sys_loaded_not_init
+             sysc(idx)%hidden = .false.
           elseif (collapse) then
              ! dependent
              sysc(idx)%collapse = nsys - nseed + 1
-             sysc(idx)%status = sys_loaded_not_init_hidden
+             sysc(idx)%hidden = .true.
           else
              ! independent
              sysc(idx)%collapse = 0
-             sysc(idx)%status = sys_loaded_not_init
+             sysc(idx)%hidden = .false.
           end if
 
           ! initialize the mutex
@@ -649,7 +650,6 @@ contains
     integer(c_int) :: idum
     integer :: iff
     character(len=:), allocatable :: errmsg
-    logical :: hidden
 
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
@@ -664,9 +664,8 @@ contains
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
           if (idum == thrd_success) then
-             ! see if we can load it
-             if (sysc(i)%status == sys_loaded_not_init .or. sysc(i)%status == sys_loaded_not_init_hidden) then
-                hidden = (sysc(i)%status == sys_loaded_not_init_hidden)
+             ! see if we can load it - only uninitialized and not hidden
+             if (sysc(i)%status == sys_loaded_not_init.and..not.sysc(i)%hidden) then
                 sysc(i)%status = sys_initializing
                 ! load the seed
                 call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
@@ -683,11 +682,7 @@ contains
                 end if
 
                 ! this system has been initialized
-                if (hidden) then
-                   sysc(i)%status = sys_init_hidden
-                else
-                   sysc(i)%status = sys_init
-                end if
+                sysc(i)%status = sys_init
 
                 ! force resize and sort of table columns (no lock needed for this)
                 if (iwin_tree > 0 .and. iwin_tree <= nwin) then

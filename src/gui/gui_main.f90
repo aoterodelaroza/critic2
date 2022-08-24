@@ -52,11 +52,10 @@ module gui_main
   integer, parameter, public :: sys_loaded_not_init = 1
   integer, parameter, public :: sys_initializing = 2
   integer, parameter, public :: sys_init = 3
-  integer, parameter, public :: sys_loaded_not_init_hidden = 4
-  integer, parameter, public :: sys_init_hidden = 5
   type :: sysconf
      integer :: id
      integer :: status = sys_empty
+     logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
      type(crystalseed) :: seed
      logical :: has_field
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
