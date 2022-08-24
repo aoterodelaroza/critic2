@@ -23,7 +23,12 @@
 #ifndef TINYCWRAPPER_H
 #define TINYCWRAPPER_H
 
+#include "tinycthread.h"
+
+// mutexes
 void *allocate_mtx();
 void deallocate_mtx(void *p);
+// threads
+int wrap_thrd_join(thrd_t *thr, int *res);
 
 #endif

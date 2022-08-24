@@ -35,6 +35,7 @@ submodule (gui_main) proc
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
   type(thread_info), target, allocatable :: thread_ti(:)
+  logical :: force_quit_threads = .false. ! force all threads to quit as soon as possible
 
   !xx! private procedures
   ! subroutine process_arguments()
@@ -259,14 +260,29 @@ contains
   !> trying to initialize them.
   module subroutine launch_initialization_thread()
     use gui_interfaces_threads
-
     integer :: i, idum
 
+    force_quit_threads = .false.
     do i = 1, nthread
        idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_loc(thread_ti(i)))
     end do
 
   end subroutine launch_initialization_thread
+
+  !> Force the initialization threads to quit and wait for them to
+  !> finish before returning.
+  module subroutine kill_initialization_thread()
+    use gui_interfaces_threads
+    integer :: i
+    integer(c_int) :: res, idum
+
+    force_quit_threads = .true.
+    do i = 1, nthread
+       idum = wrap_thrd_join(c_loc(thread(i)),res)
+    end do
+    force_quit_threads = .false.
+
+  end subroutine kill_initialization_thread
 
   ! Re-write the seed names from the full-path names to remove as much
   ! of the prefixes as possible
@@ -613,8 +629,10 @@ contains
     ! process launches
     if (launchopen) &
        idopendialog = stack_create_window(wintype_opendialog,.true.)
-    if (launchquit) &
+    if (launchquit) then
+       call kill_initialization_thread()
        call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
+    end if
 
   end subroutine show_main_menu
 
@@ -638,6 +656,7 @@ contains
     i0 = 1
     i1 = nsys
     do i = i0, i1
+       if (force_quit_threads) exit
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
           if (idum == thrd_success) then

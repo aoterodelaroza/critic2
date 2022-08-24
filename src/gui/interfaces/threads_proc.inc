@@ -1,6 +1,6 @@
 ! -*-F90-*-
 
-!xx! tinycthread procedures
+!!! tinycthread procedures !!!
 
 !! tinycwrapper
 ! void *allocate_mtx();
@@ -26,8 +26,8 @@ subroutine mtx_destroy(mtx) bind(c,name="mtx_destroy")
   import c_ptr
   type(c_ptr), value :: mtx
 end subroutine mtx_destroy
-!xx! int mtx_lock(mtx_t *mtx);
-!xx! int mtx_timedlock(mtx_t *mtx, const struct timespec *ts);
+!x! int mtx_lock(mtx_t *mtx);
+!x! int mtx_timedlock(mtx_t *mtx, const struct timespec *ts);
 ! int mtx_trylock(mtx_t *mtx);
 function mtx_trylock(mtx) bind(c,name="mtx_trylock")
   import c_int, c_ptr
@@ -40,12 +40,12 @@ function mtx_unlock(mtx) bind(c,name="mtx_unlock")
   type(c_ptr), value :: mtx
   integer(c_int) :: mtx_unlock
 end function mtx_unlock
-!xx! int cnd_init(cnd_t *cond);
-!xx! void cnd_destroy(cnd_t *cond);
-!xx! int cnd_signal(cnd_t *cond);
-!xx! int cnd_broadcast(cnd_t *cond);
-!xx! int cnd_wait(cnd_t *cond, mtx_t *mtx);
-!xx! int cnd_timedwait(cnd_t *cond, mtx_t *mtx, const struct timespec *ts);
+!x! int cnd_init(cnd_t *cond);
+!x! void cnd_destroy(cnd_t *cond);
+!x! int cnd_signal(cnd_t *cond);
+!x! int cnd_broadcast(cnd_t *cond);
+!x! int cnd_wait(cnd_t *cond, mtx_t *mtx);
+!x! int cnd_timedwait(cnd_t *cond, mtx_t *mtx, const struct timespec *ts);
 ! int thrd_create(thrd_t *thr, thrd_start_t func, void *arg);
 function thrd_create(thr, func, arg) bind(c,name="thrd_create")
   import c_ptr, c_funptr, c_int
@@ -54,14 +54,21 @@ function thrd_create(thr, func, arg) bind(c,name="thrd_create")
   type(c_ptr), value :: arg
   integer(c_int) :: thrd_create
 end function thrd_create
-!xx! thrd_t thrd_current(void);
-!xx! int thrd_detach(thrd_t thr);
-!xx! int thrd_equal(thrd_t thr0, thrd_t thr1);
-!xx! TTHREAD_NORETURN void thrd_exit(int res);
-!xx! int thrd_join(thrd_t thr, int *res);
-!xx! int thrd_sleep(const struct timespec *duration, struct timespec *remaining);
-!xx! void thrd_yield(void);
-!xx! int tss_create(tss_t *key, tss_dtor_t dtor);
-!xx! void tss_delete(tss_t key);
-!xx! void *tss_get(tss_t key);
-!xx! int tss_set(tss_t key, void *val);
+!x! thrd_t thrd_current(void);
+!x! int thrd_detach(thrd_t thr);
+!x! int thrd_equal(thrd_t thr0, thrd_t thr1);
+!x! TTHREAD_NORETURN void thrd_exit(int res);
+! int thrd_join(thrd_t thr, int *res); --- wrapped ---
+! int wrap_thrd_join(thrd_t *thr, int *res)
+function wrap_thrd_join(thr, res) bind(c,name="wrap_thrd_join")
+  import c_int, c_ptr
+  type(c_ptr), value :: thr
+  integer(c_int) :: res
+  integer(c_int) :: wrap_thrd_join
+end function wrap_thrd_join
+!x! int thrd_sleep(const struct timespec *duration, struct timespec *remaining);
+!x! void thrd_yield(void);
+!x! int tss_create(tss_t *key, tss_dtor_t dtor);
+!x! void tss_delete(tss_t key);
+!x! void *tss_get(tss_t key);
+!x! int tss_set(tss_t key, void *val);

@@ -229,8 +229,8 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_loaded_not_init_hidden,&
        sys_loaded_not_init, sys_init_hidden, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
-       TableCellBg_Crys1d, launch_initialization_thread, system_shorten_names,&
-       remove_system, tooltip_delay
+       TableCellBg_Crys1d, launch_initialization_thread, kill_initialization_thread,&
+       system_shorten_names, remove_system, tooltip_delay
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -352,6 +352,9 @@ contains
 
     ! process force options
     if (allocated(w%forceremove)) then
+       ! stop all initialization threads, if they are working
+       call kill_initialization_thread()
+
        ! remove a system and move the table selection if the system was selected
        do k = 1, size(w%forceremove,1)
           call remove_system(w%forceremove(k))
@@ -396,6 +399,10 @@ contains
           end if
        end do
        deallocate(w%forceremove)
+       ! restart initialization if any system remains to be initialized
+       if (any(sysc(1:nsys)%status == sys_loaded_not_init)) then
+          call launch_initialization_thread()
+       end if
     end if
     if (w%forceupdate) call w%update_tree()
     if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)

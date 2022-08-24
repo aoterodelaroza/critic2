@@ -19,7 +19,6 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "tinycwrapper.h"
-#include "tinycthread.h"
 #include <stdlib.h>
 
 // Allocate and deallocate mutex objects
@@ -30,3 +29,7 @@ void deallocate_mtx(void *p){
   if (p) free(p);
 }
 
+// Wrapper for thread functions
+int wrap_thrd_join(thrd_t *thr, int *res){
+  return thrd_join(*thr,res);
+}
