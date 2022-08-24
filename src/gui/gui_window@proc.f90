@@ -696,25 +696,20 @@ contains
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected
       logical, save :: ttshown = .false. ! delayed tooltips
-      character(kind=c_char,len=:), allocatable, target :: strpop, strpop2
+      character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
-      str = str // c_null_char
-      if (hadenabledcolumn) then
-         if (sysc(isys)%status == sys_init) then
-            call igText(c_loc(str))
-         else
-            call igTextDisabled(c_loc(str))
-         end if
-      else
+      if (.not.hadenabledcolumn) then
          ! selectable that spans all columns
          flags = ImGuiSelectableFlags_SpanAllColumns
          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
          flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
          flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
          selected = (w%table_selected==isys)
-         if (igSelectable_Bool(c_loc(str),selected,flags,zero2)) &
+         strl = "##selectable" // string(isys) // c_null_char
+         if (igSelectable_Bool(c_loc(strl),selected,flags,zero2)) &
             w%table_selected = isys
+         call igSameLine(0._c_float,-1._c_float)
 
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
@@ -753,6 +748,12 @@ contains
             end if
             call igSetTooltip(c_loc(str))
          end if
+      end if
+      str = str // c_null_char
+      if (sysc(isys)%status == sys_init) then
+         call igText(c_loc(str))
+      else
+         call igTextDisabled(c_loc(str))
       end if
       hadenabledcolumn = .true.
 
