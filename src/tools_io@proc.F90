@@ -1287,7 +1287,7 @@ contains
 
     ! This probably works only for linux, but it doesn't crash if the
     ! read fails
-    if (interactive) then
+    if (interactive.and..not.usegui) then
        call get_environment_variable("HOME",home,status=istat)
        if (istat == 0) then
           file_c = f_c_string_dup(trim(home) // "/.critic2_history")
