@@ -649,18 +649,24 @@ contains
     integer(c_int) :: idum
     integer :: iff
     character(len=:), allocatable :: errmsg
+    logical :: hidden
 
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
 
+    ! run over systems
     i0 = 1
     i1 = nsys
     do i = i0, i1
+       ! check if they want us to quit
        if (force_quit_threads) exit
+       ! try to grab the lock for this system
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
           if (idum == thrd_success) then
-             if (sysc(i)%status == sys_loaded_not_init) then
+             ! see if we can load it
+             if (sysc(i)%status == sys_loaded_not_init .or. sysc(i)%status == sys_loaded_not_init_hidden) then
+                hidden = (sysc(i)%status == sys_loaded_not_init_hidden)
                 sysc(i)%status = sys_initializing
                 ! load the seed
                 call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
@@ -677,7 +683,11 @@ contains
                 end if
 
                 ! this system has been initialized
-                sysc(i)%status = sys_init
+                if (hidden) then
+                   sysc(i)%status = sys_init_hidden
+                else
+                   sysc(i)%status = sys_init
+                end if
 
                 ! force resize and sort of table columns (no lock needed for this)
                 if (iwin_tree > 0 .and. iwin_tree <= nwin) then

@@ -400,7 +400,8 @@ contains
        end do
        deallocate(w%forceremove)
        ! restart initialization if any system remains to be initialized
-       if (any(sysc(1:nsys)%status == sys_loaded_not_init)) then
+       if (any(sysc(1:nsys)%status == sys_loaded_not_init) .or.&
+          any(sysc(1:nsys)%status == sys_loaded_not_init_hidden)) then
           call launch_initialization_thread()
        end if
     end if
