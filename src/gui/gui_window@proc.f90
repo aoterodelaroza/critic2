@@ -1090,7 +1090,7 @@ contains
       use tools_io, only: uout, getline_raw, ferror, faterr
 
       character(len=:), allocatable :: line
-      integer(c_size_t) :: pos, lshift, ll, sum
+      integer(c_size_t) :: pos, lshift, ll
       integer :: idx
       logical :: ok
 
@@ -1114,11 +1114,10 @@ contains
          rewind(uout)
 
          ! do not have enough room to accomodate this much output = discard new text
-         sum = 0
-         do while(getline_raw(uout,line))
-            sum = sum + len(line) + 1
+         do while (ll > maxlob)
+            ok = getline_raw(uout,line)
+            if (.not.ok) return
             ll = ll - (len(line)+1)
-            if (ll <= maxlob) exit
          end do
 
          ! check whether we can accomodate the new text = discard from the beginning

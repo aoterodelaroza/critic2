@@ -4524,7 +4524,7 @@ contains
   module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
      nseed,seed,collapse,errmsg,iafield,ti)
     use global, only: rborder_def, doguess
-    use tools_io, only: getword, equali
+    use tools_io, only: getword, equali, fopen_read, fclose
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian,&
        isformat_abinit,isformat_cif,isformat_pwc,&
@@ -4546,7 +4546,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: path, ofile
-    integer :: isformat, is, mol0_, i
+    integer :: isformat, is, mol0_, i, lu
     logical :: mol, hastypes, alsofield, ok
 
     errmsg = ""
@@ -4556,16 +4556,23 @@ contains
     nseed = 0
     if (allocated(seed)) deallocate(seed)
 
+    ! check if the file exists and is openable
     inquire(file=file,exist=ok)
     if (.not.ok) then
-       errmsg = "Error opening file."
+       errmsg = "File does not exist."
        goto 999
     end if
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       goto 999
+    end if
+    call fclose(lu)
 
     call struct_detect_format(file,is,alsofield,ti=ti)
     if (isformat == isformat_unknown) isformat = is
     if (isformat == isformat_unknown) then
-       errmsg = "Unknown file format/extension."
+       errmsg = "Unknown file format/extension in file."
        goto 999
     end if
     if (mol0_ == 1) then

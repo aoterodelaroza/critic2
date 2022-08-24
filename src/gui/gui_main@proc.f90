@@ -370,6 +370,7 @@ contains
 
     ! read all seeds from the file
     call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,iafield)
+    if (len_trim(errmsg) > 0) goto 999
 
     if (nseed > 0) then
        ! find the contiguous IDs for the new systems
@@ -462,13 +463,18 @@ contains
        end do
        deallocate(id)
     else
-       write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(name)
-       write (uout,'("Error: ",A)') trim(errmsg)
+       errmsg = "No strutures found"
+       goto 999
     end if
 
     ! update the tree
     if (iwin_tree > 0 .and. iwin_tree <= nwin) &
        win(iwin_tree)%forceupdate = .true.
+
+    return
+999 continue
+    write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(name)
+    write (uout,'("Error: ",A)') trim(errmsg)
 
   end subroutine add_systems_from_name
 
