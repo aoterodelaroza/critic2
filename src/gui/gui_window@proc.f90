@@ -1035,8 +1035,13 @@ contains
     integer(c_int) :: flags, flagsml_left, flagsml_right
     character(kind=c_char,len=:), allocatable, target :: buffer
     integer(c_size_t) :: buflen
-    character(kind=c_char,len=:), allocatable, target :: buffer2
-    integer(c_size_t) :: buflen2
+    ! the output buffer
+    character(kind=c_char,len=:), allocatable, target, save :: outputb
+    integer(c_size_t), save :: lob = 0
+    integer(c_size_t), parameter :: maxlob = 2000000
+
+    ! read new output, if available
+    call read_output_unit()
 
     ! calculate sizes and flags
     call igGetContentRegionAvail(savail)
@@ -1072,15 +1077,41 @@ contains
     str1 = "Output" // c_null_char
     call igTextColored(HighlightText,c_loc(str1))
 
-    allocate(character(len=2049) :: buffer2)
-    buffer2(1:22) = "This is a sample text" // c_null_char
-    buflen2 = len(buffer2)
     str2 = "##rightmultiline"
-    ldum = igInputTextMultiline(c_loc(str2),c_loc(buffer2),buflen2,zero,flagsml_right,c_null_ptr,c_null_ptr)
+    ldum = igInputTextMultiline(c_loc(str2),c_loc(outputb),lob,zero,flagsml_right,c_null_ptr,c_null_ptr)
 
     call igEndChild()
     ! !!! end of right child !!!
 
+  contains
+    ! read new output from the scratch LU uout
+    subroutine read_output_unit()
+      use tools_io, only: uout, getline_raw
+
+      character(len=:), allocatable :: line
+      integer*8 :: pos
+      integer :: ll
+
+      ! allocate the output buffer if not allocated
+      if (.not.allocated(outputb)) &
+         allocate(character(len=maxlob+1) :: outputb)
+
+      inquire(uout,pos=pos)
+      if (pos > 1) then
+         ! there is new output, rewind, read it, and rewind again
+         rewind(uout)
+         do while(getline_raw(uout,line))
+            ll = len_trim(line)
+            outputb(lob+1:lob+ll) = line(1:ll)
+            lob = lob + ll
+            outputb(lob+1:lob+1) = new_line('a')
+            lob = lob + 1
+         end do
+         outputb(lob+1:lob+1) = c_null_char
+         rewind(uout)
+      end if
+
+    end subroutine read_output_unit
   end subroutine draw_console
 
   !xx! private procedures
