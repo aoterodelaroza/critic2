@@ -1054,7 +1054,6 @@ contains
     logical, intent(in), optional :: periodic
 
     real*8 :: err
-
     real*8 :: ww, hh, erract, n(ndif_jmax, ndif_jmax)
     real*8 :: fx, fp, fm, f0
     integer :: i, j
@@ -1979,12 +1978,8 @@ contains
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
     integer :: lnuc, lshell
-    character*3 :: namecrit(0:3)
-    character*(1) :: smallnamecrit(0:3)
+    character*(1), parameter :: smallnamecrit(0:3) =(/'n','b','r','c'/)
     type(scalar_value) :: res
-
-    data smallnamecrit   /'n','b','r','c'/
-    data namecrit /'ncp','bcp','rcp','ccp'/
 
     ! Transform to cryst. and main cell
     xc = f%c%c2x(x0)
@@ -2176,6 +2171,7 @@ contains
     real*8, parameter :: minstep = 1d-12
     integer, parameter :: mhist = 5
     integer, parameter :: mstep0 = 10000
+    real*8, parameter :: hfirst = 0.01d0
 
     integer :: mstep
     integer :: i, npath
@@ -2187,8 +2183,6 @@ contains
     integer :: lvec(3)
     logical :: ok, incstep
     type(scalar_value) :: res, resaux
-
-    real*8, parameter :: hfirst = 0.01d0
 
     ! initialization
     ier = 0

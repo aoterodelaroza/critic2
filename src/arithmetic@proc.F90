@@ -204,9 +204,10 @@ contains
     real*8 :: q(100)
     integer :: nq, ns
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
     ! recover the system pointer
+    syl => null()
     eval = 0d0
     if (present(sptr)) then
        call c_f_pointer(sptr,syl)
@@ -377,9 +378,10 @@ contains
     integer :: nq, ns
     real*8, allocatable :: q(:,:,:,:)
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
     ! recover the system pointer
+    syl => null()
     call c_f_pointer(sptr,syl)
     if (.not.syl%isinit) goto 999
 
@@ -513,8 +515,9 @@ contains
     logical :: ok
     integer :: ntok
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
+    syl => null()
     ! recover the system pointer
     call c_f_pointer(sptr,syl)
     if (.not.syl%isinit) &

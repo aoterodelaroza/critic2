@@ -5567,7 +5567,7 @@ contains
     real*8, parameter :: cen_c(3)  = (/0.5d0,0.5d0,0.0d0/)
     real*8, parameter :: cen_r1(3) = (/2d0,1d0,1d0/) / 3d0
     real*8, parameter :: cen_r2(3) = (/1d0,2d0,2d0/) / 3d0
-    real*8 :: eps = 1d-5
+    real*8, parameter :: eps = 1d-5
 
     ! use symmetry?
     usesym = (dosym==1 .or. dosym==-1) .and. c%spgavail

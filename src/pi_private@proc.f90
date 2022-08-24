@@ -170,6 +170,8 @@ contains
 
     real*8, parameter :: pi4 = 4d0 * pi
     real*8, parameter :: eps = 1d-6
+    real*8, parameter :: eps0 = 1d-7
+
     integer :: ion
     integer :: i, j, k, j1, l
     real*8 :: xion, yion, zion, rions2, rion, rion1, rion2
@@ -180,8 +182,6 @@ contains
     integer :: n0, nm1, nm2, nenv, ierr
     real*8 :: tmprho
     integer, allocatable :: eid(:)
-
-    real*8, parameter :: eps0 = 1d-7
 
     ! calculate the environment of the input point
     rho = 0d0
@@ -610,11 +610,11 @@ contains
     real*8, intent(out) :: rhoval, firstder, secondder
 
     real*8, parameter :: pi4 = 4d0 * pi
+    real*8, parameter :: eps0 = 1d-7
+
     real*8  :: dumr, dumgr, dumgr2, gradr, grad2r
     real*8  :: or, zj, rion, rion1, rion2
     integer :: nj1, nj2, l, norb, norb1, j, j1
-
-    real*8, parameter :: eps0 = 1d-7
 
     rhoval = zero
     gradr = zero
