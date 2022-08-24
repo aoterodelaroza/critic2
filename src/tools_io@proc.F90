@@ -1549,16 +1549,18 @@ contains
     endif
     !$omp critical (IO)
     if (present(inputline)) &
-       write (uout,'("!error! ",A)') trim(inputline)
+       write (uout,'(A," : ",A)') trim(chtype), trim(inputline)
     write (uout,100) trim(chtype),trim(routine),trim(message)
     !$omp end critical (IO)
     if (errortype.eq.faterr) then
-       !$omp critical (IO)
-       write (uout,100) trim(chtype),trim(routine), trim(message)
-       write (*,100) trim(chtype),trim(routine), trim(message)
-       !$omp end critical (IO)
        if (present(syntax)) then
           if (syntax .and. interactive) return
+       else
+          if (usegui) then
+             if (present(inputline)) &
+                write (*,'(A," : ",A)') trim(chtype), trim(inputline)
+             write (*,100) trim(chtype),trim(routine),trim(message)
+          end if
        end if
        stop 1
     else if(errortype.eq.warning) then
@@ -1567,7 +1569,7 @@ contains
        ncomms = ncomms + 1
     endif
 
-100 format (A,"(",A,"): ",A)
+100 format (A," (",A,"): ",A/)
 
   end subroutine ferror
 

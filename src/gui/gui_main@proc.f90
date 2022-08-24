@@ -473,8 +473,8 @@ contains
 
     return
 999 continue
-    write (uout,'("!! Warning !! Could not read structures from: ",A)') trim(name)
-    write (uout,'("Error: ",A)') trim(errmsg)
+    write (uout,'("WARNING : Could not read structures from: ",A)') trim(name)
+    write (uout,'("WARNING : ",A/)') trim(errmsg)
 
   end subroutine add_systems_from_name
 
