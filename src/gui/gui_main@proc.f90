@@ -60,7 +60,7 @@ contains
     type(c_ptr) :: ptrc, pdum
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
-    integer :: i
+    integer :: i, j
     logical :: firstpass
     integer(c_short), allocatable, target :: range(:)
 
@@ -68,13 +68,21 @@ contains
     nsys = 0
     allocate(sys(1),sysc(1))
 
-    ! initialize threads
-     nthread = omp_get_max_threads()
+    ! initialize threads: reserve some un-used LUs and then
+    ! deallocate them for fopen
+    nthread = omp_get_max_threads()
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
     do i = 1, nthread
        thread_ti(i)%id = i
-       thread_ti(i)%lu = falloc()
+       do j = 1, size(thread_ti(i)%lu,1)
+          thread_ti(i)%lu(j) = falloc()
+       end do
+    end do
+    do i = 1, nthread
+       do j = 1, size(thread_ti(i)%lu,1)
+          call fdealloc(thread_ti(i)%lu(j))
+       end do
     end do
 
     ! Parse the command line and read as many systems as possible
@@ -223,12 +231,9 @@ contains
     call ImGui_ImplGlfw_Shutdown()
     call igDestroyContext(c_null_ptr)
 
-    ! cleanup mutexes and threads
+    ! cleanup mutexes
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
-    end do
-    do i = 1, nthread
-       call fdealloc(thread_ti(i)%lu)
     end do
 
     ! terminate

@@ -75,7 +75,7 @@ module types
   ! thread-specific variables
   type thread_info
      integer :: id ! the ID for the thread
-     integer :: lu ! a logical unit, for opening files
+     integer :: lu(4) ! logical units, for opening files
   end type thread_info
 
   !> Atomic species

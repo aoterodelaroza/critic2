@@ -1486,11 +1486,27 @@ contains
     integer :: falloc
     type(thread_info), intent(in), optional :: ti
 
-    do falloc = 1, size(alloc)
-       if (.not.alloc(falloc)) exit
-    end do
-    if (alloc(falloc)) &
-       call ferror("falloc","could not allocate logical unit",faterr)
+    integer :: i
+
+    if (present(ti)) then
+       ! the thread brings its own LUs
+       falloc = -1
+       do i = 1, size(ti%lu,1)
+          if (.not.alloc(ti%lu(i))) then
+             falloc = ti%lu(i)
+             exit
+          end if
+       end do
+       if (falloc < 0) &
+          call ferror("falloc","could not allocate logical unit (threaded)",faterr)
+    else
+       ! allocate a new LU
+       do falloc = 1, size(alloc)
+          if (.not.alloc(falloc)) exit
+       end do
+       if (alloc(falloc)) &
+          call ferror("falloc","could not allocate logical unit",faterr)
+    end if
     alloc(falloc) = .true.
 
   end function falloc
