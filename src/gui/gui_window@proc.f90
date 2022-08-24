@@ -1109,7 +1109,7 @@ contains
 
          ! check whether we can accomodate the new text = discard from the beginning
          if (lob + ll > maxlob) then
-            lshift = maxlob - ll - lob
+            lshift = ll + lob - maxlob
             outputb(1:lob-lshift) = outputb(lshift+1:lob)
             lob = lob - lshift
             ! adjust to the next newline
