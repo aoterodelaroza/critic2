@@ -648,24 +648,24 @@ contains
     character*(*) :: ghome, datadir
     integer :: isenv
     logical :: lchk
-    character(len=:), allocatable :: cifstr, msgr1, msgr2, msg1, msg2, msg3
+    character(len=:), allocatable :: wfcstr, msgr1, msgr2, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
 
-    cifstr = dirsep // "cif" // dirsep // "cif_core.dic"
+    wfcstr = dirsep // "wfc" // dirsep // "h__pbe.wfc"
 
     ! read the -r option
     msgr1 = ""
     msgr2 = ""
     if (len_trim(ghome) > 0) then
        critic_home = string(ghome)
-       inquire(file=trim(critic_home) // cifstr,exist=lchk)
+       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
        if (lchk) goto 99
-       msgr1 = "(!) 0. Not found (-r option): " // trim(critic_home) // cifstr
+       msgr1 = "(!) 0. Not found (-r option): " // trim(critic_home) // wfcstr
 
        critic_home = string(ghome) // dirsep // "dat"
-       inquire(file=trim(critic_home) // cifstr,exist=lchk)
+       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
        if (lchk) goto 99
-       msgr2 = "(!) 0. Not found (-r option): " // trim(critic_home) // cifstr
+       msgr2 = "(!) 0. Not found (-r option): " // trim(critic_home) // wfcstr
     endif
 
     ! read env variable CRITIC_HOME
@@ -674,32 +674,31 @@ contains
     call get_environment_variable("CRITIC_HOME",critic_home,status=isenv)
     if (isenv ==0) then
        critic_home = trim(critic_home) // dirsep // "dat"
-       inquire(file=trim(critic_home) // cifstr,exist=lchk)
+       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
        if (lchk) goto 99
-       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // cifstr
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // wfcstr
     else
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
-    inquire(file=trim(critic_home) // cifstr,exist=lchk)
+    inquire(file=trim(critic_home) // wfcstr,exist=lchk)
     if (lchk) goto 99
-    msg2 = "(!) 2. Not found (install path): " // trim(critic_home) // cifstr
+    msg2 = "(!) 2. Not found (install path): " // trim(critic_home) // wfcstr
 
     ! then the current directory
     critic_home = "."
-    inquire(file=trim(critic_home) // cifstr,exist=lchk)
+    inquire(file=trim(critic_home) // wfcstr,exist=lchk)
     if (lchk) goto 99
-    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home) // cifstr
+    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home) // wfcstr
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
     if (len_trim(msgr1) > 0 .and. len_trim(msgr2) > 0) &
        write (uout,'(A/A)') msgr1, msgr2
     write (uout,'(A/A/A)') msg1, msg2, msg3
-    write (uout,'("(!) The cif dict file, the density files, and the structure library")')
-    write (uout,'("(!) will not be available.")')
+    write (uout,'("(!) The density files and the structure library will not be available.")')
     critic_home = "."
 
 99  continue
@@ -817,8 +816,7 @@ contains
     write (uout,'("         date: ",A)') getstring(istring_adate)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
-    inquire(file=trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic",exist=lchk)
-    write (uout,'("     dic file: ",A)') trim(critic_home) // dirsep // "cif" // dirsep // "cif_core.dic"
+    inquire(file=trim(critic_home) // dirsep // "wfc" // dirsep // "h__pbe.wfc",exist=lchk)
     write (uout,'("...was found?: ",L)') lchk
 
     iver(1) = spg_get_major_version()

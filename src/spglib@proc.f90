@@ -64,8 +64,8 @@ contains
 
     interface
        function spg_get_error_message_c(spglib_error) bind(c, name='spg_get_error_message')
-         import c_ptr, SPGLIB_SUCCESS
-         integer(kind(SPGLIB_SUCCESS)), value :: spglib_error
+         import c_ptr, c_int
+         integer(c_int), value :: spglib_error
          type(c_ptr) :: spg_get_error_message_c
        end function spg_get_error_message_c
     end interface

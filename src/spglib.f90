@@ -395,7 +395,8 @@ module spglib
      ! SpglibError spg_get_error_code(void);
      ! Get the error code from the last operation (NOT THREAD-SAFE)
      function spg_get_error_code() bind(c)
-       integer(kind(SPGLIB_SUCCESS)) :: spg_get_error_code
+       import c_int
+       integer(c_int) :: spg_get_error_code
      end function spg_get_error_code
 
      !xx! functions implemented in the submodule

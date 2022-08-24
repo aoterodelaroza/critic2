@@ -995,4 +995,4 @@ extern "C" const int const_IGFD_FileStyleByContainedInFullName;
 // The default font for the critic2 GUI
 extern "C" const char *const_myfont_ttf_compressed_data_base85_ptr;
 
-#endif CONSTANTS_H
+#endif // CONSTANTS_H
