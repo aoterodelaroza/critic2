@@ -1,9 +1,3 @@
- ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     10
-  Category key _space_group_id not given for space_group
- ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     16
-  Category key _space_group_symop_id not given for space_group_symop
- ciftbx warning: ../zz_source/cif/allspg/186_wurtzite.cif data_stdin line:     34
-  Category key _atom_site_aniso_label not given for atom_site
 * WRITE critic2 input file: 035_crystal_forceformat_gen_1.cri
 
 * WRITE critic2 input file: 035_crystal_forceformat_gen_2.cri
