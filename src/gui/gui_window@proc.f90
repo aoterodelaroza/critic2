@@ -227,7 +227,7 @@ contains
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
     use gui_utils, only: igIsItemHovered_delayed
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
-       sys_loaded_not_init, TableCellBg_Mol,&
+       sys_loaded_not_init, sys_initializing, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread, kill_initialization_thread,&
        system_shorten_names, remove_system, tooltip_delay
@@ -245,7 +245,7 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
     type(c_ptr), save :: cfilter = c_null_ptr
     logical, save :: ttshown = .false.
 
@@ -352,8 +352,15 @@ contains
 
     ! process force options
     if (allocated(w%forceremove)) then
-       ! stop all initialization threads, if they are working
-       call kill_initialization_thread()
+       ! stop all initialization threads, if any of the systems to
+       ! remove may be initialized in the near future
+       if (any((sysc(w%forceremove)%status == sys_loaded_not_init.and..not.sysc(w%forceremove)%hidden).or.&
+                sysc(w%forceremove)%status == sys_initializing)) then
+          call kill_initialization_thread()
+          reinit = .true.
+       else
+          reinit = .false.
+       end if
 
        ! remove a system and move the table selection if the system was selected
        do k = 1, size(w%forceremove,1)
@@ -399,8 +406,8 @@ contains
           end if
        end do
        deallocate(w%forceremove)
-       ! restart initialization if any system remains to be initialized
-       if (any(sysc(1:nsys)%status == sys_loaded_not_init)) w%forceinit = .true.
+       ! restart initialization if the threads were killed
+       if (reinit) w%forceinit = .true.
     end if
     if (w%forceupdate) call w%update_tree()
     if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
