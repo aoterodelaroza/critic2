@@ -349,6 +349,7 @@ contains
   module subroutine add_systems_from_name(name,mol,isformat,readlastonly)
     use gui_interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
+    use gui_main, only: reuse_mid_empty_systems
     use gui_window, only: nwin, win, iwin_tree
     use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
@@ -377,21 +378,36 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     if (nseed > 0) then
-       ! find the contiguous IDs for the new systems
+       ! find contiguous IDs for the new systems
        allocate(id(nseed))
-       nid = 0
-       do i = 1, nsys
-          if (sysc(i)%status == sys_empty) then
-             nid = nid + 1
-             id(nid) = i
-             if (nid == nseed) exit
-          else
-             nid = 0
-          end if
-       end do
-       do i = nid+1, nseed
-          id(i) = nsys + i - nid
-       end do
+       if (reuse_mid_empty_systems) then
+          ! may reuse old IDs
+          nid = 0
+          do i = 1, nsys
+             if (sysc(i)%status == sys_empty) then
+                nid = nid + 1
+                id(nid) = i
+                if (nid == nseed) exit
+             else
+                nid = 0
+             end if
+          end do
+          do i = nid+1, nseed
+             id(i) = nsys + i - nid
+          end do
+       else
+          ! append IDs at the end, discard empty systems
+          nid = 0
+          do i = nsys, 1, -1
+             if (sysc(i)%status /= sys_empty) then
+                nid = i
+                exit
+             end if
+          end do
+          do i = 1, nseed
+             id(i) = nid + i
+          end do
+       end if
 
        ! increment and reallocate if necessary
        nsys = max(nsys,id(nseed))

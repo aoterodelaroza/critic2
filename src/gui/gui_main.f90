@@ -36,6 +36,7 @@ module gui_main
 
   ! GUI control parameters
   real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
+  logical, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
 
   ! GUI colors
   type(ImVec4), parameter, public :: TableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.3)  ! tree table name cell, molecule
