@@ -1050,12 +1050,14 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_console_output(w)
-    use gui_main, only: ColorHighlightText
+    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_utils, only: igIsItemHovered_delayed
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz, zero
     logical(c_bool) :: ldum
+    logical, save :: ttshown = .false.
     logical :: doscroll
     ! the output buffer
     character(kind=c_char,len=:), allocatable, target, save :: outputb
@@ -1079,6 +1081,10 @@ contains
     if (igButton(c_loc(str1),zero)) then
        outputb(1:1) = c_null_char
        lob = 0
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Clear the output log" // c_null_char
+       call igSetTooltip(c_loc(str1))
     end if
 
     ! calculate sizes and draw the multiline
@@ -1171,12 +1177,14 @@ contains
 
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
-    use gui_main, only: ColorHighlightText
+    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_utils, only: igIsItemHovered_delayed
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz, zero
     logical(c_bool) :: ldum
+    logical, save :: ttshown = .false.
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
     integer(c_size_t), parameter :: maxlib = 40000
@@ -1200,6 +1208,10 @@ contains
     str1 = "Clear" // c_null_char
     if (igButton(c_loc(str1),zero)) &
        inputb(1:1) = c_null_char
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Clear the input text" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)
