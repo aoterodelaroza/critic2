@@ -756,7 +756,7 @@ contains
       logical, intent(in) :: bclose, bexpand
 
       integer(c_int) :: flags, ll
-      logical(c_bool) :: selected
+      logical(c_bool) :: selected, enabled
       logical, save :: ttshown = .false. ! delayed tooltips
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
@@ -778,6 +778,12 @@ contains
 
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
+            ! set as current system option
+            strpop = "Set as current system" // c_null_char
+            enabled = (sysc(isys)%status == sys_init)
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+               win(iwin_console_input)%inpcon_selected = isys
+
             ! remove option
             strpop = "Remove" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
