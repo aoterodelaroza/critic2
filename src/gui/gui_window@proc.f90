@@ -1048,6 +1048,52 @@ contains
 
   end subroutine draw_opendialog
 
+  !> Draw the contents of the input console
+  module subroutine draw_console_input(w)
+    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_utils, only: igIsItemHovered_delayed
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(ImVec2) :: sz, zero
+    logical(c_bool) :: ldum
+    logical, save :: ttshown = .false.
+    ! the input buffer
+    character(kind=c_char,len=:), allocatable, target, save :: inputb
+    integer(c_size_t), parameter :: maxlib = 40000
+
+    ! initialize
+    zero%x = 0
+    zero%y = 0
+
+    ! allocate the input buffer if not already done
+    if (.not.allocated(inputb)) then
+       allocate(character(len=maxlib+1) :: inputb)
+       inputb(1:1) = c_null_char
+    end if
+
+    ! first line: text
+    str1 = "Input" // c_null_char
+    call igTextColored(ColorHighlightText,c_loc(str1))
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! first line: clear button
+    str1 = "Clear" // c_null_char
+    if (igButton(c_loc(str1),zero)) &
+       inputb(1:1) = c_null_char
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Clear the input text" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+
+    ! calculate sizes and draw the multiline
+    call igGetContentRegionAvail(sz)
+    str1 = "##inputmultiline" // c_null_char
+    ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,&
+       ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+
+  end subroutine draw_console_input
+
   !> Draw the contents of the output console
   module subroutine draw_console_output(w)
     use gui_main, only: ColorHighlightText, tooltip_delay
@@ -1084,6 +1130,16 @@ contains
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Clear the output log" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! first line: copy button
+    str1 = "Copy" // c_null_char
+    if (igButton(c_loc(str1),zero)) &
+       call igSetClipboardText(c_loc(outputb))
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Copy the output log to clipboard" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
@@ -1174,51 +1230,6 @@ contains
 
     end subroutine read_output_unit
   end subroutine draw_console_output
-
-  !> Draw the contents of the input console
-  module subroutine draw_console_input(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay
-    use gui_utils, only: igIsItemHovered_delayed
-    class(window), intent(inout), target :: w
-
-    character(kind=c_char,len=:), allocatable, target :: str1
-    type(ImVec2) :: sz, zero
-    logical(c_bool) :: ldum
-    logical, save :: ttshown = .false.
-    ! the input buffer
-    character(kind=c_char,len=:), allocatable, target, save :: inputb
-    integer(c_size_t), parameter :: maxlib = 40000
-
-    ! initialize
-    zero%x = 0
-    zero%y = 0
-
-    ! allocate the input buffer if not already done
-    if (.not.allocated(inputb)) then
-       allocate(character(len=maxlib+1) :: inputb)
-       inputb(1:1) = c_null_char
-    end if
-
-    ! first line: text
-    str1 = "Input" // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str1))
-    call igSameLine(0._c_float,-1._c_float)
-
-    ! first line: clear button
-    str1 = "Clear" // c_null_char
-    if (igButton(c_loc(str1),zero)) &
-       inputb(1:1) = c_null_char
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Clear the input text" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
-
-    ! calculate sizes and draw the multiline
-    call igGetContentRegionAvail(sz)
-    str1 = "##inputmultiline" // c_null_char
-    ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
-
-  end subroutine draw_console_input
 
   !xx! private procedures
 

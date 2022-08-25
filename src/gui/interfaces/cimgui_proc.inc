@@ -692,8 +692,14 @@ end function igDockSpaceOverViewport
 !x! bool igIsWindowDocked(void);
 !x! void igLogToTTY(int auto_open_depth);
 !x! void igLogToFile(int auto_open_depth,const char* filename);
-!x! void igLogToClipboard(int auto_open_depth);
-!x! void igLogFinish(void);
+! void igLogToClipboard(int auto_open_depth);
+subroutine igLogToClipboard(auto_open_depth) bind(c,name="igLogToClipboard")
+  import c_int
+  integer(c_int), value :: auto_open_depth
+end subroutine igLogToClipboard
+! void igLogFinish(void)
+subroutine igLogFinish() bind(c,name="igLogFinish")
+end subroutine igLogFinish
 !x! void igLogButtons(void);
 !x! void igLogTextV(const char* fmt,va_list args);
 !x! bool igBeginDragDropSource(ImGuiDragDropFlags flags);
@@ -827,7 +833,11 @@ end function igIsMouseDoubleClicked
 !x! void igSetMouseCursor(ImGuiMouseCursor cursor_type);
 !x! void igSetNextFrameWantCaptureMouse(bool want_capture_mouse);
 !x! const char* igGetClipboardText(void);
-!x! void igSetClipboardText(const char* text);
+! void igSetClipboardText(const char* text);
+subroutine igSetClipboardText(text) bind(c,name="igSetClipboardText")
+  import c_ptr
+  type(c_ptr), intent(in), value :: text
+end subroutine igSetClipboardText
 !x! void igLoadIniSettingsFromDisk(const char* ini_filename);
 !x! void igLoadIniSettingsFromMemory(const char* ini_data,size_t ini_size);
 !x! void igSaveIniSettingsToDisk(const char* ini_filename);
@@ -1853,7 +1863,11 @@ end subroutine igTableSetColumnWidthAutoAll
 !x! void igImFontAtlasBuildMultiplyRectAlpha8(const unsigned char table[256],unsigned char* pixels,int x,int y,int w,int h,int stride);
 !x! const ImFontBuilderIO* ImGuiFreeType_GetBuilderForFreeType(void);
 !x! void ImGuiFreeType_SetAllocatorFunctions(void*(*alloc_func)(size_t sz,void* user_data),void(*free_func)(void* ptr,void* user_data),void* user_data);
-!x! void igLogText(CONST char *fmt, ...);
+! void igLogText(CONST char *fmt, ...);
+subroutine igLogText(fmt) bind(c,name="igLogText")
+  import c_ptr
+  type(c_ptr), intent(in), value :: fmt
+end subroutine igLogText
 !x! void ImGuiTextBuffer_appendf(struct ImGuiTextBuffer *buffer, const char *fmt, ...);
 !x! float igGET_FLT_MAX(void);
 !x! float igGET_FLT_MIN(void);
