@@ -440,7 +440,7 @@ contains
 
        ! set up the columns
        ! closebutton - ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
-       str = "##0closebutton" // c_null_char
+       str = "x##0closebutton" // c_null_char
        flags = ImGuiTableColumnFlags_NoResize
        flags = ior(flags,ImGuiTableColumnFlags_NoReorder)
        flags = ior(flags,ImGuiTableColumnFlags_NoHide)
