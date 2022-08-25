@@ -4247,6 +4247,7 @@ contains
        isformat = isformat_cif
     elseif (equal(wextdot,'pwc')) then
        isformat = isformat_pwc
+       alsofield_ = .true.
     elseif (equal(wextdot,'res').or.equal(wextdot,'ins').or.equal(wextdot,'16')) then
        isformat = isformat_shelx
     elseif (equal(wextdot,'21')) then
