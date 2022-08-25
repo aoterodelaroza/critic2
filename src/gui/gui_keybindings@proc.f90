@@ -29,7 +29,8 @@ submodule (gui_keybindings) proc
   character(len=22), parameter :: bindnames(BIND_NUM) = (/&
      "Quit                  ",& ! BIND_QUIT
      "Open file(s)          ",& ! BIND_OPEN
-     "Remove selected system"/) ! BIND_TREE_REMOVE_SYSTEM
+     "Remove selected system",& ! BIND_TREE_REMOVE_SYSTEM
+     "Run the commands      "/) ! BIND_INPCON_RUN
   !   "Close last dialog",
   !   "Close all dialogs",
   !   "Align view with a axis",
@@ -45,11 +46,13 @@ submodule (gui_keybindings) proc
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
-  integer, parameter :: group_tree = 2 ! if the tree is active
+  integer, parameter :: group_tree = 2   ! if the tree is active
+  integer, parameter :: group_inpcon = 3 ! the input console is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_OPEN
-     group_tree/)   ! BIND_TREE_REMOVE_SYSTEM
+     group_tree,&   ! BIND_TREE_REMOVE_SYSTEM
+     group_inpcon/) ! BIND_INPCON_RUN
   !   1, // close last dialog
   !   1, // close all dialogs
   !   2, // align view with a axis
@@ -155,6 +158,7 @@ contains
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
+    call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !

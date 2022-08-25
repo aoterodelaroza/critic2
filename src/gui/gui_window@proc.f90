@@ -1121,6 +1121,7 @@ contains
 
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
+    use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
        ColorDangerButton, run_commands
     use gui_utils, only: igIsItemHovered_delayed
@@ -1132,6 +1133,7 @@ contains
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
     logical, save :: ttshown = .false.
+    logical :: ok
     integer :: i, idx
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
@@ -1236,11 +1238,17 @@ contains
     call igSameLine(0._c_float,-1._c_float)
     str1 = "RUN" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
-    if (igButton(c_loc(str1),sz)) then
+    ok = igButton(c_loc(str1),sz)
+    ok = ok .or. igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN)
+    if (ok) then
        idx = index(inputb,c_null_char)
        if (idx > 0) call run_commands(inputb(1:idx-1))
     end if
     call igPopStyleColor(1)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)
