@@ -193,7 +193,12 @@ subroutine igPushStyleVar_Float(idx,val) bind(c,name="igPushStyleVar_Float")
   integer(c_int), value :: idx
   real(c_float), value :: val
 end subroutine igPushStyleVar_Float
-!x! void igPushStyleVar_Vec2(ImGuiStyleVar idx,const ImVec2 val);
+! void igPushStyleVar_Vec2(ImGuiStyleVar idx,const ImVec2 val);
+subroutine igPushStyleVar_Vec2(idx,val) bind(c,name="igPushStyleVar_Vec2")
+  import c_int, ImVec2
+  integer(c_int), value :: idx
+  type(ImVec2), intent(in), value :: val
+end subroutine igPushStyleVar_Vec2
 ! void igPopStyleVar(int count)
 subroutine igPopStyleVar(count) bind(c,name="igPopStyleVar")
   import c_int
@@ -211,7 +216,11 @@ end subroutine igPushItemWidth
 ! void igPopItemWidth(void);
 subroutine igPopItemWidth() bind(c,name="igPopItemWidth")
 end subroutine igPopItemWidth
-!x! void igSetNextItemWidth(float item_width);
+! void igSetNextItemWidth(float item_width);
+subroutine igSetNextItemWidth(item_width) bind(c,name="igSetNextItemWidth")
+  import c_float
+  real(c_float), value :: item_width
+end subroutine igSetNextItemWidth
 !x! float igCalcItemWidth(void);
 !x! void igPushTextWrapPos(float wrap_local_pos_x);
 !x! void igPopTextWrapPos(void);
@@ -264,8 +273,12 @@ subroutine igIndent(indent_w) bind(c,name="igIndent")
   real(c_float), value :: indent_w
 end subroutine igIndent
 !x! void igUnindent(float indent_w);
-!x! void igBeginGroup(void);
-!x! void igEndGroup(void);
+! void igBeginGroup(void);
+subroutine igBeginGroup() bind(c,name="igBeginGroup")
+end subroutine igBeginGroup
+! void igEndGroup(void);
+subroutine igEndGroup() bind(c,name="igEndGroup")
+end subroutine igEndGroup
 !x! void igGetCursorPos(ImVec2 *pOut);
 ! float igGetCursorPosX(void);
 function igGetCursorPosX() bind(c,name="igGetCursorPosX")
@@ -378,8 +391,17 @@ function igRadioButton_IntPtr(label,v,v_button) bind(c,name="igRadioButton_IntPt
 end function igRadioButton_IntPtr
 !x! void igProgressBar(float fraction,const ImVec2 size_arg,const char* overlay);
 !x! void igBullet(void);
-!x! bool igBeginCombo(const char* label,const char* preview_value,ImGuiComboFlags flags);
-!x! void igEndCombo(void);
+! bool igBeginCombo(const char* label,const char* preview_value,ImGuiComboFlags flags);
+function igBeginCombo(label,preview_value,flags) bind(c,name="igBeginCombo")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  type(c_ptr), intent(in), value :: preview_value
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginCombo
+end function igBeginCombo
+! void igEndCombo(void);
+subroutine igEndCombo() bind(c,name="igEndCombo")
+end subroutine igEndCombo
 !x! bool igCombo_Str_arr(const char* label,int* current_item,const char* const items[],int items_count,int popup_max_height_in_items);
 ! bool igCombo_Str(const char* label,int* current_item,const char* items_separated_by_zeros,int popup_max_height_in_items);
 function igCombo_Str(label,current_item,items_separated_by_zeros,popup_max_height_in_items) &
@@ -719,7 +741,9 @@ subroutine igEndDisabled() bind(c,name="igEndDisabled")
 end subroutine igEndDisabled
 !x! void igPushClipRect(const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
 !x! void igPopClipRect(void);
-!x! void igSetItemDefaultFocus(void);
+! void igSetItemDefaultFocus(void);
+subroutine igSetItemDefaultFocus() bind(c,name="igSetItemDefaultFocus")
+end subroutine igSetItemDefaultFocus
 ! void igSetKeyboardFocusHere(int offset);
 subroutine igSetKeyboardFocusHere(offset) bind(c,name="igSetKeyboardFocusHere")
   import c_int

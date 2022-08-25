@@ -56,6 +56,8 @@ module gui_window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
+     ! input console parameters
+     integer :: inpcon_selected = 1
    contains
      procedure :: init => window_init
      procedure :: end => window_end

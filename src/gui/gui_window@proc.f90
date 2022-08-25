@@ -267,7 +267,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
-    type(ImVec2) :: zero2, sz, sztext, szavail
+    type(ImVec2) :: szero, sz, sztext, szavail
     integer(c_int) :: flags, color
     integer :: i, j, k, nshown, newsel, jsel
     logical(c_bool) :: ldum
@@ -282,8 +282,8 @@ contains
     ! initialize
     hadenabledcolumn = .false.
     zeroc = "" // c_null_char
-    zero2%x = 0
-    zero2%y = 0
+    szero%x = 0
+    szero%y = 0
     if (.not.allocated(w%iord)) then
        w%table_sortcid = ic_id
        w%table_sortdir = 1
@@ -305,7 +305,7 @@ contains
     end if
     call igSameLine(0._c_float,-1._c_float)
     str = "Clear" // c_null_char
-    if (igButton(c_loc(str),zero2)) then
+    if (igButton(c_loc(str),szero)) then
        if (c_associated(cfilter)) &
           call ImGuiTextFilter_Clear(cfilter)
     end if
@@ -317,7 +317,7 @@ contains
     ! row of buttons
     ! button: expand
     str = "Expand" // c_null_char
-    if (igButton(c_loc(str),zero2)) then
+    if (igButton(c_loc(str),szero)) then
        do i = 1, nsys
           call expand_system(i)
        end do
@@ -330,7 +330,7 @@ contains
 
     ! button: collapse
     str = "Collapse" // c_null_char
-    if (igButton(c_loc(str),zero2)) then
+    if (igButton(c_loc(str),szero)) then
        do i = 1, nsys
           call collapse_system(i)
        end do
@@ -357,7 +357,7 @@ contains
     ! button: close
     str = "Close" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
-    if (igButton(c_loc(str),zero2)) then
+    if (igButton(c_loc(str),szero)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
        k = 0
@@ -383,7 +383,7 @@ contains
     ! button: close all
     str = "Close All" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
-    if (igButton(c_loc(str),zero2)) then
+    if (igButton(c_loc(str),szero)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
        do i = 1, nsys
@@ -450,6 +450,9 @@ contains
              end if
              w%table_selected = newsel
           end if
+          ! if we removed the system for the input console, update
+          if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
+             win(iwin_console_input)%inpcon_selected = w%table_selected
        end do
        deallocate(w%forceremove)
        ! restart initialization if the threads were killed
@@ -473,7 +476,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),14,flags,zero2,0._c_float)) then
+    if (igBeginTable(c_loc(str),14,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -747,6 +750,7 @@ contains
   contains
 
     subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
+      use gui_main, only: tree_select_updates_inpcon
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, target :: str
       logical, intent(in) :: bclose, bexpand
@@ -765,8 +769,11 @@ contains
          flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
          selected = (w%table_selected==isys)
          strl = "##selectable" // string(isys) // c_null_char
-         if (igSelectable_Bool(c_loc(strl),selected,flags,zero2)) &
+         if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
             w%table_selected = isys
+            if (tree_select_updates_inpcon) &
+               win(iwin_console_input)%inpcon_selected = isys
+         end if
          call igSameLine(0._c_float,-1._c_float)
 
          ! right click to open the context menu
@@ -849,7 +856,13 @@ contains
       end do
       sysc(i)%collapse = -1
       ! selected goes to master
-      if (sysc(w%table_selected)%collapse == i) w%table_selected = i
+      if (w%table_selected >= 1 .and. w%table_selected <= nsys) then
+         if (sysc(w%table_selected)%collapse == i) w%table_selected = i
+      end if
+      if (win(iwin_console_input)%inpcon_selected >= 1 .and. win(iwin_console_input)%inpcon_selected <= nsys) then
+         if (sysc(win(iwin_console_input)%inpcon_selected)%collapse == i) &
+            win(iwin_console_input)%inpcon_selected = i
+      end if
       w%forceupdate = .true.
 
     end subroutine collapse_system
@@ -1102,21 +1115,25 @@ contains
 
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
+       ColorDangerButton
     use gui_utils, only: igIsItemHovered_delayed
+    use systemmod, only: sy
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str1
-    type(ImVec2) :: sz, zero
-    logical(c_bool) :: ldum
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: sz, szero, szavail, sztext
+    logical(c_bool) :: ldum, is_selected
     logical, save :: ttshown = .false.
+    integer :: i
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
     integer(c_size_t), parameter :: maxlib = 40000
 
     ! initialize
-    zero%x = 0
-    zero%y = 0
+    szero%x = 0
+    szero%y = 0
 
     ! allocate the input buffer if not already done
     if (.not.allocated(inputb)) then
@@ -1131,12 +1148,74 @@ contains
 
     ! first line: clear button
     str1 = "Clear" // c_null_char
-    if (igButton(c_loc(str1),zero)) &
+    if (igButton(c_loc(str1),szero)) &
        inputb(1:1) = c_null_char
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Clear the input text" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
+
+    ! second line: calculate size of the RUN button
+    sz%x = 2 * (igGetTextLineHeight() + 2 * g%Style%FramePadding%y) + g%Style%ItemSpacing%y
+    sz%y = sz%x
+
+    ! second line: system selector
+    call igBeginGroup()
+    str1 = "System" // c_null_char
+    call igText(c_loc(str1))
+    call igSameLine(0._c_float,-1._c_float)
+
+    !! set the system pointer and determine the preview string
+    str2 = "" // c_null_char
+    sy => null()
+    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
+       if (sysc(w%inpcon_selected)%status == sys_init) then
+          str2 = string(w%inpcon_selected) // ": " // trim(sysc(w%inpcon_selected)%seed%name) // c_null_char
+          sy => sys(w%inpcon_selected)
+       end if
+    end if
+    str1 = "##systemcombo" // c_null_char
+    call igGetContentRegionAvail(szavail)
+    call igSetNextItemWidth(szavail%x - sz%x - g%Style%ItemSpacing%x)
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init) then
+             is_selected = (w%inpcon_selected == i)
+             str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
+                w%inpcon_selected = i
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end if
+       end do
+       call igEndCombo()
+    end if
+
+    ! third line: field selector
+    str1 = "Field " // c_null_char
+    call igText(c_loc(str1))
+    call igSameLine(0._c_float,-1._c_float)
+
+    str1 = "##fieldcombo" // c_null_char
+    str2 = "" // c_null_char
+    str2 = "empty" // c_null_char ! xxxx
+    call igGetContentRegionAvail(szavail)
+    call igSetNextItemWidth(szavail%x - sz%x - g%Style%ItemSpacing%x)
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       ! xxxx
+       call igEndCombo()
+    end if
+    call igEndGroup()
+
+    ! right-hand-side of lines 2 and 3: RUN button
+    call igSameLine(0._c_float,-1._c_float)
+    str1 = "RUN" // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    if (igButton(c_loc(str1),sz)) then
+       write (*,*) "bleh RUN!"
+    end if
+    call igPopStyleColor(1)
+
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)
@@ -1153,7 +1232,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
-    type(ImVec2) :: sz, zero
+    type(ImVec2) :: sz, szero
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
     logical :: doscroll
@@ -1172,8 +1251,8 @@ contains
     call read_output_unit()
 
     ! initialize
-    zero%x = 0._c_float
-    zero%y = 0._c_float
+    szero%x = 0._c_float
+    szero%y = 0._c_float
 
     ! first line: text
     str1 = "Output" // c_null_char
@@ -1182,7 +1261,7 @@ contains
 
     ! first line: clear button
     str1 = "Clear" // c_null_char
-    if (igButton(c_loc(str1),zero)) then
+    if (igButton(c_loc(str1),szero)) then
        outputb(1:1) = c_null_char
        lob = 0
     end if
@@ -1194,7 +1273,7 @@ contains
 
     ! first line: copy button
     str1 = "Copy" // c_null_char
-    if (igButton(c_loc(str1),zero)) &
+    if (igButton(c_loc(str1),szero)) &
        call igSetClipboardText(c_loc(outputb))
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Copy the output log to clipboard" // c_null_char
@@ -1208,7 +1287,7 @@ contains
     ! first line: save button
     str1 = "Save" // c_null_char
     call igBeginDisabled(logical(idsavedialog > 0,c_bool))
-    if (igButton(c_loc(str1),zero)) &
+    if (igButton(c_loc(str1),szero)) &
        idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
     call igEndDisabled()
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1227,7 +1306,7 @@ contains
 
     ! auto-scroll to the end if we have new output
     if (doscroll) then
-       ldum = igBeginChild_Str(c_loc(str1),zero,.false._c_bool,ImGuiWindowFlags_None)
+       ldum = igBeginChild_Str(c_loc(str1),szero,.false._c_bool,ImGuiWindowFlags_None)
        call igSetScrollHereY(1._c_float)
        call igEndChild()
     end if
