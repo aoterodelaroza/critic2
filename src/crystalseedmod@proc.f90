@@ -925,7 +925,7 @@ contains
   !> Read the structure from a res or ins (shelx) file
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
-       lower, zatguess, fclose, ferror, faterr, warning
+       lower, zatguess, fclose, ferror
     use param, only: eyet, eye, bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed

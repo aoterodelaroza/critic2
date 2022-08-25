@@ -83,8 +83,6 @@ module tools_io
   character(len=:), allocatable :: filepath !< relative path to find related files
   logical :: interactive !< is this an interactive sesion?
   logical :: usegui !< is this a gui session?
-  type(vstring), allocatable :: instr(:) !< input string array
-  integer :: instrptr = 0 !< pointer to input string array
 
   ! error system
   integer, parameter :: faterr = -1 !< fatal error flag

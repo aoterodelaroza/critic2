@@ -3627,7 +3627,7 @@ contains
     write (uout,*)
     if (rk > 0d0) then
        call s%c%get_kpoints(rk,nk)
-       write (uout,'("+ Rk = ",A," | kpts = ",3(A,X))') string(rk,'f',decimal=1),&
+       write (uout,'("+ Rk = ",A," | kpts = ",3(A," "))') string(rk,'f',decimal=1),&
           (string(nk(i)),i=1,3)
     elseif (rkmax > 0d0) then
        write (uout,'("# ---  Rk  ---   -- kpts --")')
@@ -3637,13 +3637,13 @@ contains
           rk = rk + rkmax_step
           call s%c%get_kpoints(rk,nk)
           if (any(nk /= nkold)) then
-             write (uout,'(A," -> ",A,4X,3(A,X))') string(rkold,'f',5,1,ioj_right), &
+             write (uout,'(A," -> ",A,"    ",3(A," "))') string(rkold,'f',5,1,ioj_right), &
                 string(rk-rkmax_step,'f',5,1,ioj_right), (string(nkold(i),2),i=1,3)
              nkold = nk
              rkold = rk
           end if
        end do
-       write (uout,'(A," -> ",A,4X,3(A,X))') string(rkold,'f',5,1,ioj_right), &
+       write (uout,'(A," -> ",A,"    ",3(A," "))') string(rkold,'f',5,1,ioj_right), &
           string(rk-rkmax_step,'f',5,1,ioj_right), (string(nkold(i),2),i=1,3)
     end if
     write (uout,*)

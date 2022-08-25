@@ -554,17 +554,7 @@ contains
     notfirst = .false.
     do while (.true.)
        ! read the line
-       if (.not.lstr) then
-          ok = getline_raw(u,line,nprompt=nprompt)
-       else
-          instrptr = instrptr + 1
-          ok = (instrptr <= size(instr,1))
-          if (ok) then
-             line = instr(instrptr)%s
-          else
-             line = ""
-          end if
-       end if
+       ok = getline_raw(u,line,nprompt=nprompt)
        ! exit if eof
        if (.not.ok) then
           if (present(eofstop).and..not.lstr) then

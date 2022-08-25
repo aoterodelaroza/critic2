@@ -1122,7 +1122,7 @@ contains
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
     use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
-       ColorDangerButton
+       ColorDangerButton, run_commands
     use gui_utils, only: igIsItemHovered_delayed
     use systemmod, only: sy
     use tools_io, only: string
@@ -1132,7 +1132,7 @@ contains
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
     logical, save :: ttshown = .false.
-    integer :: i
+    integer :: i, idx
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
     integer(c_size_t), parameter :: maxlib = 40000
@@ -1237,10 +1237,10 @@ contains
     str1 = "RUN" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
     if (igButton(c_loc(str1),sz)) then
-       write (*,*) "bleh RUN!"
+       idx = index(inputb,c_null_char)
+       if (idx > 0) call run_commands(inputb(1:idx-1))
     end if
     call igPopStyleColor(1)
-
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)

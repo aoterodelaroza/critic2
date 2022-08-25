@@ -539,6 +539,30 @@ contains
 
   end subroutine remove_system
 
+  !> Run the commands in str, typically the console input buffer
+  module subroutine run_commands(str)
+    use global, only: critic_main
+    use tools_io, only: falloc, uin, fclose, ferror, faterr
+    use iso_fortran_env, only: input_unit
+    character(len=*), intent(in) :: str
+
+    integer :: ios
+
+    ! connect a scratch file to uin, write the commands, rewind, and run
+    uin = falloc()
+    open(unit=uin,status='scratch',form='formatted',access='stream',iostat=ios)
+    if (ios /= 0) &
+       call ferror("run_commands","cannot open buffer for critic2 input",faterr)
+    write (uin,'(A)') str
+    rewind(uin)
+    call critic_main()
+
+    ! clean up
+    call fclose(uin)
+    uin = input_unit
+
+  end subroutine run_commands
+
   !xx! private procedures
 
   ! Process the command-line arguments. Skip the options and load the files.

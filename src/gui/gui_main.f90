@@ -79,6 +79,7 @@ module gui_main
   public :: system_shorten_names
   public :: add_systems_from_name
   public :: remove_system
+  public :: run_commands
 
   interface
      module subroutine gui_start()
@@ -101,6 +102,9 @@ module gui_main
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx
      end subroutine remove_system
+     module subroutine run_commands(str)
+       character(len=*), intent(in) :: str
+     end subroutine run_commands
   end interface
 
 contains
