@@ -709,8 +709,14 @@ end subroutine igLogFinish
 !x! const ImGuiPayload* igAcceptDragDropPayload(const char* type,ImGuiDragDropFlags flags);
 !x! void igEndDragDropTarget(void);
 !x! const ImGuiPayload* igGetDragDropPayload(void);
-!x! void igBeginDisabled(bool disabled);
-!x! void igEndDisabled(void);
+! void igBeginDisabled(bool disabled);
+subroutine igBeginDisabled(disabled) bind(c,name="igBeginDisabled")
+  import c_bool
+  logical(c_bool), value :: disabled
+end subroutine igBeginDisabled
+! void igEndDisabled(void);
+subroutine igEndDisabled() bind(c,name="igEndDisabled")
+end subroutine igEndDisabled
 !x! void igPushClipRect(const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
 !x! void igPopClipRect(void);
 !x! void igSetItemDefaultFocus(void);
@@ -1980,10 +1986,18 @@ function IGFD_GetSelection(vContext) bind(c,name="IGFD_GetSelection")
   type(c_ptr), value :: vContext
   type(IGFD_Selection) :: IGFD_GetSelection
 end function IGFD_GetSelection
-!x! IMGUIFILEDIALOG_API char* IGFD_GetFilePathName(
-!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
-!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFileName(
-!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+! IMGUIFILEDIALOG_API char* IGFD_GetFilePathName(ImGuiFileDialog* vContext)
+function IGFD_GetFilePathName(vContext) bind(c,name="IGFD_GetFilePathName")
+  import c_ptr
+  type(c_ptr), value :: vContext
+  type(c_ptr) :: IGFD_GetFilePathName
+end function IGFD_GetFilePathName
+! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFileName(ImGuiFileDialog* vContext)
+function IGFD_GetCurrentFileName(vContext) bind(c,name="IGFD_GetCurrentFileName")
+  import c_ptr
+  type(c_ptr), value :: vContext
+  type(c_ptr) :: IGFD_GetCurrentFileName
+end function IGFD_GetCurrentFileName
 ! IMGUIFILEDIALOG_API char* IGFD_GetCurrentPath(ImGuiFileDialog* vContext);
 function IGFD_GetCurrentPath(vContext) bind(c,name="IGFD_GetCurrentPath")
   import c_ptr

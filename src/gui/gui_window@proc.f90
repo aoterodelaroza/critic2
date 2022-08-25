@@ -39,19 +39,24 @@ submodule (gui_window) proc
   integer(c_int), parameter :: ic_beta = 12
   integer(c_int), parameter :: ic_gamma = 13
 
+  ! the buffer for the output console
+  character(kind=c_char,len=:), allocatable, target :: outputb
+  integer(c_size_t) :: lob = 0
+  integer(c_size_t), parameter :: maxlob = 2000000
 
   !xx! private procedures
   ! function tree_tooltip_string(i)
-  ! subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue)
+  ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
 
 contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  function stack_create_window(type,isopen)
+  function stack_create_window(type,isopen,purpose)
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
+    integer, intent(in), optional :: purpose
     type(window), allocatable :: aux(:)
     integer :: stack_create_window
 
@@ -80,18 +85,20 @@ contains
     end if
 
     ! initialize the new window
-    call win(id)%init(type,isopen)
+    call win(id)%init(type,isopen,purpose)
     stack_create_window = id
 
   end function stack_create_window
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen)
+  module subroutine window_init(w,type,isopen,purpose)
     use gui_main, only: ColorDialogDir, ColorDialogFile
+    use tools_io, only: ferror, faterr
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
+    integer, intent(in), optional :: purpose
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -102,20 +109,25 @@ contains
     w%id = -1
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
-    w%od_data%ptr = c_null_ptr
-    w%od_data%mol = -1
-    w%od_data%showhidden = .false._c_bool
-    w%od_data%isformat = isformat_unknown
-    w%od_data%readlastonly = .false._c_bool
+    w%dialog_data%ptr = c_null_ptr
+    w%dialog_data%mol = -1
+    w%dialog_data%showhidden = .false._c_bool
+    w%dialog_data%isformat = isformat_unknown
+    w%dialog_data%readlastonly = .false._c_bool
+    w%dialog_data%purpose = wpurp_unknown
+    w%dialog_purpose = wpurp_unknown
 
     ! type-specific initialization
-    if (type == wintype_opendialog) then
-       ! create the opendialog object and set up the style
+    if (type == wintype_dialog) then
+       ! create the dialog object and set up the style
        w%ptr = IGFD_Create()
        str1 = "+" // c_null_char
        call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeDir,c_null_ptr,ColorDialogDir,c_loc(str1),c_null_ptr)
        str1 = " " // c_null_char
        call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeFile,c_null_ptr,ColorDialogFile,c_loc(str1),c_null_ptr)
+       if (.not.present(purpose)) &
+          call ferror('window_init','dialog requires a purpose',faterr)
+       w%dialog_purpose = purpose
     end if
 
   end subroutine window_init
@@ -125,11 +137,11 @@ contains
     class(window), intent(inout) :: w
 
     ! window-specific destruction
-    if (w%isinit .and. w%type == wintype_opendialog .and. c_associated(w%ptr)) then
+    if (w%isinit .and. w%type == wintype_dialog .and. c_associated(w%ptr)) &
        call IGFD_Destroy(w%ptr)
-    end if
 
     ! deallocate the rest of the data
+    w%dialog_purpose = wpurp_unknown
     w%isinit = .false.
     w%isopen = .false.
     w%id = -1
@@ -140,7 +152,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
-    use tools_io, only: string
+    use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -164,38 +176,50 @@ contains
        elseif (w%type == wintype_console_output) then
           w%name = "Output Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
-       elseif (w%type == wintype_opendialog) then
-          w%name = "Open File(s)..." // c_null_char
+       elseif (w%type == wintype_dialog) then
+          w%dialog_data%ptr = w%ptr
+          w%dialog_data%purpose = w%dialog_purpose
           w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
-          w%od_data%ptr = w%ptr
-          str1 = &
-             "&
-             &All files (*.*){*.*},&
-             &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
-             &ADF (molden){.molden},&
-             &cif (cif){.cif},&
-             &CRYSTAL (out){.out},&
-             &cube (cube|bincube){.cube,.bincube},&
-             &DFTB+ (gen){.gen},&
-             &DMACRYS (dmain|16|21){.dmain,.16,.21},&
-             &elk (OUT){.OUT},&
-             &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
-             &Gaussian (log|wfn|wfx|fchk|cube){.log,.wfn,.wfx,.fchk,.cube},&
-             &ORCA (molden|molden.input){.molden,.input},&
-             &postg (pgout){.pgout},&
-             &psi4 (molden|dat){.molden,.dat},&
-             &Quantum ESPRESSO (out|in|cube|pwc) {.out,.in,.cube,.pwc},&
-             &SHELX (res|ins){.res,.ins.16},&
-             &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
-             &TINKER (frac) {.frac},&
-             &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
-             &WIEN2k (struct){.struct},&
-             &Xcrysden (xsf|axsf) {.xsf,.axsf},&
-             &xyz (xyz){.xyz},&
-             &"// c_null_char
           str2 = "" // c_null_char ! default path
-          call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-             c_funloc(opendialog_user_callback),280._c_float,0_c_int,c_loc(w%od_data),w%flags)
+
+          if (w%dialog_purpose == wpurp_dialog_openfiles) then
+             ! open dialog
+             w%name = "Open File(s)..." // c_null_char
+             str1 = &
+                "&
+                &All files (*.*){*.*},&
+                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
+                &ADF (molden){.molden},&
+                &cif (cif){.cif},&
+                &CRYSTAL (out){.out},&
+                &cube (cube|bincube){.cube,.bincube},&
+                &DFTB+ (gen){.gen},&
+                &DMACRYS (dmain|16|21){.dmain,.16,.21},&
+                &elk (OUT){.OUT},&
+                &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
+                &Gaussian (log|wfn|wfx|fchk|cube){.log,.wfn,.wfx,.fchk,.cube},&
+                &ORCA (molden|molden.input){.molden,.input},&
+                &postg (pgout){.pgout},&
+                &psi4 (molden|dat){.molden,.dat},&
+                &Quantum ESPRESSO (out|in|cube|pwc) {.out,.in,.cube,.pwc},&
+                &SHELX (res|ins){.res,.ins.16},&
+                &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
+                &TINKER (frac) {.frac},&
+                &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+                &WIEN2k (struct){.struct},&
+                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
+                &xyz (xyz){.xyz},&
+                &"// c_null_char
+             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
+             w%name = "Save Log File..." // c_null_char
+             str1 = "All files (*.*){*.*}" // c_null_char
+             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          else
+             call ferror('window_draw','unknown dialog purpose',faterr)
+          end if
        end if
     end if
 
@@ -219,8 +243,8 @@ contains
              end if
           end if
           call igEnd()
-       elseif (w%type == wintype_opendialog) then
-          call w%draw_opendialog()
+       elseif (w%type == wintype_dialog) then
+          call w%draw_dialog()
        end if
     end if
 
@@ -993,10 +1017,12 @@ contains
 
   end subroutine sort_tree
 
-  module subroutine draw_opendialog(w)
+  !> Draw the open files dialog.
+  module subroutine draw_dialog(w)
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
+    use tools_io, only: ferror, faterr, fopen_write, fclose
     use param, only: dirsep
     class(window), intent(inout), target :: w
 
@@ -1007,8 +1033,9 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path
     logical :: readlastonly
+    integer :: lu, ios
 
-    ! permutation for the format list (see opendialog_user_callback)
+    ! permutation for the open file format list (see dialog_user_callback)
     integer, parameter :: isperm(0:30) = (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,&
        14,26,25,16,24,9,10,22,2,18,30,21,6,23,19,12/)
 
@@ -1026,19 +1053,44 @@ contains
        ! the dialog has been closed
        if (IGFD_IsOk(w%ptr)) then
           ! with an OK, gather information
-          sel = IGFD_GetSelection(w%ptr)
-          call c_f_pointer(sel%table,s,(/sel%count/))
-          cstr = IGFD_GetCurrentPath(w%ptr)
-          call C_F_string_alloc(cstr,path)
-          do i = 1, sel%count
-             call C_F_string_alloc(s(i)%fileName,name)
-             name = trim(path) // dirsep // trim(name)
-             readlastonly = w%od_data%readlastonly
-             call add_systems_from_name(name,w%od_data%mol,isperm(w%od_data%isformat),readlastonly)
-          end do
-          call c_free(cstr)
-          call launch_initialization_thread()
-          call system_shorten_names()
+          if (w%dialog_purpose == wpurp_dialog_openfiles) then
+             !! open files dialog !!
+             ! open all files selected and add the new systems
+             sel = IGFD_GetSelection(w%ptr)
+             call c_f_pointer(sel%table,s,(/sel%count/))
+             cstr = IGFD_GetCurrentPath(w%ptr)
+             call C_F_string_alloc(cstr,path)
+             call c_free(cstr)
+             do i = 1, sel%count
+                call C_F_string_alloc(s(i)%fileName,name)
+                name = trim(path) // dirsep // trim(name)
+                readlastonly = w%dialog_data%readlastonly
+                call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),readlastonly)
+             end do
+
+             ! initialize
+             call launch_initialization_thread()
+
+             ! shorten the names
+             call system_shorten_names()
+
+          elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
+             !! save log file dialog !!
+             cstr = IGFD_GetFilePathName(w%ptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             if (allocated(outputb)) then
+                lu = fopen_write(name,errstop=.false.)
+                if (lu >= 0) then
+                   write(lu,'(A)') outputb(1:lob)
+                   call fclose(lu)
+                else
+                   call ferror('draw_dialog','could not open file for writing: ' // name,faterr,syntax=.true.)
+                end if
+             end if
+          else
+             call ferror('draw_dialog','unknown dialog purpose',faterr)
+          end if
        end if
 
        ! close the dialog and terminate the window
@@ -1046,7 +1098,7 @@ contains
        call w%end()
     end if
 
-  end subroutine draw_opendialog
+  end subroutine draw_dialog
 
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
@@ -1105,10 +1157,16 @@ contains
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
     logical :: doscroll
-    ! the output buffer
-    character(kind=c_char,len=:), allocatable, target, save :: outputb
-    integer(c_size_t), save :: lob = 0
-    integer(c_size_t), parameter :: maxlob = 2000000
+    integer, save :: idsavedialog = 0
+
+    ! check if the save dialog is still open
+    if (idsavedialog > 0) then
+       if (idsavedialog < 1 .or. idsavedialog > nwin) then
+          idsavedialog = 0
+       elseif (.not.win(idsavedialog)%isinit .or. .not.win(idsavedialog)%isopen) then
+          idsavedialog = 0
+       end if
+    end if
 
     ! read new output, if available
     call read_output_unit()
@@ -1140,6 +1198,21 @@ contains
        call igSetClipboardText(c_loc(outputb))
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Copy the output log to clipboard" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! Renamed to BeginDisabled() / EndDisabled() and pushed on master.
+    ! Added style.DisabledAlpha and ImGuiStyleVar_DisabledAlpha, defaulting to 0.60f.
+
+    ! first line: save button
+    str1 = "Save" // c_null_char
+    call igBeginDisabled(logical(idsavedialog > 0,c_bool))
+    if (igButton(c_loc(str1),zero)) &
+       idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
+    call igEndDisabled()
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Save the output log to a file" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
@@ -1371,8 +1444,8 @@ contains
 
   end function tree_tooltip_string
 
-  ! the callback for the right-hand-side pane of the opendialog
-  subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
+  ! the callback for the right-hand-side pane of the dialog
+  subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
     use gui_main, only: ColorHighlightText, tooltip_delay
     use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
@@ -1381,15 +1454,17 @@ contains
     logical(c_bool) :: vCantContinue ! bool *
 
     character(kind=c_char,len=:), allocatable, target :: str, stropt
-    type(opendialog_userdata), pointer :: data
+    type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
 
     ! generate the data pointer
     call c_f_pointer(vUserData,data)
 
+    !! common options !!
+
     ! header
-    str = "Open Options" // c_null_char
+    str = "Options" // c_null_char
     call igTextColored(ColorHighlightText,c_loc(str))
 
     ! show hidden files
@@ -1405,84 +1480,88 @@ contains
        str = "Show the OS hidden files and directories in this dialog" // c_null_char
        call igSetTooltip(c_loc(str))
     end if
-    str = "Read last structure only" // c_null_char
-    ldum = igCheckbox(c_loc(str),data%readlastonly)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Read only the last structure in the file" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
-    call igNewLine()
 
-    ! radio buttons for auto/crystal/molecule
-    str = "Read structures as..." // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str))
-    str = "Auto-detect" // c_null_char
-    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Auto-detect whether new structures are read as crystals or molecules" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
-    str = "Crystal" // c_null_char
-    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,0)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Force new structures to be read as crystals" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
-    str = "Molecule" // c_null_char
-    ldum = igRadioButton_IntPtr(c_loc(str),data%mol,1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Force new structures to be read as molecules" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
-    call igNewLine()
+    !! options specific to the open files dialog !!
+    if (data%purpose == wpurp_dialog_openfiles) then
+       str = "Read last structure only" // c_null_char
+       ldum = igCheckbox(c_loc(str),data%readlastonly)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Read only the last structure in the file" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igNewLine()
 
-    ! Input structure format (isformat)
-    str = "Read file format" // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str))
-    str = "##formatcombo" // c_null_char
-    stropt = "" &
-       // "Auto-detect" // c_null_char &             ! isformat_unknown = 0
-       // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit = 7
-       // "Binary cube" // c_null_char &             ! isformat_bincube = 5
-       // "CIF file" // c_null_char &                ! isformat_cif = 1
-       // "CRYSTAL output" // c_null_char &          ! isformat_crystal = 11
-       // "Cube" // c_null_char &                    ! isformat_cube = 4
-       // "DFTB+ gen file" // c_null_char &          ! isformat_gen = 20
-       // "DMACRYS .21 file" // c_null_char &        ! isformat_f21 = 3
-       // "DMACRYS dmain file" // c_null_char &      ! isformat_dmain = 27
-       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk = 8
-       // "FHIaims input" // c_null_char &           ! isformat_aimsin = 28
-       // "FHIaims output" // c_null_char &          ! isformat_aimsout = 29
-       // "Gaussian fchk" // c_null_char &           ! isformat_fchk = 15
-       // "Gaussian output" // c_null_char &         ! isformat_gaussian = 17
-       // "Gaussian wfn" // c_null_char &            ! isformat_wfn = 13
-       // "Gaussian wfx" // c_null_char &            ! isformat_wfx = 14
-       // "ORCA molden file" // c_null_char &        ! isformat_orca = 26
-       // "postg output" // c_null_char &            ! isformat_pgout = 25
-       // "psi4 molden file" // c_null_char &        ! isformat_molden = 16
-       // "psi4 output" // c_null_char &             ! isformat_dat = 24
-       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein = 9
-       // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout = 10
-       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc = 22
-       // "SHELX" // c_null_char &                   ! isformat_shelx = 2
-       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta = 18
-       // "TINKER frac file" // c_null_char &        ! isformat_tinkerfrac = 30
-       // "VASP" // c_null_char &                    ! isformat_vasp = 21
-       // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
-       // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
-       // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
-       // "xyz file" // c_null_char &                ! isformat_xyz = 12
-       // c_null_char
-    ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = &
-          "Force new structures read with a given file format, or auto-detect"//new_line('a')//&
-          "from the extension"//c_null_char
+       ! radio buttons for auto/crystal/molecule
+       str = "Read structures as..." // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       str = "Auto-detect" // c_null_char
+       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Auto-detect whether new structures are read as crystals or molecules" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       str = "Crystal" // c_null_char
+       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,0)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Force new structures to be read as crystals" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       str = "Molecule" // c_null_char
+       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,1)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Force new structures to be read as molecules" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igNewLine()
 
-       call igSetTooltip(c_loc(str))
+       ! Input structure format (isformat)
+       str = "Read file format" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       str = "##formatcombo" // c_null_char
+       stropt = "" &
+          // "Auto-detect" // c_null_char &             ! isformat_unknown = 0
+          // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit = 7
+          // "Binary cube" // c_null_char &             ! isformat_bincube = 5
+          // "CIF file" // c_null_char &                ! isformat_cif = 1
+          // "CRYSTAL output" // c_null_char &          ! isformat_crystal = 11
+          // "Cube" // c_null_char &                    ! isformat_cube = 4
+          // "DFTB+ gen file" // c_null_char &          ! isformat_gen = 20
+          // "DMACRYS .21 file" // c_null_char &        ! isformat_f21 = 3
+          // "DMACRYS dmain file" // c_null_char &      ! isformat_dmain = 27
+          // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk = 8
+          // "FHIaims input" // c_null_char &           ! isformat_aimsin = 28
+          // "FHIaims output" // c_null_char &          ! isformat_aimsout = 29
+          // "Gaussian fchk" // c_null_char &           ! isformat_fchk = 15
+          // "Gaussian output" // c_null_char &         ! isformat_gaussian = 17
+          // "Gaussian wfn" // c_null_char &            ! isformat_wfn = 13
+          // "Gaussian wfx" // c_null_char &            ! isformat_wfx = 14
+          // "ORCA molden file" // c_null_char &        ! isformat_orca = 26
+          // "postg output" // c_null_char &            ! isformat_pgout = 25
+          // "psi4 molden file" // c_null_char &        ! isformat_molden = 16
+          // "psi4 output" // c_null_char &             ! isformat_dat = 24
+          // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein = 9
+          // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout = 10
+          // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc = 22
+          // "SHELX" // c_null_char &                   ! isformat_shelx = 2
+          // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta = 18
+          // "TINKER frac file" // c_null_char &        ! isformat_tinkerfrac = 30
+          // "VASP" // c_null_char &                    ! isformat_vasp = 21
+          // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
+          // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
+          // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
+          // "xyz file" // c_null_char &                ! isformat_xyz = 12
+          // c_null_char
+       ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = &
+             "Force new structures read with a given file format, or auto-detect"//new_line('a')//&
+             "from the extension"//c_null_char
+
+          call igSetTooltip(c_loc(str))
+       end if
+       call igNewLine()
     end if
-    call igNewLine()
 
-  end subroutine opendialog_user_callback
+  end subroutine dialog_user_callback
 
 end submodule proc

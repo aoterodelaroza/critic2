@@ -24,13 +24,14 @@ module gui_window
   private
 
   ! user data for the file open dialog
-  type, bind(c) :: opendialog_userdata
+  type, bind(c) :: dialog_userdata
      type(c_ptr) :: ptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
      integer(c_int) :: isformat = isformat_unknown ! force structure format
      logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
-  end type opendialog_userdata
+     integer(c_int) :: purpose ! the purpose of the dialog
+  end type dialog_userdata
 
   ! Wrapper class to handle ImGui windows
   type window
@@ -52,8 +53,9 @@ module gui_window
      logical :: forceupdate = .false. ! make true to force an update of the tree
      logical :: forceinit = .false. ! make true to force an initialization of the systems
      integer, allocatable :: forceremove(:) ! make an integer to remove one of the systems
-     ! opendialog parameters
-     type(opendialog_userdata) :: od_data ! for the side pane callback
+     ! dialog parameters
+     integer :: dialog_purpose ! purpose of the dialog (open, save,...)
+     type(dialog_userdata) :: dialog_data ! for the side pane callback
    contains
      procedure :: init => window_init
      procedure :: end => window_end
@@ -62,8 +64,8 @@ module gui_window
      procedure :: draw_tree
      procedure :: update_tree
      procedure :: sort_tree
-     ! opendialog procedures
-     procedure :: draw_opendialog
+     ! dialog procedures
+     procedure :: draw_dialog
      ! console procedures
      procedure :: draw_console_input
      procedure :: draw_console_output
@@ -83,21 +85,28 @@ module gui_window
   integer, parameter, public :: wintype_view = 2
   integer, parameter, public :: wintype_console_input = 3
   integer, parameter, public :: wintype_console_output = 4
-  integer, parameter, public :: wintype_opendialog = 5
+  integer, parameter, public :: wintype_dialog = 5
+
+  ! window purposes
+  integer, parameter, public :: wpurp_unknown = 0
+  integer, parameter, public :: wpurp_dialog_openfiles = 1
+  integer, parameter, public :: wpurp_dialog_savelogfile = 2
 
   ! routines to manipulate the window stack
   public :: stack_create_window
 
   interface
-     module function stack_create_window(type,isopen)
+     module function stack_create_window(type,isopen,purpose)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
+       integer, intent(in), optional :: purpose
        integer :: stack_create_window
      end function stack_create_window
-     module subroutine window_init(w,type,isopen)
+     module subroutine window_init(w,type,isopen,purpose)
        class(window), intent(inout) :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
+       integer, intent(in), optional :: purpose
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout) :: w
@@ -115,9 +124,9 @@ module gui_window
        class(window), intent(inout) :: w
        integer(c_int), intent(in) :: cid, dir
      end subroutine sort_tree
-     module subroutine draw_opendialog(w)
+     module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
-     end subroutine draw_opendialog
+     end subroutine draw_dialog
      module subroutine draw_console_input(w)
        class(window), intent(inout), target :: w
      end subroutine draw_console_input

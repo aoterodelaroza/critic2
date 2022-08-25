@@ -562,7 +562,7 @@ contains
   subroutine show_main_menu()
     use gui_interfaces_cimgui
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, stack_create_window, wintype_opendialog
+       iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles
     use gui_utils, only: igIsItemHovered_delayed
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -677,7 +677,7 @@ contains
 
     ! process launches
     if (launchopen) &
-       idopendialog = stack_create_window(wintype_opendialog,.true.)
+       idopendialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()

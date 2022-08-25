@@ -1366,6 +1366,7 @@ contains
        open(unit=lu,file=ofile,status='old',iostat=ios)
     endif
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_read","error opening file: "//string(file),faterr)
@@ -1404,6 +1405,7 @@ contains
        open(unit=lu,file=ofile,status='unknown',iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening file: "//string(file),faterr)
@@ -1440,6 +1442,7 @@ contains
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_append","error opening file: "//string(file),faterr)
@@ -1470,6 +1473,7 @@ contains
        open(unit=lu,status='scratch',form="unformatted",access="stream",iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening scratch file",faterr)
