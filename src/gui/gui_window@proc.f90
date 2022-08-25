@@ -1033,7 +1033,7 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path
     logical :: readlastonly
-    integer :: lu, ios
+    integer :: lu
 
     ! permutation for the open file format list (see dialog_user_callback)
     integer, parameter :: isperm(0:30) = (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,&
@@ -1148,7 +1148,7 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_console_output(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_main, only: ColorHighlightText, tooltip_delay, g
     use gui_utils, only: igIsItemHovered_delayed
     class(window), intent(inout), target :: w
 
@@ -1216,10 +1216,14 @@ contains
        call igSetTooltip(c_loc(str1))
     end if
 
-    ! calculate sizes and draw the multiline
+    ! calculate sizes and draw the multiline (with dark background and border)
     call igGetContentRegionAvail(sz)
+    call igPushStyleColor_Vec4(ImGuiCol_FrameBg,g%Style%Colors(ImGuiCol_WindowBg+1))
+    call igPushStyleVar_Float(ImGuiStyleVar_FrameBorderSize,1._c_float)
     str1 = "##outputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+    call igPopStyleVar(1)
+    call igPopStyleColor(1)
 
     ! auto-scroll to the end if we have new output
     if (doscroll) then
