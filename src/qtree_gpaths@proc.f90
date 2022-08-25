@@ -266,13 +266,13 @@ contains
     !    xp = sy%c%c2x(xp)
     !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
-    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
+    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,"  "))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     !    !$omp end critical (IO)
     ! ! end if
     cpout = nnuc+3
 
-    ! write (uout,'("* Last point: ",3(F20.12,2X))') xp
+    ! write (uout,'("* Last point: ",3(F20.12,"  "))') xp
     ! write (uout,'("* Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     ! call ferror('grdient_qtree','too many steps in gradient',faterr)
 
@@ -491,13 +491,13 @@ contains
     !    xp = sy%c%c2x(xp)
     !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
-    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
+    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,"  "))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     !    !$omp end critical (IO)
     ! ! end if
     cpout = nnuc+3
 
-    ! write (uout,'("* Last point: ",3(F20.12,2X))') xp
+    ! write (uout,'("* Last point: ",3(F20.12,"  "))') xp
     ! write (uout,'("* Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     ! call ferror('gradient_color','too many steps in gradient',faterr)
 

@@ -457,7 +457,7 @@ contains
           strcs = "??"
        end if
 
-       write (uout,'(6(A,X),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
+       write (uout,'(6(A," "),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
           string(strs,8,ioj_left), string(strf,14,ioj_left), string(sa%choice,6,ioj_left), &
           string(strcs,12,ioj_left), string(sa%hall_symbol)
     end do

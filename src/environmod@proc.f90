@@ -1733,9 +1733,9 @@ contains
        write (uout,'("  Maximum interaction distance (",A,"): ",A)') iunitname0(iunit), string(e%dmax0*dunit0(iunit),'f',8,4)
     end if
     write (uout,'("  Covering regions: ")')
-    write (uout,'("    Total number of regions: ",A," (",2(A,X),A,")")') string(e%nregion), (string(e%nreg(j)),j=1,3)
-    write (uout,'("    Minimum region ID: ",3(A,X))') (string(e%nmin(j)),j=1,3)
-    write (uout,'("    Maximum region ID: ",3(A,X))') (string(e%nmax(j)),j=1,3)
+    write (uout,'("    Total number of regions: ",A," (",2(A," "),A,")")') string(e%nregion), (string(e%nreg(j)),j=1,3)
+    write (uout,'("    Minimum region ID: ",3(A," "))') (string(e%nmin(j)),j=1,3)
+    write (uout,'("    Maximum region ID: ",3(A," "))') (string(e%nmax(j)),j=1,3)
     write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
     write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
        (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)

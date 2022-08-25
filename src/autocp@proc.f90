@@ -530,11 +530,11 @@ contains
        write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
     end if
 
-    write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A,X,A)') &
+    write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A," ",A)') &
        string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A,X,A)') &
+    write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A," ",A)') &
        string(nuceps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A,X,A)') &
+    write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A," ",A)') &
        string(nucepsh*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
        string(CP_hdegen,'e',decimal=3)
@@ -1090,7 +1090,7 @@ contains
     do i = 1, sy%f(sy%iref)%ncp
        do j = 1, shmax
           if (j == 1) then
-             write (uout,'(6(A,X))') &
+             write (uout,'(6(A," "))') &
                 string(i,length=6,justify=ioj_center), namecrit(sy%f(sy%iref)%cp(i)%typind),&
                 string(nneig(i,j),length=5,justify=ioj_center), &
                 string(dist(i,j)*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
@@ -1098,7 +1098,7 @@ contains
                 namecrit(sy%f(sy%iref)%cp(wcp(i,j))%typind)
           else
              if (wcp(i,j) /= 0) then
-                write (uout,'(6X,"...",6(A,X))') &
+                write (uout,'("      ...",6(A," "))') &
                    string(nneig(i,j),length=5,justify=ioj_center), &
                    string(dist(i,j)*dunit0(iunit),'f',length=12,decimal=8,justify=3), &
                    string(wcp(i,j),length=4,justify=ioj_center), &
@@ -1108,7 +1108,7 @@ contains
        end do
     end do
     write (uout,*)
-    write (uout,'("* Minimum CP distance is ",A,X,A," between CP# ",A," and ",A)') &
+    write (uout,'("* Minimum CP distance is ",A," ",A," between CP# ",A," and ",A)') &
        string(dmin*dunit0(iunit),'f',length=12,decimal=7,justify=ioj_center), &
        string(iunitname0(iunit)), string(imin), string(wcp(imin,1))
     write (uout,*)
@@ -1223,10 +1223,12 @@ contains
           write (auxsmall(j),'(a1,"(",A,")")') smallnamecrit(ind), string(icon(j))
        end do
        do i = 0, ncon / 6
-          write (uout,'(13x,6(A))') (string(auxsmall(j),6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
-          write (uout,'(13x,6(A))') (string(sy%f(sy%iref)%cp(icon(j))%name,6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+          write (uout,'("             ",6(A))') &
+             (string(auxsmall(j),6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
+          write (uout,'("             ",6(A))') &
+             (string(sy%f(sy%iref)%cp(icon(j))%name,6,ioj_center), j = 6*i,min(6*(i+1)-1,ncon))
           do j = 0, ncon
-             write (uout,'(A,x,A,x,6(A))') string(auxsmall(j),6,ioj_center), &
+             write (uout,'(A," ",A," ",6(A))') string(auxsmall(j),6,ioj_center), &
                 string(sy%f(sy%iref)%cp(icon(j))%name,6,ioj_center), &
                 (string(connectm(icon(j),icon(k)),6,ioj_center), k = 6*i, min(6*(i+1)-1,ncon))
           end do
@@ -1281,7 +1283,7 @@ contains
        end if
 
        if (.not.sy%c%ismolecule) then
-          write (uout,'(2X,A,1x,A," (3,",A,") ",A,1X,3(A,1X),A,1x,A,3(1X,A))') &
+          write (uout,'("  ",A," ",A," (3,",A,") ",A," ",3(A," "),A," ",A,3(" ",A))') &
              string(i,length=4,justify=ioj_left), string(sy%f(sy%iref)%cp(i)%pg,length=3,justify=ioj_center),&
              string(sy%f(sy%iref)%cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
              (string(sy%f(sy%iref)%cp(i)%x(j),'f',length=12,decimal=8,justify=3),j=1,3), &
@@ -1291,7 +1293,7 @@ contains
              string(sy%f(sy%iref)%cp(i)%s%gfmod,'e',decimal=8,length=15,justify=4),&
              string(sy%f(sy%iref)%cp(i)%s%del2f,'e',decimal=8,length=15,justify=4)
        else
-          write (uout,'(2X,A," (3,",A,") ",A,1X,3(A,1X),A,3(1X,A))') &
+          write (uout,'("  ",A," (3,",A,") ",A," ",3(A," "),A,3(" ",A))') &
              string(i,length=4,justify=ioj_left),&
              string(sy%f(sy%iref)%cp(i)%typ,length=2), string(namecrit(ind),length=8,justify=ioj_center),&
              (string((sy%f(sy%iref)%cp(i)%r(j)+sy%c%molx0(j))*dunit0(iunit),'f',length=12,decimal=8,justify=3),j=1,3), &
@@ -1652,7 +1654,7 @@ contains
        else
           neqlab = " "
        end if
-       write (uout,'(11(A,X))') &
+       write (uout,'(11(A," "))') &
           string(neqlab,length=1), string(i,length=6,justify=ioj_left),&
           string(sy%f(sy%iref)%cpcel(i)%idx,length=4,justify=ioj_left),&
           string(smallnamecrit(sy%f(sy%iref)%cpcel(i)%typind),length=1),&
@@ -1668,7 +1670,7 @@ contains
     write (uout,'("#cp  ncp   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
     do i = 1, sy%f(sy%iref)%ncpcel
        if (sy%f(sy%iref)%cpcel(i)%typ == -1 .or. sy%f(sy%iref)%cpcel(i)%typ == 1 .and. dograph > 0) then
-          write (uout,'(7(A,X),"(",3(A,X),") ",A," (",3(A,X),")")') &
+          write (uout,'(7(A," "),"(",3(A," "),") ",A," (",3(A," "),")")') &
              string(i,length=6,justify=ioj_left),&
              string(sy%f(sy%iref)%cpcel(i)%idx,length=4,justify=ioj_left),&
              string(smallnamecrit(sy%f(sy%iref)%cpcel(i)%typind),length=1),&
@@ -1678,7 +1680,7 @@ contains
              string(sy%f(sy%iref)%cpcel(i)%ipath(2),length=4,justify=ioj_center),&
              (string(sy%f(sy%iref)%cpcel(i)%ilvec(j,2),length=2,justify=ioj_right),j=1,3)
        else
-          write (uout,'(20(A,X))') &
+          write (uout,'(20(A," "))') &
              string(i,length=6,justify=ioj_left),&
              string(sy%f(sy%iref)%cpcel(i)%idx,length=4,justify=ioj_left),&
              string(smallnamecrit(sy%f(sy%iref)%cpcel(i)%typind),length=1),&
@@ -1705,13 +1707,13 @@ contains
     do i = 1, sy%f(sy%iref)%ncp
        write (uout,'("+ Critical point no. ",A)') string(i)
        if (.not.sy%c%ismolecule) then
-          write (uout,'("  Crystallographic coordinates: ",3(A,X))') &
+          write (uout,'("  Crystallographic coordinates: ",3(A," "))') &
              (string(sy%f(sy%iref)%cp(i)%x(j),'f',decimal=10),j=1,3)
-          write (uout,'("  Cartesian coordinates (",A,"): ",3(A,X))') &
+          write (uout,'("  Cartesian coordinates (",A,"): ",3(A," "))') &
              iunitname0(iunit), (string(sy%f(sy%iref)%cp(i)%r(j),'f',decimal=10),j=1,3)
        else
           xx = (sy%f(sy%iref)%cp(i)%r + sy%c%molx0) * bohrtoa
-          write (uout,'("  Coordinates (",A,"): ",3(A,X))') &
+          write (uout,'("  Coordinates (",A,"): ",3(A," "))') &
              iunitname0(iunit), (string(xx(j),'f',decimal=10),j=1,3)
        end if
        call sy%propty(sy%iref,sy%f(sy%iref)%cp(i)%x,sy%f(sy%iref)%cp(i)%s,.true.,.true.,.true.)
@@ -1780,7 +1782,7 @@ contains
              end if
           end do
           maxlen = max(8,len_trim(nam(1)),len_trim(nam(2)))
-          write (uout,'(99(A,X))') string(i,length=5,justify=ioj_center),&
+          write (uout,'(99(A," "))') string(i,length=5,justify=ioj_center),&
              string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
              (string(sy%f(sy%iref)%cp(i)%brdist(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2), &
              string(sy%f(sy%iref)%cp(i)%brdist(1)/sy%f(sy%iref)%cp(i)%brdist(2),'f',length=8,decimal=4,justify=3), &
@@ -2188,7 +2190,7 @@ contains
        write (lu,'("signature: ",A)') string(res%s)
        write (lu,'("field: ",A)') string(res%f,'e',decimal=14)
        write (lu,'("field_valence: ",A)') string(res%fval,'e',decimal=14)
-       write (lu,'("gradient: ",2(A,X),A)') &
+       write (lu,'("gradient: ",2(A," "),A)') &
           (string(res%gf(j),'e',decimal=14),j=1,3)
        write (lu,'("gradient_norm: ",A)') string(res%gfmod,'e',decimal=14)
        write (lu,'("gradient_norm_valence: ",A)') string(res%gfmodval,'e',decimal=14)
@@ -2197,7 +2199,7 @@ contains
        end if
        write (lu,'("laplacian: ",A)') string(res%del2f,'e',decimal=14)
        write (lu,'("laplacian_valence: ",A)') string(res%del2fval,'e',decimal=14)
-       write (lu,'("hessian_eigenvalues: ",2(A,X),A)') &
+       write (lu,'("hessian_eigenvalues: ",2(A," "),A)') &
           (string(res%hfeval(j),'e',decimal=14),j=1,3)
 
        ! spin polarized quantities
@@ -2311,7 +2313,7 @@ contains
 
     ! pbc box and vectors
     if (.not.sy%c%ismolecule) then
-       write (lu,'("pbc set {",3(" {",3(A,X),"} "),"} -namd -all -noalignx")') &
+       write (lu,'("pbc set {",3(" {",3(A," "),"} "),"} -namd -all -noalignx")') &
           ((string(sy%c%m_x2c(i,j)*bohrtoa,'f',decimal=6),i=1,3),j=1,3)
        write (lu,'("draw color red")')
        do i = 1, 12
@@ -2326,7 +2328,7 @@ contains
           end if
           xx0 = sy%c%x2c(xlist0(:,i))
           xx1 = sy%c%x2c(xlist1(:,i))
-          write (lu,'("draw cylinder ",2("{",3(A,X),"} ")," radius 0.05 resolution 20")') &
+          write (lu,'("draw cylinder ",2("{",3(A," "),"} ")," radius 0.05 resolution 20")') &
              (string(xx0(j)*bohrtoa,'f',decimal=6),j=1,3), (string(xx1(j)*bohrtoa,'f',decimal=6),j=1,3)
        end do
     end if

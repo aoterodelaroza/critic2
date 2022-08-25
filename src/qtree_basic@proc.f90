@@ -330,9 +330,9 @@ contains
        do i = 1, ntetrag
           write (uout,'("+ Tetrahedron : ",I3," with points at ")') i
           do j = 1, 4
-             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(:,j,i)
+             write (uout,'("    ",I3,3(" ",E20.13))') j, tetrag(:,j,i)
           end do
-          write (uout,'(4X," Volume : ",1p,E20.12)') tvol(i)
+          write (uout,'("    "," Volume : ",1p,E20.12)') tvol(i)
           sumi = sumi + tvol(i)
        end do
        write (uout,'("+ Sum of tetrahedra volumes : ",1p,E20.12)') sumi

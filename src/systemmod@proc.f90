@@ -260,7 +260,7 @@ contains
     if (lpropi) then
        write (uout,'("* List of integrable properties (",A,")")') string(s%npropi)
        if (s%npropi > 0) then
-          write (uout,'("# ",4(A,2X))') &
+          write (uout,'("# ",4(A,"  "))') &
              string("Id",length=3,justify=ioj_right), string("Type",length=4,justify=ioj_center), &
              string("Field",length=5,justify=ioj_right), string("Name")
        end if
@@ -303,11 +303,11 @@ contains
           end select
 
           if (s%propi(i)%itype == itype_expr) then
-             write (uout,'(2X,2(A,2X),2X,"""",A,"""")') &
+             write (uout,'("  ",2(A,"  "),"  ","""",A,"""")') &
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
                 string(s%propi(i)%expr)
           else
-             write (uout,'(2X,99(A,2X))') &
+             write (uout,'("  ",99(A,"  "))') &
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
                 string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name), &
                 string(stradd)
@@ -321,7 +321,7 @@ contains
        if (s%npropp > 0) then
           write(uout,'("# Id      Name       Expression")')
           do i = 1, s%npropp
-             write (uout,'(2X,2(A,2X),2X,"""",A,"""")') &
+             write (uout,'("  ",2(A,"  "),"  ","""",A,"""")') &
                 string(i,length=3,justify=ioj_right), &
                 string(s%propp(i)%name,length=10,justify=ioj_center), &
                 string(s%propp(i)%expr)
@@ -349,7 +349,7 @@ contains
              end do
              aux = str
              str = aux(1:len_trim(aux)-1)
-             write (uout,'(2X,99(A,X))') string(i), string(s%f(i)%typestring(.true.),8,ioj_center),&
+             write (uout,'("  ",99(A," "))') string(i), string(s%f(i)%typestring(.true.),8,ioj_center),&
                 yesno, str
           end if
        end do
@@ -1193,7 +1193,7 @@ contains
        end if
        write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
        write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
-       write (uout,'("  Gradient (grad f): ",3(A,2X))') (string(res%gf(j),'e',decimal=9),j=1,3)
+       write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
        write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
        write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
        if (res%avail_gkin) then
@@ -1203,20 +1203,20 @@ contains
        write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
        write (uout,'("  Hessian:")')
        do j = 1, 3
-          write (uout,'(4x,1p,3(A,2X))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+          write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
        end do
-       write (uout,'("  Hessian eigenvalues: ",3(A,2X))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
+       write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
        ! Write ellipticity, if it is a candidate for bond critical point
        if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
           write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
        endif
        if (res%avail_spin .and. res%spinpol) then
-          write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(1),'e',decimal=9), &
+          write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
              string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
           if (res%avail_gkin) then
              write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
           end if
-          write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,2X))') string(res%fspin(2),'e',decimal=9), &
+          write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
              string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
           if (res%avail_gkin) then
              write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
@@ -1228,7 +1228,7 @@ contains
           if (s%propp(i)%ispecial == 0) then
              ! ispecial=0 ... use the expression
              fres = s%eval(s%propp(i)%expr,.true.,iok,xp)
-             write (uout,'(2X,A," (",A,"): ",A)') string(s%propp(i)%name),&
+             write (uout,'("  ",A," (",A,"): ",A)') string(s%propp(i)%name),&
                 string(s%propp(i)%expr), string(fres,'e',decimal=9)
           else
              ! ispecial=1 ... schrodinger stress tensor
@@ -1236,9 +1236,9 @@ contains
              call rsindex(stvec,stval,str,sts,CP_hdegen)
              write (uout,'("  Stress tensor:")')
              do j = 1, 3
-                write (uout,'(4x,1p,3(A,2X))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+                write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
              end do
-             write (uout,'("  Stress tensor eigenvalues: ",3(A,2X))') (string(stval(j),'e',decimal=9),j=1,3)
+             write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
           endif
        end do
 
@@ -1247,7 +1247,7 @@ contains
           do i = 0, s%nf
              if (s%goodfield(i) .and. i/=id) then
                 call s%f(i)%grd(xp,2,res2)
-                write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,2X))') string(i),&
+                write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,"  "))') string(i),&
                    string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
                    string(res2%del2f,'e',decimal=9)
              end if

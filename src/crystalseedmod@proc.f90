@@ -632,7 +632,7 @@ contains
     ! open the library file
     inquire(file=libfile,exist=lchk)
     if (.not.lchk) then
-       write (uout,'("(!) Library file:"/8X,A)') trim(libfile)
+       write (uout,'("(!) Library file:"/"        ",A)') trim(libfile)
        call ferror("read_library","library file not found!",faterr,syntax=.true.)
        return
     endif
@@ -654,7 +654,7 @@ contains
        endif
     end do main
     if (.not.found) then
-       write (uout,'("(!) Structure not found in file:"/8X,A)') trim(libfile)
+       write (uout,'("(!) Structure not found in file:"/"        ",A)') trim(libfile)
        call ferror("read_library","structure not found in library!",faterr,syntax=.true.)
        call fclose(lu)
        return

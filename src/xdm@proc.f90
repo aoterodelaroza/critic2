@@ -326,7 +326,7 @@ contains
     ! initialize
     n = sy%f(irho)%grid%n
     ntot = n(1)*n(2)*n(3)
-    write (uout,'("+ Grid size: ",3(A,X))') (string(n(i)),i=1,3)
+    write (uout,'("+ Grid size: ",3(A," "))') (string(n(i)),i=1,3)
 
     ! allocate the promolecular density
     dopro = .false.
@@ -596,7 +596,7 @@ contains
     write (uout,'("# i          V                 Vfree               M1                 M2                 M3")')
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
-       write (uout,'(99(A,X))') string(ii,length=5,justify=ioj_right), &
+       write (uout,'(99(A," "))') string(ii,length=5,justify=ioj_right), &
           string(avol(i),'e',decimal=10,length=18,justify=5), &
           string(afree(i),'e',decimal=10,length=18,justify=5), &
           (string(ml(j,i),'e',decimal=10,length=18,justify=5),j=1,3)
@@ -627,7 +627,7 @@ contains
           rc(j,i) = rc(i,j)
           rvdw = a1 * rc(i,j) + a2
 
-          write (uout,'(99(A,X))') string(ii,length=5,justify=ioj_right),&
+          write (uout,'(99(A," "))') string(ii,length=5,justify=ioj_right),&
              string(jj,length=5,justify=ioj_right),&
              string(c6,'e',decimal=10,length=18,justify=5),&
              string(c8,'e',decimal=10,length=18,justify=5),&
@@ -646,7 +646,7 @@ contains
                 c9 = ml(1,i)*ml(1,j)*ml(1,k)*(ml(1,i)/alpha(i)+ml(1,j)/alpha(j)+ml(1,k)/alpha(k)) / &
                    (ml(1,i)/alpha(i) + ml(1,j)/alpha(j)) / (ml(1,i)/alpha(i) + ml(1,k)/alpha(k)) / &
                    (ml(1,j)/alpha(j) + ml(1,k)/alpha(k))
-                write (uout,'(99(A,X))') string(ii,length=5,justify=ioj_right), &
+                write (uout,'(99(A," "))') string(ii,length=5,justify=ioj_right), &
                    string(j,length=5,justify=ioj_right),&
                    string(k,length=5,justify=ioj_right),&
                    string(c9,'e',decimal=10,length=18,justify=5)
@@ -753,20 +753,20 @@ contains
     end do
 
     do i = 1, sy%c%ncel
-       write (uout,'("  Fvdw (",A,") = ",3(A,X)," Hartree/bohr")') &
+       write (uout,'("  Fvdw (",A,") = ",3(A," ")," Hartree/bohr")') &
           string(i), (string(for(j,i),'e',decimal=10),j=1,3)
-       write (uout,'("            = ",3(A,X)," Ry/bohr")') &
+       write (uout,'("            = ",3(A," ")," Ry/bohr")') &
           (string(for(j,i)*2,'e',decimal=10),j=1,3)
     end do
-    write (uout,'("  sigma_vdw (Hy/bohr**3) = ",3(A,X)," ")') (string(sigma(1,j),'e',decimal=10),j=1,3)
-    write (uout,'("                           ",3(A,X)," ")') (string(sigma(2,j),'e',decimal=10),j=1,3)
-    write (uout,'("                           ",3(A,X)," ")') (string(sigma(3,j),'e',decimal=10),j=1,3)
-    write (uout,'("  sigma_vdw (Ry/bohr**3) = ",3(A,X)," ")') (string(sigma(1,j)*2,'e',decimal=10),j=1,3)
-    write (uout,'("                           ",3(A,X)," ")') (string(sigma(2,j)*2,'e',decimal=10),j=1,3)
-    write (uout,'("                           ",3(A,X)," ")') (string(sigma(3,j)*2,'e',decimal=10),j=1,3)
-    write (uout,'("  sigma_vdw (GPa) = ",3(A,X)," ")') (string(sigma(1,j)*autogpa,'e',decimal=10),j=1,3)
-    write (uout,'("                    ",3(A,X)," ")') (string(sigma(2,j)*autogpa,'e',decimal=10),j=1,3)
-    write (uout,'("                    ",3(A,X)," ")') (string(sigma(3,j)*autogpa,'e',decimal=10),j=1,3)
+    write (uout,'("  sigma_vdw (Hy/bohr**3) = ",3(A," ")," ")') (string(sigma(1,j),'e',decimal=10),j=1,3)
+    write (uout,'("                           ",3(A," ")," ")') (string(sigma(2,j),'e',decimal=10),j=1,3)
+    write (uout,'("                           ",3(A," ")," ")') (string(sigma(3,j),'e',decimal=10),j=1,3)
+    write (uout,'("  sigma_vdw (Ry/bohr**3) = ",3(A," ")," ")') (string(sigma(1,j)*2,'e',decimal=10),j=1,3)
+    write (uout,'("                           ",3(A," ")," ")') (string(sigma(2,j)*2,'e',decimal=10),j=1,3)
+    write (uout,'("                           ",3(A," ")," ")') (string(sigma(3,j)*2,'e',decimal=10),j=1,3)
+    write (uout,'("  sigma_vdw (GPa) = ",3(A," ")," ")') (string(sigma(1,j)*autogpa,'e',decimal=10),j=1,3)
+    write (uout,'("                    ",3(A," ")," ")') (string(sigma(2,j)*autogpa,'e',decimal=10),j=1,3)
+    write (uout,'("                    ",3(A," ")," ")') (string(sigma(3,j)*autogpa,'e',decimal=10),j=1,3)
     write (uout,*)
 
 999 continue
@@ -1470,9 +1470,9 @@ contains
     do i = 0, n(1)-1
        do j = 0, n(2)-1
              if (precisecube) then
-                write (lu,'(6(1x,e22.14))') (c(i,j,k),k=0,n(3)-1)
+                write (lu,'(6(" ",e22.14))') (c(i,j,k),k=0,n(3)-1)
              else
-                write (lu,'(1p,6(1x,e12.5))') (c(i,j,k),k=0,n(3)-1)
+                write (lu,'(1p,6(" ",e12.5))') (c(i,j,k),k=0,n(3)-1)
              end if
        enddo
     enddo
@@ -1898,7 +1898,7 @@ contains
     !    do i = 1, npts+1
     !       ss = real(i-1,8) / real(npts,8) * xran - 0.5d0 * xran
     !       e = scalc(1) * e6 + scalc(2) * e8 + ss * e9 + scalc(3) * e10
-    !       write (uout,'(F20.12,X,1p,2(E20.12,X))') ss, ss * e9, e
+    !       write (uout,'(F20.12," ",1p,2(E20.12," "))') ss, ss * e9, e
     !    end do
     !    write (uout,'("##")')
     !    write (uout,*)
@@ -2048,7 +2048,7 @@ contains
     write (uout,'("# i At        <M1^2>             <M2^2>              <M3^2>           Volume              Vfree")')
     do i = 1, sy%c%ncel
        iz = sy%c%spc(sy%c%atcel(i)%is)%z
-       write (uout,'(99(A,X),5(E18.10,X))') string(i,3), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
+       write (uout,'(99(A," "),5(E18.10," "))') string(i,3), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
           (string(mm(j,i),'e',18,10),j=1,3), string(v(i),'e',18,10), string(frevol(iz,chf),'e',18,10)
     enddo
     write (uout,'("#")')
@@ -2080,7 +2080,7 @@ contains
           c8(j,i) = c8(i,j)
           c10(j,i) = c10(i,j)
           rvdw(j,i) = rvdw(i,j)
-          write (uout,'(I3,X,I3,1p,4(E16.9,X),2(E13.6,X))') &
+          write (uout,'(I3," ",I3,1p,4(E16.9," "),2(E13.6," "))') &
              i, j, c6(i,j), c8(i,j), c10(i,j), rc, rvdw(i,j)
        end do
     end do

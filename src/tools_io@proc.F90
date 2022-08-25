@@ -616,7 +616,7 @@ contains
     end do
     if (present(ucopy).and..not.lstr) then
        if (ucopy >= 0) &
-          write (ucopy,'(A,X,A/)') prfx, trim(oline)
+          write (ucopy,'(A," ",A/)') prfx, trim(oline)
     endif
     getline = .true.
 

@@ -528,7 +528,7 @@ contains
        end if
        write (uout,'("+ Integrating the beta-sphere for ncp: ",A)') string(i)
        ! write (uout,'(" Non-equivalent ncp: ",A)') string(i)
-       ! write (uout,'(" NCP at: ",3(A,2X))') (string(cp(i)%x(j),'f',decimal=6),j=1,3)
+       ! write (uout,'(" NCP at: ",3(A,"  "))') (string(cp(i)%x(j),'f',decimal=6),j=1,3)
        ! write (uout,'(" Sphere factor : ",A)') string(sphfactor(i),'f',decimal=6)
        ! write (uout,'(" Beta-sphere radius for gradpaths : ",A)') string(r_betagp(i),'f',decimal=6)
        ! write (uout,'(" Beta-sphere radius for integrations : ",A)') string(r_betaint(i),'f',decimal=6)
@@ -547,7 +547,7 @@ contains
        !    write (uout,'("id    property    Integral (sph.)")')
        !    write (uout,'(35("-"))')
        !    do j = 1, sy%npropi
-       !       write (uout,'(99(A,X))') string(j,length=3,justify=ioj_left),&
+       !       write (uout,'(99(A," "))') string(j,length=3,justify=ioj_left),&
        !          string(sy%propi(j)%prop_name,length=10,justify=ioj_center),&
        !          string(sphereprop(j,i),'e',decimal=10,length=18,justify=6)
        !    end do
@@ -637,7 +637,7 @@ contains
           ngrd2 = 0
           write (uout,'(A)') "* Comparing grid point assign. to attractors"
           write (uout,'(A)') "* trm1 = actual ode, full gradient | trm2 = DP45 embedded, full gradient "
-          write (uout,'(A2,9X,A,21X,A,14X,A4,X,A4)') &
+          write (uout,'(A2,"         ",A,"                     ",A,"              ",A4," ",A4)') &
              "tt", "--- x_convex ---", "--- x_crys ---", "trm1", "trm2"
        else if (gradient_mode == -2) then
           ndiff = 0
@@ -645,7 +645,7 @@ contains
           ngrd2 = 0
           write (uout,'(A)') "* Comparing grid point assign. to attractors"
           write (uout,'(A)') "* trm1 = actual ode, color | trm2 = DP45 embedded, full gradient "
-          write (uout,'(A2,9X,A,21X,A,14X,A4,X,A4)') &
+          write (uout,'(A2,"         ",A,"                     ",A,"              ",A4," ",A4)') &
              "tt", "--- x_convex ---", "--- x_crys ---", "trm1", "trm2"
        else if (gradient_mode == -3) then
           ndiff = 0
@@ -653,7 +653,7 @@ contains
           ngrd2 = 0
           write (uout,'(A)') "* Comparing grid point assign. to attractors"
           write (uout,'(A)') "* trm1 = actual ode, qtree | trm2 = DP45 embedded, full gradient "
-          write (uout,'(A2,9X,A,21X,A,14X,A4,X,A4)') &
+          write (uout,'(A2,"         ",A,"                     ",A,"              ",A4," ",A4)') &
              "tt", "--- x_convex ---", "--- x_crys ---", "trm1", "trm2"
        end if
 
@@ -775,11 +775,11 @@ contains
              if (.not. ok) then
                 write (uout,'(" xface_orig : ")')
                 do i = 1, 3
-                   write (uout,'(4X,1p,3(E20.12,2X))') xface_orig(:,i)
+                   write (uout,'("    ",1p,3(E20.12,"  "))') xface_orig(:,i)
                 end do
                 write (uout,'(" xface_end : ")')
                 do i = 1, 3
-                   write (uout,'(4X,1p,3(E20.12,2X))') xface_end(:,i)
+                   write (uout,'("    ",1p,3(E20.12,"  "))') xface_end(:,i)
                 end do
                 call ferror('qtree','faces in contact have non-consistent coordinates',warning)
                 cycle
@@ -1074,7 +1074,7 @@ contains
     do i = 1, nnuc
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
-          write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(2X,A))') &
+          write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3("  ",A))') &
              string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
              string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
        end if
@@ -1082,7 +1082,7 @@ contains
     if (verbose) then
        write (uout,'("+ Sphfactor values to be used in input")')
        do i = 1, nnuc
-          write (uout,'("sphfactor ",A,2X,A)') string(i), string(sphfactor(i),'f',decimal=6)
+          write (uout,'("sphfactor ",A,"  ",A)') string(i), string(sphfactor(i),'f',decimal=6)
        end do
        write (uout,*)
     end if
@@ -1217,11 +1217,11 @@ contains
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
           if (i <= sy%c%nneq) then
-             write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
+             write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &
                 string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
                 string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
           else
-             write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,2X))') &
+             write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &
                 string(i), "nnm", string(sphfactor(i),'f',decimal=6), &
                 string(r_betagp(i),'f',decimal=6), string(0d0,'f',decimal=6)
           end if
@@ -1230,7 +1230,7 @@ contains
     if (verbose) then
        write (uout,'("+ Sphfactor values to be used in input")')
        do i = 1, nnuc
-          write (uout,'("sphfactor ",A,2X,A)') string(i), string(sphfactor(i),'f',decimal=6)
+          write (uout,'("sphfactor ",A,"  ",A)') string(i), string(sphfactor(i),'f',decimal=6)
        end do
        write (uout,'("+ End input")')
        write (uout,*)

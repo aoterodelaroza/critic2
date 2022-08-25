@@ -504,13 +504,13 @@ contains
        call fclose(luout)
     elseif (outfmt == "tss") then
        ! End tessel output
-       write (luout,'(X,A)') "endfreehand"
+       write (luout,'(" ",A)') "endfreehand"
        ! print formats
        if (molmotif) then
-          write (luout,'(X,"molmotif allmaincell")')
+          write (luout,'(" molmotif allmaincell")')
        end if
-       write (luout,'(X,"vrml ",A,".wrl")') trim(adjustl(fileroot))
-       write (luout,'(X,"# povray ",A,".pov")') trim(adjustl(fileroot))
+       write (luout,'(" vrml ",A,".wrl")') trim(adjustl(fileroot))
+       write (luout,'(" # povray ",A,".pov")') trim(adjustl(fileroot))
 
        ! endmolecule
        write (luout,'(A)') "endmolecule"
@@ -579,30 +579,30 @@ contains
        ! molecule
        write (luout,'(A)') "molecule"
        ! crystal
-       write (luout,'(X,A)') "crystal"
+       write (luout,'(" ",A)') "crystal"
        !! general info
-       write (luout,'(2X,A)') "title gradient path representation."
-       write (luout,'(2X,A)') "symmatrix seitz"
+       write (luout,'("  ",A)') "title gradient path representation."
+       write (luout,'("  ",A)') "symmatrix seitz"
        if (nosym) then
-          write (luout,'(3X,3(F5.2,X),F15.12)') 1d0, 0d0, 0d0, 0d0
-          write (luout,'(3X,3(F5.2,X),F15.12)') 0d0, 1d0, 0d0, 0d0
-          write (luout,'(3X,3(F5.2,X),F15.12)') 0d0, 0d0, 1d0, 0d0
+          write (luout,'("   ",3(F5.2," "),F15.12)') 1d0, 0d0, 0d0, 0d0
+          write (luout,'("   ",3(F5.2," "),F15.12)') 0d0, 1d0, 0d0, 0d0
+          write (luout,'("   ",3(F5.2," "),F15.12)') 0d0, 0d0, 1d0, 0d0
        else
           do i = 1, sy%c%ncv
-             write (luout,'(3X,A,3(F15.12,X))') "cen ", sy%c%cen(:,i)
+             write (luout,'("   ",A,3(F15.12," "))') "cen ", sy%c%cen(:,i)
           end do
-          write (luout,'(3X,A)') "#"
+          write (luout,'("   ",A)') "#"
           do i = 1, sy%c%neqv
-             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
-             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
-             write (luout,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
-             write (luout,'(3X,A)') "#"
+             write (luout,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(1,:,i)
+             write (luout,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(2,:,i)
+             write (luout,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(3,:,i)
+             write (luout,'("   ",A)') "#"
           end do
        end if
-       write (luout,'(2X,A)') "endsymmatrix"
-       write (luout,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
-       write (luout,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
-       write (luout,'(2X,A,6(F6.3,X))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
+       write (luout,'("  ",A)') "endsymmatrix"
+       write (luout,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+       write (luout,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
+       write (luout,'("  ",A,6(F6.3," "))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
        if (nosym) then
           do i = 1, sy%f(sy%iref)%ncpcel
              if (sy%f(sy%iref)%cpcel(i)%idx <= sy%c%nneq) then
@@ -617,7 +617,7 @@ contains
              else
                 label = "XZ"
              end if
-             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cpcel(i)%x,label,i," 0"
+             write (luout,'("  ",A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cpcel(i)%x,label,i," 0"
           end do
        else
           do i = 1, sy%f(sy%iref)%ncp
@@ -633,12 +633,12 @@ contains
              else
                 label = "XZ"
              end if
-             write (luout,'(2X,A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
+             write (luout,'("  ",A,3(F10.6," "),A2,I4.4,a)') "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
           end do
        end if
-       write (luout,'(X,A)') "endcrystal"
+       write (luout,'(" ",A)') "endcrystal"
        if (docell) then
-          write (luout,'(X,A)') "unitcell radius 0.01 rgb 1.0 0.5 0.5 many"
+          write (luout,'(" ",A)') "unitcell radius 0.01 rgb 1.0 0.5 0.5 many"
        end if
        if (doballs) then
           if (nosym) then
@@ -655,7 +655,7 @@ contains
                 else
                    label = "XZ"
                 end if
-                write (luout,'(X,A5,A,I4.4,A,F6.2)') "ball ",label,i," jmol radius", ball_radius(i,.true.)
+                write (luout,'(" ",A5,A,I4.4,A,F6.2)') "ball ",label,i," jmol radius", ball_radius(i,.true.)
              end do
           else
              do i = 1, sy%f(sy%iref)%ncp
@@ -671,22 +671,22 @@ contains
                 else
                    label = "XZ"
                 end if
-                write (luout,'(X,A5,A,I4.4,A,F6.2)') "ball ",label,i," jmol radius", ball_radius(i,.false.)
+                write (luout,'(" ",A5,A,I4.4,A,F6.2)') "ball ",label,i," jmol radius", ball_radius(i,.false.)
              end do
           end if
        end if
        ! freehand
        ! 1 - cores | 2 - ncps | 3 - bcps | 4 - rcps | 5 - ccps | 6 - paths | 7 - misc.
-       write (luout,'(X,A)') "freehand"
+       write (luout,'(" ",A)') "freehand"
        write (luout,'(A)') "# 1 core, 2 ncp, 3 bcp, 4 rcp, 5 ccp, 6 path, 7 ???"
        write (luout,'(A)') "# 1 dark gray, 2 red, 3 green, 4 light blue, 5 yellow, 6 gold, 7 orange"
-       write (luout,'(2X,A)') "type 1 pointrad 0.20 pointrgb 0.2 0.2 0.2"
-       write (luout,'(2X,A)') "type 2 pointrad 0.10 pointrgb 0.6274 0.0000 0.2588"
-       write (luout,'(2X,A)') "type 3 pointrad 0.06 pointrgb 0.0588 0.5098 0.0588"
-       write (luout,'(2X,A)') "type 4 pointrad 0.06 pointrgb 0.7 1.0 1.0"
-       write (luout,'(2X,A)') "type 5 pointrad 0.10 pointrgb 1.0000 0.7059 0.2745"
-       write (luout,'(2X,A)') "type 6 pointrad 0.02 pointrgb 1.0 0.7 0.3"
-       write (luout,'(2X,A)') "type 7 pointrad 0.03 pointrgb 1.0 0.5 0.1"
+       write (luout,'("  ",A)') "type 1 pointrad 0.20 pointrgb 0.2 0.2 0.2"
+       write (luout,'("  ",A)') "type 2 pointrad 0.10 pointrgb 0.6274 0.0000 0.2588"
+       write (luout,'("  ",A)') "type 3 pointrad 0.06 pointrgb 0.0588 0.5098 0.0588"
+       write (luout,'("  ",A)') "type 4 pointrad 0.06 pointrgb 0.7 1.0 1.0"
+       write (luout,'("  ",A)') "type 5 pointrad 0.10 pointrgb 1.0000 0.7059 0.2745"
+       write (luout,'("  ",A)') "type 6 pointrad 0.02 pointrgb 1.0 0.7 0.3"
+       write (luout,'("  ",A)') "type 7 pointrad 0.03 pointrgb 1.0 0.5 0.1"
     elseif (outfmt == "txt") then
        ! connect and initalize flux file
        outfile = trim(fileroot) // "_flux.txt"
@@ -755,27 +755,27 @@ contains
           end if
        end do
 
-       write (luout,'("# ",A,X,a)') string(flx_title), str
+       write (luout,'("# ",A," ",a)') string(flx_title), str
        write (luout,'("# number of points: ",A)') string(flx_n)
        write (luout,'("# ---- origin of the path ---- ")')
-       write (luout,'("# name: ",A,X,A," ncp: ",A," ncpcel: ",A)') &
+       write (luout,'("# name: ",A," ",A," ncp: ",A," ncpcel: ",A)') &
           string(cpname(1)), string(cptype(1)), string(cpid(1)), string(flx_cpcelid(1))
        write (luout,'("# rho: ",A," grad: ",A," lap: ",A)') &
           string(flx_path(1)%f,'e',decimal=9), string(norm2(flx_path(1)%gf),'e',decimal=9), &
           string(flx_path(1)%hf(1,1)+flx_path(1)%hf(2,2)+flx_path(1)%hf(3,3),'e',decimal=9)
-       write (luout,'("# starting position (cryst.): ",3(A,X))') (string(flx_xpos(i,1),'f',12,8),i=1,3)
-       write (luout,'("# starting position (",A,"): ",3(A,X))') iunitname0(iunit), &
+       write (luout,'("# starting position (cryst.): ",3(A," "))') (string(flx_xpos(i,1),'f',12,8),i=1,3)
+       write (luout,'("# starting position (",A,"): ",3(A," "))') iunitname0(iunit), &
           (string((flx_cpos(i,1)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
-       write (luout,'("# starting path direction (",A,"): ",3(A,X))') iunitname0(iunit), &
+       write (luout,'("# starting path direction (",A,"): ",3(A," "))') iunitname0(iunit), &
           (string(flx_direction(i)*dunit0(iunit),'f',12,8),i=1,3)
        write (luout,'("# ---- end of the path ---- ")')
-       write (luout,'("# name: ",A,X,A," ncp: ",A," ncpcel: ",A)') &
+       write (luout,'("# name: ",A," ",A," ncp: ",A," ncpcel: ",A)') &
           string(cpname(2)), string(cptype(2)), string(cpid(2)), string(flx_cpcelid(2))
        write (luout,'("# rho: ",A," grad: ",A," lap: ",A)') &
           string(flx_path(flx_n)%f,'e',decimal=9), string(norm2(flx_path(flx_n)%gf),'e',decimal=9), &
           string(flx_path(flx_n)%hf(1,1)+flx_path(flx_n)%hf(2,2)+flx_path(flx_n)%hf(3,3),'e',decimal=9)
-       write (luout,'("# end position (cryst.): ",3(A,X))') (string(flx_xpos(i,2),'f',12,8),i=1,3)
-       write (luout,'("# end position (",A,"): ",3(A,X))') iunitname0(iunit), &
+       write (luout,'("# end position (cryst.): ",3(A," "))') (string(flx_xpos(i,2),'f',12,8),i=1,3)
+       write (luout,'("# end position (",A,"): ",3(A," "))') iunitname0(iunit), &
           (string((flx_cpos(i,2)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
        write (luout,'("# ",A)')
 
@@ -786,20 +786,20 @@ contains
           write (luout,'(A/1p,4("#",4E22.14/))') "# Crys2Car : ", ((maux(i,j),j=1,4),i=1,4)
           maux(1:3,1:3) = sy%c%m_c2x
           write (luout,'(A/1p,4("#",4E22.14/))') "# Car2Crys : ", ((maux(i,j),j=1,4),i=1,4)
-          write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
+          write (luout,'(A," ",A10," ",12(A20," "))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
-             write (luout,'(99(E20.12,X))') flx_path(i)%x, flx_path(i)%f,&
+             write (luout,'(99(E20.12," "))') flx_path(i)%x, flx_path(i)%f,&
                 flx_path(i)%gf, flx_path(i)%hf(1,:), flx_path(i)%hf(2,:), flx_path(i)%hf(3,:)
           end do
        else
-          write (luout,'(A,X,A10,X,12(A20,X))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
+          write (luout,'(A," ",A10," ",12(A20," "))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
              x = flx_path(i)%x
              if (sy%c%ismolecule) &
                 x = (sy%c%x2c(x) + sy%c%molx0) * dunit0(iunit)
-             write (luout,'(99(E20.12,X))') x, flx_path(i)%f,&
+             write (luout,'(99(E20.12," "))') x, flx_path(i)%f,&
                 flx_path(i)%gf, flx_path(i)%hf(1,:), flx_path(i)%hf(2,:), flx_path(i)%hf(3,:)
           end do
        end if
@@ -807,11 +807,11 @@ contains
 
     elseif (outfmt == "tss") then
        write (luout,'("# ")')
-       write (luout,'(2X,A)') "curve balls type 6"
+       write (luout,'("  ",A)') "curve balls type 6"
        do i=1,flx_n
-          write (luout,'(3X,3(E20.12,X))') flx_path(i)%x
+          write (luout,'("   ",3(E20.12," "))') flx_path(i)%x
        end do
-       write (luout,'(2X,A)') "endcurve"
+       write (luout,'("  ",A)') "endcurve"
     elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
        do i=1,flx_n
           x = sy%c%x2c(flx_path(i)%x)

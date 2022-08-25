@@ -400,7 +400,7 @@ contains
           symprec = symprec * factor
           call s%c%spglib_wrap(spg,.false.,errmsg)
           if (len_trim(errmsg) > 0) exit
-          write (uout,'(1p,2X,A,A,X,"(",A,")")') string(symprec,'e',10,2), string(spg%international_symbol), &
+          write (uout,'(1p,"  ",A,A," ","(",A,")")') string(symprec,'e',10,2), string(spg%international_symbol), &
              string(spg%spacegroup_number)
        end do
        write (uout,*)
@@ -928,12 +928,12 @@ contains
     ! Write the list of atomic coordinates
     if (.not.s%c%ismolecule) then
        write (uout,'("+ List of non-equivalent atoms in the unit cell (cryst. coords.): ")')
-       write (uout,'("# ",7(A,X))') string("nat",3,ioj_center), &
+       write (uout,'("# ",7(A," "))') string("nat",3,ioj_center), &
           string("x",14,ioj_center), string("y",14,ioj_center),&
           string("z",14,ioj_center), string("name",10,ioj_center), &
           string("mult",4,ioj_center), string("Z",4,ioj_center)
        do i=1, s%c%nneq
-          write (uout,'(2x,7(A,X))') &
+          write (uout,'("  ",7(A," "))') &
              string(i,3,ioj_center),&
              string(s%c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
@@ -945,12 +945,12 @@ contains
        write (uout,*)
     else
        write (uout,'("+ List of atoms in Cartesian coordinates (",A,"): ")') iunitname0(iunit)
-       write (uout,'("# ",6(A,X))') string("at",3,ioj_center), &
+       write (uout,'("# ",6(A," "))') string("at",3,ioj_center), &
           string("x",16,ioj_center), string("y",16,ioj_center),&
           string("z",16,ioj_center), string("name",10,ioj_center),&
           string("Z",4,ioj_center)
        do i=1,s%c%ncel
-          write (uout,'(2x,6(A,X))') &
+          write (uout,'("  ",6(A," "))') &
              string(i,3,ioj_center),&
              (string((s%c%atcel(i)%r(j)+s%c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(s%c%spc(s%c%atcel(i)%is)%name,10,ioj_center),&
@@ -1059,7 +1059,7 @@ contains
     lu = fopen_write(trim(root) // ".dat")
     write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
     do i = 1, npts
-       write (lu,'(A,X,A)') string(t(i),"f",15,7,ioj_center), &
+       write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
           string(ih(i),"f",15,7,ioj_center)
     end do
     call fclose(lu)
@@ -1089,7 +1089,7 @@ contains
     ! list of peaks and intensity in output
     write(uout,'("#i  h  k  l       2*theta        Intensity ")')
     do i = 1, np
-       write (uout,'(99(A,X))') string(i,3), string(hvecp(1,i),2), string(hvecp(2,i),2),&
+       write (uout,'(99(A," "))') string(i,3), string(hvecp(1,i),2), string(hvecp(2,i),2),&
           string(hvecp(3,i),2), string(th2p(i)*180/pi,"f",15,7,7), string(ip(i),"f",15,7,7)
     end do
     write (uout,*)
@@ -1198,7 +1198,7 @@ contains
     lu = fopen_write(trim(root) // ".dat")
     write (lu,'("# ",A,A)') string("r (bohr)",13,ioj_center), string("RDF(r)",13,ioj_center)
     do i = 1, npts
-       write (lu,'(A,X,A)') string(t(i),"f",15,7,ioj_center), &
+       write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
           string(ih(i),"f",15,7,ioj_center)
     end do
     call fclose(lu)
@@ -1599,12 +1599,12 @@ contains
        write (uout,'("+ ",A," = ",A)') string(difstr), string(diff(1,2),'e',12,6)
     else
        do i = 0, (ns-1)/5
-          write (uout,'(99(A,X))') string(tname,15,ioj_center), &
+          write (uout,'(99(A," "))') string(tname,15,ioj_center), &
              (string(c(5*i+j)%file,15,ioj_center),j=1,min(5,ns-i*5))
-          write (uout,'(99(A,X))') string(difstr,15,ioj_center), &
+          write (uout,'(99(A," "))') string(difstr,15,ioj_center), &
              (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
           do j = 1, ns
-             write (uout,'(2X,99(A,X))') string(c(j)%file,15,ioj_left), &
+             write (uout,'("  ",99(A," "))') string(c(j)%file,15,ioj_left), &
                 (string(diff(j,5*i+k),'f',15,7,3),k=1,min(5,ns-i*5))
           end do
           write (uout,*)
@@ -1793,7 +1793,7 @@ contains
              eptr => eaux
           end if
 
-          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A,X))') &
+          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
              string(i), string(s%c%spc(s%c%at(idx)%is)%name), string(idx), &
              (string(s%c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
 
@@ -1828,7 +1828,7 @@ contains
           eptr => eaux
        end if
 
-       write (uout,'("+ Environment of point ",3(A,X))') (string(x0in(j),'f',length=10,decimal=6),j=1,3)
+       write (uout,'("+ Environment of point ",3(A," "))') (string(x0in(j),'f',length=10,decimal=6),j=1,3)
 
        if (groupshell) then
           call output_by_shell()
@@ -1864,7 +1864,7 @@ contains
             xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
          end if
 
-         write (uout,'(2X,2(A,X),"(",A,X,A,X,A,")",99(X,A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+         write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
             (string(eptr%at(eidx)%lvec(k)+lvec(k),2,ioj_right),k=1,3), string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center),&
             string(eptr%at(eidx)%is,2,ioj_right), string(dist(j)*dunit0(iunit),'f',12,6,4), string(ishell(j),3,ioj_center),&
             (string(xx(k),'f',12,8,4),k=1,3)
@@ -1909,7 +1909,7 @@ contains
             xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
          end if
 
-         write (uout,'(7(A,X),"(",3(A,X),")",99(A,X))') string(j,5,ioj_center),&
+         write (uout,'(7(A," "),"(",3(A," "),")",99(A," "))') string(j,5,ioj_center),&
             string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
             string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
             string(dist(k-1)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
@@ -1982,11 +1982,11 @@ contains
     write (uout,'("+ Atomic radii for all species")')
     write (uout,'("# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = ",A)') &
        string(fac,'f',length=5,decimal=2,justify=ioj_left)
-    write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
+    write (uout,'("# ",99(A," "))') string("spc",3,ioj_center), &
        string("Z",3,ioj_center), string("name",7,ioj_center),&
        string("rad",length=5,justify=ioj_center)
     do i = 1, s%c%nspc
-       write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
+       write (uout,'("  ",99(A," "))') string(i,3,ioj_center), &
           string(s%c%spc(i)%z,3,ioj_center), string(s%c%spc(i)%name,7,ioj_center),&
           string(rad(i),'f',length=5,decimal=2,justify=ioj_right)
     end do
@@ -2009,10 +2009,10 @@ contains
     ! output coordination numbers (per non-equivalent atom)
     write (uout,'("+ Pair coordination numbers (per non-equivalent atom in the cell)")')
     write (uout,'("# id = non-equivalent atom ID. mult = multiplicity. rest = atomic species (by name).")')
-    write (uout,'("# ",99(A,X))') string("nid",4,ioj_center), string("name",7,ioj_center), &
+    write (uout,'("# ",99(A," "))') string("nid",4,ioj_center), string("name",7,ioj_center), &
        string("mult",5,ioj_center), (string(s%c%spc(j)%name,5,ioj_left),j=1,s%c%nspc), "total"
     do i = 1, s%c%nneq
-       write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+       write (uout,'("  ",99(A," "))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
           string(s%c%at(i)%mult,5,ioj_center), (string(coord2(i,j),5,ioj_center),j=1,s%c%nspc),&
           string(sum(coord2(i,1:s%c%nspc)),5,ioj_center)
     end do
@@ -2028,9 +2028,9 @@ contains
     end do
 
     write (uout,'("+ Pair coordination numbers (per species)")')
-    write (uout,'("# ",99(A,X))') string("spc",8,ioj_center), (string(s%c%spc(j)%name,5,ioj_center),j=1,s%c%nspc)
+    write (uout,'("# ",99(A," "))') string("spc",8,ioj_center), (string(s%c%spc(j)%name,5,ioj_center),j=1,s%c%nspc)
     do i = 1, s%c%nspc
-       write (uout,'(2X,99(A,X))') string(i,3,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+       write (uout,'("  ",99(A," "))') string(i,3,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
           (string((coord2sp(i,j)+coord2sp(j,i))/2,5,ioj_center),j=1,s%c%nspc)
     end do
     write (uout,*)
@@ -2058,7 +2058,7 @@ contains
     do i = 1, s%c%nneq
        do j = 1, s%c%nspc
           do k = j, s%c%nspc
-             write (uout,'(2X,99(A,X))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
+             write (uout,'("  ",99(A," "))') string(i,4,ioj_center), string(s%c%spc(s%c%at(i)%is)%name,7,ioj_center), &
                 string(s%c%at(i)%mult,5,ioj_center), string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(k)%name,5,ioj_center),&
                 string((coord3(i,j,k)+coord3(i,k,j))/2,5,ioj_center)
           end do
@@ -2082,7 +2082,7 @@ contains
     do i = 1, s%c%nspc
        do j = 1, s%c%nspc
           do k = j, s%c%nspc
-             write (uout,'(2X,99(A,X))') string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
+             write (uout,'("  ",99(A," "))') string(s%c%spc(j)%name,5,ioj_center), string(s%c%spc(i)%name,5,ioj_center), &
                 string(s%c%spc(k)%name,5,ioj_center), string((coord3sp(i,j,k)+coord3sp(i,k,j))/2,5,ioj_center)
           end do
        end do
@@ -2246,7 +2246,7 @@ contains
           vol = vol + abs(mixed(xp1,xp2,xp3)) / 6d0
        end do
 
-       write (uout,'(99(A,X))') string(i,3,ioj_left), &
+       write (uout,'(99(A," "))') string(i,3,ioj_left), &
           string(s%c%spc(s%c%at(i)%is)%name,4,ioj_center),string(s%c%at(i)%mult,3),&
           (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3),&
           string(nat,3,ioj_center), string(minval(dist)*dunit0(iunit),'f',length=10,decimal=6),&
@@ -2509,10 +2509,10 @@ contains
 
     if (changed) then
        write (uout,'("  Lattice vectors of the new cell in the old setting (cryst. coord.):")')
-       write (uout,'(4X,3(A,X))') (string(x0(i,1),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,2),'f',12,7,4),i=1,3)
-       write (uout,'(4X,3(A,X))') (string(x0(i,3),'f',12,7,4),i=1,3)
-       write (uout,'("  Origin translation: ",3(A,X))') (string(t0(i),'f',12,7,4),i=1,3)
+       write (uout,'("    ",3(A," "))') (string(x0(i,1),'f',12,7,4),i=1,3)
+       write (uout,'("    ",3(A," "))') (string(x0(i,2),'f',12,7,4),i=1,3)
+       write (uout,'("    ",3(A," "))') (string(x0(i,3),'f',12,7,4),i=1,3)
+       write (uout,'("  Origin translation: ",3(A," "))') (string(t0(i),'f',12,7,4),i=1,3)
        if (dotyp == 1 .and. dorefine) &
           write (uout,'("  Atomic positions have been refined.")')
        write (uout,*)
@@ -2703,7 +2703,7 @@ contains
              namestr = string(s%c%spc(j)%name,length=7,justify=ioj_left)
           end if
 
-          write (uout,'(A," -> ",A,A," -> ",99(A,X))') string(i,length=4,justify=ioj_right), str,&
+          write (uout,'(A," -> ",A,A," -> ",99(A," "))') string(i,length=4,justify=ioj_right), str,&
              string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), namestr,&
              string(econij(j,i),'f',length=10,decimal=4,justify=ioj_right),&
              string(econij_noit(j,i),'f',length=10,decimal=4,justify=ioj_right),&
@@ -2858,7 +2858,7 @@ contains
        idx = s%f(s%iref)%identify_cp(x0,eps)
        mm = s%c%get_mult(x0)
        if (idx > 0) then
-          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+          write (uout,'(99(A," "))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(s%f(s%iref)%cpcel(idx)%name,length=5,justify=ioj_center), &
@@ -2870,7 +2870,7 @@ contains
              found = .true.
           end do
        else
-          write (uout,'(99(A,X))') string(i,length=4,justify=ioj_left), &
+          write (uout,'(99(A," "))') string(i,length=4,justify=ioj_left), &
              (string(x0out(j),'f',length=13,decimal=8,justify=4),j=1,3), &
              string(mm,length=3,justify=ioj_center), &
              string(" --- not found --- ")
@@ -2881,21 +2881,21 @@ contains
     if (found) then
        if (.not.s%c%ismolecule) then
           write(uout,'("#")')
-          write(uout,'("+ Cube, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-          write(uout,'("+ Cube, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x0 (cryst): ",3(A," "))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (cryst): ",3(A," "))') (string(xmax(j),'f',decimal=8),j=1,3)
           xmin = s%c%c2x(s%c%x2c(xmin) - 2)
           xmax = s%c%c2x(s%c%x2c(xmax) + 2)
-          write(uout,'("+ Cube + 2 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-          write(uout,'("+ Cube + 2 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 2 bohr, x0 (cryst): ",3(A," "))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 2 bohr, x1 (cryst): ",3(A," "))') (string(xmax(j),'f',decimal=8),j=1,3)
           xmin = s%c%c2x(s%c%x2c(xmin) - 3)
           xmax = s%c%c2x(s%c%x2c(xmax) + 3)
-          write(uout,'("+ Cube + 5 bohr, x0 (cryst): ",3(A,X))') (string(xmin(j),'f',decimal=8),j=1,3)
-          write(uout,'("+ Cube + 5 bohr, x1 (cryst): ",3(A,X))') (string(xmax(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 5 bohr, x0 (cryst): ",3(A," "))') (string(xmin(j),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube + 5 bohr, x1 (cryst): ",3(A," "))') (string(xmax(j),'f',decimal=8),j=1,3)
        else
           xmin = s%c%x2c(xmin)+s%c%molx0
           xmax = s%c%x2c(xmax)+s%c%molx0
-          write(uout,'("+ Cube, x0 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmin(j)*dunit0(iunit),'f',decimal=8),j=1,3)
-          write(uout,'("+ Cube, x1 (",A,"): ",3(A,X))') iunitname0(iunit), (string(xmax(j)*dunit0(iunit),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x0 (",A,"): ",3(A," "))') iunitname0(iunit), (string(xmin(j)*dunit0(iunit),'f',decimal=8),j=1,3)
+          write(uout,'("+ Cube, x1 (",A,"): ",3(A," "))') iunitname0(iunit), (string(xmax(j)*dunit0(iunit),'f',decimal=8),j=1,3)
        end if
     end if
     write(uout,*)
@@ -3104,8 +3104,8 @@ contains
           call ferror("makemols_neighcrys","cannot be applied to a linear molecule",faterr)
        end if
 
-       write (lu,'("X LINE  ",A,X,A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
-       write (lu,'("Y PLANE ",A,X,A," 1",X,A," 1")') &
+       write (lu,'("X LINE  ",A," ",A," 1")') trim(atlbl(idax(1))), trim(atlbl(idax(2)))
+       write (lu,'("Y PLANE ",A," ",A," 1"," ",A," 1")') &
           trim(atlbl(idax(1))), trim(atlbl(idax(2))), trim(atlbl(idax(3)))
     end do
     write (lu,'("ENDS")')
@@ -3377,9 +3377,9 @@ contains
           end do
        end if
        if (isuse(is) /= isuse_valid) then
-          write (uout,'(X,A," skipped (",A,")")') string(is,2), string(msg)
+          write (uout,'(" ",A," skipped (",A,")")') string(is,2), string(msg)
        else
-          write (uout,'(X,A," success (rmse=",A,",inv=",A,",perm=",A,")")') &
+          write (uout,'(" ",A," success (rmse=",A,",inv=",A,",perm=",A,")")') &
              string(is,2), trim(string(rmsd(is),'e',decimal=4)), string(isinv(is)), string(msg)
        end if
     end do
@@ -3755,25 +3755,25 @@ contains
 
     write (uout,'("+ Reciprocal lattice vectors (",A,"^-1)")') iunitname0(iunit)
     do i = 1, 3
-       write (uout,'(4X,A,": ",3(A,X))') lvecname(i),&
+       write (uout,'("    ",A,": ",3(A," "))') lvecname(i),&
           (string(m_x2c_r(j,i)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
     end do
-    write (uout,'("  Reciprocal lattice parameters (bohr^-1): ",3(A,2X))') &
+    write (uout,'("  Reciprocal lattice parameters (bohr^-1): ",3(A,"  "))') &
        string(aa(1),'f',decimal=6), string(aa(2),'f',decimal=6), string(aa(3),'f',decimal=6)
-    write (uout,'("  Reciprocal lattice angles (degrees): ",3(A,2X))') &
+    write (uout,'("  Reciprocal lattice angles (degrees): ",3(A,"  "))') &
        string(bb(1),'f',decimal=3), string(bb(2),'f',decimal=3), string(bb(3),'f',decimal=3)
     write (uout,*)
 
     write (uout,'("+ Vertex of the BZ in reciprocal cryst. coords. (",A,")")') string(bz_nv)
     write (uout,'("# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (",A,"^-1).")') iunitname0(iunit)
-    write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
+    write (uout,'(5("  ",A))') string("id",length=3,justify=ioj_right),&
        string("x",length=11,justify=ioj_center),&
        string("y",length=11,justify=ioj_center),&
        string("z",length=11,justify=ioj_center),&
        string("d ("//iunitname0(iunit)//"^-1)",length=14,justify=ioj_center)
     do i = 1, bz_nv
        x0 = matmul(m_x2c_r,bz_x(:,i))
-       write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
+       write (uout,'(5("  ",A))') string(i,length=3,justify=ioj_right), &
           (string(bz_x(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
           string(norm2(x0)/dunit0(iunit),'f',length=14,decimal=8,justify=4)
     enddo
@@ -3782,7 +3782,7 @@ contains
     write (uout,'("+ Faces of the BZ cell (",A,")")') string(bz_nf)
     write (uout,'("# Face ID: vertexID1 vertexID2 ...")')
     do i = 1, bz_nf
-       write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
+       write (uout,'("  ",A,": ",999(A," "))') string(i,length=2,justify=ioj_right), &
           (string(bz_iside(j,i),length=2),j=1,bz_nside(i))
     end do
     write (uout,*)
@@ -3790,7 +3790,7 @@ contains
     write (uout,'("+ Lattice vectors for the BZ neighbors")')
     write (uout,'("# FaceID: Voronoi lattice vector (cryst. coords.)")')
     do i = 1, bz_nf
-       write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+       write (uout,'("  ",A,": ",99(A," "))') string(i,length=2,justify=ioj_right), &
           (string(bz_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
     end do
     write (uout,*)

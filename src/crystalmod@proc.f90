@@ -2320,7 +2320,7 @@ contains
        x = c%at(i)%x
        pot = c%ewald_pot(x)
        ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
-       write (uout,'(99(A,X))') string(i,4), string(c%spc(c%at(i)%is)%name,4),&
+       write (uout,'(99(A," "))') string(i,4), string(c%spc(c%at(i)%is)%name,4),&
           string(c%at(i)%mult,4),&
           string(c%spc(c%at(i)%is)%qat,'e',14,6,3), string(pot,'e',18,10,3)
     end do
@@ -2915,18 +2915,18 @@ contains
        if (.not.c%ismolecule) then
           write (uout,'("* Crystal structure")')
           write (uout,'("  From: ",A)') string(c%file)
-          write (uout,'("  Lattice parameters (bohr): ",3(A,2X))') &
+          write (uout,'("  Lattice parameters (bohr): ",3(A,"  "))') &
              string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-          write (uout,'("  Lattice parameters (ang): ",3(A,2X))') &
+          write (uout,'("  Lattice parameters (ang): ",3(A,"  "))') &
              string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
-          write (uout,'("  Lattice angles (degrees): ",3(A,2X))') &
+          write (uout,'("  Lattice angles (degrees): ",3(A,"  "))') &
              string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
        else
           write (uout,'("* Molecular structure")')
           write (uout,'("  From: ",A)') string(c%file)
-          write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,2X))') &
+          write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,"  "))') &
              string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
-          write (uout,'("  Encompassing cell dimensions (ang): ",3(A,2X))') &
+          write (uout,'("  Encompassing cell dimensions (ang): ",3(A,"  "))') &
              string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
        endif
 
@@ -2984,7 +2984,7 @@ contains
        write (uout,'("+ List of atomic species: ")')
        write (uout,'("# spc = atomic species. Z = atomic number. name = atomic name (symbol).")')
        write (uout,'("# Q = charge. ZPSP = pseudopotential charge.")')
-       write (uout,'("# ",99(A,X))') string("spc",3,ioj_center), &
+       write (uout,'("# ",99(A," "))') string("spc",3,ioj_center), &
           string("Z",3,ioj_center), string("name",7,ioj_center),&
           string("Q",length=7,justify=ioj_center),&
           string("ZPSP",length=4,justify=ioj_right)
@@ -2994,7 +2994,7 @@ contains
              if (c%zpsp(c%spc(i)%z) > 0) &
                 str1 = string(c%zpsp(c%spc(i)%z))
           end if
-          write (uout,'("  ",99(A,X))') string(i,3,ioj_center), &
+          write (uout,'("  ",99(A," "))') string(i,3,ioj_center), &
              string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
              string(c%spc(i)%qat,'f',length=7,decimal=4,justify=ioj_right),&
              str1
@@ -3010,13 +3010,13 @@ contains
           write (uout,'("# wyck = wyckoff position. name = atomic name (symbol). mult = multiplicity.")')
           write (uout,'("# Z = atomic number.")')
 
-          write (uout,'("# ",99(A,X))') string("nat",3,ioj_center), &
+          write (uout,'("# ",99(A," "))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("wyck",4,ioj_center), &
              string("name",7,ioj_center), string("mult",4,ioj_center), string("Z",3,ioj_center)
           do i=1, c%nneq
              is = c%at(i)%is
-             write (uout,'(2x,99(A,X))') string(i,3,ioj_center),&
+             write (uout,'("  ",99(A," "))') string(i,3,ioj_center),&
                 (string(c%at(i)%x(j),'f',length=14,decimal=10,justify=3),j=1,3),&
                 string(is,3,ioj_center), string(c%at(i)%mult,3,ioj_right) // c%at(i)%wyc, &
                 string(c%spc(is)%name,7,ioj_center), &
@@ -3033,7 +3033,7 @@ contains
           else
              str1 = ""
           end if
-          write (uout,'("# ",99(A,X))') string("at",3,ioj_center),&
+          write (uout,'("# ",99(A," "))') string("at",3,ioj_center),&
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
              string("Z",3,ioj_center), string("nat",3,ioj_center), str1
@@ -3044,7 +3044,7 @@ contains
              else
                 str1 = ""
              end if
-             write (uout,'(2x,99(A,X))') &
+             write (uout,'("  ",99(A," "))') &
                 string(i,3,ioj_center),&
                 string(c%atcel(i)%x(1),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
@@ -3058,7 +3058,7 @@ contains
 
           write (uout,'("+ Lattice vectors (",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,A,": ",3(A,X))') lvecname(i),&
+             write (uout,'("    ",A,": ",3(A," "))') lvecname(i),&
                 (string(c%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,*)
@@ -3075,7 +3075,7 @@ contains
           write (uout,'("# nat = non-equivalent atom id. ")')
           str1 = ""
        end if
-       write (uout,'("# ",99(A,X))') string("at",3,ioj_center), &
+       write (uout,'("# ",99(A," "))') string("at",3,ioj_center), &
           string("x",16,ioj_center), string("y",16,ioj_center),&
           string("z",16,ioj_center), string("spc",3,ioj_center), string("name",7,ioj_center),&
           string("Z",3,ioj_center), string("dnn",10,ioj_center), string("nat",3,ioj_center), str1
@@ -3086,7 +3086,7 @@ contains
           else
              str1 = ""
           end if
-          write (uout,'(2x,99(A,X))') &
+          write (uout,'("  ",99(A," "))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center), string(c%spc(is)%z,3,ioj_center),&
@@ -3110,8 +3110,9 @@ contains
        if (.not.c%ismolecule) then
           write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
           do k = 1, c%neqv
-             write (uout,'(2X,"Operation ",A,":")') string(k)
-             write (uout,'(2(4X,4(A,X)/),4X,4(A,X))') ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
+             write (uout,'("  Operation ",A,":")') string(k)
+             write (uout,'(2("    ",4(A," ")/),"    ",4(A," "))') &
+                ((string(c%rotm(i,j,k),'f',length=9,decimal=6,justify=3), j = 1, 4), i = 1, 3)
           enddo
           write (uout,*)
 
@@ -3119,7 +3120,7 @@ contains
 
           write(uout,'("+ List of centering vectors (",A,"):")') string(c%ncv)
           do k = 1, c%ncv
-             write (uout,'(2X,"Vector ",A,": ",3(A,X))') string(k), &
+             write (uout,'("  Vector ",A,": ",3(A," "))') string(k), &
                 (string(c%cen(i,k),'f',length=9,decimal=6), i = 1, 3)
           enddo
           write (uout,*)
@@ -3129,15 +3130,15 @@ contains
           write (uout,'("+ Cartesian/crystallographic coordinate transformation matrices:")')
           write (uout,'("  A = car to crys (xcrys = A * xcar, ",A,"^-1)")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,3(A,X))') (string(c%m_c2x(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'("    ",3(A," "))') (string(c%m_c2x(i,j)/dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,'("  B = crys to car (xcar = B * xcrys, ",A,")")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,3(A,X))') (string(c%m_x2c(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'("    ",3(A," "))') (string(c%m_x2c(i,j)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,'("  G = metric tensor (B''*B, ",A,"^2)")') iunitname0(iunit)
           do i = 1, 3
-             write (uout,'(4X,3(A,X))') (string(c%gtensor(i,j)*dunit0(iunit)**2,'f',length=16,decimal=10,justify=5),j=1,3)
+             write (uout,'("    ",3(A," "))') (string(c%gtensor(i,j)*dunit0(iunit)**2,'f',length=16,decimal=10,justify=5),j=1,3)
           end do
           write (uout,*)
        end if
@@ -3159,7 +3160,7 @@ contains
                 else
                    xcm = c%c2x(c%mol(i)%cmass())
                 end if
-                write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+                write (uout,'(99("  ",A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
                    (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete), string(c%idxmol(i),3,ioj_right)
              end do
           else
@@ -3171,7 +3172,7 @@ contains
                 else
                    xcm = c%c2x(c%mol(i)%cmass())
                 end if
-                write (uout,'(99(2X,A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
+                write (uout,'(99("  ",A))') string(i,3,ioj_left), string(c%mol(i)%nat,4,ioj_left),&
                    (string(xcm(j),'f',10,6,3),j=1,3), string(c%mol(i)%discrete)
              end do
           end if
@@ -3197,15 +3198,15 @@ contains
 
              else if (c%nlvac == 2) then
                 write (uout,'(/"+ This is a 1D periodic (polymer) structure.")')
-                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                write (uout,'("  Vacuum lattice vectors: (",2(A," "),A,"), (",2(A," "),A,")")') &
                    (string(c%lvac(j,1)),j=1,3), (string(c%lvac(j,2)),j=1,3)
-                write (uout,'("  Connected lattice vectors: (",2(A,X),A,")")') &
+                write (uout,'("  Connected lattice vectors: (",2(A," "),A,")")') &
                    (string(c%lcon(j,1)),j=1,3)
              else if (c%nlvac == 1) then
                 write (uout,'(/"+ This is a 2D periodic (layered) structure.")')
-                write (uout,'("  Vacuum lattice vectors: (",2(A,X),A,")")') &
+                write (uout,'("  Vacuum lattice vectors: (",2(A," "),A,")")') &
                    (string(c%lvac(j,1)),j=1,3)
-                write (uout,'("  Connected lattice vectors: (",2(A,X),A,"), (",2(A,X),A,")")') &
+                write (uout,'("  Connected lattice vectors: (",2(A," "),A,"), (",2(A," "),A,")")') &
                    (string(c%lcon(j,1)),j=1,3), (string(c%lcon(j,2)),j=1,3)
              else
                 write (uout,'(/"+ This is a 3D periodic structure.")')
@@ -3221,14 +3222,14 @@ contains
        if (.not.c%ismolecule) then
           write (uout,'("+ Vertex of the WS cell in cryst. coords. (",A,")")') string(c%ws_nv)
           write (uout,'("# id = vertex ID. xyz = vertex cryst. coords. d = vertex distance to origin (",A,").")') iunitname0(iunit)
-          write (uout,'(5(2X,A))') string("id",length=3,justify=ioj_right),&
+          write (uout,'(5("  ",A))') string("id",length=3,justify=ioj_right),&
              string("x",length=11,justify=ioj_center),&
              string("y",length=11,justify=ioj_center),&
              string("z",length=11,justify=ioj_center),&
              string("d ("//iunitname0(iunit)//")",length=14,justify=ioj_center)
           do i = 1, c%ws_nv
              x0 = c%x2c(c%ws_x(:,i))
-             write (uout,'(5(2X,A))') string(i,length=3,justify=ioj_right), &
+             write (uout,'(5("  ",A))') string(i,length=3,justify=ioj_right), &
                 (string(c%ws_x(j,i),'f',length=11,decimal=6,justify=4),j=1,3), &
                 string(norm2(x0)*dunit0(iunit),'f',length=14,decimal=8,justify=4)
           enddo
@@ -3237,7 +3238,7 @@ contains
           write (uout,'("+ Faces of the WS cell (",A,")")') string(c%ws_nf)
           write (uout,'("# Face ID: vertexID1 vertexID2 ...")')
           do i = 1, c%ws_nf
-             write (uout,'(2X,A,": ",999(A,X))') string(i,length=2,justify=ioj_right), &
+             write (uout,'("  ",A,": ",999(A," "))') string(i,length=2,justify=ioj_right), &
                 (string(c%ws_iside(j,i),length=2),j=1,c%ws_nside(i))
           end do
           write (uout,*)
@@ -3245,14 +3246,14 @@ contains
           write (uout,'("+ Lattice vectors for the Wigner-Seitz neighbors")')
           write (uout,'("# FaceID: Voronoi lattice vector (cryst. coords.)")')
           do i = 1, c%ws_nf
-             write (uout,'(2X,A,": ",99(A,X))') string(i,length=2,justify=ioj_right), &
+             write (uout,'("  ",A,": ",99(A," "))') string(i,length=2,justify=ioj_right), &
                 (string(c%ws_ineighx(j,i),length=2,justify=ioj_right),j=1,3)
           end do
           write (uout,*)
 
           write (uout,'("+ Lattice vectors for the Delaunay reduced cell (cryst. coords.)")')
           do i = 1, 3
-             write (uout,'(2X,A,": ",99(A,X))') lvecname(i), &
+             write (uout,'("  ",A,": ",99(A," "))') lvecname(i), &
                 (string(nint(c%m_xr2x(j,i)),length=2,justify=ioj_right),j=1,3)
           end do
 
@@ -3265,9 +3266,9 @@ contains
           xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
           xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
 
-          write (uout,'("  Delaunay reduced cell lengths: ",99(A,X))') &
+          write (uout,'("  Delaunay reduced cell lengths: ",99(A," "))') &
              (string(xlen(j),'f',decimal=6,justify=ioj_right),j=1,3)
-          write (uout,'("  Delaunay reduced cell angles: ",99(A,X))') &
+          write (uout,'("  Delaunay reduced cell angles: ",99(A," "))') &
              (string(xang(j),'f',decimal=3,justify=ioj_right),j=1,3)
           write (uout,*)
 
@@ -3474,7 +3475,7 @@ contains
        if (doax) &
           write(uout,'("# number: operation ... ## order of rotation [axis]; [axis in Cartesian]")')
        do k = 1, c%neqv*c%ncv
-          write (uout,'(3X,A,": ",A)') string(k,length=3,justify=ioj_right), string(strout(k))
+          write (uout,'("   ",A,": ",A)') string(k,length=3,justify=ioj_right), string(strout(k))
        enddo
        write (uout,*)
     end if
@@ -3916,7 +3917,8 @@ contains
           call assignop(i,j,op)
           write (uout,'("  Operation ",A,"/",A)') string(i), string(j)
           op(1:3,4) = c%x2c(op(1:3,4)) * 0.52917720859d0
-          write (uout,'(3(4X,4(A,X)/),4X,4(A,X))') ((string(op(i1,j1),'f',length=9,decimal=6,justify=3), j1=1,4), i1=1,4)
+          write (uout,'(3("    ",4(A," ")/),"    ",4(A," "))') &
+             ((string(op(i1,j1),'f',length=9,decimal=6,justify=3), j1=1,4), i1=1,4)
        enddo
     end do
 
@@ -4627,7 +4629,7 @@ contains
           else
              xcm = c%c2x(cmlist(:,i))
           end if
-          write (uout,'(99(2X,A))') string(i,3,ioj_left), string(fr0(i)%nat,4,ioj_left),&
+          write (uout,'(99("  ",A))') string(i,3,ioj_left), string(fr0(i)%nat,4,ioj_left),&
              (string(xcm(j),'f',10,6,3),j=1,3), string(origmol(i)), &
              (string(nint(fr0(i)%at(1)%x(j)-c%mol(origmol(i))%at(1)%x(j)),3,ioj_right),j=1,3)
        end do
@@ -4958,19 +4960,19 @@ contains
     write (lu,'("&cell"/"/")')
     write (lu,'("ATOMIC_SPECIES")')
     do i = 1, c%nspc
-       write (lu,'(A,X,F12.6,X,A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(lower(c%spc(i)%name))
+       write (lu,'(A," ",F12.6," ",A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(lower(c%spc(i)%name))
     end do
     write (lu,'(/"ATOMIC_POSITIONS crystal")')
     do i = 1, c%ncel
-       write (lu,'(A,3(X,F13.8,X))') trim(c%spc(c%atcel(i)%is)%name), c%atcel(i)%x
+       write (lu,'(A,3(" ",F13.8," "))') trim(c%spc(c%atcel(i)%is)%name), c%atcel(i)%x
     end do
 
     call c%get_kpoints(rk,nk)
-    write (lu,'(/"K_POINTS automatic"/3(A,X)" 1 1 1"/)') (string(nk(i)),i=1,3)
+    write (lu,'(/"K_POINTS automatic"/3(A," ")" 1 1 1"/)') (string(nk(i)),i=1,3)
 
     write (lu,'("CELL_PARAMETERS bohr")')
     do i = 1, 3
-       write (lu,'(3(F18.12,X))') c%m_x2c(:,i)
+       write (lu,'(3(F18.12," "))') c%m_x2c(:,i)
     end do
     call fclose(lu)
 
@@ -5009,7 +5011,7 @@ contains
     write (lu,'("critic2 | ",A)') string(c%file)
     write (lu,'("1.0")')
     do i = 1, 3
-       write (lu,'(3(F15.10,X))') c%m_x2c(:,i) * bohrtoa
+       write (lu,'(3(F15.10," "))') c%m_x2c(:,i) * bohrtoa
     end do
 
     ! Number of atoms per type and Direct
@@ -5033,14 +5035,14 @@ contains
     do i = 1, c%nspc
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) then
-             write (lu,'(3(F13.8,X))') c%atcel(j)%x
+             write (lu,'(3(F13.8," "))') c%atcel(j)%x
           end if
        end do
     end do
     call fclose(lu)
 
     if (verbose) &
-       write (uout,'("+ Atom type sequence: ",999(A,X))') (string(c%spc(j)%name),j=1,c%nspc)
+       write (uout,'("+ Atom type sequence: ",999(A," "))') (string(c%spc(j)%name),j=1,c%nspc)
 
   end subroutine write_vasp
 
@@ -5068,8 +5070,8 @@ contains
 
     ! Write input
     lu = fopen_write(file,ti=ti)
-    write (lu,'("acell ",3(F14.10,X))') aap
-    write (lu,'("angdeg ",3(F14.10,X))') bbp
+    write (lu,'("acell ",3(F14.10," "))') aap
+    write (lu,'("angdeg ",3(F14.10," "))') bbp
     write (lu,'("ntypat ",I3)') c%nspc
 
     lbl1 = ""
@@ -5095,7 +5097,7 @@ contains
     do i = 1, c%nspc
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) then
-             write (lu,'(X,3(F15.10,X))') c%atcel(j)%x
+             write (lu,'(" ",3(F15.10," "))') c%atcel(j)%x
           end if
        end do
     end do
@@ -5138,24 +5140,24 @@ contains
     write (lu,'("xctype"/,"20"/)')
     write (lu,'("avec")')
     do i = 1, 3
-       write (lu,'(2X,3(F15.10,X))') c%m_x2c(:,i)
+       write (lu,'("  ",3(F15.10," "))') c%m_x2c(:,i)
     end do
     write (lu,*)
 
     write (lu,'("sppath"/,"''./''"/)')
 
     write (lu,'("atoms")')
-    write (lu,'(2X,I4)') c%nspc
+    write (lu,'("  ",I4)') c%nspc
     do i = 1, c%nspc
-       write (lu,'(2X,"''",A,".in''")') trim(c%spc(i)%name)
+       write (lu,'("  ","''",A,".in''")') trim(c%spc(i)%name)
        ntyp = 0
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) ntyp = ntyp + 1
        end do
-       write (lu,'(2X,I3)') ntyp
+       write (lu,'("  ",I3)') ntyp
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) then
-             write (lu,'(2X,3(F14.10,X),"0.0 0.0 0.0")') c%atcel(j)%x
+             write (lu,'("  ",3(F14.10," "),"0.0 0.0 0.0")') c%atcel(j)%x
           end if
        end do
     end do
@@ -5193,11 +5195,11 @@ contains
     write (lu,*)
     write (lu,'("0 1")')
     do i = 1, c%ncel
-       write (lu,'(99(A,X))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.),2,ioj_left),&
+       write (lu,'(99(A," "))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.),2,ioj_left),&
           (string(c%atcel(i)%r(j)*bohrtoa,'f',14,8,ioj_left),j=1,3)
     end do
     do i = 1, 3
-       write (lu,'(99(A,X))') string("Tv",2,ioj_left),&
+       write (lu,'(99(A," "))') string("Tv",2,ioj_left),&
           (string(c%m_x2c(j,i)*bohrtoa,'f',14,8,ioj_left),j=1,3)
     end do
     write (lu,*)
@@ -5227,21 +5229,21 @@ contains
     write (lu,'("  crystal")')
     write (lu,'("    symmatrix seitz")')
     do i = 1, c%ncv
-       write (lu,'(5X,A,3(F15.12,X))') "cen ",c%cen(:,i)
+       write (lu,'("     ",A,3(F15.12," "))') "cen ",c%cen(:,i)
     end do
-    write (lu,'(5X,"#")')
+    write (lu,'("     ","#")')
     do i = 1, c%neqv
-       write (lu,'(5X,3(F5.2,X),F15.12)') c%rotm(1,:,i)
-       write (lu,'(5X,3(F5.2,X),F15.12)') c%rotm(2,:,i)
-       write (lu,'(5X,3(F5.2,X),F15.12)') c%rotm(3,:,i)
-       write (lu,'(5X,"#")')
+       write (lu,'("     ",3(F5.2," "),F15.12)') c%rotm(1,:,i)
+       write (lu,'("     ",3(F5.2," "),F15.12)') c%rotm(2,:,i)
+       write (lu,'("     ",3(F5.2," "),F15.12)') c%rotm(3,:,i)
+       write (lu,'("     ","#")')
     end do
-    write (lu,'(5X,"endsymmatrix")')
-    write (lu,'(5X,A,6(F12.8,X))') "cell", c%aa, c%bb
-    write (lu,'(5X,"crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30")')
-    write (lu,'(5X,A,6(F6.3,X))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
+    write (lu,'("     ","endsymmatrix")')
+    write (lu,'("     ",A,6(F12.8," "))') "cell", c%aa, c%bb
+    write (lu,'("     ","crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30")')
+    write (lu,'("     ",A,6(F6.3," "))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
     do i = 1, c%nneq
-       write (lu,'(5X,"neq ",3(F12.8," "),A10)') c%at(i)%x, trim(c%spc(c%at(i)%is)%name)
+       write (lu,'("     ","neq ",3(F12.8," "),A10)') c%at(i)%x, trim(c%spc(c%at(i)%is)%name)
     end do
     write (lu,'("  endcrystal")')
     write (lu,'(A)') "  unitcell radius 0.01 rgb 1.0 0.5 0.5 many"
@@ -5270,7 +5272,7 @@ contains
     lu = fopen_write(file,ti=ti)
 
     write (lu,'("crystal")')
-    write (lu,'("  cell ",6(A,X))') (string(c%aa(i),'f',decimal=10),i=1,3),&
+    write (lu,'("  cell ",6(A," "))') (string(c%aa(i),'f',decimal=10),i=1,3),&
        (string(c%bb(i),'f',decimal=6),i=1,3)
     do i = 1, c%ncel
        write (lu,'("  neq ",3(A," "),A)') (string(c%atcel(i)%x(j),'f',decimal=10),j=1,3),&
@@ -5449,12 +5451,12 @@ contains
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
-          write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
+          write (lu,'(A5," ",A3," ",3(F20.14," "))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
        end do
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
-          write (lu,'(A5,X,A3,X,3(F20.14,X))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
+          write (lu,'(A5," ",A3," ",3(F20.14," "))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
        end do
     end if
     call fclose(lu)
@@ -5484,7 +5486,7 @@ contains
        write (lu,'("1")')
        write (lu,'(A)') string(c%ncel)
        do i = 1, c%ncel
-          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), &
+          write (lu,'(4(A," "))') string(c%spc(c%atcel(i)%is)%z), &
              (string((c%atcel(i)%r(j)+c%molx0(j))*bohrtoa,'f',15,8),j=1,3)
        end do
     elseif (dosym) then
@@ -5493,10 +5495,10 @@ contains
        write (lu,'("CRYSTAL")')
        write (lu,'("0 0 0")')
        write (lu,'("1")')
-       write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
+       write (lu,'(6(A," "))') (string(c%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(c%bb(j),'f',15,8),j=1,3)
        write (lu,'(A)') string(c%ncel)
        do i = 1, c%ncel
-          write (lu,'(4(A,X))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
+          write (lu,'(4(A," "))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
        end do
     end if
     write (lu,'("TESTGEOM")')
@@ -5514,7 +5516,7 @@ contains
        call pointgroup_info(c%spg%pointgroup_symbol,schpg,holo,laue)
        write (lu,'("3 1 ",A)') string(holo-1)
        do i = 1, 3
-          write (lu,'(3(A,X))') (string(c%m_x2c(j,i)*bohrtoa,'f',decimal=10),j=1,3)
+          write (lu,'(3(A," "))') (string(c%m_x2c(j,i)*bohrtoa,'f',decimal=10),j=1,3)
        end do
 
        ! symmetry operations
@@ -5523,18 +5525,18 @@ contains
           do j = 1, c%ncv
              dum = transpose(matmul(matmul(c%m_x2c,c%rotm(1:3,1:3,i)),c%m_c2x))
              do k = 1, 3
-                write (lu,'(3(X,E19.12))') (dum(l,k),l=1,3)
+                write (lu,'(3(" ",E19.12))') (dum(l,k),l=1,3)
              end do
              x = c%rotm(:,4,i)+c%cen(:,j)
              x = c%x2c(x)
-             write (lu,'(3(X,E19.12))') (x(l)*bohrtoa,l=1,3)
+             write (lu,'(3(" ",E19.12))') (x(l)*bohrtoa,l=1,3)
           end do
        end do
 
        ! atoms
        write (lu,'(A)') string(c%nneq)
        do i = 1, c%nneq
-          write (lu,'(4(A,X))') string(c%spc(c%at(i)%is)%z), (string(c%at(i)%r(l)*bohrtoa,'f',decimal=10),l=1,3)
+          write (lu,'(4(A," "))') string(c%spc(c%at(i)%is)%z), (string(c%at(i)%r(l)*bohrtoa,'f',decimal=10),l=1,3)
        end do
 
        call fclose(lu)
@@ -5579,7 +5581,7 @@ contains
 
     ! header
     write (lu,'("TITL critic2 | ",A)') trim(c%file)
-    write (lu,'("CELL 0.71073 ",6(A,X))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
+    write (lu,'("CELL 0.71073 ",6(A," "))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
        (string(c%bb(j),'f',10,6),j=1,3)
     if (usesym) then
        write (lu,'("ZERR ",A," 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001")') string(c%ncel/c%nneq)
@@ -5656,7 +5658,7 @@ contains
     end if
 
     ! atomic species
-    write (lu,'("SFAC ",999(A,X))') (trim(nameguess(c%spc(i)%z,.true.)),i=1,c%nspc)
+    write (lu,'("SFAC ",999(A," "))') (trim(nameguess(c%spc(i)%z,.true.)),i=1,c%nspc)
 
     ! number of atoms of each type
     str = ""
@@ -5669,13 +5671,13 @@ contains
     ! list of atoms
     if (usesym) then
        do i = 1, c%nneq
-          write (lu,'(999(A,X))') trim(c%spc(c%at(i)%is)%name) // string(i), string(c%at(i)%is), &
+          write (lu,'(999(A," "))') trim(c%spc(c%at(i)%is)%name) // string(i), string(c%at(i)%is), &
              (string(c%at(i)%x(j),'f',12,8),j=1,3), string(real(c%at(i)%mult,8)/(c%neqv*c%ncv),'f',12,8), &
              "0.05"
        end do
     else
        do i = 1, c%ncel
-          write (lu,'(999(A,X))') trim(c%spc(c%atcel(i)%is)%name) // string(i), string(c%atcel(i)%is), &
+          write (lu,'(999(A," "))') trim(c%spc(c%atcel(i)%is)%name) // string(i), string(c%atcel(i)%is), &
              (string(c%atcel(i)%x(j),'f',12,8),j=1,3), "1.0", "0.05"
        end do
     end if
@@ -5703,20 +5705,20 @@ contains
     ! count number of atoms per type
     write (lu,'("cr = struct();")')
     write (lu,'("cr.name = """,A,""";")') trim(adjustl(fileroot))
-    write (lu,'("cr.a = [",1p,3(E22.14,X),"];")') c%aa
-    write (lu,'("cr.b = [",1p,3(E22.14,X),"];")') c%bb * pi / 180d0
+    write (lu,'("cr.a = [",1p,3(E22.14," "),"];")') c%aa
+    write (lu,'("cr.b = [",1p,3(E22.14," "),"];")') c%bb * pi / 180d0
     write (lu,'("cr.nat = ",I6,";")') c%ncel
     write (lu,'("cr.ntyp = ",I6,";")') c%nspc
     write (lu,'("cr.r = [")')
     do i = 1, 3
-       write (lu,'(2X,1p,3(E22.14,X))') c%m_x2c(:,i)
+       write (lu,'("  ",1p,3(E22.14," "))') c%m_x2c(:,i)
     end do
-    write (lu,'(2X,"];")')
+    write (lu,'("  ","];")')
     write (lu,'("cr.g = [")')
     do i = 1, 3
-       write (lu,'(2X,1p,3(E22.14,X))') c%gtensor(:,i)
+       write (lu,'("  ",1p,3(E22.14," "))') c%gtensor(:,i)
     end do
-    write (lu,'(2X,"];")')
+    write (lu,'("  ","];")')
     write (lu,'("cr.omega = ",1p,E22.14,";")') c%omega
 
     lbl1 = "cr.ztyp = ["
@@ -5753,7 +5755,7 @@ contains
     write (lu,'("cr.x = [")')
     n = 0
     do i = 1, c%ncel
-       write (lu,'(2X,1p,3(E22.14,X))') c%atcel(i)%x
+       write (lu,'("  ",1p,3(E22.14," "))') c%atcel(i)%x
     end do
     write (lu,'("  ];")')
 
@@ -5775,9 +5777,9 @@ contains
     write (lu,'("type crystal_energy")')
     write (lu,'("kpts 4")')
     write (lu,'("crys")')
-    write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',18,10),i=1,3), (string(c%bb(i),'f',18,10),i=1,3)
+    write (lu,'(6(A," "))') (string(c%aa(i)*bohrtoa,'f',18,10),i=1,3), (string(c%bb(i),'f',18,10),i=1,3)
     do i = 1, c%ncel
-       write (lu,'(A,X,1p,3(A,X))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)), &
+       write (lu,'(A," ",1p,3(A," "))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)), &
           (string(c%atcel(i)%x(j),'f',18,10),j=1,3)
     end do
     write (lu,'("end")')
@@ -5797,11 +5799,11 @@ contains
 
     lu = fopen_write(file,ti=ti)
     write (lu,'("eem")')
-    write (lu,'("cell ",6(A,X))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
+    write (lu,'("cell ",6(A," "))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
        (string(c%bb(j),'f',10,5),j=1,3)
     write (lu,'("fractional")')
     do i = 1, c%ncel
-       write (lu,'(A5,X,3(A,X))') trim(c%spc(c%atcel(i)%is)%name),&
+       write (lu,'(A5," ",3(A," "))') trim(c%spc(c%atcel(i)%is)%name),&
           (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
     end do
 
@@ -5836,15 +5838,15 @@ contains
        abs(c%m_x2c(2,3)) > 1d-12) then
        call ferror ('write_lammps','non-orthogonal cells not implemented',faterr)
     end if
-    write (lu,'(2(F18.10,X)," xlo xhi")') 0d0, c%m_x2c(1,1)*bohrtoa
-    write (lu,'(2(F18.10,X)," ylo yhi")') 0d0, c%m_x2c(2,2)*bohrtoa
-    write (lu,'(2(F18.10,X)," zlo zhi")') 0d0, c%m_x2c(3,3)*bohrtoa
-    write (lu,'(3(F18.10,X)," xy xz yz")') 0d0, 0d0, 0d0
+    write (lu,'(2(F18.10," ")," xlo xhi")') 0d0, c%m_x2c(1,1)*bohrtoa
+    write (lu,'(2(F18.10," ")," ylo yhi")') 0d0, c%m_x2c(2,2)*bohrtoa
+    write (lu,'(2(F18.10," ")," zlo zhi")') 0d0, c%m_x2c(3,3)*bohrtoa
+    write (lu,'(3(F18.10," ")," xy xz yz")') 0d0, 0d0, 0d0
     write (lu,*)
 
     write (lu,'("Masses"/)')
     do i = 1, c%nspc
-       write (lu,'(I3,X,F10.4)') i, atmass(c%spc(i)%z)
+       write (lu,'(I3," ",F10.4)') i, atmass(c%spc(i)%z)
     end do
     write (lu,*)
 
@@ -5854,7 +5856,7 @@ contains
        do j = 1, c%ncel
           if (c%atcel(j)%is /= i) cycle
           l = l + 1
-          write (lu,'(I7,X,I3,X,F4.1,3(F15.8,X))') l, i, 0d0, c%atcel(j)%r*bohrtoa
+          write (lu,'(I7," ",I3," ",F4.1,3(F15.8," "))') l, i, 0d0, c%atcel(j)%r*bohrtoa
        end do
     end do
 
@@ -5885,21 +5887,21 @@ contains
     write (lu,'("NumberOfAtoms ", I6)') c%ncel
     write (lu,'("%block Chemical_Species_Label")')
     do i = 1, c%nspc
-       write (lu,'(I3,I3,X,A2)') i, c%spc(i)%z, lower(nameguess(c%spc(i)%z,.true.))
+       write (lu,'(I3,I3," ",A2)') i, c%spc(i)%z, lower(nameguess(c%spc(i)%z,.true.))
     end do
     write (lu,'("%endblock Chemical_Species_Label")')
     write (lu,*)
 
     write (lu,'("LatticeConstant 1.0 ang")')
     write (lu,'("%block LatticeParameters")')
-    write (lu,'(3(F16.10,X),3(F16.8,X))') c%aa*bohrtoa, c%bb
+    write (lu,'(3(F16.10," "),3(F16.8," "))') c%aa*bohrtoa, c%bb
     write (lu,'("%endblock LatticeParameters")')
     write (lu,'("AtomicCoordinatesFormat Fractional")')
     write (lu,'("%block AtomicCoordinatesAndAtomicSpecies")')
     do i = 1, c%nspc
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) &
-             write (lu,'(3(F18.12,X),I3)') c%atcel(j)%x, i
+             write (lu,'(3(F18.12," "),I3)') c%atcel(j)%x, i
        end do
     end do
     write (lu,'("%endblock AtomicCoordinatesAndAtomicSpecies")')
@@ -5951,7 +5953,7 @@ contains
     ! lattice vectors
     r = transpose(c%m_x2c) * bohrtoa
     do i = 1, 3
-       write (lu,'(3(F20.12,X))') r(i,:)
+       write (lu,'(3(F20.12," "))') r(i,:)
     end do
 
     ! atoms
@@ -5960,7 +5962,7 @@ contains
     do i = 1, c%nspc
        do k = 1, c%ncel
           if (c%atcel(k)%is == i) &
-             write (lu,'(I3,X,I3,X,3(F20.12,X))') i, c%spc(i)%z, c%atcel(k)%x
+             write (lu,'(I3," ",I3," ",3(F20.12," "))') i, c%spc(i)%z, c%atcel(k)%x
        end do
     end do
 
@@ -5969,7 +5971,7 @@ contains
     ! Write the chemical species block to standard output
     write (uout,'("%block Chemical_Species_Label")')
     do i = 1, c%nspc
-       write (uout,'(3(2X,A))') string(i), string(c%spc(i)%z), &
+       write (uout,'(3("  ",A))') string(i), string(c%spc(i)%z), &
           string(nameguess(c%spc(i)%z,.true.))
     end do
     write (uout,'("%endblock Chemical_Species_Label")')
@@ -6053,7 +6055,7 @@ contains
     write(lu,'("  MaxSCCIterations = 125")')
     write(lu,'("  MaxAngularMomentum = {")')
     do i = 1, c%nspc
-       write (lu,'(4X,A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
+       write (lu,'("    ",A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
           string(maxang(c%spc(i)%z))
     end do
     write(lu,'("  }")')
@@ -6075,7 +6077,7 @@ contains
     write(lu,'("  DampXHExponent = 4.2")')
     write(lu,'("  HubbardDerivs {")')
     do i = 1, c%nspc
-       write (lu,'(4X,A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
+       write (lu,'("    ",A," = ",A)') string(nameguess(c%spc(i)%z,.true.)), &
           string(hderiv(c%spc(i)%z),'f',decimal=4)
     end do
     write(lu,'("  }")')
@@ -6109,7 +6111,7 @@ contains
        write (lu,'("mol = gto.Mole()")')
        write (lu,'("mol.atom = ''''''")')
        do i = 1, c%ncel
-          write (lu,'(A,3(X,A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
+          write (lu,'(A,3(" ",A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
              (string(c%atcel(i)%r(j),'f',18,10),j=1,3)
        end do
        write (lu,'("''''''")')
@@ -6124,13 +6126,13 @@ contains
        write (lu,'("cell = gto.Cell()")')
        write (lu,'("cell.atom = ''''''")')
        do i = 1, c%ncel
-          write (lu,'(A,3(X,A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
+          write (lu,'(A,3(" ",A))') string(nameguess(c%spc(c%atcel(i)%is)%z,.true.)),&
              (string(c%atcel(i)%r(j),'f',18,10),j=1,3)
        end do
        write (lu,'("''''''")')
        write (lu,'("cell.a = ''''''")')
        do i = 1, 3
-          write (lu,'(2X,1p,3(E22.14,X))') c%m_x2c(:,i)
+          write (lu,'("  ",1p,3(E22.14," "))') c%m_x2c(:,i)
        end do
        write (lu,'("''''''")')
 
@@ -6167,16 +6169,16 @@ contains
     write (lu,'("## FHIaims input file generated by critic2.")')
     if (.not.c%ismolecule) then
        do i = 1, 3
-          write (lu,'("lattice_vector ",3(A,X))') (string(c%m_x2c(j,i) * bohrtoa,'f',18,10),j=1,3)
+          write (lu,'("lattice_vector ",3(A," "))') (string(c%m_x2c(j,i) * bohrtoa,'f',18,10),j=1,3)
        end do
     end if
     do i = 1, c%ncel
        name = nameguess(c%spc(c%atcel(i)%is)%z,.true.)
        if (frac .and. .not.c%ismolecule) then
-          write (lu,'("atom_frac ",4(X,A))') (string(c%atcel(i)%x(j),'f',18,10),j=1,3),&
+          write (lu,'("atom_frac ",4(" ",A))') (string(c%atcel(i)%x(j),'f',18,10),j=1,3),&
              name
        else
-          write (lu,'("atom ",4(X,A))') (string(c%atcel(i)%r(j)*bohrtoa,'f',18,10),j=1,3),&
+          write (lu,'("atom ",4(" ",A))') (string(c%atcel(i)%r(j)*bohrtoa,'f',18,10),j=1,3),&
              name
        end if
     end do
@@ -6197,7 +6199,7 @@ contains
        write (lu,'("relax_unit_cell full")')
        write (lu,'("max_relaxation_steps 200")')
        write (lu,'("")')
-       write (lu,'("k_grid",3(X,A))') (string(nk(i)),i=1,3)
+       write (lu,'("k_grid",3(" ",A))') (string(nk(i)),i=1,3)
        call fclose(lu)
     end if
 
@@ -6225,10 +6227,10 @@ contains
     lu = fopen_write(file,ti=ti)
 
     ! line 1: number of atoms and title
-    write (lu,'(A,X,A)') string(c%ncel) ,"generated by critic2"
+    write (lu,'(A," ",A)') string(c%ncel) ,"generated by critic2"
 
     ! line 2: cell parameters
-    write (lu,'(6(A,X))') (string(c%aa(i)*bohrtoa,'f',decimal=8),i=1,3), &
+    write (lu,'(6(A," "))') (string(c%aa(i)*bohrtoa,'f',decimal=8),i=1,3), &
        (string(c%bb(i),'f',decimal=8),i=1,3)
 
     ! merge all molecules into the onemotif
@@ -6261,7 +6263,7 @@ contains
           ineig(j) = imap(c%nstar(fr%at(i)%cidx)%idcon(j))
        end do
 
-       write (lu,'(999(A,X))') string(i,5,ioj_right), &
+       write (lu,'(999(A," "))') string(i,5,ioj_right), &
           string(nameguess(iz,.true.),5,ioj_left), &
           (string(fr%at(i)%x(j),'f',12,8,ioj_right),j=1,3), string(ityp),&
           (string(ineig(j)),j=1,nneig)
@@ -6311,7 +6313,7 @@ contains
        do i = 1, c%nspc
           do k = 1, c%ncel
              if (c%atcel(k)%is == i) &
-                write (lu,'(99(A,X))') string(k), string(i), &
+                write (lu,'(99(A," "))') string(k), string(i), &
                 (string(c%atcel(k)%r(j)*bohrtoa,'f',20,12),j=1,3)
           end do
        end do
@@ -6324,16 +6326,16 @@ contains
        do i = 1, c%nspc
           do k = 1, c%ncel
              if (c%atcel(k)%is == i) &
-                write (lu,'(99(A,X))') string(k), string(i), &
+                write (lu,'(99(A," "))') string(k), string(i), &
                 (string(c%atcel(k)%x(j),'f',20,12),j=1,3)
           end do
        end do
 
        ! lattice vectors
        r = c%m_x2c * bohrtoa
-       write (lu,'(3(A,X))') (string(0d0,'f',20,12),j=1,3)
+       write (lu,'(3(A," "))') (string(0d0,'f',20,12),j=1,3)
        do i = 1, 3
-          write (lu,'(3(A,X))') (string(r(j,i),'f',20,12),j=1,3)
+          write (lu,'(3(A," "))') (string(r(j,i),'f',20,12),j=1,3)
        end do
     endif
 
@@ -6411,12 +6413,12 @@ contains
        write(lu,'("critic2-cube")')
        write(lu,'("critic2-cube")')
        if (precisecube) then
-          write(lu,'(I5,1x,3(E22.14,1X))') c%ncel, x0
+          write(lu,'(I5," ",3(E22.14," "))') c%ncel, x0
           do i = 1, 3
-             write(lu,'(I5,1x,3(E22.14,1X))') n(i), xd(:,i)
+             write(lu,'(I5," ",3(E22.14," "))') n(i), xd(:,i)
           end do
           do i = 1, c%ncel
-             write(lu,'(I4,F5.1,3(E22.14,1X))') c%spc(c%atcel(i)%is)%z, 0d0, &
+             write(lu,'(I4,F5.1,3(E22.14," "))') c%spc(c%atcel(i)%is)%z, 0d0, &
                 c%atcel(i)%r(:) + c%molx0 - rshift
           end do
        else
@@ -6435,9 +6437,9 @@ contains
              do iiy = 0, n(2)-1
                 iy = modulo(iiy + ishift(2),n(2)) + 1
                 if (precisecube) then
-                   write (lu,'(6(1x,e22.14))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
+                   write (lu,'(6(" ",e22.14))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
                 else
-                   write (lu,'(1p,6(1x,e12.5))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
+                   write (lu,'(1p,6(" ",e12.5))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
                 end if
              enddo
           enddo
@@ -6484,7 +6486,7 @@ contains
     write (lu,'("CHGCAR generated by critic2")')
     write (lu,'("1.0")')
     do i = 1, 3
-       write (lu,'(1p,3(E22.14,X))') c%m_x2c(:,i) * bohrtoa
+       write (lu,'(1p,3(E22.14," "))') c%m_x2c(:,i) * bohrtoa
     end do
 
     ! species line
@@ -6512,13 +6514,13 @@ contains
     do i = 1, c%nspc
        do j = 1, c%ncel
           if (c%atcel(j)%is == i) &
-             write (lu,'(1p,3(E22.14,X))') c%atcel(j)%x - xshift
+             write (lu,'(1p,3(E22.14," "))') c%atcel(j)%x - xshift
        end do
     end do
     write (lu,*)
-    write (lu,'(3(I5,X))') n
+    write (lu,'(3(I5," "))') n
     if (.not.onlyheader) then
-       write (lu,'(5(1x,e22.14))') &
+       write (lu,'(5(" ",e22.14))') &
           (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,modulo(iz+ishift(3),n(3))+1)*c%omega,&
           ix=0,n(1)-1),iy=0,n(2)-1),iz=0,n(3)-1)
     end if
@@ -6568,33 +6570,33 @@ contains
     write (lu,'("CRYSTAL")')
     write (lu,'("PRIMVEC")')
     do i = 1, 3
-       write (lu,'(1p,3(E22.14,X))') c%m_x2c(:,i) * bohrtoa
+       write (lu,'(1p,3(E22.14," "))') c%m_x2c(:,i) * bohrtoa
     end do
     write (lu,'("CONVVEC")')
     do i = 1, 3
-       write (lu,'(1p,3(E22.14,X))') c%m_x2c(:,i) * bohrtoa
+       write (lu,'(1p,3(E22.14," "))') c%m_x2c(:,i) * bohrtoa
     end do
 
     write (lu,'("PRIMCOORD")')
-    write (lu,'(A,X,"1")') string(c%ncel)
+    write (lu,'(A," 1")') string(c%ncel)
     do j = 1, c%ncel
-       write (lu,'(A,X,1p,3(E22.14,X))') string(c%spc(c%atcel(j)%is)%z), &
+       write (lu,'(A," ",1p,3(E22.14," "))') string(c%spc(c%atcel(j)%is)%z), &
           (c%atcel(j)%r - rshift) * bohrtoa
     end do
     if (.not.onlyheader) then
        write (lu,'("BEGIN_BLOCK_DATAGRID3D")')
        write (lu,'("critic2:grid")')
        write (lu,'("DATAGRID_3D_GRID")')
-       write (lu,'(3(A,X))') (string(n(j)+1),j=1,3)
+       write (lu,'(3(A," "))') (string(n(j)+1),j=1,3)
        x = 0d0
-       write (lu,'(1p,3(1x,e22.14))') x
+       write (lu,'(1p,3(" ",e22.14))') x
        do i = 1, 3
           x = 0d0
           x(i) = 1d0
           x = c%x2c(x) * bohrtoa
-          write (lu,'(1p,3(1x,e22.14))') x
+          write (lu,'(1p,3(" ",e22.14))') x
        end do
-       write (lu,'(1p,5(1x,e22.14))') (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,&
+       write (lu,'(1p,5(" ",e22.14))') (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,&
           modulo(iz+ishift(3),n(3))+1),ix=0,n(1)),iy=0,n(2)),iz=0,n(3))
        write (lu,'("END_DATAGRID_3D")')
        write (lu,'("END_BLOCK_DATAGRID3D")')

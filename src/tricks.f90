@@ -256,7 +256,7 @@ contains
   !   do i = 1, nline
   !      x = x0 + real(i-1,8) / real(nline-1,8) * (x1-x0)
   !      rho = grd0(f(0),x)
-  !      write (uout,'(4X,99(A,X))') string(norm(x-x0)*bohrtoa,'f',14,6), string(rho,'e',12,6)
+  !      write (uout,'("    ",99(A," "))') string(norm(x-x0)*bohrtoa,'f',14,6), string(rho,'e',12,6)
   !      ok = ok .and. rho < rho0
   !   end do
   !   if (.not.ok) &
@@ -344,7 +344,7 @@ contains
   !         dist = dist + norm(xlimit(:,j,i) - x)
   !      end do
   !      dist = dist / nang
-  !      write (uout,'(2X,99(A,X))') string(i), string(norm(x-x0)*bohrtoa,'f',14,6,4), &
+  !      write (uout,'("  ",99(A," "))') string(i), string(norm(x-x0)*bohrtoa,'f',14,6,4), &
   !         string(2d0*dist*bohrtoa,'f',14,6,4), string(pi*dist*dist*bohrtoa*bohrtoa,'f',14,6,4)
   !   end do
 
@@ -415,7 +415,7 @@ contains
   !   write (uout,'("Voronoi-relevant vectors in the WS cell (cryst. coords.): ",A)') string(nvws)
   !   nvws = sy%c%ws_nf
   !   do i = 1, nvws
-  !      write (uout,'(A,":",3(X,A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
+  !      write (uout,'(A,":",3(" ",A))') string(i), (string(sy%c%ws_ineighx(j,i)),j=1,3)
   !   end do
   !   write (uout,*)
 
@@ -424,7 +424,7 @@ contains
   !   do i = 1, nvws
   !      x = 0.5d0 * sy%c%ws_ineighc(:,i)
   !      xvws(:,i) = x
-  !      write (uout,'(A,":",3(X,A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
+  !      write (uout,'(A,":",3(" ",A))') string(i), (string(x(j),'f',10,5,ioj_right),j=1,3)
   !   end do
   !   write (uout,*)
 
@@ -444,11 +444,11 @@ contains
   !            end do
   !            if (.not.inside) then
   !               nnok = nnok + 1
-  !               write (uout,'("Orig:",3(X,A)," | Tran:",3(X,A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !               write (uout,'("Orig:",3(" ",A)," | Tran:",3(" ",A)," | ",A)') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
   !                  (string(x(l),'f',10,5,ioj_right),l=1,3), string(inside)
   !            end if
 
-  !            write (uout,'("Orig:",3(X,A)," | L:",3(X,A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
+  !            write (uout,'("Orig:",3(" ",A)," | L:",3(" ",A))') (string(xin(l),'f',10,5,ioj_right),l=1,3), &
   !               (string(x(l)-xin(l),'f',10,5,ioj_right),l=1,3)
   !         end do
   !      end do
@@ -1546,12 +1546,12 @@ contains
     if (usesym) then
        do i = 1, sy%c%nneq
           is = sy%c%at(i)%is
-          write (lu,'(A5,X,A3,X,3(F20.14,X))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%at(i)%x
+          write (lu,'(A5," ",A3," ",3(F20.14," "))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%at(i)%x
        end do
     else
        do i = 1, sy%c%ncel
           is = sy%c%atcel(i)%is
-          write (lu,'(A5,X,A3,X,3(F20.14,X))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%atcel(i)%x
+          write (lu,'(A5," ",A3," ",3(F20.14," "))') sy%c%spc(is)%name, nameguess(sy%c%spc(is)%z,.true.), sy%c%atcel(i)%x
        end do
     end if
     call fclose(lu)
@@ -1964,7 +1964,7 @@ contains
           msgsum = "l-s,low tr"
        end if
 
-       write (uout,'(99(A,X))') string(i,3,ioj_left), string(step_bfgs_it(i),3,ioj_left), string(step_scf_it(i),3,ioj_left), &
+       write (uout,'(99(A," "))') string(i,3,ioj_left), string(step_bfgs_it(i),3,ioj_left), string(step_scf_it(i),3,ioj_left), &
           msgsum, string(step_tr(i),'f',12,8), string(step_ene(i),'f',17,10),&
           string(step_de(i),'e',12,5), string(string(step_de(i) < energy_thr),3,ioj_center),&
           string(step_df(i),'e',12,5), string(string(step_df(i) < grad_thr),3,ioj_center),&
@@ -1972,7 +1972,7 @@ contains
     end do
     if (conv_bfgs) then
        ! last step
-       write (uout,'(99(A,X))') string(nstep+1,3,ioj_left), string(bfgs_iter,3,ioj_left),&
+       write (uout,'(99(A," "))') string(nstep+1,3,ioj_left), string(bfgs_iter,3,ioj_left),&
           string(scf_iter,3,ioj_left), &
           msgsum, string(trust_radius,'f',12,5), string(energy,'f',17,10),&
           string(energy_error,'e',12,5), string(string(energy_error < energy_thr),3,ioj_center),&
@@ -1983,7 +1983,7 @@ contains
     ! summary
     write (uout,*)
     write (uout,'("+ Convergence summary")')
-    write (uout,'("  Trust radius (min/current/max) = ",3(A,X))') string(trust_radius_min,'f',12,5),&
+    write (uout,'("  Trust radius (min/current/max) = ",3(A," "))') string(trust_radius_min,'f',12,5),&
          string(trust_radius,'f',12,5), string(trust_radius_max,'f',12,5)
     write (uout,'("  Energy (Ry) = ",A," (thr=",A,")")') string(energy_error,'e',decimal=5), &
        string(energy_thr,'e',decimal=5)
@@ -2305,19 +2305,19 @@ contains
     write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
     write (uout,'("# Structure 1: ")')
     do i = 1, 3
-       write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
+       write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&
           (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
           string(c1%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
     end do
-    write (uout,'("  Angles (deg): ",3(A,X))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
+    write (uout,'("  Angles (deg): ",3(A," "))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
     write (uout,'("# Structure 2: ")')
     do i = 1, 3
        c2%aa(i) = norm2(c2%m_x2c(:,i))
-       write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
+       write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&
           (string(c2%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
           string(c2%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
     end do
-    write (uout,'("  Angles (deg): ",3(A,X))') (string(c2%bb(i),'f',length=8,decimal=3),i=1,3)
+    write (uout,'("  Angles (deg): ",3(A," "))') (string(c2%bb(i),'f',length=8,decimal=3),i=1,3)
     write (uout,*)
 
     ! build the lattice vector environment for the second crystal
@@ -2357,7 +2357,7 @@ contains
        end if
        if (len_trim(abc) > 0) abc = "(" // trim(abc) // ")"
 
-       write (uout,'(2X,6(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
+       write (uout,'("  ",6(A," "))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
           string(dist(i),'f',12,6,ioj_right), abc
 
        if (all((dist(i) / c1%aa - 1d0) > max_elong)) exit
@@ -2470,7 +2470,7 @@ contains
              end if
 
              ! write output
-             write (uout,'(99(A,X))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+             write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
                 string(irange(i3,3),2,ioj_right),&
                 string(maxval(abs(c1%aa-aa2)),'f',8,4,ioj_right), string(maxval(abs(c1%bb-bb2)),'f',8,3,ioj_right),&
                 string(diff,'f',10,7)

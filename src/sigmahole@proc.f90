@@ -214,7 +214,7 @@ contains
           xl(3) = cos(ph)
           xl = xl * rval(iu,iv)
 
-          write (lu,'(99(A,X))') string(u,'e',decimal=8), string(v,'e',decimal=8), &
+          write (lu,'(99(A," "))') string(u,'e',decimal=8), string(v,'e',decimal=8), &
              string(th,'e',decimal=8), string(ph,'e',decimal=8), &
              (string(xl(i)*dunit0(iunit),'e',decimal=8),i=1,3), &
              string(rval(iu,iv)*dunit0(iunit),'e',decimal=8), string(mval(iu,iv),'e',decimal=8)
@@ -456,7 +456,7 @@ contains
           strss = "   n/a   "
        end if
 
-       write (uout,'(99(A,X))') string(i,2), string(ds(i)*dunit0(iunit),'f',length=8,decimal=4),&
+       write (uout,'(99(A," "))') string(i,2), string(ds(i)*dunit0(iunit),'f',length=8,decimal=4),&
           string(ls(i),'f',length=7,decimal=2), string(ms(i),'e',decimal=4),&
           strrs, strss
     end do

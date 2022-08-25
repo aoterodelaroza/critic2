@@ -1278,11 +1278,11 @@ contains
        ! grids
        n = f%grid%n
        if (isload) then
-          write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
-          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,2X))') iunitname0(iunit), &
+          write (uout,'("  Grid dimensions : ",3(A,"  "))') (string(n(j)),j=1,3)
+          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,"  "))') iunitname0(iunit), &
              string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
-          write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
-          write (uout,'("  Last elements... ",3(A,2X))') &
+          write (uout,'("  First elements... ",3(A,"  "))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
+          write (uout,'("  Last elements... ",3(A,"  "))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
           write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
           write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
@@ -1328,7 +1328,7 @@ contains
           else
              str = "<not used>"
           end if
-          write (uout,'(99(2X,A))') &
+          write (uout,'(99("  ",A))') &
              string(i,length=3,justify=ioj_right), &
              string(f%c%spc(f%c%at(i)%is)%name,length=5,justify=ioj_center), &
              string(f%c%spc(f%c%at(i)%is)%z,length=2,justify=ioj_right), &
@@ -1422,13 +1422,13 @@ contains
        write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
           string(f%grid%qe%nbnd)
        do i = 1, f%grid%qe%nks
-          write (uout,'("# kpt ",A," (",A,X,A,X,A,") w=",A)') string(i,2,justify=ioj_right), &
+          write (uout,'("# kpt ",A," (",A," ",A," ",A,") w=",A)') string(i,2,justify=ioj_right), &
              (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
              string(f%grid%qe%wk(i),'e',decimal=8)
           do is = 1, f%grid%qe%nspin
-             write (uout,'("  Ek(",A,"):",99(X,A))') string(is),&
+             write (uout,'("  Ek(",A,"):",99(" ",A))') string(is),&
                 (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(" Occ(",A,"):",99(X,A))') string(is),&
+             write (uout,'(" Occ(",A,"):",99(" ",A))') string(is),&
                 (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
           end do
        end do
@@ -1437,13 +1437,13 @@ contains
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions information for this field")')
-       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
+       write (uout,'("  Real-space lattice vectors: ",3(A," "))') (string(f%grid%qe%nk(i)),i=1,3)
        write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
        do i = 1, f%grid%qe%nspin
           do j = 1, f%grid%qe%nbndw(i)
-             write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
+             write (uout,'("  ",99(A," "))') string(j,4,ioj_center), string(i,2,ioj_center), &
                 (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
                 string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
@@ -1692,12 +1692,12 @@ contains
        end if
 
        xnuc = f%c%at(n)%x
-       if (ilvl > 1) write (uout,'("  coords = ",3(A,X))') (string(xnuc(j),'f',decimal=9),j=1,3)
+       if (ilvl > 1) write (uout,'("  coords = ",3(A," "))') (string(xnuc(j),'f',decimal=9),j=1,3)
        xnuc = f%c%x2c(xnuc)
 
        if (ilvl > 1) then
           write (uout,'("  rmt = ",A)') string(rmt,'f',decimal=7)
-          write (uout,'(2(A8,X),6(A12,X),A4)') "Azim.", "Polar", "f_in",&
+          write (uout,'(2(A8," "),6(A12," "),A4)') "Azim.", "Polar", "f_in",&
              "f_out", "f_in-f_out", "gf_in", "gf_out", "gf_in-gf_out", "ok?"
           write (uout,'(100("-"))')
        end if
@@ -1711,8 +1711,8 @@ contains
           linefile = "plane_" // string(n,2,pad0=.true.) // ".dbg"
           luplane = fopen_write(linefile,ti=ti)
           write (luplane,'("#",A,I3)') " atom: ", n
-          write (luplane,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
-          write (luplane,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+          write (luplane,'("#",A,1p,3(E20.13," "))') " at: ", f%c%at(n)%x
+          write (luplane,'("#",A,1p,3(E20.13," "))') " atc: ", xnuc
           write (luplane,'("#",A,1p,E20.13)') " rmt: ", rmt
           write (luplane,'("#  theta phi in out")')
        end if
@@ -1741,7 +1741,7 @@ contains
 
              if (ilvl > 1) then
                 ! write line
-                write (luplane,'(1p,4(E20.13,X))') theta, phi, fin, fout
+                write (luplane,'(1p,4(E20.13," "))') theta, phi, fin, fout
              end if
 
              if (gfin*gfout > 0d0) then
@@ -1755,17 +1755,17 @@ contains
                       "_" // string(np,3,pad0=.true.) // ".dbg"
                    luline = fopen_write(linefile,ti=ti)
                    write (luline,'("#",A,I3)') " atom: ", n
-                   write (luline,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
-                   write (luline,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+                   write (luline,'("#",A,1p,3(E20.13," "))') " at: ", f%c%at(n)%x
+                   write (luline,'("#",A,1p,3(E20.13," "))') " atc: ", xnuc
                    write (luline,'("#",A,1p,E20.13)') " rmt: ", rmt
-                   write (luline,'("#",A,1p,3(E20.13,X))') " dir: ", dir
+                   write (luline,'("#",A,1p,3(E20.13," "))') " dir: ", dir
                    write (luline,'("#",A,1p,E20.13)') " r_ini: ", 0.50d0 * rmt
                    write (luline,'("#",A,1p,E20.13)') " r_end: ", 4.50d0 * rmt
                    do i = 0, 1000
                       r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
                       xp = xnuc + r * dir
                       call f%grd(xp,1,res)
-                      write (luline,'(1p,3(E20.13,X))') r, res%f, dot_product(res%gf,xp-xnuc) / r
+                      write (luline,'(1p,3(E20.13," "))') r, res%f, dot_product(res%gf,xp-xnuc) / r
                    end do
                    call fclose(luline)
                 end if
@@ -1775,7 +1775,7 @@ contains
                 mepsp = max(epsp,mepsp)
                 nfail(n) = nfail(n) + 1
              end if
-             if (ilvl > 1) write (uout,'(2(F8.4,X),1p,6(E12.4,X),0p,A4)') &
+             if (ilvl > 1) write (uout,'(2(F8.4," "),1p,6(E12.4," "),0p,A4)') &
                 theta, phi, fin, fout, fin-fout, gfin, gfout, gfin-gfout, label
           end do
        end do
@@ -1792,7 +1792,7 @@ contains
              string(n), string(mepsm+1d-3,'f',decimal=6), string(mepsp+1d-3,'f',decimal=6)
           write (uout,*)
        end if
-       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
+       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,"  "))') &
           string(n), string(rmt,'f',decimal=7), string(dosum,'f',decimal=6), &
           string(maxdif,'f',decimal=6), string(mindif,'f',decimal=6)
     end do
@@ -1800,10 +1800,10 @@ contains
     ok = .true.
     if (ilvl > 0) then
        write (uout,'("+ Summary ")')
-       write (uout,'(A4,3(X,A7))') "Atom", "Pass", "Fail", "Total"
+       write (uout,'(A4,3(" ",A7))') "Atom", "Pass", "Fail", "Total"
     end if
     do n = 1, f%c%nneq
-       if (ilvl > 0) write (uout,'(I4,3(X,I7))') n, npass(n), nfail(n), npass(n)+nfail(n)
+       if (ilvl > 0) write (uout,'(I4,3(" ",I7))') n, npass(n), nfail(n), npass(n)+nfail(n)
        ok = ok .and. (nfail(n) == 0)
     end do
     if (ilvl > 0) write (uout,*)
@@ -1930,7 +1930,7 @@ contains
        ! evaluate and stop criterion
        call f%grd(r,2,res)
        wx = f%c%c2x(r)
-       ! write (*,'("xx ",I4,X,3(F14.6,X),1p,3(E14.6,X))') it, wx, res%gfmod
+       ! write (*,'("xx ",I4," ",3(F14.6," "),1p,3(E14.6," "))') it, wx, res%gfmod
 
        if (res%gfmod < gfnormeps) then
           ier = 0

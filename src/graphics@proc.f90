@@ -3040,7 +3040,7 @@ contains
        write (g%lumtl,'("newmtl mat",A)') string(i)
        write (g%lumtl,'("Ns 96.078")')
        write (g%lumtl,'("Ka 0.0 0.0 0.0")')
-       write (g%lumtl,'("Kd ",3(F12.5,X))') real(g%mtlrgb(:,i),8)/255d0
+       write (g%lumtl,'("Kd ",3(F12.5," "))') real(g%mtlrgb(:,i),8)/255d0
        write (g%lumtl,'("Ks 0.5 0.5 0.5")')
        write (g%lumtl,'("Ni 1.0")')
        write (g%lumtl,'("illum 2")')
@@ -3086,10 +3086,10 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvsph(lvl)
-       write (g%lu,'("v ",3(F20.12,X))') x + r * vsph(:,i,lvl)
+       write (g%lu,'("v ",3(F20.12," "))') x + r * vsph(:,i,lvl)
     end do
     do i = 1, nfsph(lvl)
-       write (g%lu,'("f ",3(I10,X))') g%nv + fsph(:,i,lvl)
+       write (g%lu,'("f ",3(I10," "))') g%nv + fsph(:,i,lvl)
     end do
     g%nv = g%nv + nvsph(lvl)
 
@@ -3114,7 +3114,7 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, n
-       write (g%lu,'("v ",3(F20.12,X))') x(:,i)
+       write (g%lu,'("v ",3(F20.12," "))') x(:,i)
     end do
     str = ""
     do i = 1, n
@@ -3171,11 +3171,11 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvcyl(lvl)
-       write (g%lu,'("v ",3(F20.12,X))') x1+vcyl(1,i,lvl)*v1+&
+       write (g%lu,'("v ",3(F20.12," "))') x1+vcyl(1,i,lvl)*v1+&
           vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd
     end do
     do i = 1, nfcyl(lvl)
-       write (g%lu,'("f ",3(I10,X))') g%nv + fcyl(:,i,lvl)
+       write (g%lu,'("f ",3(I10," "))') g%nv + fcyl(:,i,lvl)
     end do
     g%nv = g%nv + nvcyl(lvl)
 
@@ -3225,13 +3225,13 @@ contains
              xrgb(2) = z**3
              xrgb(3) = sin(2*z*pi)
           end if
-          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') x, xrgb
+          write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') x, xrgb
        else
-          write (g%lu,'("v ",3(E20.12,X))') x
+          write (g%lu,'("v ",3(E20.12," "))') x
        endif
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f ",999(I10,X))') &
+       write (g%lu,'("f ",999(I10," "))') &
           (g%nv+srf%f(i)%v(j),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3271,13 +3271,13 @@ contains
           xrgb(1) = sqrt(z)
           xrgb(2) = z**3
           xrgb(3) = sin(2*z*pi)
-          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') xv(:,i), xrgb
+          write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') xv(:,i), xrgb
        else
-          write (g%lu,'("v ",3(E20.12,X))') xv(:,i)
+          write (g%lu,'("v ",3(E20.12," "))') xv(:,i)
        end if
     end do
     do i = 1, nf
-       write (g%lu,'("f ",999(I10,X))') (if(j,i),j=1,3)
+       write (g%lu,'("f ",999(I10," "))') (if(j,i),j=1,3)
     end do
     g%nv = g%nv + nv
 
@@ -3397,12 +3397,12 @@ contains
 
     ! write the ball to the ply
     do i = 1, nvsph(lvl)
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x + r * vsph(:,i,lvl), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfsph(lvl)
        iff = g%nv + fsph(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvsph(lvl)
     g%nf = g%nf + nfsph(lvl)
@@ -3430,15 +3430,15 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
+       write (g%lu,'("f3 ",3(A," "))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
     g%nv = g%nv + n + 1
     g%nf = g%nf + n
@@ -3485,13 +3485,13 @@ contains
 
     ! write the stick to the ply
     do i = 1, nvcyl(lvl)
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfcyl(lvl)
        iff = g%nv + fcyl(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvcyl(lvl)
     g%nf = g%nf + nfcyl(lvl)
@@ -3539,11 +3539,11 @@ contains
              rgb = nint(xrgb * 255)
           end if
        endif
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+       write (g%lu,'("f",999(A," "))') string(srf%f(i)%nv),&
           (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3581,10 +3581,10 @@ contains
           xrgb(3) = sin(2*z*pi)
           rgb = nint(xrgb * 255)
        end if
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(rgb(j)),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(rgb(j)),j=1,3)
     end do
     do i = 1, nf
-       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+       write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
     end do
     g%nv = g%nv + nv
     g%nf = g%nf + nf
@@ -3622,7 +3622,7 @@ contains
 
     ! write the header
     write (lu,'("COFF")')
-    write (lu,'(3(A,X))') string(g%nv), string(g%nf), string(g%nv+g%nf-2)
+    write (lu,'(3(A," "))') string(g%nv), string(g%nf), string(g%nv+g%nf-2)
 
     ! transfer the vertices from the scratch file over to the off file
     do while(getline_raw(g%lu,line))
@@ -3673,12 +3673,12 @@ contains
     ! write the ball to the off
     do i = 1, nvsph(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0.0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0.0")') x + r * vsph(:,i,lvl), &
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfsph(lvl)
        iff = g%nv + fsph(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvsph(lvl)
     g%nf = g%nf + nfsph(lvl)
@@ -3706,15 +3706,15 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
+       write (g%lu,'("f3 ",3(A," "))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
     g%nv = g%nv + n + 1
     g%nf = g%nf + n
@@ -3763,13 +3763,13 @@ contains
     ! write the stick to the off
     do i = 1, nvcyl(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfcyl(lvl)
        iff = g%nv + fcyl(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvcyl(lvl)
     g%nf = g%nf + nfcyl(lvl)
@@ -3819,11 +3819,11 @@ contains
              xrgb(3) = sin(2*z*pi)
           endif
        endif
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+       write (g%lu,'("f",999(A," "))') string(srf%f(i)%nv),&
           (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3860,10 +3860,10 @@ contains
           xrgb(2) = z**3
           xrgb(3) = sin(2*z*pi)
        end if
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
     end do
     do i = 1, nf
-       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+       write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
     end do
     g%nv = g%nv + nv
     g%nf = g%nf + nf

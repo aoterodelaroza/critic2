@@ -201,9 +201,9 @@ contains
     do i = 1, fr%nat
        if (fr%spc(fr%at(i)%is)%z >= 0) then
           if (usenames) then
-             write (lu,'(A,3(F20.10,X))') trim(fr%spc(fr%at(i)%is)%name), fr%at(i)%r * bohrtoa
+             write (lu,'(A,3(F20.10," "))') trim(fr%spc(fr%at(i)%is)%name), fr%at(i)%r * bohrtoa
           else
-             write (lu,'(A,3(F20.10,X))') trim(nameguess(fr%spc(fr%at(i)%is)%z,.true.)), fr%at(i)%r * bohrtoa
+             write (lu,'(A,3(F20.10," "))') trim(nameguess(fr%spc(fr%at(i)%is)%z,.true.)), fr%at(i)%r * bohrtoa
           end if
        end if
     end do

@@ -1163,7 +1163,7 @@ contains
     write (uout,'("# Z at  rcov  rvdw")')
     do i = 1, maxzat0
        name = nameguess(i,.true.)
-       write (uout,'(999(X,A))') string(i,length=3), name, &
+       write (uout,'(999(" ",A))') string(i,length=3), name, &
           string(atmcov(i) * dunit0(iunit),'f',length=5,decimal=2), &
           string(atmvdw(i) * dunit0(iunit),'f',length=5,decimal=2)
     end do

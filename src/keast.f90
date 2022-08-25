@@ -1397,7 +1397,7 @@ contains
        end if
     end if
 
-    write ( *, '(i2,1x,a,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
+    write ( *, '(i2," ",a," ",i4,"  ",i2,a1,i2.2,a1,i2.2,a1,i3.3," ",a)' ) &
        d, trim ( month(m) ), y, h, ':', n, ':', s, '.', mm, trim ( ampm )
 
     return

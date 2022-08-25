@@ -226,7 +226,7 @@ contains
                    xmax = max(xmax,xr(ip1))
                    ymin = min(ymin,xr(ip2))
                    ymax = max(ymax,xr(ip2))
-                   write (fid,'(5(A,X))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
+                   write (fid,'(5(A," "))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
                       string(xr(ip1),'e',15,7,4), string(xr(ip2),'e',15,7,4), &
                       string(ff(i,j),'e',20,12,6)
                 end do
@@ -333,7 +333,7 @@ contains
           xx(ix) = rtop0
           xr = sy%c%x2c(xx) * bohrtoa
           dist = sqrt(xr(ip2)**2+xr(ip1)**2)
-          write (fid,'(6(A,X))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
+          write (fid,'(6(A," "))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
              string(xr(ip1),'e',15,7,4), string(xr(ip2),'e',15,7,4), &
              string(dist,'e',15,7,4), string(fl(i),'e',20,12,6)
        end do
