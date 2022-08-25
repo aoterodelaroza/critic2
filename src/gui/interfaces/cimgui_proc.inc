@@ -258,15 +258,27 @@ subroutine igDummy(size) bind(c,name="igDummy")
   import ImVec2
   type(ImVec2), intent(in) :: size
 end subroutine igDummy
-!x! void igIndent(float indent_w);
+! void igIndent(float indent_w);
+subroutine igIndent(indent_w) bind(c,name="igIndent")
+  import c_float
+  real(c_float), value :: indent_w
+end subroutine igIndent
 !x! void igUnindent(float indent_w);
 !x! void igBeginGroup(void);
 !x! void igEndGroup(void);
 !x! void igGetCursorPos(ImVec2 *pOut);
-!x! float igGetCursorPosX(void);
+! float igGetCursorPosX(void);
+function igGetCursorPosX() bind(c,name="igGetCursorPosX")
+  import c_float
+  real(c_float) :: igGetCursorPosX
+end function igGetCursorPosX
 !x! float igGetCursorPosY(void);
 !x! void igSetCursorPos(const ImVec2 local_pos);
-!x! void igSetCursorPosX(float local_x);
+! void igSetCursorPosX(float local_x);
+subroutine igSetCursorPosX(local_x) bind(c,name="igSetCursorPosX")
+  import c_float
+  real(c_float), value :: local_x
+end subroutine igSetCursorPosX
 !x! void igSetCursorPosY(float local_y);
 !x! void igGetCursorStartPos(ImVec2 *pOut);
 !x! void igGetCursorScreenPos(ImVec2 *pOut);

@@ -234,7 +234,7 @@ contains
        sys_loaded_not_init, sys_initializing, TableCellBg_Mol,&
        TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
        TableCellBg_Crys1d, launch_initialization_thread, kill_initialization_thread,&
-       system_shorten_names, remove_system, tooltip_delay
+       system_shorten_names, remove_system, tooltip_delay, DangerButton, g
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -242,7 +242,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
-    type(ImVec2) :: zero2, sz
+    type(ImVec2) :: zero2, sz, sztext, szavail
     integer(c_int) :: flags, color
     integer :: i, j, k, nshown, newsel, jsel
     logical(c_bool) :: ldum
@@ -252,6 +252,7 @@ contains
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
     type(c_ptr), save :: cfilter = c_null_ptr
     logical, save :: ttshown = .false.
+    real(c_float) :: rshift
 
     ! initialize
     hadenabledcolumn = .false.
@@ -269,7 +270,6 @@ contains
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
     str = "##treefilter" // c_null_char
-    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
     ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = &
@@ -314,10 +314,24 @@ contains
        str = "Collapse all systems in the tree" // c_null_char
        call igSetTooltip(c_loc(str))
     end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! insert spacing for red buttons on the right
+    call igGetContentRegionAvail(szavail)
+    sz%x = g%Style%ItemSpacing%x
+    str = "Close" // c_null_char
+    call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+    sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+    str = "Close All" // c_null_char
+    call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+    sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+    rshift = szavail%x - sz%x
+    if (rshift > 0) &
+       call igSetCursorPosX(igGetCursorPosX() + rshift)
 
     ! button: close
-    call igSameLine(0._c_float,-1._c_float)
     str = "Close" // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Button,DangerButton)
     if (igButton(c_loc(str),zero2)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
@@ -334,14 +348,16 @@ contains
        if (c_associated(cfilter)) &
           call ImGuiTextFilter_Clear(cfilter)
     end if
+    call igPopStyleColor(1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "Close all visible systems" // c_null_char
        call igSetTooltip(c_loc(str))
     end if
+    call igSameLine(0._c_float,-1._c_float)
 
     ! button: close all
-    call igSameLine(0._c_float,-1._c_float)
-    str = "Close all" // c_null_char
+    str = "Close All" // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Button,DangerButton)
     if (igButton(c_loc(str),zero2)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
@@ -349,6 +365,7 @@ contains
           w%forceremove(i) = i
        end do
     end if
+    call igPopStyleColor(1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "Close all systems" // c_null_char
        call igSetTooltip(c_loc(str))

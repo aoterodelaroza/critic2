@@ -48,6 +48,7 @@ module gui_main
   type(ImVec4), parameter, public :: DialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: DialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
   type(ImVec4), parameter, public :: HighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
+  type(ImVec4), parameter, public :: DangerButton = ImVec4(0.63, 0.08, 0.08, 1.0) ! important button
 
   ! systems arrays
   integer, parameter, public :: sys_empty = 0
