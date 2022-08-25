@@ -1129,7 +1129,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: sz, szero, szavail, sztext
+    type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
     logical, save :: ttshown = .false.
     integer :: i
@@ -1195,6 +1195,10 @@ contains
           end if
        end do
        call igEndCombo()
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Set the current system: the input commands are applied to it" // c_null_char
+       call igSetTooltip(c_loc(str1))
     end if
 
     ! third line: field selector
