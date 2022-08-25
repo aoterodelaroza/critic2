@@ -1197,7 +1197,7 @@ contains
        call igEndCombo()
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Set the current system: the input commands are applied to it" // c_null_char
+       str1 = "Set the current system (input commands are applied to it)" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
@@ -1208,12 +1208,27 @@ contains
 
     str1 = "##fieldcombo" // c_null_char
     str2 = "" // c_null_char
-    str2 = "empty" // c_null_char ! xxxx
+    if (associated(sy)) &
+       str2 = string(sy%iref) // ": " // trim(sy%f(sy%iref)%name) // c_null_char
     call igGetContentRegionAvail(szavail)
     call igSetNextItemWidth(szavail%x - sz%x - g%Style%ItemSpacing%x)
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
-       ! xxxx
+       if (associated(sy)) then
+          do i = 0, sy%nf
+             if (.not.sy%f(i)%isinit) cycle
+             is_selected = (sy%iref == i)
+             str2 = string(i) // ": " // trim(sy%f(i)%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
+                call sy%set_reference(i,.false.)
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end do
+       end if
        call igEndCombo()
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Set the reference field (input commands are applied to it)" // c_null_char
+       call igSetTooltip(c_loc(str1))
     end if
     call igEndGroup()
 
