@@ -124,9 +124,8 @@ contains
        call ferror('gui_start','gl3w: OpenGL version ' // &
        string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported',faterr)
 
-    ! set up ImGui style
+    ! set glfw options
     call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
-    call igStyleColorsDark(c_null_ptr)
 
     ! set up backend and renderer
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
@@ -156,9 +155,15 @@ contains
     pdum = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
        16._c_float,c_null_ptr,c_loc(range))
 
-    ! get the ImGUI context pointer
+    ! get the ImGui context pointer
     ptrc = igGetCurrentContext()
     call c_f_pointer(ptrc,g)
+
+    ! set the initial ImGui style
+    call igStyleColorsDark(c_null_ptr)
+    g%Style%FrameRounding = 3._c_float
+    g%Style%FramePadding%x = 3._c_float
+    g%Style%FramePadding%y = 1._c_float
 
     ! set default keybindings
     call set_default_keybindings()
