@@ -1065,16 +1065,24 @@ contains
     ! read new output, if available
     call read_output_unit()
 
-    ! calculate sizes
-    call igGetContentRegionAvail(sz)
-    sz%y = sz%y - igGetTextLineHeightWithSpacing()
+    ! initialize
     zero%x = 0._c_float
     zero%y = 0._c_float
 
-    ! write content
+    ! first line: text
     str1 = "Output" // c_null_char
     call igTextColored(ColorHighlightText,c_loc(str1))
+    call igSameLine(0._c_float,-1._c_float)
 
+    ! first line: clear button
+    str1 = "Clear" // c_null_char
+    if (igButton(c_loc(str1),zero)) then
+       outputb(1:1) = c_null_char
+       lob = 0
+    end if
+
+    ! calculate sizes and draw the multiline
+    call igGetContentRegionAvail(sz)
     str1 = "##outputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
 
@@ -1167,11 +1175,15 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
-    type(ImVec2) :: sz
+    type(ImVec2) :: sz, zero
     logical(c_bool) :: ldum
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
     integer(c_size_t), parameter :: maxlib = 40000
+
+    ! initialize
+    zero%x = 0
+    zero%y = 0
 
     ! allocate the input buffer if not already done
     if (.not.allocated(inputb)) then
@@ -1179,14 +1191,18 @@ contains
        inputb(1:1) = c_null_char
     end if
 
-    ! calculate sizes
-    call igGetContentRegionAvail(sz)
-    sz%y = sz%y - igGetTextLineHeightWithSpacing()
-
-    ! write content
+    ! first line: text
     str1 = "Input" // c_null_char
     call igTextColored(ColorHighlightText,c_loc(str1))
+    call igSameLine(0._c_float,-1._c_float)
 
+    ! first line: clear button
+    str1 = "Clear" // c_null_char
+    if (igButton(c_loc(str1),zero)) &
+       inputb(1:1) = c_null_char
+
+    ! calculate sizes and draw the multiline
+    call igGetContentRegionAvail(sz)
     str1 = "##inputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
