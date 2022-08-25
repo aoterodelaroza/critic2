@@ -442,7 +442,7 @@ contains
              sysc(idx)%hidden = .false.
           elseif (collapse) then
              ! dependent
-             sysc(idx)%collapse = nsys - nseed + 1
+             sysc(idx)%collapse = id(1)
              sysc(idx)%hidden = .true.
           else
              ! independent
@@ -500,6 +500,7 @@ contains
        sysc(idx)%thread_lock = c_null_ptr
     end if
     sysc(idx)%status = sys_empty
+    sysc(idx)%hidden = .false.
 
     if (sysc(idx)%collapse == -1) then
        ! kill all dependents if collapsed
