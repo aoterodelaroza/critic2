@@ -88,7 +88,7 @@ contains
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen)
-    use gui_main, only: DialogDir, DialogFile
+    use gui_main, only: ColorDialogDir, ColorDialogFile
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
@@ -113,9 +113,9 @@ contains
        ! create the opendialog object and set up the style
        w%ptr = IGFD_Create()
        str1 = "+" // c_null_char
-       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeDir,c_null_ptr,DialogDir,c_loc(str1),c_null_ptr)
+       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeDir,c_null_ptr,ColorDialogDir,c_loc(str1),c_null_ptr)
        str1 = " " // c_null_char
-       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeFile,c_null_ptr,DialogFile,c_loc(str1),c_null_ptr)
+       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeFile,c_null_ptr,ColorDialogFile,c_loc(str1),c_null_ptr)
     end if
 
   end subroutine window_init
@@ -231,10 +231,11 @@ contains
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
     use gui_utils, only: igIsItemHovered_delayed
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
-       sys_loaded_not_init, sys_initializing, TableCellBg_Mol,&
-       TableCellBg_MolClus, TableCellBg_MolCrys, TableCellBg_Crys3d, TableCellBg_Crys2d,&
-       TableCellBg_Crys1d, launch_initialization_thread, kill_initialization_thread,&
-       system_shorten_names, remove_system, tooltip_delay, DangerButton, g
+       sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
+       ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
+       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
+       kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
+       ColorDangerButton, g
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -331,7 +332,7 @@ contains
 
     ! button: close
     str = "Close" // c_null_char
-    call igPushStyleColor_Vec4(ImGuiCol_Button,DangerButton)
+    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
     if (igButton(c_loc(str),zero2)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
@@ -357,7 +358,7 @@ contains
 
     ! button: close all
     str = "Close All" // c_null_char
-    call igPushStyleColor_Vec4(ImGuiCol_Button,DangerButton)
+    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
     if (igButton(c_loc(str),zero2)) then
        if (allocated(w%forceremove)) deallocate(w%forceremove)
        allocate(w%forceremove(nsys))
@@ -563,19 +564,19 @@ contains
           ! set background color for the name cell, if not selected
           if (w%table_selected /= i) then
              if (sysc(i)%seed%ismolecule) then
-                color = igGetColorU32_Vec4(TableCellBg_Mol)
+                color = igGetColorU32_Vec4(ColorTableCellBg_Mol)
                 if (sysc(i)%status == sys_init) then
-                   if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(TableCellBg_MolClus)
+                   if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(ColorTableCellBg_MolClus)
                 endif
              else
-                color = igGetColorU32_Vec4(TableCellBg_Crys3d)
+                color = igGetColorU32_Vec4(ColorTableCellBg_Crys3d)
                 if (sysc(i)%status == sys_init) then
                    if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
-                      color = igGetColorU32_Vec4(TableCellBg_MolCrys)
+                      color = igGetColorU32_Vec4(ColorTableCellBg_MolCrys)
                    elseif (sys(i)%c%nlvac == 2) then
-                      color = igGetColorU32_Vec4(TableCellBg_Crys1d)
+                      color = igGetColorU32_Vec4(ColorTableCellBg_Crys1d)
                    elseif (sys(i)%c%nlvac == 1) then
-                      color = igGetColorU32_Vec4(TableCellBg_Crys2d)
+                      color = igGetColorU32_Vec4(ColorTableCellBg_Crys2d)
                    end if
                 end if
              end if
@@ -1049,7 +1050,7 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_console_output(w)
-    use gui_main, only: g, HighlightText
+    use gui_main, only: ColorHighlightText
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -1072,7 +1073,7 @@ contains
 
     ! write content
     str1 = "Output" // c_null_char
-    call igTextColored(HighlightText,c_loc(str1))
+    call igTextColored(ColorHighlightText,c_loc(str1))
 
     str1 = "##outputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
@@ -1162,7 +1163,7 @@ contains
 
   !> Draw the contents of the input console
   module subroutine draw_console_input(w)
-    use gui_main, only: g, HighlightText
+    use gui_main, only: ColorHighlightText
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -1170,7 +1171,6 @@ contains
     logical(c_bool) :: ldum
     ! the input buffer
     character(kind=c_char,len=:), allocatable, target, save :: inputb
-    integer(c_size_t) :: lib
     integer(c_size_t), parameter :: maxlib = 40000
 
     ! allocate the input buffer if not already done
@@ -1185,7 +1185,7 @@ contains
 
     ! write content
     str1 = "Input" // c_null_char
-    call igTextColored(HighlightText,c_loc(str1))
+    call igTextColored(ColorHighlightText,c_loc(str1))
 
     str1 = "##inputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
@@ -1334,7 +1334,7 @@ contains
 
   ! the callback for the right-hand-side pane of the opendialog
   subroutine opendialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
-    use gui_main, only: HighlightText, tooltip_delay
+    use gui_main, only: ColorHighlightText, tooltip_delay
     use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -1351,7 +1351,7 @@ contains
 
     ! header
     str = "Open Options" // c_null_char
-    call igTextColored(HighlightText,c_loc(str))
+    call igTextColored(ColorHighlightText,c_loc(str))
 
     ! show hidden files
     str = "Show hidden files" // c_null_char
@@ -1376,7 +1376,7 @@ contains
 
     ! radio buttons for auto/crystal/molecule
     str = "Read structures as..." // c_null_char
-    call igTextColored(HighlightText,c_loc(str))
+    call igTextColored(ColorHighlightText,c_loc(str))
     str = "Auto-detect" // c_null_char
     ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1399,7 +1399,7 @@ contains
 
     ! Input structure format (isformat)
     str = "Read file format" // c_null_char
-    call igTextColored(HighlightText,c_loc(str))
+    call igTextColored(ColorHighlightText,c_loc(str))
     str = "##formatcombo" // c_null_char
     stropt = "" &
        // "Auto-detect" // c_null_char &             ! isformat_unknown = 0

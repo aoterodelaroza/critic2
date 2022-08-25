@@ -39,16 +39,16 @@ module gui_main
   logical, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
 
   ! GUI colors
-  type(ImVec4), parameter, public :: TableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.3)  ! tree table name cell, molecule
-  type(ImVec4), parameter, public :: TableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.3)  ! tree table name cell, molecular cluster
-  type(ImVec4), parameter, public :: TableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.3)  ! tree table name cell, molecular crystal
-  type(ImVec4), parameter, public :: TableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.3)  ! tree table name cell, 3d crystal
-  type(ImVec4), parameter, public :: TableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.3)  ! tree table name cell, 2d crystal
-  type(ImVec4), parameter, public :: TableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.3)  ! tree table name cell, 1d crystal
-  type(ImVec4), parameter, public :: DialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
-  type(ImVec4), parameter, public :: DialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
-  type(ImVec4), parameter, public :: HighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
-  type(ImVec4), parameter, public :: DangerButton = ImVec4(0.63, 0.08, 0.08, 1.0) ! important button
+  type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.3)  ! tree table name cell, molecule
+  type(ImVec4), parameter, public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.3)  ! tree table name cell, molecular cluster
+  type(ImVec4), parameter, public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.3)  ! tree table name cell, molecular crystal
+  type(ImVec4), parameter, public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.3)  ! tree table name cell, 3d crystal
+  type(ImVec4), parameter, public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.3)  ! tree table name cell, 2d crystal
+  type(ImVec4), parameter, public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.3)  ! tree table name cell, 1d crystal
+  type(ImVec4), parameter, public :: ColorDialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
+  type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
+  type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
+  type(ImVec4), parameter, public :: ColorDangerButton = ImVec4(0.50, 0.08, 0.08, 1.0) ! important button
 
   ! systems arrays
   integer, parameter, public :: sys_empty = 0
