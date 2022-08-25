@@ -17,8 +17,8 @@
 * Field number 1 is now REFERENCE.
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 2
@@ -38,8 +38,8 @@
   Alias for this field (2): $2, $up
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004612  -0.001473
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004612  -0.001473  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 3
@@ -59,8 +59,8 @@
   Alias for this field (2): $3, $dn
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004611  -0.001473
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000687  0.004611  -0.001473  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000275  0.000368  -0.000439  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 4
@@ -80,8 +80,8 @@
   Alias for this field (2): $4, $sum
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 5
@@ -103,13 +103,14 @@
 * Muffin-tin discontinuity test
   Atom: 1 delta_m = 0.001000 delta_p = 0.001000
 
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000  
   Atom: 2 delta_m = 0.001000 delta_p = 0.001000
 
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000000  0.000000  -0.000000  
 + Assert - no spurious CPs on the muffin tin surface: F
 
-WARNING(testrmt): Spurious CPs on the muffin tin surface!
+WARNING (testrmt): Spurious CPs on the muffin tin surface!
+
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $5
