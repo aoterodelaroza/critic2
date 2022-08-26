@@ -825,7 +825,7 @@ contains
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
             ! set as current system option
-            strpop = "Set as current system" // c_null_char
+            strpop = "Set as Current System" // c_null_char
             enabled = (sysc(isys)%status == sys_init)
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
                win(iwin_console_input)%inpcon_selected = isys
@@ -1624,7 +1624,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, curline, ndrawn
+    integer :: i, curline, ndrawn, idx
     character(kind=c_char,len=:), allocatable, target :: str1, strpop
     type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
@@ -1804,6 +1804,13 @@ contains
 
        ! context menu
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then
+          strpop = "Edit Input" // c_null_char
+          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             idx = index(com(icom(i))%input,c_null_char)
+             if (idx > 0) &
+                inputb(1:idx) = com(icom(i))%input(1:idx)
+          end if
+
           strpop = "Remove" // c_null_char
           if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
              call com(icom(i))%end()
