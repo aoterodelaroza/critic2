@@ -1674,7 +1674,11 @@ contains
     str1 = "All" // c_null_char
     call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
     xavail1 = xavail - (sztext%x + 2 * g%Style%FramePadding%x + g%Style%ItemSpacing%x)
-    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    if (idcom == 0) then
+       call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
+    else
+       call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    end if
     if (igButton(c_loc(str1),szero)) then
        idcom = 0
     end if
