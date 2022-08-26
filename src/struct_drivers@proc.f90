@@ -3618,7 +3618,7 @@ contains
        elseif (isreal(rk,word)) then
           exit
        else
-          call ferror('struct_kpoints','Unknown keyword in KPOINTS',faterr,syntax=.true.)
+          call ferror('struct_kpoints','Unknown keyword in KPOINTS: ' // word,faterr,syntax=.true.)
           return
        endif
     end do
