@@ -132,7 +132,9 @@ end subroutine igSetNextWindowSize
 !x! void igSetNextWindowSizeConstraints(const ImVec2 size_min,const ImVec2 size_max,ImGuiSizeCallback custom_callback,void* custom_callback_data);
 !x! void igSetNextWindowContentSize(const ImVec2 size);
 !x! void igSetNextWindowCollapsed(bool collapsed,ImGuiCond cond);
-!x! void igSetNextWindowFocus(void);
+! void igSetNextWindowFocus(void);
+subroutine igSetNextWindowFocus() bind(c,name="igSetNextWindowFocus")
+end subroutine igSetNextWindowFocus
 ! void igSetNextWindowBgAlpha(float alpha);
 subroutine igSetNextWindowBgAlpha(alpha) bind(c,name="igSetNextWindowBgAlpha")
   import c_float

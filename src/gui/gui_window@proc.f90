@@ -1306,7 +1306,9 @@ contains
     integer :: iref
 
     !! blank the background
-    flags = ior(ior(ImGuiWindowFlags_NoDecoration,ImGuiWindowFlags_NoMove),ImGuiWindowFlags_NoSavedSettings)
+    flags = ImGuiWindowFlags_NoDecoration
+    flags = ior(flags,ImGuiWindowFlags_NoMove)
+    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
     sz%x = 0._c_float
     sz%y = 0._c_float
     call igSetNextWindowPos(mainvwp%WorkPos,0,sz)
@@ -1314,6 +1316,7 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_WindowBg,ColorWaitBg)
     str1 = "##blankbackground" // c_null_char
     ldum = .true.
+    call igSetNextWindowFocus()
     ldum = igBegin(c_loc(str1), ldum, flags)
     call igEnd()
     call igPopStyleColor(1)
@@ -1331,9 +1334,9 @@ contains
     cfield = "<unknown>"
     if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
        if (sysc(w%inpcon_selected)%status == sys_init) then
-          csystem = string(w%inpcon_selected) // ": " // trim(sysc(w%inpcon_selected)%seed%name)
+          csystem = "(" // string(w%inpcon_selected) // ") " // trim(sysc(w%inpcon_selected)%seed%name)
           iref = sys(w%inpcon_selected)%iref
-          cfield = string(iref) // ": " // trim(sys(w%inpcon_selected)%f(iref)%name)
+          cfield = "(" // string(iref) // ") " // trim(sys(w%inpcon_selected)%f(iref)%name)
        end if
     end if
 
@@ -1356,6 +1359,7 @@ contains
     flags = ior(flags,ImGuiWindowFlags_NoNav)
     ldum = .true.
     str1 = "##popupwait" // c_null_char
+    call igSetNextWindowFocus()
     if (igBegin(c_loc(str1), ldum, flags)) then
        sz%x = 0
        sz%y = 0
