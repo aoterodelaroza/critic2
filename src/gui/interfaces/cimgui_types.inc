@@ -515,25 +515,24 @@
      integer(c_signed_char) :: Used4kPagesMap(2) ! (0xFFFF +1)/4096/8
   end type ImFont
 
-  ! struct ImGuiViewport
-  ! {
-  !     integer(c_int) :: ID
-  !     integer(c_int) :: Flags
-  !     type(ImVec2) :: Pos
-  !     type(ImVec2) :: Size
-  !     type(ImVec2) :: WorkPos
-  !     type(ImVec2) :: WorkSize
-  !     real(c_float) :: DpiScale
-  !     integer(c_int) :: ParentViewportId
-  !     ImDrawData* DrawData
-  !     type(c_ptr) :: RendererUserData
-  !     type(c_ptr) :: PlatformUserData
-  !     type(c_ptr) :: PlatformHandle
-  !     type(c_ptr) :: PlatformHandleRaw
-  !     logical(c_bool) :: PlatformRequestMove
-  !     logical(c_bool) :: PlatformRequestResize
-  !     logical(c_bool) :: PlatformRequestClose
-  ! }
+  type, bind(c) :: ImGuiViewport
+     integer(c_int) :: ID
+     integer(c_int) :: Flags
+     type(ImVec2) :: Pos
+     type(ImVec2) :: Size
+     type(ImVec2) :: WorkPos
+     type(ImVec2) :: WorkSize
+     real(c_float) :: DpiScale
+     integer(c_int) :: ParentViewportId
+     type(c_ptr) :: DrawData
+     type(c_ptr) :: RendererUserData
+     type(c_ptr) :: PlatformUserData
+     type(c_ptr) :: PlatformHandle
+     type(c_ptr) :: PlatformHandleRaw
+     logical(c_bool) :: PlatformRequestMove
+     logical(c_bool) :: PlatformRequestResize
+     logical(c_bool) :: PlatformRequestClose
+  end type ImGuiViewport
 
   type, bind(c) :: ImVector_ImGuiPlatformMonitor
      integer(c_int) :: Size

@@ -20,7 +20,7 @@
 ! Structure class and routines for basic crystallography computations
 module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
-  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4
+  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImGuiViewport
   use gui_window, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -32,12 +32,13 @@ module gui_main
   real*8, public :: time ! the time
   type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
+  type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
 
   ! GUI control parameters
-  real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
-  logical, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
-  logical, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
+  real(c_float), parameter, public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
+  logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
+  logical, parameter, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
 
   ! GUI colors
   type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.3)  ! tree table name cell, molecule
@@ -50,6 +51,7 @@ module gui_main
   type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
   type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
   type(ImVec4), parameter, public :: ColorDangerButton = ImVec4(0.50, 0.08, 0.08, 1.0) ! important button
+  type(ImVec4), parameter, public :: ColorWaitBg = ImVec4(0.80, 0.80, 0.80, 0.6) ! dim the background while waiting
 
   ! systems arrays
   integer, parameter, public :: sys_empty = 0
@@ -71,6 +73,10 @@ module gui_main
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
 
+  ! flags to control main's behavior
+  logical, public :: force_run_commands = .false. ! execute commands from the input console
+  logical, public :: force_quit_threads = .false. ! set to true to force all threads to quit as soon as possible
+
   ! public procedures
   public :: gui_start
   public :: launch_initialization_thread
@@ -79,7 +85,6 @@ module gui_main
   public :: system_shorten_names
   public :: add_systems_from_name
   public :: remove_system
-  public :: run_commands
 
   interface
      module subroutine gui_start()
@@ -102,9 +107,6 @@ module gui_main
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx
      end subroutine remove_system
-     module subroutine run_commands(str)
-       character(len=*), intent(in) :: str
-     end subroutine run_commands
   end interface
 
 contains

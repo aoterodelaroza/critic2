@@ -68,8 +68,11 @@ module gui_window
      procedure :: sort_tree
      ! dialog procedures
      procedure :: draw_dialog
-     ! console procedures
+     ! input console procedures
      procedure :: draw_console_input
+     procedure :: run_commands_console_input
+     procedure :: block_gui_console_input
+     ! output console procedures
      procedure :: draw_console_output
   end type window
   public :: window
@@ -132,6 +135,12 @@ module gui_window
      module subroutine draw_console_input(w)
        class(window), intent(inout), target :: w
      end subroutine draw_console_input
+     module subroutine run_commands_console_input(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_commands_console_input
+     module subroutine block_gui_console_input(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_gui_console_input
      module subroutine draw_console_output(w)
        class(window), intent(inout), target :: w
      end subroutine draw_console_output

@@ -5057,6 +5057,7 @@ contains
 
     function read_field_string()
       use tools_io, only: isexpression_or_word
+      use param, only: newline
       character(len=:), allocatable :: read_field_string
 
       ! read the next line if empty
@@ -5083,7 +5084,7 @@ contains
                errmsg = ""
                return
             end if
-            read_field_string = read_field_string // trim(line) // new_line('a')
+            read_field_string = read_field_string // trim(line) // newline
          end do
       end if
 

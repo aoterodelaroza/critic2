@@ -44,6 +44,10 @@ submodule (gui_window) proc
   integer(c_size_t) :: lob = 0
   integer(c_size_t), parameter :: maxlob = 2000000
 
+  ! the buffer for the input console
+  character(kind=c_char,len=:), allocatable, target :: inputb
+  integer(c_size_t), parameter :: maxlib = 40000
+
   !xx! private procedures
   ! function tree_tooltip_string(i)
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
@@ -262,7 +266,7 @@ contains
        ColorDangerButton, g
     use tools_io, only: string
     use types, only: realloc
-    use param, only: bohrtoa
+    use param, only: bohrtoa, newline
     use c_interface_module
     class(window), intent(inout), target :: w
 
@@ -298,8 +302,8 @@ contains
     ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = &
-          "Filter systems by name in the list below. Use comma-separated fields" // new_line('a') //&
-          "and - for excluding. Example: inc1,inc2,-exc includes all systems   " // new_line('a') //&
+          "Filter systems by name in the list below. Use comma-separated fields" // newline //&
+          "and - for excluding. Example: inc1,inc2,-exc includes all systems   " // newline //&
           "with inc1 or inc2 and excludes systems with exc." // c_null_char
        call igSetTooltip(c_loc(str))
     end if
@@ -1123,7 +1127,7 @@ contains
   module subroutine draw_console_input(w)
     use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
-       ColorDangerButton, run_commands
+       ColorDangerButton, force_run_commands
     use gui_utils, only: igIsItemHovered_delayed
     use systemmod, only: sy
     use tools_io, only: string
@@ -1135,9 +1139,6 @@ contains
     logical, save :: ttshown = .false.
     logical :: ok
     integer :: i, idx
-    ! the input buffer
-    character(kind=c_char,len=:), allocatable, target, save :: inputb
-    integer(c_size_t), parameter :: maxlib = 40000
 
     ! initialize
     szero%x = 0
@@ -1242,7 +1243,7 @@ contains
     ok = ok .or. igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN)
     if (ok) then
        idx = index(inputb,c_null_char)
-       if (idx > 0) call run_commands(inputb(1:idx-1))
+       if (idx > 0) force_run_commands = .true.
     end if
     call igPopStyleColor(1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1257,6 +1258,133 @@ contains
        ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
 
   end subroutine draw_console_input
+
+  !> Run the commands from the console input
+  module subroutine run_commands_console_input(w)
+    use global, only: critic_main
+    use tools_io, only: falloc, uin, fclose, ferror, faterr
+    use iso_fortran_env, only: input_unit
+    class(window), intent(inout), target :: w
+
+    integer :: idx
+    integer :: ios
+
+    ! check we have some input
+    idx = index(inputb,c_null_char)
+    if (idx <= 1) return
+
+    ! connect a scratch file to uin, write the commands, rewind, and run
+    uin = falloc()
+    open(unit=uin,status='scratch',form='formatted',access='stream',iostat=ios)
+    if (ios /= 0) &
+       call ferror("run_commands","cannot open buffer for critic2 input",faterr)
+    write (uin,'(A)') inputb(1:idx-1)
+    rewind(uin)
+    call critic_main()
+
+    ! clean up
+    call fclose(uin)
+    uin = input_unit
+
+  end subroutine run_commands_console_input
+
+  !> Block the GUI by dimming the background and showing the current console
+  !> input. Useful for preparing the screen for running the commands
+  !> in the console input.
+  module subroutine block_gui_console_input(w)
+    use gui_main, only: mainvwp, io, g, ColorWaitBg, sysc, sys_init, sys, nsys,&
+       ColorHighlightText
+    use tools_io, only: string
+    use param, only: newline
+    class(window), intent(inout), target :: w
+
+    integer(c_int) :: flags
+    type(ImVec2) :: sz, pivot
+    character(kind=c_char,len=:), allocatable, target :: str1, text, csystem, cfield
+    character(kind=c_char,len=1) :: lastchar
+    logical(c_bool) :: ldum
+    integer :: iref
+
+    !! blank the background
+    flags = ior(ior(ImGuiWindowFlags_NoDecoration,ImGuiWindowFlags_NoMove),ImGuiWindowFlags_NoSavedSettings)
+    sz%x = 0._c_float
+    sz%y = 0._c_float
+    call igSetNextWindowPos(mainvwp%WorkPos,0,sz)
+    call igSetNextWindowSize(mainvwp%WorkSize,0)
+    call igPushStyleColor_Vec4(ImGuiCol_WindowBg,ColorWaitBg)
+    str1 = "##blankbackground" // c_null_char
+    ldum = .true.
+    ldum = igBegin(c_loc(str1), ldum, flags)
+    call igEnd()
+    call igPopStyleColor(1)
+
+    !! overlay
+    ! set window position at the center
+    sz%x = io%DisplaySize%x * 0.5_c_float
+    sz%y = io%DisplaySize%y * 0.5_c_float
+    pivot%x = 0.5_c_float
+    pivot%y = 0.5_c_float
+    call igSetNextWindowPos(sz,0,pivot)
+
+    ! system name and field name
+    csystem = "<unknown>"
+    cfield = "<unknown>"
+    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
+       if (sysc(w%inpcon_selected)%status == sys_init) then
+          csystem = string(w%inpcon_selected) // ": " // trim(sysc(w%inpcon_selected)%seed%name)
+          iref = sys(w%inpcon_selected)%iref
+          cfield = string(iref) // ": " // trim(sys(w%inpcon_selected)%f(iref)%name)
+       end if
+    end if
+
+    ! set window size
+    text = "Running critic2 input..." // newline //&
+       "System: " // csystem // newline //&
+       "Field: " // cfield // newline //&
+       "Input: " // newline // inputb
+    call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
+    sz%y = sz%y + 2 * g%Style%WindowPadding%y
+    sz%x = sz%x + 2 * g%Style%WindowPadding%x + 3 * igGetTextLineHeight()
+    call igSetNextWindowSize(sz,0)
+
+    ! draw the window
+    flags = ImGuiWindowFlags_NoDecoration
+    flags = ior(flags,ImGuiWindowFlags_NoDocking)
+    flags = ior(flags,ImGuiWindowFlags_AlwaysAutoResize)
+    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiWindowFlags_NoFocusOnAppearing)
+    flags = ior(flags,ImGuiWindowFlags_NoNav)
+    ldum = .true.
+    str1 = "##popupwait" // c_null_char
+    if (igBegin(c_loc(str1), ldum, flags)) then
+       sz%x = 0
+       sz%y = 0
+       call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
+       str1 = "...Running critic2 input..." // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str1))
+
+       str1 = "System: " // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str1))
+       call igSameLine(0._c_float,-1._c_float)
+       str1 = csystem // c_null_char
+       call igText(c_loc(str1))
+
+       str1 = "Field: " // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str1))
+       call igSameLine(0._c_float,-1._c_float)
+       str1 = cfield // c_null_char
+       call igText(c_loc(str1))
+
+       str1 = "Input: " // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str1))
+       call igIndent(0._c_float)
+       call igText(c_loc(inputb))
+
+       call igPopStyleVar(1_c_int)
+    end if
+    call igEnd()
+
+  end subroutine block_gui_console_input
 
   !> Draw the contents of the output console
   module subroutine draw_console_output(w)
@@ -1349,7 +1477,7 @@ contains
     subroutine read_output_unit()
       use gui_main, only: are_threads_running
       use tools_io, only: uout, getline_raw
-
+      use param, only: newline
       character(len=:), allocatable :: line
       integer(c_size_t) :: pos, lshift, ll
       integer :: idx
@@ -1390,7 +1518,7 @@ contains
             outputb(1:lob-lshift) = outputb(lshift+1:lob)
             lob = lob - lshift
             ! adjust to the next newline
-            idx = index(outputb,new_line('a'))
+            idx = index(outputb,newline)
             if (idx == 0) then
                lob = 0
             else
@@ -1406,7 +1534,7 @@ contains
                outputb(lob+1:lob+ll) = line(1:ll)
                lob = lob + ll
             end if
-            outputb(lob+1:lob+1) = new_line('a')
+            outputb(lob+1:lob+1) = newline
             lob = lob + 1
             inquire(uout,pos=pos)
          end do
@@ -1428,7 +1556,7 @@ contains
     use crystalmod, only: pointgroup_info, holo_string
     use gui_main, only: sys, sysc, nsys, sys_init
     use tools_io, only: string
-    use param, only: bohrtoa, maxzat, atmass, pcamu, bohr2cm
+    use param, only: bohrtoa, maxzat, atmass, pcamu, bohr2cm, newline
     use tools_math, only: gcd
     integer, intent(in) :: i
     character(kind=c_char,len=:), allocatable, target :: str
@@ -1445,16 +1573,16 @@ contains
     if (i < 1 .or. i > nsys) return
 
     ! file
-    str = "||" // trim(sysc(i)%seed%name) // "||" // new_line(str)
+    str = "||" // trim(sysc(i)%seed%name) // "||" // newline
     if (sysc(i)%status == sys_init) then
        ! file and system type
-       str = str // trim(sysc(i)%seed%file) // new_line(str)
+       str = str // trim(sysc(i)%seed%file) // newline
        if (sys(i)%c%ismolecule) then
           if (sys(i)%c%nmol == 1) then
-             str = str // "A molecule." // new_line(str)
+             str = str // "A molecule." // newline
           else
              str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments." //&
-                new_line(str)
+                newline
           end if
        elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
           str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol)
@@ -1474,23 +1602,23 @@ contains
                 str = str // " and Z'<1"
              end if
           end if
-          str = str // "." // new_line(str)
+          str = str // "." // newline
        elseif (sys(i)%c%nlvac == 2) then
           str = str // "A 1D periodic (polymer) structure." //&
-             new_line(str)
+             newline
        elseif (sys(i)%c%nlvac == 1) then
           str = str // "A 2D periodic (layered) structure." //&
-             new_line(str)
+             newline
        else
           str = str // "A crystal." //&
-             new_line(str)
+             newline
        end if
-       str = str // new_line(str)
+       str = str // newline
 
        ! number of atoms, electrons, molar mass
        str = str // string(sys(i)%c%ncel) // " atoms, " //&
           string(sys(i)%c%nneq) // " non-eq atoms, "//&
-          string(sys(i)%c%nspc) // " species," // new_line(str)
+          string(sys(i)%c%nspc) // " species," // newline
        nelec = 0
        mass = 0d0
        do k = 1, sys(i)%c%nneq
@@ -1500,7 +1628,7 @@ contains
           mass = mass + atmass(iz) * sys(i)%c%at(k)%mult
        end do
        str = str // string(nelec) // " electrons, " //&
-          string(mass,'f',decimal=3) // " amu per cell" // new_line(str)
+          string(mass,'f',decimal=3) // " amu per cell" // newline
        ! empirical formula
        allocate(nis(sys(i)%c%nspc))
        nis = 0
@@ -1512,7 +1640,7 @@ contains
        do k = 1, sys(i)%c%nspc
           str = str // string(sys(i)%c%spc(k)%name) // string(nint(nis(k)/maxdv)) // " "
        end do
-       str = str // new_line(str) // new_line(str)
+       str = str // newline // newline
 
        if (.not.sys(i)%c%ismolecule) then
           ! cell parameters, volume, density
@@ -1520,17 +1648,17 @@ contains
              string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // " " //&
              string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // " " //&
              string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4) //&
-             new_line(str)
+             newline
           str = str // "α/β/γ (°): " // &
              string(sys(i)%c%bb(1),'f',decimal=2) // " " //&
              string(sys(i)%c%bb(2),'f',decimal=2) // " " //&
              string(sys(i)%c%bb(3),'f',decimal=2) // " " //&
-             new_line(str)
+             newline
           str = str // "V (Å³): " // &
-             string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // new_line(str)
+             string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // newline
           dens = (mass*pcamu) / (sys(i)%c%omega*bohr2cm**3)
-          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // new_line(str) &
-             // new_line(str)
+          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // newline &
+             // newline
 
           ! symmetry
           if (sys(i)%c%spgavail) then
@@ -1539,22 +1667,22 @@ contains
                 string(sys(i)%c%spg%international_symbol) // " (" //&
                 string(sys(i)%c%spg%spacegroup_number) // "), " //&
                 string(holo_string(holo)) // "," //&
-                new_line(str)
+                newline
 
              str = str // string(sys(i)%c%neqv) // " symm-ops, " //&
                 string(sys(i)%c%ncv) // " cent-vecs" //&
-                new_line(str)
+                newline
           else
-             str = str // "Symmetry info not available" // new_line(str)
+             str = str // "Symmetry info not available" // newline
           end if
-          str = str // new_line(str)
+          str = str // newline
        end if
 
        ! number of scalar fields
-       str = str // string(sys(i)%nf) // " scalar fields loaded" // new_line(str)
+       str = str // string(sys(i)%nf) // " scalar fields loaded" // newline
     else
        ! not initialized
-       str = str // "Not initialized" // new_line(str)
+       str = str // "Not initialized" // newline
     end if
     str = str // c_null_char
 
@@ -1565,6 +1693,7 @@ contains
     use gui_main, only: ColorHighlightText, tooltip_delay
     use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
+    use param, only: newline
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
@@ -1670,7 +1799,7 @@ contains
        ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
        if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
           str = &
-             "Force new structures read with a given file format, or auto-detect"//new_line('a')//&
+             "Force new structures read with a given file format, or auto-detect"//newline//&
              "from the extension"//c_null_char
 
           call igSetTooltip(c_loc(str))

@@ -101,7 +101,11 @@ function igIsWindowFocused(flags) bind(c,name="igIsWindowFocused")
   logical(c_bool) :: igIsWindowFocused
 end function igIsWindowFocused
 !x! bool igIsWindowHovered(ImGuiHoveredFlags flags);
-!x! ImDrawList* igGetWindowDrawList(void);
+! ImDrawList* igGetWindowDrawList(void);
+function igGetWindowDrawList() bind(c,name="igGetWindowDrawList")
+  import c_ptr
+  type(c_ptr) :: igGetWindowDrawList
+end function igGetWindowDrawList
 !x! float igGetWindowDpiScale(void);
 !x! void igGetWindowPos(ImVec2 *pOut);
 !x! void igGetWindowSize(ImVec2 *pOut);
@@ -112,7 +116,13 @@ function igGetWindowWidth() bind(c,name="igGetWindowWidth")
 end function igGetWindowWidth
 !x! float igGetWindowHeight(void);
 !x! ImGuiViewport* igGetWindowViewport(void);
-!x! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
+! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
+subroutine igSetNextWindowPos(pos,cond,pivot) bind(c,name="igSetNextWindowPos")
+  import ImVec2, c_int
+  type(ImVec2), intent(in), value :: pos
+  integer(c_int), value :: cond
+  type(ImVec2), intent(in), value :: pivot
+end subroutine igSetNextWindowPos
 ! void igSetNextWindowSize(const ImVec2 size,ImGuiCond cond);
 subroutine igSetNextWindowSize(size, cond) bind(c,name="igSetNextWindowSize")
   import ImVec2, c_int
@@ -123,7 +133,11 @@ end subroutine igSetNextWindowSize
 !x! void igSetNextWindowContentSize(const ImVec2 size);
 !x! void igSetNextWindowCollapsed(bool collapsed,ImGuiCond cond);
 !x! void igSetNextWindowFocus(void);
-!x! void igSetNextWindowBgAlpha(float alpha);
+! void igSetNextWindowBgAlpha(float alpha);
+subroutine igSetNextWindowBgAlpha(alpha) bind(c,name="igSetNextWindowBgAlpha")
+  import c_float
+  real(c_float), value :: alpha
+end subroutine igSetNextWindowBgAlpha
 !x! void igSetNextWindowViewport(ImGuiID viewport_id);
 !x! void igSetWindowPos_Vec2(const ImVec2 pos,ImGuiCond cond);
 !x! void igSetWindowSize_Vec2(const ImVec2 size,ImGuiCond cond);
@@ -588,7 +602,14 @@ function igBeginPopup(str_id,flags) bind(c,name="igBeginPopup")
   integer(c_int), value :: flags
   logical(c_bool) :: igBeginPopup
 end function igBeginPopup
-!x! bool igBeginPopupModal(const char* name,bool* p_open,ImGuiWindowFlags flags);
+! bool igBeginPopupModal(const char* name,bool* p_open,ImGuiWindowFlags flags);
+function igBeginPopupModal(name,p_open,flags) bind(c,name="igBeginPopupModal")
+  import c_ptr, c_bool, c_int
+  type(c_ptr), intent(in), value :: name
+  logical(c_bool) :: p_open
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginPopupModal
+end function igBeginPopupModal
 ! void igEndPopup(void);
 subroutine igEndPopup() bind(c,name="igEndPopup")
 end subroutine igEndPopup
@@ -1051,7 +1072,15 @@ end function ImGuiListClipper_Step
 !x! void ImDrawList_GetClipRectMax(ImVec2 *pOut,ImDrawList* self);
 !x! void ImDrawList_AddLine(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,ImU32 col,float thickness);
 !x! void ImDrawList_AddRect(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags,float thickness);
-!x! void ImDrawList_AddRectFilled(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags);
+! void ImDrawList_AddRectFilled(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags);
+subroutine ImDrawList_AddRectFilled(self,p_min,p_max,col,rounding,flags) bind(c,name="ImDrawList_AddRectFilled")
+  import c_ptr, ImVec2, c_int, c_float
+  type(c_ptr), value :: self
+  type(ImVec2), value :: p_min, p_max
+  integer(c_int), value :: col
+  real(c_float), value :: rounding
+  integer(c_int), value :: flags
+end subroutine ImDrawList_AddRectFilled
 !x! void ImDrawList_AddRectFilledMultiColor(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col_upr_left,ImU32 col_upr_right,ImU32 col_bot_right,ImU32 col_bot_left);
 !x! void ImDrawList_AddQuad(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col,float thickness);
 !x! void ImDrawList_AddQuadFilled(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col);

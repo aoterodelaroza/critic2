@@ -35,7 +35,6 @@ submodule (gui_main) proc
   integer :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
   type(thread_info), target, allocatable :: thread_ti(:)
-  logical :: force_quit_threads = .false. ! force all threads to quit as soon as possible
 
   !xx! private procedures
   ! subroutine process_arguments()
@@ -155,9 +154,11 @@ contains
     pdum = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
        16._c_float,c_null_ptr,c_loc(range))
 
-    ! get the ImGui context pointer
+    ! get the ImGui context pointer and the main viewport
     ptrc = igGetCurrentContext()
     call c_f_pointer(ptrc,g)
+    ptrc = igGetMainViewport()
+    call c_f_pointer(ptrc,mainvwp)
 
     ! set the initial ImGui style
     call igStyleColorsDark(c_null_ptr)
@@ -218,6 +219,11 @@ contains
        if (show_demo_window) &
           call igShowDemoWindow(show_demo_window)
 
+       ! if there are commands to run from the input console, set up the modal
+       if (force_run_commands) then
+          call win(iwin_console_input)%block_gui_console_input()
+       end if
+
        ! rendering
        call igRender()
        call glfwGetFramebufferSize(rootwin, display_w, display_h)
@@ -228,6 +234,13 @@ contains
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)
+
+       ! run commands from the input console
+       if (force_run_commands) then
+          call win(iwin_console_input)%run_commands_console_input()
+          force_run_commands = .false.
+       end if
+
        firstpass = .false.
     end do
 
@@ -538,30 +551,6 @@ contains
     end if
 
   end subroutine remove_system
-
-  !> Run the commands in str, typically the console input buffer
-  module subroutine run_commands(str)
-    use global, only: critic_main
-    use tools_io, only: falloc, uin, fclose, ferror, faterr
-    use iso_fortran_env, only: input_unit
-    character(len=*), intent(in) :: str
-
-    integer :: ios
-
-    ! connect a scratch file to uin, write the commands, rewind, and run
-    uin = falloc()
-    open(unit=uin,status='scratch',form='formatted',access='stream',iostat=ios)
-    if (ios /= 0) &
-       call ferror("run_commands","cannot open buffer for critic2 input",faterr)
-    write (uin,'(A)') str
-    rewind(uin)
-    call critic_main()
-
-    ! clean up
-    call fclose(uin)
-    uin = input_unit
-
-  end subroutine run_commands
 
   !xx! private procedures
 
