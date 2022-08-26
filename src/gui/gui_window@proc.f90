@@ -61,12 +61,13 @@ submodule (gui_window) proc
   end type command_inout
 
   ! command inout stack
-  integer :: ncomid = 0
-  integer :: ncom = 0
-  integer :: nicom = 0
+  integer :: ncomid = 0 ! unique command ID generator (always incremented)
+  integer :: ncom = 0 ! number of commands (com(:))
+  integer :: nicom = 0 ! number of ordered commands (icom(:))
+  integer :: idcom = 0 ! current output shown (0 = all)
   integer, allocatable :: icom(:) ! order in which to show the commands
-  type(command_inout), allocatable, target :: com(:)
-  integer(c_size_t), parameter :: maxcomout = 20000000
+  type(command_inout), allocatable, target :: com(:) ! the actual commands
+  integer(c_size_t), parameter :: maxcomout = 20000000 ! maximum command size
 
   !xx! private procedures
   ! function tree_tooltip_string(i)
@@ -1122,15 +1123,16 @@ contains
              cstr = IGFD_GetFilePathName(w%ptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             if (allocated(outputb)) then
-                lu = fopen_write(name,errstop=.false.)
-                if (lu >= 0) then
-                   write(lu,'(A)') outputb(1:lob)
-                   call fclose(lu)
-                else
-                   call ferror('draw_dialog','could not open file for writing: ' // name,faterr,syntax=.true.)
-                end if
+
+             lu = fopen_write(name,errstop=.false.)
+             if (lu < 0) &
+                call ferror('draw_dialog','could not open file for writing: ' // name,faterr,syntax=.true.)
+             if (idcom == 0 .and. allocated(outputb)) then
+                write(lu,'(A)') outputb(1:lob)
+             elseif (idcom > 0) then
+                write(lu,'(A)') com(icom(idcom))%output
              end if
+             call fclose(lu)
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
           end if
@@ -1603,7 +1605,6 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, curline, ndrawn
-    integer, save :: idcom = 0
     character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
@@ -1639,23 +1640,30 @@ contains
     call igSameLine(0._c_float,-1._c_float)
 
     ! first line: clear button
-    str1 = "Clear" // c_null_char
-    if (igButton(c_loc(str1),szero)) then
-       outputb(1:1) = c_null_char
-       lob = 0
+    if (idcom == 0) then
+       str1 = "Clear" // c_null_char
+       if (igButton(c_loc(str1),szero)) then
+          outputb(1:1) = c_null_char
+          lob = 0
+       end if
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str1 = "Clear the output log" // c_null_char
+          call igSetTooltip(c_loc(str1))
+       end if
+       call igSameLine(0._c_float,-1._c_float)
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Clear the output log" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
-    call igSameLine(0._c_float,-1._c_float)
 
     ! first line: copy button
     str1 = "Copy" // c_null_char
-    if (igButton(c_loc(str1),szero)) &
-       call igSetClipboardText(c_loc(outputb))
+    if (igButton(c_loc(str1),szero)) then
+       if (idcom == 0) then
+          call igSetClipboardText(c_loc(outputb))
+       else
+          call igSetClipboardText(c_loc(com(icom(idcom))%output))
+       end if
+    end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Copy the output log to clipboard" // c_null_char
+       str1 = "Copy the shown output log to clipboard" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
     call igSameLine(0._c_float,-1._c_float)
@@ -1667,7 +1675,7 @@ contains
        idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
     call igEndDisabled()
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Save the output log to a file" // c_null_char
+       str1 = "Save the shown output log to a file" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
