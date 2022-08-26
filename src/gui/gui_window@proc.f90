@@ -55,6 +55,7 @@ submodule (gui_window) proc
      integer :: id ! unique command ID
      integer :: status = command_inout_empty ! status of this command
      integer(c_size_t) :: size = 0 ! size of the output
+     real(c_float) :: scrolly = 0._c_float ! scrolling position in console output view
      character(len=:,kind=c_char), allocatable :: details ! command details (c_null_char term)
      character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
      character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
@@ -1609,9 +1610,10 @@ contains
     type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
-    logical :: doscroll, skip, pushed
+    logical :: setscroll, skip, pushed
     integer, save :: idsavedialog = 0
     real(c_float) :: itemspacing, xavail, xavail1
+    real(c_float), save :: allscrolly
     integer :: navail, navail1
 
     ! check if the save dialog is still open
@@ -1624,11 +1626,12 @@ contains
     end if
 
     ! read new output, if available
-    doscroll = w%read_output_ci(.false.)
+    ldum = w%read_output_ci(.false.)
 
     ! initialize
     szero%x = 0._c_float
     szero%y = 0._c_float
+    setscroll = .false.
 
     ! get the available x
     call igGetContentRegionAvail(szavail)
@@ -1689,6 +1692,7 @@ contains
     end if
     if (igButton(c_loc(str1),szero)) then
        idcom = 0
+       setscroll = .true.
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Show all console output" // c_null_char
@@ -1748,6 +1752,7 @@ contains
        str1 = string(com(icom(i))%id) // c_null_char
        if (igButton(c_loc(str1),sz)) then
           idcom = i
+          setscroll = .true.
        end if
        if (pushed) call igPopStyleColor(1)
 
@@ -1768,18 +1773,30 @@ contains
        ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,&
           ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
     else
-       ldum = igInputTextMultiline(c_loc(str1),c_loc(com(icom(idcom))%output),lob,sz,&
-          ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+       ldum = igInputTextMultiline(c_loc(str1),c_loc(com(icom(idcom))%output),&
+          com(icom(idcom))%size+1,sz,ImGuiInputTextFlags_ReadOnly,&
+          c_null_ptr,c_null_ptr)
     end if
     call igPopStyleVar(1)
     call igPopStyleColor(1)
 
-    ! auto-scroll to the end if we have new output
-    if (doscroll) then
-       ldum = igBeginChild_Str(c_loc(str1),szero,.false._c_bool,ImGuiWindowFlags_None)
-       call igSetScrollHereY(1._c_float)
-       call igEndChild()
+    ! Set scroll to previous value if changing output, the All view scrolls to the
+    ! end on new output
+    ldum = igBeginChild_Str(c_loc(str1),szero,.false._c_bool,ImGuiWindowFlags_None)
+    if (setscroll) then
+       if (idcom > 0) then
+          call igSetScrollY_Float(com(icom(idcom))%scrolly)
+       else
+          call igSetScrollY_Float(allscrolly)
+       end if
+    endif
+    if (idcom > 0) then
+       com(icom(idcom))%scrolly = igGetScrollY()
+    else
+       allscrolly = igGetScrollY()
     end if
+    call igEndChild()
+
 
   end subroutine draw_co
 

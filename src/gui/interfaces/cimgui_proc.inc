@@ -169,9 +169,17 @@ function igGetScrollY() bind(c,name="igGetScrollY")
   real(c_float) :: igGetScrollY
 end function igGetScrollY
 !x! void igSetScrollX_Float(float scroll_x);
-!x! void igSetScrollY_Float(float scroll_y);
+! void igSetScrollY_Float(float scroll_y);
+subroutine igSetScrollY_Float(scroll_y) bind(c,name="igSetScrollY_Float")
+  import c_float
+  real(c_float), value :: scroll_y
+end subroutine igSetScrollY_Float
 !x! float igGetScrollMaxX(void);
-!x! float igGetScrollMaxY(void);
+! float igGetScrollMaxY(void);
+function igGetScrollMaxY() bind(c,name="igGetScrollMaxY")
+  import c_float
+  real(c_float) :: igGetScrollMaxY
+end function igGetScrollMaxY
 ! void igSetScrollHereX(float center_x_ratio);
 subroutine igSetScrollHereX(center_x_ratio) bind(c,name="igSetScrollHereX")
   import c_float
