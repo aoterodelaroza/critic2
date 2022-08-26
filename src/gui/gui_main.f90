@@ -52,6 +52,7 @@ module gui_main
   type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
   type(ImVec4), parameter, public :: ColorDangerButton = ImVec4(0.50, 0.08, 0.08, 1.0) ! important button
   type(ImVec4), parameter, public :: ColorWaitBg = ImVec4(0.80, 0.80, 0.80, 0.6) ! dim the background while waiting
+  type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29, 0.16,0.48,0.54) ! alternate framebg
 
   ! systems arrays
   integer, parameter, public :: sys_empty = 0

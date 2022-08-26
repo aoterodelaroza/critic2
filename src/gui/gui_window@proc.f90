@@ -52,15 +52,16 @@ submodule (gui_window) proc
   integer, parameter :: command_inout_empty = 0
   integer, parameter :: command_inout_used = 1
   type command_inout
+     integer :: id ! unique command ID
      integer :: status = command_inout_empty ! status of this command
      integer(c_size_t) :: size = 0 ! size of the output
-     integer :: id = 0 ! id for this command
      character(len=:,kind=c_char), allocatable :: details ! command details (c_null_char term)
      character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
      character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
   end type command_inout
 
   ! command inout stack
+  integer :: ncomid = 0
   integer :: ncom = 0
   integer :: nicom = 0
   integer, allocatable :: icom(:) ! order in which to show the commands
@@ -1513,7 +1514,6 @@ contains
              total = total - com(icom(i))%size
              com(icom(i))%status = command_inout_empty
              com(icom(i))%size = 0
-             com(icom(i))%id = 0
              if (allocated(com(icom(i))%details)) deallocate(com(icom(i))%details)
              if (allocated(com(icom(i))%input)) deallocate(com(icom(i))%input)
              if (allocated(com(icom(i))%output)) deallocate(com(icom(i))%output)
@@ -1542,18 +1542,22 @@ contains
           end if
 
           ! fill the new command info
+          ncomid = ncomid + 1
           call w%get_input_details_ci(csystem,cfield)
-          com(ithis)%details = "System: " // csystem // newline //&
-             "Field: " // cfield // newline // c_null_char
           idx = index(inputb,c_null_char)
-          if (idx > 0) then
-             com(ithis)%input = inputb(1:idx)
-          else
-             com(ithis)%input = c_null_char
-          end if
+          com(ithis)%id = ncomid
+          com(ithis)%input = inputb(1:idx)
           com(ithis)%status = command_inout_used
           com(ithis)%size = lob - olob + 1
-          com(ithis)%output = outputb(olob+1:lob+1)
+          com(ithis)%details = "### Command: " // string(ncomid) // newline //&
+             "System: " // csystem // newline //&
+             "Field: " // cfield // newline //&
+             "Input: " // newline // inputb(1:idx-1) // c_null_char
+          com(ithis)%output = "## Command: " // string(ncomid) // newline //&
+             "## System: " // csystem // newline //&
+             "## Field: " // cfield // newline //&
+             "## Input: " // newline // inputb(1:idx-1) // newline //&
+             "#########" // newline // newline // outputb(olob+1:lob+1)
 
           ! add it to the list of active commands
           nicom = nicom + 1
@@ -1592,16 +1596,22 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_co(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay, g
+    use gui_main, only: ColorHighlightText, tooltip_delay, g, ColorDangerButton, tooltip_delay,&
+       ColorFrameBgAlt
     use gui_utils, only: igIsItemHovered_delayed
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
+    integer :: i, curline, ndrawn
+    integer, save :: idcom = 0
     character(kind=c_char,len=:), allocatable, target :: str1
-    type(ImVec2) :: sz, szero
+    type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
-    logical :: doscroll
+    logical :: doscroll, skip
     integer, save :: idsavedialog = 0
+    real(c_float) :: itemspacing, xavail, xavail1
+    integer :: navail, navail1
 
     ! check if the save dialog is still open
     if (idsavedialog > 0) then
@@ -1618,6 +1628,10 @@ contains
     ! initialize
     szero%x = 0._c_float
     szero%y = 0._c_float
+
+    ! get the available x
+    call igGetContentRegionAvail(szavail)
+    xavail = szavail%x
 
     ! first line: text
     str1 = "Output" // c_null_char
@@ -1646,9 +1660,6 @@ contains
     end if
     call igSameLine(0._c_float,-1._c_float)
 
-    ! Renamed to BeginDisabled() / EndDisabled() and pushed on master.
-    ! Added style.DisabledAlpha and ImGuiStyleVar_DisabledAlpha, defaulting to 0.60f.
-
     ! first line: save button
     str1 = "Save" // c_null_char
     call igBeginDisabled(logical(idsavedialog > 0,c_bool))
@@ -1660,12 +1671,89 @@ contains
        call igSetTooltip(c_loc(str1))
     end if
 
+    str1 = "All" // c_null_char
+    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    xavail1 = xavail - (sztext%x + 2 * g%Style%FramePadding%x + g%Style%ItemSpacing%x)
+    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    if (igButton(c_loc(str1),szero)) then
+       idcom = 0
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Show all console output" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+    call igPopStyleColor(1)
+
+    !! second line; list of command i/os
+    ! make the itemspacing zero
+    sz%x = 0
+    sz%y = g%Style%ItemSpacing%y
+    itemspacing = g%Style%ItemSpacing%x
+    call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
+
+    ! calculate the button size and the number of buttons that fit
+    sz%y = igGetTextLineHeight() + 2 * g%Style%FramePadding%y
+    str1 = string(maxval(com(icom(1:nicom))%id)) // c_null_char
+    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    sz%x = max(sz%y,sztext%x + 2 * g%Style%FramePadding%x)
+    xavail = xavail / sz%x
+    xavail1 = xavail1 / sz%x
+    navail = max(floor(xavail),1)
+    navail1 = max(floor(xavail1),1)
+
+    ! render the buttons
+    curline = 1
+    ndrawn = 0
+    do i = nicom, 1,  -1
+       ! skip if no more buttons can be shown
+       if (curline == 1) then
+          skip = (ndrawn >= navail1)
+       else
+          skip = (ndrawn >= navail)
+       end if
+
+       ! skip or sameline
+       if (skip) then
+          ndrawn = 0
+          curline = curline + 1
+       else
+          if (i == nicom) then
+             call igSameLine(0._c_float,itemspacing)
+          else
+             call igSameLine(0._c_float,-1._c_float)
+          end if
+       end if
+
+       ! render the button in alternate colors
+       if (mod(i,2) == 0) &
+          call igPushStyleColor_Vec4(ImGuiCol_Button,ColorFrameBgAlt)
+       str1 = string(com(icom(i))%id) // c_null_char
+       if (igButton(c_loc(str1),sz)) then
+          idcom = i
+       end if
+       if (mod(i,2) == 0) &
+          call igPopStyleColor(1_c_int)
+
+       ! tooltip
+       if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+          call igSetTooltip(c_loc(com(icom(i))%details))
+
+       ndrawn = ndrawn + 1
+    end do
+    call igPopStyleVar(1_c_int)
+
     ! calculate sizes and draw the multiline (with dark background and border)
     call igGetContentRegionAvail(sz)
     call igPushStyleColor_Vec4(ImGuiCol_FrameBg,g%Style%Colors(ImGuiCol_WindowBg+1))
     call igPushStyleVar_Float(ImGuiStyleVar_FrameBorderSize,1._c_float)
     str1 = "##outputmultiline" // c_null_char
-    ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+    if (idcom == 0) then
+       ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,&
+          ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+    else
+       ldum = igInputTextMultiline(c_loc(str1),c_loc(com(icom(idcom))%output),lob,sz,&
+          ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+    end if
     call igPopStyleVar(1)
     call igPopStyleColor(1)
 
