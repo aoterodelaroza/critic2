@@ -1540,7 +1540,11 @@ end function igGetCurrentWindow
 !x! void igSetWindowHitTestHole(ImGuiWindow* window,const ImVec2 pos,const ImVec2 size);
 !x! void igWindowRectAbsToRel(ImRect *pOut,ImGuiWindow* window,const ImRect r);
 !x! void igWindowRectRelToAbs(ImRect *pOut,ImGuiWindow* window,const ImRect r);
-!x! void igFocusWindow(ImGuiWindow* window);
+! void igFocusWindow(ImGuiWindow* window)
+subroutine igFocusWindow(window) bind(c,name="igFocusWindow")
+  import c_ptr
+  type(c_ptr), value :: window
+end subroutine igFocusWindow
 !x! void igFocusTopMostWindowUnderOne(ImGuiWindow* under_this_window,ImGuiWindow* ignore_window);
 !x! void igBringWindowToFocusFront(ImGuiWindow* window);
 !x! void igBringWindowToDisplayFront(ImGuiWindow* window);

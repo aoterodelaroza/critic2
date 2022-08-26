@@ -56,7 +56,7 @@ submodule (gui_window) proc
      integer :: status = command_inout_empty ! status of this command
      integer(c_size_t) :: size = 0 ! size of the output
      real(c_float) :: scrolly = 0._c_float ! scrolling position in console output view
-     character(len=:,kind=c_char), allocatable :: details ! command details (c_null_char term)
+     character(len=:,kind=c_char), allocatable :: tooltipinfo ! tooltip info for command (c_null_char term)
      character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
      character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
    contains
@@ -88,7 +88,7 @@ contains
     c%status = command_inout_empty
     c%size = 0
     c%scrolly = 0._c_float
-    if (allocated(c%details)) deallocate(c%details)
+    if (allocated(c%tooltipinfo)) deallocate(c%tooltipinfo)
     if (allocated(c%input)) deallocate(c%input)
     if (allocated(c%output)) deallocate(c%output)
 
@@ -1571,10 +1571,11 @@ contains
           com(ithis)%size = lob - olob + 1
 
           commonstr = "### Command: " // string(ncomid) // " (" // get_time_string() // ")" // newline
-          com(ithis)%details = commonstr // &
+          com(ithis)%tooltipinfo = commonstr // &
              "System: " // csystem // newline //&
              "Field: " // cfield // newline //&
-             "Input: " // newline // inputb(1:idx-1) // c_null_char
+             "Input: " // newline // inputb(1:idx-1) // newline //&
+             "#########" // newline // newline // "[Right-click for options]" // c_null_char
           com(ithis)%output = commonstr // &
              "## System: " // csystem // newline //&
              "## Field: " // cfield // newline //&
@@ -1809,6 +1810,7 @@ contains
              idx = index(com(icom(i))%input,c_null_char)
              if (idx > 0) &
                 inputb(1:idx) = com(icom(i))%input(1:idx)
+             call igFocusWindow(win(iwin_console_input)%ptr)
           end if
 
           strpop = "Remove" // c_null_char
@@ -1823,7 +1825,7 @@ contains
 
        ! tooltip
        if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-          call igSetTooltip(c_loc(com(icom(i))%details))
+          call igSetTooltip(c_loc(com(icom(i))%tooltipinfo))
 
        ndrawn = ndrawn + 1
     end do
@@ -2001,6 +2003,7 @@ contains
        ! not initialized
        str = str // "Not initialized" // newline
     end if
+    str = str // newline // "[Right-click for options]" // newline
     str = str // c_null_char
 
   end function tree_tooltip_string
