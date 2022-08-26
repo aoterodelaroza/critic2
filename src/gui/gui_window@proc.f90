@@ -48,6 +48,25 @@ submodule (gui_window) proc
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
+  ! command input and output
+  integer, parameter :: command_inout_empty = 0
+  integer, parameter :: command_inout_used = 1
+  type command_inout
+     integer :: status = command_inout_empty ! status of this command
+     integer(c_size_t) :: size = 0 ! size of the output
+     integer :: id = 0 ! id for this command
+     character(len=:,kind=c_char), allocatable :: details ! command details (c_null_char term)
+     character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
+     character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
+  end type command_inout
+
+  ! command inout stack
+  integer :: ncom = 0
+  integer :: nicom = 0
+  integer, allocatable :: icom(:) ! order in which to show the commands
+  type(command_inout), allocatable, target :: com(:)
+  integer(c_size_t), parameter :: maxcomout = 20000000
+
   !xx! private procedures
   ! function tree_tooltip_string(i)
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
@@ -241,9 +260,9 @@ contains
                 str1 = "Hello View!"
                 call igText(c_loc(str1))
              elseif (w%type == wintype_console_input) then
-                call w%draw_console_input()
+                call w%draw_ci()
              elseif (w%type == wintype_console_output) then
-                call w%draw_console_output()
+                call w%draw_co()
              end if
           end if
           call igEnd()
@@ -1124,7 +1143,7 @@ contains
   end subroutine draw_dialog
 
   !> Draw the contents of the input console
-  module subroutine draw_console_input(w)
+  module subroutine draw_ci(w)
     use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
        ColorDangerButton, force_run_commands
@@ -1259,10 +1278,10 @@ contains
     ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,&
        ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
 
-  end subroutine draw_console_input
+  end subroutine draw_ci
 
   !> Run the commands from the console input
-  module subroutine run_commands_console_input(w)
+  module subroutine run_commands_ci(w)
     use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
@@ -1271,7 +1290,7 @@ contains
 
     integer :: idx
     integer :: ios
-    logical :: reinit
+    logical :: reinit, ldum
 
     ! check we have some input
     idx = index(inputb,c_null_char)
@@ -1290,6 +1309,9 @@ contains
     rewind(uin)
     call critic_main()
 
+    ! read the output
+    ldum = w%read_output_ci(.true.)
+
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
 
@@ -1297,24 +1319,21 @@ contains
     call fclose(uin)
     uin = input_unit
 
-  end subroutine run_commands_console_input
+  end subroutine run_commands_ci
 
   !> Block the GUI by dimming the background and showing the current console
   !> input. Useful for preparing the screen for running the commands
   !> in the console input.
-  module subroutine block_gui_console_input(w)
-    use gui_main, only: mainvwp, io, g, ColorWaitBg, sysc, sys_init, sys, nsys,&
-       ColorHighlightText
-    use tools_io, only: string
+  module subroutine block_gui_ci(w)
+    use gui_main, only: mainvwp, io, g, ColorWaitBg, ColorHighlightText
     use param, only: newline
     class(window), intent(inout), target :: w
 
     integer(c_int) :: flags
     type(ImVec2) :: sz, pivot
-    character(kind=c_char,len=:), allocatable, target :: str1, text, csystem, cfield
-    character(kind=c_char,len=1) :: lastchar
+    character(kind=c_char,len=:), allocatable, target :: str1, text
+    character(kind=c_char,len=:), allocatable, target :: csystem, cfield
     logical(c_bool) :: ldum
-    integer :: iref
 
     !! blank the background
     flags = ImGuiWindowFlags_NoDecoration
@@ -1340,16 +1359,8 @@ contains
     pivot%y = 0.5_c_float
     call igSetNextWindowPos(sz,0,pivot)
 
-    ! system name and field name
-    csystem = "<unknown>"
-    cfield = "<unknown>"
-    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
-       if (sysc(w%inpcon_selected)%status == sys_init) then
-          csystem = "(" // string(w%inpcon_selected) // ") " // trim(sysc(w%inpcon_selected)%seed%name)
-          iref = sys(w%inpcon_selected)%iref
-          cfield = "(" // string(iref) // ") " // trim(sys(w%inpcon_selected)%f(iref)%name)
-       end if
-    end if
+    ! get the input details
+    call w%get_input_details_ci(csystem,cfield)
 
     ! set window size
     text = "Running critic2 input..." // newline //&
@@ -1399,10 +1410,188 @@ contains
     end if
     call igEnd()
 
-  end subroutine block_gui_console_input
+  end subroutine block_gui_ci
+
+  !> Read new output from the scratch LU uout. If iscom, this output corresponds
+  !> to a command, so create the command i/o object. Return true if
+  !> output has been read.
+  function read_output_ci(w,iscom)
+    use gui_main, only: are_threads_running
+    use tools_io, only: uout, getline_raw, string, ferror, faterr
+    use types, only: realloc
+    use param, only: newline
+    class(window), intent(inout), target :: w
+    logical, intent(in) :: iscom
+    logical :: read_output_ci
+
+    character(kind=c_char,len=:), allocatable, target :: csystem, cfield
+    type(command_inout), allocatable :: aux(:)
+    character(len=:), allocatable :: line
+    integer(c_size_t) :: pos, lshift, ll, olob, total, newsize
+    integer :: idx, ithis, i
+    logical :: ok
+
+    ! allocate the output buffer if not allocated
+    read_output_ci = .false.
+    if (.not.allocated(outputb)) then
+       allocate(character(len=maxlob+1) :: outputb)
+       outputb(1:1) = c_null_char
+       lob = 0
+    end if
+
+    ! allocate the command input/output stack, if not allocated
+    if (.not.allocated(com)) then
+       ncom = 0
+       allocate(com(10))
+    end if
+    if (.not.allocated(icom)) then
+       nicom = 0
+       allocate(icom(10))
+    end if
+
+    ! do not read if initialization threads are still running (may generate output)
+    if (are_threads_running()) return
+
+    ! get size of the new output
+    inquire(uout,pos=pos)
+    if (pos > 1) then
+       ! there is new output, rewind, read it, and rewind again
+
+       ! I am going to need pos-1 new characters
+       ll = pos-1
+       rewind(uout)
+
+       ! do not have enough room to accomodate this much output = discard new text
+       do while (ll > maxlob)
+          ok = getline_raw(uout,line)
+          if (.not.ok) return
+          ll = ll - (len(line)+1)
+       end do
+
+       ! check whether we can accomodate the new text = discard from the beginning
+       if (lob + ll > maxlob) then
+          lshift = ll + lob - maxlob
+          outputb(1:lob-lshift) = outputb(lshift+1:lob)
+          lob = lob - lshift
+          ! adjust to the next newline
+          idx = index(outputb,newline)
+          if (idx == 0) then
+             lob = 0
+          else
+             outputb(1:lob-idx) = outputb(idx+1:lob)
+             lob = lob - idx
+          end if
+       end if
+
+       ! read the new output and rewind
+       olob = lob
+       do while(getline_raw(uout,line))
+          ll = len(line)
+          if (ll > 0) then
+             outputb(lob+1:lob+ll) = line(1:ll)
+             lob = lob + ll
+          end if
+          outputb(lob+1:lob+1) = newline
+          lob = lob + 1
+          inquire(uout,pos=pos)
+       end do
+       outputb(lob+1:lob+1) = c_null_char
+       rewind(uout)
+
+       if (iscom) then
+          ! try to remove commands if we exceed the size
+          newsize = lob - olob + 1
+          if (newsize > maxcomout) &
+             call ferror('read_output_ci','exceeded output buffer for command',faterr)
+          total = newsize
+          do i = 1, nicom
+             total = total + com(icom(i))%size
+          end do
+          i = 0
+          do while (total > maxcomout)
+             i = i + 1
+             total = total - com(icom(i))%size
+             com(icom(i))%status = command_inout_empty
+             com(icom(i))%size = 0
+             com(icom(i))%id = 0
+             if (allocated(com(icom(i))%details)) deallocate(com(icom(i))%details)
+             if (allocated(com(icom(i))%input)) deallocate(com(icom(i))%input)
+             if (allocated(com(icom(i))%output)) deallocate(com(icom(i))%output)
+          end do
+          icom(1:nicom-i) = icom(i+1:nicom)
+          nicom = nicom - i
+
+          ! get an unusued command ID
+          ithis = 0
+          do i = 1, ncom
+             if (com(i)%status == command_inout_empty) then
+                ithis = i
+                exit
+             end if
+          end do
+
+          ! add a new command, reallocate if necessary
+          if (ithis == 0) then
+             ncom = ncom + 1
+             if (ncom > size(com,1)) then
+                allocate(aux(2*ncom))
+                aux(1:size(com,1)) = com
+                call move_alloc(aux,com)
+             end if
+             ithis = ncom
+          end if
+
+          ! fill the new command info
+          call w%get_input_details_ci(csystem,cfield)
+          com(ithis)%details = "System: " // csystem // newline //&
+             "Field: " // cfield // newline // c_null_char
+          idx = index(inputb,c_null_char)
+          if (idx > 0) then
+             com(ithis)%input = inputb(1:idx)
+          else
+             com(ithis)%input = c_null_char
+          end if
+          com(ithis)%status = command_inout_used
+          com(ithis)%size = lob - olob + 1
+          com(ithis)%output = outputb(olob+1:lob+1)
+
+          ! add it to the list of active commands
+          nicom = nicom + 1
+          if (nicom > size(icom,1)) &
+             call realloc(icom,2*nicom)
+          icom(nicom) = ithis
+       end if
+
+       ! we have new data
+       read_output_ci = .true.
+    end if
+
+  end function read_output_ci
+
+  !> Get the system and field strings for current input (without null char).
+  module subroutine get_input_details_ci(w,csystem,cfield)
+    use gui_main, only: nsys, sysc, sys_init, sys
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    character(len=:), allocatable, intent(inout) :: csystem, cfield
+
+    integer :: iref
+
+    ! system name and field name
+    csystem = "<unknown>"
+    cfield = "<unknown>"
+    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
+       if (sysc(w%inpcon_selected)%status == sys_init) then
+          csystem = "(" // string(w%inpcon_selected) // ") " // trim(sysc(w%inpcon_selected)%seed%name)
+          iref = sys(w%inpcon_selected)%iref
+          cfield = "(" // string(iref) // ") " // trim(sys(w%inpcon_selected)%f(iref)%name)
+       end if
+    end if
+
+  end subroutine get_input_details_ci
 
   !> Draw the contents of the output console
-  module subroutine draw_console_output(w)
+  module subroutine draw_co(w)
     use gui_main, only: ColorHighlightText, tooltip_delay, g
     use gui_utils, only: igIsItemHovered_delayed
     class(window), intent(inout), target :: w
@@ -1424,7 +1613,7 @@ contains
     end if
 
     ! read new output, if available
-    call read_output_unit()
+    doscroll = w%read_output_ci(.false.)
 
     ! initialize
     szero%x = 0._c_float
@@ -1487,81 +1676,7 @@ contains
        call igEndChild()
     end if
 
-  contains
-    ! read new output from the scratch LU uout
-    subroutine read_output_unit()
-      use gui_main, only: are_threads_running
-      use tools_io, only: uout, getline_raw
-      use param, only: newline
-      character(len=:), allocatable :: line
-      integer(c_size_t) :: pos, lshift, ll
-      integer :: idx
-      logical :: ok
-
-      ! do not scroll for now
-      doscroll = .false.
-
-      ! allocate the output buffer if not allocated
-      if (.not.allocated(outputb)) then
-         allocate(character(len=maxlob+1) :: outputb)
-         outputb(1:1) = c_null_char
-         lob = 0
-      end if
-
-      ! do not read if initialization threads are still running (may generate output)
-      if (are_threads_running()) return
-
-      ! get size of the new output
-      inquire(uout,pos=pos)
-      if (pos > 1) then
-         ! there is new output, rewind, read it, and rewind again
-
-         ! I am going to need pos-1 new characters
-         ll = pos-1
-         rewind(uout)
-
-         ! do not have enough room to accomodate this much output = discard new text
-         do while (ll > maxlob)
-            ok = getline_raw(uout,line)
-            if (.not.ok) return
-            ll = ll - (len(line)+1)
-         end do
-
-         ! check whether we can accomodate the new text = discard from the beginning
-         if (lob + ll > maxlob) then
-            lshift = ll + lob - maxlob
-            outputb(1:lob-lshift) = outputb(lshift+1:lob)
-            lob = lob - lshift
-            ! adjust to the next newline
-            idx = index(outputb,newline)
-            if (idx == 0) then
-               lob = 0
-            else
-               outputb(1:lob-idx) = outputb(idx+1:lob)
-               lob = lob - idx
-            end if
-         end if
-
-         ! read the new output and rewind
-         do while(getline_raw(uout,line))
-            ll = len(line)
-            if (ll > 0) then
-               outputb(lob+1:lob+ll) = line(1:ll)
-               lob = lob + ll
-            end if
-            outputb(lob+1:lob+1) = newline
-            lob = lob + 1
-            inquire(uout,pos=pos)
-         end do
-         outputb(lob+1:lob+1) = c_null_char
-         rewind(uout)
-
-         ! scroll to keep up with the new output
-         doscroll = .true.
-      end if
-
-    end subroutine read_output_unit
-  end subroutine draw_console_output
+  end subroutine draw_co
 
   !xx! private procedures
 

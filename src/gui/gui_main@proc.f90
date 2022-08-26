@@ -221,7 +221,7 @@ contains
 
        ! if there are commands to run from the input console, set up the modal
        if (force_run_commands) then
-          call win(iwin_console_input)%block_gui_console_input()
+          call win(iwin_console_input)%block_gui_ci()
        end if
 
        ! rendering
@@ -237,7 +237,7 @@ contains
 
        ! run commands from the input console
        if (force_run_commands) then
-          call win(iwin_console_input)%run_commands_console_input()
+          call win(iwin_console_input)%run_commands_ci()
           force_run_commands = .false.
        end if
 

@@ -69,11 +69,13 @@ module gui_window
      ! dialog procedures
      procedure :: draw_dialog
      ! input console procedures
-     procedure :: draw_console_input
-     procedure :: run_commands_console_input
-     procedure :: block_gui_console_input
+     procedure :: draw_ci ! draw the input console
+     procedure :: run_commands_ci ! run the commands in the input buffer
+     procedure :: block_gui_ci ! block the GUI while the input buffer commands are run
+     procedure :: read_output_ci ! read the generated output and maybe create a command i/o
+     procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
-     procedure :: draw_console_output
+     procedure :: draw_co
   end type window
   public :: window
 
@@ -132,18 +134,27 @@ module gui_window
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog
-     module subroutine draw_console_input(w)
+     module subroutine draw_ci(w)
        class(window), intent(inout), target :: w
-     end subroutine draw_console_input
-     module subroutine run_commands_console_input(w)
+     end subroutine draw_ci
+     module subroutine run_commands_ci(w)
        class(window), intent(inout), target :: w
-     end subroutine run_commands_console_input
-     module subroutine block_gui_console_input(w)
+     end subroutine run_commands_ci
+     module subroutine block_gui_ci(w)
        class(window), intent(inout), target :: w
-     end subroutine block_gui_console_input
-     module subroutine draw_console_output(w)
+     end subroutine block_gui_ci
+     module function read_output_ci(w,iscom)
        class(window), intent(inout), target :: w
-     end subroutine draw_console_output
+       logical, intent(in) :: iscom
+       logical :: read_output_ci
+     end function read_output_ci
+     module subroutine get_input_details_ci(w,csystem,cfield)
+       class(window), intent(inout), target :: w
+       character(len=:), allocatable, intent(inout) :: csystem, cfield
+     end subroutine get_input_details_ci
+     module subroutine draw_co(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_co
   end interface
 
 end module gui_window
