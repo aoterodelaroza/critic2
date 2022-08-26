@@ -1608,7 +1608,7 @@ contains
     type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
-    logical :: doscroll, skip
+    logical :: doscroll, skip, pushed
     integer, save :: idsavedialog = 0
     real(c_float) :: itemspacing, xavail, xavail1
     integer :: navail, navail1
@@ -1725,14 +1725,19 @@ contains
        end if
 
        ! render the button in alternate colors
-       if (mod(i,2) == 0) &
+       pushed = .true.
+       if (idcom == i) then
+          call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
+       elseif (mod(i,2) == 0) then
           call igPushStyleColor_Vec4(ImGuiCol_Button,ColorFrameBgAlt)
+       else
+          pushed = .false.
+       end if
        str1 = string(com(icom(i))%id) // c_null_char
        if (igButton(c_loc(str1),sz)) then
           idcom = i
        end if
-       if (mod(i,2) == 0) &
-          call igPopStyleColor(1_c_int)
+       if (pushed) call igPopStyleColor(1)
 
        ! tooltip
        if (igIsItemHovered(ImGuiHoveredFlags_None)) &
