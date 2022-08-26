@@ -59,6 +59,8 @@ submodule (gui_window) proc
      character(len=:,kind=c_char), allocatable :: details ! command details (c_null_char term)
      character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
      character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
+   contains
+     procedure :: end => command_end
   end type command_inout
 
   ! command inout stack
@@ -76,9 +78,27 @@ submodule (gui_window) proc
 
 contains
 
+  !xx! Methods for the command_inout type
+
+  !> Deallocate all data in a command and reset it to emtpy
+  subroutine command_end(c)
+    class(command_inout), intent(inout) :: c
+
+    c%id = 0
+    c%status = command_inout_empty
+    c%size = 0
+    c%scrolly = 0._c_float
+    if (allocated(c%details)) deallocate(c%details)
+    if (allocated(c%input)) deallocate(c%input)
+    if (allocated(c%output)) deallocate(c%output)
+
+  end subroutine command_end
+
+  !xx! Module functions and subroutines
+
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  function stack_create_window(type,isopen,purpose)
+  module function stack_create_window(type,isopen,purpose)
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
@@ -1419,7 +1439,8 @@ contains
   !> Read new output from the scratch LU uout. If iscom, this output corresponds
   !> to a command, so create the command i/o object. Return true if
   !> output has been read.
-  function read_output_ci(w,iscom)
+  module function read_output_ci(w,iscom)
+    use gui_utils, only: get_time_string
     use gui_main, only: are_threads_running
     use tools_io, only: uout, getline_raw, string, ferror, faterr
     use types, only: realloc
@@ -1430,7 +1451,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: csystem, cfield
     type(command_inout), allocatable :: aux(:)
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, commonstr
     integer(c_size_t) :: pos, lshift, ll, olob, total, newsize
     integer :: idx, ithis, i
     logical :: ok
@@ -1515,11 +1536,7 @@ contains
           do while (total > maxcomout)
              i = i + 1
              total = total - com(icom(i))%size
-             com(icom(i))%status = command_inout_empty
-             com(icom(i))%size = 0
-             if (allocated(com(icom(i))%details)) deallocate(com(icom(i))%details)
-             if (allocated(com(icom(i))%input)) deallocate(com(icom(i))%input)
-             if (allocated(com(icom(i))%output)) deallocate(com(icom(i))%output)
+             call com(icom(i))%end()
           end do
           icom(1:nicom-i) = icom(i+1:nicom)
           nicom = nicom - i
@@ -1552,11 +1569,13 @@ contains
           com(ithis)%input = inputb(1:idx)
           com(ithis)%status = command_inout_used
           com(ithis)%size = lob - olob + 1
-          com(ithis)%details = "### Command: " // string(ncomid) // newline //&
+
+          commonstr = "### Command: " // string(ncomid) // " (" // get_time_string() // ")" // newline
+          com(ithis)%details = commonstr // &
              "System: " // csystem // newline //&
              "Field: " // cfield // newline //&
              "Input: " // newline // inputb(1:idx-1) // c_null_char
-          com(ithis)%output = "## Command: " // string(ncomid) // newline //&
+          com(ithis)%output = commonstr // &
              "## System: " // csystem // newline //&
              "## Field: " // cfield // newline //&
              "## Input: " // newline // inputb(1:idx-1) // newline //&
@@ -1612,7 +1631,7 @@ contains
     logical, save :: ttshown = .false.
     logical :: setscroll, skip, pushed
     integer, save :: idsavedialog = 0
-    real(c_float) :: itemspacing, xavail, xavail1
+    real(c_float) :: itemspacing, xavail, xavail1, rshift
     real(c_float), save :: allscrolly
     integer :: navail, navail1
 
@@ -1682,6 +1701,33 @@ contains
        call igSetTooltip(c_loc(str1))
     end if
 
+    ! first line: remove all button
+    call igSameLine(0._c_float,-1._c_float)
+    call igGetContentRegionAvail(szavail)
+    str1 = "Remove All" // c_null_char
+    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    rshift = szavail%x - (sztext%x + 2 * g%Style%FramePadding%x)
+    if (rshift > 0) &
+       call igSetCursorPosX(igGetCursorPosX() + rshift)
+    call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    if (igButton(c_loc(str1),szero)) then
+       ! remove all command i/o information
+       ncomid = 0
+       ncom = 0
+       nicom = 0
+       idcom = 0
+       icom = 0
+       do i = 1, ncom
+          call com(i)%end()
+       end do
+    end if
+    call igPopStyleColor(1)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Remove all commands" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+
+    ! second line: all button
     str1 = "All" // c_null_char
     call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
     xavail1 = xavail - (sztext%x + 2 * g%Style%FramePadding%x + g%Style%ItemSpacing%x)
@@ -1700,7 +1746,7 @@ contains
     end if
     call igPopStyleColor(1)
 
-    !! second line; list of command i/os
+    !! second line: list of command i/os
     ! make the itemspacing zero
     sz%x = 0
     sz%y = g%Style%ItemSpacing%y

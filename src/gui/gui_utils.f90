@@ -23,6 +23,7 @@ module gui_utils
   private
 
   public :: igIsItemHovered_delayed
+  public :: get_time_string
 
   ! module procedure interfaces
   interface
@@ -32,6 +33,10 @@ module gui_utils
        logical, intent(in) :: already_shown
        logical(c_bool) :: igIsItemHovered_delayed
      end function igIsItemHovered_delayed
+     module function get_time_string()
+       character(len=:), allocatable :: get_time_string
+     end function get_time_string
   end interface
 
 end module gui_utils
+

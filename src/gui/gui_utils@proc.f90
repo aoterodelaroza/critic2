@@ -37,4 +37,19 @@ contains
 
   end function igIsItemHovered_delayed
 
+  ! Get a date/time string in a format adequate for the GUI
+  module function get_time_string() result(output)
+    use tools_io, only: string
+    character(len=:), allocatable :: output
+
+    integer :: values(8)
+
+    call date_and_time(values=values)
+
+    output = string(values(5),2,pad0=.true.) // ":" // string(values(6),2,pad0=.true.) //&
+       ":" // string(values(7),2,pad0=.true.) // ", " // string(values(1)) // "/" // &
+       string(values(2)) // "/" // string(values(3))
+
+  end function get_time_string
+
 end submodule proc
