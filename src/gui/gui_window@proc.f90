@@ -1240,10 +1240,12 @@ contains
     str1 = "RUN" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
     ok = igButton(c_loc(str1),sz)
-    ok = ok .or. igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN)
+    ok = ok .or. (igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN))
     if (ok) then
        idx = index(inputb,c_null_char)
-       if (idx > 0) force_run_commands = .true.
+       if (idx > 0) then
+          if (associated(sy)) force_run_commands = .true.
+       end if
     end if
     call igPopStyleColor(1)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
