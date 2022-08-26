@@ -1286,7 +1286,7 @@ contains
     ok = ok .or. (igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN))
     if (ok) then
        idx = index(inputb,c_null_char)
-       if (idx > 0) then
+       if (idx > 1) then
           if (associated(sy)) force_run_commands = .true.
        end if
     end if
