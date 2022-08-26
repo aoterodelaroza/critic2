@@ -1261,6 +1261,7 @@ contains
 
   !> Run the commands from the console input
   module subroutine run_commands_console_input(w)
+    use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
     use iso_fortran_env, only: input_unit
@@ -1268,10 +1269,15 @@ contains
 
     integer :: idx
     integer :: ios
+    logical :: reinit
 
     ! check we have some input
     idx = index(inputb,c_null_char)
     if (idx <= 1) return
+
+    ! if the initialization is happening, stop it
+    reinit = are_threads_running()
+    if (reinit) call kill_initialization_thread()
 
     ! connect a scratch file to uin, write the commands, rewind, and run
     uin = falloc()
@@ -1281,6 +1287,9 @@ contains
     write (uin,'(A)') inputb(1:idx-1)
     rewind(uin)
     call critic_main()
+
+    ! reinitialize the threads
+    if (reinit) call launch_initialization_thread()
 
     ! clean up
     call fclose(uin)
