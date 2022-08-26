@@ -1625,7 +1625,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, curline, ndrawn
-    character(kind=c_char,len=:), allocatable, target :: str1
+    character(kind=c_char,len=:), allocatable, target :: str1, strpop
     type(ImVec2) :: sz, szero, sztext, szavail
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
@@ -1801,6 +1801,18 @@ contains
           setscroll = .true.
        end if
        if (pushed) call igPopStyleColor(1)
+
+       ! context menu
+       if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then
+          strpop = "Remove" // c_null_char
+          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             call com(icom(i))%end()
+             icom(i:nicom-1) = icom(i+1:nicom)
+             nicom = nicom - 1
+          end if
+
+          call igEndPopup()
+       end if
 
        ! tooltip
        if (igIsItemHovered(ImGuiHoveredFlags_None)) &
