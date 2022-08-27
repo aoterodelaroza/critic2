@@ -26,7 +26,8 @@ module gui_templates
 
   ! module procedure interfaces
   interface
-     module subroutine draw_keyword_context_menu()
+     module subroutine draw_keyword_context_menu(textinsert)
+       logical, intent(in) :: textinsert
      end subroutine draw_keyword_context_menu
   end interface
 

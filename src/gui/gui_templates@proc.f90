@@ -23,23 +23,31 @@ submodule (gui_templates) proc
 
   character(len=*,kind=c_char), parameter :: template_kpoints = &
      "KPOINTS [rk.r] [RKMAX rkmax.r]" // newline
+  character(len=*,kind=c_char), parameter :: url_kpoints = &
+     "raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/98_manual/13_structure.md"
 
 contains
 
   !> Draw the keyword context menu in the templates and help buttons
   !> of the consolie input window.
-  module subroutine draw_keyword_context_menu()
+  module subroutine draw_keyword_context_menu(textinsert)
     use gui_interfaces_cimgui
-    use gui_window, only: win, iwin_console_input
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    use gui_window, only: win, iwin_console_input, stack_create_window, wintype_help
+    logical, intent(in) :: textinsert
 
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    integer :: iwin
 
     ! structural tools
     str1 = "Structural Tools" // c_null_char
     if (igBeginMenu(c_loc(str1),.true._c_bool)) then
        str2 = "KPOINTS (Calculate k-Point Grid Sizes)" // c_null_char
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-          call win(iwin_console_input)%fill_input_ci(template_kpoints)
+          if (textinsert) then
+             call win(iwin_console_input)%fill_input_ci(template_kpoints)
+          else
+             iwin = stack_create_window(wintype_help,.true.,url=url_kpoints)
+          end if
        end if
 
        call igEndMenu()

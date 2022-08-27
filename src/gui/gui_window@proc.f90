@@ -98,11 +98,12 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose)
+  module function stack_create_window(type,isopen,purpose,url)
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
+    character*(*), intent(in), optional :: url
     type(window), allocatable :: aux(:)
     integer :: stack_create_window
 
@@ -131,20 +132,21 @@ contains
     end if
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose)
+    call win(id)%init(type,isopen,purpose,url)
     stack_create_window = id
 
   end function stack_create_window
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose)
+  module subroutine window_init(w,type,isopen,purpose,url)
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
+    character*(*), intent(in), optional :: url
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -162,6 +164,7 @@ contains
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_purpose = wpurp_unknown
+    w%url = ""
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -174,6 +177,9 @@ contains
        if (.not.present(purpose)) &
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
+    elseif (type == wintype_help) then
+       if (present(url)) &
+          w%url = url
     end if
 
   end subroutine window_init
@@ -192,6 +198,7 @@ contains
     w%isopen = .false.
     w%id = -1
     w%name = ""
+    w%url = ""
     if (allocated(w%iord)) deallocate(w%iord)
 
   end subroutine window_end
@@ -266,12 +273,16 @@ contains
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
+       elseif (w%type == wintype_help) then
+          w%name = "Help" // c_null_char
+          w%flags = ImGuiWindowFlags_None
        end if
     end if
 
     if (w%isopen) then
-       if (w%type == wintype_tree .or. w%type == wintype_console_input .or.&
-          w%type == wintype_console_output .or. w%type == wintype_view) then
+       if (w%type == wintype_dialog) then
+          call w%draw_dialog()
+       else
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              ! assign the pointer ID for the window, if not a dialog
              w%ptr = igGetCurrentWindow()
@@ -286,11 +297,11 @@ contains
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
                 call w%draw_co()
+             elseif (w%type == wintype_help) then
+                call w%draw_help()
              end if
           end if
           call igEnd()
-       elseif (w%type == wintype_dialog) then
-          call w%draw_dialog()
        end if
     end if
 
@@ -1213,9 +1224,20 @@ contains
     str1 = "Template" // c_null_char
     ldum = igButton(c_loc(str1),szero)
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonLeft)) &
-       call draw_keyword_context_menu()
+       call draw_keyword_context_menu(.true.)
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Insert a template for a critic2 command" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! first line: help button
+    str1 = "Help" // c_null_char
+    ldum = igButton(c_loc(str1),szero)
+    if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonLeft)) &
+       call draw_keyword_context_menu(.false.)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Bring up the critic2 command reference" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
@@ -1894,8 +1916,18 @@ contains
     end if
     call igEndChild()
 
-
   end subroutine draw_co
+
+  !> Draw the help window
+  module subroutine draw_help(w)
+    class(window), intent(inout), target :: w
+
+    character(len=:,kind=c_char), allocatable, target :: str
+
+    str = w%url // c_null_char
+    call igText(c_loc(str))
+
+  end subroutine draw_help
 
   !xx! private procedures
 
