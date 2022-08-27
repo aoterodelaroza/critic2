@@ -59,23 +59,24 @@ module gui_window
      ! input console parameters
      integer :: inpcon_selected = 1
    contains
-     procedure :: init => window_init
-     procedure :: end => window_end
-     procedure :: draw => window_draw
+     procedure :: init => window_init ! initialize the window
+     procedure :: end => window_end ! finalize the window
+     procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
-     procedure :: draw_tree
-     procedure :: update_tree
-     procedure :: sort_tree
+     procedure :: draw_tree ! draw a tree
+     procedure :: update_tree ! update the system information shown by the tree
+     procedure :: sort_tree ! sort the systems in the tree
      ! dialog procedures
-     procedure :: draw_dialog
+     procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
      procedure :: draw_ci ! draw the input console
      procedure :: run_commands_ci ! run the commands in the input buffer
      procedure :: block_gui_ci ! block the GUI while the input buffer commands are run
      procedure :: read_output_ci ! read the generated output and maybe create a command i/o
+     procedure :: fill_input_ci ! fill the input buffer with the given string
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
-     procedure :: draw_co
+     procedure :: draw_co ! draw the output console
   end type window
   public :: window
 
@@ -148,6 +149,10 @@ module gui_window
        logical, intent(in) :: iscom
        logical :: read_output_ci
      end function read_output_ci
+     module subroutine fill_input_ci(w,str)
+       class(window), intent(inout), target :: w
+       character(len=*), intent(in) :: str
+     end subroutine fill_input_ci
      module subroutine get_input_details_ci(w,csystem,cfield)
        class(window), intent(inout), target :: w
        character(len=:), allocatable, intent(inout) :: csystem, cfield

@@ -1171,6 +1171,7 @@ contains
     use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
        ColorDangerButton, force_run_commands
+    use gui_templates, only: draw_keyword_context_menu
     use gui_utils, only: igIsItemHovered_delayed
     use systemmod, only: sy
     use tools_io, only: string
@@ -1204,6 +1205,17 @@ contains
        inputb(1:1) = c_null_char
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str1 = "Clear the input text" // c_null_char
+       call igSetTooltip(c_loc(str1))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! first line: template button
+    str1 = "Template" // c_null_char
+    ldum = igButton(c_loc(str1),szero)
+    if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonLeft)) &
+       call draw_keyword_context_menu()
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str1 = "Insert a template for a critic2 command" // c_null_char
        call igSetTooltip(c_loc(str1))
     end if
 
@@ -1595,6 +1607,23 @@ contains
 
   end function read_output_ci
 
+  !> Fill the input buffer with the given string.
+  module subroutine fill_input_ci(w,str)
+    class(window), intent(inout), target :: w
+    character(len=*), intent(in) :: str
+
+    integer :: idx
+
+    idx = index(str,c_null_char)
+    if (idx == 0) then
+       idx = len_trim(str)
+    else
+       idx = idx - 1
+    end if
+    inputb(1:idx) = trim(str(1:idx)) // c_null_char
+
+  end subroutine fill_input_ci
+
   !> Get the system and field strings for current input (without null char).
   module subroutine get_input_details_ci(w,csystem,cfield)
     use gui_main, only: nsys, sysc, sys_init, sys
@@ -1808,8 +1837,9 @@ contains
           strpop = "Edit Input" // c_null_char
           if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
              idx = index(com(icom(i))%input,c_null_char)
-             if (idx > 0) &
-                inputb(1:idx) = com(icom(i))%input(1:idx)
+             if (idx > 0) then
+                call w%fill_input_ci(com(icom(i))%input(1:idx))
+             end if
              call igFocusWindow(win(iwin_console_input)%ptr)
           end if
 
