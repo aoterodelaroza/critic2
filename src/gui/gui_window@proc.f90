@@ -1863,6 +1863,11 @@ contains
              call com(icom(i))%end()
              icom(i:nicom-1) = icom(i+1:nicom)
              nicom = nicom - 1
+             if (idcom == i) then
+                idcom = 0
+             elseif (idcom > i) then
+                idcom = idcom - 1
+             end if
           end if
 
           call igEndPopup()
