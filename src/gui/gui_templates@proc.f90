@@ -24,20 +24,23 @@ submodule (gui_templates) proc
 
   ! the keywords
   integer, parameter :: ikeyw_none = 0
-  integer, parameter :: ikeyw_kpoints = 1 ! KPOINTS
-  integer, parameter :: ikeyw_NUM = 1
+  integer, parameter :: ikeyw_environ = 1 ! ENVIRON
+  integer, parameter :: ikeyw_kpoints = 2 ! KPOINTS
+  integer, parameter :: ikeyw_NUM = 2
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
   integer, parameter :: isection_structural_tools = 1 ! structural tools
   integer, parameter :: isection_NUM = 1
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
-     isection_structural_tools&
+     isection_structural_tools,& ! ENVIRON
+     isection_structural_tools& ! KPOINTS
      /)
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
-     "KPOINTS (Calculate k-Point Grid Sizes)"& ! KPOINTS
+     "ENVIRON (Calculate Atomic Environments)",& ! ENVIRON
+     "KPOINTS (Calculate k-Point Grid Sizes) "& ! KPOINTS
      /)
 
   ! section titles
@@ -47,16 +50,18 @@ submodule (gui_templates) proc
 
   ! section ranges
   integer, parameter :: section_ranges(2,1) = reshape((/&
-     1,1& ! structural tools
+     1,2& ! structural tools
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
+     "environ",& ! ENVIRON
      "kpoints"& ! KPOINTS
      /)
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
+     "structure/#c2-environ",& ! ENVIRON
      "structure/#c2-kpoints"& ! KPOINTS
      /)
 
