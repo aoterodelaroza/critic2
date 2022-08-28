@@ -98,12 +98,14 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose,url)
+  module function stack_create_window(type,isopen,purpose,doc,docline)
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
-    character*(*), intent(in), optional :: url
+    character*(*), intent(in), optional :: doc
+    integer, intent(in), optional :: docline
+
     type(window), allocatable :: aux(:)
     integer :: stack_create_window
 
@@ -132,21 +134,22 @@ contains
     end if
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose,url)
+    call win(id)%init(type,isopen,purpose,doc,docline)
     stack_create_window = id
 
   end function stack_create_window
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose,url)
+  module subroutine window_init(w,type,isopen,purpose,doc,docline)
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
-    character*(*), intent(in), optional :: url
+    character*(*), intent(in), optional :: doc
+    integer, intent(in), optional :: docline
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -164,7 +167,8 @@ contains
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_purpose = wpurp_unknown
-    w%url = ""
+    w%doc = ""
+    w%docline = 1
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -178,8 +182,10 @@ contains
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
     elseif (type == wintype_help) then
-       if (present(url)) &
-          w%url = url
+       if (present(doc)) &
+          w%doc = doc
+       if (present(docline)) &
+          w%docline = docline
     end if
 
   end subroutine window_init
@@ -198,7 +204,8 @@ contains
     w%isopen = .false.
     w%id = -1
     w%name = ""
-    w%url = ""
+    w%doc = ""
+    w%docline = 1
     if (allocated(w%iord)) deallocate(w%iord)
 
   end subroutine window_end
@@ -1642,7 +1649,7 @@ contains
     else
        idx = idx - 1
     end if
-    inputb(1:idx) = trim(str(1:idx)) // c_null_char
+    inputb(1:idx+1) = trim(str(1:idx)) // c_null_char
 
   end subroutine fill_input_ci
 
@@ -1924,7 +1931,10 @@ contains
 
     character(len=:,kind=c_char), allocatable, target :: str
 
-    str = w%url // c_null_char
+    ! write (*,*) "docline = ", w%docline
+    ! xxxx
+    ! str = w%doc // c_null_char
+    str = "bleh" // c_null_char
     call igText(c_loc(str))
 
   end subroutine draw_help

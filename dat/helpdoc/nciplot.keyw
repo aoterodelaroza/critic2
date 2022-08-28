@@ -1,0 +1,22 @@
+NCIPLOT
+  ONAME root.s
+  CUTOFFS rhocut.r dimcut.r
+  RHOPARAM rhoparam.r
+  RHOPARAM2 rhoparam2.r
+  CUTPLOT rhoplot.r dimplot.r
+  SRHORANGE srhomin.r srhomax.r
+  VOID void.r
+  RTHRES rthres.r
+  INCREMENTS x.r y.r z.r
+  NSTEP nx.i ny.i nz.i
+  ONLYNEG
+  NOCHK
+  CUBE x0.r y0.r z0.r x1.r y1.r z1.r
+  CUBE file1.xyz file2.xyz ...
+  MOLMOTIF
+  FRAGMENT file.xyz
+  FRAGMENT
+   x.r y.r z.r # (in angstrom, use it with xyz)
+   ...
+  ENDFRAGMENT/END
+ENDNCIPLOT/END

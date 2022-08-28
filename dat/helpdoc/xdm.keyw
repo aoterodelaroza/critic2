@@ -1,0 +1,9 @@
+XDM GRID [RHO irho.s] [TAU itau.s] [ELF ielf.s]
+    [PDENS ipdens.s] [CORE icor.s] [LAP ilap.s]
+    [GRAD igrad.s] [RHOAE irhoae.s] [XB ib.s]
+    [XA1 a1.r] [XA2 a2.r] [ONLYC] [UPTO {6|8|10}]
+XDM [QE|POSTG] [FILE file.s] [BETWEEN at1.i at1.i ... AND at1.i at2.i ...]
+       [NOC6] [NOC8] [NOC10] [SCALC6 s6.r] [SCALC8 s8.r] [SCALC10 s10.r]
+       [C9] [SCALC9 s9.r]
+       [DAMP a1.r a2.r] [DAMP3 a3.r a4.r] [DAMP3BJN 3|6|sqrt6]
+XDM a1.r a2.r chf.s

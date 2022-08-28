@@ -1,0 +1,4 @@
+BUNDLEPLOT x.r y.r z.r
+           [CUBE [lvl.i] | TRIANG [lvl.i] | SPHERE [ntheta.i nphi.i]]
+           [OFF|OBJ|PLY|BASIN|DBASIN [npts.i]}]
+           [ROOT root.s] [PREC delta.r] [VERBOSE] [MAP id.s|"expr"]

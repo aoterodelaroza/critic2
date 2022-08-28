@@ -1,0 +1,3 @@
+RDF [RINI t2i.r] [REND t2e.r] [SIGMA sigma.r] [NPTS npts.i]
+    [ROOT root.s] [PAIR is1.s is2.s [PAIR is1.s is2.s ...]]
+    [HARD|SOFT]

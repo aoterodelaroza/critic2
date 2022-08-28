@@ -1,0 +1,15 @@
+AUTO [GRADEPS eps.r] [CPEPS eps.r] [NUCEPS neps.r] [NUCEPSH nepsh.r]
+     [EPSDEGEN edeg.r] [DISCARD expr.s] [CHK] [DRY] [SEEDOBJ]
+AUTO ... [CLIP CUBE x0.r y0.r z0.r x1.r y1.r z1.r]
+AUTO ... [CLIP SPHERE x0.r y0.r z0.r rad.r]
+AUTO ... [SEED ...] [SEED ...] ...
+AUTO SEED WS [DEPTH depth.i] [X0 x0.r y0.r z0.r] [RADIUS rad.r]
+AUTO SEED OH [DEPTH depth.i]  [X0 x0.r y0.r z0.r] [RADIUS rad.r]
+             [NR nr.r]
+AUTO SEED SPHERE [X0 x0.r y0.r z0.r] [RADIUS rad.r] [NTHETA ntheta.i]
+                 [NPHI nphi.i] [NR nr.r]
+AUTO SEED PAIR [DIST dist.r] [NPTS n.i]
+AUTO SEED TRIPLET [DIST dist.r]
+AUTO SEED LINE [X0 x0.r y0.r z0.r] [X1 x0.r y0.r z0.r] [NPTS n.i]
+AUTO SEED POINT [X0 x0.r y0.r z0.r]
+AUTO SEED MESH

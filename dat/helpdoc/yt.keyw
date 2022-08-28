@@ -1,0 +1,2 @@
+YT [NNM] [NOATOMS] [WCUBE] [BASINS [OBJ|PLY|OFF] [ibasin.i]] [RATOM ratom.r]
+   [DISCARD expr.s] [JSON file.json] [ONLY iat1.i iat2.i ...]

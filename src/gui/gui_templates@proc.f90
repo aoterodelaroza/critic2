@@ -18,43 +18,211 @@
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
 submodule (gui_templates) proc
   use iso_c_binding
+  use hashmod, only: hash
   use param, only: newline
   implicit none
 
-  character(len=*,kind=c_char), parameter :: template_kpoints = &
-     "KPOINTS [rk.r] [RKMAX rkmax.r]" // newline
-  character(len=*,kind=c_char), parameter :: url_kpoints = &
-     "raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/98_manual/13_structure.md"
+  ! the keywords
+  integer, parameter :: ikeyw_none = 0
+  integer, parameter :: ikeyw_kpoints = 1 ! KPOINTS
+  integer, parameter :: ikeyw_NUM = 1
+
+  ! keyword sections (need to be sequential)
+  integer, parameter :: isection_none = 0
+  integer, parameter :: isection_structural_tools = 1 ! structural tools
+  integer, parameter :: isection_NUM = 1
+  integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
+     isection_structural_tools&
+     /)
+
+  ! keyword titles
+  character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
+     "KPOINTS (Calculate k-Point Grid Sizes)"& ! KPOINTS
+     /)
+
+  ! section titles
+  character(len=*,kind=c_char), parameter :: section_titles(isection_NUM) = (/&
+     "Structural Tools"& ! structural tools
+     /)
+
+  ! section ranges
+  integer, parameter :: section_ranges(2,1) = reshape((/&
+     1,1& ! structural tools
+     /),shape(section_ranges))
+
+  ! template (keyw) files
+  character*(*), parameter :: template_file(ikeyw_NUM) = (/&
+     "kpoints"& ! KPOINTS
+     /)
+
+  ! documentation (md) files
+  character*(*), parameter :: documentation_file(ikeyw_NUM) = (/&
+     "13_structure"& ! KPOINTS
+     /)
+
+  ! documentation, section keywords
+  character*(*), parameter :: dockey(ikeyw_NUM) = (/&
+     "{#c2-kpoints}"& ! KPOINTS
+     /)
+
+  ! template hash
+  type(hash) :: thash
+
+  ! documentation hash
+  type(hash) :: dochash
+  type(hash) :: doclinehash
+
+  !xx! private procedures
 
 contains
 
   !> Draw the keyword context menu in the templates and help buttons
-  !> of the consolie input window.
+  !> of the consolie input window. If textinsert is true, insert the
+  !> tempalte, otherwise bring up the help.
   module subroutine draw_keyword_context_menu(textinsert)
     use gui_interfaces_cimgui
-    use gui_window, only: win, iwin_console_input, stack_create_window, wintype_help
     logical, intent(in) :: textinsert
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    integer :: iwin
 
-    ! structural tools
-    str1 = "Structural Tools" // c_null_char
-    if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-       str2 = "KPOINTS (Calculate k-Point Grid Sizes)" // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-          if (textinsert) then
-             call win(iwin_console_input)%fill_input_ci(template_kpoints)
-          else
-             iwin = stack_create_window(wintype_help,.true.,url=url_kpoints)
-          end if
+    integer :: i, j
+
+    do i = 1, isection_NUM
+       str1 = section_titles(i) // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          do j = section_ranges(1,i), section_ranges(2,i)
+             str2 = keyword_titles(j) // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                call launch_keyword_action(textinsert,j)
+             end if
+          end do
+
+          call igEndMenu()
        end if
 
-       call igEndMenu()
-    end if ! structural tools menu
-
-    call igEndPopup()
+       call igEndPopup()
+    end do
 
   end subroutine draw_keyword_context_menu
+
+  !xx! private procedures
+
+  !> Launch the keyword action for the given keyword ikeyw. If
+  !> textinsert, insert the template into the console
+  !> input. Otherwise, open the help window with the documentation.
+  subroutine launch_keyword_action(textinsert,ikeyw)
+    use gui_window, only: win, iwin_console_input, stack_create_window, wintype_help
+    logical, intent(in) :: textinsert
+    integer, intent(in) :: ikeyw
+
+    character(kind=c_char,len=:), allocatable :: str
+    integer :: iline, iwin
+
+    if (textinsert) then
+       str = get_keyword_template(ikeyw)
+       call win(iwin_console_input)%fill_input_ci(str)
+    else
+       call get_keyword_doc(ikeyw,str,iline)
+       iwin = stack_create_window(wintype_help,.true.,doc=str,docline=iline)
+    end if
+
+  end subroutine launch_keyword_action
+
+  !> Returns the template for the given keyword.
+  function get_keyword_template(ikeyw)
+    use global, only: critic_home
+    use tools_io, only: fopen_read, fclose, getline_raw
+    use param, only: dirsep, newline
+    integer, intent(in) :: ikeyw
+    character(kind=c_char,len=:), allocatable :: get_keyword_template
+
+    character(kind=c_char,len=:), allocatable :: file, keyw, line
+    logical :: exist
+    integer :: lu
+
+    keyw = template_file(ikeyw)
+    if (.not.thash%iskey(keyw)) then
+       ! check the file exists
+       file = trim(critic_home) // dirsep // "helpdoc" // dirsep //&
+          template_file(ikeyw) // ".keyw"
+       inquire(file=file,exist=exist)
+       if (.not.exist) then
+          get_keyword_template = &
+             "## Template file not found. Please make sure the CRITIC_HOME is set or" // newline //&
+             "## that critic2 is installed propertly."
+          return
+       end if
+
+       ! read the file
+       get_keyword_template = ""
+       lu = fopen_read(file)
+       do while (getline_raw(lu,line,.false.))
+          get_keyword_template = get_keyword_template // line // newline
+       end do
+       call fclose(lu)
+
+       ! save it to the hash
+       call thash%put(keyw,get_keyword_template)
+    else
+       ! get it from the hash
+       get_keyword_template = thash%get(keyw,'a')
+    end if
+
+  end function get_keyword_template
+
+  !> Returns the documentation and the position in it for the help
+  !> text of the given keyword.
+  subroutine get_keyword_doc(ikeyw,str,iline)
+    use global, only: critic_home
+    use tools_io, only: fopen_read, getline_raw, fclose
+    use param, only: dirsep
+    integer, intent(in) :: ikeyw
+    character(kind=c_char,len=:), allocatable, intent(inout) :: str
+    integer, intent(out) :: iline
+
+    character(kind=c_char,len=:), allocatable :: file, keyw, line
+    logical :: exist
+    integer :: lu, nl
+
+    keyw = template_file(ikeyw)
+    if (.not.dochash%iskey(keyw)) then
+       ! check the file exists
+       file = trim(critic_home) // dirsep // "helpdoc" // dirsep //&
+          documentation_file(ikeyw) // ".md"
+       inquire(file=file,exist=exist)
+       if (.not.exist) then
+          str = &
+             "## Documentation file not found. Please make sure the CRITIC_HOME is set" // newline //&
+             "## ro that critic2 is installed propertly."
+          iline = 1
+          return
+       end if
+
+       ! read the file
+       str = ""
+       lu = fopen_read(file)
+       iline = 1
+       nl = 0
+       do while (getline_raw(lu,line,.false.))
+          nl = nl + 1
+          str = str // line // newline
+          if (line(1:1) == "#") then
+             if (index(line,dockey(ikeyw)) > 0) then
+                iline = nl
+             end if
+          end if
+       end do
+       call fclose(lu)
+
+       ! save it to the hash
+       call dochash%put(keyw,str)
+       call doclinehash%put(keyw,iline)
+    else
+       ! get it from the hash
+       str = dochash%get(keyw,'a')
+       iline = doclinehash%get(keyw,1)
+    end if
+
+  end subroutine get_keyword_doc
 
 end submodule proc

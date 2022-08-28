@@ -1,0 +1,2 @@
+INTEGRALS {GAULEG ntheta.i nphi.i|LEBEDEV nleb.i}
+          [CP ncp.i] [RWINT] [VERBOSE]

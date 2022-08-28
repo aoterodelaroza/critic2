@@ -59,7 +59,8 @@ module gui_window
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
      ! help parameters
-     character(len=:), allocatable :: url ! the URL displayed in the help window
+     character(len=:), allocatable :: doc ! the documentation displayed in the help window
+     integer :: docline ! the initial line for the documentation in the help window
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -109,19 +110,21 @@ module gui_window
   public :: stack_create_window
 
   interface
-     module function stack_create_window(type,isopen,purpose,url)
+     module function stack_create_window(type,isopen,purpose,doc,docline)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
-       character*(*), intent(in), optional :: url
+       character*(*), intent(in), optional :: doc
+       integer, intent(in), optional :: docline
        integer :: stack_create_window
      end function stack_create_window
-     module subroutine window_init(w,type,isopen,purpose,url)
+     module subroutine window_init(w,type,isopen,purpose,doc,docline)
        class(window), intent(inout) :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
-       character*(*), intent(in), optional :: url
+       character*(*), intent(in), optional :: doc
+       integer, intent(in), optional :: docline
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout) :: w

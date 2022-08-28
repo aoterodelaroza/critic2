@@ -1,0 +1,22 @@
+GRDVEC
+ {FILES|ROOT|ONAME} rootname.s
+ PLANE x0.r y0.r z0.r x1.r y1.r z1.r x2.r y2.r z2.r
+ SCALE sx.r sy.r
+ EXTENDX zx0.r zx1.r
+ EXTENDY zy0.r zy1.r
+ OUTCP sx.r sy.r
+ HMAX hmax.r
+ ORIG x.r y.r z.r atr.i up.i down.i
+ CP id.i up.i down.i
+ CPALL
+ BCPALL up.i down.i
+ RBCPALL bup.i bdown.i rup.i rdown.i
+ CHECK
+      x.r y.r z.r
+      ...
+ ENDCHECK/END
+ CONTOUR {F,GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP}
+   nptsu.i nptsv.i {LIN niso.i [cini.r cend.r]|
+   LOG niso.i [zmin.r zmax.r]|ATAN niso.i [zmin.r zmax.r]|
+   BADER|i1.i i2.i...}
+ENDGRDVEC/END

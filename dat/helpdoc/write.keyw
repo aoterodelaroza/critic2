@@ -1,0 +1,28 @@
+WRITE file.{xyz,gjf,cml} [SPHERE rad.r [x0.r y0.r z0.r]]
+      [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+      [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+      [NMER nmer.i]
+WRITE file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
+      [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+      [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL]
+WRITE file.scf.in [rklength.r]
+WRITE file.tess
+WRITE file.cri|file.incritic
+WRITE {[file.]POSCAR|[file.]CONTCAR}
+WRITE file.abin
+WRITE file.elk
+WRITE file.gau
+WRITE file.cif [NOSYM|NOSYMM]
+WRITE file.d12 [NOSYM|NOSYMM]
+WRITE file.res [NOSYM|NOSYMM]
+WRITE file.m
+WRITE file.db
+WRITE file.gin
+WRITE file.lammps
+WRITE file.fdf
+WRITE file.STRUCT_IN
+WRITE file.hsd
+WRITE file.gen
+WRITE file.pyscf
+WRITE file.in ## FHIaims geometry.in
+WRITE file.frac

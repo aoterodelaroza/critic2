@@ -1,0 +1,9 @@
+MOLCALC
+MOLCALC expr.s
+MOLCALC PEACH
+  mo1a [->] mo1r k1
+  mo2a [->] mo2r k2
+  [...]
+ENDMOLCALC/END
+MOLCALC HF
+MOLCALC ... [ASSIGN var.s]
