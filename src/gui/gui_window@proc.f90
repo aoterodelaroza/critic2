@@ -167,8 +167,6 @@ contains
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_purpose = wpurp_unknown
-    w%doc = ""
-    w%docline = 1
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -181,11 +179,6 @@ contains
        if (.not.present(purpose)) &
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
-    elseif (type == wintype_help) then
-       if (present(doc)) &
-          w%doc = doc
-       if (present(docline)) &
-          w%docline = docline
     end if
 
   end subroutine window_init
@@ -204,8 +197,6 @@ contains
     w%isopen = .false.
     w%id = -1
     w%name = ""
-    w%doc = ""
-    w%docline = 1
     if (allocated(w%iord)) deallocate(w%iord)
 
   end subroutine window_end
@@ -280,9 +271,6 @@ contains
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
-       elseif (w%type == wintype_help) then
-          w%name = "Help" // c_null_char
-          w%flags = ImGuiWindowFlags_None
        end if
     end if
 
@@ -304,8 +292,6 @@ contains
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
                 call w%draw_co()
-             elseif (w%type == wintype_help) then
-                call w%draw_help()
              end if
           end if
           call igEnd()
@@ -1924,20 +1910,6 @@ contains
     call igEndChild()
 
   end subroutine draw_co
-
-  !> Draw the help window
-  module subroutine draw_help(w)
-    class(window), intent(inout), target :: w
-
-    character(len=:,kind=c_char), allocatable, target :: str
-
-    ! write (*,*) "docline = ", w%docline
-    ! xxxx
-    ! str = w%doc // c_null_char
-    str = "bleh" // c_null_char
-    call igText(c_loc(str))
-
-  end subroutine draw_help
 
   !xx! private procedures
 

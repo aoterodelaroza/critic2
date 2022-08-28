@@ -2120,6 +2120,13 @@ subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
   integer(c_int), value :: flags
 end subroutine IGFD_SetFlags
 
+!!! markdown !!!
+! CIMGUI_API void Markdown(const char* markdown_)
+subroutine Markdown(markdown_) bind(c,name="Markdown")
+  import c_ptr
+  type(c_ptr), intent(in), value :: markdown_
+end subroutine Markdown
+
 !!! utils !!!
 ! int getCurrentWorkDir(char *str, size_t siz);
 function getCurrentWorkDir(str,siz) bind(c,name="getCurrentWorkDir")
@@ -2128,3 +2135,8 @@ function getCurrentWorkDir(str,siz) bind(c,name="getCurrentWorkDir")
   integer(c_size_t), value :: siz
   integer(c_int) :: getCurrentWorkDir
 end function getCurrentWorkDir
+! void openLink(const char* link)
+subroutine openLink(link) bind(c,name="openLink")
+  import c_ptr
+  type(c_ptr), intent(in), value :: link
+end subroutine openLink

@@ -56,21 +56,12 @@ submodule (gui_templates) proc
      /)
 
   ! documentation (md) files
-  character*(*), parameter :: documentation_file(ikeyw_NUM) = (/&
-     "13_structure"& ! KPOINTS
-     /)
-
-  ! documentation, section keywords
-  character*(*), parameter :: dockey(ikeyw_NUM) = (/&
-     "{#c2-kpoints}"& ! KPOINTS
+  character*(*), parameter :: doclink(ikeyw_NUM) = (/&
+     "structure/#c2-kpoints"& ! KPOINTS
      /)
 
   ! template hash
   type(hash) :: thash
-
-  ! documentation hash
-  type(hash) :: dochash
-  type(hash) :: doclinehash
 
   !xx! private procedures
 
@@ -109,21 +100,22 @@ contains
 
   !> Launch the keyword action for the given keyword ikeyw. If
   !> textinsert, insert the template into the console
-  !> input. Otherwise, open the help window with the documentation.
+  !> input. Otherwise, open the documentation.
   subroutine launch_keyword_action(textinsert,ikeyw)
-    use gui_window, only: win, iwin_console_input, stack_create_window, wintype_help
+    use gui_window, only: win, iwin_console_input, stack_create_window
+    use gui_interfaces_cimgui
     logical, intent(in) :: textinsert
     integer, intent(in) :: ikeyw
 
-    character(kind=c_char,len=:), allocatable :: str
-    integer :: iline, iwin
+    character(kind=c_char,len=:), allocatable, target :: str
 
     if (textinsert) then
        str = get_keyword_template(ikeyw)
        call win(iwin_console_input)%fill_input_ci(str)
     else
-       call get_keyword_doc(ikeyw,str,iline)
-       iwin = stack_create_window(wintype_help,.true.,doc=str,docline=iline)
+       str = "https://aoterodelaroza.github.io/critic2/manual/" // doclink(ikeyw) //&
+          c_null_char
+       call openLink(c_loc(str))
     end if
 
   end subroutine launch_keyword_action
@@ -169,60 +161,5 @@ contains
     end if
 
   end function get_keyword_template
-
-  !> Returns the documentation and the position in it for the help
-  !> text of the given keyword.
-  subroutine get_keyword_doc(ikeyw,str,iline)
-    use global, only: critic_home
-    use tools_io, only: fopen_read, getline_raw, fclose
-    use param, only: dirsep
-    integer, intent(in) :: ikeyw
-    character(kind=c_char,len=:), allocatable, intent(inout) :: str
-    integer, intent(out) :: iline
-
-    character(kind=c_char,len=:), allocatable :: file, keyw, line
-    logical :: exist
-    integer :: lu, nl
-
-    keyw = template_file(ikeyw)
-    if (.not.dochash%iskey(keyw)) then
-       ! check the file exists
-       file = trim(critic_home) // dirsep // "helpdoc" // dirsep //&
-          documentation_file(ikeyw) // ".md"
-       inquire(file=file,exist=exist)
-       if (.not.exist) then
-          str = &
-             "## Documentation file not found. Please make sure the CRITIC_HOME is set" // newline //&
-             "## ro that critic2 is installed propertly."
-          iline = 1
-          return
-       end if
-
-       ! read the file
-       str = ""
-       lu = fopen_read(file)
-       iline = 1
-       nl = 0
-       do while (getline_raw(lu,line,.false.))
-          nl = nl + 1
-          str = str // line // newline
-          if (line(1:1) == "#") then
-             if (index(line,dockey(ikeyw)) > 0) then
-                iline = nl
-             end if
-          end if
-       end do
-       call fclose(lu)
-
-       ! save it to the hash
-       call dochash%put(keyw,str)
-       call doclinehash%put(keyw,iline)
-    else
-       ! get it from the hash
-       str = dochash%get(keyw,'a')
-       iline = doclinehash%get(keyw,1)
-    end if
-
-  end subroutine get_keyword_doc
 
 end submodule proc

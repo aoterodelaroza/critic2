@@ -58,9 +58,6 @@ module gui_window
      type(dialog_userdata) :: dialog_data ! for the side pane callback
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
-     ! help parameters
-     character(len=:), allocatable :: doc ! the documentation displayed in the help window
-     integer :: docline ! the initial line for the documentation in the help window
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -80,8 +77,6 @@ module gui_window
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
      procedure :: draw_co ! draw the output console
-     ! help procedures
-     procedure :: draw_help
   end type window
   public :: window
 
@@ -99,7 +94,6 @@ module gui_window
   integer, parameter, public :: wintype_console_input = 3
   integer, parameter, public :: wintype_console_output = 4
   integer, parameter, public :: wintype_dialog = 5
-  integer, parameter, public :: wintype_help = 6
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -170,9 +164,6 @@ module gui_window
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co
-     module subroutine draw_help(w)
-       class(window), intent(inout), target :: w
-     end subroutine draw_help
   end interface
 
 end module gui_window
