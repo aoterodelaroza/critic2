@@ -827,6 +827,7 @@ contains
 
     subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
       use gui_main, only: tree_select_updates_inpcon
+      use tools_io, only: uout
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, target :: str
       logical, intent(in) :: bclose, bexpand
@@ -855,10 +856,13 @@ contains
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
             ! describe this system in the console output
-            strpop = "Describe" // c_null_char
+            strpop = "Describe (Output Console)" // c_null_char
             enabled = (sysc(isys)%status == sys_init)
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+               write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
+                  trim(sysc(isys)%seed%name)
                call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+            end if
 
             ! set as current system option
             strpop = "Set as Current System" // c_null_char
