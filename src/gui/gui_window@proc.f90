@@ -2284,7 +2284,7 @@ contains
              if(.not.exloop) left = left(idx+1:)
           end do
           if (molcubic) write (lu,'("cubic")')
-          write (lu,'("border ",A)') string(rborder,'f',decimal=10)
+          write (lu,'("border ",A)') string(rborder/bohrtoa,'f',decimal=10)
           write (lu,'("end")')
           rewind(lu)
 
