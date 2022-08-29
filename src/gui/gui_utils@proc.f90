@@ -22,6 +22,34 @@ submodule (gui_utils) proc
 
 contains
 
+  !> Create a wrapped tooltip, maybe with a delay to show. ttshown
+  !> activates the delay, and is the show flag for the delayed tooltip.
+  module subroutine wrapped_tooltip(str,ttshown)
+    use gui_interfaces_cimgui
+    use gui_main, only: tooltip_wrap_factor, tooltip_delay
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(inout), optional :: ttshown
+
+    character(len=:,kind=c_char), allocatable, target :: strloc
+
+    if (present(ttshown)) then
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) call show_tooltip()
+    else
+       if (igIsItemHovered(ImGuiHoveredFlags_None)) call show_tooltip()
+    end if
+
+  contains
+    subroutine show_tooltip()
+      strloc = trim(str) // c_null_char
+      call igBeginTooltip()
+      call igPushTextWrapPos(tooltip_wrap_factor * igGetFontSize())
+      call igTextWrapped(c_loc(strloc))
+      call igPopTextWrapPos()
+      call igEndTooltip()
+      ! call igSetTooltip(c_loc(strloc))
+    end subroutine show_tooltip
+  end subroutine wrapped_tooltip
+
   ! Returns true if the last item has been hovered for at least thr
   ! seconds. If already_shown (the tooltip has already been displayed),
   ! do not use the delay.

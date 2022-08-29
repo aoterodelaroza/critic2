@@ -618,7 +618,7 @@ contains
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
        wintype_new
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -664,31 +664,19 @@ contains
           str1 = "New..." // c_null_char
           str2 = get_bind_keyname(BIND_NEW) // c_null_char
           launchnew = launchnew .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_new)
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
-             str1 = "Create a new structure" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(1) = .true.
-          end if
+          call wrapped_tooltip("Create a new structure",ttshown(1))
 
           ! File -> Open
           str1 = "Open..." // c_null_char
           str2 = get_bind_keyname(BIND_OPEN) // c_null_char
           launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_open)
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
-             str1 = "Read molecule or crystal structures from file(s)" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(1) = .true.
-          end if
+          call wrapped_tooltip("Read molecule or crystal structures from file(s)",ttshown(1))
 
           ! File -> Quit
           str1 = "Quit" // c_null_char
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
           launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
-             str1 = "Quit the program" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(1) = .true.
-          end if
+          call wrapped_tooltip("Quit the program",ttshown(1))
 
           call igEndMenu()
        else
@@ -702,41 +690,25 @@ contains
           str1 = "Tree" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
-             str1 = "Toggle the Tree window" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(2) = .true.
-          end if
+          call wrapped_tooltip("Toggle the tree window",ttshown(2))
 
           ! File -> View
           str1 = "View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
-             str1 = "Toggle the View window" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(2) = .true.
-          end if
+          call wrapped_tooltip("Toggle the view window",ttshown(2))
 
           ! File -> Input Console
           str1 = "Input Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
-             str1 = "Toggle the Input Console window" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(2) = .true.
-          end if
+          call wrapped_tooltip("Toggle the input console window",ttshown(2))
 
           ! File -> Output Console
           str1 = "Output Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(2))) then
-             str1 = "Toggle the Output Console window" // c_null_char
-             call igSetTooltip(c_loc(str1))
-             ttshown(2) = .true.
-          end if
+          call wrapped_tooltip("Toggle the output console window",ttshown(2))
           call igEndMenu()
        else
           ttshown(2) = .false.

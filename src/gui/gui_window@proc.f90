@@ -319,7 +319,7 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -328,7 +328,7 @@ contains
        ColorDangerButton, g
     use tools_io, only: string
     use types, only: realloc
-    use param, only: bohrtoa, newline
+    use param, only: bohrtoa
     use c_interface_module
     class(window), intent(inout), target :: w
 
@@ -362,23 +362,16 @@ contains
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
     str = "##treefilter" // c_null_char
     ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = &
-          "Filter systems by name in the list below. Use comma-separated fields" // newline //&
-          "and - for excluding. Example: inc1,inc2,-exc includes all systems   " // newline //&
-          "with inc1 or inc2 and excludes systems with exc." // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Filter systems by name in the list below. Use comma-separated fields&
+       &and - for excluding. Example: inc1,inc2,-exc includes all systems&
+       &with inc1 or inc2 and excludes systems with exc.",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     str = "Clear" // c_null_char
     if (igButton(c_loc(str),szero)) then
        if (c_associated(cfilter)) &
           call ImGuiTextFilter_Clear(cfilter)
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Clear the filter" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Clear the filter",ttshown)
 
     ! row of buttons
     ! button: expand
@@ -388,10 +381,7 @@ contains
           call expand_system(i)
        end do
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Expand all systems in the tree" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Expand all systems in the tree",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! button: collapse
@@ -401,10 +391,7 @@ contains
           call collapse_system(i)
        end do
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Collapse all systems in the tree" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Collapse all systems in the tree",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! insert spacing for red buttons on the right
@@ -440,10 +427,7 @@ contains
           call ImGuiTextFilter_Clear(cfilter)
     end if
     call igPopStyleColor(1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Close all visible systems" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Close all visible systems",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! button: close all
@@ -457,10 +441,7 @@ contains
        end do
     end if
     call igPopStyleColor(1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Close all systems" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Close all systems",ttshown)
 
     ! process force options
     if (allocated(w%forceremove)) then
@@ -1221,10 +1202,10 @@ contains
   !> Draw the contents of the input console
   module subroutine draw_ci(w)
     use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
-    use gui_main, only: ColorHighlightText, tooltip_delay, sys, sysc, nsys, sys_init, g,&
+    use gui_main, only: ColorHighlightText, sys, sysc, nsys, sys_init, g,&
        ColorDangerButton, force_run_commands
     use gui_templates, only: draw_keyword_context_menu
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use systemmod, only: sy
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1255,10 +1236,7 @@ contains
     str1 = "Clear" // c_null_char
     if (igButton(c_loc(str1),szero)) &
        inputb(1:1) = c_null_char
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Clear the input text" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Clear the input text",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! first line: template button
@@ -1266,10 +1244,7 @@ contains
     ldum = igButton(c_loc(str1),szero)
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonLeft)) &
        call draw_keyword_context_menu(.true.)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Insert a template for a critic2 command" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Insert a template for a critic2 command",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! first line: help button
@@ -1277,10 +1252,7 @@ contains
     ldum = igButton(c_loc(str1),szero)
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonLeft)) &
        call draw_keyword_context_menu(.false.)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Bring up the critic2 command reference" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Bring up the critic2 command reference",ttshown)
 
     ! second line: calculate size of the RUN button
     sz%x = 2 * (igGetTextLineHeight() + 2 * g%Style%FramePadding%y) + g%Style%ItemSpacing%y
@@ -1317,10 +1289,7 @@ contains
        end do
        call igEndCombo()
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Set the current system (input commands are applied to it)" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Set the current system (input commands are applied to it)",ttshown)
 
     ! third line: field selector
     str1 = "Field " // c_null_char
@@ -1347,10 +1316,7 @@ contains
        end if
        call igEndCombo()
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Set the reference field (input commands are applied to it)" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Set the reference field (input commands are applied to it)",ttshown)
     call igEndGroup()
 
     ! right-hand-side of lines 2 and 3: RUN button
@@ -1366,10 +1332,7 @@ contains
        end if
     end if
     call igPopStyleColor(1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")",ttshown)
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)
@@ -1650,7 +1613,7 @@ contains
              "System: " // csystem // newline //&
              "Field: " // cfield // newline //&
              "Input: " // newline // inputb(1:idx-1) // newline //&
-             "#########" // newline // newline // "[Right-click for options]" // c_null_char
+             "#########" // newline // newline // "[Right-click for options]"
           com(ithis)%output = commonstr // &
              "## System: " // csystem // newline //&
              "## Field: " // cfield // newline //&
@@ -1711,9 +1674,9 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_co(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay, g, ColorDangerButton, tooltip_delay,&
+    use gui_main, only: ColorHighlightText, g, ColorDangerButton,&
        ColorFrameBgAlt
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1761,10 +1724,7 @@ contains
           outputb(1:1) = c_null_char
           lob = 0
        end if
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str1 = "Clear the output log" // c_null_char
-          call igSetTooltip(c_loc(str1))
-       end if
+       call wrapped_tooltip("Clear the output log",ttshown)
        call igSameLine(0._c_float,-1._c_float)
     end if
 
@@ -1777,10 +1737,7 @@ contains
           call igSetClipboardText(c_loc(com(icom(idcom))%output))
        end if
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Copy the shown output log to clipboard" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Copy the shown output log to clipboard",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
     ! first line: save button
@@ -1789,10 +1746,7 @@ contains
     if (igButton(c_loc(str1),szero)) &
        idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
     call igEndDisabled()
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Save the shown output log to a file" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Save the shown output log to a file",ttshown)
 
     ! first line: remove all button
     call igSameLine(0._c_float,-1._c_float)
@@ -1815,10 +1769,7 @@ contains
        end do
     end if
     call igPopStyleColor(1)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Remove all commands" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Remove all commands",ttshown)
 
     ! second line: all button
     str1 = "All" // c_null_char
@@ -1833,10 +1784,7 @@ contains
        idcom = 0
        setscroll = .true.
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str1 = "Show all console output" // c_null_char
-       call igSetTooltip(c_loc(str1))
-    end if
+    call wrapped_tooltip("Show all console output",ttshown)
     call igPopStyleColor(1)
 
     !! second line: list of command i/os
@@ -1922,8 +1870,7 @@ contains
        end if
 
        ! tooltip
-       if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-          call igSetTooltip(c_loc(com(icom(i))%tooltipinfo))
+       call wrapped_tooltip(com(icom(i))%tooltipinfo)
 
        ndrawn = ndrawn + 1
     end do
@@ -1966,12 +1913,12 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new(w)
-    use gui_main, only: tooltip_delay, g, ColorHighlightText, add_systems_from_seeds,&
-       launch_initialization_thread, system_shorten_names, tooltip_delay
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_main, only: g, ColorHighlightText, add_systems_from_seeds,&
+       launch_initialization_thread, system_shorten_names
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: clib_file, mlib_file, rborder_def
-    use tools_io, only: string, fopen_scratch, fclose, uin, uout
+    use tools_io, only: string, fopen_scratch, fclose
     use types, only: vstring
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
@@ -2039,10 +1986,7 @@ contains
        iunit = 0
        namebuf = "Crystal structure (manual)" // c_null_char
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "The new structure will be a periodic crystal" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("The new structure will be a periodic crystal",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     str = "Molecule" // c_null_char
     if (igRadioButton_Bool(c_loc(str),ismolecule)) then
@@ -2051,18 +1995,12 @@ contains
        iunit = 1
        namebuf = "Molecule structure (manual)" // c_null_char
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "The new structure will be a molecule" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("The new structure will be a molecule",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     call igSetCursorPosX(igGetCursorPosX() + 4 * g%Style%ItemSpacing%x)
     str = "From library" // c_null_char
     ldum = igCheckbox(c_loc(str),fromlibrary)
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Read the structure from the critic2 library" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Read the structure from the critic2 library",ttshown)
     if (changed.and..not.w%libraryfile_set) then
        if (ismolecule) then
           w%libraryfile = trim(mlib_file) // c_null_char
@@ -2081,10 +2019,7 @@ contains
        if (igButton(c_loc(str),szero)) &
           idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
        call igEndDisabled()
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Library file from where the structures are read" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Library file from where the structures are read",ttshown)
        call igSameLine(0._c_float,-1._c_float)
        call igText(c_loc(w%libraryfile))
        call igNewLine()
@@ -2187,12 +2122,9 @@ contains
        call igSameLine(0._c_float,-1._c_float)
        str = "(?)" // c_null_char
        call igText(c_loc(str))
-       if (igIsItemHovered(ImGuiHoveredFlags_None)) then
-          str = "Give the atomic positions for this system as:" // newline //&
-             "  <Sy> <x> <y> <z>" // newline //&
-             "where Sy is the atomic symbol and x,y,z are the atomic coordinates." // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Give the atomic positions for this system as:" // newline //&
+          "  <Sy> <x> <y> <z>" // newline //&
+          "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
 
        ! atomic positions: body
        call igGetContentRegionAvail(szavail)
@@ -2216,10 +2148,7 @@ contains
        call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
        ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Periodic cell border around new molecules" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
        call igSameLine(0._c_float,-1._c_float)
 
@@ -2227,10 +2156,7 @@ contains
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
        str = "Cubic cell" // c_null_char
        ldum = igCheckbox(c_loc(str),molcubic)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Read new molecules inside cubic periodic cell" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        call igSameLine(0._c_float,-1._c_float)
 
        ! units
@@ -2241,10 +2167,7 @@ contains
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
        call igSetNextItemWidth(sz%x)
        ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Units for the atomic coordinates" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Units for the atomic coordinates",ttshown)
        call igUnindent(0._c_float)
 
        ! insert spacing for buttons on the right
@@ -2490,11 +2413,10 @@ contains
 
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
-    use gui_main, only: ColorHighlightText, tooltip_delay, g
-    use gui_utils, only: igIsItemHovered_delayed
+    use gui_main, only: ColorHighlightText, g
+    use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use gui_interfaces_cimgui
     use tools_io, only: string
-    use param, only: newline
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
@@ -2523,19 +2445,13 @@ contains
           call IGFD_SetFlags(data%ptr,ImGuiFileDialogFlags_DontShowHiddenFiles)
        end if
     end if
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       str = "Show the OS hidden files and directories in this dialog" // c_null_char
-       call igSetTooltip(c_loc(str))
-    end if
+    call wrapped_tooltip("Show the OS hidden files and directories in this dialog",ttshown)
 
     !! options specific to the open files dialog !!
     if (data%purpose == wpurp_dialog_openfiles) then
        str = "Read last structure only" // c_null_char
        ldum = igCheckbox(c_loc(str),data%readlastonly)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Read only the last structure in the file" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Read only the last structure in the file",ttshown)
        call igNewLine()
 
        ! radio buttons for auto/crystal/molecule
@@ -2543,22 +2459,13 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "Auto-detect" // c_null_char
        ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Auto-detect whether new structures are read as crystals or molecules" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Auto-detect whether new structures are read as crystals or molecules",ttshown)
        str = "Crystal" // c_null_char
        ldum = igRadioButton_IntPtr(c_loc(str),data%mol,0)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Force new structures to be read as crystals" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Force new structures to be read as crystals",ttshown)
        str = "Molecule" // c_null_char
        ldum = igRadioButton_IntPtr(c_loc(str),data%mol,1)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Force new structures to be read as molecules" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Force new structures to be read as molecules",ttshown)
 
        ! molecular options
        call igIndent(0._c_float)
@@ -2569,18 +2476,12 @@ contains
        call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
        ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Periodic cell border around new molecules" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
 
        str = "Cubic cell" // c_null_char
        ldum = igCheckbox(c_loc(str),data%molcubic)
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = "Read new molecules inside cubic periodic cell" // c_null_char
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
        call igNewLine()
 
@@ -2622,13 +2523,8 @@ contains
           // "xyz file" // c_null_char &                ! isformat_xyz = 12
           // c_null_char
        ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          str = &
-             "Force new structures read with a given file format, or auto-detect"//newline//&
-             "from the extension"//c_null_char
-
-          call igSetTooltip(c_loc(str))
-       end if
+       call wrapped_tooltip("Force new structures read with a given file format, or auto-detect&
+          &from the extension",ttshown)
        call igNewLine()
     end if
 

@@ -22,11 +22,16 @@ module gui_utils
 
   private
 
+  public :: wrapped_tooltip
   public :: igIsItemHovered_delayed
   public :: get_time_string
 
   ! module procedure interfaces
   interface
+     module subroutine wrapped_tooltip(str,ttshown)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(inout), optional :: ttshown
+     end subroutine wrapped_tooltip
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr

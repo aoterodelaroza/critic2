@@ -129,7 +129,15 @@ subroutine igSetNextWindowSize(size, cond) bind(c,name="igSetNextWindowSize")
   type(ImVec2), value :: size
   integer(c_int), value :: cond
 end subroutine igSetNextWindowSize
-!x! void igSetNextWindowSizeConstraints(const ImVec2 size_min,const ImVec2 size_max,ImGuiSizeCallback custom_callback,void* custom_callback_data);
+! void igSetNextWindowSizeConstraints(const ImVec2 size_min,const ImVec2 size_max,ImGuiSizeCallback custom_callback,void* custom_callback_data);
+subroutine igSetNextWindowSizeConstraints(size_min,size_max,custom_callback,custom_callback_data) &
+   bind(c,name="igSetNextWindowSizeConstraints")
+  import ImVec2, c_int, c_funptr, c_ptr
+  type(ImVec2), intent(in), value :: size_min
+  type(ImVec2), intent(in), value :: size_max
+  type(c_funptr), value :: custom_callback
+  type(c_ptr), value :: custom_callback_data
+end subroutine igSetNextWindowSizeConstraints
 !x! void igSetNextWindowContentSize(const ImVec2 size);
 !x! void igSetNextWindowCollapsed(bool collapsed,ImGuiCond cond);
 ! void igSetNextWindowFocus(void);
@@ -246,8 +254,14 @@ subroutine igSetNextItemWidth(item_width) bind(c,name="igSetNextItemWidth")
   real(c_float), value :: item_width
 end subroutine igSetNextItemWidth
 !x! float igCalcItemWidth(void);
-!x! void igPushTextWrapPos(float wrap_local_pos_x);
-!x! void igPopTextWrapPos(void);
+! void igPushTextWrapPos(float wrap_local_pos_x);
+subroutine igPushTextWrapPos(wrap_local_pos_x) bind(c,name="igPushTextWrapPos")
+  import c_float
+  real(c_float), value :: wrap_local_pos_x
+end subroutine igPushTextWrapPos
+! void igPopTextWrapPos(void);
+subroutine igPopTextWrapPos() bind(c,name="igPopTextWrapPos")
+end subroutine igPopTextWrapPos
 !x! ImFont* igGetFont(void);
 ! float igGetFontSize(void);
 function igGetFontSize() bind(c,name="igGetFontSize")
@@ -636,8 +650,12 @@ function igMenuItem_BoolPtr(label, shortcut, p_selected, enabled) bind(c,name="i
   logical(c_bool), value :: enabled
   logical(c_bool) :: igMenuItem_BoolPtr
 end function igMenuItem_BoolPtr
-!x! void igBeginTooltip(void);
-!x! void igEndTooltip(void);
+! void igBeginTooltip(void);
+subroutine igBeginTooltip() bind(c,name="igBeginTooltip")
+end subroutine igBeginTooltip
+! void igEndTooltip(void);
+subroutine igEndTooltip() bind(c,name="igEndTooltip")
+end subroutine igEndTooltip
 ! void igSetTooltip(const char* fmt,...);
 subroutine igSetTooltip(fmt) bind(c,name="igSetTooltip")
   import c_ptr

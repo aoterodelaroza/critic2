@@ -37,6 +37,7 @@ module gui_main
 
   ! GUI control parameters
   real(c_float), parameter, public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
+  real(c_float), parameter, public :: tooltip_wrap_factor = 25._c_float ! tooltip wrap factor (fontsize)
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
   logical, parameter, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
 
