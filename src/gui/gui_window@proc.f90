@@ -854,6 +854,12 @@ contains
 
          ! right click to open the context menu
          if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
+            ! describe this system in the console output
+            strpop = "Describe" // c_null_char
+            enabled = (sysc(isys)%status == sys_init)
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+               call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+
             ! set as current system option
             strpop = "Set as Current System" // c_null_char
             enabled = (sysc(isys)%status == sys_init)
