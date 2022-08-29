@@ -280,7 +280,7 @@ contains
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
        elseif (w%type == wintype_new) then
-          w%name = "New Structure" // c_null_char
+          w%name = "New Structure..." // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 800._c_float
           inisize%y = 480._c_float
@@ -827,6 +827,7 @@ contains
 
     subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
       use gui_main, only: tree_select_updates_inpcon
+      use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, target :: str
@@ -861,7 +862,13 @@ contains
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
                write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
                   trim(sysc(isys)%seed%name)
+               if (sys(isys)%c%ismolecule) then
+                  iunit = iunit_ang
+               else
+                  iunit = iunit_bohr
+               end if
                call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+               iunit = iunit_bohr
             end if
 
             ! set as current system option
@@ -2174,9 +2181,20 @@ contains
        str2 = "##name"
        ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
-       ! atomic positions
+       ! atomic positions: header
        str = "Atomic positions" // c_null_char
        call igTextColored(ColorHighlightText,c_loc(str))
+       call igSameLine(0._c_float,-1._c_float)
+       str = "(?)" // c_null_char
+       call igText(c_loc(str))
+       if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+          str = "Give the atomic positions for this system as:" // newline //&
+             "  <Sy> <x> <y> <z>" // newline //&
+             "where Sy is the atomic symbol and x,y,z are the atomic (Cartesian) coordinates." // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+
+       ! atomic positions: body
        call igGetContentRegionAvail(szavail)
        sz%x = szavail%x
        sz%y = szavail%y - (3 * igGetTextLineHeight() + 3 * g%Style%FramePadding%y + &
