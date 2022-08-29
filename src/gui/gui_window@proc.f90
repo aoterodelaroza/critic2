@@ -2190,7 +2190,7 @@ contains
        if (igIsItemHovered(ImGuiHoveredFlags_None)) then
           str = "Give the atomic positions for this system as:" // newline //&
              "  <Sy> <x> <y> <z>" // newline //&
-             "where Sy is the atomic symbol and x,y,z are the atomic (Cartesian) coordinates." // c_null_char
+             "where Sy is the atomic symbol and x,y,z are the atomic coordinates." // c_null_char
           call igSetTooltip(c_loc(str))
        end if
 
@@ -2241,6 +2241,10 @@ contains
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
        call igSetNextItemWidth(sz%x)
        ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Units for the atomic coordinates" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
        call igUnindent(0._c_float)
 
        ! insert spacing for buttons on the right
