@@ -2127,25 +2127,29 @@ contains
           str = "Force new structures to be read as molecules" // c_null_char
           call igSetTooltip(c_loc(str))
        end if
-       if (data%mol == 1) then
-          call igIndent(0._c_float)
-          str = "Cell border" // c_null_char
-          stropt = "%.3f" // c_null_char
-          strex = string(data%rborder,'f',decimal=3) // c_null_char
-          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
-          ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
-             c_loc(stropt),ImGuiInputTextFlags_None)
-          call igPopItemWidth()
 
-          str = "Cubic cell" // c_null_char
-          ldum = igCheckbox(c_loc(str),data%molcubic)
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-             str = "Read the new molecule inside a cubic periodic cell" // c_null_char
-             call igSetTooltip(c_loc(str))
-          end if
-          call igUnindent(0._c_float)
+       ! molecular options
+       call igIndent(0._c_float)
+       str = "Cell border (molecule)" // c_null_char
+       stropt = "%.3f" // c_null_char
+       strex = string(data%rborder,'f',decimal=3) // c_null_char
+       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+       ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
+          c_loc(stropt),ImGuiInputTextFlags_None)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Periodic cell border around new molecules" // c_null_char
+          call igSetTooltip(c_loc(str))
        end if
+       call igPopItemWidth()
+
+       str = "Cubic cell (molecule)" // c_null_char
+       ldum = igCheckbox(c_loc(str),data%molcubic)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Read new molecules inside cubic periodic cell" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igUnindent(0._c_float)
        call igNewLine()
 
        ! Input structure format (isformat)
