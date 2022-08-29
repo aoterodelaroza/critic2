@@ -2014,6 +2014,8 @@ contains
     doquit = .false.
     if (fromlibrary) then
        ! library file
+       str = "Source" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
        str = "Library file" // c_null_char
        call igBeginDisabled(logical(idum /= 0,c_bool))
        if (igButton(c_loc(str),szero)) &
@@ -2022,14 +2024,14 @@ contains
        call wrapped_tooltip("Library file from where the structures are read",ttshown)
        call igSameLine(0._c_float,-1._c_float)
        call igText(c_loc(w%libraryfile))
-       call igNewLine()
 
        ! list box
        str = "Structures to load from the library file" // c_null_char
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
-       sz%y = sz%y - (2 * igGetTextLineHeight() + 2 * g%Style%FramePadding%y + g%Style%WindowPadding%y)
+       sz%y = sz%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
+          2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
           str = st(i)%s // c_null_char
@@ -2056,7 +2058,29 @@ contains
           end if
        end do
        call igEndListBox()
-       call igNewLine()
+
+       ! options line
+       str = "Structure options" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+
+       ! cell border
+       call igIndent(0._c_float)
+       str = "Cell border (Å)" // c_null_char
+       stropt = "%.3f" // c_null_char
+       strex = string(rborder,'f',decimal=3) // c_null_char
+       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
+          c_loc(stropt),ImGuiInputTextFlags_None)
+       call wrapped_tooltip("Periodic cell border around new molecules",ttshown)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! cubic cell
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Cubic cell" // c_null_char
+       ldum = igCheckbox(c_loc(str),molcubic)
+       call wrapped_tooltip("Read new molecules inside cubic periodic cell",ttshown)
 
        ! insert spacing for buttons on the right
        call igGetContentRegionAvail(szavail)
@@ -2087,6 +2111,8 @@ contains
                    if (ok) then
                       nseed = nseed + 1
                       seed_(nseed) = seed
+                      seed_(nseed)%border = rborder/bohrtoa
+                      seed_(nseed)%cubic = molcubic
                    end if
                 end if
              end do
@@ -2129,7 +2155,7 @@ contains
        ! atomic positions: body
        call igGetContentRegionAvail(szavail)
        sz%x = szavail%x
-       sz%y = szavail%y - (3 * igGetTextLineHeight() + 3 * g%Style%FramePadding%y + &
+       sz%y = szavail%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
           2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
        str = "##atomicpositions" // c_null_char
        ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
