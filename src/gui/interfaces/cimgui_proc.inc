@@ -396,7 +396,13 @@ function igSmallButton(label) bind(c,name="igSmallButton")
   logical(c_bool) :: igSmallButton
 end function igSmallButton
 !x! bool igInvisibleButton(const char* str_id,const ImVec2 size,ImGuiButtonFlags flags);
-!x! bool igArrowButton(const char* str_id,ImGuiDir dir);
+! bool igArrowButton(const char* str_id,ImGuiDir dir);
+function igArrowButton(str_id,dir) bind(c,name="igArrowButton")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: str_id
+  integer(c_int), value :: dir
+  logical(c_bool) :: igArrowButton
+end function igArrowButton
 !x! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
 !x! bool igImageButton(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,int frame_padding,const ImVec4 bg_col,const ImVec4 tint_col);
 ! bool igCheckbox(const char* label,bool* v);

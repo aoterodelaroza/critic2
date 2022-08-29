@@ -316,13 +316,13 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
     type(ImVec2) :: szero, sz, sztext, szavail
-    integer(c_int) :: flags, color
+    integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
     logical(c_bool) :: ldum
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, dopop
     type(c_ptr), save :: cfilter = c_null_ptr
     logical, save :: ttshown = .false.
     real(c_float) :: rshift
@@ -661,15 +661,23 @@ contains
           ! name
           buttonhovered_expand = .false.
           if (igTableSetColumnIndex(ic_name)) then
+             dopop = .false.
              if (sysc(i)%collapse < 0) then
-                ! extend button for multi-seed entries
+                ! push to reduce the spacing between button and name
+                dopop = .true.
+                sz%x = 1._c_float
+                sz%y = 0._c_float
+                call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
+
+                ! expand button for multi-seed entries
+                str = "##expand" // string(ic_name) // "," // string(i) // c_null_char
                 if (sysc(i)%collapse == -1) then
-                   str = "▶##" // string(ic_name) // "," // string(i) // c_null_char ! collapsed
+                   idir = ImGuiDir_Right
                 else
-                   str = "▼##" // string(ic_name) // "," // string(i) // c_null_char ! extended
+                   idir = ImGuiDir_Down
                 end if
-                if (igSmallButton(c_loc(str))) then
-                   ! extend or collapse
+                if (igArrowButton(c_loc(str),idir)) then
+                   ! expand or collapse
                    if (sysc(i)%collapse == -1) then
                       call expand_system(i)
                    else
@@ -687,6 +695,8 @@ contains
              end if
              str = str // trim(sysc(i)%seed%name)
              call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+             if (dopop) &
+                call igPopStyleVar(1_c_int)
           end if
 
           ! ID column
@@ -878,7 +888,7 @@ contains
 
     end subroutine write_text_maybe_selectable
 
-    ! un-hide the dependents and set as extended
+    ! un-hide the dependents and set as expanded
     subroutine expand_system(i)
       integer, intent(in) :: i
 
