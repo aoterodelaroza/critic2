@@ -142,6 +142,7 @@ contains
   module subroutine window_init(w,type,isopen,purpose)
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
+    use param, only: bohrtoa
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
@@ -163,7 +164,7 @@ contains
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_data%molcubic = logical(.false.,c_bool)
-    w%dialog_data%rborder = real(rborder_def,c_float)
+    w%dialog_data%rborder = real(rborder_def*bohrtoa,c_float)
     w%dialog_purpose = wpurp_unknown
 
     ! type-specific initialization
@@ -1117,7 +1118,7 @@ contains
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose
-    use param, only: dirsep
+    use param, only: dirsep, bohrtoa
     class(window), intent(inout), target :: w
 
     type(ImVec2) :: minsize, maxsize
@@ -1157,7 +1158,7 @@ contains
                 name = trim(path) // dirsep // trim(name)
                 readlastonly = w%dialog_data%readlastonly
                 call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),&
-                   readlastonly,real(w%dialog_data%rborder,8),logical(w%dialog_data%molcubic))
+                   readlastonly,real(w%dialog_data%rborder/bohrtoa,8),logical(w%dialog_data%molcubic))
              end do
 
              ! initialize
@@ -1975,7 +1976,7 @@ contains
     logical, save :: firstpass = .true.
     integer, save :: nst = 0
     integer, save :: lastselected = 0
-    real(c_float), save :: rborder = real(rborder_def,c_float)
+    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
     logical(c_bool), save :: molcubic = .false.
     integer(c_int), save :: iunit = 0 ! 0 = bohr, 1 = angstrom
     character(len=namebufsiz,kind=c_char), target, save :: namebuf = c_null_char
@@ -2072,7 +2073,7 @@ contains
        call igNewLine()
 
        ! list box
-       str = "Select the structures to load from the library file" // c_null_char
+       str = "Structures to load from the library file" // c_null_char
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
@@ -2180,7 +2181,7 @@ contains
 
        ! cell border
        call igIndent(0._c_float)
-       str = "Cell border" // c_null_char
+       str = "Cell border (Å)" // c_null_char
        stropt = "%.3f" // c_null_char
        strex = string(rborder,'f',decimal=3) // c_null_char
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
@@ -2251,7 +2252,7 @@ contains
              if(.not.exloop) left = left(idx+1:)
           end do
           if (molcubic) write (lu,'("cubic")')
-          write (lu,'("border ",A)') string(rborder*bohrtoa,'f',decimal=10)
+          write (lu,'("border ",A)') string(rborder,'f',decimal=10)
           write (lu,'("end")')
           rewind(lu)
 
@@ -2300,7 +2301,7 @@ contains
        firstpass = .true.
        lastselected = 0
        nst = 0
-       rborder = real(rborder_def,c_float)
+       rborder = real(rborder_def*bohrtoa,c_float)
        molcubic = .false.
        iunit = 0
        namebuf(1:1) = c_null_char
@@ -2527,7 +2528,7 @@ contains
 
        ! molecular options
        call igIndent(0._c_float)
-       str = "Cell border (molecule)" // c_null_char
+       str = "Cell border (Å)" // c_null_char
        stropt = "%.3f" // c_null_char
        strex = string(data%rborder,'f',decimal=3) // c_null_char
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
@@ -2540,7 +2541,7 @@ contains
        end if
        call igPopItemWidth()
 
-       str = "Cubic cell (molecule)" // c_null_char
+       str = "Cubic cell" // c_null_char
        ldum = igCheckbox(c_loc(str),data%molcubic)
        if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
           str = "Read new molecules inside cubic periodic cell" // c_null_char
