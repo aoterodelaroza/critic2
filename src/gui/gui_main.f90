@@ -99,11 +99,13 @@ module gui_main
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
-     module subroutine add_systems_from_name(name,mol,isformat,readlastonly)
+     module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
        character(len=*), intent(in) :: name
        integer, intent(in) :: mol
        integer, intent(in) :: isformat
        logical, intent(in) :: readlastonly
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: molcubic
      end subroutine add_systems_from_name
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx

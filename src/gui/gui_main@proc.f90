@@ -364,7 +364,7 @@ contains
   !> Add systems by reading them from a file, passed by name. mol = 1
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
   !> force file format if /= 0.
-  module subroutine add_systems_from_name(name,mol,isformat,readlastonly)
+  module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
     use gui_interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -378,6 +378,8 @@ contains
     integer, intent(in) :: mol
     integer, intent(in) :: isformat
     logical, intent(in) :: readlastonly
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: molcubic
 
     integer :: i, j, nid
     integer :: nseed, iafield
@@ -396,6 +398,12 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     if (nseed > 0) then
+       ! set the border and molcubic
+       do i = 1, nseed
+          seed(i)%border = rborder
+          seed(i)%cubic = molcubic
+       end do
+
        ! find contiguous IDs for the new systems
        allocate(id(nseed))
        if (reuse_mid_empty_systems) then
@@ -556,6 +564,7 @@ contains
 
   ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
+    use global, only: rborder_def
     use param, only: isformat_unknown
     integer :: argc
     integer :: i
@@ -566,7 +575,7 @@ contains
        call getarg(i,argv)
        argv = adjustl(argv)
        if (argv(1:1) == "-") cycle ! skip options
-       call add_systems_from_name(argv,-1,isformat_unknown,.false.)
+       call add_systems_from_name(argv,-1,isformat_unknown,.false.,rborder_def,.false.)
     end do
 
   end subroutine process_arguments

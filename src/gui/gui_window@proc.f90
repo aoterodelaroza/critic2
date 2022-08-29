@@ -98,13 +98,11 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose,doc,docline)
+  module function stack_create_window(type,isopen,purpose)
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
-    character*(*), intent(in), optional :: doc
-    integer, intent(in), optional :: docline
 
     type(window), allocatable :: aux(:)
     integer :: stack_create_window
@@ -134,22 +132,20 @@ contains
     end if
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose,doc,docline)
+    call win(id)%init(type,isopen,purpose)
     stack_create_window = id
 
   end function stack_create_window
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose,doc,docline)
+  module subroutine window_init(w,type,isopen,purpose)
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     class(window), intent(inout) :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
-    character*(*), intent(in), optional :: doc
-    integer, intent(in), optional :: docline
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -166,6 +162,8 @@ contains
     w%dialog_data%isformat = isformat_unknown
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
+    w%dialog_data%molcubic = logical(.false.,c_bool)
+    w%dialog_data%rborder = real(rborder_def,c_float)
     w%dialog_purpose = wpurp_unknown
 
     ! type-specific initialization
@@ -1134,7 +1132,8 @@ contains
                 call C_F_string_alloc(s(i)%fileName,name)
                 name = trim(path) // dirsep // trim(name)
                 readlastonly = w%dialog_data%readlastonly
-                call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),readlastonly)
+                call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),&
+                   readlastonly,real(w%dialog_data%rborder,8),logical(w%dialog_data%molcubic))
              end do
 
              ! initialize
@@ -2059,18 +2058,20 @@ contains
 
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
-    use gui_main, only: ColorHighlightText, tooltip_delay
+    use gui_main, only: ColorHighlightText, tooltip_delay, g
     use gui_utils, only: igIsItemHovered_delayed
     use gui_interfaces_cimgui
+    use tools_io, only: string
     use param, only: newline
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
 
-    character(kind=c_char,len=:), allocatable, target :: str, stropt
+    character(kind=c_char,len=:), allocatable, target :: str, stropt, strex
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
+    type(ImVec2) :: sz
 
     ! generate the data pointer
     call c_f_pointer(vUserData,data)
@@ -2125,6 +2126,25 @@ contains
        if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
           str = "Force new structures to be read as molecules" // c_null_char
           call igSetTooltip(c_loc(str))
+       end if
+       if (data%mol == 1) then
+          call igIndent(0._c_float)
+          str = "Cell border" // c_null_char
+          stropt = "%.3f" // c_null_char
+          strex = string(data%rborder,'f',decimal=3) // c_null_char
+          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+          ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
+             c_loc(stropt),ImGuiInputTextFlags_None)
+          call igPopItemWidth()
+
+          str = "Cubic cell" // c_null_char
+          ldum = igCheckbox(c_loc(str),data%molcubic)
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+             str = "Read the new molecule inside a cubic periodic cell" // c_null_char
+             call igSetTooltip(c_loc(str))
+          end if
+          call igUnindent(0._c_float)
        end if
        call igNewLine()
 

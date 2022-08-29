@@ -18,6 +18,7 @@
 ! The class to handle ImGui windows.
 module gui_window
   use iso_c_binding
+  use global, only: rborder_def
   use param, only: isformat_unknown
   implicit none
 
@@ -31,6 +32,8 @@ module gui_window
      integer(c_int) :: isformat = isformat_unknown ! force structure format
      logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
+     logical(c_bool) :: molcubic = .false. ! whether to read the cell as cubic in a molecule
+     real(c_float) :: rborder = rborder_def ! border for the cell in a molecule
   end type dialog_userdata
 
   ! Wrapper class to handle ImGui windows
@@ -104,21 +107,17 @@ module gui_window
   public :: stack_create_window
 
   interface
-     module function stack_create_window(type,isopen,purpose,doc,docline)
+     module function stack_create_window(type,isopen,purpose)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
-       character*(*), intent(in), optional :: doc
-       integer, intent(in), optional :: docline
        integer :: stack_create_window
      end function stack_create_window
-     module subroutine window_init(w,type,isopen,purpose,doc,docline)
+     module subroutine window_init(w,type,isopen,purpose)
        class(window), intent(inout) :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
-       character*(*), intent(in), optional :: doc
-       integer, intent(in), optional :: docline
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout) :: w

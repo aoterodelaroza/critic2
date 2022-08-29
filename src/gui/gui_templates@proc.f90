@@ -39,8 +39,8 @@ submodule (gui_templates) proc
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
-     "ENVIRON (Calculate Atomic Environments)",& ! ENVIRON
-     "KPOINTS (Calculate k-Point Grid Sizes) "& ! KPOINTS
+     "ENVIRON (calculate atomic environments)",& ! ENVIRON
+     "KPOINTS (calculate k-point grid sizes) "& ! KPOINTS
      /)
 
   ! section titles

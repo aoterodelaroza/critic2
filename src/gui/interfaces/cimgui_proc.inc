@@ -296,7 +296,11 @@ subroutine igIndent(indent_w) bind(c,name="igIndent")
   import c_float
   real(c_float), value :: indent_w
 end subroutine igIndent
-!x! void igUnindent(float indent_w);
+! void igUnindent(float indent_w);
+subroutine igUnindent(indent_w) bind(c,name="igUnindent")
+  import c_float
+  real(c_float), value :: indent_w
+end subroutine igUnindent
 ! void igBeginGroup(void);
 subroutine igBeginGroup() bind(c,name="igBeginGroup")
 end subroutine igBeginGroup
@@ -489,6 +493,17 @@ function igInputTextMultiline(label,buf,buf_size,size,flags,callback,user_data) 
 end function igInputTextMultiline
 !x! bool igInputTextWithHint(const char* label,const char* hint,char* buf,size_t buf_size,ImGuiInputTextFlags flags,ImGuiInputTextCallback callback,void* user_data);
 !x! bool igInputFloat(const char* label,float* v,float step,float step_fast,const char* format,ImGuiInputTextFlags flags);
+! bool igInputFloat(const char* label,float* v,float step,float step_fast,const char* format,ImGuiInputTextFlags flags);
+function igInputFloat(label,v,step,step_fast,format_,flags) bind(c,name="igInputFloat")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v
+  real(c_float), value :: step
+  real(c_float), value :: step_fast
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igInputFloat
+end function igInputFloat
 !x! bool igInputFloat2(const char* label,float v[2],const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputFloat3(const char* label,float v[3],const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputFloat4(const char* label,float v[4],const char* format,ImGuiInputTextFlags flags);
