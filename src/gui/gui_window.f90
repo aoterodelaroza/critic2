@@ -33,7 +33,7 @@ module gui_window
      logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
      logical(c_bool) :: molcubic = .false. ! whether to read the cell as cubic in a molecule
-     real(c_float) :: rborder = rborder_def ! border for the cell in a molecule
+     real(c_float) :: rborder = real(rborder_def,c_float) ! border for the cell in a molecule
   end type dialog_userdata
 
   ! Wrapper class to handle ImGui windows
@@ -80,6 +80,8 @@ module gui_window
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
      procedure :: draw_co ! draw the output console
+     ! new structure procedures
+     procedure :: draw_new
   end type window
   public :: window
 
@@ -97,6 +99,7 @@ module gui_window
   integer, parameter, public :: wintype_console_input = 3
   integer, parameter, public :: wintype_console_output = 4
   integer, parameter, public :: wintype_dialog = 5
+  integer, parameter, public :: wintype_new = 6
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -163,6 +166,9 @@ module gui_window
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co
+     module subroutine draw_new(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_new
   end interface
 
 end module gui_window

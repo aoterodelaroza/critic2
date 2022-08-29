@@ -28,6 +28,7 @@ submodule (gui_keybindings) proc
   ! Bind names
   character(len=22), parameter :: bindnames(BIND_NUM) = (/&
      "Quit                  ",& ! BIND_QUIT
+     "New                   ",& ! BIND_NEW
      "Open file(s)          ",& ! BIND_OPEN
      "Remove selected system",& ! BIND_TREE_REMOVE_SYSTEM
      "Run the commands      "/) ! BIND_INPCON_RUN
@@ -50,6 +51,7 @@ submodule (gui_keybindings) proc
   integer, parameter :: group_inpcon = 3 ! the input console is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
+     group_global,& ! BIND_NEW
      group_global,& ! BIND_OPEN
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM
      group_inpcon/) ! BIND_INPCON_RUN
@@ -156,6 +158,7 @@ contains
 
     ! Default keybindings
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
+    call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)

@@ -269,6 +269,9 @@ contains
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
+       elseif (w%type == wintype_new) then
+          w%name = "New Structure" // c_null_char
+          w%flags = ImGuiWindowFlags_None
        end if
     end if
 
@@ -290,6 +293,8 @@ contains
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
                 call w%draw_co()
+             elseif (w%type == wintype_new) then
+                call w%draw_new()
              end if
           end if
           call igEnd()
@@ -1924,6 +1929,17 @@ contains
     call igEndChild()
 
   end subroutine draw_co
+
+  !> Draw the contents of the new structure window
+  module subroutine draw_new(w)
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable, target :: str1
+
+    str1 = "Bleh!" // c_null_char
+    call igText(c_loc(str1))
+
+  end subroutine draw_new
 
   !xx! private procedures
 

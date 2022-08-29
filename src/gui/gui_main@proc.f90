@@ -584,9 +584,10 @@ contains
   subroutine show_main_menu()
     use gui_interfaces_cimgui
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles
+       iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
+       wintype_new
     use gui_utils, only: igIsItemHovered_delayed
-    use gui_keybindings, only: BIND_QUIT, BIND_OPEN, get_bind_keyname, is_bind_event
+    use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
@@ -594,10 +595,11 @@ contains
     type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
     integer, save :: idopendialog = 0
-    logical(c_bool) :: enabled
-    logical :: launchquit, launchopen
+    integer, save :: idnewdialog = 0
+    logical(c_bool) :: enabled_open, enabled_new
+    logical :: launchquit, launchopen, launchnew
 
-    ! check if the opendialog is still open
+    ! check if the open and new dialogs are still open
     if (idopendialog > 0) then
        if (idopendialog < 1 .or. idopendialog > nwin) then
           idopendialog = 0
@@ -605,10 +607,19 @@ contains
           idopendialog = 0
        end if
     end if
+    if (idnewdialog > 0) then
+       if (idnewdialog < 1 .or. idnewdialog > nwin) then
+          idnewdialog = 0
+       elseif (.not.win(idnewdialog)%isinit .or. .not.win(idnewdialog)%isopen) then
+          idnewdialog = 0
+       end if
+    end if
 
     ! calculate enabled and launches from keybindings
-    enabled = (idopendialog == 0)
-    launchopen = (enabled .and. is_bind_event(BIND_OPEN))
+    enabled_open = (idopendialog == 0)
+    enabled_new = (idnewdialog == 0)
+    launchopen = (enabled_open .and. is_bind_event(BIND_OPEN))
+    launchnew = (enabled_new .and. is_bind_event(BIND_NEW))
     launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
@@ -617,9 +628,20 @@ contains
        str1 = "File" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
+          ! File -> New
+          str1 = "New..." // c_null_char
+          str2 = get_bind_keyname(BIND_NEW) // c_null_char
+          launchnew = launchnew .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_new)
+          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
+             str1 = "Create a new structure" // c_null_char
+             call igSetTooltip(c_loc(str1))
+             ttshown(1) = .true.
+          end if
+
+          ! File -> Open
           str1 = "Open..." // c_null_char
           str2 = get_bind_keyname(BIND_OPEN) // c_null_char
-          launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled)
+          launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_open)
           if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown(1))) then
              str1 = "Read molecule or crystal structures from file(s)" // c_null_char
              call igSetTooltip(c_loc(str1))
@@ -698,6 +720,8 @@ contains
     call igEndMainMenuBar()
 
     ! process launches
+    if (launchnew) &
+       idnewdialog = stack_create_window(wintype_new,.true.)
     if (launchopen) &
        idopendialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
     if (launchquit) then

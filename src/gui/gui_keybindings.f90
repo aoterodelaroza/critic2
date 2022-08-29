@@ -30,10 +30,11 @@ module gui_keybindings
 
   ! Public list of binds
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
-  integer, parameter, public :: BIND_OPEN = 2 ! open new systems
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM = 3 ! tree: remove system
-  integer, parameter, public :: BIND_INPCON_RUN = 4 ! tree: remove system
-  integer, parameter, public :: BIND_NUM = 4 ! total number of binds
+  integer, parameter, public :: BIND_NEW = 2 ! create new systems
+  integer, parameter, public :: BIND_OPEN = 3 ! open systems
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM = 4 ! tree: remove system
+  integer, parameter, public :: BIND_INPCON_RUN = 5 ! tree: remove system
+  integer, parameter, public :: BIND_NUM = 5 ! total number of binds
   ! #define BIND_CLOSE_LAST_DIALOG 1  // Closes the last window
   ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
   ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
