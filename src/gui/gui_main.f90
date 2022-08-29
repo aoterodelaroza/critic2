@@ -84,6 +84,7 @@ module gui_main
   public :: kill_initialization_thread
   public :: are_threads_running
   public :: system_shorten_names
+  public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
 
@@ -99,6 +100,12 @@ module gui_main
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
+     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
+       integer, intent(in) :: nseed
+       type(crystalseed), allocatable, intent(in) :: seed(:)
+       logical, intent(in), optional :: collapse
+       integer, intent(in), optional :: iafield
+     end subroutine add_systems_from_seeds
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
        character(len=*), intent(in) :: name
        integer, intent(in) :: mol

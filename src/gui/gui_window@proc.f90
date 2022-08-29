@@ -1948,7 +1948,8 @@ contains
 
   !> Draw the contents of the new structure window
   module subroutine draw_new(w)
-    use gui_main, only: tooltip_delay, g, ColorHighlightText
+    use gui_main, only: tooltip_delay, g, ColorHighlightText, add_systems_from_seeds,&
+       launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed
     use crystalseedmod, only: crystalseed
     use global, only: clib_file, mlib_file
@@ -1957,12 +1958,13 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str
-    logical(c_bool) :: ldum
+    logical(c_bool) :: ldum, doquit
     logical :: changed, readlib, ok
     type(ImVec2) :: szero, sz, sztext, szavail
-    integer :: i
+    integer :: i, nseed
     real(c_float) :: rshift
     type(crystalseed) :: seed
+    type(crystalseed), allocatable :: seed_(:)
     logical(c_bool), save :: ismolecule = .false.
     logical(c_bool), save :: fromlibrary = .false.
     logical, save :: ttshown = .false.
@@ -2033,6 +2035,8 @@ contains
        readlib = .true.
     end if
 
+    ! render the rest of the window
+    doquit = .false.
     if (fromlibrary) then
        ! library file
        str = "Library file" // c_null_char
@@ -2052,7 +2056,7 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
-       sz%y = sz%y - (igGetTextLineHeight() + 2 * g%Style%FramePadding%y)
+       sz%y = sz%y - (igGetTextLineHeight() + 2 * g%Style%FramePadding%y + g%Style%WindowPadding%y)
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
           str = st(i)%s // c_null_char
@@ -2077,14 +2081,26 @@ contains
        call igBeginDisabled(logical(idum /= 0,c_bool))
        str = "OK" // c_null_char
        if (igButton(c_loc(str),szero)) then
-          do i = 1, nst
-             if (lst(i)) then
-                call seed%read_library(st(i)%s,logical(ismolecule),ok)
-                if (ok) then
-                   write (*,*) "to add: ", seed%name
+          nseed = count(lst(1:nst))
+          if (nseed > 0) then
+             allocate(seed_(nseed))
+             nseed = 0
+             do i = 1, nst
+                if (lst(i)) then
+                   call seed%read_library(st(i)%s,logical(ismolecule),ok)
+                   if (ok) then
+                      nseed = nseed + 1
+                      seed_(nseed) = seed
+                   end if
                 end if
+             end do
+             if (nseed > 0) then
+                call add_systems_from_seeds(nseed,seed_)
+                call launch_initialization_thread()
+                call system_shorten_names()
              end if
-          end do
+          end if
+          doquit = .true.
        end if
        call igSameLine(0._c_float,-1._c_float)
        call igEndDisabled()
@@ -2092,21 +2108,11 @@ contains
        ! final buttons: cancel
        call igBeginDisabled(logical(idum /= 0,c_bool))
        str = "Cancel" // c_null_char
-       if (igButton(c_loc(str),szero)) then
-          ! reset the state and kill the window
-          ismolecule = .false.
-          fromlibrary = .false.
-          ttshown = .false.
-          idum = 0
-          firstpass = .true.
-          nst = 0
-          if (allocated(st)) deallocate(st)
-          if (allocated(lst)) deallocate(lst)
-          call w%end()
-       end if
+       if (igButton(c_loc(str),szero)) doquit = .true.
        call igEndDisabled()
 
     elseif (ismolecule) then
+       ! use doquit
        str = "To be implemented, molecule" // c_null_char
        call igText(c_loc(str))
     else
@@ -2116,10 +2122,25 @@ contains
 
     ! read the library file
     if (readlib) then
+       ! use doquit
        call get_library_structure_list(w%libraryfile,nst,st)
        if (allocated(lst)) deallocate(lst)
        allocate(lst(nst))
        lst = .false.
+    end if
+
+    ! quit the window
+    if (doquit) then
+       ! reset the state and kill the window
+       ismolecule = .false.
+       fromlibrary = .false.
+       ttshown = .false.
+       idum = 0
+       firstpass = .true.
+       nst = 0
+       if (allocated(st)) deallocate(st)
+       if (allocated(lst)) deallocate(lst)
+       call w%end()
     end if
 
   end subroutine draw_new

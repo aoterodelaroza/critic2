@@ -365,6 +365,49 @@ contains
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
   !> force file format if /= 0.
   module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
+    use crystalseedmod, only: crystalseed, read_seeds_from_file
+    use tools_io, only: uout
+    character(len=*), intent(in) :: name
+    integer, intent(in) :: mol
+    integer, intent(in) :: isformat
+    logical, intent(in) :: readlastonly
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: molcubic
+
+    integer :: i, nseed
+    type(crystalseed), allocatable :: seed(:)
+    integer :: iafield
+    logical :: collapse
+    character(len=:), allocatable :: errmsg
+
+    ! read all seeds from the file
+    errmsg = ""
+    nseed = 0
+    allocate(seed(1))
+    call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,iafield)
+    if (len_trim(errmsg) > 0 .or. nseed == 0) goto 999
+
+    ! set the border and molcubic
+    do i = 1, nseed
+       seed(i)%border = rborder
+       seed(i)%cubic = molcubic
+    end do
+
+    ! add the systems
+    call add_systems_from_seeds(nseed,seed,collapse,iafield)
+
+    return
+999 continue
+    write (uout,'("WARNING : Could not read structures from: ",A)') trim(name)
+    write (uout,'("WARNING : ",A/)') trim(errmsg)
+
+  end subroutine add_systems_from_name
+
+  !> Add systems from the given seeds. If collapse is present and
+  !> true, reorder to make the last system be first and collapse the
+  !> other seeds in the tree view. If iafield, load a field from that
+  !> seed.
+  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
     use gui_interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -374,155 +417,144 @@ contains
     use tools_io, only: uout
     use types, only: realloc
     use param, only: dirsep
-    character(len=*), intent(in) :: name
-    integer, intent(in) :: mol
-    integer, intent(in) :: isformat
-    logical, intent(in) :: readlastonly
-    real*8, intent(in) :: rborder
-    logical, intent(in) :: molcubic
+    integer, intent(in) :: nseed
+    type(crystalseed), allocatable, intent(in) :: seed(:)
+    logical, intent(in), optional :: collapse
+    integer, intent(in), optional :: iafield
 
     integer :: i, j, nid
-    integer :: nseed, iafield
+    integer :: iafield_
     integer :: iseed, iseed_, idx, in
-    type(crystalseed), allocatable :: seed(:)
     character(len=:), allocatable :: errmsg, str
     character(kind=c_char,len=:), allocatable, target :: strc
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     integer(c_int) :: idum
-    logical :: collapse
+    logical :: collapse_
     integer, allocatable :: id(:)
 
-    ! read all seeds from the file
-    call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,iafield)
-    if (len_trim(errmsg) > 0) goto 999
-
-    if (nseed > 0) then
-       ! set the border and molcubic
-       do i = 1, nseed
-          seed(i)%border = rborder
-          seed(i)%cubic = molcubic
-       end do
-
-       ! find contiguous IDs for the new systems
-       allocate(id(nseed))
-       if (reuse_mid_empty_systems) then
-          ! may reuse old IDs
-          nid = 0
-          do i = 1, nsys
-             if (sysc(i)%status == sys_empty) then
-                nid = nid + 1
-                id(nid) = i
-                if (nid == nseed) exit
-             else
-                nid = 0
-             end if
-          end do
-          do i = nid+1, nseed
-             id(i) = nsys + i - nid
-          end do
-       else
-          ! append IDs at the end, discard empty systems
-          nid = 0
-          do i = nsys, 1, -1
-             if (sysc(i)%status /= sys_empty) then
-                nid = i
-                exit
-             end if
-          end do
-          do i = 1, nseed
-             id(i) = nid + i
-          end do
-       end if
-
-       ! increment and reallocate if necessary
-       nsys = max(nsys,id(nseed))
-       if (nsys > size(sys,1)) then
-          allocate(syaux(2*nsys))
-          syaux(1:size(sys,1)) = sys
-          call move_alloc(syaux,sys)
-
-          allocate(syscaux(2*nsys))
-          syscaux(1:size(sysc,1)) = sysc
-          call move_alloc(syscaux,sysc)
-       end if
-
-       do iseed = 1, nseed
-          ! re-order if collapse to have the final structure be first, flag them
-          if (collapse) then
-             iseed_ = mod(iseed,nseed)+1
-          else
-             iseed_ = iseed
-          end if
-
-          ! make a new system for this seed
-          idx = id(iseed_)
-          sys(idx)%isinit = .false.
-          sysc(idx)%id = idx
-          sysc(idx)%seed = seed(iseed)
-          sysc(idx)%has_field = .false.
-          sysc(idx)%renamed = .false.
-
-          ! write down the full name
-          str = trim(adjustl(sysc(idx)%seed%name))
-          if (str(1:1) == dirsep) then
-             sysc(idx)%fullname = str
-          else
-             if (allocated(strc)) deallocate(strc)
-             allocate(character(len=2049) :: strc)
-             idum = getCurrentWorkDir(c_loc(strc),2048_c_size_t)
-             in = index(strc,c_null_char)-1
-             if (strc(in:in) == dirsep.and.in > 0) in = in - 1
-             sysc(idx)%fullname = strc(1:in) // dirsep // str
-          end if
-
-          ! initialization status
-          sysc(idx)%status = sys_loaded_not_init
-          if (collapse.and.iseed_ == 1) then
-             ! master
-             sysc(idx)%collapse = -1
-             sysc(idx)%hidden = .false.
-          elseif (collapse) then
-             ! dependent
-             sysc(idx)%collapse = id(1)
-             sysc(idx)%hidden = .true.
-          else
-             ! independent
-             sysc(idx)%collapse = 0
-             sysc(idx)%hidden = .false.
-          end if
-
-          ! initialize the mutex
-          if (.not.c_associated(sysc(idx)%thread_lock)) then
-             sysc(idx)%thread_lock = allocate_mtx()
-             idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
-          end if
-
-          ! register all all-electron densities (global - should not
-          ! be done by threads because agrid and cgrid are common)
-          do j = 1, seed(iseed)%nspc
-             call grid1_register_ae(seed(iseed)%spc(j)%z)
-          end do
-
-          ! set the iafield
-          if (iseed == iafield) sysc(idx)%has_field = .true.
-       end do
-       deallocate(id)
-    else
-       errmsg = "No strutures found"
-       goto 999
+    if (nseed == 0) then
+       write (uout,'("WARNING : Could not read structures.")')
+       return
     end if
+
+    ! initialize
+    errmsg = ""
+    collapse_ = .false.
+    if (present(collapse)) collapse_ = collapse
+    iafield_ = 0
+    if (present(iafield)) iafield_ = iafield
+
+    ! find contiguous IDs for the new systems
+    allocate(id(nseed))
+    if (reuse_mid_empty_systems) then
+       ! may reuse old IDs
+       nid = 0
+       do i = 1, nsys
+          if (sysc(i)%status == sys_empty) then
+             nid = nid + 1
+             id(nid) = i
+             if (nid == nseed) exit
+          else
+             nid = 0
+          end if
+       end do
+       do i = nid+1, nseed
+          id(i) = nsys + i - nid
+       end do
+    else
+       ! append IDs at the end, discard empty systems
+       nid = 0
+       do i = nsys, 1, -1
+          if (sysc(i)%status /= sys_empty) then
+             nid = i
+             exit
+          end if
+       end do
+       do i = 1, nseed
+          id(i) = nid + i
+       end do
+    end if
+
+    ! increment and reallocate if necessary
+    nsys = max(nsys,id(nseed))
+    if (nsys > size(sys,1)) then
+       allocate(syaux(2*nsys))
+       syaux(1:size(sys,1)) = sys
+       call move_alloc(syaux,sys)
+
+       allocate(syscaux(2*nsys))
+       syscaux(1:size(sysc,1)) = sysc
+       call move_alloc(syscaux,sysc)
+    end if
+
+    do iseed = 1, nseed
+       ! re-order if collapse to have the final structure be first, flag them
+       if (collapse_) then
+          iseed_ = mod(iseed,nseed)+1
+       else
+          iseed_ = iseed
+       end if
+
+       ! make a new system for this seed
+       idx = id(iseed_)
+       sys(idx)%isinit = .false.
+       sysc(idx)%id = idx
+       sysc(idx)%seed = seed(iseed)
+       sysc(idx)%has_field = .false.
+       sysc(idx)%renamed = .false.
+
+       ! write down the full name
+       str = trim(adjustl(sysc(idx)%seed%name))
+       if (str(1:1) == dirsep) then
+          sysc(idx)%fullname = str
+       else
+          if (allocated(strc)) deallocate(strc)
+          allocate(character(len=2049) :: strc)
+          idum = getCurrentWorkDir(c_loc(strc),2048_c_size_t)
+          in = index(strc,c_null_char)-1
+          if (strc(in:in) == dirsep.and.in > 0) in = in - 1
+          sysc(idx)%fullname = strc(1:in) // dirsep // str
+       end if
+
+       ! initialization status
+       sysc(idx)%status = sys_loaded_not_init
+       if (collapse_.and.iseed_ == 1) then
+          ! master
+          sysc(idx)%collapse = -1
+          sysc(idx)%hidden = .false.
+       elseif (collapse_) then
+          ! dependent
+          sysc(idx)%collapse = id(1)
+          sysc(idx)%hidden = .true.
+       else
+          ! independent
+          sysc(idx)%collapse = 0
+          sysc(idx)%hidden = .false.
+       end if
+
+       ! initialize the mutex
+       if (.not.c_associated(sysc(idx)%thread_lock)) then
+          sysc(idx)%thread_lock = allocate_mtx()
+          idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
+       end if
+
+       ! register all all-electron densities (global - should not
+       ! be done by threads because agrid and cgrid are common)
+       do j = 1, seed(iseed)%nspc
+          call grid1_register_ae(seed(iseed)%spc(j)%z)
+       end do
+
+       ! set the iafield
+       if (iseed == iafield_) sysc(idx)%has_field = .true.
+    end do
+    deallocate(id)
 
     ! update the tree
     if (iwin_tree > 0 .and. iwin_tree <= nwin) &
        win(iwin_tree)%forceupdate = .true.
 
-    return
-999 continue
-    write (uout,'("WARNING : Could not read structures from: ",A)') trim(name)
-    write (uout,'("WARNING : ",A/)') trim(errmsg)
-
-  end subroutine add_systems_from_name
+  end subroutine add_systems_from_seeds
 
   ! Remove system with index idx and leave behind a sys_empty spot. If
   ! master and collapsed, kill all dependents. If master and extended,

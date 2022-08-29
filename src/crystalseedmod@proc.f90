@@ -664,12 +664,12 @@ contains
     ok = getline(lu,l2)
     if (mol) then
        call seed%parse_molecule_env(lu,ok)
-       seed%file = "molecular library (" // trim(line) // ")"
-       seed%name = "molecular library (" // trim(line) // ")"
+       seed%file = trim(line) // " (molecular library)"
+       seed%name = trim(line) // " (molecular library)"
     else
        call seed%parse_crystal_env(lu,ok)
-       seed%file = "crystal library (" // trim(line) // ")"
-       seed%name = "crystal library (" // trim(line) // ")"
+       seed%file = trim(line) // " (crystal library)"
+       seed%name = trim(line) // " (crystal library)"
     endif
     call fclose(lu)
     if (.not.ok) return
