@@ -1946,12 +1946,12 @@ contains
 
   end subroutine draw_co
 
-  !> Draw the contents of the new structure window
+  !> Draw the contents of the new structure window.
   module subroutine draw_new(w)
     use gui_main, only: tooltip_delay, g, ColorHighlightText, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed
-    use crystalseedmod, only: crystalseed
+    use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: clib_file, mlib_file
     use tools_io, only: string
     use types, only: vstring
@@ -1971,6 +1971,7 @@ contains
     integer(c_int), save :: idum = 0
     logical, save :: firstpass = .true.
     integer, save :: nst = 0
+    integer, save :: lastselected = 0
     type(vstring), allocatable, save :: st(:)
     logical(c_bool), allocatable, save :: lst(:)
 
@@ -1984,7 +1985,8 @@ contains
        readlib = .true.
     end if
 
-    ! check if we have info from the open library file window
+    ! check if we have info from the open library file window when it
+    ! closes
     if (idum > 0) then
        if (.not.win(idum)%isopen) then
           if (win(idum)%libraryfile_set) then
@@ -2060,7 +2062,27 @@ contains
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
           str = st(i)%s // c_null_char
-          ldum = igSelectable_BoolPtr(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)
+          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
+
+             ! implement selection range with shift and control
+             if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
+                ! selecte a whole range
+                lst = .false.
+                if (lastselected > i) then
+                   lst(i:lastselected) = .true.
+                else
+                   lst(lastselected:i) = .true.
+                end if
+             elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+                ! select and individual item and accumulate
+                lst(i) = .true.
+             else
+                ! select one item, start range, remove all others
+                lst = .false.
+                lst(i) = .true.
+                lastselected = i
+             end if
+          end if
        end do
        call igEndListBox()
 
@@ -2083,10 +2105,12 @@ contains
        if (igButton(c_loc(str),szero)) then
           nseed = count(lst(1:nst))
           if (nseed > 0) then
+             ! we have systems (potentially), allocate the seed array
              allocate(seed_(nseed))
              nseed = 0
              do i = 1, nst
                 if (lst(i)) then
+                   ! read the selected seeds from the library, check OK
                    call seed%read_library(st(i)%s,logical(ismolecule),ok)
                    if (ok) then
                       nseed = nseed + 1
@@ -2095,6 +2119,8 @@ contains
                 end if
              end do
              if (nseed > 0) then
+                ! load the seeds as new systems
+                call realloc_crystalseed(seed_,nseed)
                 call add_systems_from_seeds(nseed,seed_)
                 call launch_initialization_thread()
                 call system_shorten_names()
@@ -2127,6 +2153,7 @@ contains
        if (allocated(lst)) deallocate(lst)
        allocate(lst(nst))
        lst = .false.
+       lastselected = 0
     end if
 
     ! quit the window
@@ -2137,6 +2164,7 @@ contains
        ttshown = .false.
        idum = 0
        firstpass = .true.
+       lastselected = 0
        nst = 0
        if (allocated(st)) deallocate(st)
        if (allocated(lst)) deallocate(lst)
