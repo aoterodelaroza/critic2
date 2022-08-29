@@ -414,7 +414,13 @@ function igCheckbox(label,v) bind(c,name="igCheckbox")
 end function igCheckbox
 !x! bool igCheckboxFlags_IntPtr(const char* label,int* flags,int flags_value);
 !x! bool igCheckboxFlags_UintPtr(const char* label,unsigned int* flags,unsigned int flags_value);
-!x! bool igRadioButton_Bool(const char* label,bool active);
+! bool igRadioButton_Bool(const char* label,bool active);
+function igRadioButton_Bool(label,active) bind(c,name="igRadioButton_Bool")
+  import c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  logical(c_bool), value :: active
+  logical(c_bool) :: igRadioButton_Bool
+end function igRadioButton_Bool
 ! bool igRadioButton_IntPtr(const char* label,int* v,int v_button);
 function igRadioButton_IntPtr(label,v,v_button) bind(c,name="igRadioButton_IntPtr")
   import c_ptr, c_int, c_bool

@@ -205,6 +205,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: inisize
 
     if (.not.w%isinit) return
     if (.not.w%isopen) return
@@ -230,6 +231,9 @@ contains
           w%dialog_data%purpose = w%dialog_purpose
           w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
           str2 = "" // c_null_char ! default path
+          inisize%x = 800._c_float
+          inisize%y = 480._c_float
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              ! open dialog
@@ -266,12 +270,20 @@ contains
              str1 = "All files (*.*){*.*}" // c_null_char
              call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+             w%name = "Open Library File..." // c_null_char
+             str1 = "All files (*.*){*.*}" // c_null_char
+             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
        elseif (w%type == wintype_new) then
           w%name = "New Structure" // c_null_char
           w%flags = ImGuiWindowFlags_None
+          inisize%x = 800._c_float
+          inisize%y = 480._c_float
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -1108,7 +1120,7 @@ contains
     use param, only: dirsep
     class(window), intent(inout), target :: w
 
-    type(ImVec2) :: minsize, maxsize, inisize
+    type(ImVec2) :: minsize, maxsize
     type(IGFD_Selection_Pair), pointer :: s(:)
     type(IGFD_Selection) :: sel
     type(c_ptr) :: cstr
@@ -1122,13 +1134,10 @@ contains
        14,26,25,16,24,9,10,22,2,18,30,21,6,23,19,12/)
 
     ! set initial, minimum, and maximum sizes
-    inisize%x = 800._c_float
-    inisize%y = 480._c_float
     minsize%x = 0._c_float
     minsize%y = 0._c_float
     maxsize%x = 1e10_c_float
     maxsize%y = 1e10_c_float
-    call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
     ! process the dialog
     if (IGFD_DisplayDialog(w%ptr,c_loc(w%name),ImGuiWindowFlags_None,minsize,maxsize)) then
@@ -1172,6 +1181,13 @@ contains
                 write(lu,'(A)') com(icom(idcom))%output
              end if
              call fclose(lu)
+          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+             !! new structure file dialog !!
+             cstr = IGFD_GetFilePathName(w%ptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             w%libraryfile = trim(name) // c_null_char
+             w%libraryfile_set = .true.
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
           end if
@@ -1932,12 +1948,101 @@ contains
 
   !> Draw the contents of the new structure window
   module subroutine draw_new(w)
+    use gui_main, only: tooltip_delay, g
+    use gui_utils, only: igIsItemHovered_delayed
+    use global, only: clib_file, mlib_file
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str1
+    character(kind=c_char,len=:), allocatable, target :: str
+    logical(c_bool) :: ldum
+    logical :: changed
+    type(ImVec2) :: szero
+    logical(c_bool), save :: ismolecule = .false.
+    logical(c_bool), save :: fromlibrary = .false.
+    logical, save :: ttshown = .false.
+    integer(c_int), save :: idum = 0
+    logical, save :: firstpass = .true.
 
-    str1 = "Bleh!" // c_null_char
-    call igText(c_loc(str1))
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+    if (firstpass) then
+       w%libraryfile = trim(clib_file) // c_null_char
+       firstpass = .false.
+    end if
+
+    ! check if we have info from the open library file window
+    if (idum > 0) then
+       if (.not.win(idum)%isopen) then
+          if (win(idum)%libraryfile_set) then
+             w%libraryfile_set = .true.
+             w%libraryfile = win(idum)%libraryfile
+             call win(idum)%end()
+          end if
+          idum = 0
+       end if
+    end if
+
+    ! crystal or molecule, from library
+    changed = .false.
+    str = "Crystal" // c_null_char
+    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
+       ismolecule = .false.
+       changed = .true.
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "The new structure will be a periodic crystal" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+    str = "Molecule" // c_null_char
+    if (igRadioButton_Bool(c_loc(str),ismolecule)) then
+       ismolecule = .true.
+       changed = .true.
+    end if
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "The new structure will be a molecule" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+    call igSetCursorPosX(igGetCursorPosX() + 4 * g%Style%ItemSpacing%x)
+    str = "From library" // c_null_char
+    ldum = igCheckbox(c_loc(str),fromlibrary)
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       str = "Read the structure from the critic2 library" // c_null_char
+       call igSetTooltip(c_loc(str))
+    end if
+    if (changed.and..not.w%libraryfile_set) then
+       if (ismolecule) then
+          w%libraryfile = trim(mlib_file) // c_null_char
+       else
+          w%libraryfile = trim(clib_file) // c_null_char
+       end if
+    end if
+
+    if (fromlibrary) then
+       ! library file
+       str = "Library file" // c_null_char
+       call igBeginDisabled(logical(idum /= 0,c_bool))
+       if (igButton(c_loc(str),szero)) &
+          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
+       call igEndDisabled()
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Library file from where the structures are read" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igSameLine(0._c_float,-1._c_float)
+       call igText(c_loc(w%libraryfile))
+
+       ! module subroutine read_library(seed,line,mol,oksyn,ti)
+    elseif (ismolecule) then
+       str = "To be implemented, molecule" // c_null_char
+       call igText(c_loc(str))
+    else
+       str = "To be implemented, crystal" // c_null_char
+       call igText(c_loc(str))
+    end if
 
   end subroutine draw_new
 

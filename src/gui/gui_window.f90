@@ -61,6 +61,9 @@ module gui_window
      type(dialog_userdata) :: dialog_data ! for the side pane callback
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
+     ! new structure parameters
+     character(kind=c_char,len=:), allocatable :: libraryfile ! library file
+     logical :: libraryfile_set = .false. ! whether the library file has been set
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -105,6 +108,7 @@ module gui_window
   integer, parameter, public :: wpurp_unknown = 0
   integer, parameter, public :: wpurp_dialog_openfiles = 1
   integer, parameter, public :: wpurp_dialog_savelogfile = 2
+  integer, parameter, public :: wpurp_dialog_openlibraryfile = 3
 
   ! routines to manipulate the window stack
   public :: stack_create_window
