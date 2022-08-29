@@ -26,7 +26,10 @@
   #include <unistd.h>
   #define GETCWD getcwd
 #endif
+#include <stdio.h>
+#include <stdlib.h>
 
+// get the current working directory (portable?)
 int getCurrentWorkDir(char *str, size_t siz){
   if (GETCWD(str, siz) == str)
     return 0;
@@ -34,6 +37,7 @@ int getCurrentWorkDir(char *str, size_t siz){
     return 1;
 }
 
+// Call the external browser to open a link (portable?)
 void openLink(const char* link){
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
     ::ShellExecuteA(NULL, "open", link, NULL, NULL, SW_SHOWDEFAULT);
@@ -48,3 +52,4 @@ void openLink(const char* link){
     system(command);
 #endif
 }
+

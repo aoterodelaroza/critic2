@@ -11,6 +11,8 @@ set(SOURCES
   gui_interfaces_opengl3.f90 gui_interfaces_threads.f90
   interfaces/constants.cpp interfaces/utils.c
 
+  my_imgui/my_imgui.cpp
+
   gui_main.f90 gui_main@proc.f90
   gui_keybindings.f90 gui_keybindings@proc.f90
   gui_window.f90 gui_window@proc.f90

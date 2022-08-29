@@ -631,8 +631,8 @@ contains
           ! close button
           buttonhovered_close = .false.
           if (igTableSetColumnIndex(ic_closebutton)) then
-             str = "✕##" // string(ic_closebutton) // "," // string(i) // c_null_char
-             if (igSmallButton(c_loc(str))) w%forceremove = (/i/)
+             str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
+             if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
              buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
           end if
 

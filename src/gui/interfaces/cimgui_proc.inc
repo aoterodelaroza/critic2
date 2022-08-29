@@ -2141,12 +2141,14 @@ subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
   integer(c_int), value :: flags
 end subroutine IGFD_SetFlags
 
-!!! markdown !!!
-! CIMGUI_API void Markdown(const char* markdown_)
-subroutine Markdown(markdown_) bind(c,name="Markdown")
-  import c_ptr
-  type(c_ptr), intent(in), value :: markdown_
-end subroutine Markdown
+!!! my own imgui widgets (from my_imgui) !!!
+! bool my_CloseButton(const char* str_id, ImVec4 buttonbg);
+function my_CloseButton(str_id,buttonbg) bind(c,name="my_CloseButton")
+  import c_ptr, c_bool, ImVec4
+  type(c_ptr), intent(in), value :: str_id
+  type(ImVec4), value :: buttonbg
+  logical(c_bool) :: my_CloseButton
+end function my_CloseButton
 
 !!! utils !!!
 ! int getCurrentWorkDir(char *str, size_t siz);
