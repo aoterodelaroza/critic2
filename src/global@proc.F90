@@ -76,6 +76,12 @@ contains
 
        ! crystal
        if (equal(word,'crystal') .or. equal(word,'molecule')) then
+          if (usegui) then
+             write (uout,'("!! The CRYSTAL and MOLECULE keywords cannot be used in the graphical interface.")')
+             write (uout,'("!! Please use File->New or File->Open to add new structures.")')
+             cycle main
+          end if
+
           if (equal(word,'crystal')) then
              ismoli = 0
              if (iunit_isdef) iunit = iunit_bohr
