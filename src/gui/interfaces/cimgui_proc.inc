@@ -249,7 +249,11 @@ end subroutine igSetNextItemWidth
 !x! void igPushTextWrapPos(float wrap_local_pos_x);
 !x! void igPopTextWrapPos(void);
 !x! ImFont* igGetFont(void);
-!x! float igGetFontSize(void);
+! float igGetFontSize(void);
+function igGetFontSize() bind(c,name="igGetFontSize")
+  import c_float
+  real(c_float) :: igGetFontSize
+end function igGetFontSize
 !x! void igGetFontTexUvWhitePixel(ImVec2 *pOut);
 ! ImU32 igGetColorU32_Col(ImGuiCol idx,float alpha_mul);
 function igGetColorU32_Col(idx,alpha_mul) bind(c,name="igGetColorU32_Col")

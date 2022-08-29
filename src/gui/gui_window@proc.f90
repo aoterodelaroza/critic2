@@ -1949,19 +1949,22 @@ contains
   !> Draw the contents of the new structure window.
   module subroutine draw_new(w)
     use gui_main, only: tooltip_delay, g, ColorHighlightText, add_systems_from_seeds,&
-       launch_initialization_thread, system_shorten_names
+       launch_initialization_thread, system_shorten_names, tooltip_delay
     use gui_utils, only: igIsItemHovered_delayed
     use crystalseedmod, only: crystalseed, realloc_crystalseed
-    use global, only: clib_file, mlib_file
-    use tools_io, only: string
+    use global, only: clib_file, mlib_file, rborder_def
+    use tools_io, only: string, fopen_scratch, fclose, uin
     use types, only: vstring
+    use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_size_t), parameter :: namebufsiz = 1024
+
+    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex, left
     logical(c_bool) :: ldum, doquit
-    logical :: changed, readlib, ok
+    logical :: changed, readlib, ok, exloop
     type(ImVec2) :: szero, sz, sztext, szavail
-    integer :: i, nseed
+    integer :: i, nseed, idx, lu
     real(c_float) :: rshift
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
@@ -1972,8 +1975,15 @@ contains
     logical, save :: firstpass = .true.
     integer, save :: nst = 0
     integer, save :: lastselected = 0
+    real(c_float), save :: rborder = real(rborder_def,c_float)
+    logical(c_bool), save :: molcubic = .false.
+    integer(c_int), save :: iunit = 0 ! 0 = bohr, 1 = angstrom
+    character(len=namebufsiz,kind=c_char), target, save :: namebuf = c_null_char
     type(vstring), allocatable, save :: st(:)
     logical(c_bool), allocatable, save :: lst(:)
+    character(kind=c_char,len=:), allocatable, target, save :: atposbuf
+
+    integer(c_size_t), parameter :: maxatposbuf = 100000
 
     ! initialize
     szero%x = 0
@@ -1983,6 +1993,9 @@ contains
        w%libraryfile = trim(clib_file) // c_null_char
        firstpass = .false.
        readlib = .true.
+       if (allocated(atposbuf)) deallocate(atposbuf)
+       allocate(character(len=maxatposbuf+1) :: atposbuf)
+       atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
     end if
 
     ! check if we have info from the open library file window when it
@@ -2005,6 +2018,8 @@ contains
     if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
        ismolecule = .false.
        changed = .true.
+       iunit = 0
+       namebuf = "Crystal structure (manual)" // c_null_char
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "The new structure will be a periodic crystal" // c_null_char
@@ -2015,6 +2030,8 @@ contains
     if (igRadioButton_Bool(c_loc(str),ismolecule)) then
        ismolecule = .true.
        changed = .true.
+       iunit = 1
+       namebuf = "Molecule structure (manual)" // c_null_char
     end if
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        str = "The new structure will be a molecule" // c_null_char
@@ -2052,13 +2069,14 @@ contains
        end if
        call igSameLine(0._c_float,-1._c_float)
        call igText(c_loc(w%libraryfile))
+       call igNewLine()
 
        ! list box
-       str = "Select the structures to load from the library file..." // c_null_char
+       str = "Select the structures to load from the library file" // c_null_char
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
-       sz%y = sz%y - (igGetTextLineHeight() + 2 * g%Style%FramePadding%y + g%Style%WindowPadding%y)
+       sz%y = sz%y - (2 * igGetTextLineHeight() + 2 * g%Style%FramePadding%y + g%Style%WindowPadding%y)
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
           str = st(i)%s // c_null_char
@@ -2085,6 +2103,7 @@ contains
           end if
        end do
        call igEndListBox()
+       call igNewLine()
 
        ! insert spacing for buttons on the right
        call igGetContentRegionAvail(szavail)
@@ -2138,9 +2157,124 @@ contains
        call igEndDisabled()
 
     elseif (ismolecule) then
-       ! use doquit
-       str = "To be implemented, molecule" // c_null_char
-       call igText(c_loc(str))
+       ! name
+       str = "Name" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       str2 = "##name"
+       ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
+
+       ! atomic positions
+       str = "Atomic positions" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       call igGetContentRegionAvail(szavail)
+       sz%x = szavail%x
+       sz%y = szavail%y - (3 * igGetTextLineHeight() + 3 * g%Style%FramePadding%y + &
+          2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       str = "##atomicpositions" // c_null_char
+       ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
+          ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+
+       ! options line
+       str = "Structure options" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+
+       ! cell border
+       call igIndent(0._c_float)
+       str = "Cell border" // c_null_char
+       stropt = "%.3f" // c_null_char
+       strex = string(rborder,'f',decimal=3) // c_null_char
+       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
+          c_loc(stropt),ImGuiInputTextFlags_None)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Periodic cell border around new molecules" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igPopItemWidth()
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! cubic cell
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Cubic cell" // c_null_char
+       ldum = igCheckbox(c_loc(str),molcubic)
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          str = "Read new molecules inside cubic periodic cell" // c_null_char
+          call igSetTooltip(c_loc(str))
+       end if
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! units
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Units" // c_null_char
+       stropt = "Bohr" // c_null_char // "Angstrom"
+       strex = "Angstrom    " // c_null_char
+       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+       call igSetNextItemWidth(sz%x)
+       ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
+       call igUnindent(0._c_float)
+
+       ! insert spacing for buttons on the right
+       call igGetContentRegionAvail(szavail)
+       sz%x = g%Style%ItemSpacing%x
+       str = "OK" // c_null_char
+       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+       str = "Cancel" // c_null_char
+       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+       rshift = szavail%x - sz%x
+       if (rshift > 0) &
+          call igSetCursorPosX(igGetCursorPosX() + rshift)
+
+       ! final buttons: ok
+       str = "OK" // c_null_char
+       if (igButton(c_loc(str),szero)) then
+          ! build the input
+          lu = fopen_scratch("formatted")
+          left = atposbuf(1:index(atposbuf,c_null_char)-1)
+          idx = 0
+          exloop = .false.
+          do while (.not.exloop)
+             idx = index(left,newline)
+             if (idx == 0) then
+                idx = len_trim(left) + 1
+                exloop = .true.
+             end if
+             if (len_trim(left(:idx-1)) > 0) then
+                if (iunit == 0) then
+                   write (lu,'(A," bohr")') left(:idx-1)
+                else
+                   write (lu,'(A," ang")') left(:idx-1)
+                end if
+             end if
+             if(.not.exloop) left = left(idx+1:)
+          end do
+          if (molcubic) write (lu,'("cubic")')
+          write (lu,'("border ",A)') string(rborder*bohrtoa,'f',decimal=10)
+          write (lu,'("end")')
+          rewind(lu)
+
+          ! generate the seed
+          if (allocated(seed_)) deallocate(seed_)
+          allocate(seed_(1))
+          call seed_(1)%parse_molecule_env(lu,ok)
+          call fclose(lu)
+
+          ! load the system and initialize
+          if (ok) then
+             idx = index(namebuf,c_null_char)
+             seed_(1)%name = namebuf(1:idx-1)
+             call add_systems_from_seeds(1,seed_)
+             call launch_initialization_thread()
+             doquit = .true.
+          end if
+       end if
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! final buttons: cancel
+       str = "Cancel" // c_null_char
+       if (igButton(c_loc(str),szero)) doquit = .true.
     else
        str = "To be implemented, crystal" // c_null_char
        call igText(c_loc(str))
@@ -2166,8 +2300,13 @@ contains
        firstpass = .true.
        lastselected = 0
        nst = 0
+       rborder = real(rborder_def,c_float)
+       molcubic = .false.
+       iunit = 0
+       namebuf(1:1) = c_null_char
        if (allocated(st)) deallocate(st)
        if (allocated(lst)) deallocate(lst)
+       if (allocated(atposbuf)) deallocate(atposbuf)
        call w%end()
     end if
 
