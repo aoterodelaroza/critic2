@@ -257,7 +257,7 @@ contains
              ok = ok .and. eval_next(seed%x(2,seed%nat),line,lp)
              ok = ok .and. eval_next(seed%x(3,seed%nat),line,lp)
              if (.not.ok) then
-                call ferror("parse_crystal_env","Wrong NEQ syntax",faterr,line,syntax=.true.)
+                call ferror("parse_crystal_env","Wrong atom input syntax",faterr,line,syntax=.true.)
                 return
              end if
              name = trim(getword(line,lp))
@@ -278,7 +278,7 @@ contains
              seed%spc(it)%name = name
              seed%spc(it)%z = zatguess(name)
              if (seed%spc(it)%z < 0) then
-                call ferror('parse_crystal_env','Unknown atomic symbol in NEQ',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Unknown atomic symbol in atom input',faterr,line,syntax=.true.)
                 return
              end if
              seed%spc(it)%qat = 0d0
@@ -300,7 +300,7 @@ contains
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat))
              else if (len_trim(word) > 0) then
-                call ferror('parse_crystal_env','Unknown keyword in NEQ',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Unknown keyword in atom input',faterr,line,syntax=.true.)
                 return
              else
                 exit
@@ -510,7 +510,7 @@ contains
              ok = ok .and. eval_next(seed%x(2,seed%nat),line,lp)
              ok = ok .and. eval_next(seed%x(3,seed%nat),line,lp)
              if (.not.ok) then
-                call ferror("parse_molecule_env","Wrong NEQ syntax",faterr,line,syntax=.true.)
+                call ferror("parse_molecule_env","Wrong atom input syntax",faterr,line,syntax=.true.)
                 return
              end if
              name = trim(getword(line,lp))
@@ -531,7 +531,7 @@ contains
              seed%spc(it)%name = name
              seed%spc(it)%z = zatguess(name)
              if (seed%spc(it)%z < 0) then
-                call ferror('parse_molecule_env','Unknown atomic symbol in NEQ',faterr,line,syntax=.true.)
+                call ferror('parse_molecule_env','Unknown atomic symbol in atom input',faterr,line,syntax=.true.)
                 return
              end if
              seed%spc(it)%qat = 0d0

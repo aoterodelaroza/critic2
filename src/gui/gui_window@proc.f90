@@ -1971,7 +1971,7 @@ contains
     use gui_utils, only: igIsItemHovered_delayed
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: clib_file, mlib_file, rborder_def
-    use tools_io, only: string, fopen_scratch, fclose, uin
+    use tools_io, only: string, fopen_scratch, fclose, uin, uout
     use types, only: vstring
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
@@ -2295,12 +2295,14 @@ contains
           call fclose(lu)
 
           ! load the system and initialize
-          if (ok) then
+          if (ok.and.seed_(1)%isused) then
              idx = index(namebuf,c_null_char)
              seed_(1)%name = namebuf(1:idx-1)
              call add_systems_from_seeds(1,seed_)
              call launch_initialization_thread()
              doquit = .true.
+          else
+             deallocate(seed_)
           end if
        end if
        call igSameLine(0._c_float,-1._c_float)
