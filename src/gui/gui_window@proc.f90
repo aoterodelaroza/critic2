@@ -1948,28 +1948,38 @@ contains
 
   !> Draw the contents of the new structure window
   module subroutine draw_new(w)
-    use gui_main, only: tooltip_delay, g
+    use gui_main, only: tooltip_delay, g, ColorHighlightText
     use gui_utils, only: igIsItemHovered_delayed
+    use crystalseedmod, only: crystalseed
     use global, only: clib_file, mlib_file
     use tools_io, only: string
+    use types, only: vstring
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str
     logical(c_bool) :: ldum
-    logical :: changed
-    type(ImVec2) :: szero
+    logical :: changed, readlib, ok
+    type(ImVec2) :: szero, sz, sztext, szavail
+    integer :: i
+    real(c_float) :: rshift
+    type(crystalseed) :: seed
     logical(c_bool), save :: ismolecule = .false.
     logical(c_bool), save :: fromlibrary = .false.
     logical, save :: ttshown = .false.
     integer(c_int), save :: idum = 0
     logical, save :: firstpass = .true.
+    integer, save :: nst = 0
+    type(vstring), allocatable, save :: st(:)
+    logical(c_bool), allocatable, save :: lst(:)
 
     ! initialize
     szero%x = 0
     szero%y = 0
+    readlib = .false.
     if (firstpass) then
        w%libraryfile = trim(clib_file) // c_null_char
        firstpass = .false.
+       readlib = .true.
     end if
 
     ! check if we have info from the open library file window
@@ -1979,6 +1989,7 @@ contains
              w%libraryfile_set = .true.
              w%libraryfile = win(idum)%libraryfile
              call win(idum)%end()
+             readlib = .true.
           end if
           idum = 0
        end if
@@ -2019,6 +2030,7 @@ contains
        else
           w%libraryfile = trim(clib_file) // c_null_char
        end if
+       readlib = .true.
     end if
 
     if (fromlibrary) then
@@ -2035,13 +2047,79 @@ contains
        call igSameLine(0._c_float,-1._c_float)
        call igText(c_loc(w%libraryfile))
 
-       ! module subroutine read_library(seed,line,mol,oksyn,ti)
+       ! list box
+       str = "Select the structures to load from the library file..." // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       str = "##listbox" // c_null_char
+       call igGetContentRegionAvail(sz)
+       sz%y = sz%y - (igGetTextLineHeight() + 2 * g%Style%FramePadding%y)
+       ldum = igBeginListBox(c_loc(str),sz)
+       do i = 1, nst
+          str = st(i)%s // c_null_char
+          ldum = igSelectable_BoolPtr(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)
+       end do
+       call igEndListBox()
+
+       ! insert spacing for buttons on the right
+       call igGetContentRegionAvail(szavail)
+       sz%x = g%Style%ItemSpacing%x
+       str = "OK" // c_null_char
+       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+       str = "Cancel" // c_null_char
+       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
+       rshift = szavail%x - sz%x
+       if (rshift > 0) &
+          call igSetCursorPosX(igGetCursorPosX() + rshift)
+
+       ! final buttons: ok
+       call igBeginDisabled(logical(idum /= 0,c_bool))
+       str = "OK" // c_null_char
+       if (igButton(c_loc(str),szero)) then
+          do i = 1, nst
+             if (lst(i)) then
+                call seed%read_library(st(i)%s,logical(ismolecule),ok)
+                if (ok) then
+                   write (*,*) "to add: ", seed%name
+                end if
+             end if
+          end do
+       end if
+       call igSameLine(0._c_float,-1._c_float)
+       call igEndDisabled()
+
+       ! final buttons: cancel
+       call igBeginDisabled(logical(idum /= 0,c_bool))
+       str = "Cancel" // c_null_char
+       if (igButton(c_loc(str),szero)) then
+          ! reset the state and kill the window
+          ismolecule = .false.
+          fromlibrary = .false.
+          ttshown = .false.
+          idum = 0
+          firstpass = .true.
+          nst = 0
+          if (allocated(st)) deallocate(st)
+          if (allocated(lst)) deallocate(lst)
+          call w%end()
+       end if
+       call igEndDisabled()
+
     elseif (ismolecule) then
        str = "To be implemented, molecule" // c_null_char
        call igText(c_loc(str))
     else
        str = "To be implemented, crystal" // c_null_char
        call igText(c_loc(str))
+    end if
+
+    ! read the library file
+    if (readlib) then
+       call get_library_structure_list(w%libraryfile,nst,st)
+       if (allocated(lst)) deallocate(lst)
+       allocate(lst(nst))
+       lst = .false.
     end if
 
   end subroutine draw_new
@@ -2332,5 +2410,55 @@ contains
     end if
 
   end subroutine dialog_user_callback
+
+  !> Get the structure list from the library file
+  subroutine get_library_structure_list(libfile,nst,st)
+    use tools_io, only: fopen_read, fclose, lgetword, getword, equal, getline
+    use types, only: vstring, realloc
+    character(len=:), allocatable, intent(in) :: libfile
+    integer, intent(out) :: nst
+    type(vstring), allocatable, intent(inout) :: st(:)
+
+    integer :: idx, lu, lp
+    character(len=:), allocatable :: file, word, line
+    logical :: ok
+
+    ! get the file name
+    idx = index(libfile,c_null_char)
+    if (idx > 0) then
+       file = libfile(1:idx-1)
+    else
+       file = libfile
+    end if
+
+    ! open the file
+    nst = 0
+    inquire(file=libfile,exist=ok)
+    if (.not.ok) return
+    lu = fopen_read(libfile)
+    if (lu < 0) return
+
+    ! preallocate
+    if (allocated(st)) deallocate(st)
+    allocate(st(10))
+
+    ! read the structures
+    main: do while (getline(lu,line))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,'structure')) then
+          word = getword(line,lp)
+          nst = nst + 1
+          if (nst > size(st,1)) call realloc(st,2*nst)
+          st(nst)%s = word
+       endif
+    end do main
+    if (nst > 0) &
+       call realloc(st,nst)
+
+    ! clean up
+    call fclose(lu)
+
+  end subroutine get_library_structure_list
 
 end submodule proc

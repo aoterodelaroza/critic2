@@ -65,7 +65,7 @@ contains
     use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
-       getword, lower, isinteger, string, nameguess, zatguess, equali, usegui
+       getword, lower, isinteger, string, nameguess, zatguess, equali
     use param, only: bohrtoa
     use types, only: realloc
 
@@ -102,7 +102,7 @@ contains
        luout = -1
     endif
     allocate(seed%x(3,10),seed%is(10),seed%spc(2))
-    do while (getline(lu,usegui,line,ucopy=luout))
+    do while (getline(lu,line,ucopy=luout))
        lp = 1
        word = lgetword(line,lp)
        if (equal (word,'cell')) then
@@ -149,7 +149,7 @@ contains
           isset = .false.
           do while(.true.)
              lp = 1
-             ok = getline(lu,usegui,line,ucopy=luout)
+             ok = getline(lu,line,ucopy=luout)
              word = lgetword(line,lp)
              if (equal(word,'angstrom') .or.equal(word,'ang')) then
                 ! angstrom/ang
@@ -417,7 +417,7 @@ contains
   module subroutine parse_molecule_env(seed,lu,oksyn)
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
-       string, isinteger, nameguess, getword, zatguess, equali, usegui
+       string, isinteger, nameguess, getword, zatguess, equali
     use param, only: bohrtoa
     use types, only: realloc
 
@@ -448,7 +448,7 @@ contains
     else
        luout = -1
     endif
-    do while (getline(lu,usegui,line,ucopy=luout))
+    do while (getline(lu,line,ucopy=luout))
        lp = 1
        word = lgetword(line,lp)
 
@@ -640,7 +640,7 @@ contains
 
     ! find the block
     found = .false.
-    main: do while (getline(lu,.false.,l2))
+    main: do while (getline(lu,l2))
        lp = 1
        word = lgetword(l2,lp)
        if (equal(word,'structure')) then
@@ -661,7 +661,7 @@ contains
     end if
 
     ! read the crystal/molecule environment inside
-    ok = getline(lu,.false.,l2)
+    ok = getline(lu,l2)
     if (mol) then
        call seed%parse_molecule_env(lu,ok)
        seed%file = "molecular library (" // trim(line) // ")"
@@ -3183,7 +3183,7 @@ contains
     errmsg = "Error reading file."
 
     ! number of atoms and type of coordinates
-    ok = getline(lu,.false.,line)
+    ok = getline(lu,line)
     if (.not.ok) goto 999
     read (line,*,err=999) seed%nat, isfrac
     isfrac = lower(isfrac)
@@ -3196,7 +3196,7 @@ contains
     ! atom types
     seed%nspc = 0
     allocate(seed%spc(2))
-    ok = getline(lu,.false.,line)
+    ok = getline(lu,line)
     if (.not.ok) goto 999
     lp = 1
     word = getword(line,lp)
@@ -3218,7 +3218,7 @@ contains
 
     ! read atomic positions
     do i = 1, seed%nat
-       ok = getline(lu,.false.,line)
+       ok = getline(lu,line)
        if (.not.ok) goto 999
        read (line,*,err=999) idum, seed%is(i), seed%x(:,i)
        if (isfrac /= "f") &
@@ -3226,10 +3226,10 @@ contains
     end do
 
     ! read lattice vectors, if they exist
-    ok = getline(lu,.false.,line)
+    ok = getline(lu,line)
     if (ok) then
        do i = 1, 3
-          ok = getline(lu,.false.,line,.true.)
+          ok = getline(lu,line,.true.)
           read (line,*) r(i,:)
        end do
        r = r / bohrtoa
@@ -4308,11 +4308,11 @@ contains
        isformat = isformat_xsf
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) goto 999
-       do while (getline(lu,.false.,line))
+       do while (getline(lu,line))
           if (len_trim(line) > 0) exit
        end do
        if (present(alsofield)) then
-          do while (getline(lu,.false.,line))
+          do while (getline(lu,line))
              if (equali(line,"begin_block_datagrid_3d")) then
                 alsofield_ = .true.
                 exit
@@ -4446,7 +4446,7 @@ contains
        ismol = .false.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
-       do while (getline(lu,.false.,line))
+       do while (getline(lu,line))
           if (len_trim(line) > 0) exit
        end do
        if (equali(line,"atoms")) then

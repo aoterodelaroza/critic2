@@ -574,8 +574,16 @@ function igSelectable_BoolPtr(label, p_selected, flags, size) bind(c,name="igSel
   type(ImVec2), intent(in), value :: size
   logical(c_bool) :: igSelectable_BoolPtr
 end function igSelectable_BoolPtr
-!x! bool igBeginListBox(const char* label,const ImVec2 size);
-!x! void igEndListBox(void);
+! bool igBeginListBox(const char* label,const ImVec2 size);
+function igBeginListBox(label,size) bind(c,name="igBeginListBox")
+  import c_ptr, ImVec2, c_bool
+  type(c_ptr), intent(in), value :: label
+  type(ImVec2), intent(in), value :: size
+  logical(c_bool) :: igBeginListBox
+end function igBeginListBox
+! void igEndListBox(void)
+subroutine igEndListBox() bind(c,name="igEndListBox")
+end subroutine igEndListBox
 !x! bool igListBox_Str_arr(const char* label,int* current_item,const char* const items[],int items_count,int height_in_items);
 !x! bool igListBox_FnBoolPtr(const char* label,int* current_item,bool(*items_getter)(void* data,int idx,const char** out_text),void* data,int items_count,int height_in_items);
 !x! void igPlotLines_FloatPtr(const char* label,const float* values,int values_count,int values_offset,const char* overlay_text,float scale_min,float scale_max,ImVec2 graph_size,int stride);

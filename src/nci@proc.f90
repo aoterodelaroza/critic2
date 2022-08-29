@@ -38,7 +38,7 @@ contains
     use global, only: fileroot, eval_next, dunit0, quiet, iunit, iunitname0
     use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
-       string, getword, uout, fopen_write, tictac, fclose, usegui
+       string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eigsym, m_x2c_from_cellpar, matinv
     use types, only: scalar_value, realloc
     use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
@@ -163,7 +163,7 @@ contains
     srhorange = (/ -1d30, 1d30 /)
 
     do while(.true.)
-       ok = getline(uin,usegui,line,.true.,ucopy)
+       ok = getline(uin,line,.true.,ucopy)
        lp = 1
        word = lgetword(line,lp)
 
@@ -914,7 +914,7 @@ contains
   function read_fragment(lu) result(fr)
     use systemmod, only: sy
     use global, only: eval_next
-    use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr, usegui
+    use tools_io, only: uin, getline, lgetword, ucopy, equal, ferror, faterr
     use fragmentmod, only: fragment
     use types, only: realloc
     use param, only: bohrtoa, icrd_cart
@@ -936,9 +936,9 @@ contains
     ! create a fragment from input
     do while (.true.)
        if (lu == uin) then
-          ok = getline(lu,usegui,line,.true.,ucopy)
+          ok = getline(lu,line,.true.,ucopy)
        else
-          ok = getline(lu,usegui,line,.true.)
+          ok = getline(lu,line,.true.)
        endif
        lp = 1
        word = lgetword(line,lp)

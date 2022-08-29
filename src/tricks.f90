@@ -1241,7 +1241,7 @@ contains
     maxlen = 0
     allocate(vst(10),hst(10),st(10))
     lu = fopen_read(filelist)
-    do while (getline(lu,.false.,line))
+    do while (getline(lu,line))
        ! skip blank lines
        if (len_trim(line) == 0) cycle
 

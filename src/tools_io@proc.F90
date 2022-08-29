@@ -530,13 +530,9 @@ contains
   !> and is positive, write a copy of the output line to that logical
   !> unit, preceded by a prefix. If nprompt, show this number in the
   !> prompt.
-  !> If lstr, read the line from the instr global variable and ignore
-  !> the logical unit u. If lstr is true, eofstop is always .false.
-  !> ucopy is not used (-1).
-  module function getline(u,lstr,oline,eofstop,ucopy,nprompt)
+  module function getline(u,oline,eofstop,ucopy,nprompt)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
-    logical, intent(in) :: lstr
     logical, intent(in), optional :: eofstop
     integer, intent(in), optional :: ucopy
     integer, intent(in), optional :: nprompt
@@ -557,7 +553,7 @@ contains
        ok = getline_raw(u,line,nprompt=nprompt)
        ! exit if eof
        if (.not.ok) then
-          if (present(eofstop).and..not.lstr) then
+          if (present(eofstop)) then
              if (eofstop) call ferror("getline","unexpected end of file",faterr)
           end if
           return
@@ -614,7 +610,7 @@ contains
        oline = trim(oline) // " " // line(1:lenu-1)
        notfirst = .true.
     end do
-    if (present(ucopy).and..not.lstr) then
+    if (present(ucopy)) then
        if (ucopy >= 0) &
           write (ucopy,'(A," ",A/)') prfx, trim(oline)
     endif

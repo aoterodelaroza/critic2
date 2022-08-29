@@ -68,7 +68,7 @@ contains
 
     ! Start reading
     ncom = 1
-    main: do while (getline(uin,usegui,line,ucopy=ucopy,nprompt=ncom))
+    main: do while (getline(uin,line,ucopy=ucopy,nprompt=ncom))
        ncom = ncom + 1
        lp=1
        word = lgetword(line,lp)

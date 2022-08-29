@@ -2723,7 +2723,7 @@ contains
     use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit0, &
        eval_next
     use tools_io, only: lgetword, getword, getline, equal, ferror, &
-       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read, usegui
+       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
     use param, only: bohrtoa
     use types, only: realloc
     type(system), intent(in) :: s
@@ -2779,7 +2779,7 @@ contains
        end if
 
        lp = 1
-       ok = getline(uin,usegui,line,ucopy=ucopy)
+       ok = getline(uin,line,ucopy=ucopy)
        if (ok) then
           word = lgetword(line,lp)
        else
@@ -2821,7 +2821,7 @@ contains
 
           ! read next line
           lp = 1
-          ok = getline(uin,usegui,line,ucopy=ucopy)
+          ok = getline(uin,line,ucopy=ucopy)
           if (ok) then
              word = lgetword(line,lp)
           else
