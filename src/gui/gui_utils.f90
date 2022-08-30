@@ -22,6 +22,7 @@ module gui_utils
 
   private
 
+  public :: iw_text
   public :: iw_button
   public :: iw_tooltip
   public :: igIsItemHovered_delayed
@@ -29,6 +30,12 @@ module gui_utils
 
   ! module procedure interfaces
   interface
+     module subroutine iw_text(str,highlight,disabled,sameline)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(in), optional :: highlight
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: disabled
+     end subroutine iw_text
      module function iw_button(str,danger,sameline,disabled,siz,&
         popupcontext,popupflags)
        character(len=*,kind=c_char), intent(in) :: str

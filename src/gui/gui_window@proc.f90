@@ -202,6 +202,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
+    use gui_utils, only: iw_text
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
@@ -300,8 +301,7 @@ contains
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
-                str1 = "Hello View!"
-                call igText(c_loc(str1))
+                call iw_text("Hello View!")
              elseif (w%type == wintype_console_input) then
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
@@ -797,6 +797,7 @@ contains
 
     subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
       use gui_main, only: tree_select_updates_inpcon
+      use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
@@ -883,12 +884,7 @@ contains
             call igSetTooltip(c_loc(strl))
          end if
       end if
-      str = str // c_null_char
-      if (sysc(isys)%status == sys_init) then
-         call igText(c_loc(str))
-      else
-         call igTextDisabled(c_loc(str))
-      end if
+      call iw_text(str,disabled=(sysc(isys)%status /= sys_init))
       hadenabledcolumn = .true.
 
     end subroutine write_text_maybe_selectable
@@ -1174,7 +1170,7 @@ contains
              cstr = IGFD_GetFilePathName(w%ptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             w%libraryfile = trim(name) // c_null_char
+             w%libraryfile = trim(name)
              w%libraryfile_set = .true.
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
@@ -1191,10 +1187,9 @@ contains
   !> Draw the contents of the input console
   module subroutine draw_ci(w)
     use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
-    use gui_main, only: ColorHighlightText, sys, sysc, nsys, sys_init, g,&
-       force_run_commands
+    use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands
     use gui_templates, only: draw_keyword_context_menu
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
     use systemmod, only: sy
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1217,8 +1212,7 @@ contains
     end if
 
     ! first line: text
-    str1 = "Input" // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str1))
+    call iw_text("Input",highlight=.true.)
 
     ! first line: clear button
     if (iw_button("Clear",sameline=.true.)) &
@@ -1243,8 +1237,7 @@ contains
 
     ! second line: system selector
     call igBeginGroup()
-    str1 = "System" // c_null_char
-    call igText(c_loc(str1))
+    call iw_text("System")
     call igSameLine(0._c_float,-1._c_float)
 
     !! set the system pointer and determine the preview string
@@ -1275,8 +1268,7 @@ contains
     call iw_tooltip("Set the current system (input commands are applied to it)",ttshown)
 
     ! third line: field selector
-    str1 = "Field " // c_null_char
-    call igText(c_loc(str1))
+    call iw_text("Field")
     call igSameLine(0._c_float,-1._c_float)
 
     str1 = "##fieldcombo" // c_null_char
@@ -1366,7 +1358,8 @@ contains
   !> input. Useful for preparing the screen for running the commands
   !> in the console input.
   module subroutine block_gui_ci(w)
-    use gui_main, only: mainvwp, io, g, ColorWaitBg, ColorHighlightText
+    use gui_main, only: mainvwp, io, g, ColorWaitBg
+    use gui_utils, only: iw_text
     use param, only: newline
     class(window), intent(inout), target :: w
 
@@ -1427,27 +1420,16 @@ contains
        sz%x = 0
        sz%y = 0
        call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
-       str1 = "...Running critic2 input..." // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str1))
-
-       str1 = "System: " // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str1))
-       call igSameLine(0._c_float,-1._c_float)
-       str1 = csystem // c_null_char
-       call igText(c_loc(str1))
-
-       str1 = "Field: " // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str1))
-       call igSameLine(0._c_float,-1._c_float)
-       str1 = cfield // c_null_char
-       call igText(c_loc(str1))
-
-       str1 = "Input: " // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str1))
+       call iw_text("...Running critic2 input...",highlight=.true.)
+       call iw_text("System",highlight=.true.)
+       call iw_text(csystem,sameline=.true.)
+       call iw_text("Field: ",highlight=.true.)
+       call iw_text(cfield,sameline=.true.)
+       call iw_text("Input",highlight=.true.)
        call igIndent(0._c_float)
        call igText(c_loc(inputb))
-
        call igPopStyleVar(1_c_int)
+       call igUnindent(0._c_float)
     end if
     call igEnd()
 
@@ -1653,9 +1635,8 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_co(w)
-    use gui_main, only: ColorHighlightText, g, ColorDangerButton,&
-       ColorFrameBgAlt
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button
+    use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1692,8 +1673,7 @@ contains
     xavail = szavail%x
 
     ! first line: text
-    str1 = "Output" // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str1))
+    call iw_text("Output",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
 
     ! first line: clear button
@@ -1884,9 +1864,9 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new(w)
-    use gui_main, only: g, ColorHighlightText, add_systems_from_seeds,&
+    use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -1939,7 +1919,7 @@ contains
     szero%y = 0
     readlib = .false.
     if (firstpass) then
-       w%libraryfile = trim(clib_file) // c_null_char
+       w%libraryfile = trim(clib_file)
        firstpass = .false.
        readlib = .true.
        if (allocated(atposbuf)) deallocate(atposbuf)
@@ -1997,9 +1977,9 @@ contains
     call iw_tooltip("Read the structure from the critic2 library",ttshown)
     if (changed.and..not.w%libraryfile_set) then
        if (ismolecule) then
-          w%libraryfile = trim(mlib_file) // c_null_char
+          w%libraryfile = trim(mlib_file)
        else
-          w%libraryfile = trim(clib_file) // c_null_char
+          w%libraryfile = trim(clib_file)
        end if
        readlib = .true.
     end if
@@ -2008,17 +1988,14 @@ contains
     doquit = .false.
     if (fromlibrary) then
        ! library file
-       str = "Source" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Source",highlight=.true.)
        if (iw_button("Library file",disabled=(idum /= 0))) &
           idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
        call iw_tooltip("Library file from where the structures are read",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-       call igText(c_loc(w%libraryfile))
+       call iw_text(w%libraryfile,sameline=.true.)
 
        ! list box
-       str = "Structures to load from the library file" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Structures to load from the library file",highlight=.true.)
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
        if (ismolecule) then
@@ -2056,8 +2033,7 @@ contains
 
        if (ismolecule) then
           ! options line
-          str = "Structure options" // c_null_char
-          call igTextColored(ColorHighlightText,c_loc(str))
+          call iw_text("Structure options",highlight=.true.)
 
           ! cell border
           call igIndent(0._c_float)
@@ -2127,17 +2103,13 @@ contains
 
     elseif (ismolecule) then
        ! name
-       str = "Name" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Name",highlight=.true.)
        str2 = "##name"
        ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
        ! atomic positions: header
-       str = "Atomic positions" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
-       call igSameLine(0._c_float,-1._c_float)
-       str = "(?)" // c_null_char
-       call igText(c_loc(str))
+       call iw_text("Atomic positions",highlight=.true.)
+       call iw_text("(?)",sameline=.true.)
        call iw_tooltip("Give the atomic positions for this system as:" // newline //&
           "  <Sy> <x> <y> <z>" // newline //&
           "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
@@ -2163,8 +2135,7 @@ contains
           ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
 
        ! options line
-       str = "Structure options" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Structure options",highlight=.true.)
 
        ! cell border
        call igIndent(0._c_float)
@@ -2249,14 +2220,12 @@ contains
        if (iw_button("Cancel")) doquit = .true.
     else
        ! name
-       str = "Name" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Name",highlight=.true.)
        str2 = "##name"
        ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
        ! symmetry
-       str = "Symmetry" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Symmetry",highlight=.true.)
 
        str = "Detect" // c_null_char
        if (igRadioButton_Bool(c_loc(str),logical(symopt == 1,c_bool))) symopt = 1
@@ -2329,30 +2298,22 @@ contains
                 end if
 
                 ! ITA
-                if (igTableNextColumn()) then
-                   str = string(sa%number,5,ioj_left) // c_null_char
-                   call igText(c_loc(str))
-                end if
+                if (igTableNextColumn()) call iw_text(string(sa%number,5,ioj_left))
 
                 ! HM-short
                 if (igTableNextColumn()) then
                    str = deblank(sa%international_short)
-                   str = trim(stripchar(str,"_")) // c_null_char
-                   call igText(c_loc(str))
+                   call iw_text(trim(stripchar(str,"_")))
                 end if
 
                 ! HM-long
                 if (igTableNextColumn()) then
                    str = deblank(sa%international_full)
-                   str = trim(stripchar(str,"_")) // c_null_char
-                   call igText(c_loc(str))
+                   call iw_text(trim(stripchar(str,"_")))
                 end if
 
                 ! choice
-                if (igTableNextColumn()) then
-                   str = string(sa%choice,6,ioj_left) // c_null_char
-                   call igText(c_loc(str))
-                end if
+                if (igTableNextColumn()) call iw_text(string(sa%choice,6,ioj_left))
 
                 ! system
                 if (igTableNextColumn()) then
@@ -2373,15 +2334,11 @@ contains
                    else
                       str = "??"
                    end if
-                   str = str // c_null_char
-                   call igText(c_loc(str))
+                   call iw_text(str)
                 end if
 
                 ! hall symbol
-                if (igTableNextColumn()) then
-                   str = string(sa%hall_symbol) // c_null_char
-                   call igText(c_loc(str))
-                end if
+                if (igTableNextColumn()) call iw_text(string(sa%hall_symbol))
              end do
 
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -2393,8 +2350,7 @@ contains
           str = deblank(sa%international_full)
           str = "Current choice: " // trim(stripchar(str,"_"))
           if (len_trim(sa%choice) > 0) str = str // " (" // trim(sa%choice) // ")"
-          str = str // c_null_char
-          call igText(c_loc(str))
+          call iw_text(str)
        elseif (symopt == 3) then
           ! manual input of symmetry operations
           call igGetContentRegionAvail(szavail)
@@ -2406,8 +2362,7 @@ contains
        end if
 
        ! lattice: header
-       str = "Lattice" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Lattice",highlight=.true.)
 
        str = "Cell parameters" // c_null_char
        if (igRadioButton_Bool(c_loc(str),logical(cellopt == 1,c_bool))) then
@@ -2446,16 +2401,14 @@ contains
        ! lattice: body
        if (cellopt == 1) then
           ! cell lengths
-          str = "Cell lengths (Å): " // c_null_char
-          call igText(c_loc(str))
+          call iw_text("Cell lengths (Å): ")
           call igSameLine(0._c_float,-1._c_float)
           str = "##celllength3" // c_null_char
           stropt = "%.3f" // c_null_char
           ldum = igInputFloat3(c_loc(str),aa,c_loc(stropt),ImGuiInputTextFlags_None)
 
           ! cell angles
-          str = "Cell angles (°):  " // c_null_char
-          call igText(c_loc(str))
+          call iw_text("Cell angles (°):  ")
           call igSameLine(0._c_float,-1._c_float)
           str = "##cellangle3" // c_null_char
           stropt = "%.3f" // c_null_char
@@ -2471,11 +2424,8 @@ contains
        end if
 
        ! atomic positions: header
-       str = "Atomic positions" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
-       call igSameLine(0._c_float,-1._c_float)
-       str = "(?)" // c_null_char
-       call igText(c_loc(str))
+       call iw_text("Atomic positions",highlight=.true.)
+       call iw_text("(?)",sameline=.true.)
        if (symopt == 1) then
           str = "Enter all atoms in the unit cell as:"
        else
@@ -2812,8 +2762,8 @@ contains
 
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
-    use gui_main, only: ColorHighlightText, g
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip
+    use gui_main, only: g
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text
     use gui_interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -2832,8 +2782,7 @@ contains
     !! common options !!
 
     ! header
-    str = "Options" // c_null_char
-    call igTextColored(ColorHighlightText,c_loc(str))
+    call iw_text("Options",highlight=.true.)
 
     ! show hidden files
     str = "Show hidden files" // c_null_char
@@ -2854,8 +2803,7 @@ contains
        call igNewLine()
 
        ! radio buttons for auto/crystal/molecule
-       str = "Read structures as..." // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Read structures as...",highlight=.true.)
        str = "Auto-detect" // c_null_char
        ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
        call iw_tooltip("Auto-detect whether new structures are read as crystals or molecules",ttshown)
@@ -2885,8 +2833,7 @@ contains
        call igNewLine()
 
        ! Input structure format (isformat)
-       str = "Read file format" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       call iw_text("Read file format",highlight=.true.)
        str = "##formatcombo" // c_null_char
        stropt = "" &
           // "Auto-detect" // c_null_char &             ! isformat_unknown = 0
@@ -2937,17 +2884,9 @@ contains
     integer, intent(out) :: nst
     type(vstring), allocatable, intent(inout) :: st(:)
 
-    integer :: idx, lu, lp
-    character(len=:), allocatable :: file, word, line
+    integer :: lu, lp
+    character(len=:), allocatable :: word, line
     logical :: ok
-
-    ! get the file name
-    idx = index(libfile,c_null_char)
-    if (idx > 0) then
-       file = libfile(1:idx-1)
-    else
-       file = libfile
-    end if
 
     ! open the file
     nst = 0

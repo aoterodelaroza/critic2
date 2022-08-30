@@ -22,6 +22,40 @@ submodule (gui_utils) proc
 
 contains
 
+  !> Draw text. If highlight, use the highlight color. If disabled,
+  !> use the disabled font. If sameline, draw it in the same line as
+  !> the previous widget.
+  module subroutine iw_text(str,highlight,disabled,sameline)
+    use gui_interfaces_cimgui
+    use gui_main, only: ColorHighlightText
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(in), optional :: highlight
+    logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: disabled
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+
+    logical :: highlight_, disabled_, sameline_
+
+    highlight_ = .false.
+    sameline_ = .false.
+    disabled_ = .false.
+    if (present(highlight)) highlight_ = highlight
+    if (present(sameline)) sameline_ = sameline
+    if (present(disabled)) disabled_ = disabled
+
+    if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    str1 = trim(str) // c_null_char
+    if (disabled_) then
+       call igTextDisabled(c_loc(str1))
+    elseif (highlight_) then
+       call igTextColored(ColorHighlightText,c_loc(str1))
+    else
+       call igText(c_loc(str1))
+    end if
+
+  end subroutine iw_text
+
   !> Draw a button. If danger, use the danger color. If sameline, draw
   !> the button in the same line as the preceding widgets.  If
   !> disabled, disable the button. If siz, use this size for the

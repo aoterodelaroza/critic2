@@ -618,7 +618,7 @@ contains
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
        wintype_new
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -717,9 +717,8 @@ contains
        ! fps message
        call igGetContentRegionAvail(v2)
        call igSameLine(0._c_float, v2%x - 220._c_float)
-       str1 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
-          string(io%Framerate,'f',decimal=1) // " FPS)" // c_null_char
-       call igText(c_loc(str1))
+       call iw_text(string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
+          string(io%Framerate,'f',decimal=1) // " FPS)")
     end if
     call igEndMainMenuBar()
 
