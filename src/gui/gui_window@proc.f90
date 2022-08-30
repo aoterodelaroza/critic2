@@ -1951,10 +1951,12 @@ contains
     type(vstring), allocatable, save :: st(:)
     logical(c_bool), allocatable, save :: lst(:)
     character(kind=c_char,len=:), allocatable, target, save :: atposbuf
+    character(kind=c_char,len=:), allocatable, target, save :: symopbuf
     integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
     integer :: ispg_selected = 1
 
     integer(c_size_t), parameter :: maxatposbuf = 100000
+    integer(c_size_t), parameter :: maxsymopbuf = 10000
 
     ! initialize
     szero%x = 0
@@ -1967,6 +1969,10 @@ contains
        if (allocated(atposbuf)) deallocate(atposbuf)
        allocate(character(len=maxatposbuf+1) :: atposbuf)
        atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
+       if (allocated(symopbuf)) deallocate(symopbuf)
+       allocate(character(len=maxsymopbuf+1) :: symopbuf)
+       symopbuf(1:66) = "## Each line is a symmetry operation of the type: " // newline //&
+          "## -1/2+y,z,x" // c_null_char
     end if
 
     ! check if we have info from the open library file window when it
@@ -2415,7 +2421,12 @@ contains
           call igText(c_loc(str))
        elseif (symopt == 3) then
           ! manual input of symmetry operations
-
+          call igGetContentRegionAvail(szavail)
+          sz%x = szavail%x
+          sz%y = 8 * igGetTextLineHeightWithSpacing()
+          str = "##symopsmanual" // c_null_char
+          ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
+             ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
        end if
     end if
 
