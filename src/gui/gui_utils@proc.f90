@@ -61,11 +61,9 @@ contains
     str1 = trim(str) // c_null_char
     if (danger_) &
        call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
-    if (disabled_) &
-       call igBeginDisabled(logical(disabled_,c_bool))
+    call igBeginDisabled(logical(disabled_,c_bool))
     iw_button = logical(igButton(c_loc(str1),sz))
-    if (disabled_) &
-       call igEndDisabled()
+    call igEndDisabled()
     if (danger_) &
        call igPopStyleColor(1)
     if (present(popupcontext) .and. present(popupflags)) &

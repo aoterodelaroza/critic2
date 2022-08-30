@@ -2021,8 +2021,12 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str))
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
-       sz%y = sz%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
-          2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       if (ismolecule) then
+          sz%y = sz%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
+             2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       else
+          sz%y = sz%y - (2 * igGetTextLineHeight() + g%Style%FramePadding%y + g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       end if
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
           str = st(i)%s // c_null_char
@@ -2050,28 +2054,30 @@ contains
        end do
        call igEndListBox()
 
-       ! options line
-       str = "Structure options" // c_null_char
-       call igTextColored(ColorHighlightText,c_loc(str))
+       if (ismolecule) then
+          ! options line
+          str = "Structure options" // c_null_char
+          call igTextColored(ColorHighlightText,c_loc(str))
 
-       ! cell border
-       call igIndent(0._c_float)
-       str = "Cell border (Å)" // c_null_char
-       stropt = "%.3f" // c_null_char
-       strex = string(rborder,'f',decimal=3) // c_null_char
-       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
-       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
-          c_loc(stropt),ImGuiInputTextFlags_None)
-       call iw_tooltip("Periodic cell border around new molecules",ttshown)
-       call igPopItemWidth()
-       call igSameLine(0._c_float,-1._c_float)
+          ! cell border
+          call igIndent(0._c_float)
+          str = "Cell border (Å)" // c_null_char
+          stropt = "%.3f" // c_null_char
+          strex = string(rborder,'f',decimal=3) // c_null_char
+          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+          ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
+             c_loc(stropt),ImGuiInputTextFlags_None)
+          call iw_tooltip("Periodic cell border around new molecules",ttshown)
+          call igPopItemWidth()
+          call igSameLine(0._c_float,-1._c_float)
 
-       ! cubic cell
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Cubic cell" // c_null_char
-       ldum = igCheckbox(c_loc(str),molcubic)
-       call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
+          ! cubic cell
+          call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+          str = "Cubic cell" // c_null_char
+          ldum = igCheckbox(c_loc(str),molcubic)
+          call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
+       end if
 
        ! insert spacing for buttons on the right
        call igGetContentRegionAvail(szavail)
@@ -2117,7 +2123,7 @@ contains
        end if
 
        ! final buttons: cancel
-       if (iw_button("Cancel",sameline=.true.,disabled=.true.)) doquit = .true.
+       if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     elseif (ismolecule) then
        ! name
