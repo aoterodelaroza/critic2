@@ -726,7 +726,11 @@ subroutine igTableNextRow(row_flags,min_row_height) bind(c,name="igTableNextRow"
   integer(c_int), value :: row_flags
   real(c_float), value :: min_row_height
 end subroutine igTableNextRow
-!x! bool igTableNextColumn(void);
+! bool igTableNextColumn(void);
+function igTableNextColumn() bind(c,name="igTableNextColumn")
+  import c_bool
+  logical(c_bool) :: igTableNextColumn
+end function igTableNextColumn
 ! bool igTableSetColumnIndex(int column_n);
 function igTableSetColumnIndex(column_n) bind(c,name="igTableSetColumnIndex")
   import c_int, c_bool

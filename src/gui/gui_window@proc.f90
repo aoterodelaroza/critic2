@@ -1917,8 +1917,9 @@ contains
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, wrapped_tooltip
     use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
-    use tools_io, only: string, fopen_scratch, fclose
+    use tools_io, only: string, fopen_scratch, fclose, ioj_left, stripchar, deblank
     use types, only: vstring
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
@@ -1933,6 +1934,9 @@ contains
     real(c_float) :: rshift
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
+    integer(c_int) :: flags
+    type(SpglibSpaceGroupType) :: sa
+
     logical(c_bool), save :: ismolecule = .false.
     logical(c_bool), save :: fromlibrary = .false.
     logical, save :: ttshown = .false.
@@ -1947,6 +1951,8 @@ contains
     type(vstring), allocatable, save :: st(:)
     logical(c_bool), allocatable, save :: lst(:)
     character(kind=c_char,len=:), allocatable, target, save :: atposbuf
+    integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
+    integer :: ispg_selected = 1
 
     integer(c_size_t), parameter :: maxatposbuf = 100000
 
@@ -2260,8 +2266,154 @@ contains
        str = "Cancel" // c_null_char
        if (igButton(c_loc(str),szero)) doquit = .true.
     else
-       str = "To be implemented, crystal" // c_null_char
-       call igText(c_loc(str))
+       ! name
+       str = "Name" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+       str2 = "##name"
+       ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
+
+       ! symmetry
+       str = "Symmetry" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+
+       str = "Detect" // c_null_char
+       if (igRadioButton_Bool(c_loc(str),logical(symopt == 1,c_bool))) symopt = 1
+       call wrapped_tooltip("Calculate the symmetry operations from the list of unit cell atoms",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+       str = "Space group" // c_null_char
+       if (igRadioButton_Bool(c_loc(str),logical(symopt == 2,c_bool))) symopt = 2
+       call wrapped_tooltip("Choose a space group from the list",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+       str = "Manual" // c_null_char
+       if (igRadioButton_Bool(c_loc(str),logical(symopt == 3,c_bool))) symopt = 3
+       call wrapped_tooltip("Enter symmetry operations in cif-file format (e.g. -1/2+x,z,-y)",ttshown)
+
+       ! symmetry options
+       if (symopt == 2) then
+          str = "##spacegrouptable" // c_null_char
+          flags = ImGuiTableFlags_Borders
+          flags = ior(flags,ImGuiTableFlags_RowBg)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_ScrollX)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+
+          ! sz%x = ImGui::CalcTextSize("A").x
+          call igGetContentRegionAvail(sz)
+          sz%y = 8 * igGetTextLineHeightWithSpacing()
+          if (igBeginTable(c_loc(str),7,flags,sz,0._c_float)) then
+             ! set up columns
+             str = "Hall" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+             str = "ITA" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,1)
+
+             str = "HM short" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,2)
+
+             str = "HM long" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,3)
+
+             str = "choice" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,4)
+
+             str = "system" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,5)
+
+             str = "Hall symbol" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,6)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+             call igTableHeadersRow()
+
+             ! table body
+             do i = 1, 530
+                sa = spg_get_spacegroup_type(i)
+
+                ! Hall
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+                if (igTableSetColumnIndex(0)) then
+                   str = string(i) // c_null_char
+                   flags = ImGuiSelectableFlags_SpanAllColumns
+                   flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+                   if (igSelectable_Bool(c_loc(str),logical(ispg_selected == i,c_bool),flags,szero)) &
+                      ispg_selected = i
+                end if
+
+                ! ITA
+                if (igTableNextColumn()) then
+                   str = string(sa%number,5,ioj_left) // c_null_char
+                   call igText(c_loc(str))
+                end if
+
+                ! HM-short
+                if (igTableNextColumn()) then
+                   str = deblank(sa%international_short)
+                   str = trim(stripchar(str,"_")) // c_null_char
+                   call igText(c_loc(str))
+                end if
+
+                ! HM-long
+                if (igTableNextColumn()) then
+                   str = deblank(sa%international_full)
+                   str = trim(stripchar(str,"_")) // c_null_char
+                   call igText(c_loc(str))
+                end if
+
+                ! choice
+                if (igTableNextColumn()) then
+                   str = string(sa%choice,6,ioj_left) // c_null_char
+                   call igText(c_loc(str))
+                end if
+
+                ! system
+                if (igTableNextColumn()) then
+                   if (sa%number >= 1 .and. sa%number <= 2) then
+                      str = "triclinic"
+                   elseif (sa%number >= 3 .and. sa%number <= 15) then
+                      str = "monoclinic"
+                   elseif (sa%number >= 16 .and. sa%number <= 74) then
+                      str = "orthorhombic"
+                   elseif (sa%number >= 75 .and. sa%number <= 142) then
+                      str = "tetragonal"
+                   elseif (sa%number >= 143 .and. sa%number <= 167) then
+                      str = "trigonal"
+                   elseif (sa%number >= 168 .and. sa%number <= 194) then
+                      str = "hexagonal"
+                   elseif (sa%number >= 195 .and. sa%number <= 230) then
+                      str = "cubic"
+                   else
+                      str = "??"
+                   end if
+                   str = str // c_null_char
+                   call igText(c_loc(str))
+                end if
+
+                ! hall symbol
+                if (igTableNextColumn()) then
+                   str = string(sa%hall_symbol) // c_null_char
+                   call igText(c_loc(str))
+                end if
+             end do
+
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call igEndTable()
+          end if
+
+          ! current choice
+          sa = spg_get_spacegroup_type(ispg_selected)
+          str = deblank(sa%international_full)
+          str = "Current choice: " // trim(stripchar(str,"_"))
+          if (len_trim(sa%choice) > 0) str = str // " (" // trim(sa%choice) // ")"
+          str = str // c_null_char
+          call igText(c_loc(str))
+       end if
     end if
 
     ! read the library file
@@ -2288,6 +2440,8 @@ contains
        molcubic = .false.
        iunit = 0
        namebuf(1:1) = c_null_char
+       symopt = 1
+       ispg_selected = 1
        if (allocated(st)) deallocate(st)
        if (allocated(lst)) deallocate(lst)
        if (allocated(atposbuf)) deallocate(atposbuf)
