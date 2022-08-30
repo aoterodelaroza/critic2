@@ -26,7 +26,8 @@ submodule (gui_templates) proc
   integer, parameter :: ikeyw_none = 0
   integer, parameter :: ikeyw_environ = 1 ! ENVIRON
   integer, parameter :: ikeyw_kpoints = 2 ! KPOINTS
-  integer, parameter :: ikeyw_NUM = 2
+  integer, parameter :: ikeyw_spg = 3 ! SPG
+  integer, parameter :: ikeyw_NUM = 3
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
@@ -34,13 +35,15 @@ submodule (gui_templates) proc
   integer, parameter :: isection_NUM = 1
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
      isection_structural_tools,& ! ENVIRON
-     isection_structural_tools& ! KPOINTS
+     isection_structural_tools,& ! KPOINTS
+     isection_structural_tools& ! SPG
      /)
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
      "ENVIRON (calculate atomic environments)",& ! ENVIRON
-     "KPOINTS (calculate k-point grid sizes) "& ! KPOINTS
+     "KPOINTS (calculate k-point grid sizes) ",& ! KPOINTS
+     "SPG (list space group types)           "& ! SPG
      /)
 
   ! section titles
@@ -50,19 +53,21 @@ submodule (gui_templates) proc
 
   ! section ranges
   integer, parameter :: section_ranges(2,1) = reshape((/&
-     1,2& ! structural tools
+     1,3& ! structural tools
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
      "environ",& ! ENVIRON
-     "kpoints"& ! KPOINTS
+     "kpoints",& ! KPOINTS
+     "spg    "&  ! SPG
      /)
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
      "structure/#c2-environ",& ! ENVIRON
-     "structure/#c2-kpoints"& ! KPOINTS
+     "structure/#c2-kpoints",& ! KPOINTS
+     "crystal/#c2-spg      "& ! SPG
      /)
 
   ! template hash
@@ -84,10 +89,10 @@ contains
     integer :: i, j
 
     do i = 1, isection_NUM
-       str1 = section_titles(i) // c_null_char
+       str1 = trim(section_titles(i)) // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           do j = section_ranges(1,i), section_ranges(2,i)
-             str2 = keyword_titles(j) // c_null_char
+             str2 = trim(keyword_titles(j)) // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 call launch_keyword_action(textinsert,j)
              end if
@@ -118,7 +123,7 @@ contains
        str = get_keyword_template(ikeyw)
        call win(iwin_console_input)%fill_input_ci(str)
     else
-       str = "https://aoterodelaroza.github.io/critic2/manual/" // doclink(ikeyw) //&
+       str = "https://aoterodelaroza.github.io/critic2/manual/" // trim(doclink(ikeyw)) //&
           c_null_char
        call openLink(c_loc(str))
     end if
@@ -137,11 +142,10 @@ contains
     logical :: exist
     integer :: lu
 
-    keyw = template_file(ikeyw)
+    keyw = trim(template_file(ikeyw))
     if (.not.thash%iskey(keyw)) then
        ! check the file exists
-       file = trim(critic_home) // dirsep // "helpdoc" // dirsep //&
-          template_file(ikeyw) // ".keyw"
+       file = trim(critic_home) // dirsep // "helpdoc" // dirsep // keyw // ".keyw"
        inquire(file=file,exist=exist)
        if (.not.exist) then
           get_keyword_template = &

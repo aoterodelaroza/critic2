@@ -2278,7 +2278,7 @@ contains
 
        str = "Detect" // c_null_char
        if (igRadioButton_Bool(c_loc(str),logical(symopt == 1,c_bool))) symopt = 1
-       call wrapped_tooltip("Calculate the symmetry operations from the list of unit cell atoms",ttshown)
+       call wrapped_tooltip("Calculate the symmetry operations from the complete list of unit cell atoms",ttshown)
        call igSameLine(0._c_float,-1._c_float)
        str = "Space group" // c_null_char
        if (igRadioButton_Bool(c_loc(str),logical(symopt == 2,c_bool))) symopt = 2
@@ -2290,6 +2290,7 @@ contains
 
        ! symmetry options
        if (symopt == 2) then
+          ! space group table
           str = "##spacegrouptable" // c_null_char
           flags = ImGuiTableFlags_Borders
           flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -2297,7 +2298,6 @@ contains
           flags = ior(flags,ImGuiTableFlags_ScrollX)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
 
-          ! sz%x = ImGui::CalcTextSize("A").x
           call igGetContentRegionAvail(sz)
           sz%y = 8 * igGetTextLineHeightWithSpacing()
           if (igBeginTable(c_loc(str),7,flags,sz,0._c_float)) then
@@ -2413,6 +2413,9 @@ contains
           if (len_trim(sa%choice) > 0) str = str // " (" // trim(sa%choice) // ")"
           str = str // c_null_char
           call igText(c_loc(str))
+       elseif (symopt == 3) then
+          ! manual input of symmetry operations
+
        end if
     end if
 
