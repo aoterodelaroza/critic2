@@ -24,16 +24,18 @@ submodule (gui_templates) proc
 
   ! the keywords
   integer, parameter :: ikeyw_none = 0
-  integer, parameter :: ikeyw_environ = 1 ! ENVIRON
-  integer, parameter :: ikeyw_kpoints = 2 ! KPOINTS
-  integer, parameter :: ikeyw_spg = 3 ! SPG
-  integer, parameter :: ikeyw_NUM = 3
+  integer, parameter :: ikeyw_bz = 1      ! BZ
+  integer, parameter :: ikeyw_environ = 2 ! ENVIRON
+  integer, parameter :: ikeyw_kpoints = 3 ! KPOINTS
+  integer, parameter :: ikeyw_spg = 4     ! SPG
+  integer, parameter :: ikeyw_NUM = 4
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
   integer, parameter :: isection_structural_tools = 1 ! structural tools
   integer, parameter :: isection_NUM = 1
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
+     isection_structural_tools,& ! BZ
      isection_structural_tools,& ! ENVIRON
      isection_structural_tools,& ! KPOINTS
      isection_structural_tools& ! SPG
@@ -41,6 +43,7 @@ submodule (gui_templates) proc
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
+     "BZ (print Brillouin zone)              ",& ! BZ
      "ENVIRON (calculate atomic environments)",& ! ENVIRON
      "KPOINTS (calculate k-point grid sizes) ",& ! KPOINTS
      "SPG (list space group types)           "& ! SPG
@@ -53,18 +56,20 @@ submodule (gui_templates) proc
 
   ! section ranges
   integer, parameter :: section_ranges(2,1) = reshape((/&
-     1,3& ! structural tools
+     1,4& ! structural tools
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
+     "bz     ",& ! BZ
      "environ",& ! ENVIRON
      "kpoints",& ! KPOINTS
-     "spg    "&  ! SPG
+     "spg    "& ! SPG
      /)
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
+     "structure/#c2-bz     ",& ! BZ
      "structure/#c2-environ",& ! ENVIRON
      "structure/#c2-kpoints",& ! KPOINTS
      "crystal/#c2-spg      "& ! SPG
