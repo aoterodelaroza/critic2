@@ -1947,13 +1947,16 @@ contains
     real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
     logical(c_bool), save :: molcubic = .false.
     integer(c_int), save :: iunit = 0 ! 0 = bohr, 1 = angstrom
+    integer(c_int), save :: iunitcel = 0 ! 0 = bohr, 1 = angstrom
     character(len=namebufsiz,kind=c_char), target, save :: namebuf = c_null_char
     type(vstring), allocatable, save :: st(:)
     logical(c_bool), allocatable, save :: lst(:)
     character(kind=c_char,len=:), allocatable, target, save :: atposbuf
     character(kind=c_char,len=:), allocatable, target, save :: symopbuf
     integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
-    integer :: ispg_selected = 1
+    integer, save :: cellopt = 1 ! 1 = parameters, 2 = lattice-vectors
+    integer, save :: ispg_selected = 1
+    real(c_float), save :: aa(3), bb(3)
 
     integer(c_size_t), parameter :: maxatposbuf = 100000
     integer(c_size_t), parameter :: maxsymopbuf = 10000
@@ -1973,6 +1976,8 @@ contains
        allocate(character(len=maxsymopbuf+1) :: symopbuf)
        symopbuf(1:66) = "## Each line is a symmetry operation of the type: " // newline //&
           "## -1/2+y,z,x" // c_null_char
+       aa = 10._c_float
+       bb = 90._c_float
     end if
 
     ! check if we have info from the open library file window when it
@@ -2428,6 +2433,50 @@ contains
           ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
              ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
        end if
+
+       ! lattice
+       str = "Lattice" // c_null_char
+       call igTextColored(ColorHighlightText,c_loc(str))
+
+       str = "Cell parameters" // c_null_char
+       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 1,c_bool))) cellopt = 1
+       call wrapped_tooltip("Lattice is calculated from the cell lengths and angles",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+
+       str = "Lattice vectors" // c_null_char
+       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 2,c_bool))) cellopt = 2
+       call wrapped_tooltip("Lattice vectors are given explicitly",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Units##cel" // c_null_char
+       stropt = "Bohr" // c_null_char // "Angstrom"
+       strex = "Angstrom    " // c_null_char
+       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+       call igSetNextItemWidth(sz%x)
+       ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
+       call wrapped_tooltip("Units for the cell parameters/lattice vectors",ttshown)
+
+       ! body
+       if (cellopt == 1) then
+          ! cell lengths
+          str = "Cell lengths (Å): " // c_null_char
+          call igText(c_loc(str))
+          call igSameLine(0._c_float,-1._c_float)
+          str = "##celllength3" // c_null_char
+          stropt = "%.3f" // c_null_char
+          ldum = igInputFloat3(c_loc(str),aa,c_loc(stropt),ImGuiInputTextFlags_None)
+
+          ! cell angles
+          str = "Cell angles (°):  " // c_null_char
+          call igText(c_loc(str))
+          call igSameLine(0._c_float,-1._c_float)
+          str = "##cellangle3" // c_null_char
+          stropt = "%.3f" // c_null_char
+          ldum = igInputFloat3(c_loc(str),bb,c_loc(stropt),ImGuiInputTextFlags_None)
+       else
+          ! lattice vectors
+       end if
     end if
 
     ! read the library file
@@ -2453,9 +2502,13 @@ contains
        rborder = real(rborder_def*bohrtoa,c_float)
        molcubic = .false.
        iunit = 0
+       iunitcel = 0
        namebuf(1:1) = c_null_char
        symopt = 1
+       cellopt = 1
        ispg_selected = 1
+       aa = 10._c_float
+       bb = 90._c_float
        if (allocated(st)) deallocate(st)
        if (allocated(lst)) deallocate(lst)
        if (allocated(atposbuf)) deallocate(atposbuf)

@@ -535,7 +535,15 @@ function igInputFloat(label,v,step,step_fast,format_,flags) bind(c,name="igInput
   logical(c_bool) :: igInputFloat
 end function igInputFloat
 !x! bool igInputFloat2(const char* label,float v[2],const char* format,ImGuiInputTextFlags flags);
-!x! bool igInputFloat3(const char* label,float v[3],const char* format,ImGuiInputTextFlags flags);
+! bool igInputFloat3(const char* label,float v[3],const char* format,ImGuiInputTextFlags flags);
+function igInputFloat3(label,v,format_,flags) bind(c,name="igInputFloat3")
+  import c_int, c_float, c_ptr, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v(3)
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igInputFloat3
+end function igInputFloat3
 !x! bool igInputFloat4(const char* label,float v[4],const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputInt(const char* label,int* v,int step,int step_fast,ImGuiInputTextFlags flags);
 !x! bool igInputInt2(const char* label,int v[2],ImGuiInputTextFlags flags);
