@@ -22,9 +22,60 @@ submodule (gui_utils) proc
 
 contains
 
+  !> Draw a button. If danger, use the danger color. If sameline, draw
+  !> the button in the same line as the preceding widgets.  If
+  !> disabled, disable the button. If siz, use this size for the
+  !> button. If popupcontext and poupflags, open a popup context with
+  !> the given flags and return the resulting bool in popupcontext.
+  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags)
+    use gui_interfaces_cimgui
+    use gui_main, only: ColorDangerButton
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(in), optional :: danger
+    logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: disabled
+    real(c_float), intent(in), optional :: siz(2)
+    logical, intent(inout), optional :: popupcontext
+    integer(c_int), intent(in), optional :: popupflags
+    logical :: iw_button
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical :: danger_, sameline_, disabled_
+    type(ImVec2) :: sz
+
+    if (present(siz)) then
+       sz%x = siz(1)
+       sz%y = siz(2)
+    else
+       sz%x = 0._c_float
+       sz%y = 0._c_float
+    end if
+    danger_ = .false.
+    sameline_ = .false.
+    disabled_ = .false.
+    if (present(danger)) danger_ = danger
+    if (present(sameline)) sameline_ = sameline
+    if (present(disabled)) disabled_ = disabled
+
+    if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    str1 = trim(str) // c_null_char
+    if (danger_) &
+       call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    if (disabled_) &
+       call igBeginDisabled(logical(disabled_,c_bool))
+    iw_button = logical(igButton(c_loc(str1),sz))
+    if (disabled_) &
+       call igEndDisabled()
+    if (danger_) &
+       call igPopStyleColor(1)
+    if (present(popupcontext) .and. present(popupflags)) &
+       popupcontext = igBeginPopupContextItem(c_loc(str1),popupflags)
+
+  end function iw_button
+
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
-  module subroutine wrapped_tooltip(str,ttshown)
+  module subroutine iw_tooltip(str,ttshown)
     use gui_interfaces_cimgui
     use gui_main, only: tooltip_wrap_factor, tooltip_delay
     character(len=*,kind=c_char), intent(in) :: str
@@ -46,9 +97,8 @@ contains
       call igTextWrapped(c_loc(strloc))
       call igPopTextWrapPos()
       call igEndTooltip()
-      ! call igSetTooltip(c_loc(strloc))
     end subroutine show_tooltip
-  end subroutine wrapped_tooltip
+  end subroutine iw_tooltip
 
   ! Returns true if the last item has been hovered for at least thr
   ! seconds. If already_shown (the tooltip has already been displayed),

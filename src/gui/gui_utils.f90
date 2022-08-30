@@ -22,16 +22,28 @@ module gui_utils
 
   private
 
-  public :: wrapped_tooltip
+  public :: iw_button
+  public :: iw_tooltip
   public :: igIsItemHovered_delayed
   public :: get_time_string
 
   ! module procedure interfaces
   interface
-     module subroutine wrapped_tooltip(str,ttshown)
+     module function iw_button(str,danger,sameline,disabled,siz,&
+        popupcontext,popupflags)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(in), optional :: danger
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: disabled
+       real(c_float), intent(in), optional :: siz(2)
+       logical, intent(inout), optional :: popupcontext
+       integer(c_int), intent(in), optional :: popupflags
+       logical :: iw_button
+     end function iw_button
+     module subroutine iw_tooltip(str,ttshown)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout), optional :: ttshown
-     end subroutine wrapped_tooltip
+     end subroutine iw_tooltip
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr
