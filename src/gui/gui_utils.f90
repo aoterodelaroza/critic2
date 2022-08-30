@@ -22,6 +22,7 @@ module gui_utils
 
   private
 
+  public :: iw_calcheight
   public :: iw_calcwidth
   public :: iw_text
   public :: iw_button
@@ -31,6 +32,11 @@ module gui_utils
 
   ! module procedure interfaces
   interface
+     module function iw_calcheight(nline)
+       use gui_interfaces_cimgui
+       integer, intent(in) :: nline
+       real(c_float) :: iw_calcheight
+     end function iw_calcheight
      module function iw_calcwidth(ntext,nbutton,from_end)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton

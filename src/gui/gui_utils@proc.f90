@@ -22,7 +22,20 @@ submodule (gui_utils) proc
 
 contains
 
-  !> Calculate the width of ntext character and nbutton buttons.
+  !> Calculate the height of nline lines, with padding:
+  !>   frame-line1-frame-itemspace-frame-line2-frame
+  module function iw_calcheight(nline)
+    use gui_interfaces_cimgui
+    use gui_main, only: g
+    integer, intent(in) :: nline
+    real(c_float) :: iw_calcheight
+
+    iw_calcheight = nline * (igGetTextLineHeight() + 2 * g%Style%FramePadding%y) + &
+       (nline - 1) * g%Style%ItemSpacing%y
+
+  end function iw_calcheight
+
+  !> Calculate the width of ntext characters and nbutton buttons.
   !>
   !> SomeText    |  Button1  |    |  Button2  |  ||--end of window
   !>             ^--^     ^--^    ^--^     ^--^    <-- FramePadding.x
@@ -34,7 +47,7 @@ contains
   !> position if it is negative.
   module function iw_calcwidth(ntext,nbutton,from_end)
     use gui_interfaces_cimgui
-    use gui_main, only: fontsize, g
+    use gui_main, only: g
     integer, intent(in) :: ntext
     integer, intent(in) :: nbutton
     logical, intent(in), optional :: from_end
@@ -42,7 +55,6 @@ contains
 
     type(ImVec2) :: sz
     character(len=:,kind=c_char), allocatable, target :: strc
-    real(c_float) :: realtext
 
     ! text size
     allocate(character(len=ntext+1,kind=c_char) :: strc)
@@ -51,8 +63,11 @@ contains
     call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
     ! calculate width
-    iw_calcwidth = sz%x + nbutton * (2 * g%Style%FramePadding%x) + &
-       (nbutton - 1) * g%Style%ItemSpacing%x
+    iw_calcwidth = sz%x
+    if (nbutton > 0) then
+       iw_calcwidth = iw_calcwidth + nbutton * (2 * g%Style%FramePadding%x) + &
+          (nbutton - 1) * g%Style%ItemSpacing%x
+    end if
     if (present(from_end)) then
        if (from_end) then
           iw_calcwidth = igGetWindowWidth() - g%style%WindowPadding%x - iw_calcwidth
@@ -84,7 +99,7 @@ contains
     if (present(disabled)) disabled_ = disabled
 
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
-    str1 = trim(str) // c_null_char
+    str1 = str // c_null_char
     if (disabled_) then
        call igTextDisabled(c_loc(str1))
     elseif (highlight_) then

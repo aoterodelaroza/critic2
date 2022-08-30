@@ -622,13 +622,12 @@ contains
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
        wintype_new
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: v2
     logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
     integer, save :: idopendialog = 0
     integer, save :: idnewdialog = 0
@@ -719,8 +718,7 @@ contains
        end if
 
        ! fps message
-       call igGetContentRegionAvail(v2)
-       call igSameLine(0._c_float, v2%x - 220._c_float)
+       call igSetCursorPosX(iw_calcwidth(30,0,from_end=.true.))
        call iw_text(string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
           string(io%Framerate,'f',decimal=1) // " FPS)")
     end if

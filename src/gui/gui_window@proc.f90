@@ -326,7 +326,7 @@ contains
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
-       ColorDangerButton, g
+       ColorDangerButton
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -334,7 +334,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, zeroc
-    type(ImVec2) :: szero, sz, sztext, szavail
+    type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
     logical(c_bool) :: ldum
@@ -344,7 +344,6 @@ contains
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, dopop
     type(c_ptr), save :: cfilter = c_null_ptr
     logical, save :: ttshown = .false.
-    real(c_float) :: rshift
 
     ! initialize
     hadenabledcolumn = .false.
@@ -1188,6 +1187,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
+    real(c_float) :: combowidth
     logical, save :: ttshown = .false.
     logical :: ok
     integer :: i, idx
@@ -1231,6 +1231,9 @@ contains
     call iw_text("System")
     call igSameLine(0._c_float,-1._c_float)
 
+    call igGetContentRegionAvail(szavail)
+    combowidth = szavail%x - sz%x - g%Style%ItemSpacing%x
+
     !! set the system pointer and determine the preview string
     str2 = "" // c_null_char
     sy => null()
@@ -1241,8 +1244,7 @@ contains
        end if
     end if
     str1 = "##systemcombo" // c_null_char
-    call igGetContentRegionAvail(szavail)
-    call igSetNextItemWidth(szavail%x - sz%x - g%Style%ItemSpacing%x)
+    call igSetNextItemWidth(combowidth)
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
@@ -1259,15 +1261,14 @@ contains
     call iw_tooltip("Set the current system (input commands are applied to it)",ttshown)
 
     ! third line: field selector
-    call iw_text("Field")
+    call iw_text("Field ")
     call igSameLine(0._c_float,-1._c_float)
 
     str1 = "##fieldcombo" // c_null_char
     str2 = "" // c_null_char
     if (associated(sy)) &
        str2 = string(sy%iref) // ": " // trim(sy%f(sy%iref)%name) // c_null_char
-    call igGetContentRegionAvail(szavail)
-    call igSetNextItemWidth(szavail%x - sz%x - g%Style%ItemSpacing%x)
+    call igSetNextItemWidth(combowidth)
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        if (associated(sy)) then
           do i = 0, sy%nf
@@ -1627,7 +1628,8 @@ contains
   !> Draw the contents of the output console
   module subroutine draw_co(w)
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcwidth,&
+       iw_calcheight
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1638,7 +1640,7 @@ contains
     logical, save :: ttshown = .false.
     logical :: setscroll, skip, pushed, ok
     integer, save :: idsavedialog = 0
-    real(c_float) :: itemspacing, xavail, xavail1, rshift
+    real(c_float) :: itemspacing, xavail, xavail1, rshift, xx
     real(c_float), save :: allscrolly
     integer :: navail, navail1
 
@@ -1715,15 +1717,13 @@ contains
     call iw_tooltip("Remove all commands",ttshown)
 
     ! second line: all button
-    str1 = "All" // c_null_char
-    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    xavail1 = xavail - (sztext%x + 2 * g%Style%FramePadding%x + g%Style%ItemSpacing%x)
+    xavail1 = xavail - iw_calcwidth(3,1) + g%Style%ItemSpacing%x
     if (idcom == 0) then
        call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
     else
        call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
     end if
-    if (igButton(c_loc(str1),szero)) then
+    if (iw_button("All")) then
        idcom = 0
        setscroll = .true.
     end if
@@ -1738,12 +1738,9 @@ contains
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
 
     ! calculate the button size and the number of buttons that fit
-    sz%y = igGetTextLineHeight() + 2 * g%Style%FramePadding%y
-    str1 = string(maxval(com(icom(1:nicom))%id)) // c_null_char
-    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    sz%x = max(sz%y,sztext%x + 2 * g%Style%FramePadding%x)
-    xavail = xavail / sz%x
-    xavail1 = xavail1 / sz%x
+    xx = max(iw_calcheight(1),iw_calcwidth(ceiling(log10(max(maxval(com(icom(1:nicom))%id),1) + 0.1)),1))
+    xavail = xavail / xx
+    xavail1 = xavail1 / xx
     navail = max(floor(xavail),1)
     navail1 = max(floor(xavail1),1)
 
