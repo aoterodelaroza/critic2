@@ -1957,7 +1957,7 @@ contains
     integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
     integer, save :: cellopt = 1 ! 1 = parameters, 2 = lattice-vectors
     integer, save :: ispg_selected = 1
-    real(c_float), save :: aa(3), bb(3)
+    real(c_float), save :: aa(3) = 0, bb(3) = 0, scale = 1
 
     integer(c_size_t), parameter :: maxatposbuf = 100000
     integer(c_size_t), parameter :: maxsymopbuf = 10000
@@ -1983,6 +1983,7 @@ contains
        latvecbuf(1:50) = "## Enter the three lattice vectors line by line" // newline // c_null_char
        aa = 10._c_float
        bb = 90._c_float
+       scale = 1._c_float
     end if
 
     ! check if we have info from the open library file window when it
@@ -2456,7 +2457,6 @@ contains
        call wrapped_tooltip("Lattice vectors are given explicitly",ttshown)
        call igSameLine(0._c_float,-1._c_float)
 
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
        str = "Units##cel" // c_null_char
        stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
        strex = "Angstrom    " // c_null_char
@@ -2464,6 +2464,19 @@ contains
        call igSetNextItemWidth(sz%x)
        ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
        call wrapped_tooltip("Units for the cell parameters/lattice vectors",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+
+       if (cellopt == 2) then
+          str = "Scale" // c_null_char
+          stropt = "%.3f" // c_null_char
+          strex = string(scale,'f',decimal=3) // c_null_char
+          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+          ldum = igInputFloat(c_loc(str),scale,0._c_float,0._c_float,&
+             c_loc(stropt),ImGuiInputTextFlags_None)
+          call wrapped_tooltip("Scale factor to multiply the lattice vectors",ttshown)
+          call igPopItemWidth()
+       end if
 
        ! lattice: body
        if (cellopt == 1) then
@@ -2585,7 +2598,7 @@ contains
              end if
           else
              ! lattice vectors
-             write (lu,'("cartesian")')
+             write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
              if (iunitcel == 1) then
                 write (lu,'("ang")')
              else
@@ -2685,6 +2698,7 @@ contains
        ispg_selected = 1
        aa = 10._c_float
        bb = 90._c_float
+       scale = 1._c_float
        if (allocated(st)) deallocate(st)
        if (allocated(lst)) deallocate(lst)
        if (allocated(atposbuf)) deallocate(atposbuf)
