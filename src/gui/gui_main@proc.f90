@@ -58,7 +58,7 @@ contains
     use omp_lib, only: omp_get_max_threads
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom, ileft2, iright2
     type(c_funptr) :: fdum
-    type(c_ptr) :: ptrc, pdum
+    type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
     integer :: i, j
@@ -151,7 +151,7 @@ contains
             9632_c_short,  9727_c_short,& ! geometric shapes
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
-    pdum = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
+    ptrc = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
        16._c_float,c_null_ptr,c_loc(range))
 
     ! get the ImGui context pointer and the main viewport
@@ -187,6 +187,10 @@ contains
        call ImGui_ImplOpenGL3_NewFrame()
        call ImGui_ImplGlfw_NewFrame()
        call igNewFrame()
+
+       ! calculate default font size
+       strc = "A" // c_null_char
+       call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
        ! show main menu
        call show_main_menu()

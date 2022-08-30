@@ -22,6 +22,45 @@ submodule (gui_utils) proc
 
 contains
 
+  !> Calculate the width of ntext character and nbutton buttons.
+  !>
+  !> SomeText    |  Button1  |    |  Button2  |  ||--end of window
+  !>             ^--^     ^--^    ^--^     ^--^    <-- FramePadding.x
+  !>        ^----^           ^----^                <-- ItemSpacing.x
+  !>                                          ^--^ <-- WindowPadding.x
+  !>
+  !> If from_end, return the position to place the cursor at the
+  !> calculated distance from the end of the window, or the current
+  !> position if it is negative.
+  module function iw_calcwidth(ntext,nbutton,from_end)
+    use gui_interfaces_cimgui
+    use gui_main, only: fontsize, g
+    integer, intent(in) :: ntext
+    integer, intent(in) :: nbutton
+    logical, intent(in), optional :: from_end
+    real(c_float) :: iw_calcwidth
+
+    type(ImVec2) :: sz
+    character(len=:,kind=c_char), allocatable, target :: strc
+    real(c_float) :: realtext
+
+    ! text size
+    allocate(character(len=ntext+1,kind=c_char) :: strc)
+    strc(1:ntext) = ""
+    strc(ntext+1:ntext+1) = c_null_char
+    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+
+    ! calculate width
+    iw_calcwidth = sz%x + nbutton * (2 * g%Style%FramePadding%x) + &
+       (nbutton - 1) * g%Style%ItemSpacing%x
+    if (present(from_end)) then
+       if (from_end) then
+          iw_calcwidth = igGetWindowWidth() - g%style%WindowPadding%x - iw_calcwidth
+       end if
+    end if
+
+  end function iw_calcwidth
+
   !> Draw text. If highlight, use the highlight color. If disabled,
   !> use the disabled font. If sameline, draw it in the same line as
   !> the previous widget.

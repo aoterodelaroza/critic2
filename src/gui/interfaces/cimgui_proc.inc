@@ -108,7 +108,11 @@ function igGetWindowDrawList() bind(c,name="igGetWindowDrawList")
 end function igGetWindowDrawList
 !x! float igGetWindowDpiScale(void);
 !x! void igGetWindowPos(ImVec2 *pOut);
-!x! void igGetWindowSize(ImVec2 *pOut);
+! void igGetWindowSize(ImVec2 *pOut);
+subroutine igGetWindowSize(pout) bind(c,name="igGetWindowSize")
+  import ImVec2
+  type(ImVec2) :: pout
+end subroutine igGetWindowSize
 ! float igGetWindowWidth(void);
 function igGetWindowWidth() bind(c,name="igGetWindowWidth")
   import c_float
@@ -1621,7 +1625,11 @@ end subroutine igFocusWindow
 !x! void igBringWindowToDisplayBehind(ImGuiWindow* window,ImGuiWindow* above_window);
 !x! int igFindWindowDisplayIndex(ImGuiWindow* window);
 !x! ImGuiWindow* igFindBottomMostVisibleWindowWithinBeginStack(ImGuiWindow* window);
-!x! void igSetCurrentFont(ImFont* font);
+! void igSetCurrentFont(ImFont* font);
+subroutine igSetCurrentFont(font) bind(c,name="igSetCurrentFont")
+  import c_ptr
+  type(c_ptr), value :: font
+end subroutine igSetCurrentFont
 !x! ImFont* igGetDefaultFont(void);
 !x! ImDrawList* igGetForegroundDrawList_WindowPtr(ImGuiWindow* window);
 !x! void igInitialize(void);
@@ -1684,7 +1692,11 @@ end subroutine igFocusWindow
 !x! float igCalcWrapWidthForPos(const ImVec2 pos,float wrap_pos_x);
 !x! void igPushMultiItemsWidths(int components,float width_full);
 !x! bool igIsItemToggledSelection(void);
-!x! void igGetContentRegionMaxAbs(ImVec2 *pOut);
+! void igGetContentRegionMaxAbs(ImVec2 *pOut);
+subroutine igGetContentRegionMaxAbs(pOut) bind(c,name="igGetContentRegionMaxAbs")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetContentRegionMaxAbs
 !x! void igShrinkWidths(ImGuiShrinkWidthItem* items,int count,float width_excess);
 !x! void igPushItemFlag(ImGuiItemFlags option,bool enabled);
 !x! void igPopItemFlag(void);

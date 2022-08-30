@@ -20,7 +20,7 @@
 ! Structure class and routines for basic crystallography computations
 module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
-  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImGuiViewport
+  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport
   use gui_window, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -34,6 +34,7 @@ module gui_main
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
+  type(ImVec2), public :: fontsize ! the default font size
 
   ! GUI control parameters
   real(c_float), parameter, public :: tooltip_delay = 0.5 ! tooltip delay, in seconds

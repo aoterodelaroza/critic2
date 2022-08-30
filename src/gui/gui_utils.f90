@@ -22,6 +22,7 @@ module gui_utils
 
   private
 
+  public :: iw_calcwidth
   public :: iw_text
   public :: iw_button
   public :: iw_tooltip
@@ -30,6 +31,12 @@ module gui_utils
 
   ! module procedure interfaces
   interface
+     module function iw_calcwidth(ntext,nbutton,from_end)
+       integer, intent(in) :: ntext
+       integer, intent(in) :: nbutton
+       logical, intent(in), optional :: from_end
+       real(c_float) :: iw_calcwidth
+     end function iw_calcwidth
      module subroutine iw_text(str,highlight,disabled,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight

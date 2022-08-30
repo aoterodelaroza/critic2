@@ -319,7 +319,8 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth,&
+       iw_calcwidth
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -390,18 +391,8 @@ contains
     call iw_tooltip("Collapse all systems in the tree",ttshown)
     call igSameLine(0._c_float,-1._c_float)
 
-    ! insert spacing for red buttons on the right
-    call igGetContentRegionAvail(szavail)
-    sz%x = g%Style%ItemSpacing%x
-    str = "Close" // c_null_char
-    call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-    sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-    str = "Close All" // c_null_char
-    call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-    sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-    rshift = szavail%x - sz%x
-    if (rshift > 0) &
-       call igSetCursorPosX(igGetCursorPosX() + rshift)
+    ! right-align for the rest of the contents
+    call igSetCursorPosX(iw_calcwidth(14,2,from_end=.true.))
 
     ! button: close
     if (iw_button("Close",danger=.true.)) then
