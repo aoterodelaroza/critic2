@@ -163,6 +163,8 @@ contains
     ! set the initial ImGui style
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
+    g%Style%FramePadding%x = 3._c_float
+    g%Style%FramePadding%y = 2._c_float
 
     ! set default keybindings
     call set_default_keybindings()
@@ -626,11 +628,12 @@ contains
     use tools_io, only: string
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    logical, save :: ttshown(2) = (/.false.,.false./) ! menu-level tooltips
-    integer, save :: idopendialog = 0
-    integer, save :: idnewdialog = 0
     logical(c_bool) :: enabled_open, enabled_new
     logical :: launchquit, launchopen, launchnew
+
+    logical, save :: ttshown = .false. ! tooltip flag
+    integer, save :: idopendialog = 0 ! the ID for the open dialog
+    integer, save :: idnewdialog = 0 ! the ID for the new dialog
 
     ! check if the open and new dialogs are still open
     if (idopendialog > 0) then
@@ -665,23 +668,23 @@ contains
           str1 = "New..." // c_null_char
           str2 = get_bind_keyname(BIND_NEW) // c_null_char
           launchnew = launchnew .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_new)
-          call iw_tooltip("Create a new structure",ttshown(1))
+          call iw_tooltip("Create a new structure",ttshown)
 
           ! File -> Open
           str1 = "Open..." // c_null_char
           str2 = get_bind_keyname(BIND_OPEN) // c_null_char
           launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_open)
-          call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown(1))
+          call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
 
           ! File -> Quit
           str1 = "Quit" // c_null_char
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
           launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          call iw_tooltip("Quit the program",ttshown(1))
+          call iw_tooltip("Quit the program",ttshown)
 
           call igEndMenu()
        else
-          ttshown(1) = .false.
+          ttshown = .false.
        end if
 
        ! Windows
@@ -691,28 +694,28 @@ contains
           str1 = "Tree" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
-          call iw_tooltip("Toggle the tree window",ttshown(2))
+          call iw_tooltip("Toggle the tree window",ttshown)
 
           ! File -> View
           str1 = "View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
-          call iw_tooltip("Toggle the view window",ttshown(2))
+          call iw_tooltip("Toggle the view window",ttshown)
 
           ! File -> Input Console
           str1 = "Input Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
-          call iw_tooltip("Toggle the input console window",ttshown(2))
+          call iw_tooltip("Toggle the input console window",ttshown)
 
           ! File -> Output Console
           str1 = "Output Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
-          call iw_tooltip("Toggle the output console window",ttshown(2))
+          call iw_tooltip("Toggle the output console window",ttshown)
           call igEndMenu()
        else
-          ttshown(2) = .false.
+          ttshown = .false.
        end if
 
        ! fps message

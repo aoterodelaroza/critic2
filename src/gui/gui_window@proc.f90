@@ -341,8 +341,9 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, dopop
-    type(c_ptr), save :: cfilter = c_null_ptr
-    logical, save :: ttshown = .false.
+
+    type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
     hadenabledcolumn = .false.
@@ -795,7 +796,6 @@ contains
 
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected, enabled
-      logical, save :: ttshown = .false. ! delayed tooltips
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
@@ -1187,9 +1187,10 @@ contains
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
     real(c_float) :: combowidth
-    logical, save :: ttshown = .false.
     logical :: ok
     integer :: i, idx
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
     szero%x = 0
@@ -1636,12 +1637,13 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, strpop
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum
-    logical, save :: ttshown = .false.
     logical :: setscroll, skip, pushed, ok
-    integer, save :: idsavedialog = 0
     real(c_float) :: itemspacing, xavail, xavail1, xx
-    real(c_float), save :: allscrolly
     integer :: navail, navail1
+
+    real(c_float), save :: allscrolly = 0._c_float ! scroll value of the All pane
+    logical, save :: ttshown = .false. ! tooltip flag
+    integer, save :: idsavedialog = 0 ! the ID of the save window
 
     ! check if the save dialog is still open
     if (idsavedialog > 0) then
@@ -2714,8 +2716,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, stropt, strex
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
-    logical, save :: ttshown = .false.
     type(ImVec2) :: sz
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! generate the data pointer
     call c_f_pointer(vUserData,data)
