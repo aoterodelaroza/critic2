@@ -23,15 +23,23 @@ submodule (gui_utils) proc
 contains
 
   !> Calculate the height of nline lines, with padding:
-  !>   frame-line1-frame-itemspace-frame-line2-frame
-  module function iw_calcheight(nline)
+  !>   frame-line1-frame-itemspace-frame-line2-frame-windowpad
+  !> If endpad, add the end window padding
+  module function iw_calcheight(nline,endpad)
     use gui_interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: nline
+    logical, intent(in), optional :: endpad
     real(c_float) :: iw_calcheight
+
+    logical :: endpad_
+
+    endpad_ = .false.
+    if (present(endpad)) endpad_ = endpad
 
     iw_calcheight = nline * (igGetTextLineHeight() + 2 * g%Style%FramePadding%y) + &
        (nline - 1) * g%Style%ItemSpacing%y
+    if (endpad_) iw_calcheight = iw_calcheight + g%Style%WindowPadding%y
 
   end function iw_calcheight
 

@@ -118,7 +118,11 @@ function igGetWindowWidth() bind(c,name="igGetWindowWidth")
   import c_float
   real(c_float) :: igGetWindowWidth
 end function igGetWindowWidth
-!x! float igGetWindowHeight(void);
+! float igGetWindowHeight(void);
+function igGetWindowHeight() bind(c,name="igGetWindowHeight")
+  import c_float
+  real(c_float) :: igGetWindowHeight
+end function igGetWindowHeight
 !x! ImGuiViewport* igGetWindowViewport(void);
 ! void igSetNextWindowPos(const ImVec2 pos,ImGuiCond cond,const ImVec2 pivot);
 subroutine igSetNextWindowPos(pos,cond,pivot) bind(c,name="igSetNextWindowPos")
@@ -335,7 +339,11 @@ function igGetCursorPosX() bind(c,name="igGetCursorPosX")
   import c_float
   real(c_float) :: igGetCursorPosX
 end function igGetCursorPosX
-!x! float igGetCursorPosY(void);
+! float igGetCursorPosY(void);
+function igGetCursorPosY() bind(c,name="igGetCursorPosY")
+  import c_float
+  real(c_float) :: igGetCursorPosY
+end function igGetCursorPosY
 !x! void igSetCursorPos(const ImVec2 local_pos);
 ! void igSetCursorPosX(float local_x);
 subroutine igSetCursorPosX(local_x) bind(c,name="igSetCursorPosX")

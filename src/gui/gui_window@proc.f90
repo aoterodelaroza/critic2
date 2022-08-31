@@ -319,8 +319,7 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth,&
-       iw_calcwidth
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -1854,7 +1853,8 @@ contains
   module subroutine draw_new(w)
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
+       iw_calcwidth
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -1987,10 +1987,9 @@ contains
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
        if (ismolecule) then
-          sz%y = sz%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
-             2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+          sz%y = sz%y - iw_calcheight(3) - g%Style%ItemSpacing%y
        else
-          sz%y = sz%y - (2 * igGetTextLineHeight() + g%Style%FramePadding%y + g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+          sz%y = sz%y - iw_calcheight(1) - g%Style%ItemSpacing%y
        end if
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
@@ -2043,18 +2042,8 @@ contains
           call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        end if
 
-       ! insert spacing for buttons on the right
-       call igGetContentRegionAvail(szavail)
-       sz%x = g%Style%ItemSpacing%x
-       str = "OK" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       str = "Cancel" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       rshift = szavail%x - sz%x
-       if (rshift > 0) &
-          call igSetCursorPosX(igGetCursorPosX() + rshift)
+       ! right-align for the rest of the contents
+       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
        ! final buttons: ok
        if (iw_button("OK",disabled=(idum /= 0))) then
@@ -2145,18 +2134,8 @@ contains
        call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
 
-       ! insert spacing for buttons on the right
-       call igGetContentRegionAvail(szavail)
-       sz%x = g%Style%ItemSpacing%x
-       str = "OK" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       str = "Cancel" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       rshift = szavail%x - sz%x
-       if (rshift > 0) &
-          call igSetCursorPosX(igGetCursorPosX() + rshift)
+       ! right-align for the rest of the contents
+       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
        ! final buttons: ok
        if (iw_button("OK")) then
@@ -2449,18 +2428,8 @@ contains
        ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
           ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
 
-       ! insert spacing for buttons on the right
-       call igGetContentRegionAvail(szavail)
-       sz%x = g%Style%ItemSpacing%x
-       str = "OK" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       str = "Cancel" // c_null_char
-       call igCalcTextSize(sztext,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-       sz%x = sz%x + sztext%x + 2 * g%Style%FramePadding%x
-       rshift = szavail%x - sz%x
-       if (rshift > 0) &
-          call igSetCursorPosX(igGetCursorPosX() + rshift)
+       ! right-align for the rest of the contents
+       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
        ! final buttons: ok
        if (iw_button("OK")) then

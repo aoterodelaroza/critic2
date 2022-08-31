@@ -32,9 +32,9 @@ module gui_utils
 
   ! module procedure interfaces
   interface
-     module function iw_calcheight(nline)
-       use gui_interfaces_cimgui
+     module function iw_calcheight(nline,endpad)
        integer, intent(in) :: nline
+       logical, intent(in), optional :: endpad
        real(c_float) :: iw_calcheight
      end function iw_calcheight
      module function iw_calcwidth(ntext,nbutton,from_end)
