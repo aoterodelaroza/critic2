@@ -1496,6 +1496,7 @@ namespace IGFD
 		PaneFun puDLGoptionsPane = nullptr;
 		float puDLGoptionsPaneWidth = 0.0f;
 		bool puNeedToExitDialog = false;
+                bool forceExitDialog = false;
 
 		bool puUseCustomLocale = false;
 		int puLocaleCategory = LC_ALL;	// locale category to use
@@ -1522,6 +1523,7 @@ namespace IGFD
 		ImGuiListClipper prFileListClipper;
 		ImGuiListClipper prPathListClipper;
 		float prOkCancelButtonWidth = 0.0f;
+ 	        void *currentwindow = nullptr;
 
 	public:
 		bool puAnyWindowsHovered = false;							// not remember why haha :) todo : to check if we can remove
@@ -1536,6 +1538,10 @@ namespace IGFD
 	public:
 		FileDialog();												// ImGuiFileDialog Constructor. can be used for have many dialog at same tiem (not possible with singleton)
 		virtual ~FileDialog();										// ImGuiFileDialog Destructor
+
+                // force-quit
+	        void ForceQuit(){ prFileDialogInternal.forceExitDialog = true; }
+	        void *GetCurrentWindow(){ return currentwindow; }
 
 	        // set the flags
 	        void SetFlags(ImGuiFileDialogFlags vFlags = 0);
@@ -1740,6 +1746,10 @@ IMGUIFILEDIALOG_API ImGuiFileDialog* IGFD_Create(void);												// create the
 IMGUIFILEDIALOG_API void IGFD_Destroy(ImGuiFileDialog* vContext);									// destroy the filedialog context
 
 typedef void (*IGFD_PaneFun)(const char*, void*, bool*);											// callback fucntion for display the pane
+
+IMGUIFILEDIALOG_API void IGFD_ForceQuit(ImGuiFileDialog* vContext);
+
+IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext);
 
 #ifdef USE_THUMBNAILS
 typedef void (*IGFD_CreateThumbnailFun)(IGFD_Thumbnail_Info*);										// callback function for create thumbnail texture

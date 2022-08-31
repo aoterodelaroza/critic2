@@ -1,3 +1,5 @@
+// Slightly modified to allow quitting the dialog from outside -- AOR
+
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
@@ -2674,10 +2676,10 @@ namespace IGFD
 				puFileManager.OpenCurrentPath(*this);
 				puFileManager.puInputPathActivated = false;
 			}
-			if (ImGui::IsKeyReleased(ImGuiKey_Escape))
-			{
-				puFileManager.puInputPathActivated = false;
-			}
+			// if (ImGui::IsKeyReleased(ImGuiKey_Escape))
+			// {
+			// 	puFileManager.puInputPathActivated = false;
+			// }
 		}
 	}
 
@@ -3314,11 +3316,11 @@ namespace IGFD
 
 			if (canWeExplore && ImGui::IsWindowFocused())
 			{
-				if (ImGui::IsKeyPressed(ImGuiKey_Escape))
-				{
-					ImGui::ClearActiveID();
-					g.LastActiveId = 0;
-				}
+				// if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+				// {
+				// 	ImGui::ClearActiveID();
+				// 	g.LastActiveId = 0;
+				// }
 
 				auto countFiles = fdi.GetFilteredListSize();
 
@@ -3837,6 +3839,7 @@ namespace IGFD
 	bool IGFD::FileDialog::Display(const std::string& vKey, ImGuiWindowFlags vFlags, ImVec2 vMinSize, ImVec2 vMaxSize)
 	{
 		bool res = false;
+		currentwindow = nullptr;
 
 		if (prFileDialogInternal.puShowDialog && prFileDialogInternal.puDLGkey == vKey)
 		{
@@ -3913,6 +3916,7 @@ namespace IGFD
 				}
 #endif // IMGUI_HAS_VIEWPORT
 
+				currentwindow = (void *) ImGui::GetCurrentWindow();
 				ImGuiID _frameId = ImGui::GetID(name.c_str());
 				ImVec2 frameSize = ImVec2(0, 0);
 				if (prFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_NoDialog)
@@ -4198,7 +4202,7 @@ namespace IGFD
 	bool IGFD::FileDialog::prDrawCancelButton()
 	{
 		if (IMGUI_BUTTON(cancelButtonString "##validationdialog", ImVec2(cancelButtonWidth, 0.0f)) ||
-			prFileDialogInternal.puNeedToExitDialog) // dialog exit asked
+			prFileDialogInternal.puNeedToExitDialog || prFileDialogInternal.forceExitDialog) // dialog exit asked
 		{
 			prFileDialogInternal.puIsOk = false;
 			return true;
@@ -5100,6 +5104,20 @@ IMGUIFILEDIALOG_API void IGFD_Destroy(ImGuiFileDialog* vContext)
 		delete vContext;
 		vContext = nullptr;
 	}
+}
+
+// force-quit the instance of ImGuiFileDialog
+IMGUIFILEDIALOG_API void IGFD_ForceQuit(ImGuiFileDialog* vContext)
+{
+  if (vContext)
+    vContext->ForceQuit();
+}
+
+IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext){
+  if (vContext)
+    return vContext->GetCurrentWindow();
+  else
+    return nullptr;
 }
 
 // set the flags of a dialog

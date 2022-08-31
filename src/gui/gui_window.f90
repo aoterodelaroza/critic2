@@ -26,10 +26,10 @@ module gui_window
 
   ! user data for the file open dialog
   type, bind(c) :: dialog_userdata
-     type(c_ptr) :: ptr = c_null_ptr ! the pointer for the file dialog
+     type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
-     integer :: isformat = isformat_unknown ! force structure format
+     integer(c_int) :: isformat = isformat_unknown ! force structure format
      logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
      logical(c_bool) :: molcubic = .false. ! whether to read the cell as cubic in a molecule
@@ -46,7 +46,8 @@ module gui_window
      integer(c_int) :: id ! internal ID for this window
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
-     type(c_ptr) :: ptr ! ImGuiWindow*/ImGuiFileDialog* pointer (use only after Begin())
+     type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
+     type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
@@ -62,13 +63,14 @@ module gui_window
      type(dialog_userdata) :: dialog_data ! for the side pane callback
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
-     ! new structure parameters
+     ! new structure from library parameters
      character(kind=c_char,len=:), allocatable :: libraryfile ! library file
      logical :: libraryfile_set = .false. ! whether the library file has been set by the user
      logical :: libraryfile_read = .false. ! whether the structure list should be re-read from the lib
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
+     procedure :: focused => window_focused ! whether the root window is focused (even if not current)
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
      procedure :: draw_tree ! draw a tree
@@ -139,6 +141,10 @@ module gui_window
      module subroutine window_end(w)
        class(window), intent(inout) :: w
      end subroutine window_end
+     module function window_focused(w)
+       class(window), intent(inout) :: w
+       logical :: window_focused
+     end function window_focused
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw

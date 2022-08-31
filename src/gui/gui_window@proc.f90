@@ -179,7 +179,7 @@ contains
     w%id = -1
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
-    w%dialog_data%ptr = c_null_ptr
+    w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
     w%dialog_data%showhidden = .false._c_bool
     w%dialog_data%isformat = isformat_unknown
@@ -192,11 +192,11 @@ contains
     ! type-specific initialization
     if (type == wintype_dialog) then
        ! create the dialog object and set up the style
-       w%ptr = IGFD_Create()
+       w%dptr = IGFD_Create()
        str1 = "+" // c_null_char
-       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeDir,c_null_ptr,ColorDialogDir,c_loc(str1),c_null_ptr)
+       call IGFD_SetFileStyle(w%dptr,IGFD_FileStyleByTypeDir,c_null_ptr,ColorDialogDir,c_loc(str1),c_null_ptr)
        str1 = " " // c_null_char
-       call IGFD_SetFileStyle(w%ptr,IGFD_FileStyleByTypeFile,c_null_ptr,ColorDialogFile,c_loc(str1),c_null_ptr)
+       call IGFD_SetFileStyle(w%dptr,IGFD_FileStyleByTypeFile,c_null_ptr,ColorDialogFile,c_loc(str1),c_null_ptr)
        if (.not.present(purpose)) &
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
@@ -209,8 +209,8 @@ contains
     class(window), intent(inout) :: w
 
     ! window-specific destruction
-    if (w%isinit .and. w%type == wintype_dialog .and. c_associated(w%ptr)) &
-       call IGFD_Destroy(w%ptr)
+    if (w%isinit .and. w%type == wintype_dialog .and. c_associated(w%dptr)) &
+       call IGFD_Destroy(w%dptr)
 
     ! deallocate the rest of the data
     w%dialog_purpose = wpurp_unknown
@@ -221,6 +221,24 @@ contains
     if (allocated(w%iord)) deallocate(w%iord)
 
   end subroutine window_end
+
+  !> Return true if the root of this window is focused
+  module function window_focused(w)
+    use gui_main, only: g
+    class(window), intent(inout) :: w
+    logical :: window_focused
+
+    type(ImGuiWindow), pointer :: wptr, navwin, navwinroot
+
+    window_focused = .false.
+    if (.not.c_associated(w%ptr).or..not.c_associated(g%NavWindow)) return
+    call c_f_pointer(w%ptr,wptr)
+    call c_f_pointer(g%NavWindow,navwin)
+    if (.not.c_associated(navwin%RootWindow)) return
+    call c_f_pointer(navwin%RootWindow,navwinroot)
+    window_focused = associated(wptr,navwinroot)
+
+  end function window_focused
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
@@ -252,7 +270,7 @@ contains
           w%name = "Output Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_dialog) then
-          w%dialog_data%ptr = w%ptr
+          w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%dialog_purpose
           w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
           str2 = "" // c_null_char ! default path
@@ -288,17 +306,17 @@ contains
                 &Xcrysden (xsf|axsf) {.xsf,.axsf},&
                 &xyz (xyz){.xyz},&
                 &"// c_null_char
-             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File..." // c_null_char
              str1 = "All files (*.*){*.*}" // c_null_char
-             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File..." // c_null_char
              str1 = "All files (*.*){*.*}" // c_null_char
-             call IGFD_OpenPaneDialog2(w%ptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
@@ -319,14 +337,14 @@ contains
     end if
 
     if (w%isopen) then
+       ! assign the pointer ID for the window, if not a dialog
        if (w%type == wintype_dialog) then
+          w%ptr = IGFD_GetCurrentWindow(w%dptr)
           call w%draw_dialog()
        else
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
-             ! assign the pointer ID for the window, if not a dialog
-             w%ptr = igGetCurrentWindow()
-
              ! draw the window contents, depending on type
+             w%ptr = igGetCurrentWindow()
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -1132,6 +1150,7 @@ contains
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
@@ -1159,16 +1178,16 @@ contains
     maxsize%y = 1e10_c_float
 
     ! process the dialog
-    if (IGFD_DisplayDialog(w%ptr,c_loc(w%name),ImGuiWindowFlags_None,minsize,maxsize)) then
+    if (IGFD_DisplayDialog(w%dptr,c_loc(w%name),ImGuiWindowFlags_None,minsize,maxsize)) then
        ! the dialog has been closed
-       if (IGFD_IsOk(w%ptr)) then
+       if (IGFD_IsOk(w%dptr)) then
           ! with an OK, gather information
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              !! open files dialog !!
              ! open all files selected and add the new systems
-             sel = IGFD_GetSelection(w%ptr)
+             sel = IGFD_GetSelection(w%dptr)
              call c_f_pointer(sel%table,s,(/sel%count/))
-             cstr = IGFD_GetCurrentPath(w%ptr)
+             cstr = IGFD_GetCurrentPath(w%dptr)
              call C_F_string_alloc(cstr,path)
              call c_free(cstr)
              do i = 1, sel%count
@@ -1187,7 +1206,7 @@ contains
 
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
              !! save log file dialog !!
-             cstr = IGFD_GetFilePathName(w%ptr)
+             cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
 
@@ -1202,7 +1221,7 @@ contains
              call fclose(lu)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              !! new structure file dialog !!
-             cstr = IGFD_GetFilePathName(w%ptr)
+             cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
              w%libraryfile = trim(name)
@@ -1214,9 +1233,13 @@ contains
        end if
 
        ! close the dialog and terminate the window
-       call IGFD_CloseDialog(w%ptr)
+       call IGFD_CloseDialog(w%dptr)
        call w%end()
     end if
+
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+       call IGFD_ForceQuit(w%dptr)
 
   end subroutine draw_dialog
 
@@ -1887,6 +1910,7 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new_struct(w)
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -1898,7 +1922,7 @@ contains
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex
+    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt
     logical(c_bool) :: ldum, doquit
     logical :: ok
     type(ImVec2) :: szero, sz, szavail
@@ -2165,6 +2189,10 @@ contains
     ! final buttons: cancel
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+       doquit = .true.
+
     ! quit the window
     if (doquit) then
        call end_state()
@@ -2219,6 +2247,7 @@ contains
 
   !> Draw the contents of the new structure from library window.
   module subroutine draw_new_struct_from_library(w)
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -2389,6 +2418,10 @@ contains
 
     ! final buttons: cancel
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
+
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+       doquit = .true.
 
     ! read the library file
     if (w%libraryfile_read) then
@@ -2601,9 +2634,9 @@ contains
     str = "Show hidden files" // c_null_char
     if (igCheckbox(c_loc(str),data%showhidden)) then
        if (data%showhidden) then
-          call IGFD_SetFlags(data%ptr,ImGuiFileDialogFlags_None)
+          call IGFD_SetFlags(data%dptr,ImGuiFileDialogFlags_None)
        else
-          call IGFD_SetFlags(data%ptr,ImGuiFileDialogFlags_DontShowHiddenFiles)
+          call IGFD_SetFlags(data%dptr,ImGuiFileDialogFlags_DontShowHiddenFiles)
        end if
     end if
     call iw_tooltip("Show the OS hidden files and directories in this dialog",ttshown)

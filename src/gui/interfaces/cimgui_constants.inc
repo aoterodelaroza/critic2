@@ -18,6 +18,10 @@
   integer(c_int), parameter :: ImGuiNavInput_COUNT = 20
   ! enum ImGuiStyle
   integer(c_int), parameter :: ImGuiCol_COUNT = 55
+  ! enum ImGuiWindowDockStyleCol
+  integer(c_int), parameter :: ImGuiWindowDockStyleCol_COUNT = 6
+  ! enum ImGuiNavLayer
+  integer(c_int), parameter :: ImGuiNavLayer_COUNT = 2
   !! end of sizes !!
 
   ! enum ImGuiWindowFlags_
@@ -858,7 +862,7 @@
   ! enum ImGuiNavLayer
   integer(c_int), bind(C,name="const_ImGuiNavLayer_Main") :: ImGuiNavLayer_Main
   integer(c_int), bind(C,name="const_ImGuiNavLayer_Menu") :: ImGuiNavLayer_Menu
-  integer(c_int), bind(C,name="const_ImGuiNavLayer_COUNT") :: ImGuiNavLayer_COUNT
+  ! integer(c_int), bind(C,name="const_ImGuiNavLayer_COUNT") :: ImGuiNavLayer_COUNT
   ! enum ImGuiOldColumnFlags_
   integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_None") :: ImGuiOldColumnFlags_None
   integer(c_int), bind(C,name="const_ImGuiOldColumnFlags_NoBorder") :: ImGuiOldColumnFlags_NoBorder
@@ -904,7 +908,7 @@
   integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabActive") :: ImGuiWindowDockStyleCol_TabActive
   integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabUnfocused") :: ImGuiWindowDockStyleCol_TabUnfocused
   integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_TabUnfocusedActive") :: ImGuiWindowDockStyleCol_TabUnfocusedActive
-  integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_COUNT") :: ImGuiWindowDockStyleCol_COUNT
+  ! integer(c_int), bind(C,name="const_ImGuiWindowDockStyleCol_COUNT") :: ImGuiWindowDockStyleCol_COUNT
   ! enum ImGuiDebugLogFlags_
   integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_None") :: ImGuiDebugLogFlags_None
   integer(c_int), bind(C,name="const_ImGuiDebugLogFlags_EventActiveId") :: ImGuiDebugLogFlags_EventActiveId

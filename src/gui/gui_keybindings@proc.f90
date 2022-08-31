@@ -30,6 +30,7 @@ submodule (gui_keybindings) proc
      "Quit                  ",& ! BIND_QUIT
      "New                   ",& ! BIND_NEW
      "Open file(s)          ",& ! BIND_OPEN
+     "Close focused dialog  ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "Remove selected system",& ! BIND_TREE_REMOVE_SYSTEM
      "Run the commands      "/) ! BIND_INPCON_RUN
   !   "Close last dialog",
@@ -53,6 +54,7 @@ submodule (gui_keybindings) proc
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
      group_global,& ! BIND_OPEN
+     group_global,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM
      group_inpcon/) ! BIND_INPCON_RUN
   !   1, // close last dialog
@@ -160,9 +162,9 @@ contains
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
+    call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
-    !   set_bind(BIND_CLOSE_LAST_DIALOG,GLFW_KEY_ESCAPE,NOMOD);
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !
     !   set_bind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);

@@ -2202,6 +2202,17 @@ end subroutine IGFD_SetFileStyle2
 !       const int vCategory,                                                                    // set local category
 !       const char* vBeginLocale,                                                               // locale to use at begining of the dialog display
 !       const char* vEndLocale);                                                                // locale to set at end of the dialog display
+! IMGUIFILEDIALOG_API void IGFD_ForceQuit(ImGuiFileDialog* vContext)
+subroutine IGFD_ForceQuit(vContext) bind(c,name="IGFD_ForceQuit")
+  import c_ptr
+  type(c_ptr), value :: vContext
+end subroutine IGFD_ForceQuit
+! IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext){
+function IGFD_GetCurrentWindow(vContext) bind(c,name="IGFD_GetCurrentWindow")
+  import c_ptr
+  type(c_ptr), value :: vContext
+  type(c_ptr) :: IGFD_GetCurrentWindow
+end function IGFD_GetCurrentWindow
 ! IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags flags);
 subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
   import c_ptr, c_int

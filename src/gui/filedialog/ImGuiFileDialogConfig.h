@@ -47,8 +47,8 @@
 #define IGFD_KEY_BACKSPACE ImGuiKey_Backspace
 
 // by ex you can quit the dialog by pressing the key excape
-#define USE_DIALOG_EXIT_WITH_KEY
-#define IGFD_EXIT_KEY ImGuiKey_Escape
+// #define USE_DIALOG_EXIT_WITH_KEY
+// #define IGFD_EXIT_KEY ImGuiKey_Escape
 
 // widget
 // filter combobox width

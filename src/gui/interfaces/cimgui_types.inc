@@ -872,8 +872,8 @@
   !     integer(c_int) :: Min
   !     integer(c_int) :: Max
   !     logical(c_bool) :: PosToIndexConvert
-  !     ImS8 PosToIndexOffsetMin
-  !     ImS8 PosToIndexOffsetMax
+  !     integer(c_signed_char) :: PosToIndexOffsetMin
+  !     integer(c_signed_char) :: PosToIndexOffsetMax
   ! }
   ! typedef struct ImVector_ImGuiListClipperRange {int Size;int Capacity;ImGuiListClipperRange* Data;} ImVector_ImGuiListClipperRange;
   ! struct ImGuiListClipperData
@@ -973,10 +973,10 @@
   !     logical(c_bool) :: WantHiddenTabBarUpdate :1
   !     logical(c_bool) :: WantHiddenTabBarToggle :1
   ! }
-  ! struct ImGuiWindowDockStyle
-  ! {
-  !     integer(c_int) :: Colors[ImGuiWindowDockStyleCol_COUNT]
-  ! }
+
+  type, bind(c) :: ImGuiWindowDockStyle
+     integer(c_int) :: Colors(ImGuiWindowDockStyleCol_COUNT)
+  end type ImGuiWindowDockStyle
 
   type, bind(c) :: ImVector_ImGuiDockRequest
      integer(c_int) :: Size
@@ -1064,7 +1064,7 @@
   ! struct ImGuiStackLevelInfo
   ! {
   !     integer(c_int) :: ID
-  !     ImS8 QueryFrameCount
+  !     integer(c_signed_char) :: QueryFrameCount
   !     logical(c_bool) :: QuerySuccess
   !     ImGuiDataType DataType : 8
   !     character(c_char) :: Desc[57]
@@ -1504,115 +1504,116 @@
      type(c_ptr) :: Data
   end type ImVector_ImGuiOldColumns
 
-  ! struct ImGuiWindow
-  ! {
-  !     char* Name
-  !     integer(c_int) :: ID
-  !     ImGuiWindowFlags Flags, FlagsPreviousFrame
-  !     type(ImGuiWindowClass) :: WindowClass
-  !     type(c_ptr) :: Viewport
-  !     integer(c_int) :: ViewportId
-  !     type(ImVec2) :: ViewportPos
-  !     integer(c_int) :: ViewportAllowPlatformMonitorExtend
-  !     type(ImVec2) :: Pos
-  !     type(ImVec2) :: Size
-  !     type(ImVec2) :: SizeFull
-  !     type(ImVec2) :: ContentSize
-  !     type(ImVec2) :: ContentSizeIdeal
-  !     type(ImVec2) :: ContentSizeExplicit
-  !     type(ImVec2) :: WindowPadding
-  !     real(c_float) :: WindowRounding
-  !     real(c_float) :: WindowBorderSize
-  !     integer(c_int) :: NameBufLen
-  !     integer(c_int) :: MoveId
-  !     integer(c_int) :: TabId
-  !     integer(c_int) :: ChildId
-  !     type(ImVec2) :: Scroll
-  !     type(ImVec2) :: ScrollMax
-  !     type(ImVec2) :: ScrollTarget
-  !     type(ImVec2) :: ScrollTargetCenterRatio
-  !     type(ImVec2) :: ScrollTargetEdgeSnapDist
-  !     type(ImVec2) :: ScrollbarSizes
-  !     logical(c_bool) :: ScrollbarX, ScrollbarY
-  !     logical(c_bool) :: ViewportOwned
-  !     logical(c_bool) :: Active
-  !     logical(c_bool) :: WasActive
-  !     logical(c_bool) :: WriteAccessed
-  !     logical(c_bool) :: Collapsed
-  !     logical(c_bool) :: WantCollapseToggle
-  !     logical(c_bool) :: SkipItems
-  !     logical(c_bool) :: Appearing
-  !     logical(c_bool) :: Hidden
-  !     logical(c_bool) :: IsFallbackWindow
-  !     logical(c_bool) :: IsExplicitChild
-  !     logical(c_bool) :: HasCloseButton
-  !     integer(c_signed_char) :: ResizeBorderHeld
-  !     integer(c_short) :: BeginCount
-  !     integer(c_short) :: BeginOrderWithinParent
-  !     integer(c_short) :: BeginOrderWithinContext
-  !     integer(c_short) :: FocusOrder
-  !     integer(c_int) :: PopupId
-  !     ImS8 AutoFitFramesX, AutoFitFramesY
-  !     ImS8 AutoFitChildAxises
-  !     logical(c_bool) :: AutoFitOnlyGrows
-  !     integer(c_int) :: AutoPosLastDirection
-  !     ImS8 HiddenFramesCanSkipItems
-  !     ImS8 HiddenFramesCannotSkipItems
-  !     ImS8 HiddenFramesForRenderOnly
-  !     ImS8 DisableInputsFrames
-  !     integer(c_int) :: SetWindowPosAllowFlags : 8
-  !     integer(c_int) :: SetWindowSizeAllowFlags : 8
-  !     integer(c_int) :: SetWindowCollapsedAllowFlags : 8
-  !     integer(c_int) :: SetWindowDockAllowFlags : 8
-  !     type(ImVec2) :: SetWindowPosVal
-  !     type(ImVec2) :: SetWindowPosPivot
-  !     type(ImVector_ImGuiID) :: IDStack
-  !     type(ImGuiWindowTempData) :: DC
-  !     type(ImRect) :: OuterRectClipped
-  !     type(ImRect) :: InnerRect
-  !     type(ImRect) :: InnerClipRect
-  !     type(ImRect) :: WorkRect
-  !     type(ImRect) :: ParentWorkRect
-  !     type(ImRect) :: ClipRect
-  !     type(ImRect) :: ContentRegionRect
-  !     type(ImVec2ih) :: HitTestHoleSize
-  !     type(ImVec2ih) :: HitTestHoleOffset
-  !     integer(c_int) :: LastFrameActive
-  !     integer(c_int) :: LastFrameJustFocused
-  !     real(c_float) :: LastTimeActive
-  !     real(c_float) :: ItemWidthDefault
-  !     type(ImGuiStorage) :: StateStorage
-  !     type(ImVector_ImGuiOldColumns) :: ColumnsStorage
-  !     real(c_float) :: FontWindowScale
-  !     real(c_float) :: FontDpiScale
-  !     integer(c_int) :: SettingsOffset
-  !     type(c_ptr) :: DrawList
-  !     type(ImDrawList) :: DrawListInst
-  !     type(c_ptr) :: ParentWindow
-  !     type(c_ptr) :: ParentWindowInBeginStack
-  !     type(c_ptr) :: RootWindow
-  !     type(c_ptr) :: RootWindowPopupTree
-  !     type(c_ptr) :: RootWindowDockTree
-  !     type(c_ptr) :: RootWindowForTitleBarHighlight
-  !     type(c_ptr) :: RootWindowForNav
-  !     type(c_ptr) :: NavLastChildNavWindow
-  !     integer(c_int) :: NavLastIds[ImGuiNavLayer_COUNT]
-  !     type(ImRect) :: NavRectRel[ImGuiNavLayer_COUNT]
-  !     integer(c_int) :: MemoryDrawListIdxCapacity
-  !     integer(c_int) :: MemoryDrawListVtxCapacity
-  !     logical(c_bool) :: MemoryCompacted
-  !     logical(c_bool) :: DockIsActive :1
-  !     logical(c_bool) :: DockNodeIsVisible :1
-  !     logical(c_bool) :: DockTabIsVisible :1
-  !     logical(c_bool) :: DockTabWantClose :1
-  !     integer(c_short) :: DockOrder
-  !     ImGuiWindowDockStyle DockStyle
-  !     type(c_ptr) :: DockNode
-  !     type(c_ptr) :: DockNodeAsHost
-  !     integer(c_int) :: DockId
-  !     integer(c_int) :: DockTabItemStatusFlags
-  !     type(ImRect) :: DockTabItemRect
-  ! }
+  type, bind(c) :: ImGuiWindow
+      type(c_ptr) :: Name
+      integer(c_int) :: ID
+      integer(c_int) :: Flags
+      integer(c_int) :: FlagsPreviousFrame
+      type(ImGuiWindowClass) :: WindowClass
+      type(c_ptr) :: Viewport
+      integer(c_int) :: ViewportId
+      type(ImVec2) :: ViewportPos
+      integer(c_int) :: ViewportAllowPlatformMonitorExtend
+      type(ImVec2) :: Pos
+      type(ImVec2) :: Size
+      type(ImVec2) :: SizeFull
+      type(ImVec2) :: ContentSize
+      type(ImVec2) :: ContentSizeIdeal
+      type(ImVec2) :: ContentSizeExplicit
+      type(ImVec2) :: WindowPadding
+      real(c_float) :: WindowRounding
+      real(c_float) :: WindowBorderSize
+      integer(c_int) :: NameBufLen
+      integer(c_int) :: MoveId
+      integer(c_int) :: TabId
+      integer(c_int) :: ChildId
+      type(ImVec2) :: Scroll
+      type(ImVec2) :: ScrollMax
+      type(ImVec2) :: ScrollTarget
+      type(ImVec2) :: ScrollTargetCenterRatio
+      type(ImVec2) :: ScrollTargetEdgeSnapDist
+      type(ImVec2) :: ScrollbarSizes
+      logical(c_bool) :: ScrollbarX, ScrollbarY
+      logical(c_bool) :: ViewportOwned
+      logical(c_bool) :: Active
+      logical(c_bool) :: WasActive
+      logical(c_bool) :: WriteAccessed
+      logical(c_bool) :: Collapsed
+      logical(c_bool) :: WantCollapseToggle
+      logical(c_bool) :: SkipItems
+      logical(c_bool) :: Appearing
+      logical(c_bool) :: Hidden
+      logical(c_bool) :: IsFallbackWindow
+      logical(c_bool) :: IsExplicitChild
+      logical(c_bool) :: HasCloseButton
+      integer(c_signed_char) :: ResizeBorderHeld
+      integer(c_short) :: BeginCount
+      integer(c_short) :: BeginOrderWithinParent
+      integer(c_short) :: BeginOrderWithinContext
+      integer(c_short) :: FocusOrder
+      integer(c_int) :: PopupId
+      integer(c_signed_char) :: AutoFitFramesX, AutoFitFramesY
+      integer(c_signed_char) :: AutoFitChildAxises
+      logical(c_bool) :: AutoFitOnlyGrows
+      integer(c_int) :: AutoPosLastDirection
+      integer(c_signed_char) :: HiddenFramesCanSkipItems
+      integer(c_signed_char) :: HiddenFramesCannotSkipItems
+      integer(c_signed_char) :: HiddenFramesForRenderOnly
+      integer(c_signed_char) :: DisableInputsFrames
+      integer(c_int8_t) :: SetWindowPosAllowFlags
+      integer(c_int8_t) :: SetWindowSizeAllowFlags
+      integer(c_int8_t) :: SetWindowCollapsedAllowFlags
+      integer(c_int8_t) :: SetWindowDockAllowFlags
+      type(ImVec2) :: SetWindowPosVal
+      type(ImVec2) :: SetWindowPosPivot
+      type(ImVector_ImGuiID) :: IDStack
+      type(ImGuiWindowTempData) :: DC
+      type(ImRect) :: OuterRectClipped
+      type(ImRect) :: InnerRect
+      type(ImRect) :: InnerClipRect
+      type(ImRect) :: WorkRect
+      type(ImRect) :: ParentWorkRect
+      type(ImRect) :: ClipRect
+      type(ImRect) :: ContentRegionRect
+      type(ImVec2ih) :: HitTestHoleSize
+      type(ImVec2ih) :: HitTestHoleOffset
+      integer(c_int) :: LastFrameActive
+      integer(c_int) :: LastFrameJustFocused
+      real(c_float) :: LastTimeActive
+      real(c_float) :: ItemWidthDefault
+      type(ImGuiStorage) :: StateStorage
+      type(ImVector_ImGuiOldColumns) :: ColumnsStorage
+      real(c_float) :: FontWindowScale
+      real(c_float) :: FontDpiScale
+      integer(c_int) :: SettingsOffset
+      type(c_ptr) :: DrawList
+      type(ImDrawList) :: DrawListInst
+      type(c_ptr) :: ParentWindow
+      type(c_ptr) :: ParentWindowInBeginStack
+      type(c_ptr) :: RootWindow
+      type(c_ptr) :: RootWindowPopupTree
+      type(c_ptr) :: RootWindowDockTree
+      type(c_ptr) :: RootWindowForTitleBarHighlight
+      type(c_ptr) :: RootWindowForNav
+      type(c_ptr) :: NavLastChildNavWindow
+      integer(c_int) :: NavLastIds(ImGuiNavLayer_COUNT)
+      type(ImRect) :: NavRectRel(ImGuiNavLayer_COUNT)
+      integer(c_int) :: MemoryDrawListIdxCapacity
+      integer(c_int) :: MemoryDrawListVtxCapacity
+      logical(c_bool) :: MemoryCompacted
+      logical(c_bool) :: DockIsActive
+      logical(c_bool) :: DockNodeIsVisible
+      logical(c_bool) :: DockTabIsVisible
+      logical(c_bool) :: DockTabWantClose
+      integer(c_short) :: DockOrder
+      type(ImGuiWindowDockStyle) :: DockStyle
+      type(c_ptr) :: DockNode
+      type(c_ptr) :: DockNodeAsHost
+      integer(c_int) :: DockId
+      integer(c_int) :: DockTabItemStatusFlags
+      type(ImRect) :: DockTabItemRect
+   end type ImGuiWindow
+
   ! struct ImGuiTabItem
   ! {
   !     integer(c_int) :: ID
@@ -1654,7 +1655,7 @@
   !     real(c_float) :: ScrollingRectMaxX
   !     integer(c_int) :: ReorderRequestTabId
   !     type(c_short) :: ReorderRequestOffset
-  !     ImS8 BeginCount
+  !     integer(c_signed_char) :: BeginCount
   !     logical(c_bool) :: WantLayout
   !     logical(c_bool) :: VisibleTabWasSubmitted
   !     logical(c_bool) :: TabsAddedNew
@@ -1701,7 +1702,7 @@
   !     logical(c_bool) :: IsRequestOutput
   !     logical(c_bool) :: IsSkipItems
   !     logical(c_bool) :: IsPreserveWidthAuto
-  !     ImS8 NavLayerCurrent
+  !     integer(c_signed_char) :: NavLayerCurrent
   !     integer(c_signed_char) :: AutoFitQueue
   !     integer(c_signed_char) :: CannotSkipItemsQueue
   !     integer(c_signed_char) :: SortDirection : 2

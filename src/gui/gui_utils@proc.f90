@@ -155,7 +155,7 @@ contains
     logical :: iw_radiobutton
 
     character(len=:,kind=c_char), allocatable, target :: str1
-    logical :: sameline_, ldum
+    logical :: sameline_
 
     iw_radiobutton = .false.
     sameline_ = .false.

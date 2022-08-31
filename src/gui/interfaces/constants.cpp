@@ -890,7 +890,7 @@ const int const_ImGuiNavMoveFlags_DontSetNavHighlight = ImGuiNavMoveFlags_DontSe
 // enum ImGuiNavLayer
 const int const_ImGuiNavLayer_Main = ImGuiNavLayer_Main;
 const int const_ImGuiNavLayer_Menu = ImGuiNavLayer_Menu;
-const int const_ImGuiNavLayer_COUNT = ImGuiNavLayer_COUNT;
+// const int const_ImGuiNavLayer_COUNT = ImGuiNavLayer_COUNT;
 // enum ImGuiOldColumnFlags_
 const int const_ImGuiOldColumnFlags_None = ImGuiOldColumnFlags_None;
 const int const_ImGuiOldColumnFlags_NoBorder = ImGuiOldColumnFlags_NoBorder;
@@ -934,7 +934,7 @@ const int const_ImGuiWindowDockStyleCol_TabHovered = ImGuiWindowDockStyleCol_Tab
 const int const_ImGuiWindowDockStyleCol_TabActive = ImGuiWindowDockStyleCol_TabActive;
 const int const_ImGuiWindowDockStyleCol_TabUnfocused = ImGuiWindowDockStyleCol_TabUnfocused;
 const int const_ImGuiWindowDockStyleCol_TabUnfocusedActive = ImGuiWindowDockStyleCol_TabUnfocusedActive;
-const int const_ImGuiWindowDockStyleCol_COUNT = ImGuiWindowDockStyleCol_COUNT;
+// const int const_ImGuiWindowDockStyleCol_COUNT = ImGuiWindowDockStyleCol_COUNT;
 // enum ImGuiDebugLogFlags_
 const int const_ImGuiDebugLogFlags_None = ImGuiDebugLogFlags_None;
 const int const_ImGuiDebugLogFlags_EventActiveId = ImGuiDebugLogFlags_EventActiveId;

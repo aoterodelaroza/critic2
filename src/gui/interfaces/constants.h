@@ -883,7 +883,7 @@ extern "C" const int const_ImGuiNavMoveFlags_DontSetNavHighlight;
 // enum ImGuiNavLayer
 extern "C" const int const_ImGuiNavLayer_Main;
 extern "C" const int const_ImGuiNavLayer_Menu;
-extern "C" const int const_ImGuiNavLayer_COUNT;
+// extern "C" const int const_ImGuiNavLayer_COUNT;
 // enum ImGuiOldColumnFlags_
 extern "C" const int const_ImGuiOldColumnFlags_None;
 extern "C" const int const_ImGuiOldColumnFlags_NoBorder;
@@ -927,7 +927,7 @@ extern "C" const int const_ImGuiWindowDockStyleCol_TabHovered;
 extern "C" const int const_ImGuiWindowDockStyleCol_TabActive;
 extern "C" const int const_ImGuiWindowDockStyleCol_TabUnfocused;
 extern "C" const int const_ImGuiWindowDockStyleCol_TabUnfocusedActive;
-extern "C" const int const_ImGuiWindowDockStyleCol_COUNT;
+// extern "C" const int const_ImGuiWindowDockStyleCol_COUNT;
 // enum ImGuiDebugLogFlags_
 extern "C" const int const_ImGuiDebugLogFlags_None;
 extern "C" const int const_ImGuiDebugLogFlags_EventActiveId;
