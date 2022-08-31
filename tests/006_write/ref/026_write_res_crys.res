@@ -1,4 +1,4 @@
-TITL critic2 | uracil (crystal library)
+TITL critic2 | uracil (library)
 CELL 0.71073 11.93800000  12.37600000  3.65520000   90.000000  120.900000 90.000000  
 ZERR 1 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001
 LATT -1
