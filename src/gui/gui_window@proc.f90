@@ -715,9 +715,9 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
              if (dopop) &
                 call igPopStyleVar(1_c_int)
+             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
           end if
 
           ! ID column
