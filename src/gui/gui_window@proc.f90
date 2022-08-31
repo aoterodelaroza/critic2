@@ -536,6 +536,15 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    sz%x = 3._c_float
+    sz%y = 1._c_float
+    call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
+    sz%x = 8._c_float
+    sz%y = 5._c_float
+    call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
+    sz%x = 2._c_float
+    sz%y = 2._c_float
+    call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
     if (igBeginTable(c_loc(str),14,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
@@ -813,6 +822,7 @@ contains
 
        call igEndTable()
     end if
+    call igPopStyleVar(3_c_int)
 
     ! clean up
     ! call ImGuiTextFilter_destroy(cfilter)
@@ -1884,18 +1894,18 @@ contains
        iw_calcwidth, buffer_to_string_array
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
-    use tools_io, only: string, fopen_scratch, fclose, ioj_left, stripchar, deblank
+    use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
     use types, only: vstring
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex, left
+    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex
     logical(c_bool) :: ldum, doquit
-    logical :: changed, ok, exloop
+    logical :: ok
     type(ImVec2) :: szero, sz, szavail
     integer :: i, idx, lu
     type(crystalseed), allocatable :: seed_(:)
-    integer(c_int) :: flags, iunitat
+    integer(c_int) :: iunitat
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flags
