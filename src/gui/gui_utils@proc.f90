@@ -86,6 +86,43 @@ contains
 
   end function iw_calcwidth
 
+  !> Simple combo with title str. stropt contains the options separated
+  !> by \0 and terminated by \0\0.
+  module subroutine iw_combo_simple(str,stropt,ival,sameline)
+    use gui_interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    character(len=*,kind=c_char), intent(in) :: stropt
+    integer, intent(inout) :: ival
+    logical, intent(in), optional :: sameline
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    character(len=:,kind=c_char), allocatable, target :: stropt1
+    logical :: ldum, sameline_
+    integer :: ll, maxlen, nidx, idx
+
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+
+    str1 = str // c_null_char
+    stropt1 = stropt // c_null_char // c_null_char
+
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
+
+    maxlen = 0
+    idx = 0
+    ll = len(stropt1)-1
+    do while (idx < ll)
+       nidx = idx + index(stropt1(idx+1:),c_null_char)
+       maxlen = max(maxlen,nidx-1-idx)
+       idx = nidx
+    end do
+    call igSetNextItemWidth(iw_calcwidth(maxlen+4,0))
+
+    ldum = igCombo_Str(c_loc(str1), ival, c_loc(stropt1), -1_c_int)
+
+  end subroutine iw_combo_simple
+
   !> Draw a radio button with title str. If bool and boolval are given
   !> associated with logical bool and with value boolval. If int and
   !> intval are presented, associated with integer int and with value

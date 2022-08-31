@@ -29,7 +29,7 @@ module gui_window
      type(c_ptr) :: ptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
-     integer(c_int) :: isformat = isformat_unknown ! force structure format
+     integer :: isformat = isformat_unknown ! force structure format
      logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
      logical(c_bool) :: molcubic = .false. ! whether to read the cell as cubic in a molecule

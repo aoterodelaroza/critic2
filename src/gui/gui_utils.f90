@@ -24,6 +24,7 @@ module gui_utils
 
   public :: iw_calcheight
   public :: iw_calcwidth
+  public :: iw_combo_simple
   public :: iw_radiobutton
   public :: iw_text
   public :: iw_button
@@ -46,6 +47,12 @@ module gui_utils
        logical, intent(in), optional :: from_end
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
+     module subroutine iw_combo_simple(str,stropt,ival,sameline)
+       character(len=*,kind=c_char), intent(in) :: str
+       character(len=*,kind=c_char), intent(in) :: stropt
+       integer, intent(inout) :: ival
+       logical, intent(in), optional :: sameline
+     end subroutine iw_combo_simple
      module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout), optional :: bool

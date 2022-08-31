@@ -142,7 +142,7 @@ contains
 
   !> Check whether the window with the given id is still open. If it is
   !> not, or id points to an invalid window, set it to id = 0. If changed
-  !> is present, set it to the old id if the id has been changed
+  !> is present, set it to the old id if the id has been changed.
   module subroutine update_window_id(id,changed)
     integer, intent(inout) :: id
     integer, intent(out), optional :: changed
@@ -1889,7 +1889,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, buffer_to_string_array, iw_radiobutton
+       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -1916,12 +1916,12 @@ contains
     integer(c_size_t), parameter :: maxnamebuf = 1024 !! name buffer
     character(len=:,kind=c_char), allocatable, target, save :: namebuf
     logical, save :: ismolecule = .false. ! whether the system is a molecule or a crystal
-    integer(c_int), save :: iunitat_c = 2 ! crystal atpos units (0 = bohr, 1 = angstrom, 2 = fractional)
-    integer(c_int), save :: iunitat_m = 2 ! mol atpos units (0 = bohr, 1 = angstrom)
+    integer, save :: iunitat_c = 2 ! crystal atpos units (0 = bohr, 1 = angstrom, 2 = fractional)
+    integer, save :: iunitat_m = 2 ! mol atpos units (0 = bohr, 1 = angstrom)
     integer, save :: symopt = 1 ! symmetry option (1 = detect, 2 = spg, 3 = manual)
     integer, save :: ispg_selected = 1 ! selected space group
     integer, save :: cellopt = 1 ! lattice option (1 = parameters, 2 = lattice-vectors)
-    integer(c_int), save :: iunitcel = 0 ! units for lattice (0 = bohr, 1 = angstrom)
+    integer, save :: iunitcel = 0 ! units for lattice (0 = bohr, 1 = angstrom)
     real(c_float), save :: scale = 1._c_float ! scale factor for lattice vectors
     real(c_float), save :: aa(3) = 10._c_float ! cell lengths
     real(c_float), save :: bb(3) = 90._c_float ! cell angles
@@ -1981,13 +1981,8 @@ contains
 
        ! units and scale factor only if lattice vectors
        if (cellopt == 2) then
-          call igSameLine(0._c_float,-1._c_float)
-          str = "Units##cel" // c_null_char
-          stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
-          strex = "Angstrom    " // c_null_char
-          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-          call igSetNextItemWidth(sz%x)
-          ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
+          call iw_combo_simple("Units##cel","Bohr" // c_null_char // "Angstrom" // c_null_char,&
+             iunitcel,sameline=.true.)
           call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
 
           call igSameLine(0._c_float,-1._c_float)
@@ -2039,17 +2034,12 @@ contains
     if (ismolecule .or. cellopt == 2) then
        call igSameLine(0._c_float,-1._c_float)
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Units" // c_null_char
        if (ismolecule) then
-          stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
+          call iw_combo_simple("Units","Bohr" // c_null_char // "Angstrom" // c_null_char,&
+             iunitat_m,sameline=.true.)
        else
-          stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // "Fractional" // c_null_char // c_null_char
-       end if
-       call igSetNextItemWidth(iw_calcwidth(13,1))
-       if (ismolecule) then
-          ldum = igCombo_Str(c_loc(str), iunitat_m, c_loc(stropt), -1_c_int)
-       else
-          ldum = igCombo_Str(c_loc(str), iunitat_c, c_loc(stropt), -1_c_int)
+          call iw_combo_simple("Units","Bohr" // c_null_char // "Angstrom" // c_null_char // "Fractional" // c_null_char,&
+             iunitat_c,sameline=.true.)
        end if
        call iw_tooltip("Units for the atomic coordinates",ttshown)
     end if
@@ -2575,7 +2565,8 @@ contains
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
     use gui_main, only: g
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
+       iw_combo_simple
     use gui_interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -2586,6 +2577,7 @@ contains
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
+    integer :: idum ! xxxx
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2644,7 +2636,6 @@ contains
 
        ! Input structure format (isformat)
        call iw_text("Read file format",highlight=.true.)
-       str = "##formatcombo" // c_null_char
        stropt = "" &
           // "Auto-detect" // c_null_char &             ! isformat_unknown = 0
           // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit = 7
@@ -2676,9 +2667,8 @@ contains
           // "WIEN2k struct file" // c_null_char &      ! isformat_struct = 6
           // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
           // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
-          // "xyz file" // c_null_char &                ! isformat_xyz = 12
-          // c_null_char
-       ldum = igCombo_Str(c_loc(str), data%isformat,c_loc(stropt),-1_c_int);
+          // "xyz file" // c_null_char                  ! isformat_xyz = 12
+       call iw_combo_simple("##formatcombo",stropt,data%isformat)
        call iw_tooltip("Force new structures read with a given file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
