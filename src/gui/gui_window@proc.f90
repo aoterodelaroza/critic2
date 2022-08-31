@@ -280,7 +280,7 @@ contains
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
-       elseif (w%type == wintype_new) then
+       elseif (w%type == wintype_new_struct) then
           w%name = "New Structure..." // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 800._c_float
@@ -306,8 +306,8 @@ contains
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
                 call w%draw_co()
-             elseif (w%type == wintype_new) then
-                call w%draw_new()
+             elseif (w%type == wintype_new_struct) then
+                call w%draw_new_struct()
              end if
           end if
           call igEnd()
@@ -1846,7 +1846,7 @@ contains
   end subroutine draw_co
 
   !> Draw the contents of the new structure window.
-  module subroutine draw_new(w)
+  module subroutine draw_new_struct(w)
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -2561,7 +2561,7 @@ contains
        call w%end()
     end if
 
-  end subroutine draw_new
+  end subroutine draw_new_struct
 
   !xx! private procedures
 

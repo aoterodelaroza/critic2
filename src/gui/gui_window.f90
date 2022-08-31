@@ -84,7 +84,7 @@ module gui_window
      ! output console procedures
      procedure :: draw_co ! draw the output console
      ! new structure procedures
-     procedure :: draw_new
+     procedure :: draw_new_struct
   end type window
   public :: window
 
@@ -102,7 +102,7 @@ module gui_window
   integer, parameter, public :: wintype_console_input = 3
   integer, parameter, public :: wintype_console_output = 4
   integer, parameter, public :: wintype_dialog = 5
-  integer, parameter, public :: wintype_new = 6
+  integer, parameter, public :: wintype_new_struct = 6
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -170,9 +170,9 @@ module gui_window
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co
-     module subroutine draw_new(w)
+     module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
-     end subroutine draw_new
+     end subroutine draw_new_struct
   end interface
 
 end module gui_window

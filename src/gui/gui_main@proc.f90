@@ -619,7 +619,7 @@ contains
     use gui_interfaces_cimgui
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
-       wintype_new
+       wintype_new_struct
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -724,7 +724,7 @@ contains
 
     ! process launches
     if (launchnew) &
-       idnewdialog = stack_create_window(wintype_new,.true.)
+       idnewdialog = stack_create_window(wintype_new_struct,.true.)
     if (launchopen) &
        idopendialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
     if (launchquit) then
