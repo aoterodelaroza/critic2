@@ -40,6 +40,7 @@ module gui_window
   type window
      ! global window parameters
      logical :: isinit = .false. ! whether this window has been initialized
+     logical :: firstpass = .true. ! true if this is the first draw() call
      logical(c_bool) :: isopen ! whether the window is open
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window

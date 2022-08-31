@@ -212,8 +212,9 @@ contains
     if (.not.w%isinit) return
     if (.not.w%isopen) return
 
-    ! First pass: assign ID, name, and flags
+    ! First pass on creation: assign ID, name, and flags
     if (w%id < 0) then
+       w%firstpass = .true.
        idcount = idcount + 1
        w%id = idcount
        if (w%type == wintype_tree) then
@@ -312,6 +313,9 @@ contains
           end if
           call igEnd()
        end if
+       w%firstpass = .false.
+    else
+       w%firstpass = .true.
     end if
 
   end subroutine window_draw
@@ -1877,7 +1881,6 @@ contains
     logical(c_bool), save :: fromlibrary = .false.
     logical, save :: ttshown = .false.
     integer(c_int), save :: idum = 0
-    logical, save :: firstpass = .true.
     integer, save :: nst = 0
     integer, save :: lastselected = 0
     real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
@@ -1903,9 +1906,8 @@ contains
     szero%x = 0
     szero%y = 0
     readlib = .false.
-    if (firstpass) then
+    if (w%firstpass) then
        w%libraryfile = trim(clib_file)
-       firstpass = .false.
        readlib = .true.
        if (allocated(atposbuf)) deallocate(atposbuf)
        allocate(character(len=maxatposbuf+1) :: atposbuf)
@@ -2540,7 +2542,6 @@ contains
        fromlibrary = .false.
        ttshown = .false.
        idum = 0
-       firstpass = .true.
        lastselected = 0
        nst = 0
        rborder = real(rborder_def*bohrtoa,c_float)
