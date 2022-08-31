@@ -2233,7 +2233,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, stropt
     logical(c_bool) :: ldum, doquit
-    logical :: ok, saveismol
+    logical :: ok, saveismol, doubleclicked, isset
     type(ImVec2) :: szero, sz
     integer :: i, nseed, oid
     type(crystalseed) :: seed
@@ -2298,10 +2298,12 @@ contains
        sz%y = max(sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
     end if
 
+    doubleclicked = .false.
+    isset = .false.
     if (igBeginListBox(c_loc(str),sz)) then
        do i = 1, nst
           str = st(i)%s // c_null_char
-          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
+          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_AllowDoubleClick, szero)) then
 
              ! implement selection range with shift and control
              if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
@@ -2320,6 +2322,8 @@ contains
                 lst = .false.
                 lst(i) = .true.
                 lastselected = i
+                doubleclicked = igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)
+                isset = .true.
              end if
           end if
        end do
@@ -2352,7 +2356,9 @@ contains
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
     ! final buttons: ok
-    if (iw_button("OK",disabled=(idopenlibfile /= 0))) then
+    ok = doubleclicked .or. iw_button("OK",disabled=(idopenlibfile /= 0))
+    ok = ok .and. (idopenlibfile == 0)
+    if (ok) then
        nseed = count(lst(1:nst))
        if (nseed > 0) then
           ! we have systems (potentially), allocate the seed array
