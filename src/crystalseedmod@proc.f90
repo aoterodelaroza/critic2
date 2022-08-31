@@ -62,7 +62,6 @@ contains
   module subroutine parse_crystal_env(seed,lu,oksyn)
     use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
-    use arithmetic, only: isvariable, eval, setvariable
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
        getword, lower, isinteger, string, nameguess, zatguess, equali
@@ -73,15 +72,14 @@ contains
     integer, intent(in) :: lu !< Logical unit for input
     logical, intent(out) :: oksyn !< Was there a syntax error?
 
-    character(len=:), allocatable :: word, aux, aexp, line, name
+    character(len=:), allocatable :: word, aux, line, name, errmsg
     character*255, allocatable :: sline(:)
-    integer :: i, j, k, lp, nsline, idx, luout, iat, lp2, iunit0, it
+    integer :: i, j, k, lp, nsline, luout, iat, lp2, iunit0, it
     integer :: hnum, ier
-    real*8 :: rmat(3,3), scal, ascal, x(3), xn(3), xdif(3)
+    real*8 :: rmat(3,3), scal, ascal, x(3), xdif(3)
     logical :: ok, goodspg
-    character*(1), parameter :: ico(3) = (/"x","y","z"/)
-    logical :: icodef(3), iok, isset
-    real*8 :: icoval(3)
+    logical :: isset
+    real*8 :: rot(3,4)
 
     call seed%end()
     if (iunit_isdef) then
@@ -328,36 +326,15 @@ contains
 
     ! symm transformation
     if (nsline > 0 .and. allocated(sline)) then
-       ! save the old x,y,z variables if they are defined
-       do k = 1, 3
-          icodef(k) = isvariable(ico(k),icoval(k))
-       end do
-
        do i = 1, nsline ! run over symm lines
-          do j = 1, seed%nat ! run over atoms
-             line = trim(adjustl(sline(i)))
-             xn = seed%x(:,j) - floor(seed%x(:,j))
-             ! push the atom coordinates into x,y,z variables
-             do k = 1, 3
-                call setvariable(ico(k),seed%x(k,j))
-             end do
+          rot = string_to_symop(sline(i),errmsg)
+          if (len_trim(errmsg) > 0) then
+             call ferror('parse_crystal_env','Error parsing SYMM:' // errmsg,faterr,syntax=.true.)
+             return
+          end if
 
-             ! parse the three fields in the arithmetic expression
-             do k = 1, 3
-                if (k < 3) then
-                   idx = index(line,",")
-                   if (idx == 0) then
-                      call ferror('parse_crystal_env','error reading symmetry operation',faterr,line,syntax=.true.)
-                      return
-                   end if
-                   aexp = line(1:idx-1)
-                   aux = adjustl(line(idx+1:))
-                   line = aux
-                else
-                   aexp = line
-                end if
-                x(k) = eval(aexp,.true.,iok)
-             end do
+          do j = 1, seed%nat ! run over atoms
+             x = matmul(rot(1:3,1:3),seed%x(:,j)) + rot(:,4)
              x = x - floor(x)
 
              ! check if this atom already exists
@@ -384,11 +361,6 @@ contains
           end do
        end do
        deallocate(sline)
-
-       ! re-set the previous values of x, y, z
-       do k = 1, 3
-          if (icodef(k)) call setvariable(ico(k),icoval(k))
-       end do
     end if
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
@@ -5933,8 +5905,7 @@ contains
 
   end subroutine which_in_format
 
-  !> Convert a cif-file-style string (comma-terminated: x,y,z,) to a
-  !> symmetry operation.
+  !> Convert a cif-file-style string (x,y,z) to a symmetry operation.
   function string_to_symop(str,errmsg) result(rot0)
     use arithmetic, only: eval
     use tools_io, only: lower
