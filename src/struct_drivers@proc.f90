@@ -2591,7 +2591,7 @@ contains
     use crystalmod, only: crystal
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
-    use tools_io, only: uout, string, ioj_left, ioj_right
+    use tools_io, only: uout, string, ioj_left, ioj_right, ferror, faterr
     use param, only: icrd_crys, bohrtoa
     type(system), intent(in) :: s
 
@@ -2608,6 +2608,11 @@ contains
     real*8, parameter :: up2dmax = 15d0 / bohrtoa
     real*8, parameter :: wthresh = 1d-10
     real*8, parameter :: epsfac = (1d0 + 14d0 * log(10d0))**(1d0/6d0)
+
+    if (s%c%ismolecule) then
+       call ferror('struct_econ','ECON only available for crystals',faterr,syntax=.true.)
+       return
+    end if
 
     allocate(econij(0:s%c%nspc,s%c%nneq),econij_noit(0:s%c%nspc,s%c%nneq))
     allocate(ndij(0:s%c%nspc,s%c%nneq),ndij_noit(0:s%c%nspc,s%c%nneq),mindist(0:s%c%nspc))

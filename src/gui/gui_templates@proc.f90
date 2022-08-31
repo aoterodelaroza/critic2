@@ -25,10 +25,11 @@ submodule (gui_templates) proc
   ! the keywords
   integer, parameter :: ikeyw_none = 0
   integer, parameter :: ikeyw_bz = 1      ! BZ
-  integer, parameter :: ikeyw_environ = 2 ! ENVIRON
-  integer, parameter :: ikeyw_kpoints = 3 ! KPOINTS
-  integer, parameter :: ikeyw_spg = 4     ! SPG
-  integer, parameter :: ikeyw_NUM = 4
+  integer, parameter :: ikeyw_econ = 2    ! ECON
+  integer, parameter :: ikeyw_environ = 3 ! ENVIRON
+  integer, parameter :: ikeyw_kpoints = 4 ! KPOINTS
+  integer, parameter :: ikeyw_spg = 5     ! SPG
+  integer, parameter :: ikeyw_NUM = 5
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
@@ -36,6 +37,7 @@ submodule (gui_templates) proc
   integer, parameter :: isection_NUM = 1
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
      isection_structural_tools,& ! BZ
+     isection_structural_tools,& ! ECON
      isection_structural_tools,& ! ENVIRON
      isection_structural_tools,& ! KPOINTS
      isection_structural_tools& ! SPG
@@ -44,6 +46,7 @@ submodule (gui_templates) proc
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
      "BZ (print Brillouin zone)              ",& ! BZ
+     "ECON (effective coordination numbers)  ",& ! ECON
      "ENVIRON (calculate atomic environments)",& ! ENVIRON
      "KPOINTS (calculate k-point grid sizes) ",& ! KPOINTS
      "SPG (list space group types)           "& ! SPG
@@ -56,12 +59,13 @@ submodule (gui_templates) proc
 
   ! section ranges
   integer, parameter :: section_ranges(2,1) = reshape((/&
-     1,4& ! structural tools
+     1,5& ! structural tools
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
      "bz     ",& ! BZ
+     "econ   ",& ! ECON
      "environ",& ! ENVIRON
      "kpoints",& ! KPOINTS
      "spg    "& ! SPG
@@ -70,6 +74,7 @@ submodule (gui_templates) proc
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
      "structure/#c2-bz     ",& ! BZ
+     "structure/#c2-econ   ",& ! ECON
      "structure/#c2-environ",& ! ENVIRON
      "structure/#c2-kpoints",& ! KPOINTS
      "crystal/#c2-spg      "& ! SPG
