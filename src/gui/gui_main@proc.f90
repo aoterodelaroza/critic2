@@ -619,7 +619,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use gui_interfaces_cimgui
-    use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
+    use gui_window, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
        wintype_new_struct, wintype_new_struct_library, update_window_id
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth

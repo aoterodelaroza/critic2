@@ -574,15 +574,21 @@ contains
 
   end subroutine parse_molecule_env
 
-  !> Read a structure from the critic2 structure library
-  module subroutine read_library(seed,line,mol,oksyn,ti)
+  !> Read a structure from the critic2 structure library and return
+  !> the seed. line is the structure ID. oksyn is true if there were
+  !> no syntax errors. If mol is present and true, use the default
+  !> molecular library. If mol is present and false, use the default
+  !> crystal library. If file is present, use this file as the
+  !> library.
+  module subroutine read_library(seed,line,oksyn,mol,file,ti)
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
        equal, getword, fclose
-    class(crystalseed), intent(inout) :: seed !< Crystal seed result
-    character*(*), intent(in) :: line !< Library entry
-    logical, intent(in) :: mol !< Is this a molecule?
-    logical, intent(out) :: oksyn !< Did this have a syntax error?
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: line
+    logical, intent(out) :: oksyn
+    logical, intent(in), optional :: mol
+    character*(*), intent(in), optional :: file
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: word, l2, stru, aux, libfile
@@ -599,11 +605,16 @@ contains
        return
     endif
 
-    if (mol) then
-       libfile = mlib_file
-    else
-       libfile = clib_file
-    endif
+    libfile = clib_file
+    if (present(mol)) then
+       if (mol) then
+          libfile = mlib_file
+       else
+          libfile = clib_file
+       endif
+    elseif (present(file)) then
+       libfile = file
+    end if
 
     ! open the library file
     inquire(file=libfile,exist=lchk)
@@ -636,17 +647,27 @@ contains
        return
     end if
 
-    ! read the crystal/molecule environment inside
+    ! get the crystal/molecule keyword
     ok = getline(lu,l2)
-    if (mol) then
-       call seed%parse_molecule_env(lu,ok)
-       seed%file = trim(line) // " (molecular library)"
-       seed%name = trim(line) // " (molecular library)"
-    else
+    if (.not.ok) then
+       call fclose(lu)
+       call ferror("read_library","error parsing the crystal/molecule environment",faterr,syntax=.true.)
+       return
+    end if
+    lp = 1
+    word = lgetword(l2,lp)
+    if (equal(word,"crystal")) then
        call seed%parse_crystal_env(lu,ok)
-       seed%file = trim(line) // " (crystal library)"
-       seed%name = trim(line) // " (crystal library)"
+    elseif (equal(word,"molecule")) then
+       call seed%parse_molecule_env(lu,ok)
+    else
+       call fclose(lu)
+       call ferror("read_library","error parsing the crystal/molecule keyword",faterr,syntax=.true.)
+       return
     endif
+    seed%file = trim(line) // " (library)"
+    seed%name = trim(line) // " (library)"
+
     call fclose(lu)
     if (.not.ok) return
 

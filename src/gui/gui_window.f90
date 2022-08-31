@@ -65,6 +65,7 @@ module gui_window
      ! new structure parameters
      character(kind=c_char,len=:), allocatable :: libraryfile ! library file
      logical :: libraryfile_set = .false. ! whether the library file has been set by the user
+     logical :: libraryfile_read = .false. ! whether the structure list should be re-read from the lib
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -125,8 +126,9 @@ module gui_window
        integer, intent(in), optional :: purpose
        integer :: stack_create_window
      end function stack_create_window
-     module subroutine update_window_id(id)
+     module subroutine update_window_id(id,changed)
        integer, intent(inout) :: id
+       integer, intent(out), optional :: changed
      end subroutine update_window_id
      module subroutine window_init(w,type,isopen,purpose)
        class(window), intent(inout) :: w

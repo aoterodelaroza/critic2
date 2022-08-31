@@ -293,7 +293,7 @@ contains
        call seed%read_tinkerfrac(word,mol,errmsg)
 
     else if (equal(lower(word),'library')) then
-       call seed%read_library(subline,mol,ok)
+       call seed%read_library(subline,ok,mol=mol)
        if (.not.ok) return
 
     else if (len_trim(word) < 1) then

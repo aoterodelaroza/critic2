@@ -120,11 +120,12 @@ module crystalseedmod
        integer, intent(in) :: lu
        logical, intent(out) :: oksyn
      end subroutine parse_molecule_env
-     module subroutine read_library(seed,line,mol,oksyn,ti)
+     module subroutine read_library(seed,line,oksyn,mol,file,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: line
-       logical, intent(in) :: mol
        logical, intent(out) :: oksyn
+       logical, intent(in), optional :: mol
+       character*(*), intent(in), optional :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine read_library
      module subroutine from_fragment(seed,fr,order_by_cidx0)
