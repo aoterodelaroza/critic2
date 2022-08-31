@@ -1982,18 +1982,18 @@ contains
        str = "Lattice vectors" // c_null_char
        if (igRadioButton_Bool(c_loc(str),logical(cellopt == 2,c_bool))) cellopt = 2
        call iw_tooltip("Lattice vectors are given explicitly",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
 
-       str = "Units##cel" // c_null_char
-       stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
-       strex = "Angstrom    " // c_null_char
-       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-       call igSetNextItemWidth(sz%x)
-       ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
-       call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
-
-       ! scale factor only if lattice vectors
+       ! units and scale factor only if lattice vectors
        if (cellopt == 2) then
+          call igSameLine(0._c_float,-1._c_float)
+          str = "Units##cel" // c_null_char
+          stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
+          strex = "Angstrom    " // c_null_char
+          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
+          call igSetNextItemWidth(sz%x)
+          ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
+          call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
+
           call igSameLine(0._c_float,-1._c_float)
           str = "Scale" // c_null_char
           stropt = "%.3f" // c_null_char
@@ -2127,13 +2127,8 @@ contains
              ! cell
              if (cellopt == 1) then
                 ! cell parameters
-                if (iunitcel == 1) then
-                   write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
-                      (string(bb(i),'f',decimal=10),i=1,3)
-                else
-                   write (lu,'("cell ",6(A," "),"bohr")') (string(aa(i),'f',decimal=10),i=1,3), &
-                      (string(bb(i),'f',decimal=10),i=1,3)
-                end if
+                write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
+                   (string(bb(i),'f',decimal=10),i=1,3)
              else
                 ! lattice vectors
                 write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
