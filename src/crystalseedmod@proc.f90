@@ -114,7 +114,7 @@ contains
           ok = ok .and. eval_next(seed%bb(2),line,lp)
           ok = ok .and. eval_next(seed%bb(3),line,lp)
           if (.not.ok) then
-             call ferror("parse_crystal_env","Wrong CELL syntax",faterr,line,syntax=.true.)
+             call ferror("parse_crystal_env","Wrong cell parameter (CELL) syntax",faterr,line,syntax=.true.)
              return
           endif
           isset = .false.
@@ -125,7 +125,7 @@ contains
           elseif (equal(word,'bohr').or.equal(word,'au')) then
              isset = .true.
           elseif (len_trim(word) > 0) then
-             call ferror('parse_crystal_env','Unknown extra keyword in CELL',faterr,line,syntax=.true.)
+             call ferror('parse_crystal_env','Unknown extra keyword in cell parameters (CELL)',faterr,line,syntax=.true.)
              return
           endif
           if (.not.isset) then
@@ -140,7 +140,7 @@ contains
           ascal = 1d0/dunit0(iunit)
           aux = getword(line,lp)
           if (len_trim(aux) > 0) then
-             call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+             call ferror('parse_crystal_env','Unknown extra keyword in lattice vectors (CARTESIAN)',faterr,line,syntax=.true.)
              return
           end if
 
@@ -163,7 +163,7 @@ contains
                 ! end/endcartesian
                 aux = getword(line,lp)
                 if (len_trim(aux) > 0) then
-                   call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Unknown extra keyword in lattice vectors (CARTESIAN)',faterr,line,syntax=.true.)
                    return
                 end if
                 exit
@@ -180,12 +180,12 @@ contains
                 end if
              end if
              if (.not.ok) then
-                call ferror('parse_crystal_env','Bad CARTESIAN environment',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Bad lattice vector (CARTESIAN) environment',faterr,line,syntax=.true.)
                 return
              end if
              aux = getword(line,lp)
              if (len_trim(aux) > 0) then
-                call ferror('parse_crystal_env','Unknown extra keyword in CARTESIAN',faterr,line,syntax=.true.)
+                call ferror('parse_crystal_env','Unknown extra keyword in lattice vectors (CARTESIAN)',faterr,line,syntax=.true.)
                 return
              end if
           end do
@@ -195,8 +195,10 @@ contains
           seed%m_x2c = transpose(rmat) * scal * ascal
           rmat = seed%m_x2c
           call matinv(rmat,3,ier)
-          if (ier /= 0) &
-             call ferror('parse_crystal_env','Error inverting matrix',faterr)
+          if (ier /= 0) then
+             call ferror('parse_crystal_env','Invalid lattice vectors (matrix not invertible)',faterr)
+             return
+          end if
           seed%useabr = 2
 
        else if (equal(word,'spg')) then
@@ -289,13 +291,15 @@ contains
              word = lgetword(line,lp)
              if (equal(word,'ang') .or. equal(word,'angstrom')) then
                 if (seed%useabr /= 2) then
-                   call ferror('parse_crystal_env','Need CARTESIAN for angstrom coordinates',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Need lattice vectors (CARTESIAN) for angstrom coordinates',&
+                      faterr,line,syntax=.true.)
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat) / bohrtoa)
              else if (equal(word,'bohr') .or. equal(word,'au')) then
                 if (seed%useabr /= 2) then
-                   call ferror('parse_crystal_env','Need CARTESIAN for bohr coordinates',faterr,line,syntax=.true.)
+                   call ferror('parse_crystal_env','Need lattice vectors (CARTESIAN) for bohr coordinates',&
+                      faterr,line,syntax=.true.)
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat))
@@ -5929,7 +5933,8 @@ contains
 
   end subroutine which_in_format
 
-  !> Convert a cif-file-style string to a symmetry operation
+  !> Convert a cif-file-style string (comma-terminated: x,y,z,) to a
+  !> symmetry operation.
   function string_to_symop(str,errmsg) result(rot0)
     use arithmetic, only: eval
     use tools_io, only: lower

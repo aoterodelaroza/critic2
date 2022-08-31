@@ -2078,7 +2078,7 @@ contains
        ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
        ! atomic positions: header
-       call iw_text("Atomic positions",highlight=.true.)
+       call iw_text("Atomic positions",highlight=.true.) ! molecule
        call iw_text("(?)",sameline=.true.)
        call iw_tooltip("Give the atomic positions for this system as:" // newline //&
           "  <Sy> <x> <y> <z>" // newline //&
@@ -2379,7 +2379,7 @@ contains
        end if
 
        ! atomic positions: header
-       call iw_text("Atomic positions",highlight=.true.)
+       call iw_text("Atomic positions",highlight=.true.) ! crystal
        call iw_text("(?)",sameline=.true.)
        if (symopt == 1) then
           str = "Enter all atoms in the unit cell as:"
@@ -2403,6 +2403,8 @@ contains
           call igSetNextItemWidth(iw_calcwidth(13,1))
           ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
           call iw_tooltip("Units for the atomic coordinates",ttshown)
+       else
+          iunit = 2
        end if
 
        ! atomic positions: body
