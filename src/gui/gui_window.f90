@@ -86,6 +86,8 @@ module gui_window
      procedure :: draw_co ! draw the output console
      ! new structure procedures
      procedure :: draw_new_struct
+     ! new structure from library procedures
+     procedure :: draw_new_struct_from_library
   end type window
   public :: window
 
@@ -104,6 +106,7 @@ module gui_window
   integer, parameter, public :: wintype_console_output = 4
   integer, parameter, public :: wintype_dialog = 5
   integer, parameter, public :: wintype_new_struct = 6
+  integer, parameter, public :: wintype_new_struct_library = 7
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -174,6 +177,9 @@ module gui_window
      module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct
+     module subroutine draw_new_struct_from_library(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_new_struct_from_library
   end interface
 
 end module gui_window

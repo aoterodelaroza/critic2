@@ -621,41 +621,42 @@ contains
     use gui_interfaces_cimgui
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
-       wintype_new_struct
+       wintype_new_struct, wintype_new_struct_library
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
+    ! enum for the dialog types that can be launched from the menu
+    integer, parameter :: d_open = 1
+    integer, parameter :: d_new = 2
+    integer, parameter :: d_newlib = 3
+
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    logical(c_bool) :: enabled_open, enabled_new
-    logical :: launchquit, launchopen, launchnew
+    logical(c_bool) :: enabled(3)
+    logical :: launchquit, launch(3)
+    integer :: i
 
     logical, save :: ttshown = .false. ! tooltip flag
-    integer, save :: idopendialog = 0 ! the ID for the open dialog
-    integer, save :: idnewdialog = 0 ! the ID for the new dialog
+    integer, save :: id(3) = 0 ! the ID for the dialogs
 
     ! check if the open and new dialogs are still open
-    if (idopendialog > 0) then
-       if (idopendialog < 1 .or. idopendialog > nwin) then
-          idopendialog = 0
-       elseif (.not.win(idopendialog)%isinit .or. .not.win(idopendialog)%isopen) then
-          idopendialog = 0
+    do i = 1, 3
+       if (id(i) > 0) then
+          if (id(i) < 1 .or. id(i) > nwin) then
+             id(i) = 0
+          elseif (.not.win(id(i))%isinit .or. .not.win(id(i))%isopen) then
+             id(i) = 0
+          end if
        end if
-    end if
-    if (idnewdialog > 0) then
-       if (idnewdialog < 1 .or. idnewdialog > nwin) then
-          idnewdialog = 0
-       elseif (.not.win(idnewdialog)%isinit .or. .not.win(idnewdialog)%isopen) then
-          idnewdialog = 0
-       end if
-    end if
+    end do
 
     ! calculate enabled and launches from keybindings
-    enabled_open = (idopendialog == 0)
-    enabled_new = (idnewdialog == 0)
-    launchopen = (enabled_open .and. is_bind_event(BIND_OPEN))
-    launchnew = (enabled_new .and. is_bind_event(BIND_NEW))
+    do i = 1, 3
+       enabled(i) = (id(i) == 0)
+    end do
+    launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
+    launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
     launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
@@ -667,13 +668,18 @@ contains
           ! File -> New
           str1 = "New..." // c_null_char
           str2 = get_bind_keyname(BIND_NEW) // c_null_char
-          launchnew = launchnew .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_new)
+          launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_new))
           call iw_tooltip("Create a new structure",ttshown)
+
+          ! File -> New from library
+          str1 = "New from Library..." // c_null_char
+          launch(d_newlib) = igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,enabled(d_newlib))
+          call iw_tooltip("Create a new structure from the critic2 library",ttshown)
 
           ! File -> Open
           str1 = "Open..." // c_null_char
           str2 = get_bind_keyname(BIND_OPEN) // c_null_char
-          launchopen = launchopen .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled_open)
+          launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_open))
           call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
 
           ! File -> Quit
@@ -726,10 +732,12 @@ contains
     call igEndMainMenuBar()
 
     ! process launches
-    if (launchnew) &
-       idnewdialog = stack_create_window(wintype_new_struct,.true.)
-    if (launchopen) &
-       idopendialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
+    if (launch(d_new)) &
+       id(d_new) = stack_create_window(wintype_new_struct,.true.)
+    if (launch(d_newlib)) &
+       id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.)
+    if (launch(d_open)) &
+       id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()

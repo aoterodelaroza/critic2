@@ -287,6 +287,12 @@ contains
           inisize%x = 800._c_float
           inisize%y = 680._c_float
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_new_struct_library) then
+          w%name = "New Structure from Library..." // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 800._c_float
+          inisize%y = 480._c_float
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -309,6 +315,8 @@ contains
                 call w%draw_co()
              elseif (w%type == wintype_new_struct) then
                 call w%draw_new_struct()
+             elseif (w%type == wintype_new_struct_library) then
+                call w%draw_new_struct_from_library()
              end if
           end if
           call igEnd()
@@ -1865,8 +1873,6 @@ contains
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
-    integer(c_size_t), parameter :: namebufsiz = 1024
-
     character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex, left
     logical(c_bool) :: ldum, doquit
     logical :: changed, readlib, ok, exloop
@@ -1877,9 +1883,15 @@ contains
     integer(c_int) :: flags
     type(SpglibSpaceGroupType) :: sa
 
-    logical(c_bool), save :: ismolecule = .false.
-    logical(c_bool), save :: fromlibrary = .false.
     logical, save :: ttshown = .false.
+
+    ! to file
+    integer(c_size_t), parameter :: namebufsiz = 1024
+    integer(c_size_t), parameter :: maxatposbuf = 100000
+    integer(c_size_t), parameter :: maxsymopbuf = 10000
+    integer(c_size_t), parameter :: maxlatvecbuf = 5000
+
+    logical(c_bool), save :: ismolecule = .false.
     integer(c_int), save :: idum = 0
     integer, save :: nst = 0
     integer, save :: lastselected = 0
@@ -1898,17 +1910,10 @@ contains
     integer, save :: ispg_selected = 1
     real(c_float), save :: aa(3) = 0, bb(3) = 0, scale = 1
 
-    integer(c_size_t), parameter :: maxatposbuf = 100000
-    integer(c_size_t), parameter :: maxsymopbuf = 10000
-    integer(c_size_t), parameter :: maxlatvecbuf = 5000
-
     ! initialize
     szero%x = 0
     szero%y = 0
-    readlib = .false.
     if (w%firstpass) then
-       w%libraryfile = trim(clib_file)
-       readlib = .true.
        if (allocated(atposbuf)) deallocate(atposbuf)
        allocate(character(len=maxatposbuf+1) :: atposbuf)
        atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
@@ -1924,21 +1929,7 @@ contains
        scale = 1._c_float
     end if
 
-    ! check if we have info from the open library file window when it
-    ! closes
-    if (idum > 0) then
-       if (.not.win(idum)%isopen) then
-          if (win(idum)%libraryfile_set) then
-             w%libraryfile_set = .true.
-             w%libraryfile = win(idum)%libraryfile
-             call win(idum)%end()
-             readlib = .true.
-          end if
-          idum = 0
-       end if
-    end if
-
-    ! crystal or molecule, from library
+    ! crystal or molecule
     changed = .false.
     str = "Crystal" // c_null_char
     if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
@@ -1957,125 +1948,10 @@ contains
        namebuf = "Molecule structure (manual)" // c_null_char
     end if
     call iw_tooltip("The new structure will be a molecule",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-    str = "From library" // c_null_char
-    ldum = igCheckbox(c_loc(str),fromlibrary)
-    call iw_tooltip("Read the structure from the critic2 library",ttshown)
-    if (changed.and..not.w%libraryfile_set) then
-       if (ismolecule) then
-          w%libraryfile = trim(mlib_file)
-       else
-          w%libraryfile = trim(clib_file)
-       end if
-       readlib = .true.
-    end if
 
     ! render the rest of the window
     doquit = .false.
-    if (fromlibrary) then
-       ! library file
-       call iw_text("Source",highlight=.true.)
-       if (iw_button("Library file",disabled=(idum /= 0))) &
-          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
-       call iw_tooltip("Library file from where the structures are read",ttshown)
-       call iw_text(w%libraryfile,sameline=.true.)
-
-       ! list box
-       call iw_text("Structures to load from the library file",highlight=.true.)
-       str = "##listbox" // c_null_char
-       call igGetContentRegionAvail(sz)
-       if (ismolecule) then
-          sz%y = sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
-       else
-          sz%y = sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
-       end if
-       ldum = igBeginListBox(c_loc(str),sz)
-       do i = 1, nst
-          str = st(i)%s // c_null_char
-          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
-
-             ! implement selection range with shift and control
-             if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
-                ! selecte a whole range
-                lst = .false.
-                if (lastselected > i) then
-                   lst(i:lastselected) = .true.
-                else
-                   lst(lastselected:i) = .true.
-                end if
-             elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
-                ! select and individual item and accumulate
-                lst(i) = .true.
-             else
-                ! select one item, start range, remove all others
-                lst = .false.
-                lst(i) = .true.
-                lastselected = i
-             end if
-          end if
-       end do
-       call igEndListBox()
-
-       if (ismolecule) then
-          ! options line
-          call iw_text("Structure options",highlight=.true.)
-
-          ! cell border
-          call igIndent(0._c_float)
-          str = "Cell border (Å)" // c_null_char
-          stropt = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(7,1))
-          ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
-             c_loc(stropt),ImGuiInputTextFlags_None)
-          call iw_tooltip("Periodic cell border around new molecules",ttshown)
-          call igPopItemWidth()
-          call igSameLine(0._c_float,-1._c_float)
-
-          ! cubic cell
-          call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-          str = "Cubic cell" // c_null_char
-          ldum = igCheckbox(c_loc(str),molcubic)
-          call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
-       end if
-
-       ! right-align for the rest of the contents
-       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
-
-       ! final buttons: ok
-       if (iw_button("OK",disabled=(idum /= 0))) then
-          nseed = count(lst(1:nst))
-          if (nseed > 0) then
-             ! we have systems (potentially), allocate the seed array
-             allocate(seed_(nseed))
-             nseed = 0
-             do i = 1, nst
-                if (lst(i)) then
-                   ! read the selected seeds from the library, check OK
-                   call seed%read_library(st(i)%s,logical(ismolecule),ok)
-                   if (ok) then
-                      nseed = nseed + 1
-                      seed_(nseed) = seed
-                      seed_(nseed)%border = rborder/bohrtoa
-                      seed_(nseed)%cubic = molcubic
-                   end if
-                end if
-             end do
-             if (nseed > 0) then
-                ! load the seeds as new systems
-                call realloc_crystalseed(seed_,nseed)
-                call add_systems_from_seeds(nseed,seed_)
-                call launch_initialization_thread()
-                call system_shorten_names()
-             end if
-          end if
-          doquit = .true.
-       end if
-
-       ! final buttons: cancel
-       if (iw_button("Cancel",sameline=.true.)) doquit = .true.
-
-    elseif (ismolecule) then
+    if (ismolecule) then
        ! name
        call iw_text("Name",highlight=.true.)
        str2 = "##name"
@@ -2525,22 +2401,10 @@ contains
        if (iw_button("Cancel",sameline=.true.)) doquit = .true.
     end if
 
-    ! read the library file
-    if (readlib) then
-       ! use doquit
-       call get_library_structure_list(w%libraryfile,nst,st)
-       if (allocated(lst)) deallocate(lst)
-       allocate(lst(nst))
-       lst = .false.
-       lastselected = 0
-    end if
-
     ! quit the window
     if (doquit) then
        ! reset the state and kill the window
        ismolecule = .false.
-       fromlibrary = .false.
-       ttshown = .false.
        idum = 0
        lastselected = 0
        nst = 0
@@ -2562,6 +2426,261 @@ contains
     end if
 
   end subroutine draw_new_struct
+
+  !> Draw the contents of the new structure from library window.
+  module subroutine draw_new_struct_from_library(w)
+    use gui_main, only: g, add_systems_from_seeds,&
+       launch_initialization_thread, system_shorten_names
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
+       iw_calcwidth
+    use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
+    use global, only: clib_file, mlib_file, rborder_def
+    use tools_io, only: string, fopen_scratch, fclose, ioj_left, stripchar, deblank
+    use types, only: vstring
+    use param, only: newline, bohrtoa
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex, left
+    logical(c_bool) :: ldum, doquit
+    logical :: changed, readlib, ok, exloop
+    type(ImVec2) :: szero, sz, szavail
+    integer :: i, nseed, idx, lu
+    type(crystalseed) :: seed
+    type(crystalseed), allocatable :: seed_(:)
+    integer(c_int) :: flags
+    type(SpglibSpaceGroupType) :: sa
+
+    logical, save :: ttshown = .false.
+
+    ! to file
+    integer(c_size_t), parameter :: namebufsiz = 1024
+    integer(c_size_t), parameter :: maxatposbuf = 100000
+    integer(c_size_t), parameter :: maxsymopbuf = 10000
+    integer(c_size_t), parameter :: maxlatvecbuf = 5000
+
+    logical(c_bool), save :: ismolecule = .false.
+    logical(c_bool), save :: fromlibrary = .false.
+    integer(c_int), save :: idum = 0
+    integer, save :: nst = 0
+    integer, save :: lastselected = 0
+    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
+    logical(c_bool), save :: molcubic = .false.
+    integer(c_int), save :: iunit = 2 ! 0 = bohr, 1 = angstrom, 2 = fractional
+    integer(c_int), save :: iunitcel = 0 ! 0 = bohr, 1 = angstrom
+    character(len=namebufsiz,kind=c_char), target, save :: namebuf = c_null_char
+    type(vstring), allocatable, save :: st(:)
+    logical(c_bool), allocatable, save :: lst(:)
+    character(kind=c_char,len=:), allocatable, target, save :: atposbuf
+    character(kind=c_char,len=:), allocatable, target, save :: symopbuf
+    character(kind=c_char,len=:), allocatable, target, save :: latvecbuf
+    integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
+    integer, save :: cellopt = 1 ! 1 = parameters, 2 = lattice-vectors
+    integer, save :: ispg_selected = 1
+    real(c_float), save :: aa(3) = 0, bb(3) = 0, scale = 1
+
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+    readlib = .false.
+    if (w%firstpass) then
+       w%libraryfile = trim(clib_file)
+       readlib = .true.
+       if (allocated(atposbuf)) deallocate(atposbuf)
+       allocate(character(len=maxatposbuf+1) :: atposbuf)
+       atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
+       if (allocated(symopbuf)) deallocate(symopbuf)
+       allocate(character(len=maxsymopbuf+1) :: symopbuf)
+       symopbuf(1:66) = "## Each line is a symmetry operation of the type: " // newline //&
+          "## -1/2+y,z,x" // c_null_char
+       if (allocated(latvecbuf)) deallocate(latvecbuf)
+       allocate(character(len=maxlatvecbuf+1) :: latvecbuf)
+       latvecbuf(1:50) = "## Enter the three lattice vectors line by line" // newline // c_null_char
+       aa = 10._c_float
+       bb = 90._c_float
+       scale = 1._c_float
+    end if
+
+    ! check if we have info from the open library file window when it
+    ! closes
+    if (idum > 0) then
+       if (.not.win(idum)%isopen) then
+          if (win(idum)%libraryfile_set) then
+             w%libraryfile_set = .true.
+             w%libraryfile = win(idum)%libraryfile
+             call win(idum)%end()
+             readlib = .true.
+          end if
+          idum = 0
+       end if
+    end if
+
+    ! crystal or molecule, from library
+    changed = .false.
+    str = "Crystal" // c_null_char
+    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
+       ismolecule = .false.
+       changed = .true.
+       iunit = 2
+       namebuf = "Crystal structure (manual)" // c_null_char
+    end if
+    call iw_tooltip("The new structure will be a periodic crystal",ttshown)
+    call igSameLine(0._c_float,-1._c_float)
+    str = "Molecule" // c_null_char
+    if (igRadioButton_Bool(c_loc(str),ismolecule)) then
+       ismolecule = .true.
+       changed = .true.
+       iunit = 1
+       namebuf = "Molecule structure (manual)" // c_null_char
+    end if
+    call iw_tooltip("The new structure will be a molecule",ttshown)
+    if (changed.and..not.w%libraryfile_set) then
+       if (ismolecule) then
+          w%libraryfile = trim(mlib_file)
+       else
+          w%libraryfile = trim(clib_file)
+       end if
+       readlib = .true.
+    end if
+
+    ! render the rest of the window
+    doquit = .false.
+    ! library file
+    call iw_text("Source",highlight=.true.)
+    if (iw_button("Library file",disabled=(idum /= 0))) &
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
+    call iw_tooltip("Library file from where the structures are read",ttshown)
+    call iw_text(w%libraryfile,sameline=.true.)
+
+    ! list box
+    call iw_text("Structures to load from the library file",highlight=.true.)
+    str = "##listbox" // c_null_char
+    call igGetContentRegionAvail(sz)
+    if (ismolecule) then
+       sz%y = sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
+    else
+       sz%y = sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
+    end if
+    ldum = igBeginListBox(c_loc(str),sz)
+    do i = 1, nst
+       str = st(i)%s // c_null_char
+       if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
+
+          ! implement selection range with shift and control
+          if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
+             ! selecte a whole range
+             lst = .false.
+             if (lastselected > i) then
+                lst(i:lastselected) = .true.
+             else
+                lst(lastselected:i) = .true.
+             end if
+          elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+             ! select and individual item and accumulate
+             lst(i) = .true.
+          else
+             ! select one item, start range, remove all others
+             lst = .false.
+             lst(i) = .true.
+             lastselected = i
+          end if
+       end if
+    end do
+    call igEndListBox()
+
+    if (ismolecule) then
+       ! options line
+       call iw_text("Structure options",highlight=.true.)
+
+       ! cell border
+       call igIndent(0._c_float)
+       str = "Cell border (Å)" // c_null_char
+       stropt = "%.3f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(7,1))
+       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
+          c_loc(stropt),ImGuiInputTextFlags_None)
+       call iw_tooltip("Periodic cell border around new molecules",ttshown)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! cubic cell
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Cubic cell" // c_null_char
+       ldum = igCheckbox(c_loc(str),molcubic)
+       call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
+    end if
+
+    ! right-align for the rest of the contents
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+
+    ! final buttons: ok
+    if (iw_button("OK",disabled=(idum /= 0))) then
+       nseed = count(lst(1:nst))
+       if (nseed > 0) then
+          ! we have systems (potentially), allocate the seed array
+          allocate(seed_(nseed))
+          nseed = 0
+          do i = 1, nst
+             if (lst(i)) then
+                ! read the selected seeds from the library, check OK
+                call seed%read_library(st(i)%s,logical(ismolecule),ok)
+                if (ok) then
+                   nseed = nseed + 1
+                   seed_(nseed) = seed
+                   seed_(nseed)%border = rborder/bohrtoa
+                   seed_(nseed)%cubic = molcubic
+                end if
+             end if
+          end do
+          if (nseed > 0) then
+             ! load the seeds as new systems
+             call realloc_crystalseed(seed_,nseed)
+             call add_systems_from_seeds(nseed,seed_)
+             call launch_initialization_thread()
+             call system_shorten_names()
+          end if
+       end if
+       doquit = .true.
+    end if
+
+    ! final buttons: cancel
+    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
+
+    ! read the library file
+    if (readlib) then
+       ! use doquit
+       call get_library_structure_list(w%libraryfile,nst,st)
+       if (allocated(lst)) deallocate(lst)
+       allocate(lst(nst))
+       lst = .false.
+       lastselected = 0
+    end if
+
+    ! quit the window
+    if (doquit) then
+       ! reset the state and kill the window
+       ismolecule = .false.
+       idum = 0
+       lastselected = 0
+       nst = 0
+       rborder = real(rborder_def*bohrtoa,c_float)
+       molcubic = .false.
+       iunit = 0
+       iunitcel = 0
+       namebuf(1:1) = c_null_char
+       symopt = 1
+       cellopt = 1
+       ispg_selected = 1
+       aa = 10._c_float
+       bb = 90._c_float
+       scale = 1._c_float
+       if (allocated(st)) deallocate(st)
+       if (allocated(lst)) deallocate(lst)
+       if (allocated(atposbuf)) deallocate(atposbuf)
+       call w%end()
+    end if
+
+  end subroutine draw_new_struct_from_library
 
   !xx! private procedures
 
