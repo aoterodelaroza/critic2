@@ -32,7 +32,8 @@ module gui_utils
 
   ! module procedure interfaces
   interface
-     module function iw_calcheight(nline,endpad)
+     module function iw_calcheight(npadline,nline,endpad)
+       integer, intent(in) :: npadline
        integer, intent(in) :: nline
        logical, intent(in), optional :: endpad
        real(c_float) :: iw_calcheight

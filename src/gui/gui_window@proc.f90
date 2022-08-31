@@ -1394,7 +1394,7 @@ contains
        "Input: " // newline // inputb
     call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
     sz%y = sz%y + 2 * g%Style%WindowPadding%y
-    sz%x = sz%x + 2 * g%Style%WindowPadding%x + 3 * igGetTextLineHeight()
+    sz%x = sz%x + 2 * g%Style%WindowPadding%x
     call igSetNextWindowSize(sz,0)
 
     ! draw the window
@@ -1634,12 +1634,12 @@ contains
 
     integer :: i, curline, ndrawn, idx
     character(kind=c_char,len=:), allocatable, target :: str1, strpop
-    type(ImVec2) :: sz, szero, sztext, szavail
+    type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum
     logical, save :: ttshown = .false.
     logical :: setscroll, skip, pushed, ok
     integer, save :: idsavedialog = 0
-    real(c_float) :: itemspacing, xavail, xavail1, rshift, xx
+    real(c_float) :: itemspacing, xavail, xavail1, xx
     real(c_float), save :: allscrolly
     integer :: navail, navail1
 
@@ -1695,12 +1695,7 @@ contains
 
     ! first line: remove all button
     call igSameLine(0._c_float,-1._c_float)
-    call igGetContentRegionAvail(szavail)
-    str1 = "Remove All" // c_null_char
-    call igCalcTextSize(sztext,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    rshift = szavail%x - (sztext%x + 2 * g%Style%FramePadding%x)
-    if (rshift > 0) &
-       call igSetCursorPosX(igGetCursorPosX() + rshift)
+    call igSetCursorPosX(iw_calcwidth(10,1,from_end=.true.))
 
     if (iw_button("Remove All",danger=.true.)) then
        ! remove all command i/o information
@@ -1737,7 +1732,7 @@ contains
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
 
     ! calculate the button size and the number of buttons that fit
-    xx = max(iw_calcheight(1),iw_calcwidth(ceiling(log10(max(maxval(com(icom(1:nicom))%id),1) + 0.1)),1))
+    xx = iw_calcwidth(ceiling(log10(max(maxval(com(icom(1:nicom))%id),1) + 0.1)),1)
     xavail = xavail / xx
     xavail1 = xavail1 / xx
     navail = max(floor(xavail),1)
@@ -1775,7 +1770,8 @@ contains
        else
           pushed = .false.
        end if
-       if (iw_button(string(com(icom(i))%id),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonRight)) then
+       if (iw_button(string(com(icom(i))%id),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonRight,&
+          siz=(/xx,iw_calcheight(1,0)/))) then
           idcom = i
           setscroll = .true.
        end if
@@ -1868,9 +1864,8 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, str2, stropt, strex, left
     logical(c_bool) :: ldum, doquit
     logical :: changed, readlib, ok, exloop
-    type(ImVec2) :: szero, sz, sztext, szavail
+    type(ImVec2) :: szero, sz, szavail
     integer :: i, nseed, idx, lu
-    real(c_float) :: rshift
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
     integer(c_int) :: flags
@@ -1959,7 +1954,7 @@ contains
     end if
     call iw_tooltip("The new structure will be a molecule",ttshown)
     call igSameLine(0._c_float,-1._c_float)
-    call igSetCursorPosX(igGetCursorPosX() + 4 * g%Style%ItemSpacing%x)
+    call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
     str = "From library" // c_null_char
     ldum = igCheckbox(c_loc(str),fromlibrary)
     call iw_tooltip("Read the structure from the critic2 library",ttshown)
@@ -1987,9 +1982,9 @@ contains
        str = "##listbox" // c_null_char
        call igGetContentRegionAvail(sz)
        if (ismolecule) then
-          sz%y = sz%y - iw_calcheight(3) - g%Style%ItemSpacing%y
+          sz%y = sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
        else
-          sz%y = sz%y - iw_calcheight(1) - g%Style%ItemSpacing%y
+          sz%y = sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
        end if
        ldum = igBeginListBox(c_loc(str),sz)
        do i = 1, nst
@@ -2026,9 +2021,7 @@ contains
           call igIndent(0._c_float)
           str = "Cell border (Å)" // c_null_char
           stropt = "%.3f" // c_null_char
-          strex = string(rborder,'f',decimal=3) // c_null_char
-          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+          call igPushItemWidth(iw_calcwidth(7,1))
           ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
              c_loc(stropt),ImGuiInputTextFlags_None)
           call iw_tooltip("Periodic cell border around new molecules",ttshown)
@@ -2105,8 +2098,7 @@ contains
        ! atomic positions: body
        call igGetContentRegionAvail(szavail)
        sz%x = szavail%x
-       sz%y = szavail%y - (3 * igGetTextLineHeight() + 6 * g%Style%FramePadding%y + &
-          2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       sz%y = szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
        str = "##atomicpositions" // c_null_char
        ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
           ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
@@ -2118,9 +2110,7 @@ contains
        call igIndent(0._c_float)
        str = "Cell border (Å)" // c_null_char
        stropt = "%.3f" // c_null_char
-       strex = string(rborder,'f',decimal=3) // c_null_char
-       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+       call igPushItemWidth(iw_calcwidth(7,1))
        ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
        call iw_tooltip("Periodic cell border around new molecules",ttshown)
@@ -2356,9 +2346,7 @@ contains
           call igSameLine(0._c_float,-1._c_float)
           str = "Scale" // c_null_char
           stropt = "%.3f" // c_null_char
-          strex = string(scale,'f',decimal=3) // c_null_char
-          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-          call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+          call igPushItemWidth(iw_calcwidth(7,1))
           ldum = igInputFloat(c_loc(str),scale,0._c_float,0._c_float,&
              c_loc(stropt),ImGuiInputTextFlags_None)
           call iw_tooltip("Scale factor to multiply the lattice vectors",ttshown)
@@ -2412,9 +2400,7 @@ contains
           call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
           str = "Units" // c_null_char
           stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // "Fractional" // c_null_char // c_null_char
-          strex = "Fractional    " // c_null_char
-          call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-          call igSetNextItemWidth(sz%x)
+          call igSetNextItemWidth(iw_calcwidth(13,1))
           ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
           call iw_tooltip("Units for the atomic coordinates",ttshown)
        end if
@@ -2422,8 +2408,7 @@ contains
        ! atomic positions: body
        call igGetContentRegionAvail(szavail)
        sz%x = szavail%x
-       sz%y = szavail%y - (2 * igGetTextLineHeight() + 4 * g%Style%FramePadding%y + &
-          2 * g%Style%ItemSpacing%y + g%Style%WindowPadding%y)
+       sz%y = szavail%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
        str = "##atomicpositions" // c_null_char
        ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
           ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
