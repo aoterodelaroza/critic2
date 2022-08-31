@@ -86,6 +86,41 @@ contains
 
   end function iw_calcwidth
 
+  !> Draw a radio button with title str. If bool and boolval are given
+  !> associated with logical bool and with value boolval. If int and
+  !> intval are presented, associated with integer int and with value
+  !> intval
+  module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
+    use gui_interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(inout), optional :: bool
+    logical, intent(in), optional :: boolval
+    integer(c_int), intent(inout), optional :: int
+    integer(c_int), intent(in), optional :: intval
+    logical, intent(in), optional :: sameline
+    logical :: iw_radiobutton
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical :: sameline_, ldum
+
+    iw_radiobutton = .false.
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
+    str1 = str // c_null_char
+    if (present(bool).and.present(boolval)) then
+       if (igRadioButton_Bool(c_loc(str1),logical(bool.eqv.boolval,c_bool))) then
+          bool = boolval
+          iw_radiobutton = .true.
+       end if
+    elseif (present(int).and.present(intval)) then
+       if (igRadioButton_IntPtr(c_loc(str1),int,intval)) iw_radiobutton = .true.
+    end if
+
+  end function iw_radiobutton
+
   !> Draw text. If highlight, use the highlight color. If disabled,
   !> use the disabled font. If sameline, draw it in the same line as
   !> the previous widget.

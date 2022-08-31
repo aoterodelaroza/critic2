@@ -24,6 +24,7 @@ module gui_utils
 
   public :: iw_calcheight
   public :: iw_calcwidth
+  public :: iw_radiobutton
   public :: iw_text
   public :: iw_button
   public :: iw_tooltip
@@ -45,6 +46,15 @@ module gui_utils
        logical, intent(in), optional :: from_end
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
+     module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(inout), optional :: bool
+       logical, intent(in), optional :: boolval
+       integer(c_int), intent(inout), optional :: int
+       integer(c_int), intent(in), optional :: intval
+       logical, intent(in), optional :: sameline
+       logical :: iw_radiobutton
+     end function iw_radiobutton
      module subroutine iw_text(str,highlight,disabled,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight

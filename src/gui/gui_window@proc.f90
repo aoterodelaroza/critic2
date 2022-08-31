@@ -413,18 +413,17 @@ contains
        end do
     end if
     call iw_tooltip("Expand all systems in the tree",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
 
     ! button: collapse
-    if (iw_button("Collapse")) then
+    if (iw_button("Collapse",sameline=.true.)) then
        do i = 1, nsys
           call collapse_system(i)
        end do
     end if
     call iw_tooltip("Collapse all systems in the tree",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
 
     ! right-align for the rest of the contents
+    call igSameLine(0._c_float,-1._c_float)
     call igSetCursorPosX(iw_calcwidth(14,2,from_end=.true.))
 
     ! button: close
@@ -527,15 +526,7 @@ contains
     end if
     nshown = size(w%iord,1)
 
-    ! set up the table
-    str = "Structures##0,0" // c_null_char
-    flags = ImGuiTableFlags_Borders
-    flags = ior(flags,ImGuiTableFlags_Resizable)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_Reorderable)
-    flags = ior(flags,ImGuiTableFlags_Hideable)
-    flags = ior(flags,ImGuiTableFlags_Sortable)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    ! set up the table, style and flags
     sz%x = 3._c_float
     sz%y = 1._c_float
     call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
@@ -545,6 +536,15 @@ contains
     sz%x = 2._c_float
     sz%y = 2._c_float
     call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
+
+    str = "Structures##0,0" // c_null_char
+    flags = ImGuiTableFlags_Borders
+    flags = ior(flags,ImGuiTableFlags_Resizable)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_Reorderable)
+    flags = ior(flags,ImGuiTableFlags_Hideable)
+    flags = ior(flags,ImGuiTableFlags_Sortable)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),14,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
@@ -1707,20 +1707,18 @@ contains
 
     ! first line: text
     call iw_text("Output",highlight=.true.)
-    call igSameLine(0._c_float,-1._c_float)
 
     ! first line: clear button
     if (idcom == 0) then
-       if (iw_button("Clear")) then
+       if (iw_button("Clear",sameline=.true.)) then
           outputb(1:1) = c_null_char
           lob = 0
        end if
        call iw_tooltip("Clear the output log",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
     end if
 
     ! first line: copy button
-    if (iw_button("Copy")) then
+    if (iw_button("Copy",sameline=.true.)) then
        if (idcom == 0) then
           call igSetClipboardText(c_loc(outputb))
        else
@@ -1891,7 +1889,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, buffer_to_string_array
+       iw_calcwidth, buffer_to_string_array, iw_radiobutton
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -1917,7 +1915,7 @@ contains
     character(kind=c_char,len=:), allocatable, target, save :: latvecbuf
     integer(c_size_t), parameter :: maxnamebuf = 1024 !! name buffer
     character(len=:,kind=c_char), allocatable, target, save :: namebuf
-    logical(c_bool), save :: ismolecule = .false. ! whether the system is a molecule or a crystal
+    logical, save :: ismolecule = .false. ! whether the system is a molecule or a crystal
     integer(c_int), save :: iunitat_c = 2 ! crystal atpos units (0 = bohr, 1 = angstrom, 2 = fractional)
     integer(c_int), save :: iunitat_m = 2 ! mol atpos units (0 = bohr, 1 = angstrom)
     integer, save :: symopt = 1 ! symmetry option (1 = detect, 2 = spg, 3 = manual)
@@ -1939,12 +1937,9 @@ contains
     if (w%firstpass) call init_state()
 
     ! crystal or molecule
-    str = "Crystal" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) ismolecule = .false.
+    ldum = iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)
     call iw_tooltip("The new structure will be a periodic crystal",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    str = "Molecule" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),ismolecule)) ismolecule = .true.
+    ldum = iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)
     call iw_tooltip("The new structure will be a molecule",ttshown)
 
     ! name
@@ -1956,16 +1951,11 @@ contains
        ! symmetry
        call iw_text("Symmetry",highlight=.true.)
 
-       str = "Detect" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(symopt == 1,c_bool))) symopt = 1
+       ldum = iw_radiobutton("Detect",int=symopt,intval=1_c_int)
        call iw_tooltip("Calculate the symmetry operations from the complete list of unit cell atoms",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-       str = "Space group" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(symopt == 2,c_bool))) symopt = 2
+       ldum = iw_radiobutton("Space group",int=symopt,intval=2_c_int,sameline=.true.)
        call iw_tooltip("Choose a space group from the list",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-       str = "Manual" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(symopt == 3,c_bool))) symopt = 3
+       ldum = iw_radiobutton("Manual",int=symopt,intval=3_c_int,sameline=.true.)
        call iw_tooltip("Enter symmetry operations in cif-file format (e.g. -1/2+x,z,-y)",ttshown)
 
        ! symmetry options
@@ -1984,13 +1974,9 @@ contains
        ! lattice: header
        call iw_text("Lattice",highlight=.true.)
 
-       str = "Cell parameters" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 1,c_bool))) cellopt = 1
+       ldum = iw_radiobutton("Cell parameters",int=cellopt,intval=1_c_int)
        call iw_tooltip("Lattice is calculated from the cell lengths and angles",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-
-       str = "Lattice vectors" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 2,c_bool))) cellopt = 2
+       ldum = iw_radiobutton("Lattice vectors",int=cellopt,intval=2_c_int,sameline=.true.)
        call iw_tooltip("Lattice vectors are given explicitly",ttshown)
 
        ! units and scale factor only if lattice vectors
@@ -2184,10 +2170,9 @@ contains
              deallocate(seed_)
           end if
     end if
-    call igSameLine(0._c_float,-1._c_float)
 
     ! final buttons: cancel
-    if (iw_button("Cancel")) doquit = .true.
+    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! quit the window
     if (doquit) then
@@ -2246,7 +2231,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth
+       iw_calcwidth, iw_radiobutton
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -2257,7 +2242,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, stropt
     logical(c_bool) :: ldum, doquit
-    logical :: ok
+    logical :: ok, saveismol
     type(ImVec2) :: szero, sz
     integer :: i, nseed, oid
     type(crystalseed) :: seed
@@ -2265,7 +2250,7 @@ contains
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
-    logical(c_bool), save :: ismolecule = .false. ! molecule/crystal choice at the top
+    logical, save :: ismolecule = .false. ! molecule/crystal choice at the top
     integer(c_int), save :: idopenlibfile = 0 ! the ID for the open library file
     integer, save :: nst = 0 ! number of library structures
     type(vstring), allocatable, save :: st(:) ! library structures
@@ -2292,18 +2277,14 @@ contains
     end if
 
     ! crystal or molecule, from library
-    str = "Crystal" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
-       if (ismolecule.and..not.w%libraryfile_set) w%libraryfile = trim(clib_file)
-       ismolecule = .false.
+    saveismol = ismolecule
+    if (iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)) then
+       if (saveismol.and..not.w%libraryfile_set) w%libraryfile = trim(clib_file)
        w%libraryfile_read = .true.
     end if
     call iw_tooltip("The new structure will be a periodic crystal",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    str = "Molecule" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),ismolecule)) then
-       if (.not.ismolecule.and..not.w%libraryfile_set) w%libraryfile = trim(mlib_file)
-       ismolecule = .true.
+    if (iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)) then
+       if (.not.saveismol.and..not.w%libraryfile_set) w%libraryfile = trim(mlib_file)
        w%libraryfile_read = .true.
     end if
     call iw_tooltip("The new structure will be a molecule",ttshown)
@@ -2594,7 +2575,7 @@ contains
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
     use gui_main, only: g
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton
     use gui_interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -2636,14 +2617,11 @@ contains
 
        ! radio buttons for auto/crystal/molecule
        call iw_text("Read structures as...",highlight=.true.)
-       str = "Auto-detect" // c_null_char
-       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,-1)
+       ldum = iw_radiobutton("Auto-detect",int=data%mol,intval=-1_c_int)
        call iw_tooltip("Auto-detect whether new structures are read as crystals or molecules",ttshown)
-       str = "Crystal" // c_null_char
-       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,0)
+       ldum = iw_radiobutton("Crystal",int=data%mol,intval=0_c_int)
        call iw_tooltip("Force new structures to be read as crystals",ttshown)
-       str = "Molecule" // c_null_char
-       ldum = igRadioButton_IntPtr(c_loc(str),data%mol,1)
+       ldum = iw_radiobutton("Molecule",int=data%mol,intval=2_c_int)
        call iw_tooltip("Force new structures to be read as molecules",ttshown)
 
        ! molecular options
@@ -2717,7 +2695,7 @@ contains
     character(len=:), allocatable, intent(in) :: libfile
     integer, intent(out) :: nst
     type(vstring), allocatable, intent(inout) :: st(:)
-    logical(c_bool), intent(in) :: ismol
+    logical, intent(in) :: ismol
 
     integer :: lu, lp
     character(len=:), allocatable :: word, name, line
