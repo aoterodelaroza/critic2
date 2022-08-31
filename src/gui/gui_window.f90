@@ -64,7 +64,7 @@ module gui_window
      integer :: inpcon_selected = 1 ! the system selected in the input console
      ! new structure parameters
      character(kind=c_char,len=:), allocatable :: libraryfile ! library file
-     logical :: libraryfile_set = .false. ! whether the library file has been set
+     logical :: libraryfile_set = .false. ! whether the library file has been set by the user
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -116,6 +116,7 @@ module gui_window
 
   ! routines to manipulate the window stack
   public :: stack_create_window
+  public :: update_window_id
 
   interface
      module function stack_create_window(type,isopen,purpose)
@@ -124,6 +125,9 @@ module gui_window
        integer, intent(in), optional :: purpose
        integer :: stack_create_window
      end function stack_create_window
+     module subroutine update_window_id(id)
+       integer, intent(inout) :: id
+     end subroutine update_window_id
      module subroutine window_init(w,type,isopen,purpose)
        class(window), intent(inout) :: w
        integer, intent(in) :: type

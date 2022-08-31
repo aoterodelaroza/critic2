@@ -621,7 +621,7 @@ contains
     use gui_interfaces_cimgui
     use gui_window, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
-       wintype_new_struct, wintype_new_struct_library
+       wintype_new_struct, wintype_new_struct_library, update_window_id
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -642,13 +642,7 @@ contains
 
     ! check if the open and new dialogs are still open
     do i = 1, 3
-       if (id(i) > 0) then
-          if (id(i) < 1 .or. id(i) > nwin) then
-             id(i) = 0
-          elseif (.not.win(id(i))%isinit .or. .not.win(id(i))%isopen) then
-             id(i) = 0
-          end if
-       end if
+       call update_window_id(id(i))
     end do
 
     ! calculate enabled and launches from keybindings
