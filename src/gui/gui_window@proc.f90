@@ -353,7 +353,8 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth,&
+       iw_text
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -421,6 +422,8 @@ contains
        end do
     end if
     call iw_tooltip("Collapse all systems in the tree",ttshown)
+    call iw_text("(?)",sameline=.true.)
+    call iw_tooltip("Right-click on the table headers for more options")
 
     ! right-align for the rest of the contents
     call igSameLine(0._c_float,-1._c_float)
@@ -2577,7 +2580,6 @@ contains
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
-    integer :: idum ! xxxx
 
     logical, save :: ttshown = .false. ! tooltip flag
 
