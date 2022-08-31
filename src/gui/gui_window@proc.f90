@@ -76,6 +76,8 @@ submodule (gui_window) proc
   !xx! private procedures
   ! function tree_tooltip_string(i)
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
+  ! subroutine get_library_structure_list(libfile,nst,st,ismol)
+  ! subroutine draw_spg_table(ispg)
 
 contains
 
@@ -1881,7 +1883,6 @@ contains
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth
     use crystalseedmod, only: crystalseed, realloc_crystalseed
-    use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, ioj_left, stripchar, deblank
     use types, only: vstring
@@ -1894,187 +1895,54 @@ contains
     type(ImVec2) :: szero, sz, szavail
     integer :: i, idx, lu
     type(crystalseed), allocatable :: seed_(:)
-    integer(c_int) :: flags
-    type(SpglibSpaceGroupType) :: sa
+    integer(c_int) :: flags, iunitat
 
-    logical, save :: ttshown = .false.
-
-    ! to file
-    integer(c_size_t), parameter :: namebufsiz = 1024
-    integer(c_size_t), parameter :: maxatposbuf = 100000
-    integer(c_size_t), parameter :: maxsymopbuf = 10000
-    integer(c_size_t), parameter :: maxlatvecbuf = 5000
-
-    logical(c_bool), save :: ismolecule = .false.
-    integer(c_int), save :: idum = 0
-    integer, save :: nst = 0
-    integer, save :: lastselected = 0
-    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
-    logical(c_bool), save :: molcubic = .false.
-    integer(c_int), save :: iunit = 2 ! 0 = bohr, 1 = angstrom, 2 = fractional
-    integer(c_int), save :: iunitcel = 0 ! 0 = bohr, 1 = angstrom
-    character(len=namebufsiz,kind=c_char), target, save :: namebuf = c_null_char
-    type(vstring), allocatable, save :: st(:)
-    logical(c_bool), allocatable, save :: lst(:)
+    ! window state
+    logical, save :: ttshown = .false. ! tooltip flags
+    integer(c_size_t), parameter :: maxatposbuf = 100000 !! atomic positions buffer
     character(kind=c_char,len=:), allocatable, target, save :: atposbuf
+    integer(c_size_t), parameter :: maxsymopbuf = 10000 !! symmetry operations buffer
     character(kind=c_char,len=:), allocatable, target, save :: symopbuf
+    integer(c_size_t), parameter :: maxlatvecbuf = 5000 !! lattice vectors buffer
     character(kind=c_char,len=:), allocatable, target, save :: latvecbuf
-    integer, save :: symopt = 1 ! 1 = detect, 2 = spg, 3 = manual
-    integer, save :: cellopt = 1 ! 1 = parameters, 2 = lattice-vectors
-    integer, save :: ispg_selected = 1
-    real(c_float), save :: aa(3) = 0, bb(3) = 0, scale = 1
+    integer(c_size_t), parameter :: maxnamebuf = 1024 !! name buffer
+    character(len=:,kind=c_char), allocatable, target, save :: namebuf
+    logical(c_bool), save :: ismolecule = .false. ! whether the system is a molecule or a crystal
+    integer(c_int), save :: iunitat_c = 2 ! crystal atpos units (0 = bohr, 1 = angstrom, 2 = fractional)
+    integer(c_int), save :: iunitat_m = 2 ! mol atpos units (0 = bohr, 1 = angstrom)
+    integer, save :: symopt = 1 ! symmetry option (1 = detect, 2 = spg, 3 = manual)
+    integer, save :: ispg_selected = 1 ! selected space group
+    integer, save :: cellopt = 1 ! lattice option (1 = parameters, 2 = lattice-vectors)
+    integer(c_int), save :: iunitcel = 0 ! units for lattice (0 = bohr, 1 = angstrom)
+    real(c_float), save :: scale = 1._c_float ! scale factor for lattice vectors
+    real(c_float), save :: aa(3) = 10._c_float ! cell lengths
+    real(c_float), save :: bb(3) = 90._c_float ! cell angles
+    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float) ! cell border, molecule (ang)
+    logical(c_bool), save :: molcubic = .false. ! cell for molecule is cubic
 
     ! initialize
     szero%x = 0
     szero%y = 0
-    if (w%firstpass) then
-       if (allocated(atposbuf)) deallocate(atposbuf)
-       allocate(character(len=maxatposbuf+1) :: atposbuf)
-       atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
-       if (allocated(symopbuf)) deallocate(symopbuf)
-       allocate(character(len=maxsymopbuf+1) :: symopbuf)
-       symopbuf(1:66) = "## Each line is a symmetry operation of the type: " // newline //&
-          "## -1/2+y,z,x" // c_null_char
-       if (allocated(latvecbuf)) deallocate(latvecbuf)
-       allocate(character(len=maxlatvecbuf+1) :: latvecbuf)
-       latvecbuf(1:50) = "## Enter the three lattice vectors line by line" // newline // c_null_char
-       aa = 10._c_float
-       bb = 90._c_float
-       scale = 1._c_float
-    end if
+    doquit = .false.
+
+    ! first pass when opened, reset the state
+    if (w%firstpass) call init_state()
 
     ! crystal or molecule
-    changed = .false.
     str = "Crystal" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
-       ismolecule = .false.
-       changed = .true.
-       iunit = 2
-       namebuf = "Crystal structure (manual)" // c_null_char
-    end if
+    if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) ismolecule = .false.
     call iw_tooltip("The new structure will be a periodic crystal",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     str = "Molecule" // c_null_char
-    if (igRadioButton_Bool(c_loc(str),ismolecule)) then
-       ismolecule = .true.
-       changed = .true.
-       iunit = 1
-       namebuf = "Molecule structure (manual)" // c_null_char
-    end if
+    if (igRadioButton_Bool(c_loc(str),ismolecule)) ismolecule = .true.
     call iw_tooltip("The new structure will be a molecule",ttshown)
 
-    ! render the rest of the window
-    doquit = .false.
-    if (ismolecule) then
-       ! name
-       call iw_text("Name",highlight=.true.)
-       str2 = "##name"
-       ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
+    ! name
+    call iw_text("Name",highlight=.true.)
+    str2 = "##name"
+    ldum = igInputText(c_loc(str2),c_loc(namebuf),maxnamebuf-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
 
-       ! atomic positions: header
-       call iw_text("Atomic positions",highlight=.true.) ! molecule
-       call iw_text("(?)",sameline=.true.)
-       call iw_tooltip("Give the atomic positions for this system as:" // newline //&
-          "  <Sy> <x> <y> <z>" // newline //&
-          "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
-
-       ! units
-       call igSameLine(0._c_float,-1._c_float)
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Units" // c_null_char
-       stropt = "Bohr" // c_null_char // "Angstrom"
-       strex = "Angstrom    " // c_null_char
-       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-       call igSetNextItemWidth(sz%x)
-       ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
-       call iw_tooltip("Units for the atomic coordinates",ttshown)
-
-       ! atomic positions: body
-       call igGetContentRegionAvail(szavail)
-       sz%x = szavail%x
-       sz%y = szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
-       str = "##atomicpositions" // c_null_char
-       ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
-          ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
-
-       ! options line
-       call iw_text("Structure options",highlight=.true.)
-
-       ! cell border
-       call igIndent(0._c_float)
-       str = "Cell border (Å)" // c_null_char
-       stropt = "%.3f" // c_null_char
-       call igPushItemWidth(iw_calcwidth(7,1))
-       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
-          c_loc(stropt),ImGuiInputTextFlags_None)
-       call iw_tooltip("Periodic cell border around new molecules",ttshown)
-       call igPopItemWidth()
-       call igSameLine(0._c_float,-1._c_float)
-
-       ! cubic cell
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Cubic cell" // c_null_char
-       ldum = igCheckbox(c_loc(str),molcubic)
-       call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
-       call igUnindent(0._c_float)
-
-       ! right-align for the rest of the contents
-       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
-
-       ! final buttons: ok
-       if (iw_button("OK")) then
-          ! build the input
-          lu = fopen_scratch("formatted")
-          left = atposbuf(1:index(atposbuf,c_null_char)-1)
-          idx = 0
-          exloop = .false.
-          do while (.not.exloop)
-             idx = index(left,newline)
-             if (idx == 0) then
-                idx = len_trim(left) + 1
-                exloop = .true.
-             end if
-             if (len_trim(left(:idx-1)) > 0) then
-                if (iunit == 0) then
-                   write (lu,'(A," bohr")') left(:idx-1)
-                else
-                   write (lu,'(A," ang")') left(:idx-1)
-                end if
-             end if
-             if(.not.exloop) left = left(idx+1:)
-          end do
-          if (molcubic) write (lu,'("cubic")')
-          write (lu,'("border ",A)') string(rborder/bohrtoa,'f',decimal=10)
-          write (lu,'("end")')
-
-          ! generate the seed
-          rewind(lu)
-          if (allocated(seed_)) deallocate(seed_)
-          allocate(seed_(1))
-          call seed_(1)%parse_molecule_env(lu,ok)
-          call fclose(lu)
-
-          ! load the system and initialize
-          if (ok.and.seed_(1)%isused) then
-             idx = index(namebuf,c_null_char)
-             seed_(1)%name = namebuf(1:idx-1)
-             call add_systems_from_seeds(1,seed_)
-             call launch_initialization_thread()
-             doquit = .true.
-          else
-             deallocate(seed_)
-          end if
-       end if
-       call igSameLine(0._c_float,-1._c_float)
-
-       ! final buttons: cancel
-       if (iw_button("Cancel")) doquit = .true.
-    else
-       ! name
-       call iw_text("Name",highlight=.true.)
-       str2 = "##name"
-       ldum = igInputText(c_loc(str2),c_loc(namebuf),namebufsiz-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
-
+    if (.not.ismolecule) then
        ! symmetry
        call iw_text("Symmetry",highlight=.true.)
 
@@ -2092,121 +1960,12 @@ contains
 
        ! symmetry options
        if (symopt == 2) then
-          ! space group table
-          str = "##spacegrouptable" // c_null_char
-          flags = ImGuiTableFlags_Borders
-          flags = ior(flags,ImGuiTableFlags_RowBg)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          flags = ior(flags,ImGuiTableFlags_ScrollX)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-
-          call igGetContentRegionAvail(sz)
-          sz%y = 8 * igGetTextLineHeightWithSpacing()
-          if (igBeginTable(c_loc(str),7,flags,sz,0._c_float)) then
-             ! set up columns
-             str = "Hall" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
-
-             str = "ITA" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,1)
-
-             str = "HM short" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,2)
-
-             str = "HM long" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,3)
-
-             str = "choice" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,4)
-
-             str = "system" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,5)
-
-             str = "Hall symbol" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str),flags,0.0_c_float,6)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
-             call igTableHeadersRow()
-
-             ! table body
-             do i = 1, 530
-                sa = spg_get_spacegroup_type(i)
-
-                ! Hall
-                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
-                if (igTableSetColumnIndex(0)) then
-                   str = string(i) // c_null_char
-                   flags = ImGuiSelectableFlags_SpanAllColumns
-                   flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                   if (igSelectable_Bool(c_loc(str),logical(ispg_selected == i,c_bool),flags,szero)) &
-                      ispg_selected = i
-                end if
-
-                ! ITA
-                if (igTableNextColumn()) call iw_text(string(sa%number,5,ioj_left))
-
-                ! HM-short
-                if (igTableNextColumn()) then
-                   str = deblank(sa%international_short)
-                   call iw_text(trim(stripchar(str,"_")))
-                end if
-
-                ! HM-long
-                if (igTableNextColumn()) then
-                   str = deblank(sa%international_full)
-                   call iw_text(trim(stripchar(str,"_")))
-                end if
-
-                ! choice
-                if (igTableNextColumn()) call iw_text(string(sa%choice,6,ioj_left))
-
-                ! system
-                if (igTableNextColumn()) then
-                   if (sa%number >= 1 .and. sa%number <= 2) then
-                      str = "triclinic"
-                   elseif (sa%number >= 3 .and. sa%number <= 15) then
-                      str = "monoclinic"
-                   elseif (sa%number >= 16 .and. sa%number <= 74) then
-                      str = "orthorhombic"
-                   elseif (sa%number >= 75 .and. sa%number <= 142) then
-                      str = "tetragonal"
-                   elseif (sa%number >= 143 .and. sa%number <= 167) then
-                      str = "trigonal"
-                   elseif (sa%number >= 168 .and. sa%number <= 194) then
-                      str = "hexagonal"
-                   elseif (sa%number >= 195 .and. sa%number <= 230) then
-                      str = "cubic"
-                   else
-                      str = "??"
-                   end if
-                   call iw_text(str)
-                end if
-
-                ! hall symbol
-                if (igTableNextColumn()) call iw_text(string(sa%hall_symbol))
-             end do
-
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-             call igEndTable()
-          end if
-
-          ! current choice
-          sa = spg_get_spacegroup_type(ispg_selected)
-          str = deblank(sa%international_full)
-          str = "Current choice: " // trim(stripchar(str,"_"))
-          if (len_trim(sa%choice) > 0) str = str // " (" // trim(sa%choice) // ")"
-          call iw_text(str)
+          call draw_spg_table(ispg_selected)
        elseif (symopt == 3) then
           ! manual input of symmetry operations
           call igGetContentRegionAvail(szavail)
           sz%x = szavail%x
-          sz%y = 8 * igGetTextLineHeightWithSpacing()
+          sz%y = 9 * igGetTextLineHeightWithSpacing()
           str = "##symopsmanual" // c_null_char
           ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
              ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
@@ -2233,6 +1992,7 @@ contains
        ldum = igCombo_Str(c_loc(str), iunitcel, c_loc(stropt), -1_c_int)
        call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
 
+       ! scale factor only if lattice vectors
        if (cellopt == 2) then
           call igSameLine(0._c_float,-1._c_float)
           str = "Scale" // c_null_char
@@ -2251,6 +2011,7 @@ contains
           call igSameLine(0._c_float,-1._c_float)
           str = "##celllength3" // c_null_char
           stropt = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(3*8,2))
           ldum = igInputFloat3(c_loc(str),aa,c_loc(stropt),ImGuiInputTextFlags_None)
 
           ! cell angles
@@ -2258,6 +2019,7 @@ contains
           call igSameLine(0._c_float,-1._c_float)
           str = "##cellangle3" // c_null_char
           stropt = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(3*8,2))
           ldum = igInputFloat3(c_loc(str),bb,c_loc(stropt),ImGuiInputTextFlags_None)
        else
           ! lattice vectors
@@ -2268,108 +2030,141 @@ contains
           ldum = igInputTextMultiline(c_loc(str),c_loc(latvecbuf),maxlatvecbuf,sz,&
              ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
        end if
+    end if ! .not.ismolecule
 
-       ! atomic positions: header
-       call iw_text("Atomic positions",highlight=.true.) ! crystal
-       call iw_text("(?)",sameline=.true.)
-       if (symopt == 1) then
-          str = "Enter all atoms in the unit cell as:"
-       else
-          str = "Enter the non-equivalent (symmetry-unique) atoms in the unit cell as:"
-       end if
-       str = str // newline // "  <Sy> <x> <y> <z>" // newline //&
-          "where Sy is the atomic symbol and x,y,z are the "
-       if (cellopt == 1) then
-          str = str // "fractional atomic coordinates."
-       else
-          str = str // "atomic coordinates."
-       end if
-       call iw_tooltip(str)
+    ! atomic positions: header
+    call iw_text("Atomic positions",highlight=.true.) ! molecule
+    call iw_text("(?)",sameline=.true.)
+    call iw_tooltip("Give the atomic positions for this system as:" // newline //&
+       "  <Sy> <x> <y> <z>" // newline //&
+       "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
 
-       if (cellopt == 2) then
-          call igSameLine(0._c_float,-1._c_float)
-          call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-          str = "Units" // c_null_char
+    ! units, does not apply in the case of crystal/cell parameters
+    if (ismolecule .or. cellopt == 2) then
+       call igSameLine(0._c_float,-1._c_float)
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Units" // c_null_char
+       if (ismolecule) then
+          stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // c_null_char
+       else
           stropt = "Bohr" // c_null_char // "Angstrom" // c_null_char // "Fractional" // c_null_char // c_null_char
-          call igSetNextItemWidth(iw_calcwidth(13,1))
-          ldum = igCombo_Str(c_loc(str), iunit, c_loc(stropt), -1_c_int)
-          call iw_tooltip("Units for the atomic coordinates",ttshown)
-       else
-          iunit = 2
        end if
+       call igSetNextItemWidth(iw_calcwidth(13,1))
+       if (ismolecule) then
+          ldum = igCombo_Str(c_loc(str), iunitat_m, c_loc(stropt), -1_c_int)
+       else
+          ldum = igCombo_Str(c_loc(str), iunitat_c, c_loc(stropt), -1_c_int)
+       end if
+       call iw_tooltip("Units for the atomic coordinates",ttshown)
+    end if
 
-       ! atomic positions: body
-       call igGetContentRegionAvail(szavail)
-       sz%x = szavail%x
+    ! atomic positions: body
+    call igGetContentRegionAvail(szavail)
+    sz%x = szavail%x
+    if (ismolecule) then
+       sz%y = szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
+    else
        sz%y = szavail%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
-       str = "##atomicpositions" // c_null_char
-       ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
-          ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+    end if
+    str = "##atomicpositions" // c_null_char
+    ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
+       ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
 
-       ! right-align for the rest of the contents
-       call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! options line
+    if (ismolecule) then
+       call iw_text("Structure options",highlight=.true.)
 
-       ! final buttons: ok
-       if (iw_button("OK")) then
+       ! cell border
+       call igIndent(0._c_float)
+       str = "Cell border (Å)" // c_null_char
+       stropt = "%.3f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(7,1))
+       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
+          c_loc(stropt),ImGuiInputTextFlags_None)
+       call iw_tooltip("Periodic cell border around new molecules",ttshown)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,-1._c_float)
+
+       ! cubic cell
+       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
+       str = "Cubic cell" // c_null_char
+       ldum = igCheckbox(c_loc(str),molcubic)
+       call iw_tooltip("Read new molecules inside a cubic periodic cell",ttshown)
+       call igUnindent(0._c_float)
+    end if
+
+    ! right-align for the rest of the contents
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+
+    ! final buttons: ok
+    if (iw_button("OK")) then
           ! build the input
           lu = fopen_scratch("formatted")
 
-          ! symmetry
-          if (symopt == 2) then
-             ! pass the spg string
-             write (lu,'("spg ",A)') string(ispg_selected)
-          elseif (symopt == 3) then
-             ! pass the symm keywords
-             idx = 0
-             left = symopbuf(1:index(symopbuf,c_null_char)-1)
-             exloop = .false.
-             do while (.not.exloop)
-                idx = index(left,newline)
-                if (idx == 0) then
-                   idx = len_trim(left) + 1
-                   exloop = .true.
+          ! symmetry and cell
+          if (.not.ismolecule) then
+             ! symmetry
+             if (symopt == 2) then
+                ! pass the spg string
+                write (lu,'("spg ",A)') string(ispg_selected)
+             elseif (symopt == 3) then
+                ! pass the symm keywords
+                idx = 0
+                left = symopbuf(1:index(symopbuf,c_null_char)-1)
+                exloop = .false.
+                do while (.not.exloop)
+                   idx = index(left,newline)
+                   if (idx == 0) then
+                      idx = len_trim(left) + 1
+                      exloop = .true.
+                   end if
+                   if (len_trim(left(:idx-1)) > 0) &
+                      write (lu,'("symm ",A)') left(:idx-1)
+                   if(.not.exloop) left = left(idx+1:)
+                end do
+             end if
+
+             ! cell
+             if (cellopt == 1) then
+                ! cell parameters
+                if (iunitcel == 1) then
+                   write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
+                      (string(bb(i),'f',decimal=10),i=1,3)
+                else
+                   write (lu,'("cell ",6(A," "),"bohr")') (string(aa(i),'f',decimal=10),i=1,3), &
+                      (string(bb(i),'f',decimal=10),i=1,3)
                 end if
-                if (len_trim(left(:idx-1)) > 0) &
-                   write (lu,'("symm ",A)') left(:idx-1)
-                if(.not.exloop) left = left(idx+1:)
-             end do
+             else
+                ! lattice vectors
+                write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
+                if (iunitcel == 1) then
+                   write (lu,'("ang")')
+                else
+                   write (lu,'("bohr")')
+                end if
+                idx = 0
+                left = latvecbuf(1:index(latvecbuf,c_null_char)-1)
+                exloop = .false.
+                do while (.not.exloop)
+                   idx = index(left,newline)
+                   if (idx == 0) then
+                      idx = len_trim(left) + 1
+                      exloop = .true.
+                   end if
+                   if (len_trim(left(:idx-1)) > 0) &
+                      write (lu,'(A)') left(:idx-1)
+                   if(.not.exloop) left = left(idx+1:)
+                end do
+                write (lu,'("endcartesian")')
+             end if
           end if
 
-          ! cell
-          if (cellopt == 1) then
-             ! cell parameters
-             if (iunitcel == 1) then
-                write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
-                   (string(bb(i),'f',decimal=10),i=1,3)
-             else
-                write (lu,'("cell ",6(A," "),"bohr")') (string(aa(i),'f',decimal=10),i=1,3), &
-                   (string(bb(i),'f',decimal=10),i=1,3)
-             end if
+          ! atomic positions
+          if (ismolecule) then
+             iunitat = iunitat_m
           else
-             ! lattice vectors
-             write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
-             if (iunitcel == 1) then
-                write (lu,'("ang")')
-             else
-                write (lu,'("bohr")')
-             end if
-             idx = 0
-             left = latvecbuf(1:index(latvecbuf,c_null_char)-1)
-             exloop = .false.
-             do while (.not.exloop)
-                idx = index(left,newline)
-                if (idx == 0) then
-                   idx = len_trim(left) + 1
-                   exloop = .true.
-                end if
-                if (len_trim(left(:idx-1)) > 0) &
-                   write (lu,'(A)') left(:idx-1)
-                if(.not.exloop) left = left(idx+1:)
-             end do
-             write (lu,'("endcartesian")')
+             iunitat = iunitat_c
           end if
-
-          ! atoms
           left = atposbuf(1:index(atposbuf,c_null_char)-1)
           idx = 0
           exloop = .false.
@@ -2380,9 +2175,9 @@ contains
                 exloop = .true.
              end if
              if (len_trim(left(:idx-1)) > 0) then
-                if (iunit == 0) then
+                if (iunitat == 0) then
                    write (lu,'(A," bohr")') left(:idx-1)
-                elseif (iunit == 1) then
+                elseif (iunitat == 1) then
                    write (lu,'(A," ang")') left(:idx-1)
                 else
                    write (lu,'(A)') left(:idx-1)
@@ -2390,13 +2185,24 @@ contains
              end if
              if(.not.exloop) left = left(idx+1:)
           end do
+
+          ! molecular options
+          if (ismolecule) then
+             if (molcubic) write (lu,'("cubic")')
+             write (lu,'("border ",A)') string(rborder/bohrtoa,'f',decimal=10)
+          end if
+
           write (lu,'("end")')
 
           ! generate the seed
           rewind(lu)
           if (allocated(seed_)) deallocate(seed_)
           allocate(seed_(1))
-          call seed_(1)%parse_crystal_env(lu,ok)
+          if (ismolecule) then
+             call seed_(1)%parse_molecule_env(lu,ok)
+          else
+             call seed_(1)%parse_crystal_env(lu,ok)
+          end if
           call fclose(lu)
 
           ! load the system and initialize
@@ -2409,35 +2215,61 @@ contains
           else
              deallocate(seed_)
           end if
-       end if
-
-       ! final buttons: cancel
-       if (iw_button("Cancel",sameline=.true.)) doquit = .true.
     end if
+    call igSameLine(0._c_float,-1._c_float)
+
+    ! final buttons: cancel
+    if (iw_button("Cancel")) doquit = .true.
 
     ! quit the window
     if (doquit) then
-       ! reset the state and kill the window
-       ismolecule = .false.
-       idum = 0
-       lastselected = 0
-       nst = 0
-       rborder = real(rborder_def*bohrtoa,c_float)
-       molcubic = .false.
-       iunit = 0
-       iunitcel = 0
-       namebuf(1:1) = c_null_char
-       symopt = 1
-       cellopt = 1
-       ispg_selected = 1
-       aa = 10._c_float
-       bb = 90._c_float
-       scale = 1._c_float
-       if (allocated(st)) deallocate(st)
-       if (allocated(lst)) deallocate(lst)
-       if (allocated(atposbuf)) deallocate(atposbuf)
+       call end_state()
        call w%end()
     end if
+
+  contains
+    ! initialize the state for this window
+    subroutine init_state()
+      ttshown = .false.
+      ismolecule = .false.
+      iunitat_c = 2
+      iunitat_m = 1
+      symopt = 1
+      ispg_selected = 1
+      cellopt = 1
+      iunitcel = 0
+      scale = 1._c_float
+      aa = 10._c_float
+      bb = 90._c_float
+      rborder = real(rborder_def*bohrtoa,c_float)
+      molcubic = .false.
+
+      if (allocated(atposbuf)) deallocate(atposbuf)
+      allocate(character(len=maxatposbuf+1) :: atposbuf)
+      atposbuf(1:26) = "H 0.00000 0.00000 0.00000" // c_null_char
+
+      if (allocated(symopbuf)) deallocate(symopbuf)
+      allocate(character(len=maxsymopbuf+1) :: symopbuf)
+      symopbuf(1:70) = "## Each line is a symmetry operation of the type: " // newline //&
+         "## -1/2+y,z,x" // c_null_char
+
+      if (allocated(latvecbuf)) deallocate(latvecbuf)
+      allocate(character(len=maxlatvecbuf+1) :: latvecbuf)
+      latvecbuf(1:50) = "## Enter the three lattice vectors line by line" // newline // c_null_char
+
+      if (allocated(namebuf)) deallocate(namebuf)
+      allocate(character(len=maxnamebuf+1) :: namebuf)
+      namebuf(1:20) = "Input structure" // c_null_char
+
+    end subroutine init_state
+
+    ! terminate the state for this window
+    subroutine end_state()
+      if (allocated(atposbuf)) deallocate(atposbuf)
+      if (allocated(symopbuf)) deallocate(symopbuf)
+      if (allocated(latvecbuf)) deallocate(latvecbuf)
+      if (allocated(namebuf)) deallocate(namebuf)
+    end subroutine end_state
 
   end subroutine draw_new_struct
 
@@ -2477,6 +2309,7 @@ contains
     ! initialize
     szero%x = 0
     szero%y = 0
+    doquit = .false.
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
@@ -2508,7 +2341,6 @@ contains
     call iw_tooltip("The new structure will be a molecule",ttshown)
 
     ! render the rest of the window
-    doquit = .false.
     ! library file
     call iw_text("Source",highlight=.true.)
     if (iw_button("Library file",disabled=(idopenlibfile /= 0))) &
@@ -2960,5 +2792,135 @@ contains
     call fclose(lu)
 
   end subroutine get_library_structure_list
+
+  !> Draw a space group table. Entry ispg (Hall number) is selected.
+  subroutine draw_spg_table(ispg)
+    use gui_utils, only: iw_text
+    use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
+    use tools_io, only: ioj_left, string, deblank, stripchar
+    integer, intent(inout) :: ispg
+
+    integer :: i
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: flags
+    type(ImVec2) :: sz, szero
+    type(SpglibSpaceGroupType) :: sa
+
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+
+    ! space group table
+    str = "##spacegrouptable" // c_null_char
+    flags = ImGuiTableFlags_Borders
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_ScrollX)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+
+    call igGetContentRegionAvail(sz)
+    sz%y = 8 * igGetTextLineHeightWithSpacing()
+    if (igBeginTable(c_loc(str),7,flags,sz,0._c_float)) then
+       ! set up columns
+       str = "Hall" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+
+       str = "ITA" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,1)
+
+       str = "HM short" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,2)
+
+       str = "HM long" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,3)
+
+       str = "choice" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,4)
+
+       str = "system" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,5)
+
+       str = "Hall symbol" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthFixed
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,6)
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
+       call igTableHeadersRow()
+
+       ! table body
+       do i = 1, 530
+          sa = spg_get_spacegroup_type(i)
+
+          ! Hall
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+          if (igTableSetColumnIndex(0)) then
+             str = string(i) // c_null_char
+             flags = ImGuiSelectableFlags_SpanAllColumns
+             flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+             if (igSelectable_Bool(c_loc(str),logical(ispg == i,c_bool),flags,szero)) &
+                ispg = i
+          end if
+
+          ! ITA
+          if (igTableNextColumn()) call iw_text(string(sa%number,5,ioj_left))
+
+          ! HM-short
+          if (igTableNextColumn()) then
+             str = deblank(sa%international_short)
+             call iw_text(trim(stripchar(str,"_")))
+          end if
+
+          ! HM-long
+          if (igTableNextColumn()) then
+             str = deblank(sa%international_full)
+             call iw_text(trim(stripchar(str,"_")))
+          end if
+
+          ! choice
+          if (igTableNextColumn()) call iw_text(string(sa%choice,6,ioj_left))
+
+          ! system
+          if (igTableNextColumn()) then
+             if (sa%number >= 1 .and. sa%number <= 2) then
+                str = "triclinic"
+             elseif (sa%number >= 3 .and. sa%number <= 15) then
+                str = "monoclinic"
+             elseif (sa%number >= 16 .and. sa%number <= 74) then
+                str = "orthorhombic"
+             elseif (sa%number >= 75 .and. sa%number <= 142) then
+                str = "tetragonal"
+             elseif (sa%number >= 143 .and. sa%number <= 167) then
+                str = "trigonal"
+             elseif (sa%number >= 168 .and. sa%number <= 194) then
+                str = "hexagonal"
+             elseif (sa%number >= 195 .and. sa%number <= 230) then
+                str = "cubic"
+             else
+                str = "??"
+             end if
+             call iw_text(str)
+          end if
+
+          ! hall symbol
+          if (igTableNextColumn()) call iw_text(string(sa%hall_symbol))
+       end do
+
+       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+       call igEndTable()
+    end if
+
+    ! current choice
+    sa = spg_get_spacegroup_type(ispg)
+    str = deblank(sa%international_full)
+    str = "Current choice: " // trim(stripchar(str,"_"))
+    if (len_trim(sa%choice) > 0) str = str // " (" // trim(sa%choice) // ")"
+    call iw_text(str)
+
+  end subroutine draw_spg_table
 
 end submodule proc
