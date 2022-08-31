@@ -226,4 +226,39 @@ contains
 
   end function get_time_string
 
+  !> Read the buffer buf line by line up to the null character. Write
+  !> the read lines to logical unit LU
+  module subroutine buffer_to_string_array(buf,lu,prefix,suffix)
+    use param, only: newline
+    character*(*), intent(in) :: buf
+    integer, intent(in) :: lu
+    character*(*), intent(in), optional :: prefix
+    character*(*), intent(in), optional :: suffix
+
+    integer :: idx
+    character(kind=c_char,len=:), allocatable, target :: left, pre, suf
+    logical :: exloop
+
+    pre = ""
+    suf = ""
+    if (present(prefix)) pre = prefix
+    if (present(suffix)) suf = suffix
+
+    idx = 0
+    left = buf(1:index(buf,c_null_char)-1)
+    exloop = .false.
+    do while (.not.exloop)
+       idx = index(left,newline)
+       if (idx == 0) then
+          idx = len_trim(left) + 1
+          exloop = .true.
+       end if
+       if (len_trim(left(:idx-1)) > 0) then
+          write (lu,'(A,A,A)') pre, left(:idx-1), suf
+       end if
+       if(.not.exloop) left = left(idx+1:)
+    end do
+
+  end subroutine buffer_to_string_array
+
 end submodule proc

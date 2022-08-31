@@ -29,6 +29,7 @@ module gui_utils
   public :: iw_tooltip
   public :: igIsItemHovered_delayed
   public :: get_time_string
+  public :: buffer_to_string_array
 
   ! module procedure interfaces
   interface
@@ -74,6 +75,12 @@ module gui_utils
      module function get_time_string()
        character(len=:), allocatable :: get_time_string
      end function get_time_string
+     module subroutine buffer_to_string_array(buf,lu,prefix,suffix)
+       character*(*), intent(in) :: buf
+       integer, intent(in) :: lu
+       character*(*), intent(in), optional :: prefix
+       character*(*), intent(in), optional :: suffix
+     end subroutine buffer_to_string_array
   end interface
 
 end module gui_utils

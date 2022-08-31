@@ -1881,7 +1881,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth
+       iw_calcwidth, buffer_to_string_array
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, ioj_left, stripchar, deblank
@@ -2109,19 +2109,7 @@ contains
                 write (lu,'("spg ",A)') string(ispg_selected)
              elseif (symopt == 3) then
                 ! pass the symm keywords
-                idx = 0
-                left = symopbuf(1:index(symopbuf,c_null_char)-1)
-                exloop = .false.
-                do while (.not.exloop)
-                   idx = index(left,newline)
-                   if (idx == 0) then
-                      idx = len_trim(left) + 1
-                      exloop = .true.
-                   end if
-                   if (len_trim(left(:idx-1)) > 0) &
-                      write (lu,'("symm ",A)') left(:idx-1)
-                   if(.not.exloop) left = left(idx+1:)
-                end do
+                call buffer_to_string_array(symopbuf,lu,prefix="symm ")
              end if
 
              ! cell
@@ -2137,19 +2125,7 @@ contains
                 else
                    write (lu,'("bohr")')
                 end if
-                idx = 0
-                left = latvecbuf(1:index(latvecbuf,c_null_char)-1)
-                exloop = .false.
-                do while (.not.exloop)
-                   idx = index(left,newline)
-                   if (idx == 0) then
-                      idx = len_trim(left) + 1
-                      exloop = .true.
-                   end if
-                   if (len_trim(left(:idx-1)) > 0) &
-                      write (lu,'(A)') left(:idx-1)
-                   if(.not.exloop) left = left(idx+1:)
-                end do
+                call buffer_to_string_array(latvecbuf,lu)
                 write (lu,'("endcartesian")')
              end if
           end if
@@ -2160,26 +2136,13 @@ contains
           else
              iunitat = iunitat_c
           end if
-          left = atposbuf(1:index(atposbuf,c_null_char)-1)
-          idx = 0
-          exloop = .false.
-          do while (.not.exloop)
-             idx = index(left,newline)
-             if (idx == 0) then
-                idx = len_trim(left) + 1
-                exloop = .true.
-             end if
-             if (len_trim(left(:idx-1)) > 0) then
-                if (iunitat == 0) then
-                   write (lu,'(A," bohr")') left(:idx-1)
-                elseif (iunitat == 1) then
-                   write (lu,'(A," ang")') left(:idx-1)
-                else
-                   write (lu,'(A)') left(:idx-1)
-                end if
-             end if
-             if(.not.exloop) left = left(idx+1:)
-          end do
+          if (iunitat == 0) then
+             call buffer_to_string_array(atposbuf,lu,suffix=" bohr")
+          elseif (iunitat == 1) then
+             call buffer_to_string_array(atposbuf,lu,suffix=" ang")
+          else
+             call buffer_to_string_array(atposbuf,lu)
+          end if
 
           ! molecular options
           if (ismolecule) then
