@@ -2457,7 +2457,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, stropt
     logical(c_bool) :: ldum, doquit
-    logical :: changed, ok
+    logical :: ok
     type(ImVec2) :: szero, sz
     integer :: i, nseed, oid
     type(crystalseed) :: seed
@@ -2475,8 +2475,8 @@ contains
     logical(c_bool), save :: molcubic = .false.
 
     ! initialize
-    ! szero%x = 0
-    ! szero%y = 0
+    szero%x = 0
+    szero%y = 0
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
@@ -2491,28 +2491,21 @@ contains
     end if
 
     ! crystal or molecule, from library
-    changed = .false.
     str = "Crystal" // c_null_char
     if (igRadioButton_Bool(c_loc(str),.not.ismolecule)) then
-       if (ismolecule) changed = .true.
+       if (ismolecule.and..not.w%libraryfile_set) w%libraryfile = trim(clib_file)
        ismolecule = .false.
+       w%libraryfile_read = .true.
     end if
     call iw_tooltip("The new structure will be a periodic crystal",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     str = "Molecule" // c_null_char
     if (igRadioButton_Bool(c_loc(str),ismolecule)) then
-       if (.not.ismolecule) changed = .true.
+       if (.not.ismolecule.and..not.w%libraryfile_set) w%libraryfile = trim(mlib_file)
        ismolecule = .true.
-    end if
-    call iw_tooltip("The new structure will be a molecule",ttshown)
-    if (changed.and..not.w%libraryfile_set) then
-       if (ismolecule) then
-          w%libraryfile = trim(mlib_file)
-       else
-          w%libraryfile = trim(clib_file)
-       end if
        w%libraryfile_read = .true.
     end if
+    call iw_tooltip("The new structure will be a molecule",ttshown)
 
     ! render the rest of the window
     doquit = .false.
@@ -2619,7 +2612,7 @@ contains
 
     ! read the library file
     if (w%libraryfile_read) then
-       call get_library_structure_list(w%libraryfile,nst,st)
+       call get_library_structure_list(w%libraryfile,nst,st,ismolecule)
        if (allocated(lst)) deallocate(lst)
        allocate(lst(nst))
        lst = .false.
@@ -2915,16 +2908,19 @@ contains
 
   end subroutine dialog_user_callback
 
-  !> Get the structure list from the library file.
-  subroutine get_library_structure_list(libfile,nst,st)
+  !> Get the structure list from the library file. If ismol = .true.,
+  !> read only the moelcules. If ismol = .false., read only the
+  !> crystals.
+  subroutine get_library_structure_list(libfile,nst,st,ismol)
     use tools_io, only: fopen_read, fclose, lgetword, getword, equal, getline
     use types, only: vstring, realloc
     character(len=:), allocatable, intent(in) :: libfile
     integer, intent(out) :: nst
     type(vstring), allocatable, intent(inout) :: st(:)
+    logical(c_bool), intent(in) :: ismol
 
     integer :: lu, lp
-    character(len=:), allocatable :: word, line
+    character(len=:), allocatable :: word, name, line
     logical :: ok
 
     ! open the file
@@ -2943,15 +2939,23 @@ contains
        lp = 1
        word = lgetword(line,lp)
        if (equal(word,'structure')) then
-          word = getword(line,lp)
+          name = getword(line,lp)
+
+          ok = getline(lu,line)
+          if (.not.ok) exit main
+          lp = 1
+          word = lgetword(line,lp)
+          ok = equal(word,'crystal').and..not.ismol
+          ok = ok .or. (equal(word,'molecule').and.ismol)
+          if (.not.ok) cycle main
+
           nst = nst + 1
           if (nst > size(st,1)) call realloc(st,2*nst)
-          st(nst)%s = word
+          st(nst)%s = name
        endif
     end do main
     if (nst > 0) &
        call realloc(st,nst)
-
     ! clean up
     call fclose(lu)
 
