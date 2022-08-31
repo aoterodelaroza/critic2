@@ -22,6 +22,7 @@ module gui_utils
 
   private
 
+  public :: iw_setposx_fromend
   public :: iw_calcheight
   public :: iw_calcwidth
   public :: iw_combo_simple
@@ -35,6 +36,10 @@ module gui_utils
 
   ! module procedure interfaces
   interface
+     module subroutine iw_setposx_fromend(ntext,nbutton)
+       integer, intent(in) :: ntext
+       integer, intent(in) :: nbutton
+     end subroutine iw_setposx_fromend
      module function iw_calcheight(npadline,nline,endpad)
        integer, intent(in) :: npadline
        integer, intent(in) :: nline

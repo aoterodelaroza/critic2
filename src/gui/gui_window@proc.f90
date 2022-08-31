@@ -353,8 +353,8 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_calcwidth,&
-       iw_text
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
+       iw_text, iw_setposx_fromend
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -426,8 +426,7 @@ contains
     call iw_tooltip("Right-click on the table headers for more options")
 
     ! right-align for the rest of the contents
-    call igSameLine(0._c_float,-1._c_float)
-    call igSetCursorPosX(iw_calcwidth(14,2,from_end=.true.))
+    call iw_setposx_fromend(14,2)
 
     ! button: close
     if (iw_button("Close",danger=.true.)) then
@@ -1280,7 +1279,7 @@ contains
     call igSameLine(0._c_float,-1._c_float)
 
     call igGetContentRegionAvail(szavail)
-    combowidth = szavail%x - sz%x - g%Style%ItemSpacing%x
+    combowidth = max(szavail%x - sz%x - g%Style%ItemSpacing%x,0._c_float)
 
     !! set the system pointer and determine the preview string
     str2 = "" // c_null_char
@@ -1676,8 +1675,8 @@ contains
   !> Draw the contents of the output console
   module subroutine draw_co(w)
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcwidth,&
-       iw_calcheight
+    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
+       iw_setposx_fromend, iw_calcheight, iw_calcwidth
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1736,8 +1735,7 @@ contains
     call iw_tooltip("Save the shown output log to a file",ttshown)
 
     ! first line: remove all button
-    call igSameLine(0._c_float,-1._c_float)
-    call igSetCursorPosX(iw_calcwidth(10,1,from_end=.true.))
+    call iw_setposx_fromend(10,1)
 
     if (iw_button("Remove All",danger=.true.)) then
        ! remove all command i/o information
@@ -1753,7 +1751,7 @@ contains
     call iw_tooltip("Remove all commands",ttshown)
 
     ! second line: all button
-    xavail1 = xavail - iw_calcwidth(3,1) + g%Style%ItemSpacing%x
+    xavail1 = max(xavail - iw_calcwidth(3,1) + g%Style%ItemSpacing%x,0._c_float)
     if (idcom == 0) then
        call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
     else
@@ -2051,9 +2049,9 @@ contains
     call igGetContentRegionAvail(szavail)
     sz%x = szavail%x
     if (ismolecule) then
-       sz%y = szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
+       sz%y = max(szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
     else
-       sz%y = szavail%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
+       sz%y = max(szavail%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
     end if
     str = "##atomicpositions" // c_null_char
     ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
@@ -2295,36 +2293,38 @@ contains
     str = "##listbox" // c_null_char
     call igGetContentRegionAvail(sz)
     if (ismolecule) then
-       sz%y = sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y
+       sz%y = max(sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
     else
-       sz%y = sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y
+       sz%y = max(sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
     end if
-    ldum = igBeginListBox(c_loc(str),sz)
-    do i = 1, nst
-       str = st(i)%s // c_null_char
-       if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
 
-          ! implement selection range with shift and control
-          if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
-             ! selecte a whole range
-             lst = .false.
-             if (lastselected > i) then
-                lst(i:lastselected) = .true.
+    if (igBeginListBox(c_loc(str),sz)) then
+       do i = 1, nst
+          str = st(i)%s // c_null_char
+          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_None, szero)) then
+
+             ! implement selection range with shift and control
+             if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
+                ! selecte a whole range
+                lst = .false.
+                if (lastselected > i) then
+                   lst(i:lastselected) = .true.
+                else
+                   lst(lastselected:i) = .true.
+                end if
+             elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+                ! select and individual item and accumulate
+                lst(i) = .true.
              else
-                lst(lastselected:i) = .true.
+                ! select one item, start range, remove all others
+                lst = .false.
+                lst(i) = .true.
+                lastselected = i
              end if
-          elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
-             ! select and individual item and accumulate
-             lst(i) = .true.
-          else
-             ! select one item, start range, remove all others
-             lst = .false.
-             lst(i) = .true.
-             lastselected = i
           end if
-       end if
-    end do
-    call igEndListBox()
+       end do
+       call igEndListBox()
+    end if
 
     if (ismolecule) then
        ! options line

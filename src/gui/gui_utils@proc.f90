@@ -22,6 +22,22 @@ submodule (gui_utils) proc
 
 contains
 
+  !> Set the cursor X position a distance from the end of the content
+  !> region corresponding to ntext characters and nbutton buttons.
+  module subroutine iw_setposx_fromend(ntext,nbutton)
+    use gui_interfaces_cimgui
+    integer, intent(in) :: ntext
+    integer, intent(in) :: nbutton
+
+    real(c_float) :: posx
+
+    call igSameLine(0._c_float,-1._c_float)
+    posx = iw_calcwidth(ntext,nbutton,from_end=.true.)
+    if (posx > igGetCursorPosX()) &
+       call igSetCursorPosX(posx)
+
+  end subroutine iw_setposx_fromend
+
   !> Calculate the height of nline text lines and npadline padded lines:
   !>   frame-line1-frame-itemspace-frame-line2-frame-windowpad
   !> If endpad, add the end window padding
@@ -83,6 +99,7 @@ contains
           iw_calcwidth = igGetWindowWidth() - g%style%WindowPadding%x - iw_calcwidth
        end if
     end if
+    iw_calcwidth = max(iw_calcwidth,0._c_float)
 
   end function iw_calcwidth
 
