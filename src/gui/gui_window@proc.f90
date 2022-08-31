@@ -2322,10 +2322,7 @@ contains
        call iw_text("Lattice",highlight=.true.)
 
        str = "Cell parameters" // c_null_char
-       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 1,c_bool))) then
-          cellopt = 1
-          iunit = 2
-       end if
+       if (igRadioButton_Bool(c_loc(str),logical(cellopt == 1,c_bool))) cellopt = 1
        call iw_tooltip("Lattice is calculated from the cell lengths and angles",ttshown)
        call igSameLine(0._c_float,-1._c_float)
 
