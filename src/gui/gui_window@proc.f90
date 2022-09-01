@@ -26,19 +26,20 @@ submodule (gui_window) proc
 
   ! column ids for the table in the tree widget
   integer(c_int), parameter :: ic_closebutton = 0
-  integer(c_int), parameter :: ic_id = 1
-  integer(c_int), parameter :: ic_name = 2
-  integer(c_int), parameter :: ic_spg = 3
-  integer(c_int), parameter :: ic_v = 4
-  integer(c_int), parameter :: ic_nneq = 5
-  integer(c_int), parameter :: ic_ncel = 6
-  integer(c_int), parameter :: ic_nmol = 7
-  integer(c_int), parameter :: ic_a = 8
-  integer(c_int), parameter :: ic_b = 9
-  integer(c_int), parameter :: ic_c = 10
-  integer(c_int), parameter :: ic_alpha = 11
-  integer(c_int), parameter :: ic_beta = 12
-  integer(c_int), parameter :: ic_gamma = 13
+  integer(c_int), parameter :: ic_expandbutton = 1
+  integer(c_int), parameter :: ic_id = 2
+  integer(c_int), parameter :: ic_name = 3
+  integer(c_int), parameter :: ic_spg = 4
+  integer(c_int), parameter :: ic_v = 5
+  integer(c_int), parameter :: ic_nneq = 6
+  integer(c_int), parameter :: ic_ncel = 7
+  integer(c_int), parameter :: ic_nmol = 8
+  integer(c_int), parameter :: ic_a = 9
+  integer(c_int), parameter :: ic_b = 10
+  integer(c_int), parameter :: ic_c = 11
+  integer(c_int), parameter :: ic_alpha = 12
+  integer(c_int), parameter :: ic_beta = 13
+  integer(c_int), parameter :: ic_gamma = 14
 
   ! the buffer for the output console
   character(kind=c_char,len=:), allocatable, target :: outputb
@@ -389,14 +390,14 @@ contains
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
-       ColorDangerButton
+       ColorDangerButton, g
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, zeroc
+    character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
@@ -404,7 +405,8 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, dopop
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
+    real(c_float) :: width
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
@@ -576,7 +578,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),14,flags,szero,0._c_float)) then
+    if (igBeginTable(c_loc(str),15,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -585,14 +587,18 @@ contains
 
        ! set up the columns
        ! closebutton - ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
-       str = "x##0closebutton" // c_null_char
+       str = "(close button)##0closebutton" // c_null_char
        flags = ImGuiTableColumnFlags_NoResize
        flags = ior(flags,ImGuiTableColumnFlags_NoReorder)
        flags = ior(flags,ImGuiTableColumnFlags_NoHide)
        flags = ior(flags,ImGuiTableColumnFlags_NoSort)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_closebutton)
+       width = max(4._c_float, g%FontSize + 2._c_float)
+       call igTableSetupColumn(c_loc(str),flags,width,ic_closebutton)
+
+       str = "(expand button)##0expandbutton" // c_null_char
+       call igTableSetupColumn(c_loc(str),flags,width,ic_expandbutton)
 
        str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
@@ -688,6 +694,29 @@ contains
              buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
           end if
 
+          ! expand button
+          buttonhovered_expand = .false.
+          if (sysc(i)%collapse < 0) then
+             if (igTableSetColumnIndex(ic_expandbutton)) then
+                ! expand button for multi-seed entries
+                str = "##expand" // string(ic_name) // "," // string(i) // c_null_char
+                if (sysc(i)%collapse == -1) then
+                   idir = ImGuiDir_Right
+                else
+                   idir = ImGuiDir_Down
+                end if
+                if (igArrowButton(c_loc(str),idir)) then
+                   ! expand or collapse
+                   if (sysc(i)%collapse == -1) then
+                      call expand_system(i)
+                   else
+                      call collapse_system(i)
+                   end if
+                end if
+                buttonhovered_expand = igIsItemHovered(ImGuiHoveredFlags_None)
+             end if
+          end if
+
           ! set background color for the name cell, if not selected
           if (w%table_selected /= i) then
              if (sysc(i)%seed%ismolecule) then
@@ -711,43 +740,19 @@ contains
           end if
 
           ! name
-          buttonhovered_expand = .false.
           if (igTableSetColumnIndex(ic_name)) then
-             dopop = .false.
-             if (sysc(i)%collapse < 0) then
-                ! push to reduce the spacing between button and name
-                dopop = .true.
-                sz%x = 1._c_float
-                sz%y = 0._c_float
-                call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
-
-                ! expand button for multi-seed entries
-                str = "##expand" // string(ic_name) // "," // string(i) // c_null_char
-                if (sysc(i)%collapse == -1) then
-                   idir = ImGuiDir_Right
-                else
-                   idir = ImGuiDir_Down
-                end if
-                if (igArrowButton(c_loc(str),idir)) then
-                   ! expand or collapse
-                   if (sysc(i)%collapse == -1) then
-                      call expand_system(i)
-                   else
-                      call collapse_system(i)
-                   end if
-                end if
-                buttonhovered_expand = igIsItemHovered(ImGuiHoveredFlags_None)
-                call igSameLine(0._c_float,-1._c_float)
-             end if
-
              ! the actual name
              str = ""
-             if (sysc(i)%collapse > 0) then
+             if (sysc(i)%collapse == -2) then
+                str = "╭●─"
+                do k = 2, len(string(i))
+                   str = str // "─"
+                end do
+                str = str // "──"
+             elseif (sysc(i)%collapse > 0) then
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             if (dopop) &
-                call igPopStyleVar(1_c_int)
              call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
           end if
 

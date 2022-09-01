@@ -206,7 +206,7 @@ contains
        ! first pass: use the dock builder routines to place the windows
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
-          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.25_c_float, idum, iright)
+          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.3_c_float, idum, iright)
           ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
           ileft2 = igDockBuilderSplitNode(ibottom, ImGuiDir_Left, 0.4_c_float, idum, iright2)
 
