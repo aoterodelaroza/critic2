@@ -172,12 +172,23 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
-    ! initialization
+    ! initialization of the state
     w%isinit = .true.
+    w%firstpass = .true.
     w%isopen = isopen
     w%type = type
     w%id = -1
     w%name = ""
+    w%table_selected = 1
+    w%table_sortcid = 0
+    w%table_sortdir = 1
+    w%forceresize = .false.
+    w%forcesort = .false.
+    w%forceupdate = .false.
+    w%forceinit = .false.
+    w%inpcon_selected = 1
+    w%libraryfile_set = .false. ! whether the library file has been set by the user
+    w%libraryfile_read = .false. ! whether the structure list should be re-read from the lib
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
@@ -187,7 +198,6 @@ contains
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_data%molcubic = logical(.false.,c_bool)
     w%dialog_data%rborder = real(rborder_def*bohrtoa,c_float)
-    w%dialog_purpose = wpurp_unknown
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -213,12 +223,13 @@ contains
        call IGFD_Destroy(w%dptr)
 
     ! deallocate the rest of the data
-    w%dialog_purpose = wpurp_unknown
     w%isinit = .false.
     w%isopen = .false.
     w%id = -1
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
+    if (allocated(w%forceremove)) deallocate(w%forceremove)
+    w%libraryfile = ""
 
   end subroutine window_end
 
@@ -2294,8 +2305,10 @@ contains
     call update_window_id(idopenlibfile,oid)
     if (oid /= 0) then
        w%libraryfile_read = win(oid)%libraryfile_read
-       w%libraryfile_set = win(oid)%libraryfile_set
-       w%libraryfile = win(oid)%libraryfile
+       if (w%libraryfile_read) then
+          w%libraryfile_set = win(oid)%libraryfile_set
+          w%libraryfile = win(oid)%libraryfile
+       end if
     end if
 
     ! crystal or molecule, from library
