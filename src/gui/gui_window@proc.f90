@@ -1910,7 +1910,7 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new_struct(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -2108,82 +2108,84 @@ contains
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
     ! final buttons: ok
-    if (iw_button("OK")) then
-          ! build the input
-          lu = fopen_scratch("formatted")
+    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
+    ok = ok .or. iw_button("OK")
+    if (ok) then
+       ! build the input
+       lu = fopen_scratch("formatted")
 
-          ! symmetry and cell
-          if (.not.ismolecule) then
-             ! symmetry
-             if (symopt == 2) then
-                ! pass the spg string
-                write (lu,'("spg ",A)') string(ispg_selected)
-             elseif (symopt == 3) then
-                ! pass the symm keywords
-                call buffer_to_string_array(symopbuf,lu,prefix="symm ")
-             end if
+       ! symmetry and cell
+       if (.not.ismolecule) then
+          ! symmetry
+          if (symopt == 2) then
+             ! pass the spg string
+             write (lu,'("spg ",A)') string(ispg_selected)
+          elseif (symopt == 3) then
+             ! pass the symm keywords
+             call buffer_to_string_array(symopbuf,lu,prefix="symm ")
+          end if
 
-             ! cell
-             if (cellopt == 1) then
-                ! cell parameters
-                write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
-                   (string(bb(i),'f',decimal=10),i=1,3)
+          ! cell
+          if (cellopt == 1) then
+             ! cell parameters
+             write (lu,'("cell ",6(A," "),"ang")') (string(aa(i),'f',decimal=10),i=1,3), &
+                (string(bb(i),'f',decimal=10),i=1,3)
+          else
+             ! lattice vectors
+             write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
+             if (iunitcel == 1) then
+                write (lu,'("ang")')
              else
-                ! lattice vectors
-                write (lu,'("cartesian ",A)') string(scale,'f',decimal=10)
-                if (iunitcel == 1) then
-                   write (lu,'("ang")')
-                else
-                   write (lu,'("bohr")')
-                end if
-                call buffer_to_string_array(latvecbuf,lu)
-                write (lu,'("endcartesian")')
+                write (lu,'("bohr")')
              end if
+             call buffer_to_string_array(latvecbuf,lu)
+             write (lu,'("endcartesian")')
           end if
+       end if
 
-          ! atomic positions
-          if (ismolecule) then
-             iunitat = iunitat_m
-          else
-             iunitat = iunitat_c
-          end if
-          if (iunitat == 0) then
-             call buffer_to_string_array(atposbuf,lu,suffix=" bohr")
-          elseif (iunitat == 1) then
-             call buffer_to_string_array(atposbuf,lu,suffix=" ang")
-          else
-             call buffer_to_string_array(atposbuf,lu)
-          end if
+       ! atomic positions
+       if (ismolecule) then
+          iunitat = iunitat_m
+       else
+          iunitat = iunitat_c
+       end if
+       if (iunitat == 0) then
+          call buffer_to_string_array(atposbuf,lu,suffix=" bohr")
+       elseif (iunitat == 1) then
+          call buffer_to_string_array(atposbuf,lu,suffix=" ang")
+       else
+          call buffer_to_string_array(atposbuf,lu)
+       end if
 
-          ! molecular options
-          if (ismolecule) then
-             if (molcubic) write (lu,'("cubic")')
-             write (lu,'("border ",A)') string(rborder/bohrtoa,'f',decimal=10)
-          end if
+       ! molecular options
+       if (ismolecule) then
+          if (molcubic) write (lu,'("cubic")')
+          write (lu,'("border ",A)') string(rborder/bohrtoa,'f',decimal=10)
+       end if
 
-          write (lu,'("end")')
+       write (lu,'("end")')
 
-          ! generate the seed
-          rewind(lu)
-          if (allocated(seed_)) deallocate(seed_)
-          allocate(seed_(1))
-          if (ismolecule) then
-             call seed_(1)%parse_molecule_env(lu,ok)
-          else
-             call seed_(1)%parse_crystal_env(lu,ok)
-          end if
-          call fclose(lu)
+       ! generate the seed
+       rewind(lu)
+       if (allocated(seed_)) deallocate(seed_)
+       allocate(seed_(1))
+       if (ismolecule) then
+          call seed_(1)%parse_molecule_env(lu,ok)
+       else
+          call seed_(1)%parse_crystal_env(lu,ok)
+       end if
+       call fclose(lu)
 
-          ! load the system and initialize
-          if (ok.and.seed_(1)%isused) then
-             idx = index(namebuf,c_null_char)
-             seed_(1)%name = namebuf(1:idx-1)
-             call add_systems_from_seeds(1,seed_)
-             call launch_initialization_thread()
-             doquit = .true.
-          else
-             deallocate(seed_)
-          end if
+       ! load the system and initialize
+       if (ok.and.seed_(1)%isused) then
+          idx = index(namebuf,c_null_char)
+          seed_(1)%name = namebuf(1:idx-1)
+          call add_systems_from_seeds(1,seed_)
+          call launch_initialization_thread()
+          doquit = .true.
+       else
+          deallocate(seed_)
+       end if
     end if
 
     ! final buttons: cancel
@@ -2247,7 +2249,7 @@ contains
 
   !> Draw the contents of the new structure from library window.
   module subroutine draw_new_struct_from_library(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -2385,7 +2387,9 @@ contains
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
     ! final buttons: ok
-    ok = doubleclicked .or. iw_button("OK",disabled=(idopenlibfile /= 0))
+    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
+    ok = ok .or. doubleclicked
+    ok = ok .or. iw_button("OK",disabled=(idopenlibfile /= 0))
     ok = ok .and. (idopenlibfile == 0)
     if (ok) then
        nseed = count(lst(1:nst))
@@ -2417,10 +2421,10 @@ contains
     end if
 
     ! final buttons: cancel
-    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
+    if (iw_button("Cancel",disabled=(idopenlibfile /= 0),sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .and. idopenlibfile == 0) &
        doquit = .true.
 
     ! read the library file

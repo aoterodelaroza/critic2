@@ -33,9 +33,10 @@ module gui_keybindings
   integer, parameter, public :: BIND_NEW = 2 ! create new systems
   integer, parameter, public :: BIND_OPEN = 3 ! open systems
   integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 4 ! close focused dialog
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM = 5 ! tree: remove system
-  integer, parameter, public :: BIND_INPCON_RUN = 6 ! tree: remove system
-  integer, parameter, public :: BIND_NUM = 6 ! total number of binds
+  integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 5 ! OK focused dialog
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM = 6 ! tree: remove system
+  integer, parameter, public :: BIND_INPCON_RUN = 7 ! tree: remove system
+  integer, parameter, public :: BIND_NUM = 7 ! total number of binds
   ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
   ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
   ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis

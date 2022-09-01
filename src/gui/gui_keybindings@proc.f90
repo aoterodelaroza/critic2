@@ -31,6 +31,7 @@ submodule (gui_keybindings) proc
      "New                   ",& ! BIND_NEW
      "Open file(s)          ",& ! BIND_OPEN
      "Close focused dialog  ",& ! BIND_CLOSE_FOCUSED_DIALOG
+     "OK in focused dialog  ",& ! BIND_OK_FOCUSED_DIALOG
      "Remove selected system",& ! BIND_TREE_REMOVE_SYSTEM
      "Run the commands      "/) ! BIND_INPCON_RUN
   !   "Close last dialog",
@@ -50,11 +51,13 @@ submodule (gui_keybindings) proc
   integer, parameter :: group_global = 1
   integer, parameter :: group_tree = 2   ! if the tree is active
   integer, parameter :: group_inpcon = 3 ! the input console is active
+  integer, parameter :: group_dialog = 4 ! a dialog is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
      group_global,& ! BIND_OPEN
-     group_global,& ! BIND_CLOSE_FOCUSED_DIALOG
+     group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
+     group_dialog,& ! BIND_OK_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM
      group_inpcon/) ! BIND_INPCON_RUN
   !   1, // close last dialog
@@ -127,7 +130,6 @@ contains
        hk = hkey(oldkey,oldmod,group)
        if (keymap%iskey(hk)) call keymap%delkey(hk)
     end if
-
     ! unbind the previous owner of this key+mod combination in this group...
     call erase_bind(key,mod,group)
     if (group == group_global) then
@@ -163,6 +165,7 @@ contains
     call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
+    call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
