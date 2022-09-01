@@ -699,7 +699,7 @@ contains
           if (sysc(i)%collapse < 0) then
              if (igTableSetColumnIndex(ic_expandbutton)) then
                 ! expand button for multi-seed entries
-                str = "##expand" // string(ic_name) // "," // string(i) // c_null_char
+                str = "##expand" // string(ic_expandbutton) // "," // string(i) // c_null_char
                 if (sysc(i)%collapse == -1) then
                    idir = ImGuiDir_Right
                 else
@@ -754,6 +754,12 @@ contains
              end if
              str = str // trim(sysc(i)%seed%name)
              call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+             ! str = "bleh1" // c_null_char
+             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+             ! str = "bleh2" // c_null_char
+             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+             ! str = "bleh3" // c_null_char
+             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
           end if
 
           ! ID column

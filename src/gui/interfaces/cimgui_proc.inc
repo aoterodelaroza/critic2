@@ -580,7 +580,13 @@ end function igTreeNode_Str
 !x! bool igTreeNode_Ptr(const void* ptr_id,const char* fmt,...);
 !x! bool igTreeNodeV_Str(const char* str_id,const char* fmt,va_list args);
 !x! bool igTreeNodeV_Ptr(const void* ptr_id,const char* fmt,va_list args);
-!x! bool igTreeNodeEx_Str(const char* label,ImGuiTreeNodeFlags flags);
+! bool igTreeNodeEx_Str(const char* label,ImGuiTreeNodeFlags flags);
+function igTreeNodeEx_Str(label,flags) bind(c,name="igTreeNodeEx_Str")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int), value :: flags
+  logical(c_bool) :: igTreeNodeEx_Str
+end function igTreeNodeEx_Str
 !x! bool igTreeNodeEx_StrStr(const char* str_id,ImGuiTreeNodeFlags flags,const char* fmt,...);
 !x! bool igTreeNodeEx_Ptr(const void* ptr_id,ImGuiTreeNodeFlags flags,const char* fmt,...);
 !x! bool igTreeNodeExV_Str(const char* str_id,ImGuiTreeNodeFlags flags,const char* fmt,va_list args);
