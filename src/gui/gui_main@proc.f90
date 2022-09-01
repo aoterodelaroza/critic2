@@ -61,7 +61,7 @@ contains
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
-    integer :: i, j
+    integer :: i, j, ludum(10)
     logical :: firstpass
     integer(c_short), allocatable, target :: range(:)
 
@@ -74,6 +74,9 @@ contains
     nthread = omp_get_max_threads()
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
+    do i = 1, size(ludum,1)
+       ludum(i) = falloc()
+    end do
     do i = 1, nthread
        thread_ti(i)%id = i
        do j = 1, size(thread_ti(i)%lu,1)
@@ -84,6 +87,9 @@ contains
        do j = 1, size(thread_ti(i)%lu,1)
           call fdealloc(thread_ti(i)%lu(j))
        end do
+    end do
+    do i = 1, size(ludum,1)
+       call fdealloc(ludum(i))
     end do
 
     ! Parse the command line and read as many systems as possible

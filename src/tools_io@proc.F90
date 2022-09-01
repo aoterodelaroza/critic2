@@ -27,7 +27,7 @@ submodule (tools_io) proc
   real :: ctime0
 
   ! logical unit allocation
-  logical :: alloc(0:100) !< allocation flag array
+  logical :: alloc(0:300) !< allocation flag array
 
 contains
 
