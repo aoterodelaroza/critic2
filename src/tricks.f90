@@ -2163,13 +2163,20 @@ contains
 
   ! Compare structures, allowing deformation of one crystal into the other such
   ! as may be cause by temperature or pressure effects without a phase change.
-  !   TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r]
+  !
+  ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r]
+  ! 2:  TRICK COMPARE struct1 xyfile a b c alpha beta gamma ...
+  !
+  ! Mode 1: compare the two structures.
+  ! Mode 2: compare structure 1 with the diffraction pattern in the xyfile, which has
+  ! been indexed and has cell parameters a, b, c, alpha, beta, and gamma. The cell
+  ! lengths a, b, c must be given in ANGSTROM.
+  !
   ! If thr.r, then stop if the POWDIFF is below thr.r. If WRITE, write stucture 2
   ! to a file. If NOH, strip the hydrogens from the structure before comparing.
   ! Allow cell length elongations up to a factor me.r and angle
   ! deformation up to ma.r angle.
   subroutine trick_compare_deformed(line0)
-    use iso_c_binding, only: c_double
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit, fileroot
@@ -2179,12 +2186,12 @@ contains
        m_x2c_from_cellpar
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
        isreal, equal, lgetword
-    use param, only: pi, icrd_crys, eye
+    use param, only: pi, icrd_crys, eye, bohrtoa
     character*(*), intent(in) :: line0
 
     type(crystalseed) :: seed
     type(environ) :: e
-    integer :: lp, ierr, i, j
+    integer :: lp, lp2, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
@@ -2199,10 +2206,18 @@ contains
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
     logical :: ok, dowrite, noh
     real*8 :: powdiff_thr, max_elong, max_ang
+    real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
+    integer :: npts
+    ! for mode2: use an xy file
+    real*8 :: cellaa(3), cellbb(3), hxy
+    logical :: usexy
+    integer :: nxy
+    real*8, allocatable :: ttxy(:)
+    real*8, allocatable :: intxy(:)
 
-    real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 50d0
-    integer, parameter :: npts = 1001
+    real*8, parameter :: th2ini_def = 5d0
+    real*8, parameter :: th2end_def = 50d0
+    integer, parameter :: npts_def = 1001
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
@@ -2213,6 +2228,9 @@ contains
 
     ! header and initalization
     write (uout,'("* COMPARE, allowing for deformed cells")')
+    th2ini = th2ini_def
+    th2end = th2end_def
+    npts = npts_def
 
     ! read the input files
     lp = 1
@@ -2222,6 +2240,19 @@ contains
     file2 = getword(line0,lp)
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
+    lp2 = lp
+    ok = isreal(cellaa(1),line0,lp)
+    ok = ok .and. isreal(cellaa(2),line0,lp)
+    ok = ok .and. isreal(cellaa(3),line0,lp)
+    ok = ok .and. isreal(cellbb(1),line0,lp)
+    ok = ok .and. isreal(cellbb(2),line0,lp)
+    ok = ok .and. isreal(cellbb(3),line0,lp)
+    usexy = ok
+    if (ok) then
+       cellaa = cellaa / bohrtoa
+    else
+       lp = lp2
+    end if
 
     max_elong = max_elong_def
     max_ang = max_ang_def
@@ -2261,55 +2292,79 @@ contains
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
 
-    write (uout,'("+ Reading the structure from: ",A)') trim(file2)
-    call seed%read_any_file(file2,-1,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
-    if (noh) call seed%strip_hydrogens()
-    call c2%struct_new(seed,.true.)
-    call c2%calcsym(.false.,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
+    if (usexy) then
+       write (uout,'("+ Reading xy data from: ",A)') trim(file2)
+       call readxy()
+    else
+       ! read the second structure, force symmetry recalculation
+       write (uout,'("+ Reading the structure from: ",A)') trim(file2)
+       call seed%read_any_file(file2,-1,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
+       if (noh) call seed%strip_hydrogens()
+       call c2%struct_new(seed,.true.)
+       call c2%calcsym(.false.,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
+    end if
 
     ! check both are molecular crystals
     if (c1%ismolecule) &
        call ferror('trick_compare_defomred','structure 1 is a molecule',faterr)
-    if (c2%ismolecule) &
+    if (.not.usexy.and.c2%ismolecule) &
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
 
     ! get the Delaunay cell of both cells
     x0std1 = c1%cell_standard(.true.,.false.,.false.)
     !x0del1 = c1%cell_delaunay()
     x0del1 = c1%cell_niggli()
-    x0std2 = c2%cell_standard(.true.,.false.,.false.)
-    !x0del2 = c2%cell_delaunay()
-    x0del2 = c2%cell_niggli()
     if (all(abs(x0std1) < 1d-5)) x0std1 = eye
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
-    if (all(abs(x0std2) < 1d-5)) x0std2 = eye
-    if (all(abs(x0del2) < 1d-5)) x0del2 = eye
 
-    ! choose the largest crystal as the reference
-    if (c1%ncel >= c2%ncel) then
-       write (uout,'("+ Using as reference: ",A)') trim(file1)
-       write (uout,'("  The other crystal will be transformed to match the reference.")')
-    else
-       write (uout,'("+ Using as reference: ",A)') trim(file2)
-       write (uout,'("  The other crystal will be transformed to match the reference.")')
-       caux = c1
-       c1 = c2
-       c2 = caux
+    if (.not.usexy) then
+       x0std2 = c2%cell_standard(.true.,.false.,.false.)
+       !x0del2 = c2%cell_delaunay()
+       x0del2 = c2%cell_niggli()
+       if (all(abs(x0std2) < 1d-5)) x0std2 = eye
+       if (all(abs(x0del2) < 1d-5)) x0del2 = eye
     end if
 
-    ! some output for the first structure
+    ! choose the largest crystal as the reference
+    if (usexy) then
+       ! we will be modifying c2, so make a copy of c1
+       write (uout,'("+ Using as reference the powder diffraction pattern in: ",A)') trim(file2)
+       write (uout,'("  theta2 (initial) = ",A)') string(th2ini,'f',decimal=4)
+       write (uout,'("  theta2 (final) = ",A)') string(th2end,'f',decimal=4)
+       write (uout,'("  theta2 delta = ",A)') string(hxy,'e',decimal=4)
+       write (uout,'("  number of points = ",A)') string(nxy)
+       c2 = c1
+    else
+       if (c1%ncel >= c2%ncel) then
+          write (uout,'("+ Using as reference: ",A)') trim(file1)
+          write (uout,'("  The other crystal will be transformed to match the reference.")')
+       else
+          write (uout,'("+ Using as reference: ",A)') trim(file2)
+          write (uout,'("  The other crystal will be transformed to match the reference.")')
+          caux = c1
+          c1 = c2
+          c2 = caux
+       end if
+    end if
+
+    ! some output for the structures
     write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
     write (uout,'("# Structure 1: ")')
-    do i = 1, 3
-       write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
-          (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-          string(c1%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
-    end do
-    write (uout,'("  Angles (deg): ",3(A,X))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
+    if (usexy) then
+       write (uout,'("  Using cell lengths (ang) and angles: ",6(A,X))') &
+          (string(cellaa(j)*bohrtoa,'f',decimal=4),j=1,3), (string(cellbb(j),'f',decimal=2),j=1,3)
+    else
+       do i = 1, 3
+          write (uout,'(4X,A,": ",3(A,X)," length = ",A)') lvecname(i),&
+             (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(c1%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
+       end do
+       write (uout,'("  Angles (deg): ",3(A,X))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
+    end if
     write (uout,'("# Structure 2: ")')
     do i = 1, 3
        c2%aa(i) = norm2(c2%m_x2c(:,i))
@@ -2321,13 +2376,26 @@ contains
     write (uout,*)
 
     ! build the lattice vector environment for the second crystal
-    dmax0 = 0d0
-    do i = 1, 3
-       dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
-    end do
+    if (usexy) then
+       dmax0 = maxval(cellaa)
+    else
+       dmax0 = 0d0
+       do i = 1, 3
+          dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
+       end do
+    end if
     dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
     call e%build_lattice(c2%m_x2c,dmax0*2d0)
     call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
+
+    ! set target cell lengths and angles
+    if (usexy) then
+       targetaa = cellaa
+       targetbb = cellbb
+    else
+       targetaa = c1%aa
+       targetbb = c1%bb
+    end if
 
     ! output for the second structure and determine integer ranges
     n1 = 0
@@ -2340,17 +2408,17 @@ contains
        xx = e%xr2x(e%at(eid(i))%x)
 
        abc = ""
-       if (abs(dist(i) / c1%aa(1) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(1) - 1d0) < max_elong) then
           abc = trim(abc) // "1 "
           n1 = n1 + 1
           irange(n1,1) = i
        end if
-       if (abs(dist(i) / c1%aa(2) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(2) - 1d0) < max_elong) then
           abc = trim(abc) // "2 "
           n2 = n2 + 1
           irange(n2,2) = i
        end if
-       if (abs(dist(i) / c1%aa(3) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(3) - 1d0) < max_elong) then
           abc = trim(abc) // "3 "
           n3 = n3 + 1
           irange(n3,3) = i
@@ -2360,13 +2428,18 @@ contains
        write (uout,'(2X,6(A,X))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
           string(dist(i),'f',12,6,ioj_right), abc
 
-       if (all((dist(i) / c1%aa - 1d0) > max_elong)) exit
+       if (all((dist(i) / targetaa - 1d0) > max_elong)) exit
     end do
     write (uout,*)
 
-    ! calculate the powder of structure 1
-    h =  (th2end-th2ini) / real(npts-1,8)
-    call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+    ! calculate the powder of structure 1 (reference)
+    if (usexy) then
+       h = hxy
+       iha1 = intxy
+    else
+       h =  (th2end-th2ini) / real(npts-1,8)
+       call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+    end if
     tini = iha1(1)**2
     tend = iha1(npts)**2
     nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2398,7 +2471,11 @@ contains
 
     ! run over all permutations
     write (uout,'("+ Structural comparison of candidate structures")')
-    write (uout,'("# Reference structure is 1.")')
+    if (usexy) then
+       write (uout,'("# Reference is given powder diffraction pattern.")')
+    else
+       write (uout,'("# Reference structure is 1.")')
+    end if
     write (uout,'("# Structure 2 takes lattice vectors (a,b,c) from the list above.")')
     write (uout,'("# max-dlen = maximum difference in cell lengths (bohr).")')
     write (uout,'("# max-dang = maximum difference in angles (degree).")')
@@ -2427,7 +2504,7 @@ contains
              bb2(1) = acos(cc2(1)) * 180d0 / pi
              bb2(2) = acos(cc2(2)) * 180d0 / pi
              bb2(3) = acos(cc2(3)) * 180d0 / pi
-             if (any(abs(c1%bb - bb2) > max_ang)) cycle
+             if (any(abs(targetbb - bb2) > max_ang)) cycle
              xd2 = matmul(c2%m_c2x,cd2)
 
              ! check determinant
@@ -2439,13 +2516,15 @@ contains
              ! if (nint(abs(dd)) /= nint(c1%omega/c2%omega)) cycle
 
              ! check number of atoms
-             if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
+             if (.not.usexy) then
+                if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
+             end if
 
              ! make the new crystal
              c2del = c2
              call c2del%newcell(xd2,noenv=.true.)
-             c2del%aa = c1%aa
-             c2del%bb = c1%bb
+             c2del%aa = targetaa
+             c2del%bb = targetbb
              c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
              c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
              call matinv(c2del%grtensor,3)
@@ -2472,7 +2551,7 @@ contains
              ! write output
              write (uout,'(99(A,X))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
                 string(irange(i3,3),2,ioj_right),&
-                string(maxval(abs(c1%aa-aa2)),'f',8,4,ioj_right), string(maxval(abs(c1%bb-bb2)),'f',8,3,ioj_right),&
+                string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
                 string(diff,'f',10,7)
              if (mindiff < powdiff_thr) goto 999
           end do
@@ -2491,20 +2570,74 @@ contains
        call c2del%newcell(xd2min)
        call c2del%makeseed(seed,.false.)
        seed%useabr = 1
-       seed%aa = c1%aa
-       seed%bb = c1%bb
+       seed%aa = targetaa
+       seed%bb = targetbb
        seed%findsym = 0
        call c2del%struct_new(seed,.true.)
 
        ! write both to a res file
-       file1 = fileroot // "_structure_1.res"
-       write (uout,'("+ Structure 1 written to file: ",A)') trim(file1)
-       call c1%write_res(file1,-1)
+       if (.not.usexy) then
+          file1 = fileroot // "_structure_1.res"
+          write (uout,'("+ Structure 1 written to file: ",A)') trim(file1)
+          call c1%write_res(file1,-1)
+       end if
 
        file2 = fileroot // "_structure_2.res"
        write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
        call c2del%write_res(file2,-1)
     end if
+
+  contains
+
+    !> Read the xy file and set the th2ini, th2end, and npts.
+    subroutine readxy()
+      use tools_io, only: fopen_read, fclose, getline, isreal, ferror, faterr,&
+         string
+      use types, only: realloc
+
+      integer :: lu, lp
+      character(len=:), allocatable :: line
+      logical :: ok
+      real*8 :: xtt, xint
+
+      nxy = 0
+      if (allocated(ttxy)) deallocate(ttxy)
+      if (allocated(intxy)) deallocate(intxy)
+      allocate(ttxy(1000),intxy(1000))
+
+      lu = fopen_read(file2)
+      do while (getline(lu,line))
+         lp = 1
+         ok = isreal(xtt,line,lp)
+         ok = ok .and. isreal(xint,line,lp)
+         if (.not.ok) call ferror('trick_compare_deformed','error reading xy file in line: ' // trim(line),faterr)
+
+         nxy = nxy + 1
+         if (nxy > size(ttxy,1)) then
+            call realloc(ttxy,2*nxy)
+            call realloc(intxy,2*nxy)
+         end if
+         ttxy(nxy) = xtt
+         intxy(nxy) = xint
+
+         if (nxy == 2) then
+            hxy = ttxy(2) - ttxy(1)
+         elseif (nxy > 2) then
+            if (abs(ttxy(nxy) - ttxy(nxy-1) - hxy) > 1d-5) &
+               call ferror('trick_compare_deformed','data in xy file (at ' // string(ttxy(nxy),'f',decimal=4) // &
+               ') not uniformly spaced',faterr)
+         end if
+      end do
+      call fclose(lu)
+
+      ! calculate the new powdiff parameters
+      call realloc(ttxy,nxy)
+      call realloc(intxy,nxy)
+      th2ini = ttxy(1)
+      th2end = ttxy(nxy)
+      npts = nxy
+
+    end subroutine readxy
 
   end subroutine trick_compare_deformed
 
