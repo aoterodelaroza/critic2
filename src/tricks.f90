@@ -2209,10 +2209,9 @@ contains
     real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
     integer :: npts
     ! for mode2: use an xy file
-    real*8 :: cellaa(3), cellbb(3), hxy
+    real*8 :: cellaa(3), cellbb(3)
     logical :: usexy
     integer :: nxy
-    real*8, allocatable :: ttxy(:)
     real*8, allocatable :: intxy(:)
 
     real*8, parameter :: th2ini_def = 5d0
@@ -2335,7 +2334,7 @@ contains
        write (uout,'("+ Using as reference the powder diffraction pattern in: ",A)') trim(file2)
        write (uout,'("  theta2 (initial) = ",A)') string(th2ini,'f',decimal=4)
        write (uout,'("  theta2 (final) = ",A)') string(th2end,'f',decimal=4)
-       write (uout,'("  theta2 delta = ",A)') string(hxy,'e',decimal=4)
+       write (uout,'("  theta2 delta = ",A)') string((th2end-th2ini)/real(nxy-1,8),'e',decimal=4)
        write (uout,'("  number of points = ",A)') string(nxy)
        c2 = c1
     else
@@ -2433,11 +2432,10 @@ contains
     write (uout,*)
 
     ! calculate the powder of structure 1 (reference)
+    h = (th2end-th2ini) / real(npts-1,8)
     if (usexy) then
-       h = hxy
        iha1 = intxy
     else
-       h =  (th2end-th2ini) / real(npts-1,8)
        call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
     end if
     tini = iha1(1)**2
@@ -2449,8 +2447,8 @@ contains
 
     ! calculate the powder of structure 2 and prepare
     c2del = c2
-    c2del%aa = c1%aa
-    c2del%bb = c1%bb
+    c2del%aa = targetaa
+    c2del%bb = targetbb
     c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
     c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
     call matinv(c2del%grtensor,3)
@@ -2598,10 +2596,10 @@ contains
       integer :: lu, lp
       character(len=:), allocatable :: line
       logical :: ok
-      real*8 :: xtt, xint
+      real*8 :: xtt, xint, hxy
+      real*8, allocatable :: ttxy(:)
 
       nxy = 0
-      if (allocated(ttxy)) deallocate(ttxy)
       if (allocated(intxy)) deallocate(intxy)
       allocate(ttxy(1000),intxy(1000))
 
@@ -2636,6 +2634,7 @@ contains
       th2ini = ttxy(1)
       th2end = ttxy(nxy)
       npts = nxy
+      deallocate(ttxy)
 
     end subroutine readxy
 
