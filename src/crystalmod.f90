@@ -487,19 +487,22 @@ module crystalmod
        integer, intent(in), optional :: isnew(:)
        logical, intent(in), optional :: noenv
      end subroutine newcell
-     module function cell_standard(c,toprim,doforce,refine) result(x0)
+     module function cell_standard(c,toprim,doforce,refine,noenv) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
        logical, intent(in) :: refine
+       logical, intent(in), optional :: noenv
        real*8 :: x0(3,3)
      end function cell_standard
-     module function cell_niggli(c) result(x0)
+     module function cell_niggli(c,noenv) result(x0)
        class(crystal), intent(inout) :: c
+       logical, intent(in), optional :: noenv
        real*8 :: x0(3,3)
      end function cell_niggli
-     module function cell_delaunay(c) result(x0)
+     module function cell_delaunay(c,noenv) result(x0)
        class(crystal), intent(inout) :: c
+       logical, intent(in), optional :: noenv
        real*8 :: x0(3,3)
      end function cell_delaunay
      module subroutine struct_report(c,lcrys,lq)

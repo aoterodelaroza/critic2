@@ -2314,16 +2314,16 @@ contains
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
 
     ! get the Delaunay cell of both cells
-    x0std1 = c1%cell_standard(.true.,.false.,.false.)
-    !x0del1 = c1%cell_delaunay()
-    x0del1 = c1%cell_niggli()
+    x0std1 = c1%cell_standard(.true.,.false.,.false.,noenv=.true.)
+    !x0del1 = c1%cell_delaunay(noenv=.true.)
+    x0del1 = c1%cell_niggli(noenv=.true.)
     if (all(abs(x0std1) < 1d-5)) x0std1 = eye
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
 
     if (.not.usexy) then
-       x0std2 = c2%cell_standard(.true.,.false.,.false.)
-       !x0del2 = c2%cell_delaunay()
-       x0del2 = c2%cell_niggli()
+       x0std2 = c2%cell_standard(.true.,.false.,.false.,noenv=.true.)
+       !x0del2 = c2%cell_delaunay(noenv=.true.)
+       x0del2 = c2%cell_niggli(noenv=.true.)
        if (all(abs(x0std2) < 1d-5)) x0std2 = eye
        if (all(abs(x0del2) < 1d-5)) x0del2 = eye
     end if

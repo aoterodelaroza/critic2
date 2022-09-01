@@ -1864,7 +1864,6 @@ contains
     real*8, parameter :: theps = 1d-5
     real*8, parameter :: iepscont = 1d-10
     real*8, parameter :: intmax = 1d15
-    real*8, parameter :: ihagain = 1d-10
 
     ! calculate tshift
     if (.not.ishard) then
@@ -1974,9 +1973,9 @@ contains
 
                 ! sum the peak
                 if (int > ieps) then
+                   again = .true.
                    ! use a gaussian profile, add the intensity
                    isum = int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
-                   if (any(isum > ihagain)) again = .true.
                    ih = ih + isum
 
                    ! identify the new peak
@@ -2765,7 +2764,7 @@ contains
   !> transformation to the primitive even if it does not lead to a
   !> smaller cell. Return the transformation matrix, or a matrix
   !> of zeros if no change was done.
-  module function cell_standard(c,toprim,doforce,refine) result(x0)
+  module function cell_standard(c,toprim,doforce,refine,noenv) result(x0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell
     use global, only: symprec
@@ -2777,6 +2776,7 @@ contains
     logical, intent(in) :: toprim
     logical, intent(in) :: doforce
     logical, intent(in) :: refine
+    logical, intent(in), optional :: noenv
     real*8 :: x0(3,3)
 
     integer :: ntyp, nat
@@ -2821,12 +2821,12 @@ contains
 
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
     if (refine) then
-       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_)
+       call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_,noenv=noenv)
     else
        ! if a primitive is wanted but det is not less than 1, do not make the change
        if (all(abs(rmat - eye) < symprec)) return
        if (toprim .and. .not.(det3(rmat) < 1d0-symprec) .and..not.doforce) return
-       call c%newcell(rmat)
+       call c%newcell(rmat,noenv=noenv)
     end if
     x0 = rmat
 
@@ -2834,13 +2834,14 @@ contains
 
   !> Transform to the Niggli cell. Return the transformation matrix,
   !> or a matrix of zeros if no change was done.
-  module function cell_niggli(c) result(x0)
+  module function cell_niggli(c,noenv) result(x0)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
+    logical, intent(in), optional :: noenv
     real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
@@ -2866,7 +2867,7 @@ contains
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
-       call c%newcell(rmat)
+       call c%newcell(rmat,noenv=noenv)
        x0 = rmat
     end if
 
@@ -2874,13 +2875,14 @@ contains
 
   !> Transform to the Delaunay cell. Return the transformation matrix,
   !> or a matrix of zeros if no change was done.
-  module function cell_delaunay(c) result(x0)
+  module function cell_delaunay(c,noenv) result(x0)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
     use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
+    logical, intent(in), optional :: noenv
     real*8 :: x0(3,3)
 
     real*8 :: rmat(3,3)
@@ -2906,7 +2908,7 @@ contains
 
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
-       call c%newcell(rmat)
+       call c%newcell(rmat,noenv=noenv)
        x0 = rmat
     end if
 
