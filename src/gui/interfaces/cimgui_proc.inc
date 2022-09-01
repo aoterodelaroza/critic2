@@ -2207,6 +2207,11 @@ subroutine IGFD_ForceQuit(vContext) bind(c,name="IGFD_ForceQuit")
   import c_ptr
   type(c_ptr), value :: vContext
 end subroutine IGFD_ForceQuit
+! IMGUIFILEDIALOG_API void IGFD_ForceOK(ImGuiFileDialog* vContext)
+subroutine IGFD_ForceOK(vContext) bind(c,name="IGFD_ForceOK")
+  import c_ptr
+  type(c_ptr), value :: vContext
+end subroutine IGFD_ForceOK
 ! IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext){
 function IGFD_GetCurrentWindow(vContext) bind(c,name="IGFD_GetCurrentWindow")
   import c_ptr

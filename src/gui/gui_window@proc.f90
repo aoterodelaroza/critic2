@@ -1161,7 +1161,7 @@ contains
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
@@ -1251,6 +1251,10 @@ contains
     ! exit if focused and received the close keybinding
     if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
        call IGFD_ForceQuit(w%dptr)
+
+    ! exit if focused and received the OK keybinding
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) &
+       call IGFD_ForceOK(w%dptr)
 
   end subroutine draw_dialog
 

@@ -4184,6 +4184,10 @@ namespace IGFD
 		auto& fdFile = prFileDialogInternal.puFileManager;
 		if (prFileDialogInternal.puCanWeContinue && strlen(fdFile.puFileNameBuffer))
 		{
+    		        if (prFileDialogInternal.forceOKDialog){
+    		                prFileDialogInternal.puIsOk = true;
+    		                return true;
+    		        }
 			if (IMGUI_BUTTON(okButtonString "##validationdialog", ImVec2(okButtonWidth, 0.0f)) || prFileDialogInternal.puIsOk)
 			{
 				prFileDialogInternal.puIsOk = true;
@@ -4194,6 +4198,8 @@ namespace IGFD
 			ImGui::SameLine();
 #endif
 
+		} else {
+		  prFileDialogInternal.forceOKDialog = false;
 		}
 
 		return false;
@@ -5111,6 +5117,13 @@ IMGUIFILEDIALOG_API void IGFD_ForceQuit(ImGuiFileDialog* vContext)
 {
   if (vContext)
     vContext->ForceQuit();
+}
+
+// force-quit the instance of ImGuiFileDialog
+IMGUIFILEDIALOG_API void IGFD_ForceOK(ImGuiFileDialog* vContext)
+{
+  if (vContext)
+    vContext->ForceOK();
 }
 
 IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext){

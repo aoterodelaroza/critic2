@@ -1497,6 +1497,7 @@ namespace IGFD
 		float puDLGoptionsPaneWidth = 0.0f;
 		bool puNeedToExitDialog = false;
                 bool forceExitDialog = false;
+                bool forceOKDialog = false;
 
 		bool puUseCustomLocale = false;
 		int puLocaleCategory = LC_ALL;	// locale category to use
@@ -1541,6 +1542,7 @@ namespace IGFD
 
                 // force-quit
 	        void ForceQuit(){ prFileDialogInternal.forceExitDialog = true; }
+	        void ForceOK(){ prFileDialogInternal.forceOKDialog = true; }
 	        void *GetCurrentWindow(){ return currentwindow; }
 
 	        // set the flags
@@ -1748,6 +1750,8 @@ IMGUIFILEDIALOG_API void IGFD_Destroy(ImGuiFileDialog* vContext);									// des
 typedef void (*IGFD_PaneFun)(const char*, void*, bool*);											// callback fucntion for display the pane
 
 IMGUIFILEDIALOG_API void IGFD_ForceQuit(ImGuiFileDialog* vContext);
+
+IMGUIFILEDIALOG_API void IGFD_ForceOK(ImGuiFileDialog* vContext);
 
 IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext);
 
