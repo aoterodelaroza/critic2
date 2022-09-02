@@ -75,8 +75,8 @@ submodule (gui_window) proc
   integer(c_size_t), parameter :: maxcomout = 20000000 ! maximum command size
 
   !xx! private procedures
-  ! function tree_tooltip_string(i)
-  ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
+  ! function tree_system_tooltip_string(i)
+  ! function tree_field_tooltip_string(si,fj)
   ! subroutine get_library_structure_list(libfile,nst,st,ismol)
   ! subroutine draw_spg_table(ispg)
 
@@ -397,7 +397,7 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
+    character(kind=c_char,len=:), allocatable, target :: str, zeroc
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
@@ -775,6 +775,7 @@ contains
                    if (k < sys(i)%nf) call iw_text("┌",noadvance=.true.)
                    str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // c_null_char
                    ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                   call iw_tooltip(tree_field_tooltip_string(i,k),ttshown)
                 end do
              end if
           end if
@@ -901,7 +902,7 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,bclose,bexpand)
-      use gui_main, only: tree_select_updates_inpcon, g
+      use gui_main, only: tree_select_updates_inpcon
       use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
@@ -910,7 +911,7 @@ contains
 
       real(c_float) :: pos
       integer(c_int) :: flags, ll
-      logical(c_bool) :: selected, enabled, ok
+      logical(c_bool) :: selected, enabled
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
@@ -986,7 +987,7 @@ contains
          elseif (bexpand) then
             strl = "Expand this system" // c_null_char
          else
-            strl = tree_tooltip_string(isys)
+            strl = tree_system_tooltip_string(isys)
          end if
          call igSetTooltip(c_loc(strl))
       end if
@@ -2529,7 +2530,7 @@ contains
 
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system i.
-  function tree_tooltip_string(i) result(str)
+  function tree_system_tooltip_string(i) result(str)
     use crystalmod, only: pointgroup_info, holo_string
     use gui_main, only: sys, sysc, nsys, sys_init
     use tools_io, only: string
@@ -2664,7 +2665,183 @@ contains
     str = str // newline // "[Right-click for options]" // newline
     str = str // c_null_char
 
-  end function tree_tooltip_string
+  end function tree_system_tooltip_string
+
+  ! Return the string for the tooltip shown by the tree window,
+  ! corresponding to system si and field fj
+  function tree_field_tooltip_string(si,fj) result(str)
+    use gui_main, only: sys, sysc, nsys, sys_init
+    use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
+       type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
+       wfn_rhf, wfn_uhf, wfn_frac
+    use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
+       mode_smr
+    use tools_io, only: string, nameguess
+    use param, only: newline, maxzat0
+    integer, intent(in) :: si, fj
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    integer :: i
+    type(field), pointer :: f
+
+    str = ""
+    if (si < 1 .or. si > nsys) return
+    if (sysc(si)%status /= sys_init) return
+    if (fj < 0 .or. fj > sys(si)%nf) return
+    if (.not. sys(si)%f(fj)%isinit) return
+    f => sys(si)%f(fj)
+
+    ! file
+    str = "||" // trim(f%name) // "||" // newline
+
+    ! type and type-specific info
+    select case (f%type)
+    case (type_uninit)
+       str = str // "???" // newline
+
+    case (type_promol)
+       str = str // "Promolecular density" // newline
+
+    case (type_grid)
+       str = str // "Grid field, with " // string(f%grid%n(1)) // "x" // string(f%grid%n(2)) // "x" //&
+          string(f%grid%n(3)) // " points" // newline
+       if (f%grid%isqe) then
+          str = str // "Plane-wave Kohn-Sham states available: spin=" // string(f%grid%qe%nspin) //&
+             ", k-points=" // string(f%grid%qe%nks) // ", bands=" // string(f%grid%qe%nbnd) // newline
+       end if
+       if (f%grid%iswan) then
+          str = str // "Wannier function info available: " // string(f%grid%qe%nk(1)) // "x" //&
+             string(f%grid%qe%nk(2)) // "x" // string(f%grid%qe%nk(3)) // newline
+       end if
+       str = str // newline
+
+       str = str // "Longest Voronoi vector (bohr): " // string(f%grid%dmax,'f',decimal=5) // newline
+       str = str // "Grid integral: " // &
+          string(sum(f%grid%f) * f%c%omega / real(product(f%grid%n),4),'f',decimal=8) // newline
+       str = str // "Minimum value: " // string(minval(f%grid%f),'e',decimal=4) // newline
+       str = str // "Average: " // string(sum(f%grid%f) / real(product(f%grid%n),4),'e',decimal=8) // newline
+       str = str // "Maximum value: " // string(maxval(f%grid%f),'e',decimal=4) // newline
+       str = str // "Interpolation mode: "
+       select case (f%grid%mode)
+       case(mode_nearest)
+          str = str // "nearest grid node value" // newline
+       case(mode_trilinear)
+          str = str // "tri-linear" // newline
+       case(mode_trispline)
+          str = str // "tri-spline" // newline
+       case(mode_tricubic)
+          str = str // "tri-cubic" // newline
+       case(mode_smr)
+          str = str // "smooth all-electron density with " // string(f%grid%smr_nenv) //&
+             " stencil nodes and " // string(f%grid%smr_fdmax,'f',decimal=4) //&
+             " smoothing dmax factor" // newline
+       end select
+
+    case (type_wien)
+       str = str // "WIEN2k spherical harmonic + plane waves" // newline // newline
+
+       str = str // "Complex: " // string(f%wien%cmpl) // newline
+       str = str // "Spherical harmonics expansion LMmax: " // string(size(f%wien%lm,2)) // newline
+       str = str // "Max. points in radial grid: " // string(size(f%wien%slm,1)) // newline
+       str = str // "Total number of plane waves: " // string(f%wien%nwav) // newline
+       str = str // "Density-style normalization: " // string(f%wien%cnorm) // newline
+
+    case (type_elk)
+       str = str // "Elk spherical harmonic + plane waves" // newline // newline
+
+       str = str // "Number of LM pairs: " // string(size(f%elk%rhomt,2)) // newline
+       str = str // "Max. points in radial grid: " // string(size(f%elk%rhomt,1)) // newline
+       str = str // "Total number of plane waves: " // string(size(f%elk%rhok)) // newline
+
+    case (type_pi)
+       str = str // "aiPI atomic radial functions" // newline // newline
+
+       str = str // "Exact calculation: " // string(f%exact) // newline
+       do i = 1, f%c%nspc
+          str = str // string(f%c%spc(f%c%at(i)%is)%name,length=5) //&
+             ": " // string(f%pi%bas(i)%piname) // newline
+       end do
+
+    case (type_wfn)
+       str = str // "Molecular wavefunction "
+       if (f%wfn%issto) then
+          str = str // "(Slater-type orbitals)"
+       else
+          str = str // "(Gaussian-type orbitals)"
+       end if
+       str = str // newline // newline
+
+       if (f%wfn%molden_type == molden_type_orca) then
+          str = str // "Molden file dialect: orca" // newline
+       else if (f%wfn%molden_type == molden_type_psi4) then
+          str = str // "Molden file dialect: psi4" // newline
+       else if (f%wfn%molden_type == molden_type_adf_sto) then
+          str = str // "Molden file dialect: ADF (STOs)"  // newline
+       end if
+       if (f%wfn%wfntyp == wfn_rhf) then
+          str = str // "Wavefunction type: restricted" // newline
+          str = str // "Number of MOs (total): " // string(f%wfn%nmoall) // newline
+          str = str // "Number of MOs (occupied): " // string(f%wfn%nmoocc) // newline
+       elseif (f%wfn%wfntyp == wfn_uhf) then
+          str = str // "Wavefunction type: unrestricted" // newline
+          str = str // "Number of MOs (total): " // string(f%wfn%nmoall) //&
+             " (alpha=" // string(f%wfn%nalpha+f%wfn%nalpha_virt) // ",beta=" //&
+             string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt)) // newline
+          str = str // "Number of MOs (occupied): " // string(f%wfn%nmoocc) //&
+             " (alpha=" // string(f%wfn%nalpha) // ",beta=" // string(f%wfn%nmoocc-f%wfn%nalpha) // newline
+       elseif (f%wfn%wfntyp == wfn_frac) then
+          str = str // "Wavefunction type: fractional occupation" // newline
+          str = str // "Number of MOs: " // string(f%wfn%nmoocc) // newline
+          str = str // "Number of electrons: " // string(nint(sum(f%wfn%occ(1:f%wfn%nmoocc)))) // newline
+       end if
+       str = str // "Number of primitives: " // string(f%wfn%npri) // newline
+       str = str // "Number of EDFs: " // string(f%wfn%nedf) // newline
+
+    case (type_dftb)
+       str = str // "DFTB+, linear combination of atomic orbitals" // newline // newline
+
+       str = str // "Number of states: " // string(f%dftb%nstates) // newline
+       str = str // "Number of spin channels: " // string(f%dftb%nspin) // newline
+       str = str // "Number of orbitals: " // string(f%dftb%norb) // newline
+       str = str // "Number of kpoints: " // string(f%dftb%nkpt) // newline
+       str = str // "Real wavefunction? " // string(f%dftb%isreal) // newline
+       str = str // "Exact calculation? " // string(f%exact) // newline
+
+    case (type_promol_frag)
+       str = str // "Promolecular with fragment" // newline // newline
+
+       str = str // "Number of atoms in fragment: " // string(f%fr%nat) // newline
+
+    case (type_ghost)
+       str = str // "Ghost field" // newline // newline
+
+       str = str // "Expression: " // string(f%expr)
+
+    case default
+       str = str // "???" // newline // newline
+    end select
+    str = str // "Use core densities: " // string(f%usecore) // newline
+    if (any(f%zpsp > 0)) then
+       str = str // "Core charges (ZPSP): "
+       do i = 1, maxzat0
+          if (f%zpsp(i) > 0) then
+             str = str // string(nameguess(i,.true.)) // "(" // string(f%zpsp(i)) // ") "
+          end if
+       end do
+       str = str // newline
+    end if
+    str = str // "Numerical derivatives: " // string(f%numerical) // newline // newline
+
+    ! critical points
+    str = str // "Non-equivalent critical points: " // string(f%ncp) // newline
+    str = str // "Cell critical points: " // string(f%ncpcel) // newline
+
+    ! last message
+    str = str // newline // "[Right-click for options]" // newline
+    str = str // c_null_char
+
+  end function tree_field_tooltip_string
 
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
