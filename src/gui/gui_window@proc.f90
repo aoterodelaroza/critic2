@@ -944,6 +944,8 @@ contains
          w%table_selected = isys
          if (tree_select_updates_inpcon) &
             win(iwin_console_input)%inpcon_selected = isys
+         if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
+            sysc(isys)%showfields = .true.
       end if
       call igSameLine(0._c_float,-1._c_float)
       call igSetCursorPosX(pos)
