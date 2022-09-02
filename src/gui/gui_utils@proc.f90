@@ -178,26 +178,35 @@ contains
   !> Draw text. If highlight, use the highlight color. If disabled,
   !> use the disabled font. If sameline, draw it in the same line as
   !> the previous widget.
-  module subroutine iw_text(str,highlight,disabled,sameline)
+  module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance)
     use gui_interfaces_cimgui
     use gui_main, only: ColorHighlightText
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: sameline_nospace
     logical, intent(in), optional :: disabled
+    logical, intent(in), optional :: noadvance
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
-    logical :: highlight_, disabled_, sameline_
+    logical :: highlight_, disabled_, sameline_, sameline_nospace_, noadvance_
+    real(c_float) :: pos
 
     highlight_ = .false.
     sameline_ = .false.
+    sameline_nospace_ = .false.
     disabled_ = .false.
+    noadvance_ = .false.
     if (present(highlight)) highlight_ = highlight
     if (present(sameline)) sameline_ = sameline
+    if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
     if (present(disabled)) disabled_ = disabled
+    if (present(noadvance)) noadvance_ = noadvance
 
+    if (noadvance_) pos = igGetCursorPosX()
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
     str1 = str // c_null_char
     if (disabled_) then
        call igTextDisabled(c_loc(str1))
@@ -205,6 +214,10 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str1))
     else
        call igText(c_loc(str1))
+    end if
+    if (noadvance_) then
+       call igSameLine(0._c_float,0._c_float)
+       call igSetCursorPosX(pos)
     end if
 
   end subroutine iw_text

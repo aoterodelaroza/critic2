@@ -752,9 +752,7 @@ contains
              str = "✳##" // string(ic_name) // "," // string(i) // c_null_char
              sz%x = iw_calcwidth(1,1)
              sz%y = iw_calcheight(1,0)
-             !if (igButton(c_loc(str),sz)) sysc(i)%showfields = .not.sysc(i)%showfields
              if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
-             call igSameLine(0._c_float,0._c_float)
 
              ! the actual name
              str = ""
@@ -768,15 +766,16 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+             call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.)
 
              if (sysc(i)%showfields) then
-                str = "bleh1" // c_null_char
-                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
-                str = "bleh2" // c_null_char
-                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
-                str = "bleh3" // c_null_char
-                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                do k = 0, sys(i)%nf
+                   if (.not.sys(i)%f(k)%isinit) cycle
+                   call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
+                   if (k < sys(i)%nf) call iw_text("┌",noadvance=.true.)
+                   str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // c_null_char
+                   ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                end do
              end if
           end if
 
@@ -902,7 +901,7 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,bclose,bexpand)
-      use gui_main, only: tree_select_updates_inpcon
+      use gui_main, only: tree_select_updates_inpcon, g
       use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
@@ -911,7 +910,7 @@ contains
 
       real(c_float) :: pos
       integer(c_int) :: flags, ll
-      logical(c_bool) :: selected, enabled
+      logical(c_bool) :: selected, enabled, ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 

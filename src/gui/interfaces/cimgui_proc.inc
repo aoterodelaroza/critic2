@@ -900,8 +900,16 @@ end function igIsItemActivated
 !x! bool igIsAnyItemHovered(void);
 !x! bool igIsAnyItemActive(void);
 !x! bool igIsAnyItemFocused(void);
-!x! void igGetItemRectMin(ImVec2 *pOut);
-!x! void igGetItemRectMax(ImVec2 *pOut);
+! void igGetItemRectMin(ImVec2 *pOut);
+subroutine igGetItemRectMin(pOut) bind(c,name="igGetItemRectMin")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetItemRectMin
+! void igGetItemRectMax(ImVec2 *pOut);
+subroutine igGetItemRectMax(pOut) bind(c,name="igGetItemRectMax")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetItemRectMax
 !x! void igGetItemRectSize(ImVec2 *pOut);
 ! void igSetItemAllowOverlap(void);
 subroutine igSetItemAllowOverlap() bind(c,name="igSetItemAllowOverlap")
@@ -976,10 +984,21 @@ function igIsMouseDoubleClicked(button) bind(c,name="igIsMouseDoubleClicked")
   logical(c_bool) :: igIsMouseDoubleClicked
 end function igIsMouseDoubleClicked
 !x! int igGetMouseClickedCount(ImGuiMouseButton button);
-!x! bool igIsMouseHoveringRect(const ImVec2 r_min,const ImVec2 r_max,bool clip);
+! bool igIsMouseHoveringRect(const ImVec2 r_min,const ImVec2 r_max,bool clip);
+function igIsMouseHoveringRect(r_min,r_max,clip) bind(c,name="igIsMouseHoveringRect")
+  import ImVec2, c_bool
+  type(ImVec2), intent(in), value :: r_min
+  type(ImVec2), intent(in), value :: r_max
+  logical(c_bool), value :: clip
+  logical(c_bool) :: igIsMouseHoveringRect
+end function igIsMouseHoveringRect
 !x! bool igIsMousePosValid(const ImVec2* mouse_pos);
 !x! bool igIsAnyMouseDown(void);
-!x! void igGetMousePos(ImVec2 *pOut);
+! void igGetMousePos(ImVec2 *pOut);
+subroutine igGetMousePos(pOut) bind(c,name="igGetMousePos")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetMousePos
 !x! void igGetMousePosOnOpeningCurrentPopup(ImVec2 *pOut);
 !x! bool igIsMouseDragging(ImGuiMouseButton button,float lock_threshold);
 !x! void igGetMouseDragDelta(ImVec2 *pOut,ImGuiMouseButton button,float lock_threshold);
