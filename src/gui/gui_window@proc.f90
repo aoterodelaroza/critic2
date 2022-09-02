@@ -397,7 +397,7 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, zeroc
+    character(kind=c_char,len=:), allocatable, target :: str, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
@@ -744,12 +744,17 @@ contains
              call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
 
              ! expand button
+             if (sysc(i)%showfields) then
+                ch = "▼"
+             else
+                ch = "▶"
+             end if
              pos = igGetCursorPosX()
              call igSetCursorPosX(pos + g%Style%FramePadding%x)
-             call iw_text("✳")
+             call iw_text(ch)
              call igSameLine(0._c_float,-1._c_float)
              call igSetCursorPosX(pos)
-             str = "✳##" // string(ic_name) // "," // string(i) // c_null_char
+             str = ch // "##" // string(ic_name) // "," // string(i) // c_null_char
              sz%x = iw_calcwidth(1,1)
              sz%y = iw_calcheight(1,0)
              if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
