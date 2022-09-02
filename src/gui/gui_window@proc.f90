@@ -390,7 +390,7 @@ contains
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
-       ColorDangerButton, g
+       ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -401,7 +401,7 @@ contains
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel
-    logical(c_bool) :: ldum
+    logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
@@ -768,13 +768,29 @@ contains
              str = str // trim(sysc(i)%seed%name)
              call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.)
 
+             ! the fields
              if (sysc(i)%showfields) then
                 do k = 0, sys(i)%nf
                    if (.not.sys(i)%f(k)%isinit) cycle
                    call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
                    if (k < sys(i)%nf) call iw_text("┌",noadvance=.true.)
-                   str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // c_null_char
-                   ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                   if (sys(i)%iref == k) then
+                      str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
+                         string(i) // "," // string(k) // c_null_char
+                   else
+                      str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
+                         string(i) // "," // string(k) // c_null_char
+                   end if
+                   isel = (w%table_selected==i) .and. (sys(i)%iref == k)
+                   call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
+                   flags = ImGuiSelectableFlags_SpanAllColumns
+                   if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
+                      w%table_selected = i
+                      if (tree_select_updates_inpcon) &
+                         win(iwin_console_input)%inpcon_selected = i
+                      call sys(i)%set_reference(k,.false.)
+                   end if
+                   call igPopStyleColor(1)
                    call iw_tooltip(tree_field_tooltip_string(i,k),ttshown)
                 end do
              end if
@@ -902,7 +918,6 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,bclose,bexpand)
-      use gui_main, only: tree_select_updates_inpcon
       use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
@@ -2694,14 +2709,16 @@ contains
 
     ! file
     str = "||" // trim(f%name) // "||" // newline
+    if (sys(si)%iref == fj) &
+       str = str // "## Reference field for this system ##" // newline
 
     ! type and type-specific info
     select case (f%type)
     case (type_uninit)
-       str = str // "???" // newline
+       str = str // "???" // newline // newline
 
     case (type_promol)
-       str = str // "Promolecular density" // newline
+       str = str // "Promolecular density" // newline // newline
 
     case (type_grid)
        str = str // "Grid field, with " // string(f%grid%n(1)) // "x" // string(f%grid%n(2)) // "x" //&
