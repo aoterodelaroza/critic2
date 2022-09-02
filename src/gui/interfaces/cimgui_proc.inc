@@ -425,7 +425,14 @@ function igSmallButton(label) bind(c,name="igSmallButton")
   type(c_ptr), intent(in), value :: label
   logical(c_bool) :: igSmallButton
 end function igSmallButton
-!x! bool igInvisibleButton(const char* str_id,const ImVec2 size,ImGuiButtonFlags flags);
+! bool igInvisibleButton(const char* str_id,const ImVec2 size,ImGuiButtonFlags flags);
+function igInvisibleButton(str_id,size,flags) bind(c,name="igInvisibleButton")
+  import c_ptr, ImVec2, c_int, c_bool
+  type(c_ptr), intent(in), value :: str_id
+  type(ImVec2), intent(in), value :: size
+  integer(c_int), value :: flags
+  logical(c_bool) :: igInvisibleButton
+end function igInvisibleButton
 ! bool igArrowButton(const char* str_id,ImGuiDir dir);
 function igArrowButton(str_id,dir) bind(c,name="igArrowButton")
   import c_ptr, c_int, c_bool

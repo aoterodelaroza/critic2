@@ -511,6 +511,7 @@ contains
        sysc(idx)%seed = seed(iseed)
        sysc(idx)%has_field = .false.
        sysc(idx)%renamed = .false.
+       sysc(idx)%showfields = .false.
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
@@ -583,6 +584,7 @@ contains
     end if
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
+    sysc(idx)%showfields = .false.
 
     if (sysc(idx)%collapse == -1) then
        ! kill all dependents if collapsed

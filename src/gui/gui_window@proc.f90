@@ -384,7 +384,7 @@ contains
   module subroutine draw_tree(w)
     use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
-       iw_text, iw_setposx_fromend
+       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
@@ -406,7 +406,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
-    real(c_float) :: width
+    real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
@@ -718,29 +718,44 @@ contains
           end if
 
           ! set background color for the name cell, if not selected
-          if (w%table_selected /= i) then
-             if (sysc(i)%seed%ismolecule) then
-                color = igGetColorU32_Vec4(ColorTableCellBg_Mol)
-                if (sysc(i)%status == sys_init) then
-                   if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(ColorTableCellBg_MolClus)
-                endif
-             else
-                color = igGetColorU32_Vec4(ColorTableCellBg_Crys3d)
-                if (sysc(i)%status == sys_init) then
-                   if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
-                      color = igGetColorU32_Vec4(ColorTableCellBg_MolCrys)
-                   elseif (sys(i)%c%nlvac == 2) then
-                      color = igGetColorU32_Vec4(ColorTableCellBg_Crys1d)
-                   elseif (sys(i)%c%nlvac == 1) then
-                      color = igGetColorU32_Vec4(ColorTableCellBg_Crys2d)
-                   end if
+          ! if (w%table_selected /= i) then
+          if (sysc(i)%seed%ismolecule) then
+             color = igGetColorU32_Vec4(ColorTableCellBg_Mol)
+             if (sysc(i)%status == sys_init) then
+                if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(ColorTableCellBg_MolClus)
+             endif
+          else
+             color = igGetColorU32_Vec4(ColorTableCellBg_Crys3d)
+             if (sysc(i)%status == sys_init) then
+                if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+                   color = igGetColorU32_Vec4(ColorTableCellBg_MolCrys)
+                elseif (sys(i)%c%nlvac == 2) then
+                   color = igGetColorU32_Vec4(ColorTableCellBg_Crys1d)
+                elseif (sys(i)%c%nlvac == 1) then
+                   color = igGetColorU32_Vec4(ColorTableCellBg_Crys2d)
                 end if
              end if
-             call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
           end if
+          call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
+             ! selectable
+             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+
+             ! expand button
+             pos = igGetCursorPosX()
+             call igSetCursorPosX(pos + g%Style%FramePadding%x)
+             call iw_text("✳")
+             call igSameLine(0._c_float,-1._c_float)
+             call igSetCursorPosX(pos)
+             str = "✳##" // string(ic_name) // "," // string(i) // c_null_char
+             sz%x = iw_calcwidth(1,1)
+             sz%y = iw_calcheight(1,0)
+             !if (igButton(c_loc(str),sz)) sysc(i)%showfields = .not.sysc(i)%showfields
+             if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
+             call igSameLine(0._c_float,0._c_float)
+
              ! the actual name
              str = ""
              if (sysc(i)%collapse == -2) then
@@ -753,19 +768,23 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
-             ! str = "bleh1" // c_null_char
-             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
-             ! str = "bleh2" // c_null_char
-             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
-             ! str = "bleh3" // c_null_char
-             ! ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+             call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+
+             if (sysc(i)%showfields) then
+                str = "bleh1" // c_null_char
+                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                str = "bleh2" // c_null_char
+                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+                str = "bleh3" // c_null_char
+                ldum = igSelectable_Bool(c_loc(str),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)
+             end if
           end if
 
           ! ID column
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i)
-             call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call iw_text(str,disabled=(sysc(i)%status /= sys_init))
           end if
 
           if (sysc(i)%status == sys_init) then
@@ -777,7 +796,8 @@ contains
                 else
                    str = trim(sys(i)%c%spg%international_symbol)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
              if (igTableSetColumnIndex(ic_v)) then ! volume
@@ -786,22 +806,26 @@ contains
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq)
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel)
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol)
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
              if (igTableSetColumnIndex(ic_a)) then ! a
@@ -810,7 +834,8 @@ contains
                 else
                    str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
@@ -818,7 +843,8 @@ contains
                 else
                    str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
@@ -826,7 +852,8 @@ contains
                 else
                    str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
@@ -834,7 +861,8 @@ contains
                 else
                    str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
@@ -842,7 +870,8 @@ contains
                 else
                    str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
@@ -850,7 +879,8 @@ contains
                 else
                    str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
-                call write_text_maybe_selectable(i,str,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
           end if
@@ -871,98 +901,99 @@ contains
 
   contains
 
-    subroutine write_text_maybe_selectable(isys,str,bclose,bexpand)
+    subroutine write_maybe_selectable(isys,bclose,bexpand)
       use gui_main, only: tree_select_updates_inpcon
       use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
-      character(kind=c_char,len=:), allocatable, target :: str
       logical, intent(in) :: bclose, bexpand
 
+      real(c_float) :: pos
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected, enabled
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
-      if (.not.hadenabledcolumn) then
-         ! selectable that spans all columns
-         flags = ImGuiSelectableFlags_SpanAllColumns
-         flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-         flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
-         flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-         selected = (w%table_selected==isys)
-         strl = "##selectable" // string(isys) // c_null_char
-         if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
-            w%table_selected = isys
-            if (tree_select_updates_inpcon) &
-               win(iwin_console_input)%inpcon_selected = isys
-         end if
-         call igSameLine(0._c_float,-1._c_float)
+      if (hadenabledcolumn) return
 
-         ! right click to open the context menu
-         if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
-            ! describe this system in the console output
-            strpop = "Describe (Output Console)" // c_null_char
-            enabled = (sysc(isys)%status == sys_init)
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-               write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
-                  trim(sysc(isys)%seed%name)
-               if (sys(isys)%c%ismolecule) then
-                  iunit = iunit_ang
-               else
-                  iunit = iunit_bohr
-               end if
-               call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+      ! selectable that spans all columns, with zero width
+      pos = igGetCursorPosX()
+      flags = ImGuiSelectableFlags_SpanAllColumns
+      flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+      flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
+      flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+      selected = (w%table_selected==isys)
+      strl = "##selectable" // string(isys) // c_null_char
+      if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+         w%table_selected = isys
+         if (tree_select_updates_inpcon) &
+            win(iwin_console_input)%inpcon_selected = isys
+      end if
+      call igSameLine(0._c_float,-1._c_float)
+      call igSetCursorPosX(pos)
+
+      ! right click to open the context menu
+      if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
+         ! describe this system in the console output
+         strpop = "Describe (Output Console)" // c_null_char
+         enabled = (sysc(isys)%status == sys_init)
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
+               trim(sysc(isys)%seed%name)
+            if (sys(isys)%c%ismolecule) then
+               iunit = iunit_ang
+            else
                iunit = iunit_bohr
             end if
-
-            ! set as current system option
-            strpop = "Set as Current System" // c_null_char
-            enabled = (sysc(isys)%status == sys_init)
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-               win(iwin_console_input)%inpcon_selected = isys
-
-            ! remove option
-            strpop = "Remove" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
-               w%forceremove = (/isys/)
-
-            ! rename option
-            strpop = "Rename" // c_null_char
-            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-               strpop2 = "##inputrename" // c_null_char
-               txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
-               call igSetKeyboardFocusHere(0_c_int)
-               flags = ImGuiInputTextFlags_EnterReturnsTrue
-               if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
-                  ll = index(txtinp,c_null_char)
-                  sysc(isys)%seed%name = txtinp(1:ll-1)
-                  sysc(isys)%renamed = .true.
-                  call igCloseCurrentPopup()
-               end if
-               call igEndMenu()
-            end if
-
-            call igEndPopup()
+            call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+            iunit = iunit_bohr
          end if
 
-         ! delayed tooltip with info about the system
-         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-            if (bclose) then
-               strl = "Close this system" // c_null_char
-            elseif (bexpand) then
-               strl = "Expand this system" // c_null_char
-            else
-               strl = tree_tooltip_string(isys)
+         ! set as current system option
+         strpop = "Set as Current System" // c_null_char
+         enabled = (sysc(isys)%status == sys_init)
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            win(iwin_console_input)%inpcon_selected = isys
+
+         ! remove option
+         strpop = "Remove" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+            w%forceremove = (/isys/)
+
+         ! rename option
+         strpop = "Rename" // c_null_char
+         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+            strpop2 = "##inputrename" // c_null_char
+            txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
+            call igSetKeyboardFocusHere(0_c_int)
+            flags = ImGuiInputTextFlags_EnterReturnsTrue
+            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+               ll = index(txtinp,c_null_char)
+               sysc(isys)%seed%name = txtinp(1:ll-1)
+               sysc(isys)%renamed = .true.
+               call igCloseCurrentPopup()
             end if
-            call igSetTooltip(c_loc(strl))
+            call igEndMenu()
          end if
+
+         call igEndPopup()
       end if
-      call iw_text(str,disabled=(sysc(isys)%status /= sys_init))
+
+      ! delayed tooltip with info about the system
+      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+         if (bclose) then
+            strl = "Close this system" // c_null_char
+         elseif (bexpand) then
+            strl = "Expand this system" // c_null_char
+         else
+            strl = tree_tooltip_string(isys)
+         end if
+         call igSetTooltip(c_loc(strl))
+      end if
       hadenabledcolumn = .true.
 
-    end subroutine write_text_maybe_selectable
+    end subroutine write_maybe_selectable
 
     ! un-hide the dependents and set as expanded
     subroutine expand_system(i)
