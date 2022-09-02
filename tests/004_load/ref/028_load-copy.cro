@@ -1,5 +1,5 @@
 + Field number 1
-  Name: <promolecular>
+  Name: <promolecular> (copy of $0)
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912
@@ -13,7 +13,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: <ghost>
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -25,7 +25,7 @@
   Alias for this field (2): $2, $fsum
 
 + Field number 3
-  Name: <ghost>
+  Name: <ghost>, $1+2*$0
   Source: <generated>
   Type: ghost field
   Expression: $1+2*$0
@@ -37,7 +37,7 @@
   Alias for this field (2): $3, $fsum2
 
 + Field number 5
-  Name: <ghost>
+  Name: <ghost>, $1+$0 (copy of $2)
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -49,7 +49,7 @@
   Alias for this field (2): $5, $blah
 
 + Field number 10
-  Name: <ghost>
+  Name: <ghost>, $1+$0 (copy of $2) (copy of $5)
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -79,7 +79,7 @@
   Alias for this field (2): $0, $rho0
 
 + Field number 1
-  Name: <promolecular>
+  Name: <promolecular> (copy of $0)
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912
@@ -92,7 +92,7 @@
   This is the REFERENCE field.
 
 + Field number 2
-  Name: <ghost>
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -104,7 +104,7 @@
   Alias for this field (2): $2, $fsum
 
 + Field number 3
-  Name: <ghost>
+  Name: <ghost>, $1+2*$0
   Source: <generated>
   Type: ghost field
   Expression: $1+2*$0
@@ -116,7 +116,7 @@
   Alias for this field (2): $3, $fsum2
 
 + Field number 5
-  Name: <ghost>
+  Name: <ghost>, $1+$0 (copy of $2)
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -128,7 +128,7 @@
   Alias for this field (2): $5, $blah
 
 + Field number 10
-  Name: <ghost>
+  Name: <ghost>, $1+$0 (copy of $2) (copy of $5)
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -140,10 +140,10 @@
   Alias for this field (1): $10
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
 
 * List of additional properties at critical points (0)
 

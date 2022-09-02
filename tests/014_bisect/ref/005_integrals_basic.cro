@@ -24,9 +24,9 @@
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
-  1       Volume    -- Volume       
-  2        Pop       0 Field (v)    
-  3        Lap       0 Laplcn (v)   
+  1       Volume    -- Volume        
+  2        Pop       0 Field (v)     
+  3        Lap       0 Laplcn (v)    
 
 * Key for the interpretation of table headings
 # Id = attractor identifier
@@ -44,15 +44,15 @@
 
 * List of attractors integrated
 # Id   cp   ncp   Name  Z   mult           Position (cryst.) 
-  1    1    1      Mg   12  4     0.0000000    0.0000000    0.0000000 
+  1    1    1      Mg   12  4     0.0000000    0.0000000    0.0000000  
 
 * Integrated atomic properties
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 3
-# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap      
-  1    1    1      Mg   12  4    4.00596754E+01  1.07920551E+01  3.37497622E-01
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
+  1    1    1      Mg   12  4    4.00596754E+01  1.07920551E+01  3.37497622E-01 
 --------------------------------------------------------------------------------
-  Sum                            1.60238702E+02  4.31682203E+01  1.34999049E+00
+  Sum                            1.60238702E+02  4.31682203E+01  1.34999049E+00 
 
 * Integration of basin properties by bisection
   Basins of the scalar field: 0
@@ -79,9 +79,9 @@
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
-  1       Volume    -- Volume       
-  2        Pop       0 Field (v)    
-  3        Lap       0 Laplcn (v)   
+  1       Volume    -- Volume        
+  2        Pop       0 Field (v)     
+  3        Lap       0 Laplcn (v)    
 
 * Key for the interpretation of table headings
 # Id = attractor identifier
@@ -99,13 +99,13 @@
 
 * List of attractors integrated
 # Id   cp   ncp   Name  Z   mult           Position (cryst.) 
-  1    1    1      Mg   12  4     0.0000000    0.0000000    0.0000000 
+  1    1    1      Mg   12  4     0.0000000    0.0000000    0.0000000  
 
 * Integrated atomic properties
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 3
-# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap      
-  1    1    1      Mg   12  4    2.35809714E+01  1.03413720E+01 -9.02640751E-01
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
+  1    1    1      Mg   12  4    2.35809714E+01  1.03413720E+01 -9.02640751E-01 
 --------------------------------------------------------------------------------
-  Sum                            9.43238856E+01  4.13654879E+01 -3.61056300E+00
+  Sum                            9.43238856E+01  4.13654879E+01 -3.61056300E+00 
 

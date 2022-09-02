@@ -1,4 +1,5 @@
 + Field number 1
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -21,6 +22,7 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 2
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T

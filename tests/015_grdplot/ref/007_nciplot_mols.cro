@@ -1,4 +1,5 @@
 + Field number 1
+  Name: h2o_h2o.molden
   Source: ../zz_source/orca-4.0.1/h2o_h2o/h2o_h2o.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -29,10 +30,10 @@
   RDG cutoff (for dat file): 2.000000
   Density plot cutoff: 0.100000
   RDG plot cutoff: 0.500000
-+ Cube origin (crystal coord.): 0.000000 0.000000 0.000000
-  Cube end (crystal coord.): 1.000000 1.000000 1.000000
-  Cube nodes in each direction: 69 22 29
-  Cube steps in each direction: 0.100000 0.100000 0.100000
-  Cube side lengths in each direction (ang_): 3.6513 1.1642 1.5346
++ Cube origin (crystal coord.): 0.000000 0.000000 0.000000 
+  Cube end (crystal coord.): 1.000000 1.000000 1.000000 
+  Cube nodes in each direction: 69 22 29 
+  Cube steps in each direction: 0.100000 0.100000 0.100000 
+  Cube side lengths in each direction (ang_): 3.6513 1.1642 1.5346 
   Using scalar field differentiation for derivative calculation.
 

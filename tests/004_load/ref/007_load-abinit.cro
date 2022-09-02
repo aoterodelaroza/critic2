@@ -1,10 +1,11 @@
 + Field number 1
+  Name: quartz_o_DEN
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03
-  Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03  
+  Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03  
   Sum of elements... 3.624016252190E+04
   Sum of squares of elements... 1.236641471262E+04
   Cell integral (grid SUM) = 48.00000000
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: quartz_o_GDEN1
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN1
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -1.052371348703E-04  -7.347832507920E-05  -8.236369446712E-05
-  Last elements... -3.697077542347E-04  -3.660138960065E-04  -3.801678395651E-04
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -1.052371348703E-04  -7.347832507920E-05  -8.236369446712E-05  
+  Last elements... -3.697077542347E-04  -3.660138960065E-04  -3.801678395651E-04  
   Sum of elements... 5.500114252932E-14
   Sum of squares of elements... 1.476680466294E+04
   Cell integral (grid SUM) = 0.00000000
@@ -43,12 +45,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: quartz_o_GDEN2
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN2
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -1.823050847193E-04  -2.414009311963E-04  -3.519948820639E-04
-  Last elements... -9.744024826114E-04  -8.536501420477E-04  -7.701766193822E-04
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -1.823050847193E-04  -2.414009311963E-04  -3.519948820639E-04  
+  Last elements... -9.744024826114E-04  -8.536501420477E-04  -7.701766193822E-04  
   Sum of elements... 3.944126275579E-12
   Sum of squares of elements... 1.476680466295E+04
   Cell integral (grid SUM) = 0.00000000
@@ -64,12 +67,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: quartz_o_GDEN3
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN3
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -4.440423168051E-10  9.988284970683E-05  1.836441128348E-04
-  Last elements... -3.893008553548E-04  -2.929764735620E-04  -1.572790841804E-04
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -4.440423168051E-10  9.988284970683E-05  1.836441128348E-04  
+  Last elements... -3.893008553548E-04  -2.929764735620E-04  -1.572790841804E-04  
   Sum of elements... 4.169829238843E-11
   Sum of squares of elements... 1.473858773957E+04
   Cell integral (grid SUM) = 0.00000000
@@ -85,12 +89,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: quartz_o_LDEN
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_LDEN
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 4.955873856369E-03  4.827159683734E-03  4.519183684946E-03
-  Last elements... 8.868983193108E-03  9.384181483951E-03  9.774526561554E-03
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 4.955873856369E-03  4.827159683734E-03  4.519183684946E-03  
+  Last elements... 8.868983193108E-03  9.384181483951E-03  9.774526561554E-03  
   Sum of elements... -7.082445914464E-11
   Sum of squares of elements... 6.828597928697E+05
   Cell integral (grid SUM) = -0.00000000
@@ -106,12 +111,13 @@
   Alias for this field (1): $5
 
 + Field number 6
+  Name: quartz_o_POT
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_POT
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 2.099095320530E-01  2.104450665856E-01  2.116345810638E-01
-  Last elements... 2.078489885745E-01  2.071372161712E-01  2.064175444831E-01
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 2.099095320530E-01  2.104450665856E-01  2.116345810638E-01  
+  Last elements... 2.078489885745E-01  2.071372161712E-01  2.064175444831E-01  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 6.742777706043E+05
   Cell integral (grid SUM) = -276.23314295
@@ -127,12 +133,13 @@
   Alias for this field (1): $6
 
 + Field number 7
+  Name: quartz_o_VCLMB
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VCLMB
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 3.734744989474E-01  3.741347244350E-01  3.756767905158E-01
-  Last elements... 3.742167940362E-01  3.726832208948E-01  3.714158083713E-01
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 3.734744989474E-01  3.741347244350E-01  3.756767905158E-01  
+  Last elements... 3.742167940362E-01  3.726832208948E-01  3.714158083713E-01  
   Sum of elements... 2.566302725882E-11
   Sum of squares of elements... 4.429178699731E+05
   Cell integral (grid SUM) = 0.00000000
@@ -148,12 +155,13 @@
   Alias for this field (1): $7
 
 + Field number 8
+  Name: quartz_o_VHA
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHA
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -1.143636874536E+00  -1.143438445621E+00  -1.142851923327E+00
-  Last elements... -1.120804316614E+00  -1.121311097593E+00  -1.121631483578E+00
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -1.143636874536E+00  -1.143438445621E+00  -1.142851923327E+00  
+  Last elements... -1.120804316614E+00  -1.121311097593E+00  -1.121631483578E+00  
   Sum of elements... 2.730349280000E-11
   Sum of squares of elements... 4.818521802812E+05
   Cell integral (grid SUM) = 0.00000000
@@ -169,12 +177,13 @@
   Alias for this field (1): $8
 
 + Field number 9
+  Name: quartz_o_VHXC
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHXC
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -1.307201841431E+00  -1.307128103470E+00  -1.306894132779E+00
-  Last elements... -1.287172122076E+00  -1.286857102316E+00  -1.286629747466E+00
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -1.307201841431E+00  -1.307128103470E+00  -1.306894132779E+00  
+  Last elements... -1.287172122076E+00  -1.286857102316E+00  -1.286629747466E+00  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 3.836234789323E+05
   Cell integral (grid SUM) = -276.23314295
@@ -190,12 +199,13 @@
   Alias for this field (1): $9
 
 + Field number 10
+  Name: quartz_o_VPSP
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VPSP
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 1.517111373484E+00  1.517573170056E+00  1.518528713843E+00
-  Last elements... 1.495021110651E+00  1.493994318487E+00  1.493047291949E+00
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 1.517111373484E+00  1.517573170056E+00  1.518528713843E+00  
+  Last elements... 1.495021110651E+00  1.493994318487E+00  1.493047291949E+00  
   Sum of elements... -2.002245036437E-10
   Sum of squares of elements... 1.506188005801E+06
   Cell integral (grid SUM) = -0.00000000
@@ -211,12 +221,13 @@
   Alias for this field (1): $10
 
 + Field number 11
+  Name: quartz_o_VXC
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VXC
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... -1.635649668944E-01  -1.636896578494E-01  -1.640422094520E-01
-  Last elements... -1.663678054617E-01  -1.655460047236E-01  -1.649982638882E-01
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... -1.635649668944E-01  -1.636896578494E-01  -1.640422094520E-01  
+  Last elements... -1.663678054617E-01  -1.655460047236E-01  -1.649982638882E-01  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 9.584252332784E+04
   Cell integral (grid SUM) = -276.23314295
@@ -231,43 +242,44 @@
   Number of critical points in the unit cell: 9
   Alias for this field (1): $11
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): 0.0000000  1.6084022  3.0647578
-  Coordinates (ang): 0.0000000  0.8511298  1.6218000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.0000000  1.6084022  3.0647578  
+  Coordinates (ang): 0.0000000  0.8511298  1.6218000  
 + Field: 1
   Type : (3,-1)
   Field value (f): 5.419439209E-03
   Field value, valence (fval): 5.419439209E-03
-  Gradient (grad f): 9.338681099E-03  2.196721536E-03  -2.794883808E-03
+  Gradient (grad f): 9.338681099E-03  2.196721536E-03  -2.794883808E-03  
   Gradient norm (|grad f|): 9.992393391E-03
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 1.466562156E-03
   Laplacian, valence (del2 fval): 1.466562156E-03
   Hessian:
-     7.935571634E-03   8.294565880E-04  -6.276862997E-03
-     8.294565880E-04  -5.042091709E-03  -1.468501054E-03
-    -6.276862997E-03  -1.468501054E-03  -1.426917768E-03
-  Hessian eigenvalues: -5.851471037E-03  -3.887590833E-03  1.120562403E-02
+     7.935571634E-03   8.294565880E-04  -6.276862997E-03  
+     8.294565880E-04  -5.042091709E-03  -1.468501054E-03  
+    -6.276862997E-03  -1.468501054E-03  -1.426917768E-03  
+  Hessian eigenvalues: -5.851471037E-03  -3.887590833E-03  1.120562403E-02  
   Ellipticity (l_1/l_2 - 1): 5.051663839E-01
-  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02
-  Field 2 (f,|grad|,lap): 9.386319404E-03  1.359646482E-02  -1.291539686E-02
-  Field 3 (f,|grad|,lap): 2.213996362E-03  4.505966357E-03  -1.968289287E-03
-  Field 4 (f,|grad|,lap): -2.803732450E-03  6.530378925E-03  5.243537553E-03
-  Field 5 (f,|grad|,lap): 6.940001017E-03  2.515814916E-02  1.040227218E+00
-  Field 6 (f,|grad|,lap): 1.646746424E-01  9.080335937E-02  -9.172442274E-01
-  Field 7 (f,|grad|,lap): 3.774584383E-01  2.968377179E-02  -1.080891353E+00
-  Field 8 (f,|grad|,lap): -9.808762954E-01  4.500486294E-01  7.183992859E-01
-  Field 9 (f,|grad|,lap): -1.193660091E+00  3.342748123E-01  8.820464110E-01
-  Field 10 (f,|grad|,lap): 1.358334734E+00  4.248334727E-01  -1.799290638E+00
-  Field 11 (f,|grad|,lap): -2.127837959E-01  1.175860425E-01  1.636471252E-01
+  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02  
+  Field 2 (f,|grad|,lap): 9.386319404E-03  1.359646482E-02  -1.291539686E-02  
+  Field 3 (f,|grad|,lap): 2.213996362E-03  4.505966357E-03  -1.968289287E-03  
+  Field 4 (f,|grad|,lap): -2.803732450E-03  6.530378925E-03  5.243537553E-03  
+  Field 5 (f,|grad|,lap): 6.940001017E-03  2.515814916E-02  1.040227218E+00  
+  Field 6 (f,|grad|,lap): 1.646746424E-01  9.080335937E-02  -9.172442274E-01  
+  Field 7 (f,|grad|,lap): 3.774584383E-01  2.968377179E-02  -1.080891353E+00  
+  Field 8 (f,|grad|,lap): -9.808762954E-01  4.500486294E-01  7.183992859E-01  
+  Field 9 (f,|grad|,lap): -1.193660091E+00  3.342748123E-01  8.820464110E-01  
+  Field 10 (f,|grad|,lap): 1.358334734E+00  4.248334727E-01  -1.799290638E+00  
+  Field 11 (f,|grad|,lap): -2.127837959E-01  1.175860425E-01  1.636471252E-01  
 
 + Field number 1
+  Name: quartz_o_DEN
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
-  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03  
+  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03  
   Sum of elements... 3.624016354025E+04
   Sum of squares of elements... 1.276442166217E+04
   Cell integral (grid SUM) = 48.00000135
@@ -285,12 +297,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: quartz_o_PAWDEN
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
   Type: grid
-  Grid dimensions : 80  80  90
-  Max. length Voronoi-relevant vector (bohr):  0.11608
-  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03
-  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03
+  Grid dimensions : 80  80  90  
+  Max. length Voronoi-relevant vector (bohr):  0.11608  
+  First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03  
+  Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03  
   Sum of elements... 3.623977007224E+04
   Sum of squares of elements... 1.320322985148E+04
   Cell integral (grid SUM) = 47.99948020
@@ -305,24 +318,24 @@
   Number of critical points in the unit cell: 9
   Alias for this field (1): $2
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): 0.0000000  1.6084022  3.0647578
-  Coordinates (ang): 0.0000000  0.8511298  1.6218000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.0000000  1.6084022  3.0647578  
+  Coordinates (ang): 0.0000000  0.8511298  1.6218000  
 + Field: 1
   Type : (3,-1)
   Field value (f): 4.836104071E-03
   Field value, valence (fval): 4.836104071E-03
-  Gradient (grad f): 8.600798506E-03  2.037864724E-03  -2.661358424E-03
+  Gradient (grad f): 8.600798506E-03  2.037864724E-03  -2.661358424E-03  
   Gradient norm (|grad f|): 9.230896827E-03
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 2.238369202E-02
   Laplacian, valence (del2 fval): 2.238369202E-02
   Hessian:
-     2.466745587E-02   7.539158770E-03  -8.396514135E-03
-     7.539158770E-03  -1.444943166E-03  -1.705073736E-03
-    -8.396514135E-03  -1.705073736E-03  -8.388206825E-04
-  Hessian eigenvalues: -3.887401192E-03  -2.857781450E-03  2.912887466E-02
+     2.466745587E-02   7.539158770E-03  -8.396514135E-03  
+     7.539158770E-03  -1.444943166E-03  -1.705073736E-03  
+    -8.396514135E-03  -1.705073736E-03  -8.388206825E-04  
+  Hessian eigenvalues: -3.887401192E-03  -2.857781450E-03  2.912887466E-02  
   Ellipticity (l_1/l_2 - 1): 3.602863828E-01
-  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02
-  Field 2 (f,|grad|,lap): 4.836104071E-03  9.230896827E-03  2.238369202E-02
+  Field 0 (f,|grad|,lap): 5.913292876E-03  7.759744358E-03  1.853602039E-02  
+  Field 2 (f,|grad|,lap): 4.836104071E-03  9.230896827E-03  2.238369202E-02  
 

@@ -1,5 +1,5 @@
 + Field number 1
-  Name: tot
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -22,7 +22,7 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 2
-  Name: up
+  Name: zno.clmup
   Source: ../zz_source/wien14.2/zno/zno.clmup
   Type: wien2k
   Complex?: T
@@ -43,7 +43,7 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 3
-  Name: dn
+  Name: zno.clmdn
   Source: ../zz_source/wien14.2/zno/zno.clmdn
   Type: wien2k
   Complex?: T
@@ -64,7 +64,7 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 4
-  Name: <generated>
+  Name: <generated>, sum of $2 and $3
   Source: <generated>
   Type: wien2k
   Complex?: T
@@ -85,7 +85,7 @@
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 5
-  Name: <generated>
+  Name: <generated>, difference of $4 and $1
   Source: <generated>
   Type: wien2k
   Complex?: T

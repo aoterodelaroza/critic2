@@ -1,11 +1,11 @@
 + Field number 1
-  Name: rho
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -23,13 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: small
+  Name: <generated>, promolecular grid
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  0.00000
-  First elements... 8.421968803926E-03  4.167008960859E-02  3.244625598983E-01
-  Last elements... 2.518311910695E-01  2.518420579838E-01  3.865650862158E-02
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  First elements... 8.421968803926E-03  4.167008960859E-02  3.244625598983E-01  
+  Last elements... 2.518311910695E-01  2.518420579838E-01  3.865650862158E-02  
   Sum of elements... 7.082218781463E+01
   Sum of squares of elements... 1.067342316286E+01
   Cell integral (grid SUM) = 16.71741215
@@ -45,13 +45,13 @@
   Alias for this field (2): $2, $small
 
 + Field number 3
-  Name: large
+  Name: <generated>, promolecular grid
   Source: <generated>
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.00000
-  First elements... 8.421968803926E-03  8.735887122400E-03  9.707380408189E-03
-  Last elements... 1.138467075761E-02  9.675889685613E-03  8.710845862321E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  First elements... 8.421968803926E-03  8.735887122400E-03  9.707380408189E-03  
+  Last elements... 1.138467075761E-02  9.675889685613E-03  8.710845862321E-03  
   Sum of elements... 7.461555065336E+03
   Sum of squares of elements... 4.845840331525E+04
   Cell integral (grid SUM) = 24.16025596
@@ -67,13 +67,13 @@
   Alias for this field (2): $3, $large
 
 + Field number 4
-  Name: diff
+  Name: <generated>, grid: $1-$0
   Source: <generated>
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... -2.534068803926E-03  -2.580887122400E-03  -2.728880408189E-03
-  Last elements... -2.982370757611E-03  -2.724889685613E-03  -2.576045862321E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... -2.534068803926E-03  -2.580887122400E-03  -2.728880408189E-03  
+  Last elements... -2.982370757611E-03  -2.724889685613E-03  -2.576045862321E-03  
   Sum of elements... -2.520177545936E+03
   Sum of squares of elements... 4.678844613109E+04
   Cell integral (grid SUM) = -8.16024730
@@ -89,7 +89,7 @@
   Alias for this field (2): $4, $diff
 
 + Field number 5
-  Name: <ghost>
+  Name: <ghost>, $1-$0
   Source: <generated>
   Type: ghost field
   Expression: $1-$0
@@ -101,12 +101,13 @@
   Alias for this field (2): $5, $ghost
 
 + Field number 6
+  Name: <generated>, grid: $0-$small
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  1.26536
-  First elements... 0.000000000000E+00  0.000000000000E+00  0.000000000000E+00
-  Last elements... -1.110223024625E-16  2.775557561563E-16  -6.938893903907E-18
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  1.26536  
+  First elements... 0.000000000000E+00  0.000000000000E+00  0.000000000000E+00  
+  Last elements... -1.110223024625E-16  2.775557561563E-16  -6.938893903907E-18  
   Sum of elements... 2.118357572689E-14
   Sum of squares of elements... 6.169667676280E-30
   Cell integral (grid SUM) = 0.00000000
@@ -122,12 +123,13 @@
   Alias for this field (1): $6
 
 + Field number 7
+  Name: <generated>, grid: $0-$large
   Source: <generated>
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 0.000000000000E+00  0.000000000000E+00  0.000000000000E+00
-  Last elements... 1.561251128379E-17  0.000000000000E+00  0.000000000000E+00
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 0.000000000000E+00  0.000000000000E+00  0.000000000000E+00  
+  Last elements... 1.561251128379E-17  0.000000000000E+00  0.000000000000E+00  
   Sum of elements... -1.255358664243E-13
   Sum of squares of elements... 2.180424316055E-25
   Cell integral (grid SUM) = -0.00000000

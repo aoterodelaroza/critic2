@@ -1,10 +1,11 @@
 + Field number 1
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -23,33 +24,34 @@
 
 * LINE written to file: 003_load-cube_01.line
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): -0.0000000  0.8038740  3.7960731
-  Coordinates (ang): -0.0000000  0.4253918  2.0087954
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): -0.0000000  0.8038740  3.7960731  
+  Coordinates (ang): -0.0000000  0.4253918  2.0087954  
 + Field: 1
   Type : (3,-1)
   Field value (f): 1.865804650E-01
   Field value, valence (fval): 1.865804650E-01
-  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01
+  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01  
   Gradient norm (|grad f|): 2.287568963E-01
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): -3.633681496E-01
   Laplacian, valence (del2 fval): -3.633681496E-01
   Hessian:
-     1.373298386E-01   1.474446438E-02   2.462889281E-17
-     1.474446438E-02  -3.356004183E-01   9.290940370E-02
-     2.462889281E-17   9.290940370E-02  -1.650975698E-01
-  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01
+     1.373298386E-01   1.474446438E-02   2.462889281E-17  
+     1.474446438E-02  -3.356004183E-01   9.290940370E-02  
+     2.462889281E-17   9.290940370E-02  -1.650975698E-01  
+  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01  
   Ellipticity (l_1/l_2 - 1): 2.029216709E+00
-  Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01
+  Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01  
 
 + Field number 1
+  Name: benzene.cube
   Source: ../zz_source/g16A.03/benzene/benzene.cube
   Type: grid
-  Grid dimensions : 54  56  40
-  Max. length Voronoi-relevant vector (ang_):  0.17639
-  First elements... 1.647720000000E-09  1.984650000000E-09  2.349970000000E-09
-  Last elements... 2.143720000000E-09  1.814590000000E-09  1.510230000000E-09
+  Grid dimensions : 54  56  40  
+  Max. length Voronoi-relevant vector (ang_):  0.17639  
+  First elements... 1.647720000000E-09  1.984650000000E-09  2.349970000000E-09  
+  Last elements... 2.143720000000E-09  1.814590000000E-09  1.510230000000E-09  
   Sum of elements... 8.075131040783E+02
   Sum of squares of elements... 1.140922449851E+02
   Cell integral (grid SUM) = 29.90780302
@@ -68,21 +70,21 @@
 
 * LINE written to file: 003_load-cube_02.line
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
 + Field: 1
   Type : (3,1)
   Field value (f): 2.739981183E-02
   Field value, valence (fval): 2.739981183E-02
-  Gradient (grad f): 1.561117643E-02  2.965104388E-02  -1.135303124E-02
+  Gradient (grad f): 1.561117643E-02  2.965104388E-02  -1.135303124E-02  
   Gradient norm (|grad f|): 3.538056742E-02
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 1.617035719E-01
   Laplacian, valence (del2 fval): 1.617035719E-01
   Hessian:
-     8.549183277E-02   4.187953484E-03  -9.091814216E-03
-     4.187953484E-03   9.524033537E-02  -1.596597258E-02
-    -9.091814216E-03  -1.596597258E-02  -1.902859628E-02
-  Hessian eigenvalues: -2.188219626E-02  8.400862337E-02  9.957714475E-02
-  Field 0 (f,|grad|,lap): 4.645246479E-02  3.592372070E-02  1.208349080E-01
+     8.549183277E-02   4.187953484E-03  -9.091814216E-03  
+     4.187953484E-03   9.524033537E-02  -1.596597258E-02  
+    -9.091814216E-03  -1.596597258E-02  -1.902859628E-02  
+  Hessian eigenvalues: -2.188219626E-02  8.400862337E-02  9.957714475E-02  
+  Field 0 (f,|grad|,lap): 4.645246479E-02  3.592372070E-02  1.208349080E-01  
 

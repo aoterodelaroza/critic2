@@ -1,123 +1,123 @@
 * COORD: calculation of coordination numbers
 + Atomic radii for all species
 # Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = 1.40 
-# spc  Z   name    rad 
-   1   6     C     1.38
-   2   8     O     1.25
-   3   7     N     1.34
-   4   1     H     0.59
+# spc  Z   name    rad  
+   1   6     C     1.38 
+   2   8     O     1.25 
+   3   7     N     1.34 
+   4   1     H     0.59 
 
 + Pair coordination numbers (per non-equivalent atom in the cell)
 # id = non-equivalent atom ID. mult = multiplicity. rest = atomic species (by name).
-# nid   name   mult  C     O     N     H     total
-   1      C      2     0     1     2     0     3  
-   2      O      2     1     0     0     0     1  
-   3      N      4     1     0     0     2     3  
-   4      H      4     0     0     1     0     1  
-   5      H      4     0     0     1     0     1  
+# nid   name   mult  C     O     N     H     total 
+   1      C      2     0     1     2     0     3   
+   2      O      2     1     0     0     0     1   
+   3      N      4     1     0     0     2     3   
+   4      H      4     0     0     1     0     1   
+   5      H      4     0     0     1     0     1   
 
 + Pair coordination numbers (per species)
-#   spc      C     O     N     H  
-   1    C     0     2     4     0  
-   2    O     2     0     0     0  
-   3    N     4     0     0     8  
-   4    H     0     0     8     0  
+#   spc      C     O     N     H   
+   1    C     0     2     4     0   
+   2    O     2     0     0     0   
+   3    N     4     0     0     8   
+   4    H     0     0     8     0   
 
 + Triplet coordination numbers (per non-equivalent atom in the cell)
 # Y runs over atoms in the cell: nid = non-equivalent atom ID. mult = multiplicity.
 #  ---    Y    ---     X     Z
 # nid   name   mult   spc   spc  X-Y-Z
-   1      C      2     C     C     0  
-   1      C      2     C     O     0  
-   1      C      2     C     N     0  
-   1      C      2     C     H     0  
-   1      C      2     O     O     0  
-   1      C      2     O     N     2  
-   1      C      2     O     H     0  
-   1      C      2     N     N     1  
-   1      C      2     N     H     0  
-   1      C      2     H     H     0  
-   2      O      2     C     C     0  
-   2      O      2     C     O     0  
-   2      O      2     C     N     0  
-   2      O      2     C     H     0  
-   2      O      2     O     O     0  
-   2      O      2     O     N     0  
-   2      O      2     O     H     0  
-   2      O      2     N     N     0  
-   2      O      2     N     H     0  
-   2      O      2     H     H     0  
-   3      N      4     C     C     0  
-   3      N      4     C     O     0  
-   3      N      4     C     N     0  
-   3      N      4     C     H     2  
-   3      N      4     O     O     0  
-   3      N      4     O     N     0  
-   3      N      4     O     H     0  
-   3      N      4     N     N     0  
-   3      N      4     N     H     0  
-   3      N      4     H     H     1  
-   4      H      4     C     C     0  
-   4      H      4     C     O     0  
-   4      H      4     C     N     0  
-   4      H      4     C     H     0  
-   4      H      4     O     O     0  
-   4      H      4     O     N     0  
-   4      H      4     O     H     0  
-   4      H      4     N     N     0  
-   4      H      4     N     H     0  
-   4      H      4     H     H     0  
-   5      H      4     C     C     0  
-   5      H      4     C     O     0  
-   5      H      4     C     N     0  
-   5      H      4     C     H     0  
-   5      H      4     O     O     0  
-   5      H      4     O     N     0  
-   5      H      4     O     H     0  
-   5      H      4     N     N     0  
-   5      H      4     N     H     0  
-   5      H      4     H     H     0  
+   1      C      2     C     C     0   
+   1      C      2     C     O     0   
+   1      C      2     C     N     0   
+   1      C      2     C     H     0   
+   1      C      2     O     O     0   
+   1      C      2     O     N     2   
+   1      C      2     O     H     0   
+   1      C      2     N     N     1   
+   1      C      2     N     H     0   
+   1      C      2     H     H     0   
+   2      O      2     C     C     0   
+   2      O      2     C     O     0   
+   2      O      2     C     N     0   
+   2      O      2     C     H     0   
+   2      O      2     O     O     0   
+   2      O      2     O     N     0   
+   2      O      2     O     H     0   
+   2      O      2     N     N     0   
+   2      O      2     N     H     0   
+   2      O      2     H     H     0   
+   3      N      4     C     C     0   
+   3      N      4     C     O     0   
+   3      N      4     C     N     0   
+   3      N      4     C     H     2   
+   3      N      4     O     O     0   
+   3      N      4     O     N     0   
+   3      N      4     O     H     0   
+   3      N      4     N     N     0   
+   3      N      4     N     H     0   
+   3      N      4     H     H     1   
+   4      H      4     C     C     0   
+   4      H      4     C     O     0   
+   4      H      4     C     N     0   
+   4      H      4     C     H     0   
+   4      H      4     O     O     0   
+   4      H      4     O     N     0   
+   4      H      4     O     H     0   
+   4      H      4     N     N     0   
+   4      H      4     N     H     0   
+   4      H      4     H     H     0   
+   5      H      4     C     C     0   
+   5      H      4     C     O     0   
+   5      H      4     C     N     0   
+   5      H      4     C     H     0   
+   5      H      4     O     O     0   
+   5      H      4     O     N     0   
+   5      H      4     O     H     0   
+   5      H      4     N     N     0   
+   5      H      4     N     H     0   
+   5      H      4     H     H     0   
 
 + Triplet coordination numbers (per species)
 #   Y     X     Z   X-Y-Z
-    C     C     C     0  
-    C     C     O     0  
-    C     C     N     0  
-    C     C     H     0  
-    O     C     O     0  
-    O     C     N     4  
-    O     C     H     0  
-    N     C     N     2  
-    N     C     H     0  
-    H     C     H     0  
-    C     O     C     0  
-    C     O     O     0  
-    C     O     N     0  
-    C     O     H     0  
-    O     O     O     0  
-    O     O     N     0  
-    O     O     H     0  
-    N     O     N     0  
-    N     O     H     0  
-    H     O     H     0  
-    C     N     C     0  
-    C     N     O     0  
-    C     N     N     0  
-    C     N     H     8  
-    O     N     O     0  
-    O     N     N     0  
-    O     N     H     0  
-    N     N     N     0  
-    N     N     H     0  
-    H     N     H     4  
-    C     H     C     0  
-    C     H     O     0  
-    C     H     N     0  
-    C     H     H     0  
-    O     H     O     0  
-    O     H     N     0  
-    O     H     H     0  
-    N     H     N     0  
-    N     H     H     0  
-    H     H     H     0  
+    C     C     C     0   
+    C     C     O     0   
+    C     C     N     0   
+    C     C     H     0   
+    O     C     O     0   
+    O     C     N     4   
+    O     C     H     0   
+    N     C     N     2   
+    N     C     H     0   
+    H     C     H     0   
+    C     O     C     0   
+    C     O     O     0   
+    C     O     N     0   
+    C     O     H     0   
+    O     O     O     0   
+    O     O     N     0   
+    O     O     H     0   
+    N     O     N     0   
+    N     O     H     0   
+    H     O     H     0   
+    C     N     C     0   
+    C     N     O     0   
+    C     N     N     0   
+    C     N     H     8   
+    O     N     O     0   
+    O     N     N     0   
+    O     N     H     0   
+    N     N     N     0   
+    N     N     H     0   
+    H     N     H     4   
+    C     H     C     0   
+    C     H     O     0   
+    C     H     N     0   
+    C     H     H     0   
+    O     H     O     0   
+    O     H     N     0   
+    O     H     H     0   
+    N     H     N     0   
+    N     H     H     0   
+    H     H     H     0   
 

@@ -1,10 +1,11 @@
 + Field number 1
+  Name: crystal.RHO
   Source: ../zz_source/siesta-4.1/graphite/crystal.RHO
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03
-  Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03  
+  Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 8.329161614450E+02
   Sum of squares of elements... 1.319324056544E+02
   Cell integral (grid SUM) = 15.99998203
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: crystal.BADER
   Source: ../zz_source/siesta-4.1/graphite/crystal.BADER
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03
-  Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03  
+  Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 1.249403708768E+03
   Sum of squares of elements... 1.060015155638E+03
   Cell integral (grid SUM) = 24.00053908
@@ -43,12 +45,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: crystal.DRHO
   Source: ../zz_source/siesta-4.1/graphite/crystal.DRHO
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... 5.193233373575E-04  3.967091906816E-04  -9.717827197164E-05
-  Last elements... -1.068929675967E-03  -1.201182531076E-04  3.740648389794E-04
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... 5.193233373575E-04  3.967091906816E-04  -9.717827197164E-05  
+  Last elements... -1.068929675967E-03  -1.201182531076E-04  3.740648389794E-04  
   Sum of elements... 1.354547084702E-04
   Sum of squares of elements... 1.578681024691E+00
   Cell integral (grid SUM) = 0.00000260
@@ -64,12 +67,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: crystal.LDOS
   Source: ../zz_source/siesta-4.1/graphite/crystal.LDOS
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... 1.812965492718E-03  2.123341429979E-03  3.134407103062E-03
-  Last elements... 4.949633497745E-03  3.052817657590E-03  2.089084591717E-03
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... 1.812965492718E-03  2.123341429979E-03  3.134407103062E-03  
+  Last elements... 4.949633497745E-03  3.052817657590E-03  2.089084591717E-03  
   Sum of elements... 1.053996685417E+02
   Sum of squares of elements... 2.883164547187E+00
   Cell integral (grid SUM) = 2.02468493
@@ -85,12 +89,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: crystal.VT
   Source: ../zz_source/siesta-4.1/graphite/crystal.VT
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... -4.014695882797E-01  -4.284884035587E-01  -5.134969949722E-01
-  Last elements... -6.419344544411E-01  -5.050554871559E-01  -4.250424206257E-01
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... -4.014695882797E-01  -4.284884035587E-01  -5.134969949722E-01  
+  Last elements... -6.419344544411E-01  -5.050554871559E-01  -4.250424206257E-01  
   Sum of elements... -1.737186430359E+04
   Sum of squares of elements... 4.532906697896E+04
   Cell integral (grid SUM) = -333.70647549
@@ -106,12 +111,13 @@
   Alias for this field (1): $5
 
 + Field number 6
+  Name: crystal.VH
   Source: ../zz_source/siesta-4.1/graphite/crystal.VH
   Type: grid
-  Grid dimensions : 16  16  48
-  Max. length Voronoi-relevant vector (bohr):  0.29007
-  First elements... -4.972795024514E-02  -5.529231950641E-02  -7.413027435541E-02
-  Last elements... -1.104660108685E-01  -7.280975580215E-02  -5.471925064921E-02
+  Grid dimensions : 16  16  48  
+  Max. length Voronoi-relevant vector (bohr):  0.29007  
+  First elements... -4.972795024514E-02  -5.529231950641E-02  -7.413027435541E-02  
+  Last elements... -1.104660108685E-01  -7.280975580215E-02  -5.471925064921E-02  
   Sum of elements... -8.011507675126E+03
   Sum of squares of elements... 1.666640433205E+04
   Cell integral (grid SUM) = -153.89781678
@@ -138,27 +144,27 @@
 
 * LINE written to file: 014_load-siesta.line6
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): -0.0000000  0.8038738  3.7960819
-  Coordinates (ang): -0.0000000  0.4253917  2.0088000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): -0.0000000  0.8038738  3.7960819  
+  Coordinates (ang): -0.0000000  0.4253917  2.0088000  
 + Field: 1
   Type : (3,-3)
   Field value (f): 2.331764572E-01
   Field value, valence (fval): 2.331764572E-01
-  Gradient (grad f): 3.844238956E-04  -6.711890823E-02  -2.372890954E-01
+  Gradient (grad f): 3.844238956E-04  -6.711890823E-02  -2.372890954E-01  
   Gradient norm (|grad f|): 2.465992912E-01
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): -6.768446555E-01
   Laplacian, valence (del2 fval): -6.768446555E-01
   Hessian:
-    -3.617799683E-01   1.802484898E-02   3.367114303E-03
-     1.802484898E-02  -1.571128539E-01   4.433114261E-02
-     3.367114303E-03   4.433114261E-02  -1.579518333E-01
-  Hessian eigenvalues: -3.633565792E-01  -2.012162263E-01  -1.122718500E-01
-  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188038E-01
-  Field 2 (f,|grad|,lap): 2.287459834E-01  2.239908676E-01  7.331727287E-01
-  Field 3 (f,|grad|,lap): 1.987147410E-02  9.053857352E-02  -5.448925891E-02
-  Field 4 (f,|grad|,lap): 2.771216680E-02  7.512975301E-02  -3.702118166E-02
-  Field 5 (f,|grad|,lap): -3.541955990E+00  4.599322693E+00  6.940512657E+00
-  Field 6 (f,|grad|,lap): -2.173511960E+00  4.210951957E+00  5.172102413E+00
+    -3.617799683E-01   1.802484898E-02   3.367114303E-03  
+     1.802484898E-02  -1.571128539E-01   4.433114261E-02  
+     3.367114303E-03   4.433114261E-02  -1.579518333E-01  
+  Hessian eigenvalues: -3.633565792E-01  -2.012162263E-01  -1.122718500E-01  
+  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188038E-01  
+  Field 2 (f,|grad|,lap): 2.287459834E-01  2.239908676E-01  7.331727287E-01  
+  Field 3 (f,|grad|,lap): 1.987147410E-02  9.053857352E-02  -5.448925891E-02  
+  Field 4 (f,|grad|,lap): 2.771216680E-02  7.512975301E-02  -3.702118166E-02  
+  Field 5 (f,|grad|,lap): -3.541955990E+00  4.599322693E+00  6.940512657E+00  
+  Field 6 (f,|grad|,lap): -2.173511960E+00  4.210951957E+00  5.172102413E+00  
 

@@ -1,5 +1,5 @@
 + Field number 1
-  Name: <ghost>
+  Name: <ghost>, -$0
   Source: <generated>
   Type: ghost field
   Expression: -$0

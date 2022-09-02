@@ -5,8 +5,8 @@
   Output file format: OBJ
 + List of CP basins to be plotted (cryst. coord.): 
 #  ncp   cp       x             y             z
-    1      1  0.000000E+00  0.000000E+00  0.000000E+00
-    2      5  5.000000E-01  5.000000E-01  5.000000E-01
+    1      1  0.000000E+00  0.000000E+00  0.000000E+00  
+    2      5  5.000000E-01  5.000000E-01  5.000000E-01  
 
   Plotting CP number (cp/ncp): 1/1
   Number of vertices: 26

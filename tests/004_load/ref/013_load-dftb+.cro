@@ -1,4 +1,5 @@
 + Field number 1
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -17,6 +18,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -36,25 +38,25 @@
 
 * LINE written to file: 013_load-dftb+.line2
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): -0.0000000  0.8038738  3.7960819
-  Coordinates (ang): -0.0000000  0.4253917  2.0088000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): -0.0000000  0.8038738  3.7960819  
+  Coordinates (ang): -0.0000000  0.4253917  2.0088000  
 + Field: 1
   Type : (3,-1)
   Field value (f): 2.118996955E-01
   Field value, valence (fval): 2.118996955E-01
-  Gradient (grad f): -1.352621828E-02  -9.114559454E-02  -1.873632109E-01
+  Gradient (grad f): -1.352621828E-02  -9.114559454E-02  -1.873632109E-01  
   Gradient norm (|grad f|): 2.087952365E-01
   Gradient norm, valence: 0.000000000E+00
   Kinetic energy density (G,tau): 1.408621047E-01
   Laplacian (del2 f): -5.954515902E-01
   Laplacian, valence (del2 fval): -5.954515902E-01
   Hessian:
-    -4.090433843E-01   2.803068509E-02   2.639420760E-02
-     2.803068509E-02  -2.433345136E-02   7.128795985E-02
-     2.639420760E-02   7.128795985E-02  -1.620747545E-01
-  Hessian eigenvalues: -4.129643954E-01  -1.915310508E-01  9.043855987E-03
+    -4.090433843E-01   2.803068509E-02   2.639420760E-02  
+     2.803068509E-02  -2.433345136E-02   7.128795985E-02  
+     2.639420760E-02   7.128795985E-02  -1.620747545E-01  
+  Hessian eigenvalues: -4.129643954E-01  -1.915310508E-01  9.043855987E-03  
   Ellipticity (l_1/l_2 - 1): 1.156122434E+00
-  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188039E-01
-  Field 2 (f,|grad|,lap): 2.118996960E-01  2.087952382E-01  -5.954515853E-01
+  Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188039E-01  
+  Field 2 (f,|grad|,lap): 2.118996960E-01  2.087952382E-01  -5.954515853E-01  
 

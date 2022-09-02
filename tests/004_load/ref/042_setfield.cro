@@ -1,10 +1,11 @@
 + Field number 1
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -43,12 +45,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -64,12 +67,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -85,12 +89,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -106,12 +111,13 @@
   Alias for this field (1): $5
 
 + Field number 6
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -127,12 +133,13 @@
   Alias for this field (1): $6
 
 + Field number 7
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -148,12 +155,13 @@
   Alias for this field (1): $7
 
 + Field number 8
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -169,12 +177,13 @@
   Alias for this field (1): $8
 
 + Field number 9
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -190,12 +199,13 @@
   Alias for this field (1): $9
 
 + Field number 10
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -211,6 +221,7 @@
   Alias for this field (1): $10
 
 + Field number 1
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 1
@@ -221,6 +232,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 2
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 2
@@ -231,6 +243,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 3
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 3
@@ -241,6 +254,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 4
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -251,6 +265,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 5
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -261,6 +276,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 6
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -271,6 +287,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 7
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -282,6 +299,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 8
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -292,6 +310,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 9
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -302,6 +321,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 10
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
@@ -330,12 +350,13 @@
   Alias for this field (2): $0, $rho0
 
 + Field number 1
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -352,12 +373,13 @@
   This is the REFERENCE field.
 
 + Field number 2
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -373,12 +395,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -394,12 +417,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -415,12 +439,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -436,12 +461,13 @@
   Alias for this field (1): $5
 
 + Field number 6
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -457,12 +483,13 @@
   Alias for this field (1): $6
 
 + Field number 7
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -479,12 +506,13 @@
   Alias for this field (1): $7
 
 + Field number 8
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -500,12 +528,13 @@
   Alias for this field (1): $8
 
 + Field number 9
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03
-  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
   Cell integral (grid SUM) = 16.00000866
@@ -521,12 +550,13 @@
   Alias for this field (1): $9
 
 + Field number 10
+  Name: rho.cube
   Source: ../zz_source/qe-6.1/graphite/rho.cube
   Type: grid
-  Grid dimensions : 30  30  81
-  Max. length Voronoi-relevant vector (bohr):  0.15622
-  First elements... 3.679935507906E-04  3.846872917536E-04  4.361560138916E-04
-  Last elements... 5.251434657192E-04  4.344372648220E-04  3.834247924371E-04
+  Grid dimensions : 30  30  81  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 3.679935507906E-04  3.846872917536E-04  4.361560138916E-04  
+  Last elements... 5.251434657192E-04  4.344372648220E-04  3.834247924371E-04  
   Sum of elements... 3.088359277774E+02
   Sum of squares of elements... 3.069363289180E+00
   Cell integral (grid SUM) = 1.00000000
@@ -542,14 +572,15 @@
   Alias for this field (1): $10
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
 
 * List of additional properties at critical points (0)
 
 + Field number 1
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -568,6 +599,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -584,6 +616,7 @@
   Alias for this field (1): $2
 
 + Field number 1
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Exact calculation? T
@@ -594,6 +627,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 2
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Exact calculation? F
@@ -622,6 +656,7 @@
   Alias for this field (2): $0, $rho0
 
 + Field number 1
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -639,6 +674,7 @@
   This is the REFERENCE field.
 
 + Field number 2
+  Name: detailed.xml
   Source: ../zz_source/dftb+-18.1/graphite/detailed.xml
   Type: dftb+
   Number of states: 16
@@ -655,14 +691,15 @@
   Alias for this field (1): $2
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
 
 * List of additional properties at critical points (0)
 
 + Field number 1
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -680,11 +717,12 @@
 * Field number 1 is now REFERENCE.
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 2
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -700,11 +738,12 @@
   Alias for this field (1): $2
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946
-  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878
+  Atom: 1 rmt= 1.8000000 RMS/max/min(fout-fin) = 0.001373  0.009223  -0.002946  
+  Atom: 2 rmt= 1.5000000 RMS/max/min(fout-fin) = 0.000550  0.000736  -0.000878  
 + Assert - no spurious CPs on the muffin tin surface: T
 
 + Field number 1
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Density-style normalization? T
@@ -715,6 +754,7 @@
   Number of critical points in the unit cell: 4
 
 + Field number 2
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Density-style normalization? F
@@ -743,6 +783,7 @@
   Alias for this field (2): $0, $rho0
 
 + Field number 1
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -759,6 +800,7 @@
   This is the REFERENCE field.
 
 + Field number 2
+  Name: zno.clmsum
   Source: ../zz_source/wien14.2/zno/zno.clmsum
   Type: wien2k
   Complex?: T
@@ -774,10 +816,10 @@
   Alias for this field (1): $2
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
 
 * List of additional properties at critical points (0)
 

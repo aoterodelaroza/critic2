@@ -2,10 +2,11 @@
 * Field : 0
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.314000 s
-  Avg. wall time per call : 31.4000 us
+  Total wall time : 0.311000 s
+  Avg. wall time per call : 31.1000 us
 
 + Field number 1
+  Name: h2o_hf.wfn
   Source: ../zz_source/g16A.03/h2o/h2o_hf.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -26,6 +27,6 @@
 * Field : 1
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.123000 s
-  Avg. wall time per call : 12.3000 us
+  Total wall time : 0.124000 s
+  Avg. wall time per call : 12.4000 us
 

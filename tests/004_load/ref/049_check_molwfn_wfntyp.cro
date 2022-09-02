@@ -1,5 +1,5 @@
 + Field number 1
-  Name: fchk_rhf
+  Name: h2o_rhf.fchk
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -17,7 +17,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: wfn_rhf
+  Name: h2o_rhf.wfn
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -33,7 +33,7 @@
   Alias for this field (2): $2, $wfn_rhf
 
 + Field number 3
-  Name: wfx_rhf
+  Name: h2o_rhf.wfx
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rhf.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -49,7 +49,7 @@
   Alias for this field (2): $3, $wfx_rhf
 
 + Field number 4
-  Name: fchk_uhf
+  Name: h2o_uhf.fchk
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.fchk
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -65,7 +65,7 @@
   Alias for this field (2): $4, $fchk_uhf
 
 + Field number 5
-  Name: wfn_uhf
+  Name: h2o_uhf.wfn
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.wfn
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -81,7 +81,7 @@
   Alias for this field (2): $5, $wfn_uhf
 
 + Field number 6
-  Name: wfx_uhf
+  Name: h2o_uhf.wfx
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_uhf.wfx
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -97,7 +97,7 @@
   Alias for this field (2): $6, $wfx_uhf
 
 + Field number 7
-  Name: fchk_rohf
+  Name: h2o_rohf.fchk
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.fchk
   Type: molecular wavefunction
   Number of primitives (GTO): 168
@@ -110,7 +110,7 @@
   Alias for this field (2): $7, $fchk_rohf
 
 + Field number 8
-  Name: wfn_rohf
+  Name: h2o_rohf.wfn
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.wfn
   Type: molecular wavefunction
   Number of primitives (GTO): 168
@@ -123,7 +123,7 @@
   Alias for this field (2): $8, $wfn_rohf
 
 + Field number 9
-  Name: wfx_rohf
+  Name: h2o_rohf.wfx
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_rohf.wfx
   Type: molecular wavefunction
   Number of primitives (GTO): 168
@@ -136,7 +136,7 @@
   Alias for this field (2): $9, $wfx_rohf
 
 + Field number 10
-  Name: fchk_mp2
+  Name: h2o_mp2.fchk
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -152,7 +152,7 @@
   Alias for this field (2): $10, $fchk_mp2
 
 + Field number 11
-  Name: wfn_mp2
+  Name: h2o_mp2.wfn
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.wfn
   Type: molecular wavefunction
   Wavefunction type: fractional occupation
@@ -168,7 +168,7 @@
   Alias for this field (2): $11, $wfn_mp2
 
 + Field number 12
-  Name: wfx_mp2
+  Name: h2o_mp2.wfx
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_mp2.wfx
   Type: molecular wavefunction
   Wavefunction type: fractional occupation
@@ -184,7 +184,7 @@
   Alias for this field (2): $12, $wfx_mp2
 
 + Field number 13
-  Name: fchk_ump2
+  Name: h2o_ump2.fchk
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.fchk
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -200,7 +200,7 @@
   Alias for this field (2): $13, $fchk_ump2
 
 + Field number 14
-  Name: wfn_ump2
+  Name: h2o_ump2.wfn
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.wfn
   Type: molecular wavefunction
   Wavefunction type: fractional occupation
@@ -216,7 +216,7 @@
   Alias for this field (2): $14, $wfn_ump2
 
 + Field number 15
-  Name: wfx_ump2
+  Name: h2o_ump2.wfx
   Source: ../zz_source/g16A.03/h2o_wfntyp/h2o_ump2.wfx
   Type: molecular wavefunction
   Wavefunction type: fractional occupation
@@ -231,64 +231,64 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $15, $wfx_ump2
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_rhf): 3.938761334E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_rhf): 3.938761313E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_rhf): 3.938761339E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_uhf): 4.110785389E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_uhf): 4.110785336E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_uhf): 4.110785388E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_rohf): 4.111146914E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_rohf): 4.111146835E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_rohf): 4.111146915E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_mp2): 3.938761334E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_mp2): 3.975721974E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_mp2): 3.975722048E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_ump2): 4.110785389E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_ump2): 4.132048459E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_ump2): 4.132048610E+00
 
 * MOLCALC: calculations using meshes 
@@ -412,7 +412,7 @@
 + Integral($wfx_ump2) = 9.99999463    
 
 + Field number 1
-  Name: rhf
+  Name: h2o_rhf.molden
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rhf.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -431,7 +431,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: rhfw
+  Name: h2o_rhf.wfn
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rhf.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -447,7 +447,7 @@
   Alias for this field (2): $2, $rhfw
 
 + Field number 3
-  Name: uhf
+  Name: h2o_uhf.molden
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_uhf.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -464,7 +464,7 @@
   Alias for this field (2): $3, $uhf
 
 + Field number 4
-  Name: rohfw
+  Name: h2o_rohf.wfn
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_rohf.wfn
   Type: molecular wavefunction
   Number of primitives (GTO): 67
@@ -477,7 +477,7 @@
   Alias for this field (2): $4, $rohfw
 
 + Field number 5
-  Name: mp2
+  Name: h2o_mp2.molden
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_mp2.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -494,7 +494,7 @@
   Alias for this field (2): $5, $mp2
 
 + Field number 6
-  Name: mp2w
+  Name: h2o_mp2.wfn
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_mp2.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -510,7 +510,7 @@
   Alias for this field (2): $6, $mp2w
 
 + Field number 7
-  Name: ump2
+  Name: h2o_ump2.molden
   Source: ../zz_source/orca-4.0.1/h2o_wfntyp/h2o_ump2.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -526,32 +526,32 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $7, $ump2
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhf): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhfw): 3.931472957E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($uhf): 4.110850082E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rohfw): 4.111139359E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($mp2): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($mp2w): 3.931472957E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($ump2): 4.110850082E+00
 
 * MOLCALC: calculations using meshes 
@@ -611,7 +611,7 @@
 + Integral($ump2) = 9.99999428    
 
 + Field number 1
-  Name: rhf
+  Name: h2o_rhf.molden
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -630,7 +630,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: rhfw
+  Name: h2o_rhf.wfn
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -646,7 +646,7 @@
   Alias for this field (2): $2, $rhfw
 
 + Field number 3
-  Name: rhfx
+  Name: h2o_rhf.wfx
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_rhf.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -662,7 +662,7 @@
   Alias for this field (2): $3, $rhfx
 
 + Field number 4
-  Name: uhf
+  Name: h2o_uhf.molden
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -679,7 +679,7 @@
   Alias for this field (2): $4, $uhf
 
 + Field number 5
-  Name: uhfw
+  Name: h2o_uhf.wfn
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.wfn
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -695,7 +695,7 @@
   Alias for this field (2): $5, $uhfw
 
 + Field number 6
-  Name: uhfx
+  Name: h2o_uhf.wfx
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_uhf.wfx
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -711,7 +711,7 @@
   Alias for this field (2): $6, $uhfx
 
 + Field number 7
-  Name: rohfw
+  Name: h2o_rohf.wfn
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_rohf.wfn
   Type: molecular wavefunction
   Number of primitives (GTO): 67
@@ -724,7 +724,7 @@
   Alias for this field (2): $7, $rohfw
 
 + Field number 8
-  Name: rohfx
+  Name: h2o_rohf.wfx
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_rohf.wfx
   Type: molecular wavefunction
   Number of primitives (GTO): 67
@@ -737,7 +737,7 @@
   Alias for this field (2): $8, $rohfx
 
 + Field number 9
-  Name: mp2
+  Name: h2o_mp2.molden
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -754,7 +754,7 @@
   Alias for this field (2): $9, $mp2
 
 + Field number 10
-  Name: mp2w
+  Name: h2o_mp2.wfn
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -770,7 +770,7 @@
   Alias for this field (2): $10, $mp2w
 
 + Field number 11
-  Name: mp2x
+  Name: h2o_mp2.wfx
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_mp2.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -786,7 +786,7 @@
   Alias for this field (2): $11, $mp2x
 
 + Field number 12
-  Name: ump2
+  Name: h2o_ump2.molden
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -803,7 +803,7 @@
   Alias for this field (2): $12, $ump2
 
 + Field number 13
-  Name: ump2w
+  Name: h2o_ump2.wfn
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.wfn
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -819,7 +819,7 @@
   Alias for this field (2): $13, $ump2w
 
 + Field number 14
-  Name: ump2x
+  Name: h2o_ump2.wfx
   Source: ../zz_source/orca-4.2/h2o_wfntyp/h2o_ump2.wfx
   Type: molecular wavefunction
   Wavefunction type: unrestricted
@@ -834,60 +834,60 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $14, $ump2x
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhf): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhfw): 3.931472957E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhfx): 3.931473007E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($uhf): 4.110850082E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($uhfw): 4.110850038E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($uhfx): 4.110850084E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rohfw): 4.111139359E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rohfx): 4.111139405E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($mp2): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($mp2w): 3.931472957E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($mp2x): 3.931473007E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($ump2): 4.110850082E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($ump2w): 4.110850038E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($ump2x): 4.110850084E+00
 
 * MOLCALC: calculations using meshes 
@@ -1003,7 +1003,7 @@
 + Integral($ump2x) = 9.99999429    
 
 + Field number 1
-  Name: rhf
+  Name: h2o_rhf.molden
   Source: ../zz_source/psi4-1.4/h2o_wfntyp/h2o_rhf.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1022,7 +1022,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: uhf
+  Name: h2o_uhf.molden
   Source: ../zz_source/psi4-1.4/h2o_wfntyp/h2o_uhf.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1039,7 +1039,7 @@
   Alias for this field (2): $2, $uhf
 
 + Field number 3
-  Name: rohf
+  Name: h2o_rohf.molden
   Source: ../zz_source/psi4-1.4/h2o_wfntyp/h2o_rohf.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1055,16 +1055,16 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $3, $rohf
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rhf): 9.478754497E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($uhf): 9.600768780E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($rohf): 9.601262447E+00
 
 * MOLCALC: calculations using meshes 
