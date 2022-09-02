@@ -438,9 +438,10 @@ contains
     use fieldseedmod, only: fieldseed
     use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
-       ifformat_as_pot, ifformat_as_clm, &
-       ifformat_as_clm_sub, ifformat_as_ghost, &
-       ifformat_as, ifformat_as_resample, mlen
+       ifformat_as_pot, ifformat_as_clm, ifformat_promolecular_fragment,&
+       ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
+       ifformat_as_core, ifformat_promolecular,&
+       ifformat_as, ifformat_as_resample, mlen, dirsep
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
@@ -534,6 +535,7 @@ contains
           return
        end if
        s%f(id)%id = id
+       s%f(id)%name = trim(s%f(oid)%name) // " (copy of $" // string(oid) // ")"
 
     elseif (seed%iff == ifformat_as_lap .or. seed%iff == ifformat_as_grad .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_resample) then
@@ -572,7 +574,15 @@ contains
           return
        end if
        s%f(id)%id = id
-       s%f(id)%name = "<generated>"
+       if (seed%iff == ifformat_as_lap) then
+          s%f(id)%name = "<generated>, Laplacian of $" // string(oid)
+       elseif (seed%iff == ifformat_as_grad) then
+          s%f(id)%name = "<generated>, gradient of $" // string(oid)
+       elseif (seed%iff == ifformat_as_pot) then
+          s%f(id)%name = "<generated>, potential of $" // string(oid)
+       elseif (seed%iff == ifformat_as_grad) then
+          s%f(id)%name = "<generated>, resample of 4" // string(oid)
+       end if
        s%f(id)%file = "<generated>"
 
     elseif (seed%iff == ifformat_as_clm.or.seed%iff == ifformat_as_clm_sub) then
@@ -586,7 +596,11 @@ contains
        id = s%getfieldnum()
        s%f(id) = s%f(id1)
        s%f(id)%id = id
-       s%f(id)%name = "<generated>"
+       if (seed%iff == ifformat_as_clm) then
+          s%f(id)%name = "<generated>, sum of $" // string(id1) // " and $" // string(id2)
+       else
+          s%f(id)%name = "<generated>, difference of $" // string(id1) // " and $" // string(id2)
+       end if
        s%f(id)%file = "<generated>"
 
        if (s%f(id1)%type == type_elk.and.s%f(id2)%type == type_elk) then
@@ -637,6 +651,12 @@ contains
 
        syl => s
        call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg,ti=ti)
+       if (seed%iff /= ifformat_promolecular .and. seed%iff /= ifformat_promolecular_fragment .and.&
+          seed%iff /= ifformat_as_promolecular .and. seed%iff /= ifformat_as_core.and.&
+          seed%iff /= ifformat_as_ghost .and. seed%iff /= ifformat_as) then
+          idx = index(s%f(id)%file,dirsep,.true.)
+          s%f(id)%name = s%f(id)%file(idx+1:)
+       end if
 
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()

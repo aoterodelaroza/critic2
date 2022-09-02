@@ -326,7 +326,7 @@ contains
     use param, only: dirsep
 
     integer :: idx, i, i1
-    character(len=:), allocatable :: str
+    character(len=:), allocatable :: str, removed
 
     ! reset all names to the full-path name
     do i = 1, nsys
@@ -345,6 +345,7 @@ contains
        end do
        if (i1 > 0) then
           idx = len_trim(sysc(i1)%seed%name)+1
+          removed = ""
           main: do while (.true.)
              ! grab string up to the first dirsep
              idx = index(sysc(i1)%seed%name(1:idx-1),dirsep,.true.)
@@ -359,6 +360,7 @@ contains
              end do
 
              ! remove the string
+             removed = removed // sysc(i1)%seed%name(1:idx)
              do i = 1, nsys
                 if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
                 sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
@@ -783,12 +785,8 @@ contains
                 ! load any fields
                 if (sysc(i)%has_field) then
                    call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
-                   if (len_trim(errmsg) > 0) then
+                   if (len_trim(errmsg) > 0) &
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
-                   else
-                      sys(i)%f(iff)%file = sysc(i)%seed%file
-                      sys(i)%f(iff)%name = sysc(i)%seed%name
-                   end if
                 end if
 
                 ! this system has been initialized

@@ -448,7 +448,8 @@ contains
           call backtrack()
           f%iff = ifformat_as
           ok = isexpression(word,line,lp)
-          if (.not.ok .or. len_trim(word) < 1) then
+          if (ok) ok = len_trim(word) >= 1
+          if (.not.ok) then
              call f%end()
              f%errmsg = "wrong expression in load as"
              return

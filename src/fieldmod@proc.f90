@@ -423,6 +423,7 @@ contains
 
     elseif (seed%iff == ifformat_promolecular) then
        call f%load_promolecular(f%c,id,"<promolecular>")
+       f%name = "<promolecular>"
 
     elseif (seed%iff == ifformat_promolecular_fragment) then
        fr = f%c%identify_fragment_from_xyz(seed%file(1),ti=ti)
@@ -432,6 +433,7 @@ contains
           return
        end if
        call f%load_promolecular(f%c,id,trim(seed%file(1)),fr)
+       f%name = "<promolecular using fragment>"
 
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
        if (seed%iff == ifformat_as_promolecular) then
@@ -443,17 +445,21 @@ contains
                 return
              end if
              call c%promolecular_grid(f%grid,seed%n,fr=fr)
+             f%name = "<generated>, promolecular grid using fragment"
           else
              call c%promolecular_grid(f%grid,seed%n)
+             f%name = "<generated>, promolecular grid"
           end if
        else
           call c%promolecular_grid(f%grid,seed%n,zpsp=c%zpsp)
+          f%name = "<generated>, core grid"
        end if
        f%type = type_grid
        f%file = ""
 
     elseif (seed%iff == ifformat_as_ghost) then
        call f%load_ghost(c,id,"<ghost>",seed%expr,sptr)
+       f%name = "<ghost>, " // trim(seed%expr)
 
     elseif (seed%iff == ifformat_as) then
        f%type = type_grid
@@ -486,6 +492,7 @@ contains
           !$omp end parallel do
           f%grid%isinit = .true.
        end if
+       f%name = "<generated>, grid: " // trim(seed%expr)
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
