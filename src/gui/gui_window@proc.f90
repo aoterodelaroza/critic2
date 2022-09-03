@@ -397,15 +397,16 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, zeroc, ch
+    character(kind=c_char,len=1024), target :: txtinp
+    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel
+    integer :: i, j, k, nshown, newsel, jsel, ll
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -777,8 +778,12 @@ contains
              if (sysc(i)%showfields) then
                 do k = 0, sys(i)%nf
                    if (.not.sys(i)%f(k)%isinit) cycle
+
+                   ! selectable
                    call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
-                   if (k < sys(i)%nf) call iw_text("┌",noadvance=.true.)
+                   isend = (k == sys(i)%nf)
+                   if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
+                   if (.not.isend) call iw_text("┌",noadvance=.true.)
                    if (sys(i)%iref == k) then
                       str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
                          string(i) // "," // string(k) // c_null_char
@@ -796,6 +801,35 @@ contains
                       call sys(i)%set_reference(k,.false.)
                    end if
                    call igPopStyleColor(1)
+
+                   ! right click to open the field context menu
+                   if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+                      ! remove option
+                      if (k > 0) then
+                         strpop = "Remove" // c_null_char
+                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+                            call sys(i)%unload_field(k)
+                      end if
+
+                      ! rename option
+                      strpop = "Rename" // c_null_char
+                      if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                         strpop2 = "##inputrenamefield" // c_null_char
+                         txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
+                         call igSetKeyboardFocusHere(0_c_int)
+                         flags = ImGuiInputTextFlags_EnterReturnsTrue
+                         if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+                            ll = index(txtinp,c_null_char)
+                            sys(i)%f(k)%name = txtinp(1:ll-1)
+                            call igCloseCurrentPopup()
+                         end if
+                         call igEndMenu()
+                      end if
+
+                      call igEndPopup()
+                   end if
+
+                   ! tooltip
                    call iw_tooltip(tree_field_tooltip_string(i,k),ttshown)
                 end do
              end if
