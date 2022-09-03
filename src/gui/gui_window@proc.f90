@@ -401,7 +401,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll
+    integer :: i, j, k, nshown, newsel, jsel, ll, id
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -824,6 +824,15 @@ contains
                             call igCloseCurrentPopup()
                          end if
                          call igEndMenu()
+                      end if
+
+                      ! duplicate option (fields)
+                      strpop = "Duplicate" // c_null_char
+                      if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                         id = sys(i)%getfieldnum()
+                         call sys(i)%field_copy(k,id)
+                         sys(i)%f(id)%id = id
+                         sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
                       end if
 
                       call igEndPopup()

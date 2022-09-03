@@ -580,6 +580,10 @@ contains
 
           ! reset
        elseif (equal(word,'reset')) then
+          if (usegui) then
+             write (uout,'("!! The RESET keyword cannot be used in the graphical interface.")')
+             cycle main
+          end if
           call check_no_extra_word(ok)
           if (.not.ok) cycle
           call critic_clearvariable("all")

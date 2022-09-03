@@ -535,7 +535,7 @@ contains
           return
        end if
        s%f(id)%id = id
-       s%f(id)%name = trim(s%f(oid)%name) // " (copy of $" // string(oid) // ")"
+       s%f(id)%name = trim(s%f(oid)%name)
 
     elseif (seed%iff == ifformat_as_lap .or. seed%iff == ifformat_as_grad .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_resample) then
