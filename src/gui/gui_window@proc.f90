@@ -391,14 +391,15 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon
+    use fieldmod, only: type_grid
     use tools_io, only: string
     use types, only: realloc
-    use param, only: bohrtoa
+    use param, only: bohrtoa, ifformat_as_lap, ifformat_as_grad, ifformat_as_pot
     use c_interface_module
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=1024), target :: txtinp
-    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
+    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, aux, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id
@@ -834,6 +835,54 @@ contains
                          sys(i)%f(id)%id = id
                          sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
                       end if
+
+                      ! grid calculation options
+                      if (sys(i)%f(k)%type == type_grid) then
+                         strpop = "Load gradient grid" // c_null_char
+                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            id = sys(i)%getfieldnum()
+                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
+                               sys(i)%f(k)%grid,ifformat_as_grad)
+                         end if
+
+                         strpop = "Load Laplacian grid" // c_null_char
+                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            id = sys(i)%getfieldnum()
+                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
+                               sys(i)%f(k)%grid,ifformat_as_lap)
+                         end if
+
+                         strpop = "Load potential grid" // c_null_char
+                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            id = sys(i)%getfieldnum()
+                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
+                               sys(i)%f(k)%grid,ifformat_as_pot)
+                         end if
+
+                         ! strpop = "Load potential grid" // c_null_char
+                         ! if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                         !    if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+                         !       call sys(i)%unload_field(k)
+
+                         !    ! id = sys(i)%getfieldnum()
+                         !    ! call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
+                         !    !    sys(i)%f(k)%grid,ifformat_as_lap)
+
+                         !    ! strpop2 = "##inputrenamefield" // c_null_char
+                         !    ! txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
+                         !    ! call igSetKeyboardFocusHere(0_c_int)
+                         !    ! flags = ImGuiInputTextFlags_EnterReturnsTrue
+                         !    ! if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+                         !    !    ll = index(txtinp,c_null_char)
+                         !    !    sys(i)%f(k)%name = txtinp(1:ll-1)
+                         !    !    call igCloseCurrentPopup()
+                         !    ! end if
+                         !    call igEndMenu()
+                         ! end if
+
+                      end if
+  ! integer, parameter, public :: ifformat_as_resample = 25
+
 
                       call igEndPopup()
                    end if
