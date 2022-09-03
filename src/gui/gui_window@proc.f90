@@ -804,14 +804,14 @@ contains
 
                    ! right click to open the field context menu
                    if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
-                      ! remove option
+                      ! remove option (fields)
                       if (k > 0) then
                          strpop = "Remove" // c_null_char
                          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
                             call sys(i)%unload_field(k)
                       end if
 
-                      ! rename option
+                      ! rename option (fields)
                       strpop = "Rename" // c_null_char
                       if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
                          strpop2 = "##inputrenamefield" // c_null_char
@@ -963,9 +963,11 @@ contains
       integer, intent(in) :: isys
       logical, intent(in) :: bclose, bexpand
 
+      integer :: k
       real(c_float) :: pos
       integer(c_int) :: flags, ll
       logical(c_bool) :: selected, enabled
+      logical :: ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
 
@@ -1012,12 +1014,12 @@ contains
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             win(iwin_console_input)%inpcon_selected = isys
 
-         ! remove option
+         ! remove option (system)
          strpop = "Remove" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
             w%forceremove = (/isys/)
 
-         ! rename option
+         ! rename option (system)
          strpop = "Rename" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             strpop2 = "##inputrename" // c_null_char
@@ -1031,6 +1033,19 @@ contains
                call igCloseCurrentPopup()
             end if
             call igEndMenu()
+         end if
+
+         ! remove option (system)
+         ok = (sys(isys)%nf > 0)
+         if (ok) ok = any(sys(isys)%f(1:sys(isys)%nf)%isinit)
+         if (ok) then
+            strpop = "Remove All Fields" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+               do k = 1, sys(isys)%nf
+                  if (.not.sys(isys)%f(k)%isinit) cycle
+                  call sys(isys)%unload_field(k)
+               end do
+            end if
          end if
 
          call igEndPopup()
