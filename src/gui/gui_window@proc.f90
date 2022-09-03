@@ -2702,9 +2702,9 @@ contains
     use tools_io, only: string, nameguess
     use param, only: newline, maxzat0
     integer, intent(in) :: si, fj
-    character(kind=c_char,len=:), allocatable, target :: str
+    character(kind=c_char,len=:), allocatable, target :: str, aux
 
-    integer :: i
+    integer :: i, nal
     type(field), pointer :: f
 
     str = ""
@@ -2718,6 +2718,8 @@ contains
     str = "||" // trim(f%name) // "||" // newline
     if (sys(si)%iref == fj) &
        str = str // "## Reference field for this system ##" // newline
+    call sys(si)%aliasstring(fj,nal,aux)
+    str = str // "Names: " // trim(adjustl(aux)) // newline
 
     ! type and type-specific info
     select case (f%type)
