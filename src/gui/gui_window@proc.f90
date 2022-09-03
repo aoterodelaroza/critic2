@@ -394,7 +394,8 @@ contains
     use fieldmod, only: type_grid
     use tools_io, only: string
     use types, only: realloc
-    use param, only: bohrtoa, ifformat_as_lap, ifformat_as_grad, ifformat_as_pot
+    use param, only: bohrtoa, ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
+       ifformat_as_resample
     use c_interface_module
     class(window), intent(inout), target :: w
 
@@ -412,6 +413,7 @@ contains
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
+    integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
 
     ! initialize
     hadenabledcolumn = .false.
@@ -859,29 +861,25 @@ contains
                                sys(i)%f(k)%grid,ifformat_as_pot)
                          end if
 
-                         ! strpop = "Load potential grid" // c_null_char
-                         ! if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                         !    if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
-                         !       call sys(i)%unload_field(k)
+                         strpop = "Load resampled grid" // c_null_char
+                         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                            flags = ImGuiInputTextFlags_None
+                            strpop2 = "New size##resamplefieldmenu" // c_null_char
+                            call igSetNextItemWidth(iw_calcwidth(4*3,2))
+                            ldum = igInputInt3(c_loc(strpop2),iresample,flags)
 
-                         !    ! id = sys(i)%getfieldnum()
-                         !    ! call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
-                         !    !    sys(i)%f(k)%grid,ifformat_as_lap)
-
-                         !    ! strpop2 = "##inputrenamefield" // c_null_char
-                         !    ! txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
-                         !    ! call igSetKeyboardFocusHere(0_c_int)
-                         !    ! flags = ImGuiInputTextFlags_EnterReturnsTrue
-                         !    ! if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
-                         !    !    ll = index(txtinp,c_null_char)
-                         !    !    sys(i)%f(k)%name = txtinp(1:ll-1)
-                         !    !    call igCloseCurrentPopup()
-                         !    ! end if
-                         !    call igEndMenu()
-                         ! end if
+                            strpop2 = "OK##resamplefieldmenu" // c_null_char
+                            if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                               id = sys(i)%getfieldnum()
+                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
+                                  sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+                            end if
+                            call igEndMenu()
+                         else
+                            iresample = sys(i)%f(k)%grid%n
+                         end if
 
                       end if
-  ! integer, parameter, public :: ifformat_as_resample = 25
 
 
                       call igEndPopup()

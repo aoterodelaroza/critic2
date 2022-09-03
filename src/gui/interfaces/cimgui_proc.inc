@@ -564,9 +564,25 @@ function igInputFloat3(label,v,format_,flags) bind(c,name="igInputFloat3")
   logical(c_bool) :: igInputFloat3
 end function igInputFloat3
 !x! bool igInputFloat4(const char* label,float v[4],const char* format,ImGuiInputTextFlags flags);
-!x! bool igInputInt(const char* label,int* v,int step,int step_fast,ImGuiInputTextFlags flags);
+! bool igInputInt(const char* label,int* v,int step,int step_fast,ImGuiInputTextFlags flags);
+function igInputInt(label,v,step,step_fast,flags) bind(c,name="igInputInt")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int) :: v
+  integer(c_int), value :: step
+  integer(c_int), value :: step_fast
+  integer(c_int), value :: flags
+  logical(c_bool) :: igInputInt
+end function igInputInt
 !x! bool igInputInt2(const char* label,int v[2],ImGuiInputTextFlags flags);
-!x! bool igInputInt3(const char* label,int v[3],ImGuiInputTextFlags flags);
+! bool igInputInt3(const char* label,int v[3],ImGuiInputTextFlags flags);
+function igInputInt3(label,v,flags) bind(c,name="igInputInt3")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int) :: v(3)
+  integer(c_int), value :: flags
+  logical(c_bool) :: igInputInt3
+end function igInputInt3
 !x! bool igInputInt4(const char* label,int v[4],ImGuiInputTextFlags flags);
 !x! bool igInputDouble(const char* label,double* v,double step,double step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputScalar(const char* label,ImGuiDataType data_type,void* p_data,const void* p_step,const void* p_step_fast,const char* format,ImGuiInputTextFlags flags);
