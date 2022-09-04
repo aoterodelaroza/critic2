@@ -103,6 +103,7 @@ contains
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
   module function stack_create_window(type,isopen,purpose)
+    use tools_io, only: ferror, faterr
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
@@ -112,7 +113,7 @@ contains
     integer :: stack_create_window
 
     integer :: i, id
-    integer, parameter :: maxwin = 50
+    integer, parameter :: maxwin = 200
 
     ! find the first unused window or create a new one
     id = 0
@@ -131,11 +132,7 @@ contains
     if (.not.allocated(win)) then
        allocate(win(maxwin))
     elseif (nwin > size(win,1)) then
-       allocate(aux(2*nwin))
-       aux(1:size(win,1)) = win
-       call move_alloc(aux,win)
-       write (*,*) "reallocating! wrong! xxxx"
-       stop 1
+       call ferror('stack_create_window','Too many windows open',faterr)
     end if
 
     ! initialize the new window
