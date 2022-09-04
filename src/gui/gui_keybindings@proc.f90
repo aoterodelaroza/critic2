@@ -26,14 +26,14 @@ submodule (gui_keybindings) proc
   integer, parameter :: bindevent_level = 0
 
   ! Bind names
-  character(len=22), parameter :: bindnames(BIND_NUM) = (/&
-     "Quit                  ",& ! BIND_QUIT
-     "New                   ",& ! BIND_NEW
-     "Open file(s)          ",& ! BIND_OPEN
-     "Close focused dialog  ",& ! BIND_CLOSE_FOCUSED_DIALOG
-     "OK in focused dialog  ",& ! BIND_OK_FOCUSED_DIALOG
-     "Remove selected system",& ! BIND_TREE_REMOVE_SYSTEM
-     "Run the commands      "/) ! BIND_INPCON_RUN
+  character(len=31), parameter :: bindnames(BIND_NUM) = (/&
+     "Quit                           ",& ! BIND_QUIT
+     "New                            ",& ! BIND_NEW
+     "Open file(s)                   ",& ! BIND_OPEN
+     "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
+     "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
+     "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     "Run the commands               "/) ! BIND_INPCON_RUN
   !   "Close last dialog",
   !   "Close all dialogs",
   !   "Align view with a axis",
@@ -58,7 +58,7 @@ submodule (gui_keybindings) proc
      group_global,& ! BIND_OPEN
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
-     group_tree,&   ! BIND_TREE_REMOVE_SYSTEM
+     group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
      group_inpcon/) ! BIND_INPCON_RUN
   !   1, // close last dialog
   !   1, // close all dialogs
@@ -166,7 +166,7 @@ contains
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
-    call set_bind(BIND_TREE_REMOVE_SYSTEM,ImGuiKey_Delete,ImGuiKey_None)
+    call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
     !

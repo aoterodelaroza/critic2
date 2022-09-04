@@ -382,7 +382,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM
+    use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD
     use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
@@ -403,12 +403,12 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, aux, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend
+    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -1008,9 +1008,38 @@ contains
        end do
 
        ! process the keybindings
-       if (igIsWindowFocused(ImGuiFocusedFlags_None)) then
-          if (is_bind_event(BIND_TREE_REMOVE_SYSTEM)) &
-             w%forceremove = (/w%table_selected/)
+       ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
+       ok = ok .and. igIsWindowFocused(ImGuiFocusedFlags_None)
+       if (ok) then
+          jsel = w%table_selected
+          iref = sys(jsel)%iref
+          ok = (jsel >= 1 .and. jsel <= nsys)
+          if (ok) ok = sysc(jsel)%showfields
+          if (ok) ok = (sysc(jsel)%status == sys_init)
+          if (ok) ok = (iref >= 1 .and. iref <= sys(jsel)%nf)
+          if (ok) ok = sys(jsel)%f(iref)%isinit
+          if (ok) then
+             found = .false.
+             do k = iref+1, sys(jsel)%nf
+                if (sys(jsel)%f(k)%isinit) then
+                   call sys(jsel)%set_reference(k,.false.)
+                   found = .true.
+                   exit
+                end if
+             end do
+             if (.not.found) then
+                do k = iref-1, 1, -1
+                   if (sys(jsel)%f(k)%isinit) then
+                      call sys(jsel)%set_reference(k,.false.)
+                      found = .true.
+                      exit
+                   end if
+                end do
+             end if
+             call sys(jsel)%unload_field(iref)
+          else
+             w%forceremove = (/jsel/)
+          end if
        end if
 
        call igEndTable()

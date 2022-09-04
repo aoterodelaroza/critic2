@@ -34,7 +34,7 @@ module gui_keybindings
   integer, parameter, public :: BIND_OPEN = 3 ! open systems
   integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 4 ! close focused dialog
   integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 5 ! OK focused dialog
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM = 6 ! tree: remove system
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 6 ! tree: remove system or field
   integer, parameter, public :: BIND_INPCON_RUN = 7 ! tree: remove system
   integer, parameter, public :: BIND_NUM = 7 ! total number of binds
   ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
