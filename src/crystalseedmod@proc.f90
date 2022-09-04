@@ -5520,7 +5520,7 @@ contains
              read (sene,*,err=999) rdum
              if (istruct < 0) then
                 if (is0 == nseed) then
-                   seed(iuse)%name = trim(file) // "|(final) (" //&
+                   seed(iuse)%name = trim(file) // "|(fin) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
                 else
                    str = string(iuse,npad,pad0=.true.)
@@ -5807,7 +5807,7 @@ contains
           seed(i)%name = trim(file) // "|" // str // " (" //&
              trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
        end do
-       seed(nseed)%name = trim(file) // "|(final) (" //&
+       seed(nseed)%name = trim(file) // "|(fin) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
     else
        seed(in)%name = trim(file)
