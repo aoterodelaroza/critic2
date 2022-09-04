@@ -829,6 +829,9 @@ contains
                          call igEndMenu()
                       end if
 
+                      !! now the load new field options !!
+                      call igSeparator()
+
                       ! duplicate option (fields)
                       strpop = "Duplicate" // c_null_char
                       if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
