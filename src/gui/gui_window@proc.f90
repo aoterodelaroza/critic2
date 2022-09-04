@@ -433,8 +433,8 @@ contains
     str = "##treefilter" // c_null_char
     ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
     call iw_tooltip("Filter systems by name in the list below. Use comma-separated fields&
-       &and - for excluding. Example: inc1,inc2,-exc includes all systems&
-       &with inc1 or inc2 and excludes systems with exc.",ttshown)
+       & and - for excluding. Example: inc1,inc2,-exc includes all systems&
+       & with inc1 or inc2 and excludes systems with exc.",ttshown)
     if (iw_button("Clear",sameline=.true.)) then
        if (c_associated(cfilter)) &
           call ImGuiTextFilter_Clear(cfilter)
@@ -812,6 +812,7 @@ contains
                          strpop = "Remove" // c_null_char
                          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
                             call sys(i)%unload_field(k)
+                         call iw_tooltip("Remove this field",ttshown)
                       end if
 
                       ! rename option (fields)
@@ -828,6 +829,7 @@ contains
                          end if
                          call igEndMenu()
                       end if
+                      call iw_tooltip("Rename this field",ttshown)
 
                       !! now the load new field options !!
                       call igSeparator()
@@ -840,6 +842,7 @@ contains
                          sys(i)%f(id)%id = id
                          sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
                       end if
+                      call iw_tooltip("Load a copy of this field as a new field",ttshown)
 
                       ! grid calculation options
                       if (sys(i)%f(k)%type == type_grid) then
@@ -849,6 +852,7 @@ contains
                             call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
                                sys(i)%f(k)%grid,ifformat_as_grad)
                          end if
+                         call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
 
                          strpop = "Load Laplacian grid" // c_null_char
                          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
@@ -856,6 +860,7 @@ contains
                             call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
                                sys(i)%f(k)%grid,ifformat_as_lap)
                          end if
+                         call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
 
                          strpop = "Load potential grid" // c_null_char
                          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
@@ -863,6 +868,7 @@ contains
                             call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
                                sys(i)%f(k)%grid,ifformat_as_pot)
                          end if
+                         call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
 
                          strpop = "Load resampled grid" // c_null_char
                          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
@@ -881,6 +887,7 @@ contains
                          else
                             iresample = sys(i)%f(k)%grid%n
                          end if
+                         call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
 
                       end if
 
@@ -1053,7 +1060,7 @@ contains
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
          ! describe this system in the console output
-         strpop = "Describe (Output Console)" // c_null_char
+         strpop = "Describe" // c_null_char
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
@@ -1066,17 +1073,20 @@ contains
             call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
             iunit = iunit_bohr
          end if
+         call iw_tooltip("Print a detailed description of this system in the Output Console",ttshown)
 
          ! set as current system option
          strpop = "Set as Current System" // c_null_char
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             win(iwin_console_input)%inpcon_selected = isys
+         call iw_tooltip("Set this system as current, the system on which commands are effected",ttshown)
 
          ! remove option (system)
          strpop = "Remove" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
             w%forceremove = (/isys/)
+         call iw_tooltip("Remove this system",ttshown)
 
          ! rename option (system)
          strpop = "Rename" // c_null_char
@@ -1093,6 +1103,7 @@ contains
             end if
             call igEndMenu()
          end if
+         call iw_tooltip("Rename this system",ttshown)
 
          ! remove option (system)
          ok = (sys(isys)%nf > 0)
@@ -1105,6 +1116,7 @@ contains
                   call sys(isys)%unload_field(k)
                end do
             end if
+            call iw_tooltip("Rename all fields in this system",ttshown)
          end if
 
          call igEndPopup()

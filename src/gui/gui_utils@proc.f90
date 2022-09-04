@@ -280,11 +280,13 @@ contains
     logical, intent(inout), optional :: ttshown
 
     character(len=:,kind=c_char), allocatable, target :: strloc
+    integer :: flags
 
+    flags = ImGuiHoveredFlags_AllowWhenBlockedByPopup
     if (present(ttshown)) then
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) call show_tooltip()
+       if (igIsItemHovered_delayed(flags,tooltip_delay,ttshown)) call show_tooltip()
     else
-       if (igIsItemHovered(ImGuiHoveredFlags_None)) call show_tooltip()
+       if (igIsItemHovered(flags)) call show_tooltip()
     end if
 
   contains

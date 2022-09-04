@@ -369,11 +369,17 @@ function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSp
 end function igGetTextLineHeightWithSpacing
 !x! float igGetFrameHeight(void);
 !x! float igGetFrameHeightWithSpacing(void);
-!x! void igPushID_Str(const char* str_id);
+! void igPushID_Str(const char* str_id);
+subroutine igPushID_Str(str_id) bind(c,name="igPushID_Str")
+  import c_ptr
+  type(c_ptr), intent(in), value :: str_id
+end subroutine igPushID_Str
 !x! void igPushID_StrStr(const char* str_id_begin,const char* str_id_end);
 !x! void igPushID_Ptr(const void* ptr_id);
 !x! void igPushID_Int(int int_id);
-!x! void igPopID(void);
+! void igPopID(void);
+subroutine igPopID() bind(c,name="igPopID")
+end subroutine igPopID
 !x! ImGuiID igGetID_Str(const char* str_id);
 !x! ImGuiID igGetID_StrStr(const char* str_id_begin,const char* str_id_end);
 !x! ImGuiID igGetID_Ptr(const void* ptr_id);
