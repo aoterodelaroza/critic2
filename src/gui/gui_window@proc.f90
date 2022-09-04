@@ -1936,23 +1936,24 @@ contains
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum
     logical :: setscroll, skip, pushed, ok
-    real(c_float) :: itemspacing, xavail, xavail1, xx
+    real(c_float) :: itemspacing, xavail, xavail1, xx, ally
     integer :: navail, navail1
 
+    real(c_float), save :: maxallscrolly = 0._c_float ! max scroll value of the All pane
     real(c_float), save :: allscrolly = 0._c_float ! scroll value of the All pane
     logical, save :: ttshown = .false. ! tooltip flag
     integer, save :: idsavedialog = 0 ! the ID of the save window
+
+    ! initialize
+    szero%x = 0._c_float
+    szero%y = 0._c_float
+    setscroll = .false.
 
     ! check if the save dialog is still open
     call update_window_id(idsavedialog)
 
     ! read new output, if available
     ldum = w%read_output_ci(.false.)
-
-    ! initialize
-    szero%x = 0._c_float
-    szero%y = 0._c_float
-    setscroll = .false.
 
     ! get the available x
     call igGetContentRegionAvail(szavail)
@@ -2127,6 +2128,19 @@ contains
           call igSetScrollY_Float(allscrolly)
        end if
     endif
+
+    ! if there is new output in all, set the scroll to the beginning
+    ! of the new output
+    if (idcom == 0) then
+       ally = igGetScrollMaxY()
+       if (abs(ally - maxallscrolly) > 1d-5) then
+          allscrolly = maxallscrolly
+          maxallscrolly = ally
+          call igSetScrollY_Float(allscrolly)
+       end if
+    end if
+
+    ! write down the current scroll y
     if (idcom > 0) then
        com(icom(idcom))%scrolly = igGetScrollY()
     else
