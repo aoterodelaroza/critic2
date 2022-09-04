@@ -871,7 +871,7 @@ contains
                             strpop2 = "OK##resamplefieldmenu" // c_null_char
                             if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                                id = sys(i)%getfieldnum()
-                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
+                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
                                   sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
                             end if
                             call igEndMenu()
