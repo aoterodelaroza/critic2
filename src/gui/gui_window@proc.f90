@@ -2134,9 +2134,12 @@ contains
     if (idcom == 0) then
        ally = igGetScrollMaxY()
        if (abs(ally - maxallscrolly) > 1d-5) then
-          allscrolly = maxallscrolly
+          if (maxallscrolly > 0._c_float) then
+             call igGetItemRectSize(sz)
+             allscrolly = min(maxallscrolly + sz%y - 2 * igGetTextLineHeight(),ally)
+             call igSetScrollY_Float(allscrolly)
+          end if
           maxallscrolly = ally
-          call igSetScrollY_Float(allscrolly)
        end if
     end if
 

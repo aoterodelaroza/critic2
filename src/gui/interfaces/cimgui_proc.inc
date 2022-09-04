@@ -932,7 +932,11 @@ subroutine igGetItemRectMax(pOut) bind(c,name="igGetItemRectMax")
   import ImVec2
   type(ImVec2) :: pOut
 end subroutine igGetItemRectMax
-!x! void igGetItemRectSize(ImVec2 *pOut);
+! void igGetItemRectSize(ImVec2 *pOut);
+subroutine igGetItemRectSize(pOut) bind(c,name="igGetItemRectSize")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetItemRectSize
 ! void igSetItemAllowOverlap(void);
 subroutine igSetItemAllowOverlap() bind(c,name="igSetItemAllowOverlap")
 end subroutine igSetItemAllowOverlap
