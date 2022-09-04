@@ -63,16 +63,17 @@ module gui_main
   integer, parameter, public :: sys_initializing = 2
   integer, parameter, public :: sys_init = 3
   type :: sysconf
-     integer :: id
-     integer :: status = sys_empty
+     integer :: id ! ID for this system
+     integer :: status = sys_empty ! current status
      logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
      logical :: showfields = .false. ! whether to show the fields in the tree view
-     type(crystalseed) :: seed
-     logical :: has_field
+     type(crystalseed) :: seed ! generating seed
+     logical :: has_field ! true if the seed has a field
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
-     type(c_ptr) :: thread_lock = c_null_ptr
+     type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      character(len=:), allocatable :: fullname ! full-path name
-     logical :: renamed
+     logical :: renamed ! true if the system has been renamed
+     integer(c_int) :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)

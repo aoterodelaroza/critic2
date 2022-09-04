@@ -112,6 +112,7 @@ contains
     integer :: stack_create_window
 
     integer :: i, id
+    integer, parameter :: maxwin = 50
 
     ! find the first unused window or create a new one
     id = 0
@@ -128,11 +129,13 @@ contains
 
     ! reallocate if necessary
     if (.not.allocated(win)) then
-       allocate(win(nwin))
+       allocate(win(maxwin))
     elseif (nwin > size(win,1)) then
        allocate(aux(2*nwin))
        aux(1:size(win,1)) = win
        call move_alloc(aux,win)
+       write (*,*) "reallocating! wrong! xxxx"
+       stop 1
     end if
 
     ! initialize the new window
@@ -345,6 +348,11 @@ contains
           inisize%x = 800._c_float
           inisize%y = 480._c_float
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_load_field) then
+          w%name = "Load Field..." // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 800._c_float
+          inisize%y = 480._c_float
        end if
     end if
 
@@ -369,6 +377,8 @@ contains
                 call w%draw_new_struct()
              elseif (w%type == wintype_new_struct_library) then
                 call w%draw_new_struct_from_library()
+             elseif (w%type == wintype_load_field) then
+                call w%draw_load_field()
              end if
           end if
           call igEnd()
@@ -400,7 +410,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=1024), target :: txtinp
-    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, aux, zeroc, ch
+    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref
@@ -687,6 +697,10 @@ contains
              if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
           end if
 
+          ! update the window ID for the load field dialog
+          call update_window_id(sysc(i)%idloadfield)
+
+          ! start defining the table row
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
           hadenabledcolumn = .false.
 
@@ -1111,11 +1125,13 @@ contains
             win(iwin_console_input)%inpcon_selected = isys
          call iw_tooltip("Set this system as current, the system on which commands are effected",ttshown)
 
-         ! remove option (system)
-         strpop = "Remove" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
-            w%forceremove = (/isys/)
-         call iw_tooltip("Remove this system",ttshown)
+         ! load field
+         strpop = "Load Field" // c_null_char
+         enabled = (sysc(isys)%idloadfield == 0)
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            sysc(isys)%idloadfield = stack_create_window(wintype_load_field,.true.)
+         end if
+         call iw_tooltip("Load a scalar field for this system",ttshown)
 
          ! rename option (system)
          strpop = "Rename" // c_null_char
@@ -1147,6 +1163,12 @@ contains
             end if
             call iw_tooltip("Rename all fields in this system",ttshown)
          end if
+
+         ! remove option (system)
+         strpop = "Remove" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+            w%forceremove = (/isys/)
+         call iw_tooltip("Remove this system",ttshown)
 
          call igEndPopup()
       end if
@@ -2713,6 +2735,16 @@ contains
     end subroutine end_state
 
   end subroutine draw_new_struct_from_library
+
+  !> Draw the contents of the load field window.
+  module subroutine draw_load_field(w)
+    use gui_utils, only: iw_text
+    class(window), intent(inout), target :: w
+
+    ! integer, parameter, public :: wintype_load_field = 8
+    call iw_text("Blah!")
+
+  end subroutine draw_load_field
 
   !xx! private procedures
 
