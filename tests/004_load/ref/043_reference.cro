@@ -23,7 +23,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: <promolecular> (copy of $0)
+  Name: <promolecular>
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912
@@ -35,7 +35,7 @@
   Alias for this field (2): $2, $f1
 
 + Field number 9
-  Name: <promolecular> (copy of $0) (copy of $2)
+  Name: <promolecular>
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912

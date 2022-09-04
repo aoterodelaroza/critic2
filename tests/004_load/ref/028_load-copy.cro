@@ -1,5 +1,5 @@
 + Field number 1
-  Name: <promolecular> (copy of $0)
+  Name: <promolecular>
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912
@@ -37,7 +37,7 @@
   Alias for this field (2): $3, $fsum2
 
 + Field number 5
-  Name: <ghost>, $1+$0 (copy of $2)
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -49,7 +49,7 @@
   Alias for this field (2): $5, $blah
 
 + Field number 10
-  Name: <ghost>, $1+$0 (copy of $2) (copy of $5)
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -79,7 +79,7 @@
   Alias for this field (2): $0, $rho0
 
 + Field number 1
-  Name: <promolecular> (copy of $0)
+  Name: <promolecular>
   Source: <generated>
   Type: promolecular
   Atoms in the environment: 1912
@@ -116,7 +116,7 @@
   Alias for this field (2): $3, $fsum2
 
 + Field number 5
-  Name: <ghost>, $1+$0 (copy of $2)
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
@@ -128,7 +128,7 @@
   Alias for this field (2): $5, $blah
 
 + Field number 10
-  Name: <ghost>, $1+$0 (copy of $2) (copy of $5)
+  Name: <ghost>, $1+$0
   Source: <generated>
   Type: ghost field
   Expression: $1+$0
