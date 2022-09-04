@@ -864,11 +864,11 @@ contains
                          strpop = "Load resampled grid" // c_null_char
                          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
                             flags = ImGuiInputTextFlags_None
-                            strpop2 = "New size##resamplefieldmenu" // c_null_char
+                            strpop2 = "New size##resamplefieldmenunewsize" // c_null_char
                             call igSetNextItemWidth(iw_calcwidth(4*3,2))
                             ldum = igInputInt3(c_loc(strpop2),iresample,flags)
 
-                            strpop2 = "OK##resamplefieldmenu" // c_null_char
+                            strpop2 = "OK##resamplefieldmenuok" // c_null_char
                             if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                                id = sys(i)%getfieldnum()
                                call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
