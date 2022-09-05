@@ -67,6 +67,8 @@ module gui_window
      character(kind=c_char,len=:), allocatable :: libraryfile ! library file
      logical :: libraryfile_set = .false. ! whether the library file has been set by the user
      logical :: libraryfile_read = .false. ! whether the structure list should be re-read from the lib
+     ! load field parameters
+     integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -125,21 +127,23 @@ module gui_window
   public :: update_window_id
 
   interface
-     module function stack_create_window(type,isopen,purpose)
+     module function stack_create_window(type,isopen,purpose,isys)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
+       integer, intent(in), optional :: isys
        integer :: stack_create_window
      end function stack_create_window
      module subroutine update_window_id(id,changed)
        integer, intent(inout) :: id
        integer, intent(out), optional :: changed
      end subroutine update_window_id
-     module subroutine window_init(w,type,isopen,purpose)
+     module subroutine window_init(w,type,isopen,purpose,isys)
        class(window), intent(inout) :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
+       integer, intent(in), optional :: isys
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout) :: w

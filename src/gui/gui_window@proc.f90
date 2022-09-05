@@ -102,14 +102,14 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose)
+  module function stack_create_window(type,isopen,purpose,isys)
     use tools_io, only: ferror, faterr
     use gui_window, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
+    integer, intent(in), optional :: isys
 
-    type(window), allocatable :: aux(:)
     integer :: stack_create_window
 
     integer :: i, id
@@ -136,7 +136,7 @@ contains
     end if
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose)
+    call win(id)%init(type,isopen,purpose,isys)
     stack_create_window = id
 
   end function stack_create_window
@@ -162,7 +162,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose)
+  module subroutine window_init(w,type,isopen,purpose,isys)
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
@@ -170,6 +170,7 @@ contains
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
+    integer, intent(in), optional :: isys
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -211,6 +212,10 @@ contains
        if (.not.present(purpose)) &
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
+    elseif (type == wintype_load_field) then
+       if (.not.present(isys)) &
+          call ferror('window_init','load_field requires isys',faterr)
+       w%loadfield_isys = isys
     end if
 
   end subroutine window_init
@@ -350,6 +355,7 @@ contains
           w%flags = ImGuiWindowFlags_None
           inisize%x = 800._c_float
           inisize%y = 480._c_float
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -421,6 +427,7 @@ contains
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
+    integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
 
     ! initialize
     hadenabledcolumn = .false.
@@ -433,6 +440,9 @@ contains
        w%table_selected = 1
        w%forceupdate = .true.
     end if
+
+    ! update the window ID for the load field dialog
+    call update_window_id(idloadfield)
 
     ! text filter
     if (.not.c_associated(cfilter)) &
@@ -693,9 +703,6 @@ contains
              str = trim(sysc(i)%seed%name) // c_null_char
              if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
           end if
-
-          ! update the window ID for the load field dialog
-          call update_window_id(sysc(i)%idloadfield)
 
           ! start defining the table row
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
@@ -1124,9 +1131,12 @@ contains
 
          ! load field
          strpop = "Load Field" // c_null_char
-         enabled = (sysc(isys)%idloadfield == 0)
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            sysc(isys)%idloadfield = stack_create_window(wintype_load_field,.true.)
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+            if (idloadfield > 0) then
+               win(idloadfield)%loadfield_isys = isys
+            else
+               idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys)
+            end if
          end if
          call iw_tooltip("Load a scalar field for this system",ttshown)
 
@@ -2735,12 +2745,100 @@ contains
 
   !> Draw the contents of the load field window.
   module subroutine draw_load_field(w)
-    use gui_utils, only: iw_text
+    use gui_main, only: nsys, sysc, sys_init, g
+    use gui_utils, only: iw_text, iw_tooltip
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    ! integer, parameter, public :: wintype_load_field = 8
-    call iw_text("Blah!")
+    logical :: oksys
+    integer :: isys, i
+    type(ImVec2) :: szavail, sz, szero
+    real(c_float) :: combowidth
+    logical(c_bool) :: is_selected
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
 
+    ! window state
+    logical, save :: ttshown = .false. ! tooltip flag
+
+    ! first pass when opened, reset the state
+    if (w%firstpass) call init_state()
+
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+
+    !! make sure we get a system that exists
+    ! check if the system still exists
+    isys = w%loadfield_isys
+    oksys = system_ok(isys)
+    if (.not.oksys) then
+       ! reset to the table selected
+       isys = win(iwin_tree)%table_selected
+       oksys = system_ok(isys)
+    end if
+    if (.not.oksys) then
+       ! reset to the input console selected
+       isys = win(iwin_tree)%inpcon_selected
+       oksys = system_ok(isys)
+    end if
+    if (.not.oksys) then
+       ! check all systems and try to find one that is OK
+       do i = 1, nsys
+          oksys = system_ok(isys)
+          if (oksys) then
+             isys = i
+             exit
+          end if
+       end do
+    end if
+    if (.not.oksys) then
+       ! this dialog does not make sense anymore, close it and exit
+       call end_state()
+       call w%end()
+       return
+    end if
+
+    ! system combo
+    call iw_text("System")
+    call igSameLine(0._c_float,-1._c_float)
+    call igGetContentRegionAvail(szavail)
+    combowidth = max(szavail%x - sz%x - g%Style%ItemSpacing%x,0._c_float)
+    str1 = "##systemcombo" // c_null_char
+    call igSetNextItemWidth(combowidth)
+    if (oksys) &
+       str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init) then
+             is_selected = (isys == i)
+             str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+                w%loadfield_isys = i
+                isys = w%loadfield_isys
+             end if
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end if
+       end do
+       call igEndCombo()
+    end if
+    call iw_tooltip("Load a field for this system",ttshown)
+
+  contains
+    ! initialize the state for this window
+    subroutine init_state()
+    end subroutine init_state
+    ! terminate the state for this window
+    subroutine end_state()
+    end subroutine end_state
+    function system_ok(isys)
+      integer, intent(in) :: isys
+      logical :: system_ok
+
+      system_ok = (isys > 0 .and. isys <= nsys)
+      if (system_ok) system_ok = (sysc(isys)%status == sys_init)
+
+    end function system_ok
   end subroutine draw_load_field
 
   !xx! private procedures

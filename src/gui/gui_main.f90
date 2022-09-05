@@ -73,7 +73,6 @@ module gui_main
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      character(len=:), allocatable :: fullname ! full-path name
      logical :: renamed ! true if the system has been renamed
-     integer(c_int) :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
