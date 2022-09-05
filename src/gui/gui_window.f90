@@ -64,9 +64,9 @@ module gui_window
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
      ! new structure from library parameters
-     character(kind=c_char,len=:), allocatable :: libraryfile ! library file
-     logical :: libraryfile_set = .false. ! whether the library file has been set by the user
-     logical :: libraryfile_read = .false. ! whether the structure list should be re-read from the lib
+     character(kind=c_char,len=:), allocatable :: okfile ! ok file
+     logical :: okfile_set = .false. ! whether the library file has been set by the user
+     logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      ! load field parameters
      integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
    contains
@@ -121,6 +121,7 @@ module gui_window
   integer, parameter, public :: wpurp_dialog_openfiles = 1
   integer, parameter, public :: wpurp_dialog_savelogfile = 2
   integer, parameter, public :: wpurp_dialog_openlibraryfile = 3
+  integer, parameter, public :: wpurp_dialog_openfieldfile = 4
 
   ! routines to manipulate the window stack
   public :: stack_create_window

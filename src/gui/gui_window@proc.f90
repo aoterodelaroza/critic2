@@ -189,8 +189,8 @@ contains
     w%forceupdate = .false.
     w%forceinit = .false.
     w%inpcon_selected = 1
-    w%libraryfile_set = .false. ! whether the library file has been set by the user
-    w%libraryfile_read = .false. ! whether the structure list should be re-read from the lib
+    w%okfile_set = .false. ! whether the library file has been set by the user
+    w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
@@ -235,7 +235,6 @@ contains
     w%name = ""
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)
-    w%libraryfile = ""
 
   end subroutine window_end
 
@@ -295,6 +294,7 @@ contains
           inisize%y = 480._c_float
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
+          str1 = "All files (*.*){*.*}" // c_null_char
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              ! open dialog
              w%name = "Open File(s)..." // c_null_char
@@ -327,12 +327,35 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File..." // c_null_char
-             str1 = "All files (*.*){*.*}" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File..." // c_null_char
-             str1 = "All files (*.*){*.*}" // c_null_char
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
+             w%name = "Open Field File(s)..." // c_null_char
+             str1 = &
+                "&
+                &All files (*.*){*.*},&
+                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
+                &ADF (molden){.molden},&
+                &Aimpac (qub){.qub},&
+                &Binary cube file (bincube){.bincube},&
+                &Cube file (cube){.cube},&
+                &DFTB+ (detailed.xml){.xml},&
+                &elk (grid){.grid},&
+                &elk STATE.OUT (OUT){.OUT},&
+                &Gaussian wavefunction (wfn|wfx|fchk){.wfn,.wfx,.fchk},&
+                &ORCA wavefunction (molden|molden.input){.molden},&
+                &psi4 wavefunction (molden|molden.input){.molden},&
+                &Quantum ESPRESSO pwc file (pwc){.pwc},&
+                &SIESTA (RHO|BADER|DRHO|LDOS|VT|VH) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
+                &VASP ELFCAR{(ELFCAR)},&
+                &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+                &WIEN2k (clmsum|clmup|clmdn){.clmsum,.clmup,.clmdn},&
+                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
+                &"// c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
@@ -1472,14 +1495,15 @@ contains
                 write(lu,'(A)') com(icom(idcom))%output
              end if
              call fclose(lu)
-          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
+             w%dialog_purpose == wpurp_dialog_openfieldfile) then
              !! new structure file dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             w%libraryfile = trim(name)
-             w%libraryfile_set = .true.
-             w%libraryfile_read = .true.
+             w%okfile = trim(name)
+             w%okfile_set = .true.
+             w%okfile_read = .true.
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
           end if
@@ -2567,23 +2591,23 @@ contains
     ! closes and recover it
     call update_window_id(idopenlibfile,oid)
     if (oid /= 0) then
-       w%libraryfile_read = win(oid)%libraryfile_read
-       if (w%libraryfile_read) then
-          w%libraryfile_set = win(oid)%libraryfile_set
-          w%libraryfile = win(oid)%libraryfile
+       w%okfile_read = win(oid)%okfile_read
+       if (w%okfile_read) then
+          w%okfile_set = win(oid)%okfile_set
+          w%okfile = win(oid)%okfile
        end if
     end if
 
     ! crystal or molecule, from library
     saveismol = ismolecule
     if (iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)) then
-       if (saveismol.and..not.w%libraryfile_set) w%libraryfile = trim(clib_file)
-       w%libraryfile_read = .true.
+       if (saveismol.and..not.w%okfile_set) w%okfile = trim(clib_file)
+       w%okfile_read = .true.
     end if
     call iw_tooltip("The new structure will be a periodic crystal",ttshown)
     if (iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)) then
-       if (.not.saveismol.and..not.w%libraryfile_set) w%libraryfile = trim(mlib_file)
-       w%libraryfile_read = .true.
+       if (.not.saveismol.and..not.w%okfile_set) w%okfile = trim(mlib_file)
+       w%okfile_read = .true.
     end if
     call iw_tooltip("The new structure will be a molecule",ttshown)
 
@@ -2593,7 +2617,7 @@ contains
     if (iw_button("Library file",disabled=(idopenlibfile /= 0))) &
        idopenlibfile = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
     call iw_tooltip("Library file from where the structures are read",ttshown)
-    call iw_text(w%libraryfile,sameline=.true.)
+    call iw_text(w%okfile,sameline=.true.)
 
     ! list box
     call iw_text("Structures to load from the library file",highlight=.true.)
@@ -2676,7 +2700,7 @@ contains
           do i = 1, nst
              if (lst(i)) then
                 ! read the selected seeds from the library, check OK
-                call seed%read_library(st(i)%s,ok,file=w%libraryfile)
+                call seed%read_library(st(i)%s,ok,file=w%okfile)
                 if (ok .and. ismolecule.eqv.seed%ismolecule) then
                    nseed = nseed + 1
                    seed_(nseed) = seed
@@ -2704,13 +2728,13 @@ contains
        doquit = .true.
 
     ! read the library file
-    if (w%libraryfile_read) then
-       call get_library_structure_list(w%libraryfile,nst,st,ismolecule)
+    if (w%okfile_read) then
+       call get_library_structure_list(w%okfile,nst,st,ismolecule)
        if (allocated(lst)) deallocate(lst)
        allocate(lst(nst))
        lst = .false.
        lastselected = 0
-       w%libraryfile_read = .false.
+       w%okfile_read = .false.
     end if
 
     ! quit the window
@@ -2729,9 +2753,9 @@ contains
       lastselected = 0
       rborder = real(rborder_def*bohrtoa,c_float)
       molcubic = .false.
-      w%libraryfile = trim(clib_file)
-      w%libraryfile_set = .false.
-      w%libraryfile_read = .true.
+      w%okfile = trim(clib_file)
+      w%okfile_set = .false.
+      w%okfile_read = .true.
     end subroutine init_state
 
     ! terminate the state for this window
@@ -2745,23 +2769,46 @@ contains
 
   !> Draw the contents of the load field window.
   module subroutine draw_load_field(w)
+    use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
+       ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
+       ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
+       ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
+       ifformat_wfx, ifformat_fchk, ifformat_molden
     use gui_main, only: nsys, sysc, sys_init, g
-    use gui_utils, only: iw_text, iw_tooltip
+    use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     logical :: oksys
-    integer :: isys, i
+    integer :: isys, i, oid
     type(ImVec2) :: szavail, sz, szero
     real(c_float) :: combowidth
-    logical(c_bool) :: is_selected
+    logical(c_bool) :: is_selected, ldum
     character(len=:,kind=c_char), allocatable, target :: str1, str2
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
+    integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression, 2 = promolecular/core
+    integer(c_int), save :: idopenfile1 = 0 ! the ID for the open library file
+    character(len=:,kind=c_char), allocatable, target, save :: file1 ! first (main) file
+    logical, save :: file1_read = .false.
+    integer, save :: file1_iff = 0
+    integer, save :: file1_format = 0
+
+    ! permutation for the field format list (see dialog_user_callback)
+    integer, parameter :: ifperm(0:17) = (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
+
+    call update_window_id(idopenfile1,oid)
+    if (oid /= 0) then
+       if (win(oid)%okfile_set) then
+          file1 = win(oid)%okfile
+          file1_read = .true.
+          file1_format = ifperm(win(oid)%dialog_data%isformat)
+       end if
+    end if
 
     ! initialize
     szero%x = 0
@@ -2824,13 +2871,49 @@ contains
     end if
     call iw_tooltip("Load a field for this system",ttshown)
 
+    ! select the source
+    ldum = iw_radiobutton("From File",int=sourceopt,intval=0_c_int)
+    call iw_tooltip("Load the field from an external file",ttshown)
+    ldum = iw_radiobutton("Expression",int=sourceopt,intval=1_c_int,sameline=.true.)
+    call iw_tooltip("Load the field from an arithmetic expression involving other fields",ttshown)
+    ldum = iw_radiobutton("Promolecular/Core",int=sourceopt,intval=2_c_int,sameline=.true.)
+    call iw_tooltip("Load the promolecular/core density",ttshown)
+
+    if (sourceopt == 0) then
+       ! from file
+       call iw_text("Source",highlight=.true.)
+       if (iw_button("File",disabled=(idopenfile1 /= 0))) &
+          idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
+       call iw_tooltip("File from where the field is read",ttshown)
+       call iw_text(file1,sameline=.true.)
+
+       ! file1 = win(oid)%okfile
+       ! file1_read = .true.
+       ! file1_format = ifperm(win(oid)%dialog_data%isformat)
+       ! f%molden_type = molden_type_unknown
+       !!xxxx!! bring the ifformat from fieldseedmod, routine to detect the field extension
+
+    elseif (sourceopt == 1) then
+       ! from expression
+    elseif (sourceopt == 2) then
+       ! from promolecular/core
+    end if
+
   contains
     ! initialize the state for this window
     subroutine init_state()
+      sourceopt = 0_c_int
+      idopenfile1 = 0_c_int
+      file1 = ""
+      file1_read = .false.
+      file1_format = 0
     end subroutine init_state
     ! terminate the state for this window
     subroutine end_state()
+      if (allocated(file1)) deallocate(file1)
     end subroutine end_state
+
+    ! returns OK if system isys is initialized
     function system_ok(isys)
       integer, intent(in) :: isys
       logical :: system_ok
@@ -3268,7 +3351,33 @@ contains
           // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
           // "xyz file" // c_null_char                  ! isformat_xyz = 12
        call iw_combo_simple("##formatcombo",stropt,data%isformat)
-       call iw_tooltip("Force new structures read with a given file format, or auto-detect&
+       call iw_tooltip("Force the new structure to be read with this file format, or auto-detect&
+          &from the extension",ttshown)
+       call igNewLine()
+    elseif (data%purpose == wpurp_dialog_openfieldfile) then
+       ! Input structure format (isformat)
+       call iw_text("Read file format",highlight=.true.)
+       stropt = "" &
+          // "Auto-detect" // c_null_char &              ! isformat_unknown = 0
+          // "ABINIT DEN-style file" // c_null_char &    ! ifformat_abinit = 6
+          // "Aimpac qub" // c_null_char &               ! ifformat_qub = 9
+          // "Binary cube" // c_null_char &              ! ifformat_bincube = 5
+          // "Cube file" // c_null_char &                ! ifformat_cube = 4
+          // "DFTB+ detailed.xml" // c_null_char &       ! ifformat_dftb = 13
+          // "elk grid" // c_null_char &                 ! ifformat_elkgrid = 11
+          // "elk STATE.OUT" // c_null_char &            ! ifformat_elk = 2
+          // "Gaussian wfn" // c_null_char &             ! ifformat_wfn = 15
+          // "Gaussian wfx" // c_null_char &             ! ifformat_wfx = 16
+          // "Gaussian fchk" // c_null_char &            ! ifformat_fchk = 17
+          // "Molden file" // c_null_char &              ! ifformat_molden = 18
+          // "Quantum ESPRESSO pwc" // c_null_char &     ! ifformat_pwc = 14
+          // "SIESTA RHO-style file" // c_null_char &    ! ifformat_siestagrid = 12
+          // "VASP ELFCAR-style file" // c_null_char &   ! ifformat_vaspnov = 8
+          // "VASP CHGCAR-style file" // c_null_char &   ! ifformat_vasp = 7
+          // "WIEN2k clmsum-style file" // c_null_char & ! ifformat_wien = 1
+          // "Xcrysden xsf" // c_null_char               ! ifformat_xsf = 10
+       call iw_combo_simple("##formatcombo",stropt,data%isformat)
+       call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
     end if
