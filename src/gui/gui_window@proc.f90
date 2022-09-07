@@ -1749,10 +1749,10 @@ contains
     call w%get_input_details_ci(csystem,cfield)
 
     ! set window size
-    text = "Running critic2 input..." // newline //&
+    text = "...Running critic2 input..." // newline //&
        "System: " // csystem // newline //&
-       "Field: " // cfield // newline //&
-       "Input: " // newline // inputb
+       "Field:  " // cfield // newline //&
+       "Input:  " // newline // inputb
     call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
     sz%y = sz%y + 2 * g%Style%WindowPadding%y
     sz%x = sz%x + 2 * g%Style%WindowPadding%x
@@ -1773,11 +1773,11 @@ contains
        sz%y = 0
        call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
        call iw_text("...Running critic2 input...",highlight=.true.)
-       call iw_text("System",highlight=.true.)
+       call iw_text("System: ",highlight=.true.)
        call iw_text(csystem,sameline=.true.)
-       call iw_text("Field: ",highlight=.true.)
+       call iw_text("Field:  ",highlight=.true.)
        call iw_text(cfield,sameline=.true.)
-       call iw_text("Input",highlight=.true.)
+       call iw_text("Input:  ",highlight=.true.)
        call igIndent(0._c_float)
        call igText(c_loc(inputb))
        call igPopStyleVar(1_c_int)
@@ -2802,7 +2802,7 @@ contains
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
-    integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression, 2 = promolecular/core
+    integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression
     integer(c_int), save :: idopenfile1 = 0 ! the ID for the open field file
     integer(c_int), save :: idopenfile2 = 0 ! the ID for the first auxiliary file
     integer(c_int), save :: idopenfile3 = 0 ! the ID for the second auxiliary file
@@ -2912,8 +2912,6 @@ contains
     call iw_tooltip("Load the field from an external file",ttshown)
     ldum = iw_radiobutton("Expression",int=sourceopt,intval=1_c_int,sameline=.true.)
     call iw_tooltip("Load the field from an arithmetic expression involving other fields",ttshown)
-    ldum = iw_radiobutton("Promolecular/Core",int=sourceopt,intval=2_c_int,sameline=.true.)
-    call iw_tooltip("Load the promolecular/core density",ttshown)
 
     if (sourceopt == 0) then
        ! if a new file is read, detect the format if necessary
@@ -3072,8 +3070,6 @@ contains
 
     elseif (sourceopt == 1) then
        ! from expression
-    elseif (sourceopt == 2) then
-       ! from promolecular/core
     end if
 
     if (sourceopt == 0 .and. isgrid) then
@@ -3119,8 +3115,6 @@ contains
              doquit = .true.
           end if
        elseif (sourceopt == 1) then
-          ! xxxx
-       elseif (sourceopt == 2) then
           ! xxxx
        end if
     end if
