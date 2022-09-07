@@ -350,7 +350,11 @@ subroutine igSetCursorPosX(local_x) bind(c,name="igSetCursorPosX")
   import c_float
   real(c_float), value :: local_x
 end subroutine igSetCursorPosX
-!x! void igSetCursorPosY(float local_y);
+! void igSetCursorPosY(float local_y);
+subroutine igSetCursorPosY(local_y) bind(c,name="igSetCursorPosY")
+  import c_float
+  real(c_float), value :: local_y
+end subroutine igSetCursorPosY
 !x! void igGetCursorStartPos(ImVec2 *pOut);
 !x! void igGetCursorScreenPos(ImVec2 *pOut);
 !x! void igSetCursorScreenPos(const ImVec2 pos);

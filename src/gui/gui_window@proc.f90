@@ -261,6 +261,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
+    use gui_main, only: fontsize
     use gui_utils, only: iw_text
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
@@ -297,8 +298,8 @@ contains
              w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
           end if
           str2 = "" // c_null_char ! default path
-          inisize%x = 800._c_float
-          inisize%y = 480._c_float
+          inisize%x = 90 * fontsize%x
+          inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
           str1 = "All files (*.*){*.*}" // c_null_char
@@ -376,20 +377,20 @@ contains
        elseif (w%type == wintype_new_struct) then
           w%name = "New Structure..." // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 800._c_float
-          inisize%y = 680._c_float
+          inisize%x = 90 * fontsize%x
+          inisize%y = 40 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_new_struct_library) then
           w%name = "New Structure from Library..." // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 800._c_float
-          inisize%y = 480._c_float
+          inisize%x = 90 * fontsize%x
+          inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_load_field) then
           w%name = "Load Field..." // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 800._c_float
-          inisize%y = 480._c_float
+          inisize%x = 60 * fontsize%x
+          inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
@@ -2913,8 +2914,8 @@ contains
     ! select the source
     ldum = iw_radiobutton("From File",int=sourceopt,intval=0_c_int)
     call iw_tooltip("Load the field from an external file",ttshown)
-    ldum = iw_radiobutton("Expression",int=sourceopt,intval=1_c_int,sameline=.true.)
-    call iw_tooltip("Load the field from an arithmetic expression involving other fields",ttshown)
+    ! ldum = iw_radiobutton("Expression",int=sourceopt,intval=1_c_int,sameline=.true.)
+    ! call iw_tooltip("Load the field from an arithmetic expression involving other fields",ttshown)
 
     if (sourceopt == 0) then
        ! if a new file is read, detect the format if necessary
@@ -3091,8 +3092,10 @@ contains
        call iw_tooltip("Polyharmonic splines + smoothing, all-electron densities only (recommended for them)",ttshown)
     end if
 
-    ! right-align for the rest of the contents
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
+    call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! calculated whether we have enough info to continue to ok
     disabled = (len(file1) == 0)
@@ -3118,7 +3121,7 @@ contains
              doquit = .true.
           end if
        elseif (sourceopt == 1) then
-          ! xxxx
+          ! todo
        end if
     end if
 
