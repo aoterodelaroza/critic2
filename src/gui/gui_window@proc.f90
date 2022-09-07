@@ -2784,17 +2784,20 @@ contains
        ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
-    use gui_main, only: nsys, sysc, sys_init, g, ColorDangerButton
-    use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button
-    use tools_io, only: string, ferror, warning
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_OK_FOCUSED_DIALOG
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ColorDangerButton
+    use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
+       iw_calcwidth
+    use tools_io, only: string, uout
     class(window), intent(inout), target :: w
 
-    logical :: oksys, ok
-    integer :: isys, i, j, oid, ll, idx
+    logical :: oksys, ok, doquit, disabled
+    integer :: isys, i, j, oid, ll, idx, iff
     type(ImVec2) :: szavail, sz, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
-    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    character(len=:,kind=c_char), allocatable, target :: str1, str2, loadstr, errmsg
     logical :: isgrid
 
     ! window state
@@ -2845,6 +2848,7 @@ contains
     ! initialize
     szero%x = 0
     szero%y = 0
+    doquit = .false.
 
     !! make sure we get a system that exists
     ! check if the system still exists
@@ -2918,7 +2922,7 @@ contains
              file1_format = -field_detect_format(file=file1)
           if (abs(file1_format) == ifformat_pi) file1_format = 0 ! aiPI deactivated for now
           if (file1_format == 0) then
-             call ferror('draw_load_field','unknown field file extension',warning)
+             write (uout,'("!! Warning !! : Unknown field file extension")')
              file1 = ""
           end if
           file2 = ""
@@ -3088,33 +3092,51 @@ contains
        call iw_tooltip("Polyharmonic splines + smoothing, all-electron densities only (recommended for them)",ttshown)
     end if
 
-    ! always: notestmt
-    !! ok and cancel button
-    !! escape keybinding
+    ! right-align for the rest of the contents
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
-    ! ! final buttons: cancel
-    ! if (iw_button("Cancel",disabled=(idopenlibfile /= 0),sameline=.true.)) doquit = .true.
+    ! calculated whether we have enough info to continue to ok
+    disabled = (len(file1) == 0)
+    if (.not.disabled) then
+       iff = abs(file1_format)
+       if (iff == ifformat_wien .or. iff == ifformat_elk .or. iff == ifformat_dftb) &
+          disabled = disabled .or. (len(file2) == 0)
+       if (iff == ifformat_dftb) &
+          disabled = disabled .or. (len(file3) == 0)
+    end if
+    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
+    ok = ok .or. iw_button("OK",disabled=disabled)
+    if (ok) then
+       if (sourceopt == 0) then
+          loadstr = file1_fmtstr // " " // trim(file1) // " " // trim(file2) // " " // trim(file3)
+          loadstr = loadstr // " notestmt"
+          call sys(isys)%load_field_string(loadstr,.false.,iff,errmsg)
+          if (len_trim(errmsg) > 0) then
+             write (uout,'("!! Warning !! Could not read field for system: ",A)') string(isys)
+             write (uout,'("!! Warning !! Load string: ",A)') trim(loadstr)
+             write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+          else
+             doquit = .true.
+          end if
+       elseif (sourceopt == 1) then
+          ! xxxx
+       elseif (sourceopt == 2) then
+          ! xxxx
+       end if
+    end if
 
-    ! ! exit if focused and received the close keybinding
-    ! if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .and. idopenlibfile == 0) &
-    !    doquit = .true.
+    ! final buttons: cancel
+    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
-    ! ! read the library file
-    ! if (w%okfile_read) then
-    !    call get_library_structure_list(w%okfile,nst,st,ismolecule)
-    !    if (allocated(lst)) deallocate(lst)
-    !    allocate(lst(nst))
-    !    lst = .false.
-    !    lastselected = 0
-    !    w%okfile_read = .false.
-    ! end if
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+       doquit = .true.
 
-    ! ! quit the window
-    ! if (doquit) then
-    !    call end_state()
-    !    call w%end()
-    ! end if
-
+    ! quit the window
+    if (doquit) then
+       call end_state()
+       call w%end()
+    end if
 
   contains
     ! initialize the state for this window
