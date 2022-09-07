@@ -122,6 +122,7 @@ module gui_window
   integer, parameter, public :: wpurp_dialog_savelogfile = 2
   integer, parameter, public :: wpurp_dialog_openlibraryfile = 3
   integer, parameter, public :: wpurp_dialog_openfieldfile = 4
+  integer, parameter, public :: wpurp_dialog_openonefilemodal = 5
 
   ! routines to manipulate the window stack
   public :: stack_create_window

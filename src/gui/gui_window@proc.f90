@@ -335,6 +335,7 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)..." // c_null_char
+             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -354,6 +355,11 @@ contains
                 &WIEN2k (clmsum...){.clmsum,.clmup,.clmdn},&
                 &Xcrysden (xsf|axsf) {.xsf,.axsf},&
                 &"// c_null_char
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+             w%name = "Open File..." // c_null_char
+             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
@@ -1494,7 +1500,7 @@ contains
              end if
              call fclose(lu)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
-             w%dialog_purpose == wpurp_dialog_openfieldfile) then
+             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              !! new structure file dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
@@ -2779,7 +2785,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: oksys
-    integer :: isys, i, oid
+    integer :: isys, i, oid, ll
     type(ImVec2) :: szavail, sz, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
@@ -2788,10 +2794,13 @@ contains
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression, 2 = promolecular/core
-    integer(c_int), save :: idopenfile1 = 0 ! the ID for the open library file
+    integer(c_int), save :: idopenfile1 = 0 ! the ID for the open field file
+    integer(c_int), save :: idopenfile2 = 0 ! the ID for the first auxiliary file
     character(len=:,kind=c_char), allocatable, target, save :: file1 ! first (main) file
+    character(len=:,kind=c_char), allocatable, target, save :: file1_fmtstr ! first file format string
     logical, save :: file1_read = .false.
     integer, save :: file1_format = 0
+    character(len=:,kind=c_char), allocatable, target, save :: file2 ! second additional file
 
     ! permutation for the field format list (see dialog_user_callback)
     integer, parameter :: ifperm(0:17) = (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
@@ -2806,6 +2815,10 @@ contains
           file1 = win(oid)%okfile
           file1_format = ifperm(win(oid)%dialog_data%isformat)
        end if
+    end if
+    call update_window_id(idopenfile2,oid)
+    if (oid /= 0) then
+       if (win(oid)%okfile_set) file2 = win(oid)%okfile
     end if
 
     ! initialize
@@ -2882,16 +2895,18 @@ contains
        if (file1_read) then
           if (file1_format == 0) &
              file1_format = -field_detect_format(file=file1)
+          if (abs(file1_format) == ifformat_pi) file1_format = 0 ! aiPI deactivated for now
           if (file1_format == 0) then
              call ferror('draw_load_field','unknown field file extension',warning)
              file1 = ""
           end if
+          file2 = ""
           file1_read = .false.
        end if
 
        ! source file and format
        call iw_text("Source",highlight=.true.)
-       if (iw_button("File",disabled=(idopenfile1 /= 0),danger=(file1_format==0))) &
+       if (iw_button("File",danger=(file1_format==0))) &
           idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
@@ -2900,45 +2915,103 @@ contains
           call iw_text("Format: ")
           select case (abs(file1_format))
           case(ifformat_wien)
+             file1_fmtstr = "WIEN"
              call iw_text("WIEN2k clmsum-style file (LAPW)",sameline=.true.)
+             ! default struct file
+             if (len(file2) == 0) then
+                ll = len_trim(sysc(isys)%seed%file)
+                if (sysc(isys)%seed%file(ll-6:ll) == ".struct") &
+                   file2 = sysc(isys)%seed%file
+             end if
           case(ifformat_elk)
+             file1_fmtstr = "ELK"
              call iw_text("elk STATE.OUT file (LAPW)",sameline=.true.)
+             ! default GEOMETRY.OUT file
+             if (len(file2) == 0) then
+                ll = len_trim(sysc(isys)%seed%file)
+                if (sysc(isys)%seed%file(ll-3:ll) == ".OUT") &
+                   file2 = sysc(isys)%seed%file
+             end if
           case(ifformat_pi)
+             file1_fmtstr = "PI"
              call iw_text("aiPI ion files (LCAO)",sameline=.true.)
           case(ifformat_cube)
+             file1_fmtstr = "CUBE"
              call iw_text("Cube file (grid)",sameline=.true.)
           case(ifformat_bincube)
+             file1_fmtstr = "BINCUBE"
              call iw_text("Binary cube file (grid)",sameline=.true.)
           case(ifformat_abinit)
+             file1_fmtstr = "ABINIT"
              call iw_text("Abinit DEN-style file (grid)",sameline=.true.)
           case(ifformat_vasp)
+             file1_fmtstr = "VASP"
              call iw_text("VASP CHGCAR-style file (grid)",sameline=.true.)
           case(ifformat_vaspnov)
+             file1_fmtstr = "VASPNOV"
              call iw_text("VASP ELFCAR-style file (grid)",sameline=.true.)
           case(ifformat_qub)
+             file1_fmtstr = "QUB"
              call iw_text("Aimpac qub file (grid)",sameline=.true.)
           case(ifformat_xsf)
+             file1_fmtstr = "XSF"
              call iw_text("Xcrysden xsf-style file (grid)",sameline=.true.)
           case(ifformat_elkgrid)
+             file1_fmtstr = "ELKGRID"
              call iw_text("elk grid file (grid)",sameline=.true.)
           case(ifformat_siestagrid)
+             file1_fmtstr = "SIESTA"
              call iw_text("SIESTA RHO-style file (grid)",sameline=.true.)
           case(ifformat_dftb)
+             file1_fmtstr = "DFTB"
              call iw_text("DFTB+ wavefunction (LCAO)",sameline=.true.)
           case(ifformat_pwc)
+             file1_fmtstr = "PWC"
              call iw_text("Quantum ESPRESSO pwc file (grid+wfn)",sameline=.true.)
           case(ifformat_wfn)
+             file1_fmtstr = "WFN"
              call iw_text("Gaussian wfn wavefunction file (molecular wfn)",sameline=.true.)
           case(ifformat_wfx)
+             file1_fmtstr = "WFX"
              call iw_text("Gaussian wfx wavefunction file (molecular wfn)",sameline=.true.)
           case(ifformat_fchk)
+             file1_fmtstr = "FCHK"
              call iw_text("Gaussian fchk wavefunction file (molecular wfn+basis set)",sameline=.true.)
           case(ifformat_molden)
+             file1_fmtstr = "MOLDEN"
              call iw_text("molden wavefunction file (molecular wfn+basis set)",sameline=.true.)
           end select
           if (file1_format < 0) &
              call iw_text(" [auto-detected]",sameline=.true.)
        end if
+
+       ! format-specific options and additional files
+       select case (abs(file1_format))
+       case(ifformat_wien)
+          if (iw_button("File (.struct)",danger=(len(file2)==0))) &
+             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
+          call iw_text(file2,sameline=.true.)
+       case(ifformat_elk)
+          if (iw_button("File (GEOMETRY.OUT)",danger=(len(file2)==0))) &
+             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
+          call iw_text(file2,sameline=.true.)
+       case(ifformat_dftb)
+          if (iw_button("File (.bin)",danger=(len(file2)==0))) &
+             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
+          call iw_text(file2,sameline=.true.)
+
+          !! LOAD file.xml file.bin file.hsd
+       case(ifformat_molden)
+          !! file1_fmtstr = "MOLDEN"
+          !!       MOLDEN|MOLDEN_ORCA|MOLDEN_PSI4
+          !! LOAD file.molden [READVIRTUAL] [ORCA|PSI4]
+          !! LOAD file.molden.input [READVIRTUAL]
+          !! adf?
+       end select
+
        ! f%molden_type = molden_type_unknown !
 
     elseif (sourceopt == 1) then
@@ -2947,18 +3020,27 @@ contains
        ! from promolecular/core
     end if
 
+    !! general field options
+
+    !! ok and cancel button
+
   contains
     ! initialize the state for this window
     subroutine init_state()
       sourceopt = 0_c_int
       idopenfile1 = 0_c_int
+      idopenfile2 = 0_c_int
       file1 = ""
       file1_read = .false.
       file1_format = 0
+      file1_fmtstr = ""
+      file2 = ""
     end subroutine init_state
     ! terminate the state for this window
     subroutine end_state()
       if (allocated(file1)) deallocate(file1)
+      if (allocated(file1_fmtstr)) deallocate(file1_fmtstr)
+      if (allocated(file2)) deallocate(file2)
     end subroutine end_state
 
     ! returns OK if system isys is initialized
