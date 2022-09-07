@@ -113,7 +113,8 @@ contains
     integer :: stack_create_window
 
     integer :: i, id
-    integer, parameter :: maxwin = 200
+    integer, parameter :: maxwin = 40
+    type(window), allocatable :: winaux(:)
 
     ! find the first unused window or create a new one
     id = 0
@@ -132,7 +133,9 @@ contains
     if (.not.allocated(win)) then
        allocate(win(maxwin))
     elseif (nwin > size(win,1)) then
-       call ferror('stack_create_window','Too many windows open',faterr)
+       allocate(winaux(2*nwin))
+       winaux(1:size(win,1)) = win
+       call move_alloc(winaux,win)
     end if
 
     ! initialize the new window
