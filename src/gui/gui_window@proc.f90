@@ -2778,14 +2778,14 @@ contains
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
-       ifformat_wfx, ifformat_fchk, ifformat_molden
+       ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
     use gui_main, only: nsys, sysc, sys_init, g, ColorDangerButton
     use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button
     use tools_io, only: string, ferror, warning
     class(window), intent(inout), target :: w
 
-    logical :: oksys
-    integer :: isys, i, oid, ll
+    logical :: oksys, ok
+    integer :: isys, i, j, oid, ll, idx
     type(ImVec2) :: szavail, sz, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
@@ -2796,14 +2796,22 @@ contains
     integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression, 2 = promolecular/core
     integer(c_int), save :: idopenfile1 = 0 ! the ID for the open field file
     integer(c_int), save :: idopenfile2 = 0 ! the ID for the first auxiliary file
+    integer(c_int), save :: idopenfile3 = 0 ! the ID for the second auxiliary file
     character(len=:,kind=c_char), allocatable, target, save :: file1 ! first (main) file
     character(len=:,kind=c_char), allocatable, target, save :: file1_fmtstr ! first file format string
     logical, save :: file1_read = .false.
     integer, save :: file1_format = 0
-    character(len=:,kind=c_char), allocatable, target, save :: file2 ! second additional file
+    character(len=:,kind=c_char), allocatable, target, save :: file2 ! first auxiliary file
+    logical, save :: file2_set = .false.
+    character(len=:,kind=c_char), allocatable, target, save :: file3 ! second auxiliaryy file
+    logical, save :: file3_set = .false.
 
     ! permutation for the field format list (see dialog_user_callback)
     integer, parameter :: ifperm(0:17) = (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
+
+    ! DFTB+ hsd name candidates
+    character*15, parameter :: hsdnames(4) = (/&
+       "wfc-3ob-3-1.hsd","wfc.3ob-3-1.hsd","wfc.pbc-0-3.hsd","wfc.mio-1-1.hsd"/)
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
@@ -2819,6 +2827,12 @@ contains
     call update_window_id(idopenfile2,oid)
     if (oid /= 0) then
        if (win(oid)%okfile_set) file2 = win(oid)%okfile
+       file2_set = .true.
+    end if
+    call update_window_id(idopenfile3,oid)
+    if (oid /= 0) then
+       if (win(oid)%okfile_set) file3 = win(oid)%okfile
+       file3_set = .true.
     end if
 
     ! initialize
@@ -2901,6 +2915,9 @@ contains
              file1 = ""
           end if
           file2 = ""
+          file2_set = .false.
+          file3 = ""
+          file3_set = .false.
           file1_read = .false.
        end if
 
@@ -2918,19 +2935,21 @@ contains
              file1_fmtstr = "WIEN"
              call iw_text("WIEN2k clmsum-style file (LAPW)",sameline=.true.)
              ! default struct file
-             if (len(file2) == 0) then
+             if (.not.file2_set) then
                 ll = len_trim(sysc(isys)%seed%file)
                 if (sysc(isys)%seed%file(ll-6:ll) == ".struct") &
                    file2 = sysc(isys)%seed%file
+                file2_set = .true.
              end if
           case(ifformat_elk)
              file1_fmtstr = "ELK"
              call iw_text("elk STATE.OUT file (LAPW)",sameline=.true.)
              ! default GEOMETRY.OUT file
-             if (len(file2) == 0) then
+             if (.not.file2_set) then
                 ll = len_trim(sysc(isys)%seed%file)
                 if (sysc(isys)%seed%file(ll-3:ll) == ".OUT") &
                    file2 = sysc(isys)%seed%file
+                file2_set = .true.
              end if
           case(ifformat_pi)
              file1_fmtstr = "PI"
@@ -2965,6 +2984,26 @@ contains
           case(ifformat_dftb)
              file1_fmtstr = "DFTB"
              call iw_text("DFTB+ wavefunction (LCAO)",sameline=.true.)
+             ! default eigenvec.bin file
+             if (.not.file2_set) then
+                idx = index(sysc(isys)%fullname,dirsep,.true.)
+                file2 = sysc(isys)%fullname(1:idx) // "eigenvec.bin"
+                inquire(file=file2,exist=ok)
+                if (.not.ok) file2 = ""
+                file2_set = .true.
+             end if
+             ! default hsd file (from the list of candidate names)
+             if (.not.file3_set) then
+                idx = index(sysc(isys)%fullname,dirsep,.true.)
+                ok = .false.
+                do j = 1, size(hsdnames,1)
+                   file3 = sysc(isys)%fullname(1:idx) // trim(hsdnames(j))
+                   inquire(file=file3,exist=ok)
+                   if (ok) exit
+                end do
+                if (.not.ok) file3 = ""
+                file3_set = .true.
+             end if
           case(ifformat_pwc)
              file1_fmtstr = "PWC"
              call iw_text("Quantum ESPRESSO pwc file (grid+wfn)",sameline=.true.)
@@ -2988,20 +3027,25 @@ contains
        ! format-specific options and additional files
        select case (abs(file1_format))
        case(ifformat_wien)
-          if (iw_button("File (.struct)",danger=(len(file2)==0))) &
+          if (iw_button("File (.struct)",danger=.not.file2_set)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_elk)
-          if (iw_button("File (GEOMETRY.OUT)",danger=(len(file2)==0))) &
+          if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_dftb)
-          if (iw_button("File (.bin)",danger=(len(file2)==0))) &
+          if (iw_button("File (.bin)",danger=.not.file2_set)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file2,sameline=.true.)
+
+          if (iw_button("File (.hsd)",danger=.not.file3_set)) &
+             idopenfile3 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
+          call iw_text(file3,sameline=.true.)
 
           !! LOAD file.xml file.bin file.hsd
        case(ifformat_molden)
@@ -3023,6 +3067,7 @@ contains
     !! general field options
 
     !! ok and cancel button
+    !! escape keybinding
 
   contains
     ! initialize the state for this window
@@ -3030,17 +3075,22 @@ contains
       sourceopt = 0_c_int
       idopenfile1 = 0_c_int
       idopenfile2 = 0_c_int
+      idopenfile3 = 0_c_int
       file1 = ""
       file1_read = .false.
       file1_format = 0
       file1_fmtstr = ""
       file2 = ""
+      file2_set = .false.
+      file3 = ""
+      file3_set = .false.
     end subroutine init_state
     ! terminate the state for this window
     subroutine end_state()
       if (allocated(file1)) deallocate(file1)
       if (allocated(file1_fmtstr)) deallocate(file1_fmtstr)
       if (allocated(file2)) deallocate(file2)
+      if (allocated(file3)) deallocate(file3)
     end subroutine end_state
 
     ! returns OK if system isys is initialized
