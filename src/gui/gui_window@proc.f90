@@ -339,7 +339,6 @@ contains
                 "&
                 &All files (*.*){*.*},&
                 &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
-                &ADF (molden){.molden},&
                 &Aimpac (qub){.qub},&
                 &Binary cube file (bincube){.bincube},&
                 &Cube file (cube){.cube},&
@@ -347,13 +346,12 @@ contains
                 &elk (grid){.grid},&
                 &elk STATE.OUT (OUT){.OUT},&
                 &Gaussian wavefunction (wfn|wfx|fchk){.wfn,.wfx,.fchk},&
-                &ORCA wavefunction (molden|molden.input){.molden},&
-                &psi4 wavefunction (molden|molden.input){.molden},&
+                &Molden-style file (molden){.molden},&
                 &Quantum ESPRESSO pwc file (pwc){.pwc},&
-                &SIESTA (RHO|BADER|DRHO|LDOS|VT|VH) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
+                &SIESTA (RHO...) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
                 &VASP ELFCAR{(ELFCAR)},&
-                &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
-                &WIEN2k (clmsum|clmup|clmdn){.clmsum,.clmup,.clmdn},&
+                &VASP (CHGCAR...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+                &WIEN2k (clmsum...){.clmsum,.clmup,.clmdn},&
                 &Xcrysden (xsf|axsf) {.xsf,.axsf},&
                 &"// c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
@@ -2769,14 +2767,15 @@ contains
 
   !> Draw the contents of the load field window.
   module subroutine draw_load_field(w)
+    use fieldseedmod, only: field_detect_format
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
        ifformat_wfx, ifformat_fchk, ifformat_molden
-    use gui_main, only: nsys, sysc, sys_init, g
+    use gui_main, only: nsys, sysc, sys_init, g, ColorDangerButton
     use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button
-    use tools_io, only: string
+    use tools_io, only: string, ferror, warning
     class(window), intent(inout), target :: w
 
     logical :: oksys
@@ -2792,7 +2791,6 @@ contains
     integer(c_int), save :: idopenfile1 = 0 ! the ID for the open library file
     character(len=:,kind=c_char), allocatable, target, save :: file1 ! first (main) file
     logical, save :: file1_read = .false.
-    integer, save :: file1_iff = 0
     integer, save :: file1_format = 0
 
     ! permutation for the field format list (see dialog_user_callback)
@@ -2804,8 +2802,8 @@ contains
     call update_window_id(idopenfile1,oid)
     if (oid /= 0) then
        if (win(oid)%okfile_set) then
-          file1 = win(oid)%okfile
           file1_read = .true.
+          file1 = win(oid)%okfile
           file1_format = ifperm(win(oid)%dialog_data%isformat)
        end if
     end if
@@ -2880,18 +2878,68 @@ contains
     call iw_tooltip("Load the promolecular/core density",ttshown)
 
     if (sourceopt == 0) then
-       ! from file
+       ! if a new file is read, detect the format if necessary
+       if (file1_read) then
+          if (file1_format == 0) &
+             file1_format = -field_detect_format(file=file1)
+          if (file1_format == 0) then
+             call ferror('draw_load_field','unknown field file extension',warning)
+             file1 = ""
+          end if
+          file1_read = .false.
+       end if
+
+       ! source file and format
        call iw_text("Source",highlight=.true.)
-       if (iw_button("File",disabled=(idopenfile1 /= 0))) &
+       if (iw_button("File",disabled=(idopenfile1 /= 0),danger=(file1_format==0))) &
           idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
 
-       ! file1 = win(oid)%okfile
-       ! file1_read = .true.
-       ! file1_format = ifperm(win(oid)%dialog_data%isformat)
-       ! f%molden_type = molden_type_unknown
-       !!xxxx!! bring the ifformat from fieldseedmod, routine to detect the field extension
+       if (file1_format /= 0) then
+          call iw_text("Format: ")
+          select case (abs(file1_format))
+          case(ifformat_wien)
+             call iw_text("WIEN2k clmsum-style file (LAPW)",sameline=.true.)
+          case(ifformat_elk)
+             call iw_text("elk STATE.OUT file (LAPW)",sameline=.true.)
+          case(ifformat_pi)
+             call iw_text("aiPI ion files (LCAO)",sameline=.true.)
+          case(ifformat_cube)
+             call iw_text("Cube file (grid)",sameline=.true.)
+          case(ifformat_bincube)
+             call iw_text("Binary cube file (grid)",sameline=.true.)
+          case(ifformat_abinit)
+             call iw_text("Abinit DEN-style file (grid)",sameline=.true.)
+          case(ifformat_vasp)
+             call iw_text("VASP CHGCAR-style file (grid)",sameline=.true.)
+          case(ifformat_vaspnov)
+             call iw_text("VASP ELFCAR-style file (grid)",sameline=.true.)
+          case(ifformat_qub)
+             call iw_text("Aimpac qub file (grid)",sameline=.true.)
+          case(ifformat_xsf)
+             call iw_text("Xcrysden xsf-style file (grid)",sameline=.true.)
+          case(ifformat_elkgrid)
+             call iw_text("elk grid file (grid)",sameline=.true.)
+          case(ifformat_siestagrid)
+             call iw_text("SIESTA RHO-style file (grid)",sameline=.true.)
+          case(ifformat_dftb)
+             call iw_text("DFTB+ wavefunction (LCAO)",sameline=.true.)
+          case(ifformat_pwc)
+             call iw_text("Quantum ESPRESSO pwc file (grid+wfn)",sameline=.true.)
+          case(ifformat_wfn)
+             call iw_text("Gaussian wfn wavefunction file (molecular wfn)",sameline=.true.)
+          case(ifformat_wfx)
+             call iw_text("Gaussian wfx wavefunction file (molecular wfn)",sameline=.true.)
+          case(ifformat_fchk)
+             call iw_text("Gaussian fchk wavefunction file (molecular wfn+basis set)",sameline=.true.)
+          case(ifformat_molden)
+             call iw_text("molden wavefunction file (molecular wfn+basis set)",sameline=.true.)
+          end select
+          if (file1_format < 0) &
+             call iw_text(" [auto-detected]",sameline=.true.)
+       end if
+       ! f%molden_type = molden_type_unknown !
 
     elseif (sourceopt == 1) then
        ! from expression
@@ -3355,10 +3403,10 @@ contains
           &from the extension",ttshown)
        call igNewLine()
     elseif (data%purpose == wpurp_dialog_openfieldfile) then
-       ! Input structure format (isformat)
+       ! Input field format (ifformat)
        call iw_text("Read file format",highlight=.true.)
        stropt = "" &
-          // "Auto-detect" // c_null_char &              ! isformat_unknown = 0
+          // "Auto-detect" // c_null_char &              ! ifformat_unknown = 0
           // "ABINIT DEN-style file" // c_null_char &    ! ifformat_abinit = 6
           // "Aimpac qub" // c_null_char &               ! ifformat_qub = 9
           // "Binary cube" // c_null_char &              ! ifformat_bincube = 5

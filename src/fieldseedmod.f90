@@ -59,6 +59,8 @@ module fieldseedmod
   end type fieldseed
   public :: fieldseed
 
+  public :: field_detect_format
+
   interface
      module subroutine fieldseed_end(f)
        class(fieldseed), intent(inout) :: f
@@ -74,6 +76,11 @@ module fieldseedmod
        character*(*) :: line
        integer, intent(inout), optional :: lp0
      end subroutine fieldseed_parse_options
+     module function field_detect_format(file,molden_type)
+       character*(*), intent(in) :: file
+       integer, intent(out), optional :: molden_type
+       integer :: field_detect_format
+     end function field_detect_format
   end interface
 
 end module fieldseedmod
