@@ -2282,6 +2282,12 @@ subroutine IGFD_SetFlags(vContext,flags) bind(c,name="IGFD_SetFlags")
   type(c_ptr), value :: vContext
   integer(c_int), value :: flags
 end subroutine IGFD_SetFlags
+! IMGUIFILEDIALOG_API ImGuiFileDialogFlags IGFD_GetFlags(ImGuiFileDialog* vContext){
+function IGFD_GetFlags(vContext) bind(c,name="IGFD_GetFlags")
+  import c_ptr, c_int
+  type(c_ptr), value :: vContext
+  integer(c_int) :: IGFD_GetFlags
+end function IGFD_GetFlags
 
 !!! my own imgui widgets (from my_imgui) !!!
 ! bool my_CloseButton(const char* str_id, ImVec4 buttonbg);

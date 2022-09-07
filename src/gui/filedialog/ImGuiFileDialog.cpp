@@ -3645,6 +3645,11 @@ namespace IGFD
 	  prFileDialogInternal.puFileManager.OpenCurrentPath(prFileDialogInternal);
 	}
 
+        // get the flags in the dialog
+        ImGuiFileDialogFlags IGFD::FileDialog::GetFlags(void){
+	  return prFileDialogInternal.puDLGflags;
+	}
+
 	// path and fileNameExt can be specified
 	void IGFD::FileDialog::OpenDialog(
 		const std::string& vKey,
@@ -5137,6 +5142,13 @@ IMGUIFILEDIALOG_API void *IGFD_GetCurrentWindow(ImGuiFileDialog* vContext){
 IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags flags){
   if (vContext)
     vContext->SetFlags(flags);
+}
+
+// get the flags of a dialog
+IMGUIFILEDIALOG_API ImGuiFileDialogFlags IGFD_GetFlags(ImGuiFileDialog* vContext){
+  if (vContext)
+    return vContext->GetFlags();
+  return ImGuiFileDialogFlags_None;
 }
 
 // standard dialog

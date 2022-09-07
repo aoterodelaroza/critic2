@@ -1548,6 +1548,9 @@ namespace IGFD
 	        // set the flags
 	        void SetFlags(ImGuiFileDialogFlags vFlags = 0);
 
+	        // get the flags
+	        ImGuiFileDialogFlags GetFlags(void);
+
 		// standard dialog
 		void OpenDialog(											// open simple dialog (path and fileName can be specified)
 			const std::string& vKey,								// key dialog
@@ -1761,6 +1764,8 @@ typedef void (*IGFD_DestroyThumbnailFun)(IGFD_Thumbnail_Info*);										// call
 #endif // USE_THUMBNAILS
 
 IMGUIFILEDIALOG_API void IGFD_SetFlags(ImGuiFileDialog* vContext,ImGuiFileDialogFlags vFlags); // set the flags of a dialog
+
+IMGUIFILEDIALOG_API ImGuiFileDialogFlags IGFD_GetFlags(ImGuiFileDialog* vContext); // get the flags of a dialog
 
 IMGUIFILEDIALOG_API void IGFD_OpenDialog(					// open a standard dialog
 	ImGuiFileDialog* vContext,								// ImGuiFileDialog context

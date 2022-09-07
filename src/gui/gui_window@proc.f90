@@ -288,7 +288,11 @@ contains
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%dialog_purpose
-          w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
+          if (w%dialog_data%showhidden) then
+             w%flags = ImGuiFileDialogFlags_None
+          else
+             w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
+          end if
           str2 = "" // c_null_char ! default path
           inisize%x = 800._c_float
           inisize%y = 480._c_float
@@ -331,6 +335,7 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File..." // c_null_char
+             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
@@ -1458,7 +1463,7 @@ contains
     maxsize%y = 1e10_c_float
 
     ! process the dialog
-    if (IGFD_DisplayDialog(w%dptr,c_loc(w%name),ImGuiWindowFlags_None,minsize,maxsize)) then
+    if (IGFD_DisplayDialog(w%dptr,c_loc(w%name),w%flags,minsize,maxsize)) then
        ! the dialog has been closed
        if (IGFD_IsOk(w%dptr)) then
           ! with an OK, gather information
@@ -2618,7 +2623,7 @@ contains
     ! render the rest of the window
     ! library file
     call iw_text("Source",highlight=.true.)
-    if (iw_button("Library file",disabled=(idopenlibfile /= 0))) &
+    if (iw_button("Library file")) &
        idopenlibfile = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
     call iw_tooltip("Library file from where the structures are read",ttshown)
     call iw_text(w%okfile,sameline=.true.)
@@ -2693,7 +2698,7 @@ contains
     ! final buttons: ok
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
     ok = ok .or. doubleclicked
-    ok = ok .or. iw_button("OK",disabled=(idopenlibfile /= 0))
+    ok = ok .or. iw_button("OK")
     ok = ok .and. (idopenlibfile == 0)
     if (ok) then
        nseed = count(lst(1:nst))
@@ -2725,10 +2730,10 @@ contains
     end if
 
     ! final buttons: cancel
-    if (iw_button("Cancel",disabled=(idopenlibfile /= 0),sameline=.true.)) doquit = .true.
+    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .and. idopenlibfile == 0) &
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
        doquit = .true.
 
     ! read the library file
@@ -2790,6 +2795,7 @@ contains
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
     character(len=:,kind=c_char), allocatable, target :: str1, str2
+    logical :: isgrid
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
@@ -2805,6 +2811,7 @@ contains
     logical, save :: file2_set = .false.
     character(len=:,kind=c_char), allocatable, target, save :: file3 ! second auxiliaryy file
     logical, save :: file3_set = .false.
+    integer, save :: iginterp = 3 ! 0 = nearest, 1 = trilinear, 2 = trispline, 3 = tricubic, 4 = smoothrho
 
     ! permutation for the field format list (see dialog_user_callback)
     integer, parameter :: ifperm(0:17) = (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
@@ -2928,6 +2935,7 @@ contains
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
 
+       isgrid = .false.
        if (file1_format /= 0) then
           call iw_text("Format: ")
           select case (abs(file1_format))
@@ -2957,30 +2965,39 @@ contains
           case(ifformat_cube)
              file1_fmtstr = "CUBE"
              call iw_text("Cube file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_bincube)
              file1_fmtstr = "BINCUBE"
              call iw_text("Binary cube file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_abinit)
              file1_fmtstr = "ABINIT"
              call iw_text("Abinit DEN-style file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_vasp)
              file1_fmtstr = "VASP"
              call iw_text("VASP CHGCAR-style file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_vaspnov)
              file1_fmtstr = "VASPNOV"
              call iw_text("VASP ELFCAR-style file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_qub)
              file1_fmtstr = "QUB"
              call iw_text("Aimpac qub file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_xsf)
              file1_fmtstr = "XSF"
              call iw_text("Xcrysden xsf-style file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_elkgrid)
              file1_fmtstr = "ELKGRID"
              call iw_text("elk grid file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_siestagrid)
              file1_fmtstr = "SIESTA"
              call iw_text("SIESTA RHO-style file (grid)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_dftb)
              file1_fmtstr = "DFTB"
              call iw_text("DFTB+ wavefunction (LCAO)",sameline=.true.)
@@ -3007,6 +3024,7 @@ contains
           case(ifformat_pwc)
              file1_fmtstr = "PWC"
              call iw_text("Quantum ESPRESSO pwc file (grid+wfn)",sameline=.true.)
+             isgrid = .true.
           case(ifformat_wfn)
              file1_fmtstr = "WFN"
              call iw_text("Gaussian wfn wavefunction file (molecular wfn)",sameline=.true.)
@@ -3046,17 +3064,7 @@ contains
              idopenfile3 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file3,sameline=.true.)
-
-          !! LOAD file.xml file.bin file.hsd
-       case(ifformat_molden)
-          !! file1_fmtstr = "MOLDEN"
-          !!       MOLDEN|MOLDEN_ORCA|MOLDEN_PSI4
-          !! LOAD file.molden [READVIRTUAL] [ORCA|PSI4]
-          !! LOAD file.molden.input [READVIRTUAL]
-          !! adf?
        end select
-
-       ! f%molden_type = molden_type_unknown !
 
     elseif (sourceopt == 1) then
        ! from expression
@@ -3064,10 +3072,49 @@ contains
        ! from promolecular/core
     end if
 
-    !! general field options
+    if (sourceopt == 0 .and. isgrid) then
+       call iw_text("Options",highlight=.true.)
+       call iw_text("Interpolation method")
+       call iw_tooltip("Choose the interpolation method for the grid",ttshown)
+       ldum = iw_radiobutton("Nearest",int=iginterp,intval=0_c_int)
+       call iw_tooltip("Value of the nearest grid point",ttshown)
+       ldum = iw_radiobutton("Tri-linear",int=iginterp,intval=1_c_int,sameline=.true.)
+       call iw_tooltip("Three-dimensional linear interpolation",ttshown)
+       ldum = iw_radiobutton("Tri-spline",int=iginterp,intval=2_c_int,sameline=.true.)
+       call iw_tooltip("Three-dimensional spline interpolation",ttshown)
+       ldum = iw_radiobutton("Tri-cubic",int=iginterp,intval=3_c_int,sameline=.true.)
+       call iw_tooltip("Three-dimensional cubic polynomial interpolation",ttshown)
+       ldum = iw_radiobutton("Smoothrho",int=iginterp,intval=4_c_int,sameline=.true.)
+       call iw_tooltip("Polyharmonic splines + smoothing, all-electron densities only (recommended for them)",ttshown)
+    end if
 
+    ! always: notestmt
     !! ok and cancel button
     !! escape keybinding
+
+    ! ! final buttons: cancel
+    ! if (iw_button("Cancel",disabled=(idopenlibfile /= 0),sameline=.true.)) doquit = .true.
+
+    ! ! exit if focused and received the close keybinding
+    ! if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .and. idopenlibfile == 0) &
+    !    doquit = .true.
+
+    ! ! read the library file
+    ! if (w%okfile_read) then
+    !    call get_library_structure_list(w%okfile,nst,st,ismolecule)
+    !    if (allocated(lst)) deallocate(lst)
+    !    allocate(lst(nst))
+    !    lst = .false.
+    !    lastselected = 0
+    !    w%okfile_read = .false.
+    ! end if
+
+    ! ! quit the window
+    ! if (doquit) then
+    !    call end_state()
+    !    call w%end()
+    ! end if
+
 
   contains
     ! initialize the state for this window
@@ -3440,6 +3487,7 @@ contains
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
+    integer(c_int) :: flags
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -3454,11 +3502,13 @@ contains
     ! show hidden files
     str = "Show hidden files" // c_null_char
     if (igCheckbox(c_loc(str),data%showhidden)) then
+       flags = IGFD_GetFlags(data%dptr)
        if (data%showhidden) then
-          call IGFD_SetFlags(data%dptr,ImGuiFileDialogFlags_None)
+          flags = iand(flags,not(ImGuiFileDialogFlags_DontShowHiddenFiles))
        else
-          call IGFD_SetFlags(data%dptr,ImGuiFileDialogFlags_DontShowHiddenFiles)
+          flags = ior(flags,ImGuiFileDialogFlags_DontShowHiddenFiles)
        end if
+       call IGFD_SetFlags(data%dptr,flags)
     end if
     call iw_tooltip("Show the OS hidden files and directories in this dialog",ttshown)
 
