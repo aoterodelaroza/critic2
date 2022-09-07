@@ -497,6 +497,13 @@ contains
        allocate(syscaux(2*nsys))
        syscaux(1:size(sysc,1)) = sysc
        call move_alloc(syscaux,sysc)
+
+       ! refresh pointers in the systems after the move_alloc
+       do i = 1, nsys
+          do j = 1, sys(i)%nf
+             sys(i)%f(j)%sptr = c_loc(sys(i))
+          end do
+       end do
     end if
 
     do iseed = 1, nseed
