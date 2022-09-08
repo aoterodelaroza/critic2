@@ -51,7 +51,7 @@ contains
     use gui_interfaces_opengl3
     use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, stack_create_window
+       iwin_console_output, stack_create_window, stack_realloc_maybe
     use gui_keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
@@ -204,6 +204,9 @@ contains
        iddock = igDockSpaceOverViewport(igGetMainViewport(),&
           ImGuiDockNodeFlags_PassthruCentralNode,&
           c_null_ptr)
+
+       ! maybe reallocate the window stack
+       call stack_realloc_maybe()
 
        ! process the window stack
        do i = 1, nwin

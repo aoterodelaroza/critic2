@@ -100,6 +100,22 @@ contains
 
   !xx! Module functions and subroutines
 
+  !> Reallocate the window stack if there are only a few windows
+  !> left. This must be done *outside* any window method because it
+  !> will change the location of all window pointers.
+  module subroutine stack_realloc_maybe()
+    type(window), allocatable :: winaux(:)
+
+    integer, parameter :: iroom = 5
+
+    if (nwin+iroom > size(win,1)) then
+       allocate(winaux(2*(nwin+iroom)))
+       winaux(1:size(win,1)) = win
+       call move_alloc(winaux,win)
+    end if
+
+  end subroutine stack_realloc_maybe
+
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
   module function stack_create_window(type,isopen,purpose,isys)
@@ -114,7 +130,6 @@ contains
 
     integer :: i, id
     integer, parameter :: maxwin = 40
-    type(window), allocatable :: winaux(:)
 
     ! find the first unused window or create a new one
     id = 0
@@ -130,13 +145,10 @@ contains
     end if
 
     ! reallocate if necessary
-    if (.not.allocated(win)) then
-       allocate(win(maxwin))
-    elseif (nwin > size(win,1)) then
-       allocate(winaux(2*nwin))
-       winaux(1:size(win,1)) = win
-       call move_alloc(winaux,win)
-    end if
+    if (.not.allocated(win)) allocate(win(maxwin))
+
+    if (nwin > size(win,1)) &
+       call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
     call win(id)%init(type,isopen,purpose,isys)

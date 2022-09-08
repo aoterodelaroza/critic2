@@ -125,10 +125,13 @@ module gui_window
   integer, parameter, public :: wpurp_dialog_openonefilemodal = 5
 
   ! routines to manipulate the window stack
+  public :: stack_realloc_maybe
   public :: stack_create_window
   public :: update_window_id
 
   interface
+     module subroutine stack_realloc_maybe()
+     end subroutine stack_realloc_maybe
      module function stack_create_window(type,isopen,purpose,isys)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
