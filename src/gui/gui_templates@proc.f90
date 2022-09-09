@@ -23,24 +23,59 @@ submodule (gui_templates) proc
   implicit none
 
   ! the keywords
+  !- structural tools
   integer, parameter :: ikeyw_none = 0
-  integer, parameter :: ikeyw_bz = 1      ! BZ
-  integer, parameter :: ikeyw_econ = 2    ! ECON
-  integer, parameter :: ikeyw_environ = 3 ! ENVIRON
-  integer, parameter :: ikeyw_kpoints = 4 ! KPOINTS
-  integer, parameter :: ikeyw_spg = 5     ! SPG
-  integer, parameter :: ikeyw_NUM = 5
+  integer, parameter :: ikeyw_bz = 1          ! BZ
+  integer, parameter :: ikeyw_econ = 2        ! ECON
+  integer, parameter :: ikeyw_environ = 3     ! ENVIRON
+  integer, parameter :: ikeyw_kpoints = 4     ! KPOINTS
+  integer, parameter :: ikeyw_spg = 5         ! SPG
+  integer, parameter :: ikeyw_sym = 6         ! SYM/SYMM/NOSYM/NOSYMM
+  !- fields
+  integer, parameter :: ikeyw_load = 7        ! LOAD
+  integer, parameter :: ikeyw_reference = 8   ! REFERENCE
+  integer, parameter :: ikeyw_setfield = 9    ! SETFIELD
+  integer, parameter :: ikeyw_unload = 10     ! UNLOAD
+  !- read and write files
+  integer, parameter :: ikeyw_makemolsnc = 11 ! MAKEMOLSNC
+  integer, parameter :: ikeyw_write = 12      ! WRITE
+  !- misc
+  integer, parameter :: ikeyw_libxc = 13      ! LIBXC
+  integer, parameter :: ikeyw_molcell = 14    ! MOLCELL
+  integer, parameter :: ikeyw_units = 15      ! UNITS
+  integer, parameter :: ikeyw_zpsp = 16       ! ZPSP/Q/QAT/NOCORE
+  !- variables
+  integer, parameter :: ikeyw_list = 17       ! LIST
+  integer, parameter :: ikeyw_clear = 18      ! CLEAR
+  integer, parameter :: ikeyw_NUM = 18
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
   integer, parameter :: isection_structural_tools = 1 ! structural tools
-  integer, parameter :: isection_NUM = 1
+  integer, parameter :: isection_fields = 2           ! fields
+  integer, parameter :: isection_readwrite = 3        ! read & write files
+  integer, parameter :: isection_variables = 4        ! variables
+  integer, parameter :: isection_misc = 5             ! miscellaneous
+  integer, parameter :: isection_NUM = 5
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
      isection_structural_tools,& ! BZ
      isection_structural_tools,& ! ECON
      isection_structural_tools,& ! ENVIRON
      isection_structural_tools,& ! KPOINTS
-     isection_structural_tools& ! SPG
+     isection_structural_tools,& ! SPG
+     isection_structural_tools,& ! SYM
+     isection_fields,&           ! LOAD
+     isection_fields,&           ! SETFIELD
+     isection_fields,&           ! UNLOAD
+     isection_fields,&           ! REFERENCE
+     isection_readwrite,&        ! MAKEMOLSNC
+     isection_readwrite,&        ! WRITE
+     isection_misc,&             ! LIBXC
+     isection_misc,&             ! MOLCELL
+     isection_misc,&             ! UNITS
+     isection_misc,&             ! ZPSP/Q/QAT/NOCORE
+     isection_variables,&        ! LIST
+     isection_variables&         ! CLEAR
      /)
 
   ! keyword titles
@@ -49,26 +84,60 @@ submodule (gui_templates) proc
      "ECON (effective coordination numbers)  ",& ! ECON
      "ENVIRON (calculate atomic environments)",& ! ENVIRON
      "KPOINTS (calculate k-point grid sizes) ",& ! KPOINTS
-     "SPG (list space group types)           "& ! SPG
+     "SPG (list space group types)           ",& ! SPG
+     "SYM (symmetry analysis & refinement)   ",& ! SYM
+     "LOAD (load a field)                    ",& ! LOAD
+     "REFERENCE (set the reference field)    ",& ! REFERENCE
+     "SETFIELD (set field options)           ",& ! SETFIELD
+     "UNLOAD (unload a field)                ",& ! UNLOAD
+     "MAKEMOLSNC (write DMACRYS mols file)   ",& ! MAKEMOLSNC
+     "WRITE (write structure to a file)      ",& ! WRITE
+     "LIBXC (list xc functionals)            ",& ! LIBXC
+     "MOLCELL (change molecular cell)        ",& ! MOLCELL
+     "UNITS (change distance units in output)",& ! UNITS
+     "ZPSP/Q (atomic & pseudo charges)       ",& ! ZPSP/Q/QAT/NOCORE
+     "LIST (list variables)                  ",& ! LIST
+     "CLEAR (clear variables)                "& ! CLEAR
      /)
 
   ! section titles
   character(len=*,kind=c_char), parameter :: section_titles(isection_NUM) = (/&
-     "Structural Tools"& ! structural tools
+     "Structural Tools  ",& ! structural tools
+     "Load/Unload fields",& ! fields
+     "Read/Write Files  ",& ! read/write files
+     "Variables         ",& ! variables
+     "Miscellaneous     "&  ! miscellaneous
      /)
 
   ! section ranges
-  integer, parameter :: section_ranges(2,1) = reshape((/&
-     1,5& ! structural tools
+  integer, parameter :: section_ranges(2,isection_NUM) = reshape((/&
+     1,6,&   ! structural tools
+     7,10,&  ! fields
+     11,12,& ! read/write files
+     13,16,& ! variables
+     17,18&  ! miscellaneous
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
-     "bz     ",& ! BZ
-     "econ   ",& ! ECON
-     "environ",& ! ENVIRON
-     "kpoints",& ! KPOINTS
-     "spg    "& ! SPG
+     "bz        ",& ! BZ
+     "econ      ",& ! ECON
+     "environ   ",& ! ENVIRON
+     "kpoints   ",& ! KPOINTS
+     "spg       ",& ! SPG
+     "sym       ",& ! SYM
+     "load      ",& ! LOAD
+     "reference ",& ! REFERENCE
+     "setfield  ",& ! SETFIELD
+     "unload    ",& ! UNLOAD
+     "makemolsnc",& ! WRITE
+     "write     ",& ! WRITE
+     "libxc     ",& ! LIBXC
+     "molcell   ",& ! MOLCELL
+     "units     ",& ! UNITS
+     "zpsp      ",& ! ZPSP/Q/QAT/NOCORE
+     "list      ",& ! LIST
+     "clear     "& ! CLEAR
      /)
 
   ! documentation (md) files
@@ -77,7 +146,20 @@ submodule (gui_templates) proc
      "structure/#c2-econ   ",& ! ECON
      "structure/#c2-environ",& ! ENVIRON
      "structure/#c2-kpoints",& ! KPOINTS
-     "crystal/#c2-spg      "& ! SPG
+     "crystal/#c2-spg      ",& ! SPG
+     "crystal/#c2-symm     ",& ! SYM
+     "fields/#c2-load      ",& ! LOAD
+     "fields/#c2-reference ",& ! REFERENCE
+     "fields/#c2-setfield  ",& ! SETFIELD
+     "fields/#c2-unload    ",& ! UNLOAD
+     "write/#c2-makemolsnc ",& ! MAKEMOLSNC
+     "write/#c2-write      ",& ! WRITE
+     "arithmetics/#libxc   ",& ! LIBXC
+     "molecule/#c2-molcell ",& ! MOLCELL
+     "inputoutput/#c2-units",& ! UNITS
+     "crystal/#c2-charge   ",& ! ZPSP/Q/QAT/NOCORE
+     "arithmetics/#c2-list ",& ! LIST
+     "arithmetics/#c2-clear"&  ! CLEAR
      /)
 
   ! template hash
@@ -110,9 +192,8 @@ contains
 
           call igEndMenu()
        end if
-
-       call igEndPopup()
     end do
+    call igEndPopup()
 
   end subroutine draw_keyword_context_menu
 
