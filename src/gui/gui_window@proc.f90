@@ -758,10 +758,12 @@ contains
 
           ! close button
           buttonhovered_close = .false.
-          if (igTableSetColumnIndex(ic_closebutton)) then
-             str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
-             if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
-             buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
+          if (sysc(i)%status == sys_init) then
+             if (igTableSetColumnIndex(ic_closebutton)) then
+                str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
+                if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
+                buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
+             end if
           end if
 
           ! expand button
@@ -1179,7 +1181,7 @@ contains
 
          ! load field
          strpop = "Load Field" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             if (idloadfield > 0) then
                win(idloadfield)%loadfield_isys = isys
             else
@@ -1206,7 +1208,8 @@ contains
          call iw_tooltip("Rename this system",ttshown)
 
          ! remove option (system)
-         ok = (sys(isys)%nf > 0)
+         ok = enabled
+         if (ok) ok = (sys(isys)%nf > 0)
          if (ok) ok = any(sys(isys)%f(1:sys(isys)%nf)%isinit)
          if (ok) then
             strpop = "Remove All Fields" // c_null_char
@@ -1221,7 +1224,7 @@ contains
 
          ! remove option (system)
          strpop = "Remove" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             w%forceremove = (/isys/)
          call iw_tooltip("Remove this system",ttshown)
 

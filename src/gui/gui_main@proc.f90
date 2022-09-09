@@ -794,12 +794,12 @@ contains
                 ! load the seed
                 call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
 
-                ! load any fields
-                if (sysc(i)%has_field) then
-                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
-                   if (len_trim(errmsg) > 0) &
-                      write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
-                end if
+                ! ! load any fields
+                ! if (sysc(i)%has_field) then
+                !    call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
+                !    if (len_trim(errmsg) > 0) &
+                !       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                ! end if
 
                 ! this system has been initialized
                 sysc(i)%status = sys_init
