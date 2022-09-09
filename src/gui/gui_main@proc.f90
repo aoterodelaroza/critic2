@@ -657,7 +657,7 @@ contains
     integer :: i
 
     logical, save :: ttshown = .false. ! tooltip flag
-    integer, save :: id(3) = 0 ! the ID for the dialogs
+    integer, save :: id(3) = (/0,0,0/) ! the ID for the dialogs
 
     ! check if the open and new dialogs are still open
     do i = 1, 3
@@ -670,6 +670,7 @@ contains
     end do
     launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
     launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
+    launch(d_newlib) = .false.
     launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
