@@ -47,16 +47,34 @@ submodule (gui_templates) proc
   !- variables
   integer, parameter :: ikeyw_list = 17       ! LIST
   integer, parameter :: ikeyw_clear = 18      ! CLEAR
-  integer, parameter :: ikeyw_NUM = 18
+  !- field evaluation
+  integer, parameter :: ikeyw_point = 19      ! POINT
+  integer, parameter :: ikeyw_line = 20       ! LINE
+  integer, parameter :: ikeyw_plane = 21      ! PLANE
+  integer, parameter :: ikeyw_cube = 22       ! CUBE
+  !- critical points
+  integer, parameter :: ikeyw_auto = 23       ! AUTO
+  integer, parameter :: ikeyw_cpreport = 24   ! CPREPORT
+  integer, parameter :: ikeyw_pointprop = 25  ! POINTPROP
+  !- qtaim plots
+  integer, parameter :: ikeyw_grdvec = 26     ! GRDVEC
+  integer, parameter :: ikeyw_fluxprint = 27  ! FLUXPRINT
+  integer, parameter :: ikeyw_basinplot = 28  ! BASINPLOT
+  integer, parameter :: ikeyw_bundleplot = 29 ! BUNDLEPLOT
+  integer, parameter :: ikeyw_NUM = 29
+
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
-  integer, parameter :: isection_structural_tools = 1 ! structural tools
-  integer, parameter :: isection_fields = 2           ! fields
-  integer, parameter :: isection_readwrite = 3        ! read & write files
-  integer, parameter :: isection_variables = 4        ! variables
-  integer, parameter :: isection_misc = 5             ! miscellaneous
-  integer, parameter :: isection_NUM = 5
+  integer, parameter :: isection_aimplot = 1          ! aim plots
+  integer, parameter :: isection_cps = 2              ! critical points
+  integer, parameter :: isection_field_evaluation = 3 ! field evaluation
+  integer, parameter :: isection_structural_tools = 4 ! structural tools
+  integer, parameter :: isection_fields = 5           ! fields
+  integer, parameter :: isection_readwrite = 6        ! read & write files
+  integer, parameter :: isection_variables = 7        ! variables
+  integer, parameter :: isection_misc = 8             ! miscellaneous
+  integer, parameter :: isection_NUM = 8
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
      isection_structural_tools,& ! BZ
      isection_structural_tools,& ! ECON
@@ -75,35 +93,60 @@ submodule (gui_templates) proc
      isection_misc,&             ! UNITS
      isection_misc,&             ! ZPSP/Q/QAT/NOCORE
      isection_variables,&        ! LIST
-     isection_variables&         ! CLEAR
+     isection_variables,&        ! CLEAR
+     isection_field_evaluation,& ! POINT
+     isection_field_evaluation,& ! LINE
+     isection_field_evaluation,& ! PLANE
+     isection_field_evaluation,& ! CUBE
+     isection_cps,&              ! AUTO
+     isection_cps,&              ! CPREPORT
+     isection_cps,&              ! POINTPROP
+     isection_aimplot,&          ! GRDVEC
+     isection_aimplot,&          ! FLUXPRINT
+     isection_aimplot,&          ! BASINPLOT
+     isection_aimplot&           ! BUNDLEPLOT
      /)
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
-     "BZ (print Brillouin zone)              ",& ! BZ
-     "ECON (effective coordination numbers)  ",& ! ECON
-     "ENVIRON (calculate atomic environments)",& ! ENVIRON
-     "KPOINTS (calculate k-point grid sizes) ",& ! KPOINTS
-     "SPG (list space group types)           ",& ! SPG
-     "SYM (symmetry analysis & refinement)   ",& ! SYM
-     "LOAD (load a field)                    ",& ! LOAD
-     "REFERENCE (set the reference field)    ",& ! REFERENCE
-     "SETFIELD (set field options)           ",& ! SETFIELD
-     "UNLOAD (unload a field)                ",& ! UNLOAD
-     "MAKEMOLSNC (write DMACRYS mols file)   ",& ! MAKEMOLSNC
-     "WRITE (write structure to a file)      ",& ! WRITE
-     "LIBXC (list xc functionals)            ",& ! LIBXC
-     "MOLCELL (change molecular cell)        ",& ! MOLCELL
-     "UNITS (change distance units in output)",& ! UNITS
-     "ZPSP/Q (atomic & pseudo charges)       ",& ! ZPSP/Q/QAT/NOCORE
-     "LIST (list variables)                  ",& ! LIST
-     "CLEAR (clear variables)                "& ! CLEAR
+     "BZ (print Brillouin zone)                ",& ! BZ
+     "ECON (effective coordination numbers)    ",& ! ECON
+     "ENVIRON (calculate atomic environments)  ",& ! ENVIRON
+     "KPOINTS (calculate k-point grid sizes)   ",& ! KPOINTS
+     "SPG (list space group types)             ",& ! SPG
+     "SYM (symmetry analysis & refinement)     ",& ! SYM
+     "LOAD (load a field)                      ",& ! LOAD
+     "REFERENCE (set the reference field)      ",& ! REFERENCE
+     "SETFIELD (set field options)             ",& ! SETFIELD
+     "UNLOAD (unload a field)                  ",& ! UNLOAD
+     "MAKEMOLSNC (write DMACRYS mols file)     ",& ! MAKEMOLSNC
+     "WRITE (write structure to a file)        ",& ! WRITE
+     "LIBXC (list xc functionals)              ",& ! LIBXC
+     "MOLCELL (change molecular cell)          ",& ! MOLCELL
+     "UNITS (change distance units in output)  ",& ! UNITS
+     "ZPSP/Q (atomic & pseudo charges)         ",& ! ZPSP/Q/QAT/NOCORE
+     "LIST (list variables)                    ",& ! LIST
+     "CLEAR (clear variables)                  ",& ! CLEAR
+     "POINT (evaluate field at a point)        ",& ! POINT
+     "LINE (evaluate field on a line)          ",& ! LINE
+     "PLANE (evaluate field on a plane)        ",& ! PLANE
+     "CUBE (evaluate field on a 3D grid)       ",& ! CUBE
+     "AUTO (locate critical points)            ",& ! AUTO
+     "CPREPORT (report critical points)        ",& ! CPREPORT
+     "POINTPROP (properties calculcated at CPs)",& ! POINTPROP
+     "GRDVEC (plot gradient paths in a plane)  ",& ! GRDVEC
+     "FLUXPRINT (plot gradient paths in 3D)    ",& ! FLUXPRINT
+     "BASINPLOT (plot atomic basins)           ",& ! BASINPLOT
+     "BUNDLEPLOT (plot gradient path bundles)  "&  ! BUNDLEPLOT
      /)
 
   ! section titles
   character(len=*,kind=c_char), parameter :: section_titles(isection_NUM) = (/&
+     "QTAIM Plots       ",& ! aim plots
+     "Critical Points   ",& ! critical points
+     "Field Evaluation  ",& ! field evaluation
      "Structural Tools  ",& ! structural tools
-     "Load/Unload fields",& ! fields
+     "Load/Unload Fields",& ! fields
      "Read/Write Files  ",& ! read/write files
      "Variables         ",& ! variables
      "Miscellaneous     "&  ! miscellaneous
@@ -111,6 +154,9 @@ submodule (gui_templates) proc
 
   ! section ranges
   integer, parameter :: section_ranges(2,isection_NUM) = reshape((/&
+     26,29,& ! aim plots
+     23,25,& ! critical points
+     19,22,& ! field evaluation
      1,6,&   ! structural tools
      7,10,&  ! fields
      11,12,& ! read/write files
@@ -137,29 +183,51 @@ submodule (gui_templates) proc
      "units     ",& ! UNITS
      "zpsp      ",& ! ZPSP/Q/QAT/NOCORE
      "list      ",& ! LIST
-     "clear     "& ! CLEAR
+     "clear     ",& ! CLEAR
+     "point     ",& ! POINT
+     "line      ",& ! LINE
+     "plane     ",& ! PLANE
+     "cube      ",& ! CUBE
+     "auto      ",& ! AUTO
+     "cpreport  ",& ! CPREPORT
+     "pointprop ",& ! POINTPROP
+     "grdvec    ",& ! GRDVEC
+     "fluxprint ",& ! GRDVEC
+     "basinplot ",& ! GRDVEC
+     "bundleplot"&  ! BUNDLEPLOT
      /)
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
-     "structure/#c2-bz     ",& ! BZ
-     "structure/#c2-econ   ",& ! ECON
-     "structure/#c2-environ",& ! ENVIRON
-     "structure/#c2-kpoints",& ! KPOINTS
-     "crystal/#c2-spg      ",& ! SPG
-     "crystal/#c2-symm     ",& ! SYM
-     "fields/#c2-load      ",& ! LOAD
-     "fields/#c2-reference ",& ! REFERENCE
-     "fields/#c2-setfield  ",& ! SETFIELD
-     "fields/#c2-unload    ",& ! UNLOAD
-     "write/#c2-makemolsnc ",& ! MAKEMOLSNC
-     "write/#c2-write      ",& ! WRITE
-     "arithmetics/#libxc   ",& ! LIBXC
-     "molecule/#c2-molcell ",& ! MOLCELL
-     "inputoutput/#c2-units",& ! UNITS
-     "crystal/#c2-charge   ",& ! ZPSP/Q/QAT/NOCORE
-     "arithmetics/#c2-list ",& ! LIST
-     "arithmetics/#c2-clear"&  ! CLEAR
+     "structure/#c2-bz          ",& ! BZ
+     "structure/#c2-econ        ",& ! ECON
+     "structure/#c2-environ     ",& ! ENVIRON
+     "structure/#c2-kpoints     ",& ! KPOINTS
+     "crystal/#c2-spg           ",& ! SPG
+     "crystal/#c2-symm          ",& ! SYM
+     "fields/#c2-load           ",& ! LOAD
+     "fields/#c2-reference      ",& ! REFERENCE
+     "fields/#c2-setfield       ",& ! SETFIELD
+     "fields/#c2-unload         ",& ! UNLOAD
+     "write/#c2-makemolsnc      ",& ! MAKEMOLSNC
+     "write/#c2-write           ",& ! WRITE
+     "arithmetics/#libxc        ",& ! LIBXC
+     "molecule/#c2-molcell      ",& ! MOLCELL
+     "inputoutput/#c2-units     ",& ! UNITS
+     "crystal/#c2-charge        ",& ! ZPSP/Q/QAT/NOCORE
+     "arithmetics/#c2-list      ",& ! LIST
+     "arithmetics/#c2-clear     ",& ! CLEAR
+     "graphics/#c2-point        ",& ! POINT
+     "graphics/#c2-line         ",& ! LINE
+     "graphics/#c2-plane        ",& ! PLANE
+     "graphics/#c2-cube         ",& ! CUBE
+     "cpsearch/#c2-auto         ",& ! AUTO
+     "cpsearch/#c2-cpreport     ",& ! CPREPORT
+     "cpsearch/#c2-pointprop    ",& ! POINTPROP
+     "gradientpath/#c2-grdvec   ",& ! GRDVEC
+     "gradientpath/#c2-fluxprint",& ! FLUXPRINT
+     "basinplot/#c2-basinplot   ",& ! BASINPLOT
+     "basinplot/#c2-bundleplot  "& ! BUNDLEPLOT
      /)
 
   ! template hash
