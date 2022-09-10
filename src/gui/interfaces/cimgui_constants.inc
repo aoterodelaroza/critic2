@@ -978,5 +978,60 @@
   integer(c_int), bind(C,name="const_IGFD_FileStyleByFullName") :: IGFD_FileStyleByFullName
   integer(c_int), bind(C,name="const_IGFD_FileStyleByContainedInFullName") :: IGFD_FileStyleByContainedInFullName
 
+  !! implot
+  ! enum ImPlotFlags_
+  integer(c_int), bind(C,name="const_ImPlotFlags_None") :: ImPlotFlags_None
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoTitle") :: ImPlotFlags_NoTitle
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoLegend") :: ImPlotFlags_NoLegend
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoMouseText") :: ImPlotFlags_NoMouseText
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoInputs") :: ImPlotFlags_NoInputs
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoMenus") :: ImPlotFlags_NoMenus
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoBoxSelect") :: ImPlotFlags_NoBoxSelect
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoChild") :: ImPlotFlags_NoChild
+  integer(c_int), bind(C,name="const_ImPlotFlags_NoFrame") :: ImPlotFlags_NoFrame
+  integer(c_int), bind(C,name="const_ImPlotFlags_Equal") :: ImPlotFlags_Equal
+  integer(c_int), bind(C,name="const_ImPlotFlags_Crosshairs") :: ImPlotFlags_Crosshairs
+  integer(c_int), bind(C,name="const_ImPlotFlags_CanvasOnly") :: ImPlotFlags_CanvasOnly
+  ! enum ImPlotAxisFlags_
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_None") :: ImPlotAxisFlags_None
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoLabel") :: ImPlotAxisFlags_NoLabel
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoGridLines") :: ImPlotAxisFlags_NoGridLines
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoTickMarks") :: ImPlotAxisFlags_NoTickMarks
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoTickLabels") :: ImPlotAxisFlags_NoTickLabels
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoInitialFit") :: ImPlotAxisFlags_NoInitialFit
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoMenus") :: ImPlotAxisFlags_NoMenus
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoSideSwitch") :: ImPlotAxisFlags_NoSideSwitch
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoHighlight") :: ImPlotAxisFlags_NoHighlight
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_Opposite") :: ImPlotAxisFlags_Opposite
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_Foreground") :: ImPlotAxisFlags_Foreground
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_Invert") :: ImPlotAxisFlags_Invert
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_AutoFit") :: ImPlotAxisFlags_AutoFit
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_RangeFit") :: ImPlotAxisFlags_RangeFit
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_PanStretch") :: ImPlotAxisFlags_PanStretch
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_LockMin") :: ImPlotAxisFlags_LockMin
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_LockMax") :: ImPlotAxisFlags_LockMax
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_Lock") :: ImPlotAxisFlags_Lock
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_NoDecorations") :: ImPlotAxisFlags_NoDecorations
+  integer(c_int), bind(C,name="const_ImPlotAxisFlags_AuxDefault") :: ImPlotAxisFlags_AuxDefault
+  ! enum ImPlotLineFlags_
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_None") :: ImPlotLineFlags_None
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_Segments") :: ImPlotLineFlags_Segments
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_Loop") :: ImPlotLineFlags_Loop
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_SkipNaN") :: ImPlotLineFlags_SkipNaN
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_NoClip") :: ImPlotLineFlags_NoClip
+  integer(c_int), bind(C,name="const_ImPlotLineFlags_Shaded") :: ImPlotLineFlags_Shaded
+  ! enum ImPlotMarker_
+  integer(c_int), bind(C,name="const_ImPlotMarker_None") :: ImPlotMarker_None
+  integer(c_int), bind(C,name="const_ImPlotMarker_Circle") :: ImPlotMarker_Circle
+  integer(c_int), bind(C,name="const_ImPlotMarker_Square") :: ImPlotMarker_Square
+  integer(c_int), bind(C,name="const_ImPlotMarker_Diamond") :: ImPlotMarker_Diamond
+  integer(c_int), bind(C,name="const_ImPlotMarker_Up") :: ImPlotMarker_Up
+  integer(c_int), bind(C,name="const_ImPlotMarker_Down") :: ImPlotMarker_Down
+  integer(c_int), bind(C,name="const_ImPlotMarker_Left") :: ImPlotMarker_Left
+  integer(c_int), bind(C,name="const_ImPlotMarker_Right") :: ImPlotMarker_Right
+  integer(c_int), bind(C,name="const_ImPlotMarker_Cross") :: ImPlotMarker_Cross
+  integer(c_int), bind(C,name="const_ImPlotMarker_Plus") :: ImPlotMarker_Plus
+  integer(c_int), bind(C,name="const_ImPlotMarker_Asterisk") :: ImPlotMarker_Asterisk
+
   ! default font for the critic2 GUI (POINTER)
   type(c_ptr), bind(C,name="const_myfont_ttf_compressed_data_base85_ptr") :: myfont_ttf_compressed_data_base85_ptr

@@ -29,6 +29,8 @@
 #include "constants.h"
 #include "../threads/tinycthread.h"
 #include "../filedialog/ImGuiFileDialog.h"
+#include "../imgui/implot.h"
+#include "../imgui/cimplot.h"
 
 // threads
 /* Function return values */
@@ -999,8 +1001,63 @@ const int const_IGFD_FileStyleByExtention = IGFD_FileStyleByExtention;
 const int const_IGFD_FileStyleByFullName = IGFD_FileStyleByFullName;
 const int const_IGFD_FileStyleByContainedInFullName = IGFD_FileStyleByContainedInFullName;
 
+//// implot
+// enum ImPlotFlags_
+const int const_ImPlotFlags_None = ImPlotFlags_None;
+const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;
+const int const_ImPlotFlags_NoLegend = ImPlotFlags_NoLegend;
+const int const_ImPlotFlags_NoMouseText = ImPlotFlags_NoLegend;
+const int const_ImPlotFlags_NoInputs = ImPlotFlags_NoInputs;
+const int const_ImPlotFlags_NoMenus = ImPlotFlags_NoMenus;
+const int const_ImPlotFlags_NoBoxSelect = ImPlotFlags_NoBoxSelect;
+const int const_ImPlotFlags_NoChild = ImPlotFlags_NoChild;
+const int const_ImPlotFlags_NoFrame = ImPlotFlags_NoFrame;
+const int const_ImPlotFlags_Equal = ImPlotFlags_Equal;
+const int const_ImPlotFlags_Crosshairs = ImPlotFlags_Crosshairs;
+const int const_ImPlotFlags_CanvasOnly = ImPlotFlags_CanvasOnly;
+// enum ImPlotAxisFlags_
+const int const_ImPlotAxisFlags_None = ImPlotAxisFlags_None;
+const int const_ImPlotAxisFlags_NoLabel = ImPlotAxisFlags_NoLabel;
+const int const_ImPlotAxisFlags_NoGridLines = ImPlotAxisFlags_NoGridLines;
+const int const_ImPlotAxisFlags_NoTickMarks = ImPlotAxisFlags_NoTickMarks;
+const int const_ImPlotAxisFlags_NoTickLabels = ImPlotAxisFlags_NoTickLabels;
+const int const_ImPlotAxisFlags_NoInitialFit = ImPlotAxisFlags_NoInitialFit;
+const int const_ImPlotAxisFlags_NoMenus = ImPlotAxisFlags_NoMenus;
+const int const_ImPlotAxisFlags_NoSideSwitch = ImPlotAxisFlags_NoSideSwitch;
+const int const_ImPlotAxisFlags_NoHighlight = ImPlotAxisFlags_NoHighlight;
+const int const_ImPlotAxisFlags_Opposite = ImPlotAxisFlags_Opposite;
+const int const_ImPlotAxisFlags_Foreground = ImPlotAxisFlags_Foreground;
+const int const_ImPlotAxisFlags_Invert = ImPlotAxisFlags_Invert;
+const int const_ImPlotAxisFlags_AutoFit = ImPlotAxisFlags_AutoFit;
+const int const_ImPlotAxisFlags_RangeFit = ImPlotAxisFlags_RangeFit;
+const int const_ImPlotAxisFlags_PanStretch = ImPlotAxisFlags_PanStretch;
+const int const_ImPlotAxisFlags_LockMin = ImPlotAxisFlags_LockMin;
+const int const_ImPlotAxisFlags_LockMax = ImPlotAxisFlags_LockMax;
+const int const_ImPlotAxisFlags_Lock = ImPlotAxisFlags_Lock;
+const int const_ImPlotAxisFlags_NoDecorations = ImPlotAxisFlags_NoDecorations;
+const int const_ImPlotAxisFlags_AuxDefault = ImPlotAxisFlags_AuxDefault;
+// enum ImPlotLineFlags_
+const int const_ImPlotLineFlags_None = ImPlotLineFlags_None;
+const int const_ImPlotLineFlags_Segments = ImPlotLineFlags_Segments;
+const int const_ImPlotLineFlags_Loop = ImPlotLineFlags_Loop;
+const int const_ImPlotLineFlags_SkipNaN = ImPlotLineFlags_SkipNaN;
+const int const_ImPlotLineFlags_NoClip = ImPlotLineFlags_NoClip;
+const int const_ImPlotLineFlags_Shaded = ImPlotLineFlags_Shaded;
+// enum ImPlotMarker_
+const int const_ImPlotMarker_None = ImPlotMarker_None;
+const int const_ImPlotMarker_Circle = ImPlotMarker_Circle;
+const int const_ImPlotMarker_Square = ImPlotMarker_Square;
+const int const_ImPlotMarker_Diamond = ImPlotMarker_Diamond;
+const int const_ImPlotMarker_Up = ImPlotMarker_Up;
+const int const_ImPlotMarker_Down = ImPlotMarker_Down;
+const int const_ImPlotMarker_Left = ImPlotMarker_Left;
+const int const_ImPlotMarker_Right = ImPlotMarker_Right;
+const int const_ImPlotMarker_Cross = ImPlotMarker_Cross;
+const int const_ImPlotMarker_Plus = ImPlotMarker_Plus;
+const int const_ImPlotMarker_Asterisk = ImPlotMarker_Asterisk;
+// const int const_ImPlotMarker_COUNT
 
-// The default font for the critic2 GUI
+//// The default font for the critic2 GUI
 // DejaVu Sans Mono
 static const char myfont_ttf_compressed_data_base85[316260+1] =
    "7])#######wK/cj'/###I),##c'ChLYqH##$@;*>R?8?,(.>>#e?'o/fY;99r0jeG*J,hLU,/S[^6se=rN(ES2N(<-U)2>5iFxF>_<*E$`9iu5wH:;$v[n42HrG(ElhES71=Ps/VNV=B"

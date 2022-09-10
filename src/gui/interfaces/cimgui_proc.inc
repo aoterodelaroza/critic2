@@ -2315,3 +2315,58 @@ subroutine openLink(link) bind(c,name="openLink")
   import c_ptr
   type(c_ptr), intent(in), value :: link
 end subroutine openLink
+
+!!! cimplot procedures !!!
+! ImPlotContext* ipCreateContext();
+function ipCreateContext() bind(c,name="ipCreateContext")
+  import c_ptr
+  type(c_ptr) :: ipCreateContext
+end function ipCreateContext
+! void ipDestroyContext(ImPlotContext* ctx);
+subroutine ipDestroyContext(ctx) bind(c,name="ipDestroyContext")
+  import c_ptr
+  type(c_ptr), value :: ctx
+end subroutine ipDestroyContext
+! bool ipBeginPlot(const char* title_id, const ImVec2 size, ImPlotFlags flags);
+function ipBeginPlot(title_id,size,flags) bind(c,name="ipBeginPlot")
+  import c_ptr, ImVec2, c_int, c_bool
+  type(c_ptr), intent(in), value :: title_id
+  type(ImVec2), intent(in), value :: size
+  integer(c_int), value :: flags
+  logical(c_bool) :: ipBeginPlot
+end function ipBeginPlot
+! void ipEndPlot();
+subroutine ipEndPlot() bind(c,name="ipEndPlot")
+end subroutine ipEndPlot
+! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
+subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: x_label
+  type(c_ptr), intent(in), value :: y_label
+  integer(c_int), value :: x_flags
+  integer(c_int), value :: y_flags
+end subroutine ipSetupAxes
+! void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
+subroutine ipPlotLine(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotLine")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: label_id
+  type(c_ptr), intent(in), value :: xs
+  type(c_ptr), intent(in), value :: ys
+  integer(c_int), value :: count
+  integer(c_int), value :: flags
+  integer(c_int), value :: offset
+end subroutine ipPlotLine
+! void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
+subroutine ipSetNextMarkerStyle(marker,size,fill,weight,outline) bind(c,name="SetNextMarkerStyle")
+  import c_int, c_float, ImVec4
+  integer(c_int), value :: marker
+  real(c_float), value :: size
+  type(ImVec4), intent(in), value :: fill
+  real(c_float), value :: weight
+  type(ImVec4), intent(in), value :: outline
+end subroutine ipSetNextMarkerStyle
+! void ipShowDemoWindow(bool* p_open);
+subroutine ipShowDemoWindow(p_open) bind(c,name="ipShowDemoWindow")
+  import c_bool
+  logical(c_bool) :: p_open
+end subroutine ipShowDemoWindow

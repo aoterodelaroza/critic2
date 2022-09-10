@@ -59,11 +59,17 @@ contains
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom, ileft2, iright2
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
-    logical(c_bool) :: ldum, show_demo_window
+    logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
     integer :: i, j, ludum(10)
     logical :: firstpass
     integer(c_short), allocatable, target :: range(:)
+
+    ! xxxx
+    real(c_double), target, save :: x(10), y(10)
+    type(ImVec2) :: sz
+    type(ImVec4) :: auto
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
 
     ! initialize the sys arrays
     nsys = 0
@@ -121,6 +127,9 @@ contains
     ptrc = igCreateContext(c_null_ptr)
     if (.not.c_associated(ptrc)) &
        call ferror('gui_start','Failed to create ImGui context',faterr)
+    ptrc = ipCreateContext()
+    if (.not.c_associated(ptrc)) &
+       call ferror('gui_start','Failed to create ImPlot context',faterr)
 
     ! initialize gl3w
     idum = gl3wInit()
@@ -183,6 +192,7 @@ contains
 
     ! main loop
     show_demo_window = .true.
+    show_implot_demo_window = .true.
     firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events
@@ -232,6 +242,36 @@ contains
        if (show_demo_window) &
           call igShowDemoWindow(show_demo_window)
 
+       ! show implot demo window
+       if (show_implot_demo_window) then
+          ! call ipShowDemoWindow(show_implot_demo_window)
+          strc = "Bleh" // c_null_char
+          if (igBegin(c_loc(strc),show_implot_demo_window,ImGuiWindowFlags_None)) then
+             do i = 1, 10
+                x(i) = i
+                y(i) = i * i
+             end do
+             strc = "Title" // c_null_char
+             sz%x = 500_c_float
+             sz%y = 500_c_float
+             if (ipBeginPlot(c_loc(strc),sz,ImPlotFlags_None)) then
+                str1 = "x" // c_null_char
+                str2 = "y" // c_null_char
+                call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+                str1 = "bleh" // c_null_char
+                auto%x = 0._c_float
+                auto%y = 0._c_float
+                auto%z = 0._c_float
+                auto%w = -1._c_float
+                call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
+                call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),10_c_int,ImPlotLineFlags_None,0_c_int)
+                call ipEndPlot()
+             end if
+
+             call igEnd()
+          end if
+       end if
+
        ! if there are commands to run from the input console, set up the modal
        if (force_run_commands) then
           call win(iwin_console_input)%block_gui_ci()
@@ -265,6 +305,7 @@ contains
     ! cleanup
     call ImGui_ImplOpenGL3_Shutdown()
     call ImGui_ImplGlfw_Shutdown()
+    call ipDestroyContext(c_null_ptr)
     call igDestroyContext(c_null_ptr)
 
     ! cleanup mutexes

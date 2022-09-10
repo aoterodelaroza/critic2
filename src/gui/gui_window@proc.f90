@@ -2798,14 +2798,14 @@ contains
   !> Draw the contents of the load field window.
   module subroutine draw_load_field(w)
     use fieldseedmod, only: field_detect_format
-    use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
+    use param, only: ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
     use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ColorDangerButton
+    use gui_main, only: nsys, sysc, sys, sys_init, g
     use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
     use tools_io, only: string, uout
