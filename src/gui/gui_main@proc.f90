@@ -71,7 +71,8 @@ contains
 
     ! initialize threads: reserve some un-used LUs and then
     ! deallocate them for fopen
-    nthread = omp_get_max_threads()
+    ! nthread = omp_get_max_threads()
+    nthread = 1
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
     do i = 1, size(ludum,1)
@@ -794,12 +795,14 @@ contains
                 ! load the seed
                 call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
 
-                ! ! load any fields
-                ! if (sysc(i)%has_field) then
-                !    call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
-                !    if (len_trim(errmsg) > 0) &
-                !       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
-                ! end if
+                ! load any fields
+                if (sysc(i)%has_field) then
+                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
+                   if (len_trim(errmsg) > 0) then
+                      write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                      write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                   end if
+                end if
 
                 ! this system has been initialized
                 sysc(i)%status = sys_init
