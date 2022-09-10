@@ -25,75 +25,130 @@ submodule (gui_templates) proc
   ! the keywords
   !- structural tools
   integer, parameter :: ikeyw_none = 0
-  integer, parameter :: ikeyw_bz = 1          ! BZ
-  integer, parameter :: ikeyw_econ = 2        ! ECON
-  integer, parameter :: ikeyw_environ = 3     ! ENVIRON
-  integer, parameter :: ikeyw_kpoints = 4     ! KPOINTS
-  integer, parameter :: ikeyw_spg = 5         ! SPG
-  integer, parameter :: ikeyw_sym = 6         ! SYM/SYMM/NOSYM/NOSYMM
+  integer, parameter :: ikeyw_atomlabel = 1        ! ATOMLABEL
+  integer, parameter :: ikeyw_bz = 2               ! BZ
+  integer, parameter :: ikeyw_compare = 3          ! COMPARE
+  integer, parameter :: ikeyw_coord = 4            ! COORD
+  integer, parameter :: ikeyw_econ = 5             ! ECON
+  integer, parameter :: ikeyw_environ = 6          ! ENVIRON
+  integer, parameter :: ikeyw_ewald = 7            ! EWALD
+  integer, parameter :: ikeyw_identify = 8         ! IDENTIFY
+  integer, parameter :: ikeyw_kpoints = 9          ! KPOINTS
+  integer, parameter :: ikeyw_molmove = 10         ! MOLMOVE
+  integer, parameter :: ikeyw_molreorder = 11      ! MOLREORDER
+  integer, parameter :: ikeyw_newcell = 12         ! NEWCELL
+  integer, parameter :: ikeyw_packing = 13         ! PACKING
+  integer, parameter :: ikeyw_polyhedra = 14       ! POLYHEDRA
+  integer, parameter :: ikeyw_powder = 15          ! POWDER
+  integer, parameter :: ikeyw_rdf = 16             ! RDF
+  integer, parameter :: ikeyw_spg = 17             ! SPG
+  integer, parameter :: ikeyw_sym = 18             ! SYM/SYMM/NOSYM/NOSYMM
+  integer, parameter :: ikeyw_vdw = 19             ! VDW
   !- fields
-  integer, parameter :: ikeyw_load = 7        ! LOAD
-  integer, parameter :: ikeyw_reference = 8   ! REFERENCE
-  integer, parameter :: ikeyw_setfield = 9    ! SETFIELD
-  integer, parameter :: ikeyw_unload = 10     ! UNLOAD
+  integer, parameter :: ikeyw_load = 20            ! LOAD
+  integer, parameter :: ikeyw_reference = 21       ! REFERENCE
+  integer, parameter :: ikeyw_setfield = 22        ! SETFIELD
+  integer, parameter :: ikeyw_unload = 23          ! UNLOAD
   !- read and write files
-  integer, parameter :: ikeyw_makemolsnc = 11 ! MAKEMOLSNC
-  integer, parameter :: ikeyw_write = 12      ! WRITE
+  integer, parameter :: ikeyw_makemolsnc = 24      ! MAKEMOLSNC
+  integer, parameter :: ikeyw_write = 25           ! WRITE
   !- misc
-  integer, parameter :: ikeyw_libxc = 13      ! LIBXC
-  integer, parameter :: ikeyw_molcell = 14    ! MOLCELL
-  integer, parameter :: ikeyw_units = 15      ! UNITS
-  integer, parameter :: ikeyw_zpsp = 16       ! ZPSP/Q/QAT/NOCORE
+  integer, parameter :: ikeyw_benchmark = 26       ! BENCHMARK
+  integer, parameter :: ikeyw_libxc = 27           ! LIBXC
+  integer, parameter :: ikeyw_molcell = 28         ! MOLCELL
+  integer, parameter :: ikeyw_root = 29            ! ROOT
+  integer, parameter :: ikeyw_units = 30           ! UNITS
+  integer, parameter :: ikeyw_zpsp = 31            ! ZPSP/Q/QAT/NOCORE
+  integer, parameter :: ikeyw_addopts = 32         ! additional options
   !- variables
-  integer, parameter :: ikeyw_list = 17       ! LIST
-  integer, parameter :: ikeyw_clear = 18      ! CLEAR
+  integer, parameter :: ikeyw_clear = 33           ! CLEAR
+  integer, parameter :: ikeyw_list = 34            ! LIST
   !- field evaluation
-  integer, parameter :: ikeyw_point = 19      ! POINT
-  integer, parameter :: ikeyw_line = 20       ! LINE
-  integer, parameter :: ikeyw_plane = 21      ! PLANE
-  integer, parameter :: ikeyw_cube = 22       ! CUBE
+  integer, parameter :: ikeyw_point = 35           ! POINT
+  integer, parameter :: ikeyw_line = 36            ! LINE
+  integer, parameter :: ikeyw_plane = 37           ! PLANE
+  integer, parameter :: ikeyw_cube = 38            ! CUBE
   !- critical points
-  integer, parameter :: ikeyw_auto = 23       ! AUTO
-  integer, parameter :: ikeyw_cpreport = 24   ! CPREPORT
-  integer, parameter :: ikeyw_pointprop = 25  ! POINTPROP
+  integer, parameter :: ikeyw_auto = 39            ! AUTO
+  integer, parameter :: ikeyw_cpreport = 40        ! CPREPORT
+  integer, parameter :: ikeyw_pointprop = 41       ! POINTPROP
   !- qtaim plots
-  integer, parameter :: ikeyw_grdvec = 26     ! GRDVEC
-  integer, parameter :: ikeyw_fluxprint = 27  ! FLUXPRINT
-  integer, parameter :: ikeyw_basinplot = 28  ! BASINPLOT
-  integer, parameter :: ikeyw_bundleplot = 29 ! BUNDLEPLOT
-  integer, parameter :: ikeyw_NUM = 29
-
+  integer, parameter :: ikeyw_grdvec = 42          ! GRDVEC
+  integer, parameter :: ikeyw_fluxprint = 43       ! FLUXPRINT
+  integer, parameter :: ikeyw_basinplot = 44       ! BASINPLOT
+  integer, parameter :: ikeyw_bundleplot = 45      ! BUNDLEPLOT
+  !- integration
+  integer, parameter :: ikeyw_integrable = 46      ! INTEGRABLE
+  integer, parameter :: ikeyw_integrals = 47       ! INTEGRALS
+  integer, parameter :: ikeyw_sphereintegrals = 48 ! SPHEREINTEGRALS
+  integer, parameter :: ikeyw_qtree = 49           ! QTREE
+  integer, parameter :: ikeyw_yt = 50              ! YT
+  integer, parameter :: ikeyw_bader = 51           ! BADER
+  integer, parameter :: ikeyw_isosurface = 52      ! ISOSURFACE
+  integer, parameter :: ikeyw_hirshfeld = 53       ! HIRSHFELD
+  integer, parameter :: ikeyw_voronoi = 54         ! VORONOI
+  integer, parameter :: ikeyw_molcalc = 55         ! MOLCALC
+  !- nciplot
+  integer, parameter :: ikeyw_nciplot = 56         ! NCIPLOT
+  !- stm
+  integer, parameter :: ikeyw_stm = 57             ! STM
+  !- sigma hole
+  integer, parameter :: ikeyw_sigmahole = 58       ! SIGMAHOLE
+  !- xdm
+  integer, parameter :: ikeyw_xdm = 59             ! XDM
+  integer, parameter :: ikeyw_NUM = 59
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
-  integer, parameter :: isection_aimplot = 1          ! aim plots
-  integer, parameter :: isection_cps = 2              ! critical points
-  integer, parameter :: isection_field_evaluation = 3 ! field evaluation
-  integer, parameter :: isection_structural_tools = 4 ! structural tools
-  integer, parameter :: isection_fields = 5           ! fields
-  integer, parameter :: isection_readwrite = 6        ! read & write files
-  integer, parameter :: isection_variables = 7        ! variables
-  integer, parameter :: isection_misc = 8             ! miscellaneous
-  integer, parameter :: isection_NUM = 8
+  integer, parameter :: isection_structural_tools = 1 ! structural tools
+  integer, parameter :: isection_readwrite = 2        ! read & write files
+  integer, parameter :: isection_fields = 3           ! fields
+  integer, parameter :: isection_field_evaluation = 4 ! field evaluation
+  integer, parameter :: isection_cps = 5              ! critical points
+  integer, parameter :: isection_aimplot = 6          ! aim plots
+  integer, parameter :: isection_integrals = 7        ! integrals
+  integer, parameter :: isection_stm = 8              ! stm
+  integer, parameter :: isection_nciplot = 9          ! nciplot
+  integer, parameter :: isection_xdm = 10             ! xdm
+  integer, parameter :: isection_sigmahole = 11       ! sigmahole
+  integer, parameter :: isection_variables = 12       ! variables
+  integer, parameter :: isection_misc = 13            ! miscellaneous
+  integer, parameter :: isection_NUM = 13
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
+     isection_structural_tools,& ! ATOMLABEL
      isection_structural_tools,& ! BZ
+     isection_structural_tools,& ! COMPARE
+     isection_structural_tools,& ! COORD
      isection_structural_tools,& ! ECON
      isection_structural_tools,& ! ENVIRON
+     isection_structural_tools,& ! EWALD
+     isection_structural_tools,& ! IDENTIFY
      isection_structural_tools,& ! KPOINTS
+     isection_structural_tools,& ! MOLMOVE
+     isection_structural_tools,& ! MOLREORDER
+     isection_structural_tools,& ! NEWCELL
+     isection_structural_tools,& ! PACKING
+     isection_structural_tools,& ! POLYHEDRA
+     isection_structural_tools,& ! POWDER
+     isection_structural_tools,& ! RDF
      isection_structural_tools,& ! SPG
-     isection_structural_tools,& ! SYM
+     isection_structural_tools,& ! SYM/SYMM/NOSYM/NOSYMM
+     isection_structural_tools,& ! VDW
      isection_fields,&           ! LOAD
      isection_fields,&           ! SETFIELD
      isection_fields,&           ! UNLOAD
      isection_fields,&           ! REFERENCE
      isection_readwrite,&        ! MAKEMOLSNC
      isection_readwrite,&        ! WRITE
+     isection_misc,&             ! BENCHMARK
      isection_misc,&             ! LIBXC
      isection_misc,&             ! MOLCELL
+     isection_misc,&             ! ROOT
      isection_misc,&             ! UNITS
      isection_misc,&             ! ZPSP/Q/QAT/NOCORE
-     isection_variables,&        ! LIST
+     isection_misc,&             ! additional options
      isection_variables,&        ! CLEAR
+     isection_variables,&        ! LIST
      isection_field_evaluation,& ! POINT
      isection_field_evaluation,& ! LINE
      isection_field_evaluation,& ! PLANE
@@ -104,119 +159,219 @@ submodule (gui_templates) proc
      isection_aimplot,&          ! GRDVEC
      isection_aimplot,&          ! FLUXPRINT
      isection_aimplot,&          ! BASINPLOT
-     isection_aimplot&           ! BUNDLEPLOT
+     isection_aimplot,&          ! BUNDLEPLOT
+     isection_integrals,&        ! INTEGRABLE
+     isection_integrals,&        ! INTEGRALS
+     isection_integrals,&        ! SPHEREINTEGRALS
+     isection_integrals,&        ! QTREE
+     isection_integrals,&        ! YT
+     isection_integrals,&        ! BADER
+     isection_integrals,&        ! ISOSURFACE
+     isection_integrals,&        ! HIRSHFELD
+     isection_integrals,&        ! VORONOI
+     isection_integrals,&        ! MOLCALC
+     isection_nciplot,&          ! NCIPLOT
+     isection_stm,&              ! STM
+     isection_sigmahole,&        ! SIGMAHOLE
+     isection_xdm&               ! XDM
      /)
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
-     "BZ (print Brillouin zone)                ",& ! BZ
-     "ECON (effective coordination numbers)    ",& ! ECON
-     "ENVIRON (calculate atomic environments)  ",& ! ENVIRON
-     "KPOINTS (calculate k-point grid sizes)   ",& ! KPOINTS
-     "SPG (list space group types)             ",& ! SPG
-     "SYM (symmetry analysis & refinement)     ",& ! SYM
-     "LOAD (load a field)                      ",& ! LOAD
-     "REFERENCE (set the reference field)      ",& ! REFERENCE
-     "SETFIELD (set field options)             ",& ! SETFIELD
-     "UNLOAD (unload a field)                  ",& ! UNLOAD
-     "MAKEMOLSNC (write DMACRYS mols file)     ",& ! MAKEMOLSNC
-     "WRITE (write structure to a file)        ",& ! WRITE
-     "LIBXC (list xc functionals)              ",& ! LIBXC
-     "MOLCELL (change molecular cell)          ",& ! MOLCELL
-     "UNITS (change distance units in output)  ",& ! UNITS
-     "ZPSP/Q (atomic & pseudo charges)         ",& ! ZPSP/Q/QAT/NOCORE
-     "LIST (list variables)                    ",& ! LIST
-     "CLEAR (clear variables)                  ",& ! CLEAR
-     "POINT (evaluate field at a point)        ",& ! POINT
-     "LINE (evaluate field on a line)          ",& ! LINE
-     "PLANE (evaluate field on a plane)        ",& ! PLANE
-     "CUBE (evaluate field on a 3D grid)       ",& ! CUBE
-     "AUTO (locate critical points)            ",& ! AUTO
-     "CPREPORT (report critical points)        ",& ! CPREPORT
-     "POINTPROP (properties calculcated at CPs)",& ! POINTPROP
-     "GRDVEC (plot gradient paths in a plane)  ",& ! GRDVEC
-     "FLUXPRINT (plot gradient paths in 3D)    ",& ! FLUXPRINT
-     "BASINPLOT (plot atomic basins)           ",& ! BASINPLOT
-     "BUNDLEPLOT (plot gradient path bundles)  "&  ! BUNDLEPLOT
+     "ATOMLABEL (relabel atoms)                   ",& ! ATOMLABEL
+     "BZ (print Brillouin zone)                   ",& ! BZ
+     "COMPARE (compare structures)                ",& ! COMPARE
+     "COORD (2- and 3-coordination numbers)       ",& ! COORD
+     "ECON (effective coordination numbers)       ",& ! ECON
+     "ENVIRON (calculate atomic environments)     ",& ! ENVIRON
+     "EWALD (Ewald potential and energy)          ",& ! EWALD
+     "IDENTIFY (identify atomic positions)        ",& ! IDENTIFY
+     "KPOINTS (calculate k-point grid sizes)      ",& ! KPOINTS
+     "MOLMOVE (move atoms in a molecular crystal) ",& ! MOLMOVE
+     "MOLREORDER (reorder atoms in molecules)     ",& ! MOLREORDER
+     "NEWCELL (change unit cell)                  ",& ! NEWCELL
+     "PACKING (packing ratio)                     ",& ! PACKING
+     "POLYHEDRA (coordination polyhedra)          ",& ! POLYHEDRA
+     "POWDER (powder diffraction patterns)        ",& ! POWDER
+     "RDF (radial distribution functions)         ",& ! RDF
+     "SPG (list space group types)                ",& ! SPG
+     "SYM (symmetry analysis & refinement)        ",& ! SYM
+     "VDW (van der Waals volume)                  ",& ! VDW
+     "LOAD (load a field)                         ",& ! LOAD
+     "REFERENCE (set the reference field)         ",& ! REFERENCE
+     "SETFIELD (set field options)                ",& ! SETFIELD
+     "UNLOAD (unload a field)                     ",& ! UNLOAD
+     "MAKEMOLSNC (write DMACRYS mols file)        ",& ! MAKEMOLSNC
+     "WRITE (write structure to a file)           ",& ! WRITE
+     "BENCHMARK (test field evaluation)           ",& ! BENCHMARK
+     "LIBXC (list xc functionals)                 ",& ! LIBXC
+     "MOLCELL (change molecular cell)             ",& ! MOLCELL
+     "ROOT (change new files prefix)              ",& ! ROOT
+     "UNITS (change distance units in output)     ",& ! UNITS
+     "ZPSP/Q (atomic & pseudo charges)            ",& ! ZPSP/Q/QAT/NOCORE
+     "Additional critic2 options                  ",& ! Additional options
+     "CLEAR (clear variables)                     ",& ! CLEAR
+     "LIST (list variables)                       ",& ! LIST
+     "POINT (evaluate field at a point)           ",& ! POINT
+     "LINE (evaluate field on a line)             ",& ! LINE
+     "PLANE (evaluate field on a plane)           ",& ! PLANE
+     "CUBE (evaluate field on a 3D grid)          ",& ! CUBE
+     "AUTO (locate critical points)               ",& ! AUTO
+     "CPREPORT (report critical points)           ",& ! CPREPORT
+     "POINTPROP (properties calculcated at CPs)   ",& ! POINTPROP
+     "GRDVEC (plot gradient paths in a plane)     ",& ! GRDVEC
+     "FLUXPRINT (plot gradient paths in 3D)       ",& ! FLUXPRINT
+     "BASINPLOT (plot atomic basins)              ",& ! BASINPLOT
+     "BUNDLEPLOT (plot gradient path bundles)     ",& ! BUNDLEPLOT
+     "INTEGRABLE (change integrated properties)   ",& ! INTEGRABLE
+     "INTEGRALS (atomic integrals, bisection)     ",& ! INTEGRALS
+     "SPHEREINTEGRALS (integrate atomic spheres)  ",& ! SPHEREINTEGRALS
+     "QTREE (atomic integrals, quad-tree)         ",& ! QTREE
+     "YT (atomic integrals, Yu-Trinkle, grids)    ",& ! YT
+     "BADER (atomic integrals, Henkelman, grids)  ",& ! BADER
+     "ISOSURFACE (isosurface integrals, grids)    ",& ! ISOSURFACE
+     "HIRSHFELD (Hirshfeld atomic integrals)      ",& ! HIRSHFELD
+     "VORONOI (Voronoi atomic integrals, grids)   ",& ! VORONOI
+     "MOLCALC (mesh integration)                  ",& ! MOLCALC
+     "NCIPLOT (non-covalent interaction plots)    ",& ! NCIPLOT
+     "STM (scanning tunneling microscopy plots)   ",& ! STM
+     "SIGMAHOLE (characterize sigma holes)        ",& ! SIGMAHOLE
+     "XDM (exchange-hole dipole moment dispersion)"&  ! XDM
      /)
 
   ! section titles
   character(len=*,kind=c_char), parameter :: section_titles(isection_NUM) = (/&
-     "QTAIM Plots       ",& ! aim plots
-     "Critical Points   ",& ! critical points
-     "Field Evaluation  ",& ! field evaluation
      "Structural Tools  ",& ! structural tools
-     "Load/Unload Fields",& ! fields
      "Read/Write Files  ",& ! read/write files
+     "Load/Unload Fields",& ! fields
+     "Field Evaluation  ",& ! field evaluation
+     "Critical Points   ",& ! critical points
+     "QTAIM Plots       ",& ! aim plots
+     "Integrals         ",& ! integrals
+     "STM plots         ",& ! stm plots
+     "NCI plots         ",& ! nciplots
+     "XDM dispersion    ",& ! xdm
+     "Sigma holes       ",& ! sigma hole
      "Variables         ",& ! variables
-     "Miscellaneous     "&  ! miscellaneous
+     "Miscellaneous     "& ! miscellaneous
      /)
 
   ! section ranges
   integer, parameter :: section_ranges(2,isection_NUM) = reshape((/&
-     26,29,& ! aim plots
-     23,25,& ! critical points
-     19,22,& ! field evaluation
-     1,6,&   ! structural tools
-     7,10,&  ! fields
-     11,12,& ! read/write files
-     13,16,& ! variables
-     17,18&  ! miscellaneous
+     1,19,&  ! structural tools
+     24,25,& ! read/write files
+     20,23,& ! fields
+     35,38,& ! field evaluation
+     39,41,& ! critical points
+     42,45,& ! aim plots
+     46,55,& ! integrals
+     57,57,& ! stm plots
+     56,56,& ! nciplots
+     59,59,& ! xdm
+     58,58,& ! sigma hole
+     33,34,& ! variables
+     26,32& ! miscellaneous
      /),shape(section_ranges))
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
-     "bz        ",& ! BZ
-     "econ      ",& ! ECON
-     "environ   ",& ! ENVIRON
-     "kpoints   ",& ! KPOINTS
-     "spg       ",& ! SPG
-     "sym       ",& ! SYM
-     "load      ",& ! LOAD
-     "reference ",& ! REFERENCE
-     "setfield  ",& ! SETFIELD
-     "unload    ",& ! UNLOAD
-     "makemolsnc",& ! WRITE
-     "write     ",& ! WRITE
-     "libxc     ",& ! LIBXC
-     "molcell   ",& ! MOLCELL
-     "units     ",& ! UNITS
-     "zpsp      ",& ! ZPSP/Q/QAT/NOCORE
-     "list      ",& ! LIST
-     "clear     ",& ! CLEAR
-     "point     ",& ! POINT
-     "line      ",& ! LINE
-     "plane     ",& ! PLANE
-     "cube      ",& ! CUBE
-     "auto      ",& ! AUTO
-     "cpreport  ",& ! CPREPORT
-     "pointprop ",& ! POINTPROP
-     "grdvec    ",& ! GRDVEC
-     "fluxprint ",& ! GRDVEC
-     "basinplot ",& ! GRDVEC
-     "bundleplot"&  ! BUNDLEPLOT
+     "atomlabel      ",& ! ATOMLABEL
+     "bz             ",& ! BZ
+     "compare        ",& ! COMPARE
+     "coord          ",& ! COORD
+     "econ           ",& ! ECON
+     "environ        ",& ! ENVIRON
+     "ewald          ",& ! EWALD
+     "identify       ",& ! IDENTIFY
+     "kpoints        ",& ! KPOINTS
+     "molmove        ",& ! MOLMOVE
+     "molreorder     ",& ! MOLREORDER
+     "newcell        ",& ! NEWCELL
+     "packing        ",& ! PACKING
+     "polyhedra      ",& ! POLYHEDRA
+     "powder         ",& ! POWDER
+     "rdf            ",& ! RDF
+     "spg            ",& ! SPG
+     "sym            ",& ! SYM
+     "vdw            ",& ! VDW
+     "load           ",& ! LOAD
+     "reference      ",& ! REFERENCE
+     "setfield       ",& ! SETFIELD
+     "unload         ",& ! UNLOAD
+     "makemolsnc     ",& ! WRITE
+     "write          ",& ! WRITE
+     "benchmark      ",& ! BENCHMARK
+     "libxc          ",& ! LIBXC
+     "molcell        ",& ! MOLCELL
+     "root           ",& ! ROOT
+     "units          ",& ! UNITS
+     "zpsp           ",& ! ZPSP/Q/QAT/NOCORE
+     "addopts        ",& ! additional options
+     "clear          ",& ! CLEAR
+     "list           ",& ! LIST
+     "point          ",& ! POINT
+     "line           ",& ! LINE
+     "plane          ",& ! PLANE
+     "cube           ",& ! CUBE
+     "auto           ",& ! AUTO
+     "cpreport       ",& ! CPREPORT
+     "pointprop      ",& ! POINTPROP
+     "grdvec         ",& ! GRDVEC
+     "fluxprint      ",& ! GRDVEC
+     "basinplot      ",& ! GRDVEC
+     "bundleplot     ",& ! BUNDLEPLOT
+     "integrable     ",& ! INTEGRABLE
+     "integrals      ",& ! INTEGRALS
+     "sphereintegrals",& ! SPHEREINTEGRALS
+     "qtree          ",& ! QTREE
+     "yt             ",& ! YT
+     "bader          ",& ! BADER
+     "isosurface     ",& ! ISOSURFACE
+     "hirshfeld      ",& ! HIRSHFELD
+     "voronoi        ",& ! VORONOI
+     "molcalc        ",& ! MOLCALC
+     "nciplot        ",& ! NCIPLOT
+     "stm            ",& ! STM
+     "sigmahole      ",& ! SIGMAHOLE
+     "xdm            "&  ! XDM
      /)
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
+     "structure/#c2-atomlabel   ",& ! ATOMLABEL
      "structure/#c2-bz          ",& ! BZ
+     "structure/#c2-compare     ",& ! COMPARE
+     "structure/#c2-coord       ",& ! COORD
      "structure/#c2-econ        ",& ! ECON
      "structure/#c2-environ     ",& ! ENVIRON
+     "structure/#c2-ewald       ",& ! EWALD
+     "structure/#c2-identify    ",& ! IDENTIFY
      "structure/#c2-kpoints     ",& ! KPOINTS
+     "structure/#c2-molmove     ",& ! MOLMOVE
+     "structure/#c2-molreorder  ",& ! MOLREORDER
+     "structure/#c2-newcell     ",& ! NEWCELL
+     "structure/#c2-packing     ",& ! PACKING
+     "structure/#c2-polyhedra   ",& ! POLYHEDRA
+     "structure/#c2-powder      ",& ! POWDER
+     "structure/#c2-rdf         ",& ! RDF
      "crystal/#c2-spg           ",& ! SPG
      "crystal/#c2-symm          ",& ! SYM
+     "structure/#c2-vdw         ",& ! VDW
      "fields/#c2-load           ",& ! LOAD
      "fields/#c2-reference      ",& ! REFERENCE
      "fields/#c2-setfield       ",& ! SETFIELD
      "fields/#c2-unload         ",& ! UNLOAD
      "write/#c2-makemolsnc      ",& ! MAKEMOLSNC
      "write/#c2-write           ",& ! WRITE
+     "misc/#c2-benchmark        ",& ! BENCHMARK
      "arithmetics/#libxc        ",& ! LIBXC
      "molecule/#c2-molcell      ",& ! MOLCELL
+     "misc/#c2-root             ",& ! ROOT
      "inputoutput/#c2-units     ",& ! UNITS
      "crystal/#c2-charge        ",& ! ZPSP/Q/QAT/NOCORE
-     "arithmetics/#c2-list      ",& ! LIST
+     "misc/#c2-control          ",& ! additional options
      "arithmetics/#c2-clear     ",& ! CLEAR
+     "arithmetics/#c2-list      ",& ! LIST
      "graphics/#c2-point        ",& ! POINT
      "graphics/#c2-line         ",& ! LINE
      "graphics/#c2-plane        ",& ! PLANE
@@ -227,7 +382,21 @@ submodule (gui_templates) proc
      "gradientpath/#c2-grdvec   ",& ! GRDVEC
      "gradientpath/#c2-fluxprint",& ! FLUXPRINT
      "basinplot/#c2-basinplot   ",& ! BASINPLOT
-     "basinplot/#c2-bundleplot  "& ! BUNDLEPLOT
+     "basinplot/#c2-bundleplot  ",& ! BUNDLEPLOT
+     "integrate/#c2-integrable  ",& ! INTEGRABLE
+     "integrate/#c2-integrals   ",& ! INTEGRALS
+     "integrate/#c2-integrals   ",& ! SPHEREINTEGRALS
+     "integrate/#c2-qtree       ",& ! QTREE
+     "integrate/#c2-yt          ",& ! YT
+     "integrate/#c2-bader       ",& ! BADER
+     "integrate/#c2-isosurface  ",& ! ISOSURFACE
+     "integrate/#c2-hirshfeld   ",& ! HIRSHFELD
+     "integrate/#c2-voronoi     ",& ! VORONOI
+     "misc/#c2-molcalc          ",& ! MOLCALC
+     "nciplot/                  ",& ! NCIPLOT
+     "stm/                      ",& ! STM
+     "misc/#c2-sigmahole        ",& ! SIGMAHOLE
+     "misc/#c2-xdm              "&  ! XDM
      /)
 
   ! template hash

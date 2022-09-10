@@ -1,2 +1,0 @@
-INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
-           [RELERR err.r] [ERRPROP prop.i] [PREC prec.r]
