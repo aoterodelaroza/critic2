@@ -798,8 +798,10 @@ contains
                 ! load any fields
                 if (sysc(i)%has_field) then
                    call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
-                   if (len_trim(errmsg) > 0) &
+                   if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                      write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                   end if
                 end if
 
                 ! this system has been initialized
