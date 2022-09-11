@@ -31,15 +31,19 @@ submodule (gui_window) proc
   integer(c_int), parameter :: ic_name = 3
   integer(c_int), parameter :: ic_spg = 4
   integer(c_int), parameter :: ic_v = 5
-  integer(c_int), parameter :: ic_nneq = 6
-  integer(c_int), parameter :: ic_ncel = 7
-  integer(c_int), parameter :: ic_nmol = 8
-  integer(c_int), parameter :: ic_a = 9
-  integer(c_int), parameter :: ic_b = 10
-  integer(c_int), parameter :: ic_c = 11
-  integer(c_int), parameter :: ic_alpha = 12
-  integer(c_int), parameter :: ic_beta = 13
-  integer(c_int), parameter :: ic_gamma = 14
+  integer(c_int), parameter :: ic_vmol = 6
+  integer(c_int), parameter :: ic_nneq = 7
+  integer(c_int), parameter :: ic_ncel = 8
+  integer(c_int), parameter :: ic_nmol = 9
+  integer(c_int), parameter :: ic_a = 10
+  integer(c_int), parameter :: ic_b = 11
+  integer(c_int), parameter :: ic_c = 12
+  integer(c_int), parameter :: ic_alpha = 13
+  integer(c_int), parameter :: ic_beta = 14
+  integer(c_int), parameter :: ic_gamma = 15
+  integer(c_int), parameter :: ic_e = 16
+  integer(c_int), parameter :: ic_emol = 17
+  integer(c_int), parameter :: ic_p = 18
 
   ! the buffer for the output console
   character(kind=c_char,len=:), allocatable, target :: outputb
@@ -659,7 +663,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),15,flags,szero,0._c_float)) then
+    if (igBeginTable(c_loc(str),19,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -697,6 +701,10 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_v)
 
+       str = "(V/Z)/Å³##0" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_vmol)
+
        str = "nneq##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nneq)
@@ -732,6 +740,19 @@ contains
        str = "γ/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
+
+       str = "E/Ha##0" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_e)
+
+       str = "(E/Z)/Ha##0" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_emol)
+
+       str = "p/GPa##0" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_p)
+
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! fetch the sort specs, sort the data if necessary
@@ -988,6 +1009,27 @@ contains
              call iw_text(str,disabled=(sysc(i)%status /= sys_init))
           end if
 
+          if (igTableSetColumnIndex(ic_e)) then ! energy
+             if (sysc(i)%seed%energy /= huge(1d0)) then
+                str = string(sysc(i)%seed%energy,'f',decimal=8)
+             else
+                str = "n/a"
+             end if
+             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call iw_text(str)
+          end if
+          if (igTableSetColumnIndex(ic_p)) then ! pressure
+             if (sys(i)%c%ismolecule) then
+                str = "<mol>"
+             elseif (sysc(i)%seed%pressure /= huge(1d0)) then
+                str = string(sysc(i)%seed%pressure,'f',decimal=2)
+             else
+                str = "n/a"
+             end if
+             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call iw_text(str)
+          end if
+
           if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_spg)) then ! spg
                 if (sys(i)%c%ismolecule) then
@@ -1006,6 +1048,16 @@ contains
                    str = "<mol>"
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
+                end if
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+             end if
+
+             if (igTableSetColumnIndex(ic_vmol)) then ! volume per molecule
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>"
+                else
+                   str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init))
@@ -1084,6 +1136,15 @@ contains
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init))
              end if
 
+             if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
+                if (sysc(i)%seed%energy /= huge(1d0)) then
+                   str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                else
+                   str = "n/a"
+                end if
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str)
+             end if
           end if
        end do
 
@@ -1400,28 +1461,35 @@ contains
        call mergesort(ival,iperm,1,n)
        deallocate(ival)
     elseif (cid == ic_v .or. cid == ic_a .or. cid == ic_b .or. cid == ic_c .or.&
-       cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma) then
+       cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma .or. cid == ic_vmol.or.&
+       cid == ic_e .or. cid == ic_emol .or. cid == ic_p) then
        ! sort by real
        allocate(rval(n))
        do i = 1, n
           doit = sysc(w%iord(i))%status == sys_init
           if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
-          if (doit) then
-             if (cid == ic_v) then
-                rval(i) = sys(w%iord(i))%c%omega
-             elseif (cid == ic_a) then
-                rval(i) = sys(w%iord(i))%c%aa(1)
-             elseif (cid == ic_b) then
-                rval(i) = sys(w%iord(i))%c%aa(2)
-             elseif (cid == ic_c) then
-                rval(i) = sys(w%iord(i))%c%aa(3)
-             elseif (cid == ic_alpha) then
-                rval(i) = sys(w%iord(i))%c%bb(1)
-             elseif (cid == ic_beta) then
-                rval(i) = sys(w%iord(i))%c%bb(2)
-             elseif (cid == ic_gamma) then
-                rval(i) = sys(w%iord(i))%c%bb(3)
-             end if
+          if (cid == ic_v .and. doit) then
+             rval(i) = sys(w%iord(i))%c%omega
+          elseif (cid == ic_a .and. doit) then
+             rval(i) = sys(w%iord(i))%c%aa(1)
+          elseif (cid == ic_b .and. doit) then
+             rval(i) = sys(w%iord(i))%c%aa(2)
+          elseif (cid == ic_c .and. doit) then
+             rval(i) = sys(w%iord(i))%c%aa(3)
+          elseif (cid == ic_alpha .and. doit) then
+             rval(i) = sys(w%iord(i))%c%bb(1)
+          elseif (cid == ic_beta .and. doit) then
+             rval(i) = sys(w%iord(i))%c%bb(2)
+          elseif (cid == ic_gamma .and. doit) then
+             rval(i) = sys(w%iord(i))%c%bb(3)
+          elseif (cid == ic_vmol .and. doit) then
+             rval(i) = sys(w%iord(i))%c%omega / sys(w%iord(i))%c%nmol
+          elseif (cid == ic_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+             rval(i) = sysc(w%iord(i))%seed%energy
+          elseif (cid == ic_emol .and. sysc(w%iord(i))%status == sys_init .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+             rval(i) = sysc(w%iord(i))%seed%energy / sys(w%iord(i))%c%nmol
+          elseif (cid == ic_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
+             rval(i) = sysc(w%iord(i))%seed%pressure
           else
              rval(i) = huge(1d0)
              valid(i) = .false.
