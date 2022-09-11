@@ -43,6 +43,7 @@ module param
   real*8, parameter :: hartocm1 =  2.194746313705d5 !< hartree to cm-1 factor
   real*8, parameter :: hartoev  =  27.21138386d0 !< hartree to ev factor
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa
+  real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
   real*8, parameter :: zero=0d0 !< 0
   real*8, parameter :: one=1d0 !< 1
   real*8, parameter :: two=2d0 !< 2

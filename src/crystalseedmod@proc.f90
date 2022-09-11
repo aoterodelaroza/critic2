@@ -3882,7 +3882,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, hartoev
+    use param, only: bohrtoa, hartoev, eva3togpa
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -3998,6 +3998,14 @@ contains
              seed%energy = seed%energy / hartoev
           else
              seed%energy = huge(1d0)
+          end if
+       elseif (index(line,'|  Pressure') > 0) then
+          idx = index(line,':')
+          ok = isreal(seed%pressure,line(idx+1:))
+          if (ok) then
+             seed%pressure = seed%pressure * eva3togpa
+          else
+             seed%pressure = huge(1d0)
           end if
        elseif (trim(line) == "  Updated atomic structure:") then
           nupdate = nupdate + 1
