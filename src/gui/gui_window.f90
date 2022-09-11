@@ -187,9 +187,10 @@ module gui_window
      module subroutine block_gui_ci(w)
        class(window), intent(inout), target :: w
      end subroutine block_gui_ci
-     module function read_output_ci(w,iscom)
+     module function read_output_ci(w,iscom,cominfo)
        class(window), intent(inout), target :: w
        logical, intent(in) :: iscom
+       character*(*), intent(in), optional :: cominfo
        logical :: read_output_ci
      end function read_output_ci
      module subroutine fill_input_ci(w,str)

@@ -1193,13 +1193,14 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,bclose,bexpand)
+      use gui_main, only: are_threads_running
       use gui_utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
       logical, intent(in) :: bclose, bexpand
 
-      integer :: k
+      integer :: k, idx
       real(c_float) :: pos
       integer(c_int) :: flags, ll, isyscollapse
       logical(c_bool) :: selected, enabled
@@ -1231,10 +1232,11 @@ contains
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
          ! describe this system in the console output
          strpop = "Describe" // c_null_char
-         enabled = (sysc(isys)%status == sys_init)
+         enabled = (sysc(isys)%status == sys_init) .and..not.are_threads_running()
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            write (uout,'(/"### Describe system (",A,"): ",A/)') string(isys),&
-               trim(sysc(isys)%seed%name)
+            idx = index(sysc(isys)%seed%name,c_null_char)
+            strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
+            write (uout,'(/A/)') trim(strl)
             if (sys(isys)%c%ismolecule) then
                iunit = iunit_ang
             else
@@ -1242,6 +1244,7 @@ contains
             end if
             call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
             iunit = iunit_bohr
+            ldum = win(iwin_console_input)%read_output_ci(.true.,"[Describe system " // string(isys) // "]")
          end if
          call iw_tooltip("Print a detailed description of this system in the Output Console",ttshown)
 
@@ -1910,7 +1913,7 @@ contains
   !> Read new output from the scratch LU uout. If iscom, this output corresponds
   !> to a command, so create the command i/o object. Return true if
   !> output has been read.
-  module function read_output_ci(w,iscom)
+  module function read_output_ci(w,iscom,cominfo)
     use gui_utils, only: get_time_string
     use gui_main, only: are_threads_running
     use tools_io, only: uout, getline_raw, string, ferror, faterr
@@ -1918,11 +1921,12 @@ contains
     use param, only: newline
     class(window), intent(inout), target :: w
     logical, intent(in) :: iscom
+    character*(*), intent(in), optional :: cominfo
     logical :: read_output_ci
 
     character(kind=c_char,len=:), allocatable, target :: csystem, cfield
     type(command_inout), allocatable :: aux(:)
-    character(len=:), allocatable :: line, commonstr
+    character(len=:), allocatable :: line, commonstr, showinp
     integer(c_size_t) :: pos, lshift, ll, olob, total, newsize
     integer :: idx, ithis, i
     logical :: ok
@@ -2035,22 +2039,28 @@ contains
           ! fill the new command info
           ncomid = ncomid + 1
           call w%get_input_details_ci(csystem,cfield)
-          idx = index(inputb,c_null_char)
           com(ithis)%id = ncomid
-          com(ithis)%input = inputb(1:idx)
           com(ithis)%status = command_inout_used
           com(ithis)%size = lob - olob + 1
+          if (present(cominfo)) then
+             showinp = trim(cominfo)
+             com(ithis)%input = c_null_char
+          else
+             idx = index(inputb,c_null_char)
+             showinp = inputb(1:idx-1)
+             com(ithis)%input = inputb(1:idx)
+          end if
 
           commonstr = "### Command: " // string(ncomid) // " (" // get_time_string() // ")" // newline
           com(ithis)%tooltipinfo = commonstr // &
              "System: " // csystem // newline //&
              "Field: " // cfield // newline //&
-             "Input: " // newline // inputb(1:idx-1) // newline //&
+             "Input: " // newline // showinp // newline //&
              "#########" // newline // newline // "[Right-click for options]"
           com(ithis)%output = commonstr // &
              "## System: " // csystem // newline //&
              "## Field: " // cfield // newline //&
-             "## Input: " // newline // inputb(1:idx-1) // newline //&
+             "## Input: " // newline // showinp // newline //&
              "#########" // newline // newline // outputb(olob+1:lob+1)
 
           ! add it to the list of active commands
