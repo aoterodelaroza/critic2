@@ -58,6 +58,9 @@ module crystalseedmod
      real*8 :: border = 0d0 !< border of the molecular cell (bohr)
      logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
      real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
+     ! calculated properties
+     real*8 :: energy = huge(1d0) !< energy (Hartree)
+     real*8 :: pressure = huge(1d0) !< pressure (GPa)
    contains
      procedure :: end => seed_end !< Deallocate arrays and nullify variables
      procedure :: parse_crystal_env

@@ -1209,7 +1209,7 @@ contains
                   end if
                end if
             end if
-            call iw_tooltip("Plot the energy as a function of SCF cycle",ttshown)
+            call iw_tooltip("Plot the energy and other properties as a function of SCF cycle iterations",ttshown)
          end if
 
          ! load field

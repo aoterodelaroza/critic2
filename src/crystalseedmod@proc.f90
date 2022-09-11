@@ -55,6 +55,8 @@ contains
     seed%border = 0d0
     seed%havex0 = .false.
     seed%molx0 = 0d0
+    seed%energy = huge(1d0)
+    seed%pressure = huge(1d0)
 
   end subroutine seed_end
 
@@ -5265,7 +5267,7 @@ contains
     character(len=:), allocatable :: line, str
     character*10 :: atn, sdum
     character*40 :: sene
-    integer :: idum, npad
+    integer :: idum, npad, idx
     real*8 :: alat, r(3,3), qaux, rfac, cfac, rdum
     logical :: ok, tox
     ! interim copy of seed info
@@ -5522,15 +5524,26 @@ contains
                 if (is0 == nseed) then
                    seed(iuse)%name = trim(file) // "|(fin) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
+                   seed(iuse)%energy = rdum / 2d0
                 else
                    str = string(iuse,npad,pad0=.true.)
                    str = string(str,length=max(5,len(str)))
                    seed(iuse)%name = trim(file) // "|" // str // " (" //&
                       trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
+                   seed(iuse)%energy = rdum / 2d0
                 end if
              else
                 seed(iuse)%name = file
              end if
+          end if
+       else if (iuse > 0 .and. index(line,"total   stress") > 0) then
+          ! add the pressure to the last seed, if available
+          idx = index(line,'=')
+          ok = isreal(seed(iuse)%pressure,line(idx+1:))
+          if (ok) then
+             seed(iuse)%pressure = seed(iuse)%pressure / 10d0 ! kbar -> GPa
+          else
+             seed(iuse)%pressure = huge(1d0)
           end if
        end if
     end do
