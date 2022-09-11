@@ -708,6 +708,10 @@ contains
        line = line(1:len(line)) // aux(1:nread)
        ok = .not.is_iostat_end(ios)
        if (is_iostat_eor(ios) .or. is_iostat_end(ios)) exit
+       if (ios /= 0) then
+          ok = .false.
+          exit
+       end if
     end do
     if (.not.ok.and.present(eofstop)) then
        if (eofstop) call ferror("getline_raw","unexpected end of file",faterr)
