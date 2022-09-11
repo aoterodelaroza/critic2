@@ -5733,6 +5733,7 @@ contains
     errmsg = "Error reading file."
 
     ! count the number of seeds, atoms, and build the species
+    energy = huge(1d0)
     nat = 0
     nseed = 0
     do while (getline_raw(lu,line))
@@ -5840,11 +5841,14 @@ contains
           str = string(str,length=max(5,len(str)))
           seed(i)%name = trim(file) // "|" // str // " (" //&
              trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
+          seed(i)%energy = esave(i)
        end do
        seed(nseed)%name = trim(file) // "|(fin) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
+       seed(nseed)%energy = energy
     else
        seed(in)%name = trim(file)
+       seed(in)%energy = energy
     end if
 
     errmsg = ""
