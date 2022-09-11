@@ -1018,17 +1018,6 @@ contains
              call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
              call iw_text(str)
           end if
-          if (igTableSetColumnIndex(ic_p)) then ! pressure
-             if (sys(i)%c%ismolecule) then
-                str = "<mol>"
-             elseif (sysc(i)%seed%pressure /= huge(1d0)) then
-                str = string(sysc(i)%seed%pressure,'f',decimal=2)
-             else
-                str = "n/a"
-             end if
-             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-             call iw_text(str)
-          end if
 
           if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_spg)) then ! spg
@@ -1139,6 +1128,17 @@ contains
              if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
                 if (sysc(i)%seed%energy /= huge(1d0)) then
                    str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                else
+                   str = "n/a"
+                end if
+                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call iw_text(str)
+             end if
+             if (igTableSetColumnIndex(ic_p)) then ! pressure
+                if (sys(i)%c%ismolecule) then
+                   str = "<mol>"
+                elseif (sysc(i)%seed%pressure /= huge(1d0)) then
+                   str = string(sysc(i)%seed%pressure,'f',decimal=2)
                 else
                    str = "n/a"
                 end if
@@ -3429,7 +3429,7 @@ contains
        str = str // newline // newline
 
        if (.not.sys(i)%c%ismolecule) then
-          ! cell parameters, volume, density
+          ! cell parameters, volume, density, energy, pressure
           str = str // "a/b/c (Å): " // &
              string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // " " //&
              string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // " " //&
@@ -3443,8 +3443,14 @@ contains
           str = str // "V (Å³): " // &
              string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // newline
           dens = (mass*pcamu) / (sys(i)%c%omega*bohr2cm**3)
-          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // newline &
-             // newline
+          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // newline
+          if (sysc(i)%seed%energy /= huge(1d0)) then
+             str = str // "Energy (Ha): " // string(sysc(i)%seed%energy,'f',decimal=8) // newline
+          end if
+          if (sysc(i)%seed%pressure /= huge(1d0)) then
+             str = str // "Pressure (GPa): " // string(sysc(i)%seed%pressure,'f',decimal=2) // newline
+          end if
+          str = str // newline
 
           ! symmetry
           if (sys(i)%c%spgavail) then

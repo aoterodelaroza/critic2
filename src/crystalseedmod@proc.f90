@@ -3882,7 +3882,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa
+    use param, only: bohrtoa, hartoev
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -3991,7 +3991,15 @@ contains
     nupdate = 0
     isfinal = .false.
     do while (getline_raw(lu,line))
-       if (trim(line) == "  Updated atomic structure:") then
+       if (index(line,'| Electronic free energy       ') > 0 .and. index(line,'Ha') == 0) then
+          idx = index(line,':')
+          ok = isreal(seed%energy,line(idx+1:))
+          if (ok) then
+             seed%energy = seed%energy / hartoev
+          else
+             seed%energy = huge(1d0)
+          end if
+       elseif (trim(line) == "  Updated atomic structure:") then
           nupdate = nupdate + 1
        elseif (trim(line) == "  Final atomic structure:") then
           isfinal = .true.
@@ -4065,6 +4073,19 @@ contains
        if (.not.isfrac(i)) then
           seed%x(:,i) = seed%x(:,i) / bohrtoa
           if (.not.is_file_mol) seed%x(:,i) = matmul(rlat,seed%x(:,i))
+       end if
+    end do
+
+    ! read the last energy
+    do while (getline_raw(lu,line))
+       if (index(line,'| Electronic free energy       ') > 0 .and. index(line,'Ha') == 0) then
+          idx = index(line,':')
+          ok = isreal(seed%energy,line(idx+1:))
+          if (ok) then
+             seed%energy = seed%energy / hartoev
+          else
+             seed%energy = huge(1d0)
+          end if
        end if
     end do
 
