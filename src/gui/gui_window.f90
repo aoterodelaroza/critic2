@@ -69,6 +69,8 @@ module gui_window
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      ! load field parameters
      integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
+     ! scf plot parameters
+     integer :: scfplot_isys = 0 ! the system on which the scf plot window operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -95,6 +97,8 @@ module gui_window
      procedure :: draw_new_struct_from_library
      ! load field
      procedure :: draw_load_field
+     ! scf plot
+     procedure :: draw_scfplot
   end type window
   public :: window
 
@@ -115,6 +119,7 @@ module gui_window
   integer, parameter, public :: wintype_new_struct = 6
   integer, parameter, public :: wintype_new_struct_library = 7
   integer, parameter, public :: wintype_load_field = 8
+  integer, parameter, public :: wintype_scfplot = 9
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -207,6 +212,9 @@ module gui_window
      module subroutine draw_load_field(w)
        class(window), intent(inout), target :: w
      end subroutine draw_load_field
+     module subroutine draw_scfplot(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_scfplot
   end interface
 
 end module gui_window

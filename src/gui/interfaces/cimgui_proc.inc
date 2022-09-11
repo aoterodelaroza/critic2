@@ -165,7 +165,11 @@ end subroutine igSetNextWindowBgAlpha
 !x! void igSetWindowPos_Str(const char* name,const ImVec2 pos,ImGuiCond cond);
 !x! void igSetWindowSize_Str(const char* name,const ImVec2 size,ImGuiCond cond);
 !x! void igSetWindowCollapsed_Str(const char* name,bool collapsed,ImGuiCond cond);
-!x! void igSetWindowFocus_Str(const char* name);
+! void igSetWindowFocus_Str(const char* name);
+subroutine igSetWindowFocus_Str(name) bind(c,name="igSetWindowFocus_Str")
+  import c_ptr
+  type(c_ptr), intent(in), value :: name
+end subroutine igSetWindowFocus_Str
 ! void igGetContentRegionAvail(ImVec2 *pOut);
 subroutine igGetContentRegionAvail(pOut) bind(c,name="igGetContentRegionAvail")
   import ImVec2

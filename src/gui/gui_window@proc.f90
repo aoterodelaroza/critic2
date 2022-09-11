@@ -231,6 +231,10 @@ contains
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
        w%loadfield_isys = isys
+    elseif (type == wintype_scfplot) then
+       if (.not.present(isys)) &
+          call ferror('window_init','scfplot requires isys',faterr)
+       w%scfplot_isys = isys
     end if
 
   end subroutine window_init
@@ -405,6 +409,12 @@ contains
           inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
+    elseif (w%type == wintype_scfplot) then
+       w%name = "SCF Iterations##" // string(w%scfplot_isys) // c_null_char
+       w%flags = ImGuiWindowFlags_None
+       inisize%x = 45 * fontsize%x
+       inisize%y = inisize%x
+       call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
     end if
 
     if (w%isopen) then
@@ -430,6 +440,8 @@ contains
                 call w%draw_new_struct_from_library()
              elseif (w%type == wintype_load_field) then
                 call w%draw_load_field()
+             elseif (w%type == wintype_scfplot) then
+                call w%draw_scfplot()
              end if
           end if
           call igEnd()
@@ -1128,7 +1140,7 @@ contains
 
       integer :: k
       real(c_float) :: pos
-      integer(c_int) :: flags, ll
+      integer(c_int) :: flags, ll, isyscollapse
       logical(c_bool) :: selected, enabled
       logical :: ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
@@ -1178,6 +1190,27 @@ contains
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             win(iwin_console_input)%inpcon_selected = isys
          call iw_tooltip("Set this system as current, the system on which commands are effected",ttshown)
+
+         ! scf energy plot
+         if (sysc(isys)%collapse /= 0) then
+            strpop = "Plot SCF Iterations" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+               if (sysc(isys)%collapse < 0) then
+                  isyscollapse = isys
+               else
+                  isyscollapse = abs(sysc(isys)%collapse)
+               end if
+
+               if (sysc(isyscollapse)%status == sys_init) then
+                  if (sysc(isyscollapse)%idwin_plotscf == 0) then
+                     sysc(isyscollapse)%idwin_plotscf = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse)
+                  else
+                     call igSetWindowFocus_Str(c_loc(win(sysc(isyscollapse)%idwin_plotscf)%name))
+                  end if
+               end if
+            end if
+            call iw_tooltip("Plot the energy as a function of SCF cycle",ttshown)
+         end if
 
          ! load field
          strpop = "Load Field" // c_null_char
@@ -3187,6 +3220,51 @@ contains
 
     end function system_ok
   end subroutine draw_load_field
+
+  !> Draw the SCF plot window.
+  module subroutine draw_scfplot(w)
+    use gui_utils, only: iw_text
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    ! xxxx ! end the window if the system is not initialized
+    call iw_text("System: " // string(w%scfplot_isys))
+    ! xxxx ! connect escape to close the dialog
+    ! xxxx ! plot properties other than the energy?
+    ! xxxx ! w%scfplot_isys = 1
+
+    ! ! xxxx
+    ! real(c_double), target, save :: x(10), y(10)
+    ! type(ImVec2) :: sz
+    ! type(ImVec4) :: auto
+    ! character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    ! strc = "Bleh" // c_null_char
+    ! if (igBegin(c_loc(strc),show_implot_demo_window,ImGuiWindowFlags_None)) then
+    !    do i = 1, 10
+    !       x(i) = i
+    !       y(i) = i * i
+    !    end do
+    !    strc = "Title" // c_null_char
+    !    sz%x = 500_c_float
+    !    sz%y = 500_c_float
+    !    if (ipBeginPlot(c_loc(strc),sz,ImPlotFlags_None)) then
+    !       str1 = "x" // c_null_char
+    !       str2 = "y" // c_null_char
+    !       call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+    !       str1 = "bleh" // c_null_char
+    !       auto%x = 0._c_float
+    !       auto%y = 0._c_float
+    !       auto%z = 0._c_float
+    !       auto%w = -1._c_float
+    !       call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
+    !       call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),10_c_int,ImPlotLineFlags_None,0_c_int)
+    !       call ipEndPlot()
+    !    end if
+    !    call igEnd()
+    ! end if
+
+  end subroutine draw_scfplot
 
   !xx! private procedures
 
