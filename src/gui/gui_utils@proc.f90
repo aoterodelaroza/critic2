@@ -177,20 +177,26 @@ contains
 
   !> Draw text. If highlight, use the highlight color. If disabled,
   !> use the disabled font. If sameline, draw it in the same line as
-  !> the previous widget.
-  module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance)
+  !> the previous widget. If noadvance, do not advance the cursor
+  !> after writing. If copy_to_output, write the text to uout as well
+  !> (without advancing to a new line and with a comma after the string).
+  module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance,&
+     copy_to_output)
     use gui_interfaces_cimgui
     use gui_main, only: ColorHighlightText
+    use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: sameline_nospace
     logical, intent(in), optional :: disabled
     logical, intent(in), optional :: noadvance
+    logical, intent(in), optional :: copy_to_output
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, disabled_, sameline_, sameline_nospace_, noadvance_
+    logical :: copy_to_output_
     real(c_float) :: pos
 
     highlight_ = .false.
@@ -198,11 +204,13 @@ contains
     sameline_nospace_ = .false.
     disabled_ = .false.
     noadvance_ = .false.
+    copy_to_output_ = .false.
     if (present(highlight)) highlight_ = highlight
     if (present(sameline)) sameline_ = sameline
     if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
     if (present(disabled)) disabled_ = disabled
     if (present(noadvance)) noadvance_ = noadvance
+    if (present(copy_to_output)) copy_to_output_ = copy_to_output
 
     if (noadvance_) pos = igGetCursorPosX()
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
@@ -219,6 +227,8 @@ contains
        call igSameLine(0._c_float,0._c_float)
        call igSetCursorPosX(pos)
     end if
+    if (copy_to_output_) &
+       write (uout,'(A,",")',advance='no') str
 
   end subroutine iw_text
 
@@ -325,7 +335,7 @@ contains
     call date_and_time(values=values)
 
     output = string(values(5),2,pad0=.true.) // ":" // string(values(6),2,pad0=.true.) //&
-       ":" // string(values(7),2,pad0=.true.) // ", " // string(values(1)) // "/" // &
+       ":" // string(values(7),2,pad0=.true.) // " - " // string(values(1)) // "/" // &
        string(values(2)) // "/" // string(values(3))
 
   end function get_time_string

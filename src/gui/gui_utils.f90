@@ -67,13 +67,15 @@ module gui_utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
-     module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance)
+     module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance,&
+        copy_to_output)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: disabled
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: sameline_nospace
        logical, intent(in), optional :: noadvance
+       logical, intent(in), optional :: copy_to_output
      end subroutine iw_text
      module function iw_button(str,danger,sameline,disabled,siz,&
         popupcontext,popupflags)

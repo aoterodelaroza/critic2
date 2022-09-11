@@ -469,7 +469,7 @@ contains
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon
     use fieldmod, only: type_grid
-    use tools_io, only: string
+    use tools_io, only: string, uout
     use types, only: realloc
     use param, only: bohrtoa, ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
        ifformat_as_resample
@@ -486,6 +486,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
+    logical :: export
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -538,6 +539,12 @@ contains
        end do
     end if
     call iw_tooltip("Collapse all systems in the tree",ttshown)
+
+    ! button: export
+    export = iw_button("Export",sameline=.true.)
+    call iw_tooltip("Write a the current table to the output console in csv-style (for copying)",ttshown)
+
+    ! helper
     call iw_text("(?)",sameline=.true.)
     call iw_tooltip("Right-click on the table headers for more options")
 
@@ -843,6 +850,13 @@ contains
           end if
           call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
 
+          ! ID column
+          if (igTableSetColumnIndex(ic_id)) then
+             str = string(i)
+             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+          end if
+
           ! name
           if (igTableSetColumnIndex(ic_name)) then
              ! selectable
@@ -876,7 +890,7 @@ contains
                 str = "├[" // string(sysc(i)%collapse) // "]─"
              end if
              str = str // trim(sysc(i)%seed%name)
-             call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.)
+             call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
 
              ! the fields
              if (sysc(i)%showfields) then
@@ -1002,21 +1016,15 @@ contains
              end if
           end if
 
-          ! ID column
-          if (igTableSetColumnIndex(ic_id)) then
-             str = string(i)
-             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-             call iw_text(str,disabled=(sysc(i)%status /= sys_init))
-          end if
-
-          if (igTableSetColumnIndex(ic_e)) then ! energy
+          ! energy
+          if (igTableSetColumnIndex(ic_e)) then
              if (sysc(i)%seed%energy /= huge(1d0)) then
                 str = string(sysc(i)%seed%energy,'f',decimal=8)
              else
                 str = "n/a"
              end if
              call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-             call iw_text(str)
+             call iw_text(str,copy_to_output=export)
           end if
 
           if (sysc(i)%status == sys_init) then
@@ -1029,7 +1037,7 @@ contains
                    str = trim(sys(i)%c%spg%international_symbol)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_v)) then ! volume
@@ -1039,7 +1047,7 @@ contains
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_vmol)) then ! volume per molecule
@@ -1049,25 +1057,25 @@ contains
                    str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq)
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel)
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol)
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_a)) then ! a
@@ -1077,7 +1085,7 @@ contains
                    str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
                 if (sys(i)%c%ismolecule) then
@@ -1086,7 +1094,7 @@ contains
                    str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
                 if (sys(i)%c%ismolecule) then
@@ -1095,7 +1103,7 @@ contains
                    str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
                 if (sys(i)%c%ismolecule) then
@@ -1104,7 +1112,7 @@ contains
                    str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
                 if (sys(i)%c%ismolecule) then
@@ -1113,7 +1121,7 @@ contains
                    str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
                 if (sys(i)%c%ismolecule) then
@@ -1122,7 +1130,7 @@ contains
                    str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init))
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
@@ -1132,7 +1140,7 @@ contains
                    str = "n/a"
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str)
+                call iw_text(str,copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_p)) then ! pressure
                 if (sys(i)%c%ismolecule) then
@@ -1143,9 +1151,11 @@ contains
                    str = "n/a"
                 end if
                 call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
-                call iw_text(str)
+                call iw_text(str,copy_to_output=export)
              end if
           end if
+          ! enter new line
+          if (export) write (uout,*)
        end do
 
        ! process the keybindings
@@ -1186,6 +1196,10 @@ contains
        call igEndTable()
     end if
     call igPopStyleVar(3_c_int)
+
+    ! if exporting, read the export command
+    if (export) &
+       ldum = win(iwin_console_input)%read_output_ci(.true.,"[Table export]")
 
     ! clean up
     ! call ImGuiTextFilter_destroy(cfilter)
