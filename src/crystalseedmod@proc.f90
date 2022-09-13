@@ -3991,7 +3991,7 @@ contains
     nupdate = 0
     isfinal = .false.
     do while (getline_raw(lu,line))
-       if (index(line,'| Electronic free energy       ') > 0 .and. index(line,'Ha') == 0) then
+       if (index(line,'| Total energy uncorrected') > 0) then
           idx = index(line,':')
           ok = isreal(seed%energy,line(idx+1:))
           if (ok) then
@@ -4086,7 +4086,7 @@ contains
 
     ! read the last energy
     do while (getline_raw(lu,line))
-       if (index(line,'| Electronic free energy       ') > 0 .and. index(line,'Ha') == 0) then
+       if (index(line,'| Total energy uncorrected') > 0) then
           idx = index(line,':')
           ok = isreal(seed%energy,line(idx+1:))
           if (ok) then
