@@ -2342,6 +2342,12 @@ end function ipBeginPlot
 ! void ipEndPlot();
 subroutine ipEndPlot() bind(c,name="ipEndPlot")
 end subroutine ipEndPlot
+! void ipSetupAxisFormat(ImAxis axis, const char* fmt);
+subroutine ipSetupAxisFormat(axis,fmt) bind(c,name="ipSetupAxisFormat")
+  import c_int, c_ptr
+  integer(c_int), value :: axis
+  type(c_ptr), intent(in), value :: fmt
+end subroutine ipSetupAxisFormat
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int

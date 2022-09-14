@@ -3315,46 +3315,81 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
+    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use gui_main, only: nsys, sysc, sys_init
     use gui_utils, only: iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    ! xxxx ! end the window if the system is not initialized
-    call iw_text("System: " // string(w%scfplot_isys))
-    ! xxxx ! connect escape to close the dialog
-    ! xxxx ! plot properties other than the energy?
-    ! xxxx ! w%scfplot_isys = 1
+    real(c_double), allocatable, target, save :: x(:), y(:)
+    logical :: doquit
+    integer :: i, isys, num, n
+    type(ImVec2) :: sz
+    type(ImVec4) :: auto
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
 
-    ! ! xxxx
-    ! real(c_double), target, save :: x(10), y(10)
-    ! type(ImVec2) :: sz
-    ! type(ImVec4) :: auto
-    ! character(kind=c_char,len=:), allocatable, target :: str1, str2
+    isys = w%scfplot_isys
+    doquit = (isys < 1 .or. isys > nsys)
+    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
 
-    ! strc = "Bleh" // c_null_char
-    ! if (igBegin(c_loc(strc),show_implot_demo_window,ImGuiWindowFlags_None)) then
-    !    do i = 1, 10
-    !       x(i) = i
-    !       y(i) = i * i
-    !    end do
-    !    strc = "Title" // c_null_char
-    !    sz%x = 500_c_float
-    !    sz%y = 500_c_float
-    !    if (ipBeginPlot(c_loc(strc),sz,ImPlotFlags_None)) then
-    !       str1 = "x" // c_null_char
-    !       str2 = "y" // c_null_char
-    !       call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-    !       str1 = "bleh" // c_null_char
-    !       auto%x = 0._c_float
-    !       auto%y = 0._c_float
-    !       auto%z = 0._c_float
-    !       auto%w = -1._c_float
-    !       call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
-    !       call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),10_c_int,ImPlotLineFlags_None,0_c_int)
-    !       call ipEndPlot()
-    !    end if
-    !    call igEnd()
-    ! end if
+    if (.not.doquit) then
+       ! get the property and prepare x and y
+       if (.not.allocated(x) .or..not.allocated(y)) then
+          if (allocated(x)) deallocate(x)
+          if (allocated(y)) deallocate(y)
+          num = count(sysc(1:nsys)%collapse == isys) + 1
+          allocate(x(num),y(num))
+          n = 0
+          do i = 1, nsys
+             if (sysc(i)%collapse == isys) then
+                n = n + 1
+                x(n) = real(n,8)
+                y(n) = sysc(i)%seed%energy
+             end if
+          end do
+          x(num) = real(num,8)
+          y(num) = sysc(isys)%seed%energy
+       end if
+
+       ! make the plot
+       str1 = "##scfiterations" // string(isys) // c_null_char
+       call igGetContentRegionAvail(sz)
+       if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
+          str1 = "SCF Iteration" // c_null_char
+          str2 = "Energy (Ha)" // c_null_char
+          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+          str1 = "%.6f" // c_null_char
+          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1));
+          str1 = "Energy" // c_null_char
+          auto%x = 0._c_float
+          auto%y = 0._c_float
+          auto%z = 0._c_float
+          auto%w = -1._c_float
+          call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
+          call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),10_c_int,ImPlotLineFlags_None,0_c_int)
+          call ipEndPlot()
+       end if
+
+       ! xxxx ! make the y plot format depend on the range
+       ! xxxx ! plot properties other than the energy?
+    end if
+
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+
+    if (doquit) then
+       call end_state()
+       call w%end()
+    end if
+
+  contains
+
+    ! terminate the state for this window
+    subroutine end_state()
+      if (allocated(x)) deallocate(x)
+      if (allocated(y)) deallocate(y)
+    end subroutine end_state
 
   end subroutine draw_scfplot
 

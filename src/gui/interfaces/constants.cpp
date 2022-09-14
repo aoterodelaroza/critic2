@@ -1002,6 +1002,13 @@ const int const_IGFD_FileStyleByFullName = IGFD_FileStyleByFullName;
 const int const_IGFD_FileStyleByContainedInFullName = IGFD_FileStyleByContainedInFullName;
 
 //// implot
+// enum ImAxis_
+const int const_ImAxis_X1 = ImAxis_X1;
+const int const_ImAxis_X2 = ImAxis_X2;
+const int const_ImAxis_X3 = ImAxis_X3;
+const int const_ImAxis_Y1 = ImAxis_Y1;
+const int const_ImAxis_Y2 = ImAxis_Y2;
+const int const_ImAxis_Y3 = ImAxis_Y3;
 // enum ImPlotFlags_
 const int const_ImPlotFlags_None = ImPlotFlags_None;
 const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;

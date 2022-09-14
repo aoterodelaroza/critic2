@@ -993,6 +993,13 @@ extern "C" const int const_IGFD_FileStyleByFullName;
 extern "C" const int const_IGFD_FileStyleByContainedInFullName;
 
 //// implot
+// enum ImAxis_
+extern "C" const int const_ImAxis_X1;
+extern "C" const int const_ImAxis_X2;
+extern "C" const int const_ImAxis_X3;
+extern "C" const int const_ImAxis_Y1;
+extern "C" const int const_ImAxis_Y2;
+extern "C" const int const_ImAxis_Y3;
 // enum ImPlotFlags_
 extern "C" const int const_ImPlotFlags_None;
 extern "C" const int const_ImPlotFlags_NoTitle;

@@ -34,6 +34,9 @@ CIMGUI_API bool ipBeginPlot(const char* title_id, const ImVec2 size, ImPlotFlags
 CIMGUI_API void ipEndPlot(){
   ImPlot::EndPlot();
 }
+CIMGUI_API void ipSetupAxisFormat(ImAxis axis, const char* fmt){
+  ImPlot::SetupAxisFormat(axis,fmt);
+}
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);
 }

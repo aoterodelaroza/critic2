@@ -979,6 +979,13 @@
   integer(c_int), bind(C,name="const_IGFD_FileStyleByContainedInFullName") :: IGFD_FileStyleByContainedInFullName
 
   !! implot
+  ! enum ImAxis_
+  integer(c_int), bind(C,name="const_ImAxis_X1") :: ImAxis_X1
+  integer(c_int), bind(C,name="const_ImAxis_X2") :: ImAxis_X2
+  integer(c_int), bind(C,name="const_ImAxis_X3") :: ImAxis_X3
+  integer(c_int), bind(C,name="const_ImAxis_Y1") :: ImAxis_Y1
+  integer(c_int), bind(C,name="const_ImAxis_Y2") :: ImAxis_Y2
+  integer(c_int), bind(C,name="const_ImAxis_Y3") :: ImAxis_Y3
   ! enum ImPlotFlags_
   integer(c_int), bind(C,name="const_ImPlotFlags_None") :: ImPlotFlags_None
   integer(c_int), bind(C,name="const_ImPlotFlags_NoTitle") :: ImPlotFlags_NoTitle

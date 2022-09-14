@@ -33,6 +33,7 @@ CIMGUI_API ImPlotContext* ipCreateContext();
 CIMGUI_API void ipDestroyContext(ImPlotContext* ctx);
 CIMGUI_API bool ipBeginPlot(const char* title_id, const ImVec2 size, ImPlotFlags flags);
 CIMGUI_API void ipEndPlot();
+CIMGUI_API void ipSetupAxisFormat(ImAxis axis, const char* fmt);
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
 CIMGUI_API void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
