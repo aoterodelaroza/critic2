@@ -531,14 +531,16 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_standard
-     module function cell_niggli(c,noenv) result(x0)
+     module function cell_niggli(c,noenv,ti) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: noenv
+       type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_niggli
-     module function cell_delaunay(c,noenv) result(x0)
+     module function cell_delaunay(c,noenv,ti) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: noenv
+       type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
      module subroutine struct_report(c,lcrys,lq)
