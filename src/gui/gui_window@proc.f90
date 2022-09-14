@@ -359,12 +359,10 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File..." // c_null_char
-             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)..." // c_null_char
-             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -388,7 +386,6 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File..." // c_null_char
-             w%flags = ior(w%flags,ImGuiFileDialogFlags_Modal)
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
@@ -2767,7 +2764,7 @@ contains
     ! render the rest of the window
     ! library file
     call iw_text("Source",highlight=.true.)
-    if (iw_button("Library file")) &
+    if (iw_button("Library file",disabled=(idopenlibfile /= 0))) &
        idopenlibfile = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
     call iw_tooltip("Library file from where the structures are read",ttshown)
     call iw_text(w%okfile,sameline=.true.)
@@ -2892,6 +2889,7 @@ contains
 
     ! quit the window
     if (doquit) then
+       if (idopenlibfile /= 0) call win(idopenlibfile)%end()
        call end_state()
        call w%end()
     end if
@@ -3074,9 +3072,12 @@ contains
           file1_read = .false.
        end if
 
+       ! disabled buttons?
+       disabled = (idopenfile1 /= 0) .or. (idopenfile2 /= 0) .or. (idopenfile3 /= 0)
+
        ! source file and format
        call iw_text("Source",highlight=.true.)
-       if (iw_button("File",danger=(file1_format==0))) &
+       if (iw_button("File",danger=(file1_format==0),disabled=disabled)) &
           idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
@@ -3191,22 +3192,22 @@ contains
        ! format-specific options and additional files
        select case (abs(file1_format))
        case(ifformat_wien)
-          if (iw_button("File (.struct)",danger=.not.file2_set)) &
+          if (iw_button("File (.struct)",danger=.not.file2_set,disabled=disabled)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_elk)
-          if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set)) &
+          if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set,disabled=disabled)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_dftb)
-          if (iw_button("File (.bin)",danger=.not.file2_set)) &
+          if (iw_button("File (.bin)",danger=.not.file2_set,disabled=disabled)) &
              idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file2,sameline=.true.)
 
-          if (iw_button("File (.hsd)",danger=.not.file3_set)) &
+          if (iw_button("File (.hsd)",danger=.not.file3_set,disabled=disabled)) &
              idopenfile3 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file3,sameline=.true.)
@@ -3274,6 +3275,9 @@ contains
 
     ! quit the window
     if (doquit) then
+       if (idopenfile1 /= 0) call win(idopenfile1)%end()
+       if (idopenfile2 /= 0) call win(idopenfile2)%end()
+       if (idopenfile3 /= 0) call win(idopenfile3)%end()
        call end_state()
        call w%end()
     end if
