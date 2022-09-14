@@ -61,6 +61,7 @@ module gui_window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
+     logical :: forcequitdialog = .false. ! for the dialog to quit
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
      ! new structure from library parameters

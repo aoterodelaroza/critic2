@@ -219,6 +219,7 @@ contains
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_data%molcubic = logical(.false.,c_bool)
     w%dialog_data%rborder = real(rborder_def*bohrtoa,c_float)
+    w%forcequitdialog = .false.
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -1657,8 +1658,8 @@ contains
        call w%end()
     end if
 
-    ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    ! exit if focused and received the close keybinding, or if forced by some other window
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. w%forcequitdialog) &
        call IGFD_ForceQuit(w%dptr)
 
     ! exit if focused and received the OK keybinding
@@ -2889,7 +2890,7 @@ contains
 
     ! quit the window
     if (doquit) then
-       if (idopenlibfile /= 0) call win(idopenlibfile)%end()
+       if (idopenlibfile /= 0) win(idopenlibfile)%forcequitdialog = .true.
        call end_state()
        call w%end()
     end if
@@ -3275,9 +3276,9 @@ contains
 
     ! quit the window
     if (doquit) then
-       if (idopenfile1 /= 0) call win(idopenfile1)%end()
-       if (idopenfile2 /= 0) call win(idopenfile2)%end()
-       if (idopenfile3 /= 0) call win(idopenfile3)%end()
+       if (idopenfile1 /= 0) win(idopenfile1)%forcequitdialog = .true.
+       if (idopenfile2 /= 0) win(idopenfile2)%forcequitdialog = .true.
+       if (idopenfile3 /= 0) win(idopenfile3)%forcequitdialog = .true.
        call end_state()
        call w%end()
     end if
