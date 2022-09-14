@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Hirshfeld integration
 submodule (hirshfeld) proc
   implicit none
 
@@ -220,7 +221,7 @@ contains
     write (uout,'("# V_hirsh = atomic volumes ")')
     write (uout,'("#nneq mult name   N_hirsh          V_hirsh")')
     do iat = 1, sy%c%nneq
-       write (uout,'(5(A,X))') string(iat,length=4,justify=ioj_center), &
+       write (uout,'(5(A," "))') string(iat,length=4,justify=ioj_center), &
           string(sy%c%at(iat)%mult,length=4,justify=ioj_center), &
           string(sy%c%spc(sy%c%at(iat)%is)%name,length=5,justify=ioj_center), &
           string(nat(iat),'f',length=16,decimal=10,justify=3), &

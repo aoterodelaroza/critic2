@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,13 +15,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Routines for the atomic environment class
+! Atomic environment class
 submodule (environmod) proc
   implicit none
 
   integer, parameter :: menv0 = 10
 
-  real*8 :: boxsize_default = 4.0 ! length of the region side (bohr)
+  real*8, parameter :: boxsize_default = 4.0 ! length of the region side (bohr)
 
   !xx! private procedures
   ! function packoffset(i1,i2,i3,nr,nr21) result(ip)
@@ -1733,9 +1733,9 @@ contains
        write (uout,'("  Maximum interaction distance (",A,"): ",A)') iunitname0(iunit), string(e%dmax0*dunit0(iunit),'f',8,4)
     end if
     write (uout,'("  Covering regions: ")')
-    write (uout,'("    Total number of regions: ",A," (",2(A,X),A,")")') string(e%nregion), (string(e%nreg(j)),j=1,3)
-    write (uout,'("    Minimum region ID: ",3(A,X))') (string(e%nmin(j)),j=1,3)
-    write (uout,'("    Maximum region ID: ",3(A,X))') (string(e%nmax(j)),j=1,3)
+    write (uout,'("    Total number of regions: ",A," (",2(A," "),A,")")') string(e%nregion), (string(e%nreg(j)),j=1,3)
+    write (uout,'("    Minimum region ID: ",3(A," "))') (string(e%nmin(j)),j=1,3)
+    write (uout,'("    Maximum region ID: ",3(A," "))') (string(e%nmax(j)),j=1,3)
     write (uout,'("    Region side (",A,"): ",A)') iunitname0(iunit), trim(string(e%boxsize * dunit0(iunit),'f',8,4))
     write (uout,'("    Transformation origin (",A,"): ",A,",",A,",",A)') iunitname0(iunit), &
        (trim(string(e%x0(j) * dunit0(iunit),'f',8,4)),j=1,3)

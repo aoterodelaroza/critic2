@@ -1,0 +1,12 @@
+ODE_MODE [METHOD {EULER|HEUN|BS|RKCK|DP}] [MAXSTEP maxstep.r] [MAXERR maxerr.r] [GRADEPS gradeps.r]
+PRUNE_DISTANCE prune.r
+INT_RADIAL [TYPE {GAULEG|QAGS|QNG|QAG}] [NR nr.i] [ABSERR err.r]
+           [RELERR err.r] [ERRPROP prop.i] [PREC prec.r]
+MESHTYPE {BECKE|FRANCHINI} [SMALL|NORMAL|GOOD|VERYGOOD|AMAZING]
+PRECISECUBE|STANDARDCUBE
+PRECISECUBE|STANDARDCUBE
+BONDFACTOR bondfactor.r
+RADII {COV|VDW|} [at1.s|z1.i] rad1.r [[at2.s|z2.i] rad2.r ...]
+RUN command.s
+SYSTEM command.s
+ECHO echooo.s

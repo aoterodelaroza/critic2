@@ -1,10 +1,11 @@
 + Field number 1
+  Name: RHO3D.OUT
   Source: ../zz_source/elk-6.3.02/sbpo4/RHO3D.OUT
   Type: grid
-  Grid dimensions : 50  50  50
-  Max. length Voronoi-relevant vector (bohr):  0.25787
-  First elements... 4.475214519000E-03  4.504281816000E-03  4.592648550000E-03
-  Last elements... 5.563064109000E-03  5.272461826000E-03  5.111779283000E-03
+  Grid dimensions : 50  50  50  
+  Max. length Voronoi-relevant vector (bohr):  0.25787  
+  First elements... 4.475214519000E-03  4.504281816000E-03  4.592648550000E-03  
+  Last elements... 5.563064109000E-03  5.272461826000E-03  5.111779283000E-03  
   Sum of elements... 2.030602211129E+04
   Sum of squares of elements... 5.355539599232E+05
   Cell integral (grid SUM) = 177.58976486
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: ELF3D.OUT
   Source: ../zz_source/elk-6.3.02/sbpo4/ELF3D.OUT
   Type: grid
-  Grid dimensions : 150  150  150
-  Max. length Voronoi-relevant vector (bohr):  0.08596
-  First elements... 1.583677544000E-02  1.584161149000E-02  1.585568079000E-02
-  Last elements... 1.653024425000E-02  1.634688263000E-02  1.617729116000E-02
+  Grid dimensions : 150  150  150  
+  Max. length Voronoi-relevant vector (bohr):  0.08596  
+  First elements... 1.583677544000E-02  1.584161149000E-02  1.585568079000E-02  
+  Last elements... 1.653024425000E-02  1.634688263000E-02  1.617729116000E-02  
   Sum of elements... 9.990668131356E+05
   Sum of squares of elements... 5.473634214347E+05
   Cell integral (grid SUM) = 323.61142524
@@ -42,24 +44,24 @@
   Number of critical points in the unit cell: 12
   Alias for this field (1): $2
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): 0.6813415  2.5786584  2.6522272
-  Coordinates (ang): 0.3605504  1.3645672  1.4034982
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.6813415  2.5786584  2.6522272  
+  Coordinates (ang): 0.3605504  1.3645672  1.4034982  
 + Field: 1
   Type : (3,-1)
   Field value (f): 2.207543529E-01
   Field value, valence (fval): 2.207543529E-01
-  Gradient (grad f): 1.767395954E-01  6.381932121E-01  -7.652567370E-01
+  Gradient (grad f): 1.767395954E-01  6.381932121E-01  -7.652567370E-01  
   Gradient norm (|grad f|): 1.012000659E+00
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 9.188939456E+00
   Laplacian, valence (del2 fval): 9.188939456E+00
   Hessian:
-    -2.443243671E-02   7.508190248E-01  -8.688782237E-01
-     7.508190248E-01   3.692427384E+00  -5.496725359E+00
-    -8.688782237E-01  -5.496725359E+00   5.520944509E+00
-  Hessian eigenvalues: -9.657031993E-01  -1.519145299E-01  1.030655718E+01
+    -2.443243671E-02   7.508190248E-01  -8.688782237E-01  
+     7.508190248E-01   3.692427384E+00  -5.496725359E+00  
+    -8.688782237E-01  -5.496725359E+00   5.520944509E+00  
+  Hessian eigenvalues: -9.657031993E-01  -1.519145299E-01  1.030655718E+01  
   Ellipticity (l_1/l_2 - 1): 5.356885021E+00
-  Field 0 (f,|grad|,lap): 2.384306159E-01  8.865602224E-01  5.280982592E+00
-  Field 2 (f,|grad|,lap): 8.013371265E-02  4.375443866E-01  6.194619205E+00
+  Field 0 (f,|grad|,lap): 2.384306159E-01  8.865602224E-01  5.280982592E+00  
+  Field 2 (f,|grad|,lap): 8.013371265E-02  4.375443866E-01  6.194619205E+00  
 

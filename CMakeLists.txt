@@ -45,10 +45,32 @@ option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)
 option(BUILD_TESTING "Enable the regression tests for the critic2 build." OFF)
 include(CTest)
 
-## the GUI needs -fPIC
+## GUI requirements
 if (ENABLE_GUI)
+  ## option to use freetype
+  option(USE_FREETYPE2 "Use the freetype2 library (improved font rendering in GUI)." OFF)
+
+  ## needs -fPIC
   enable_language(CXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+  ## find GUI libraries
+  find_package(PkgConfig REQUIRED)
+  pkg_search_module(GLFW REQUIRED glfw3)
+  pkg_search_module(GL REQUIRED gl)
+  if (USE_FREETYPE2)
+    pkg_search_module(FREETYPE2 freetype2)
+  endif()
+
+  ## the GUI requires threads
+  set(ENABLE_OPENMP ON)
+
+  ## find pthreads
+  find_package(Threads REQUIRED)
+  if(THREADS_HAVE_PTHREAD_ARG)
+    set_property(TARGET critic2 PROPERTY COMPILE_OPTIONS "-pthread")
+    set_property(TARGET critic2 PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+  endif()
 endif()
 
 ## perform a static build
@@ -165,23 +187,20 @@ if (USE_LIBCINT)
 endif()
 
 ## the syntax.txt target
-add_custom_target(syntax 
+add_custom_target(syntax
   COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
   )
 
 ## process subdirectories
 add_subdirectory(src)
 add_subdirectory(dat)
-if (ENABLE_GUI)
-  add_subdirectory(src-gui)
-endif()
 if (BUILD_TESTING AND NUMDIFF_FOUND)
   add_subdirectory(tests)
 endif()
 
 ## summary
 set(_message
-"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION} (git:${critic2_GIT_COMMIT})###\n"
+"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION}###\n"
 "System: ${CMAKE_SYSTEM} (crosscompiling? ${CROSSCOMPILE})\n"
 "Date: ${DATE}\n"
 "Build type: ${CMAKE_BUILD_TYPE}\n"
@@ -233,7 +252,7 @@ endif()
 set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
 
 if (ENABLE_GUI)
-  set(_message 
+  set(_message
     "${_message}gl: lib=${GL_LIBRARIES} | inc=${GL_INCLUDE_DIRS}\n"
     "glm: lib=${GLM_LIBRARIES} | inc=${GLM_INCLUDE_DIRS}\n"
     "glfw: lib=${GLFW_LIBRARIES} | inc=${GLFW_INCLUDE_DIRS}\n"

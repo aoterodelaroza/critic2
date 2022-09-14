@@ -1,10 +1,11 @@
 + Field number 1
+  Name: rhoae.cube
   Source: ../zz_source/qe-6.5/mgo/rhoae.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.932000000000E-02  1.945300000000E-02  1.984000000000E-02
-  Last elements... 1.820300000000E-02  1.831800000000E-02  1.867000000000E-02
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.932000000000E-02  1.945300000000E-02  1.984000000000E-02  
+  Last elements... 1.820300000000E-02  1.831800000000E-02  1.867000000000E-02  
   Sum of elements... 7.203956126000E+03
   Sum of squares of elements... 3.172817539814E+06
   Cell integral (grid SUM) = 26.11311278
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: mgo.pwc
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02
-  Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02  
+  Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 7.612419486289E+02
   Cell integral (grid SUM) = 8.00000000
@@ -44,64 +46,64 @@
 + Plane-wave Kohn-Sham states for this field
   Spin: 1 K-points: 8 Bands: 4
 # kpt  1 (0.0000 0.0000 0.0000) w=1.25000000E-01
-  Ek(1): -10.98   6.71   6.71   6.71
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1): -10.98   6.71   6.71   6.71 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  2 (-0.0000 0.0000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  3 (0.0000 -0.5000 0.0000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  4 (0.0000 -0.5000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  5 (-0.5000 -0.0000 -0.0000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  6 (-0.5000 0.0000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  7 (0.5000 0.5000 -0.0000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  8 (0.5000 0.5000 0.5000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 
 + Wannier functions information for this field
-  Real-space lattice vectors: 2 2 2
+  Real-space lattice vectors: 2 2 2 
   Spin: 1 Bands: 4
   Wannier function centers (cryst. coords.) and spreads: 
 # bnd spin        ----  center  ----        spread(bohr)
-   1   1    1.843939   1.552172   0.551842   1.30644363  
-   2   1    0.051991   0.551851   1.552215   1.30645587  
-   3   1    0.051871   0.343939   1.552002   1.30644502  
-   4   1    0.052200   1.552038   0.343941   1.30644910  
+   1   1    1.843939   1.552172   0.551842   1.30644363   
+   2   1    0.051991   0.551851   1.552215   1.30645587   
+   3   1    0.051871   0.343939   1.552002   1.30644502   
+   4   1    0.052200   1.552038   0.343941   1.30644910   
   Alias for this field (1): $2
 
 * List of integrable properties (4)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
-    4   f        2  $2  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
+    4   f        2  $2    
 
 * List of integrable properties (5)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
-    4   f        2  $2  
-    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
+    4   f        2  $2    
+    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00  
 
 * List of integrable properties (6)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
-    4   f        2  $2  
-    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
-    6  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
+    4   f        2  $2    
+    5  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00  
+    6  dloc      2  $2#deloca  | Wannier overlaps, use_Sij_chk = No, use_Fa_chk = No, Wannier_cutoff = 4.00  
 
 * Yu-Trinkle integration 
   Please cite: 
@@ -118,16 +120,16 @@
 + Integrated property (number 4): $2
 + Integrated property (number 5): $2#deloca
 # Calculating atomic overlap matrices
-  Attractors before remapping = 2
-  Attractors after remapping = 16
-  Number of bands (nbnd) = 4
-  ... lattice translations (nlat) = 2 2 2
-  ... unique grid functions (nbnd x nlat) = 8
-  ... spin channels = 1
-  Calculating overlaps using Wannier functions (wan)
-  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff =  4.00 
-  Writing temporary evc files...
-# Calculating overlaps...
+  Attractors before remapping = 2 
+  Attractors after remapping = 16 
+  Number of bands (nbnd) = 4 
+  ... lattice translations (nlat) = 2 2 2 
+  ... unique grid functions (nbnd x nlat) = 8 
+  ... spin channels = 1 
+  Calculating overlaps using Wannier functions (wan) 
+  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff =  4.00  
+  Writing temporary evc files... 
+# Calculating overlaps... 
     Bands (1,1) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (1,2) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (1,3) of total 4. Spin 1/1. Overlaps: 1024/1024
@@ -138,20 +140,20 @@
     Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-# Calculating translation mappings...
+# Calculating translation mappings... 
 # Calculating Fa
 + Integrated property (number 6): $2#deloca
 # Calculating atomic overlap matrices
-  Attractors before remapping = 2
-  Attractors after remapping = 16
-  Number of bands (nbnd) = 4
-  ... lattice translations (nlat) = 2 2 2
-  ... unique grid functions (nbnd x nlat) = 8
-  ... spin channels = 1
-  Calculating overlaps using Wannier functions (wan)
-  Discarding no overlaps.
-  Writing temporary evc files...
-# Calculating overlaps...
+  Attractors before remapping = 2 
+  Attractors after remapping = 16 
+  Number of bands (nbnd) = 4 
+  ... lattice translations (nlat) = 2 2 2 
+  ... unique grid functions (nbnd x nlat) = 8 
+  ... spin channels = 1 
+  Calculating overlaps using Wannier functions (wan) 
+  Discarding no overlaps. 
+  Writing temporary evc files... 
+# Calculating overlaps... 
     Bands (1,1) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (1,2) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (1,3) of total 4. Spin 1/1. Overlaps: 1024/1024
@@ -162,7 +164,7 @@
     Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
     Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-# Calculating translation mappings...
+# Calculating translation mappings... 
 # Calculating Fa
 
 * List of properties integrated in the attractor basins
@@ -170,12 +172,12 @@
   in the tables of integrated atomic properties. The entries with
   an "x" will not be integrated.
 # id    Label      fid  Field       Additional
-  1       Volume    -- Volume       
-  2        Pop       1 Field (v)    
-  3        Lap       1 Laplcn (v)   
-  4         $2       2 Field        
-  5     $2#deloca    2 Deloc indx   
-  6     $2#deloca    2 Deloc indx   
+  1       Volume    -- Volume        
+  2        Pop       1 Field (v)     
+  3        Lap       1 Laplcn (v)    
+  4         $2       2 Field         
+  5     $2#deloca    2 Deloc indx    
+  6     $2#deloca    2 Deloc indx    
 
 * Key for the interpretation of table headings
 # Id = attractor identifier
@@ -193,119 +195,119 @@
 
 * List of attractors integrated
 # Id   cp   ncp   Name  Z   mult           Position (cryst.) 
-  1    1    1      mg   12  --    0.5000000    1.0000000    0.0000000 
-  2    2    2      o    8   --    0.0000000    0.5000000    0.5000000 
+  1    1    1      mg   12  --    0.5000000    1.0000000    0.0000000  
+  2    2    2      o    8   --    0.0000000    0.5000000    0.5000000  
 
 * Integrated atomic properties
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 4
-# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap             $2       
-  1    1    1      mg   12  --   2.98866301E+01  1.55039349E+01 -3.29268660E+01  3.40770496E-01
-  2    2    2      o    8   --   8.88917834E+01  1.06091778E+01  3.29268660E+01  7.65922950E+00
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap             $2        
+  1    1    1      mg   12  --   2.98866301E+01  1.55039349E+01 -3.29268660E+01  3.40770496E-01 
+  2    2    2      o    8   --   8.88917834E+01  1.06091778E+01  3.29268660E+01  7.65922950E+00 
 ------------------------------------------------------------------------------------------------
-  Sum                            1.18778413E+02  2.61131128E+01  4.81747975E-12  8.00000000E+00
+  Sum                            1.18778413E+02  2.61131128E+01  5.03064257E-12  8.00000000E+00 
 
 * Localization and delocalization indices
 + Integrated property (number 5): $2#deloca
 + Localization indices
 # Id   cp   ncp   Name  Z       LI(A)           N(A)
-  1    1    1      mg   12   0.01001876      0.34077050
-  2    2    2      o    8    6.93724912      7.65922950
+  1    1    1      mg   12   0.01001876      0.34077050 
+  2    2    2      o    8    6.93724912      7.65922950 
 
 + Delocalization indices
   Each block gives information about a single atom in the main cell.
   First line: localization index. Next lines: delocalization index
   with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
   equal to the atomic population. Distances are in bohr.
-# Attractor 1 (cp=1, ncp=1, name=mg, Z=12) at: 0.5000000  1.0000000  0.0000000
+# Attractor 1 (cp=1, ncp=1, name=mg, Z=12) at: 0.5000000  1.0000000  0.0000000  
 # Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
   Localization index.......................................................................  0.01001876
-  2    2    2      o    8    0   0   0   0.0000000    0.5000000    0.5000000    3.9015366    0.10556747
-  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    3.9015366    0.10549164
-  10   2    2      o    8    1   0   0   1.0000000    0.5000000    0.5000000    3.9015366    0.10555158
-  16   2    2      o    8    1   1  -1   1.0000000    1.5000000   -0.5000000    3.9015366    0.10548677
-  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    3.9015408    0.10533913
-  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    3.9015408    0.10533907
-  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    5.5176049    0.00210075
-  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    5.5176071    0.00210075
-  13   1    1      mg   12   1  -1   0   1.5000000   -0.0000000    0.0000000    5.5176089    0.00210075
-  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    5.5176089    0.00210076
-  5    1    1      mg   12   0   1   0   0.5000000    2.0000000    0.0000000    5.5176089    0.00210075
-  3    1    1      mg   12   0   0   1   0.5000000    1.0000000    1.0000000    5.5176089    0.00210076
-  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    6.7576611    0.00253404
-  4    2    2      o    8    0   2  -1   0.0000000    2.5000000   -0.5000000    6.7576611    0.00253404
-  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    7.8030732    0.01105521
+  2    2    2      o    8    0   0   0   0.0000000    0.5000000    0.5000000    3.9015366    0.10556747 
+  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    3.9015366    0.10549164 
+  10   2    2      o    8    1   0   0   1.0000000    0.5000000    0.5000000    3.9015366    0.10555158 
+  16   2    2      o    8    1   1  -1   1.0000000    1.5000000   -0.5000000    3.9015366    0.10548677 
+  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    3.9015408    0.10533913 
+  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    3.9015408    0.10533907 
+  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    5.5176049    0.00210075 
+  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    5.5176071    0.00210075 
+  13   1    1      mg   12   1  -1   0   1.5000000   -0.0000000    0.0000000    5.5176089    0.00210075 
+  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    5.5176089    0.00210076 
+  5    1    1      mg   12   0   1   0   0.5000000    2.0000000    0.0000000    5.5176089    0.00210075 
+  3    1    1      mg   12   0   0   1   0.5000000    1.0000000    1.0000000    5.5176089    0.00210076 
+  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    6.7576611    0.00253404 
+  4    2    2      o    8    0   2  -1   0.0000000    2.5000000   -0.5000000    6.7576611    0.00253404 
+  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    7.8030732    0.01105521 
   Total (atomic population)................................................................  0.34077050
 
-# Attractor 2 (cp=2, ncp=2, name=o, Z=8) at: 0.0000000  0.5000000  0.5000000
+# Attractor 2 (cp=2, ncp=2, name=o, Z=8) at: 0.0000000  0.5000000  0.5000000  
 # Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
   Localization index.......................................................................  6.93724912
-  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    3.9015366    0.10548677
-  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    3.9015366    0.10549164
-  1    1    1      mg   12   0   0   0   0.5000000    1.0000000    0.0000000    3.9015366    0.10556747
-  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    3.9015366    0.10555158
-  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    3.9015408    0.10533913
-  5    1    1      mg   12   0  -1   0   0.5000000   -0.0000000    0.0000000    3.9015408    0.10533907
-  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    5.5176049    0.13560619
-  10   2    2      o    8   -1   0   0  -1.0000000    0.5000000    0.5000000    5.5176071    0.13384980
-  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    5.5176089    0.13414750
-  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    5.5176089    0.13424363
-  4    2    2      o    8    0   0   1   0.0000000    0.5000000    1.5000000    5.5176089    0.13339662
-  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    5.5176089    0.13323685
-  13   1    1      mg   12  -1  -1   2  -0.5000000   -0.0000000    2.0000000    6.7576611    0.00253404
-  3    1    1      mg   12   0  -2   1   0.5000000   -1.0000000    1.0000000    6.7576611    0.00253404
-  16   2    2      o    8   -1  -1   1  -1.0000000   -0.5000000    1.5000000    7.8030732    0.00163642
+  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    3.9015366    0.10548677 
+  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    3.9015366    0.10549164 
+  1    1    1      mg   12   0   0   0   0.5000000    1.0000000    0.0000000    3.9015366    0.10556747 
+  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    3.9015366    0.10555158 
+  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    3.9015408    0.10533913 
+  5    1    1      mg   12   0  -1   0   0.5000000   -0.0000000    0.0000000    3.9015408    0.10533907 
+  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    5.5176049    0.13560619 
+  10   2    2      o    8   -1   0   0  -1.0000000    0.5000000    0.5000000    5.5176071    0.13384980 
+  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    5.5176089    0.13414750 
+  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    5.5176089    0.13424363 
+  4    2    2      o    8    0   0   1   0.0000000    0.5000000    1.5000000    5.5176089    0.13339662 
+  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    5.5176089    0.13323685 
+  13   1    1      mg   12  -1  -1   2  -0.5000000   -0.0000000    2.0000000    6.7576611    0.00253404 
+  3    1    1      mg   12   0  -2   1   0.5000000   -1.0000000    1.0000000    6.7576611    0.00253404 
+  16   2    2      o    8   -1  -1   1  -1.0000000   -0.5000000    1.5000000    7.8030732    0.00163642 
   Total (atomic population)................................................................  7.65922950
 
 * Localization and delocalization indices
 + Integrated property (number 6): $2#deloca
 + Localization indices
 # Id   cp   ncp   Name  Z       LI(A)           N(A)
-  1    1    1      mg   12   0.01001876      0.34077050
-  2    2    2      o    8    6.93724912      7.65922950
+  1    1    1      mg   12   0.01001876      0.34077050 
+  2    2    2      o    8    6.93724912      7.65922950 
 
 + Delocalization indices
   Each block gives information about a single atom in the main cell.
   First line: localization index. Next lines: delocalization index
   with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
   equal to the atomic population. Distances are in bohr.
-# Attractor 1 (cp=1, ncp=1, name=mg, Z=12) at: 0.5000000  1.0000000  0.0000000
+# Attractor 1 (cp=1, ncp=1, name=mg, Z=12) at: 0.5000000  1.0000000  0.0000000  
 # Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
   Localization index.......................................................................  0.01001876
-  2    2    2      o    8    0   0   0   0.0000000    0.5000000    0.5000000    3.9015366    0.10556747
-  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    3.9015366    0.10549164
-  10   2    2      o    8    1   0   0   1.0000000    0.5000000    0.5000000    3.9015366    0.10555158
-  16   2    2      o    8    1   1  -1   1.0000000    1.5000000   -0.5000000    3.9015366    0.10548677
-  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    3.9015408    0.10533913
-  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    3.9015408    0.10533907
-  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    5.5176049    0.00210075
-  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    5.5176071    0.00210075
-  13   1    1      mg   12   1  -1   0   1.5000000   -0.0000000    0.0000000    5.5176089    0.00210075
-  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    5.5176089    0.00210076
-  5    1    1      mg   12   0   1   0   0.5000000    2.0000000    0.0000000    5.5176089    0.00210075
-  3    1    1      mg   12   0   0   1   0.5000000    1.0000000    1.0000000    5.5176089    0.00210076
-  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    6.7576611    0.00253404
-  4    2    2      o    8    0   2  -1   0.0000000    2.5000000   -0.5000000    6.7576611    0.00253404
-  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    7.8030732    0.01105521
+  2    2    2      o    8    0   0   0   0.0000000    0.5000000    0.5000000    3.9015366    0.10556747 
+  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    3.9015366    0.10549164 
+  10   2    2      o    8    1   0   0   1.0000000    0.5000000    0.5000000    3.9015366    0.10555158 
+  16   2    2      o    8    1   1  -1   1.0000000    1.5000000   -0.5000000    3.9015366    0.10548677 
+  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    3.9015408    0.10533913 
+  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    3.9015408    0.10533907 
+  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    5.5176049    0.00210075 
+  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    5.5176071    0.00210075 
+  13   1    1      mg   12   1  -1   0   1.5000000   -0.0000000    0.0000000    5.5176089    0.00210075 
+  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    5.5176089    0.00210076 
+  5    1    1      mg   12   0   1   0   0.5000000    2.0000000    0.0000000    5.5176089    0.00210075 
+  3    1    1      mg   12   0   0   1   0.5000000    1.0000000    1.0000000    5.5176089    0.00210076 
+  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    6.7576611    0.00253404 
+  4    2    2      o    8    0   2  -1   0.0000000    2.5000000   -0.5000000    6.7576611    0.00253404 
+  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    7.8030732    0.01105521 
   Total (atomic population)................................................................  0.34077050
 
-# Attractor 2 (cp=2, ncp=2, name=o, Z=8) at: 0.0000000  0.5000000  0.5000000
+# Attractor 2 (cp=2, ncp=2, name=o, Z=8) at: 0.0000000  0.5000000  0.5000000  
 # Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
   Localization index.......................................................................  6.93724912
-  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    3.9015366    0.10548677
-  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    3.9015366    0.10549164
-  1    1    1      mg   12   0   0   0   0.5000000    1.0000000    0.0000000    3.9015366    0.10556747
-  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    3.9015366    0.10555158
-  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    3.9015408    0.10533913
-  5    1    1      mg   12   0  -1   0   0.5000000   -0.0000000    0.0000000    3.9015408    0.10533907
-  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    5.5176049    0.13560619
-  10   2    2      o    8   -1   0   0  -1.0000000    0.5000000    0.5000000    5.5176071    0.13384980
-  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    5.5176089    0.13414750
-  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    5.5176089    0.13424363
-  4    2    2      o    8    0   0   1   0.0000000    0.5000000    1.5000000    5.5176089    0.13339662
-  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    5.5176089    0.13323685
-  13   1    1      mg   12  -1  -1   2  -0.5000000   -0.0000000    2.0000000    6.7576611    0.00253404
-  3    1    1      mg   12   0  -2   1   0.5000000   -1.0000000    1.0000000    6.7576611    0.00253404
-  16   2    2      o    8   -1  -1   1  -1.0000000   -0.5000000    1.5000000    7.8030732    0.00163642
+  15   1    1      mg   12  -1  -1   1  -0.5000000   -0.0000000    1.0000000    3.9015366    0.10548677 
+  7    1    1      mg   12   0  -1   1   0.5000000   -0.0000000    1.0000000    3.9015366    0.10549164 
+  1    1    1      mg   12   0   0   0   0.5000000    1.0000000    0.0000000    3.9015366    0.10556747 
+  9    1    1      mg   12  -1   0   0  -0.5000000    1.0000000    0.0000000    3.9015366    0.10555158 
+  11   1    1      mg   12  -1   0   1  -0.5000000    1.0000000    1.0000000    3.9015408    0.10533913 
+  5    1    1      mg   12   0  -1   0   0.5000000   -0.0000000    0.0000000    3.9015408    0.10533907 
+  8    2    2      o    8    0   1  -1   0.0000000    1.5000000   -0.5000000    5.5176049    0.13560619 
+  10   2    2      o    8   -1   0   0  -1.0000000    0.5000000    0.5000000    5.5176071    0.13384980 
+  14   2    2      o    8    1  -1   0   1.0000000   -0.5000000    0.5000000    5.5176089    0.13414750 
+  12   2    2      o    8    1   0  -1   1.0000000    0.5000000   -0.5000000    5.5176089    0.13424363 
+  4    2    2      o    8    0   0   1   0.0000000    0.5000000    1.5000000    5.5176089    0.13339662 
+  6    2    2      o    8    0   1   0   0.0000000    1.5000000    0.5000000    5.5176089    0.13323685 
+  13   1    1      mg   12  -1  -1   2  -0.5000000   -0.0000000    2.0000000    6.7576611    0.00253404 
+  3    1    1      mg   12   0  -2   1   0.5000000   -1.0000000    1.0000000    6.7576611    0.00253404 
+  16   2    2      o    8   -1  -1   1  -1.0000000   -0.5000000    1.5000000    7.8030732    0.00163642 
   Total (atomic population)................................................................  7.65922950
 

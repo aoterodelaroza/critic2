@@ -40,11 +40,28 @@
 ! NETLIB web site. The version displayed here has been converted to
 ! FORTRAN90, and other internal changes have been made to suit me.
 
+! Copyright (c) 2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Math functions and subroutines, sobol sequences
 submodule (tools_math) sobol
   implicit none
 
   !xx! private procedures
-  ! subroutine get_unit ( iunit )
   ! function i4_bit_hi1 ( n )
   ! function i4_bit_lo0 ( n )
   ! function i8_bit_hi1 ( n )
@@ -61,6 +78,7 @@ submodule (tools_math) sobol
 contains
 
   !> Return an n-dimensional real*8 vector following a Sobol sequence.
+  !> This routine is NOT thread-safe.
   module subroutine sobol_sequence(n,x,seed)
     integer, intent(in) :: n
     real*8, intent(out) :: x(n)
@@ -74,71 +92,6 @@ contains
   end subroutine sobol_sequence
 
   !!!!!
-
-  subroutine get_unit(iunit)
-
-    !*****************************************************************************80
-    !
-    !! get_unit() returns a free FORTRAN unit number.
-    !
-    !  Discussion:
-    !
-    !    A "free" FORTRAN unit number is an integer between 1 and 99 which
-    !    is not currently associated with an I/O device.  A free FORTRAN unit
-    !    number is needed in order to open a file with the OPEN command.
-    !
-    !    If IUNIT = 0, then no free FORTRAN unit could be found, although
-    !    all 99 units were checked (except for units 5, 6 and 9, which
-    !    are commonly reserved for console I/O).
-    !
-    !    Otherwise, IUNIT is an integer between 1 and 99, representing a
-    !    free FORTRAN unit.  Note that GET_UNIT assumes that units 5 and 6
-    !    are special, and will never return those values.
-    !
-    !  Licensing:
-    !
-    !    This code is distributed under the GNU LGPL license.
-    !
-    !  Modified:
-    !
-    !    18 September 2005
-    !
-    !  Author:
-    !
-    !    John Burkardt
-    !
-    !  Parameters:
-    !
-    !    Output, integer IUNIT, the free unit number.
-    !
-    implicit none
-
-    integer ( kind = 4 ) i
-    integer ( kind = 4 ) ios
-    integer ( kind = 4 ) iunit
-    logical ( kind = 4 ) lopen
-
-    iunit = 0
-
-    do i = 1, 99
-
-       if ( i /= 5 .and. i /= 6 .and. i /= 9 ) then
-
-          inquire ( unit = i, opened = lopen, iostat = ios )
-
-          if ( ios == 0 ) then
-             if ( .not. lopen ) then
-                iunit = i
-                return
-             end if
-          end if
-
-       end if
-
-    end do
-
-    return
-  end subroutine get_unit
 
   function i4_bit_hi1 ( n )
 

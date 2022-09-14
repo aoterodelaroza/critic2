@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Hash table implementation (type hash) Waiting for unlimited
+!> polymorphism (class(*)) to be generally available to generalize
+!> this.
 submodule (hashmod) proc
   implicit none
 

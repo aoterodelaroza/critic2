@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Standalone library for I/O and error handling. Heavily modified
-! from previous code (pi).
+! Library for I/O and error handling.
 module tools_io
+  use types, only: vstring, thread_info
   implicit none
 
   public
@@ -82,6 +82,7 @@ module tools_io
   integer :: ucopy !< logical unit where the copy of the input is written
   character(len=:), allocatable :: filepath !< relative path to find related files
   logical :: interactive !< is this an interactive sesion?
+  logical :: usegui !< is this a gui session?
 
   ! error system
   integer, parameter :: faterr = -1 !< fatal error flag
@@ -154,8 +155,8 @@ module tools_io
        logical :: equali
      end function equali
      module function getline(u,oline,eofstop,ucopy,nprompt)
-       character(len=:), allocatable, intent(out) :: oline
        integer, intent(in) :: u
+       character(len=:), allocatable, intent(out) :: oline
        logical, intent(in), optional :: eofstop
        integer, intent(in), optional :: ucopy
        integer, intent(in), optional :: nprompt
@@ -258,36 +259,41 @@ module tools_io
      end subroutine history_init
      module subroutine history_end()
      end subroutine history_end
-     module function fopen_read(file,form,abspath0,errstop) result(lu)
+     module function fopen_read(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_read
-     module function fopen_write(file,form,abspath0,errstop) result(lu)
+     module function fopen_write(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_write
-     module function fopen_append(file,form,abspath0,errstop) result(lu)
+     module function fopen_append(file,form,abspath0,errstop,ti) result(lu)
        character*(*), intent(in) :: file
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: abspath0
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_append
-     module function fopen_scratch(form,errstop) result(lu)
+     module function fopen_scratch(form,errstop,ti) result(lu)
        character*(*), intent(in), optional :: form
        logical, intent(in), optional :: errstop
+       type(thread_info), intent(in), optional :: ti
        integer :: lu
      end function fopen_scratch
      module subroutine fclose(lu)
        integer, intent(in) :: lu
      end subroutine fclose
-     module function falloc()
+     module function falloc(ti)
+       type(thread_info), intent(in), optional :: ti
        integer :: falloc
      end function falloc
      module subroutine fdealloc(u)

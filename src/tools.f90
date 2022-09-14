@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,11 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> merge-sort routines contributed by:
-!> Jose Luis Casals Sainz <joseluiscasalssainz@gmail.com>
-
-!Toolbox with misc. tools.
+! Toolbox with miscellaneous tools.
 module tools
+  use types, only: vstring
   implicit none
 
   private
@@ -41,6 +39,7 @@ module tools
   interface mergesort
      module procedure mergesort_r8
      module procedure mergesort_i4
+     module procedure mergesort_str
   end interface mergesort
 
   interface
@@ -78,6 +77,11 @@ module tools
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_i4
+     module subroutine mergesort_str(arr, iord, ini, n)
+       type(vstring), dimension(:), intent(in) :: arr
+       integer, dimension(:), intent(inout) :: iord
+       integer, intent(in) :: ini, n
+     end subroutine mergesort_str
      module function tiny_atom_type(iz,nn)
        integer, intent(in) :: iz, nn
        integer :: tiny_atom_type

@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Field class
+!> Scalar field class
 module fieldmod
   use fieldseedmod, only: fieldseed
   use crystalmod, only: crystal
@@ -27,7 +27,7 @@ module fieldmod
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
   use param, only: maxzat0, mlen, mmlen
-  use types, only: cp_type, scalar_value, gpathp
+  use types, only: cp_type, scalar_value, gpathp, thread_info
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
@@ -133,13 +133,14 @@ module fieldmod
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
-     module subroutine field_new(f,seed,c,id,sptr,errmsg)
+     module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        type(c_ptr), intent(in) :: sptr
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine field_new
      module subroutine load_ghost(f,c,id,name,expr,sptr)
        class(field), intent(inout) :: f
@@ -242,10 +243,11 @@ module fieldmod
        real*8, intent(in) :: eps
        integer :: identify_cp
      end function identify_cp
-     module subroutine testrmt(f,ilvl,errmsg)
+     module subroutine testrmt(f,ilvl,errmsg,ti)
        class(field), intent(inout) :: f
        integer, intent(in) :: ilvl
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine testrmt
      module subroutine benchmark(f,npts)
        class(field), intent(inout) :: f

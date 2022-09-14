@@ -1,7 +1,7 @@
 !> Parts of code taken from pi7, by VLC, EFM, AMP, MFA, MBV, MAB.
 !> (c) Victor Lua~na Cabal, Universidad de Oviedo, 1987--
 
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -18,10 +18,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to aiPI (pi7) densities.
+!> Interface to aiPI (pi7) densities and structures.
 module pi_private
   use environmod, only: environ
   use grid1mod, only: grid1
+  use types, only: thread_info
   implicit none
 
   private
@@ -59,7 +60,7 @@ module pi_private
      module subroutine pi_end(f)
        class(piwfn), intent(inout) :: f
      end subroutine pi_end
-     module subroutine pi_read(f,nfile,piat,file,env,errmsg)
+     module subroutine pi_read(f,nfile,piat,file,env,errmsg,ti)
        use param, only: mlen
        class(piwfn), intent(inout) :: f
        integer, intent(in) :: nfile
@@ -67,6 +68,7 @@ module pi_private
        character(len=mlen), intent(in) :: file(:)
        type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine pi_read
      module subroutine rho2(f,xpos,exact,rho,grad,h)
        class(piwfn), intent(in) :: f

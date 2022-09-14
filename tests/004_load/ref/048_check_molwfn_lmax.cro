@@ -1,5 +1,5 @@
 + Field number 1
-  Name: wfn_spsph
+  Name: h2o_spsph.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -17,7 +17,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: wfx_spsph
+  Name: h2o_spsph.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -33,7 +33,7 @@
   Alias for this field (2): $2, $wfx_spsph
 
 + Field number 3
-  Name: fchk_spsph
+  Name: h2o_spsph.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spsph.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -49,7 +49,7 @@
   Alias for this field (2): $3, $fchk_spsph
 
 + Field number 4
-  Name: wfn_spcar
+  Name: h2o_spcar.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -65,7 +65,7 @@
   Alias for this field (2): $4, $wfn_spcar
 
 + Field number 5
-  Name: wfx_spcar
+  Name: h2o_spcar.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -81,7 +81,7 @@
   Alias for this field (2): $5, $wfx_spcar
 
 + Field number 6
-  Name: fchk_spcar
+  Name: h2o_spcar.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_spcar.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -97,7 +97,7 @@
   Alias for this field (2): $6, $fchk_spcar
 
 + Field number 7
-  Name: wfn_dsph
+  Name: h2o_dsph.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -113,7 +113,7 @@
   Alias for this field (2): $7, $wfn_dsph
 
 + Field number 8
-  Name: wfx_dsph
+  Name: h2o_dsph.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -129,7 +129,7 @@
   Alias for this field (2): $8, $wfx_dsph
 
 + Field number 9
-  Name: fchk_dsph
+  Name: h2o_dsph.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dsph.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -145,7 +145,7 @@
   Alias for this field (2): $9, $fchk_dsph
 
 + Field number 10
-  Name: wfn_dcar
+  Name: h2o_dcar.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -161,7 +161,7 @@
   Alias for this field (2): $10, $wfn_dcar
 
 + Field number 11
-  Name: wfx_dcar
+  Name: h2o_dcar.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -177,7 +177,7 @@
   Alias for this field (2): $11, $wfx_dcar
 
 + Field number 12
-  Name: fchk_dcar
+  Name: h2o_dcar.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_dcar.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -193,7 +193,7 @@
   Alias for this field (2): $12, $fchk_dcar
 
 + Field number 13
-  Name: wfn_fsph
+  Name: h2o_fsph.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -209,7 +209,7 @@
   Alias for this field (2): $13, $wfn_fsph
 
 + Field number 14
-  Name: wfx_fsph
+  Name: h2o_fsph.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -225,7 +225,7 @@
   Alias for this field (2): $14, $wfx_fsph
 
 + Field number 15
-  Name: fchk_fsph
+  Name: h2o_fsph.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fsph.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -241,7 +241,7 @@
   Alias for this field (2): $15, $fchk_fsph
 
 + Field number 16
-  Name: wfn_fcar
+  Name: h2o_fcar.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -257,7 +257,7 @@
   Alias for this field (2): $16, $wfn_fcar
 
 + Field number 17
-  Name: wfx_fcar
+  Name: h2o_fcar.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -273,7 +273,7 @@
   Alias for this field (2): $17, $wfx_fcar
 
 + Field number 18
-  Name: fchk_fcar
+  Name: h2o_fcar.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_fcar.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -289,7 +289,7 @@
   Alias for this field (2): $18, $fchk_fcar
 
 + Field number 19
-  Name: wfn_gsph
+  Name: h2o_gsph.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -305,7 +305,7 @@
   Alias for this field (2): $19, $wfn_gsph
 
 + Field number 20
-  Name: wfx_gsph
+  Name: h2o_gsph.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -321,7 +321,7 @@
   Alias for this field (2): $20, $wfx_gsph
 
 + Field number 21
-  Name: fchk_gsph
+  Name: h2o_gsph.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gsph.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -337,7 +337,7 @@
   Alias for this field (2): $21, $fchk_gsph
 
 + Field number 22
-  Name: wfn_gcar
+  Name: h2o_gcar.wfn
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -353,7 +353,7 @@
   Alias for this field (2): $22, $wfn_gcar
 
 + Field number 23
-  Name: wfx_gcar
+  Name: h2o_gcar.wfx
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -369,7 +369,7 @@
   Alias for this field (2): $23, $wfx_gcar
 
 + Field number 24
-  Name: fchk_gcar
+  Name: h2o_gcar.fchk
   Source: ../zz_source/g16A.03/h2o_lmax/h2o_gcar.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -384,100 +384,100 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $24, $fchk_gcar
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_spsph): 3.942740908E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_spsph): 3.942740811E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_spsph): 3.942740813E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_spcar): 3.944108694E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_spcar): 3.944108664E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_spcar): 3.944108663E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_dsph): 3.970063760E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_dsph): 3.970062390E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_dsph): 3.970062397E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_dcar): 3.972821408E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_dcar): 3.972820109E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_dcar): 3.972820113E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_fsph): 3.931472864E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_fsph): 3.931473092E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_fsph): 3.931473097E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_fcar): 3.929946123E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_fcar): 3.929946341E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_fcar): 3.929946350E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_gsph): 3.938761313E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_gsph): 3.938761339E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_gsph): 3.938761334E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfn_gcar): 3.940597222E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($wfx_gcar): 3.940597393E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fchk_gcar): 3.940597396E+00
 
 * MOLCALC: calculations using meshes 
@@ -673,7 +673,7 @@
 + Integral($fchk_gcar) = 9.99999463    
 
 + Field number 1
-  Name: spsph
+  Name: h2o_spsph.molden
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -692,7 +692,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: dsph
+  Name: h2o_dsph.molden
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -709,7 +709,7 @@
   Alias for this field (2): $2, $dsph
 
 + Field number 3
-  Name: fsph
+  Name: h2o_fsph.molden
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -726,7 +726,7 @@
   Alias for this field (2): $3, $fsph
 
 + Field number 4
-  Name: spsphw
+  Name: h2o_spsph.wfn
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_spsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -742,7 +742,7 @@
   Alias for this field (2): $4, $spsphw
 
 + Field number 5
-  Name: dsphw
+  Name: h2o_dsph.wfn
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_dsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -758,7 +758,7 @@
   Alias for this field (2): $5, $dsphw
 
 + Field number 6
-  Name: fsphw
+  Name: h2o_fsph.wfn
   Source: ../zz_source/orca-4.0.1/h2o_lmax/h2o_fsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -773,28 +773,28 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $6, $fsphw
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($spsph): 3.942741286E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($dsph): 3.970062351E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fsph): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($spsphw): 3.942741287E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($dsphw): 3.970062349E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fsphw): 3.931472957E+00
 
 * MOLCALC: calculations using meshes 
@@ -846,7 +846,7 @@
 + Integral($fsphw) = 9.99999428    
 
 + Field number 1
-  Name: spsph
+  Name: h2o_spsph.molden
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -865,7 +865,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: dsph
+  Name: h2o_dsph.molden
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -882,7 +882,7 @@
   Alias for this field (2): $2, $dsph
 
 + Field number 3
-  Name: fsph
+  Name: h2o_fsph.molden
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -899,7 +899,7 @@
   Alias for this field (2): $3, $fsph
 
 + Field number 4
-  Name: gsph
+  Name: h2o_gsph.molden
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.molden
   Type: molecular wavefunction
   Molden file dialect: orca
@@ -916,7 +916,7 @@
   Alias for this field (2): $4, $gsph
 
 + Field number 5
-  Name: spsphw
+  Name: h2o_spsph.wfn
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -932,7 +932,7 @@
   Alias for this field (2): $5, $spsphw
 
 + Field number 6
-  Name: dsphw
+  Name: h2o_dsph.wfn
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -948,7 +948,7 @@
   Alias for this field (2): $6, $dsphw
 
 + Field number 7
-  Name: fsphw
+  Name: h2o_fsph.wfn
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -964,7 +964,7 @@
   Alias for this field (2): $7, $fsphw
 
 + Field number 8
-  Name: gsphw
+  Name: h2o_gsph.wfn
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfn
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -980,7 +980,7 @@
   Alias for this field (2): $8, $gsphw
 
 + Field number 9
-  Name: spsphx
+  Name: h2o_spsph.wfx
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_spsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -996,7 +996,7 @@
   Alias for this field (2): $9, $spsphx
 
 + Field number 10
-  Name: dsphx
+  Name: h2o_dsph.wfx
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_dsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -1012,7 +1012,7 @@
   Alias for this field (2): $10, $dsphx
 
 + Field number 11
-  Name: fsphx
+  Name: h2o_fsph.wfx
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_fsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -1028,7 +1028,7 @@
   Alias for this field (2): $11, $fsphx
 
 + Field number 12
-  Name: gsphx
+  Name: h2o_gsph.wfx
   Source: ../zz_source/orca-4.2/h2o_lmax/h2o_gsph.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -1043,52 +1043,52 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $12, $gsphx
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($spsph): 3.942741286E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($dsph): 3.970062351E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fsph): 3.931473000E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($gsph): 3.938761266E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($spsphw): 3.942741287E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($dsphw): 3.970062349E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fsphw): 3.931472957E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($gsphw): 3.938761288E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($spsphx): 3.942741287E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($dsphx): 3.970062349E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($fsphx): 3.931473007E+00
 
-* POINT 0.0000000  0.1000000  0.0000000
-  Coordinates (ang): 0.0000000  0.1000000  0.0000000
+* POINT 0.0000000  0.1000000  0.0000000  
+  Coordinates (ang): 0.0000000  0.1000000  0.0000000  
   Expression ($gsphx): 3.938761260E+00
 
 * MOLCALC: calculations using meshes 
@@ -1188,7 +1188,7 @@
 + Integral($gsphx) = 9.99999461    
 
 + Field number 1
-  Name: spsph
+  Name: h2o_spsph.molden
   Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_spsph.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1207,7 +1207,7 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
-  Name: dsph
+  Name: h2o_dsph.molden
   Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_dsph.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1224,7 +1224,7 @@
   Alias for this field (2): $2, $dsph
 
 + Field number 3
-  Name: fsph
+  Name: h2o_fsph.molden
   Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_fsph.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1241,7 +1241,7 @@
   Alias for this field (2): $3, $fsph
 
 + Field number 4
-  Name: gsph
+  Name: h2o_gsph.molden
   Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_gsph.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -1257,20 +1257,20 @@
   Number of critical points in the unit cell: 3
   Alias for this field (2): $4, $gsph
 
-* POINT 0.0000000  0.1000000  -0.0523588
-  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
   Expression ($spsph): 3.942731515E+00
 
-* POINT 0.0000000  0.1000000  -0.0523588
-  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
   Expression ($dsph): 3.970038552E+00
 
-* POINT 0.0000000  0.1000000  -0.0523588
-  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
   Expression ($fsph): 3.931442448E+00
 
-* POINT 0.0000000  0.1000000  -0.0523588
-  Coordinates (ang): 0.0000000  0.1000000  -0.0523588
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
   Expression ($gsph): 3.938751132E+00
 
 * MOLCALC: calculations using meshes 

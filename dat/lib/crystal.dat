@@ -1,40 +1,40 @@
 #xx# Structures of prototype elements
-structure A1 fcc Cu
+structure Cu A1 fcc
   crystal
     spg F m -3 m
     cell 5.6402 5.6402 5.6402 90 90 90 ang
     neq 0 0 0 Cu
   endcrystal
 endstructure
-structure A2 bcc Li
+structure Li A2 bcc
   crystal
     spg I m -3 m
     cell 3.46 3.46 3.46 90 90 90 ang
     neq 0 0 0 Li
   endcrystal
 endstructure
-structure A3 hcp Be
+structure Be A3 hcp
   crystal
     spg P 63/m m c
     cell 2.2860 2.2860 3.5843 90 90 120 ang
     neq 1/3 2/3 1/4 Be
   endcrystal
 endstructure
-structure A4 diamond diamante
-  crystal 
+structure diamond A4 diamante
+  crystal
     spg 526
     cell 3.5667 3.5667 3.5667 90 90 90 ang
     neq 0.125 0.125 0.125 C
   endcrystal
 endstructure
-structure Si silicon
+structure silicon Si
   crystal
     spg 526
     cell 5.4307 5.4307 5.4307 90 90 90 ang
     neq 0.125 0.125 0.125 Si
   endcrystal
 endstructure
-structure A9 graphite 
+structure graphite A9
   crystal
     spg P 63/m m c
     cell 2.456 2.456 6.696 90 90 120 ang
@@ -44,40 +44,40 @@ structure A9 graphite
 endstructure
 
 #xx# Structures of AB compounds
-structure B1 rock_salt rocksalt NaCl
+structure NaCl B1 rock_salt rocksalt
   crystal
     spg F m -3 m
     cell 5.6402 5.6402 5.6402 90 90 90 ang
-    neq 0.0 0.0 0.0 Na 
-    neq 0.5 0.5 0.5 Cl 
+    neq 0.0 0.0 0.0 Na
+    neq 0.5 0.5 0.5 Cl
   endcrystal
 endstructure
-structure B2 CsCl
+structure CsCl B2
   crystal
     spg P m -3 m
     cell 4.123 4.123 4.123 90 90 90 ang
-    neq 0.0 0.0 0.0 Cs 
-    neq 0.5 0.5 0.5 Cl 
+    neq 0.0 0.0 0.0 Cs
+    neq 0.5 0.5 0.5 Cl
   endcrystal
 endstructure
-structure B3 zincblende blende blenda
+structure zincblende B3 blende blenda
   crystal
     spg F -4 3 m
     cell 5.4060 5.4060 5.4060 90 90 90 ang
-    neq 0.00 0.00 0.00 Zn 
-    neq 0.25 0.25 0.25 S  
+    neq 0.00 0.00 0.00 Zn
+    neq 0.25 0.25 0.25 S
   endcrystal
 endstructure
-structure B4 zincite
+structure zincite B4
   crystal
     spg P 63 m c
     cell 3.2495 3.2495 5.2069 90 90 120 ang
-    neq '1/3' '2/3' 0.000 Zn 
-    neq '1/3' '2/3' 0.345 O  
+    neq '1/3' '2/3' 0.000 Zn
+    neq '1/3' '2/3' 0.345 O
   endcrystal
 endstructure
 structure fluorite CaF2
-  crystal 
+  crystal
     spg F m -3 m
     cell 5.4631 5.4631 5.4631 90 90 90 ang
     neq 0.0 0.0 0.0 Ca
@@ -91,8 +91,8 @@ structure CaCl2
   crystal
     spg P n n m
     cell 6.24 6.43 4.2 90 90 90 ang
-    neq 0.000 0.000 0.000 Ca 
-    neq 0.275 0.325 0.000 Cl 
+    neq 0.000 0.000 0.000 Ca
+    neq 0.275 0.325 0.000 Cl
   endcrystal
 endstructure
 # COD ID: 9009144
@@ -113,18 +113,18 @@ structure MgO
     spg F m -3 m
     cell 4.211 4.211 4.211 90 90 90 ang
     neq   0   0   0 Mg
-    neq 1/2 1/2 1/2 O 
+    neq 1/2 1/2 1/2 O
   endcrystal
 endstructure
 
 ### spinel-type
 ### Idealized full-occupation spinel structure. Peterson et al., Am. Miner. (1991)
-structure spinel 
+structure spinel
    crystal
     cell 8.08435 8.08435 8.08435 90 90 90 ang
     spg 526
-    neq 1/8 1/8 1/8 Mg 
-    neq 1/2 1/2 1/2 Al 
+    neq 1/8 1/8 1/8 Mg
+    neq 1/2 1/2 1/2 Al
     neq 0.26148 0.26148 0.26148 O
   endcrystal
 endstructure
@@ -139,7 +139,7 @@ structure magnetite Fe3O4
   endcrystal
 endstructure
 
-### corundum-type 
+### corundum-type
 ### Corundum, Lewis et al., Acta Cryst. A (1982)
 structure corundum alpha-Al2O3 Al2O3
    crystal
@@ -165,7 +165,7 @@ structure rutile TiO2
   crystal
    cell 4.59373 4.59373 2.95812 90 90 90 ang
    spg P 42/m n m
-   neq 0.0 0.0 0.0 Ti 
+   neq 0.0 0.0 0.0 Ti
    neq 0.3053 0.3053 0.0 O
   endcrystal
 endstructure
@@ -193,7 +193,7 @@ structure CdCl2
 endstructure
 ### CdI2, ABABAB...
 structure CdI2
-  crystal 
+  crystal
    cell 4.24 4.24 13.67 90 90 120 ang
    spg P 63 m c
    neq 1/3 2/3 0.0 Cd
@@ -204,7 +204,7 @@ endstructure
 
 #xx# Molecular crystals
 ### Orthorhombic sulphur, from Wyckoff
-structure sulphur sulfur S S8 alpha-sulfur alpha-sulphur alpha-S alpha-S8
+structure sulfur S S8 alpha-sulfur alpha-sulphur alpha-S alpha-S8
   crystal
     spg 336
     cell 10.467 12.870 24.493 90 90 90 ang

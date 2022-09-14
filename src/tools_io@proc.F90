@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Library for I/O and error handling.
 submodule (tools_io) proc
   implicit none
 
@@ -26,7 +27,7 @@ submodule (tools_io) proc
   real :: ctime0
 
   ! logical unit allocation
-  logical :: alloc(0:100) !< allocation flag array
+  logical :: alloc(0:300) !< allocation flag array
 
 contains
 
@@ -58,6 +59,7 @@ contains
     integer :: argc, idx
     character(len=arglen) :: argv, aux
     logical :: local
+    integer :: ios
 
     ! initialize the alloc array
     call lualloc_init()
@@ -69,12 +71,27 @@ contains
     uin = input_unit
     uout = output_unit
     interactive = .true.
+    usegui = .false.
     ucopy = uout
     uroot = "stdin"
     filepath = "."
 
-    ! process arguments
+    ! check if the -g argument is present -> usegui
     argc = command_argument_count()
+#ifdef HAVE_GUI
+    do n = 1, argc
+       call getarg(n,argv)
+       argv = adjustl(argv)
+       if (len(argv) >= 2) then
+          if (argv(1:2) == "-g") then
+             usegui = .true.
+             exit
+          end if
+       end if
+    end do
+#endif
+
+    ! process arguments
     if (argc > 0) then
        n=0
        do while (n < argc)
@@ -82,7 +99,7 @@ contains
           call getarg(n,argv)
           argv = adjustl(argv)
 
-          if (argv(1:1) == "-") then
+          if (argv(1:1) == "-" .and. len(argv) > 1) then
              if (trim(argv(2:2)) == "r") then
                 n = n + 1
                 call getarg(n,argv)
@@ -92,7 +109,7 @@ contains
              else
                 optv = trim(optv) // argv(2:2)
              endif
-          elseif (uin == input_unit) then
+          elseif (uin == input_unit .and..not.usegui) then
              uroot = trim(argv)
              if (index(uroot,dirsep) > 0) then
                 filepath = uroot(1:index(uroot,dirsep,.true.)-1)
@@ -115,10 +132,21 @@ contains
              uroot = trim(adjustl(uroot))
              uin = fopen_read(argv,abspath0=.true.)
              interactive = .false.
-          elseif (uout == output_unit) then
+          elseif (uout == output_unit .and..not.usegui) then
              uout = fopen_write(argv)
           endif
        end do
+    end if
+
+    ! the gui imposes a few restrictions
+    if (usegui) then
+       interactive = .true. ! to not crash on syntax ferror
+       ucopy = -1           ! do not copy errors and warnings
+       uroot = "gui"        ! the root is "gui"
+       uout = falloc()      ! write to a formatted stream scratch file
+       open(unit=uout,status='scratch',form='formatted',access='stream',iostat=ios)
+       if (ios /= 0) &
+          call ferror("stdargs","cannot open buffer for critic2 output",faterr)
     end if
 
   end subroutine stdargs
@@ -498,9 +526,10 @@ contains
 
   !> Read a line from logical unit u, and return true if read was
   !> successful. Continuation with "\", skip blank lines and comments.
-  !> If eofstop is true, raise error on EOF. If ucopy (integer) exists,
-  !> write a copy of the output line to that logical unit, preceded
-  !> by a prefix.
+  !> If eofstop is true, raise error on EOF. If ucopy (integer) exists
+  !> and is positive, write a copy of the output line to that logical
+  !> unit, preceded by a prefix. If nprompt, show this number in the
+  !> prompt.
   module function getline(u,oline,eofstop,ucopy,nprompt)
     character(len=:), allocatable, intent(out) :: oline
     integer, intent(in) :: u
@@ -522,6 +551,13 @@ contains
     do while (.true.)
        ! read the line
        ok = getline_raw(u,line,nprompt=nprompt)
+       ! exit if eof
+       if (.not.ok) then
+          if (present(eofstop)) then
+             if (eofstop) call ferror("getline","unexpected end of file",faterr)
+          end if
+          return
+       end if
 
        ! remove tabs
        do i = 1, len(line)
@@ -551,14 +587,6 @@ contains
           endif
        end do
 
-       ! exit if eof
-       if (.not.ok) then
-          if (present(eofstop)) then
-             if (eofstop) call ferror("getline","unexpected end of file",faterr)
-          end if
-          return
-       end if
-
        ! skip blank lines
        lenu = len_trim(line)
        if (lenu == 0) then
@@ -584,7 +612,7 @@ contains
     end do
     if (present(ucopy)) then
        if (ucopy >= 0) &
-          write (ucopy,'(A,X,A/)') prfx, trim(oline)
+          write (ucopy,'(A," ",A/)') prfx, trim(oline)
     endif
     getline = .true.
 
@@ -677,9 +705,13 @@ contains
     ok = .true.
     do while(.true.)
        read(u,'(A)',advance="no",iostat=ios,size=nread) aux
-       line = line(1:len(line)) // aux
+       line = line(1:len(line)) // aux(1:nread)
        ok = .not.is_iostat_end(ios)
        if (is_iostat_eor(ios) .or. is_iostat_end(ios)) exit
+       if (ios /= 0) then
+          ok = .false.
+          exit
+       end if
     end do
     if (.not.ok.and.present(eofstop)) then
        if (eofstop) call ferror("getline_raw","unexpected end of file",faterr)
@@ -1250,7 +1282,7 @@ contains
 
     ! This probably works only for linux, but it doesn't crash if the
     ! read fails
-    if (interactive) then
+    if (interactive.and..not.usegui) then
        call get_environment_variable("HOME",home,status=istat)
        if (istat == 0) then
           file_c = f_c_string_dup(trim(home) // "/.critic2_history")
@@ -1296,12 +1328,13 @@ contains
   !> present, file in input is as an absolute path. If errstop is
   !> present, stop the execution if the file could not be opened;
   !> otherwise, return a negative lu. Default is errstop = .true.
-  module function fopen_read(file,form,abspath0,errstop) result(lu)
+  module function fopen_read(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1316,13 +1349,14 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='old',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='old',iostat=ios)
     endif
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_read","error opening file: "//string(file),faterr)
@@ -1333,12 +1367,13 @@ contains
   !> Open a file for reading. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
-  module function fopen_write(file,form,abspath0,errstop) result(lu)
+  module function fopen_write(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1353,13 +1388,14 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='unknown',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='unknown',iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening file: "//string(file),faterr)
@@ -1368,12 +1404,13 @@ contains
   end function fopen_write
 
   !> Open a file for appending
-  module function fopen_append(file,form,abspath0,errstop) result(lu)
+  module function fopen_append(file,form,abspath0,errstop,ti) result(lu)
     use param, only: dirsep
     character*(*), intent(in) :: file
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: abspath0
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1388,13 +1425,14 @@ contains
     if (present(abspath0)) abspath = abspath0
     if (abspath) ofile = file
 
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_append","error opening file: "//string(file),faterr)
@@ -1403,9 +1441,10 @@ contains
   end function fopen_append
 
   !> Open a scratch file for writing
-  module function fopen_scratch(form,errstop) result(lu)
+  module function fopen_scratch(form,errstop,ti) result(lu)
     character*(*), intent(in), optional :: form
     logical, intent(in), optional :: errstop
+    type(thread_info), intent(in), optional :: ti
     integer :: lu
 
     integer :: ios
@@ -1413,7 +1452,7 @@ contains
 
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
-    lu = falloc()
+    lu = falloc(ti)
     if (present(form)) then
        if (lower(form) == "unformatted") then
           open(unit=lu,status='scratch',form=form,access="stream",iostat=ios)
@@ -1424,6 +1463,7 @@ contains
        open(unit=lu,status='scratch',form="unformatted",access="stream",iostat=ios)
     end if
     if (ios /= 0) then
+       call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening scratch file",faterr)
@@ -1441,14 +1481,31 @@ contains
   end subroutine fclose
 
   !> Allocate a logical unit
-  module function falloc()
+  module function falloc(ti)
     integer :: falloc
+    type(thread_info), intent(in), optional :: ti
 
-    do falloc = 1, size(alloc)
-       if (.not.alloc(falloc)) exit
-    end do
-    if (alloc(falloc)) &
-       call ferror("falloc","could not allocate logical unit",faterr)
+    integer :: i
+
+    if (present(ti)) then
+       ! the thread brings its own LUs
+       falloc = -1
+       do i = 1, size(ti%lu,1)
+          if (.not.alloc(ti%lu(i))) then
+             falloc = ti%lu(i)
+             exit
+          end if
+       end do
+       if (falloc < 0) &
+          call ferror("falloc","could not allocate logical unit (threaded)",faterr)
+    else
+       ! allocate a new LU
+       do falloc = 1, size(alloc)
+          if (.not.alloc(falloc)) exit
+       end do
+       if (alloc(falloc)) &
+          call ferror("falloc","could not allocate logical unit",faterr)
+    end if
     alloc(falloc) = .true.
 
   end function falloc
@@ -1486,15 +1543,18 @@ contains
     endif
     !$omp critical (IO)
     if (present(inputline)) &
-       write (uout,'("!error! ",A)') trim(inputline)
+       write (uout,'(A," : ",A)') trim(chtype), trim(inputline)
     write (uout,100) trim(chtype),trim(routine),trim(message)
     !$omp end critical (IO)
     if (errortype.eq.faterr) then
-       !$omp critical (IO)
-       write (uout,100) trim(chtype),trim(routine), trim(message)
-       !$omp end critical (IO)
        if (present(syntax)) then
           if (syntax .and. interactive) return
+       else
+          if (usegui) then
+             if (present(inputline)) &
+                write (*,'(A," : ",A)') trim(chtype), trim(inputline)
+             write (*,100) trim(chtype),trim(routine),trim(message)
+          end if
        end if
        stop 1
     else if(errortype.eq.warning) then
@@ -1503,7 +1563,7 @@ contains
        ncomms = ncomms + 1
     endif
 
-100 format (A,"(",A,"): ",A)
+100 format (A," (",A,"): ",A/)
 
   end subroutine ferror
 

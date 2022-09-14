@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,11 +15,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Interface to WIEN2k densities and structures
 submodule (wien_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine wien_read_struct(f,file)
+  ! subroutine wien_read_struct(f,file,ti)
   ! subroutine readslm(f,lu)
   ! subroutine readk(f,lu)
   ! subroutine gbass(rbas,gbas)
@@ -43,14 +44,6 @@ submodule (wien_private) proc
 
   integer, parameter :: nsa = 3, nsb = 3, nsc = 3
   integer, parameter :: nnpos = (2*nsa+1)*(2*nsb+1)*(2*nsc+1) !< maximum number of cell origins
-
-  ! for readk and sternb
-  real*8, allocatable :: taup(:)
-  real*8, allocatable :: taupi(:)
-  integer :: K1(3), NST, ISTG(3,NSYM)
-
-  ! for wien_read_struct and rotdef
-  character*4 :: lattic
 
   ! pw cutoff
   real*8, parameter :: pwcutoff = 1d-30
@@ -143,18 +136,19 @@ contains
 
   ! Read a clmsum (file) and struct (file2) file and returns the
   ! wien2k field f.
-  module subroutine read_clmsum(f,file,file2)
+  module subroutine read_clmsum(f,file,file2,ti)
     use tools_io, only: fopen_read, fclose
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ntot, i, j
 
     ! load field data from the struct file and save it in f
-    call wien_read_struct(f,file2)
+    call wien_read_struct(f,file2,ti)
 
     ! read the clmsum
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
 
     call readslm(f,lu)
     call readk(f,lu)
@@ -483,11 +477,12 @@ contains
 
   !> Read the crystal structure from a STRUCT file, with logical unit lut.
   !> Store WIEN2k variables (rmt, etc.) in the module.
-  subroutine wien_read_struct(f,file)
+  subroutine wien_read_struct(f,file,ti)
     use tools_io, only: fopen_read, ferror, faterr, fclose
     use param, only: pi
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lut
     character*80 :: titel
@@ -501,11 +496,12 @@ contains
     real*8 :: znuc, cosg1, gamma0, ar2, car2
     integer :: i, j, i1, i2, j1, nato, ndif
     real*8 :: aix, aiy, aiz
+    character*4 :: lattic
 
     integer, dimension(:), allocatable :: temp_iatnr
     real*8, dimension(:,:), allocatable :: temp_pos
 
-    lut = fopen_read(file)
+    lut = fopen_read(file,ti=ti)
     READ(lut,102) TITEL
     READ(lut,103) LATTIC,f%NAT,cform
     f%ishlat = (lattic.eq.'H   ')
@@ -720,7 +716,7 @@ contains
 115 FORMAT(3(3I2,F10.5,/))
 
     !.find iop matrices
-    CALL ROTDEF(f)
+    CALL ROTDEF(f,lattic)
 
     !.transform pos to cartesian coordinates
     DO INDEX=1,f%NDAT
@@ -820,7 +816,9 @@ contains
     integer :: j1, ii, jj, j
     integer, allocatable :: k2(:,:)
     real*8 :: rkmod
-    integer :: indmax
+    integer :: indmax, k1(3), nst, istg(3,nsym)
+    real*8, allocatable :: taup(:)
+    real*8, allocatable :: taupi(:)
 
     ! read number of pw and allocate space for kvectors
     IND=0
@@ -864,7 +862,7 @@ contains
        do j=1,3
           k1(j)=k2(j,i)
        enddo
-       CALL STERNB(f)
+       CALL STERNB(f,k1,nst,istg,taup,taupi)
        rkmod = 0d0
        f%sk(i) = f%sk(i) / nst
        rkmod = max(rkmod,abs(f%sk(i)))
@@ -950,10 +948,11 @@ contains
     end DO
   end subroutine gbass
 
-  subroutine rotdef(f)
+  subroutine rotdef(f,lattic)
     ! new version of rotdef, adapted from rotdef1.f wien2k_08.3
     ! replaces old rotdef (rotdef.f)
     class(wienwfn), intent(inout) :: f
+    character*4, intent(in) :: lattic
 
     real*8 :: toler, one, toler2
     integer :: index, ncount, jatom, index1, m, i, j, i1
@@ -1089,9 +1088,15 @@ contains
       RETURN
   END SUBROUTINE GENER
 
-  SUBROUTINE STERNB(f)
+  SUBROUTINE STERNB(f,k1,nst,istg,taup,taupi)
     use param, only: tpi
     class(wienwfn), intent(in) :: f
+    integer, intent(in) :: k1(3)
+    integer, intent(out) :: nst
+    integer, intent(out) :: istg(3,nsym)
+    real*8, intent(inout) :: taup(*)
+    real*8, intent(inout) :: taupi(*)
+
     ! generate star of g
     ! taken from wien2k_08.3
     ! replaces old stern.

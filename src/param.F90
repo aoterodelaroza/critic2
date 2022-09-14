@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -43,6 +43,7 @@ module param
   real*8, parameter :: hartocm1 =  2.194746313705d5 !< hartree to cm-1 factor
   real*8, parameter :: hartoev  =  27.21138386d0 !< hartree to ev factor
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa
+  real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
   real*8, parameter :: zero=0d0 !< 0
   real*8, parameter :: one=1d0 !< 1
   real*8, parameter :: two=2d0 !< 2
@@ -60,6 +61,8 @@ module param
   real*8, parameter :: eye(3,3) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0/),shape(eye))
   real*8, parameter :: eyet(3,4) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0/),shape(eyet))
   complex*16, parameter :: img = (0d0,1d0)
+  character*1, parameter :: tab = char(9)
+  character(*), parameter :: newline = new_line('a')
 
   ! Physical constants and conversion factors.
   ! Most of them involve atomic units:  hartree (Hy), bohr, ...
@@ -593,7 +596,7 @@ module param
        "erf","erfc","min","max","xc"/)
 
   ! directory separator
-#ifdef WIN
+#if defined(WIN) || defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
   character*1, parameter :: dirsep = "\" ! "
 #else
   character*1, parameter :: dirsep = "/"

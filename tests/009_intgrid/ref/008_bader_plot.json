@@ -433,7 +433,7 @@
   },
   "field": {
     "id": 1,
-    "name": "",
+    "name": "quartz_o_PAWDEN",
     "source": "../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN",
     "type": "grid"
   },

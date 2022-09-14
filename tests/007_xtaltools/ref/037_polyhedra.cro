@@ -7,5 +7,5 @@
 # rmin = minimum vertex distance (bohr), rmax = maximum vertex distance (bohr).
 # nf = number of faces. volume = polyhedron volume (bohr^3).
 #nid at mult   ----- Cryst. coords. -----     nv   rmin       rmax      nf   volume
-1    Mg  4   0.000000   0.000000   0.000000    6  3.978818   3.978818    8  83.984875 
+1    Mg  4   0.000000   0.000000   0.000000    6  3.978818   3.978818    8  83.984875  
 

@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Qtree, utilities.
 submodule (qtree_utils) proc
   implicit none
 
@@ -64,25 +65,25 @@ contains
     write (luo,'(A)') "set ball_texture finish{specular 0.2 roughness 0.1 reflection 0.1}"
     write (luo,'(A)') "set equalscale noscale"
     write (luo,'(A)') "molecule"
-    write (luo,'(X,A)') "crystal"
-    write (luo,'(2X,A)') "title qtree integration."
-    write (luo,'(2X,A)') "symmatrix seitz"
+    write (luo,'(" ",A)') "crystal"
+    write (luo,'("  ",A)') "title qtree integration."
+    write (luo,'("  ",A)') "symmatrix seitz"
     do i = 1, sy%c%ncv
-       write (luo,'(3X,A,3(F15.12,X))') "cen ",sy%c%cen(:,i)
+       write (luo,'("   ",A,3(F15.12," "))') "cen ",sy%c%cen(:,i)
     end do
-    write (luo,'(3X,A)') "#"
+    write (luo,'("   ",A)') "#"
     do i = 1, sy%c%neqv
-       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
-       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
-       write (luo,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
-       write (luo,'(3X,A)') "#"
+       write (luo,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(1,:,i)
+       write (luo,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(2,:,i)
+       write (luo,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(3,:,i)
+       write (luo,'("   ",A)') "#"
     end do
-    write (luo,'(2X,A)') "endsymmatrix"
-    write (luo,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
-    write (luo,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
+    write (luo,'("  ",A)') "endsymmatrix"
+    write (luo,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+    write (luo,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
-    write (luo,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
+    write (luo,'("  ",A,6(F10.4," "))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
           label = trim(sy%c%spc(sy%c%at(i)%is)%name)
@@ -96,14 +97,14 @@ contains
        else
           label = "XZ"
        end if
-       write (luo,'(2X,A,3(F10.6," "),A2,I2.2,a)') &
+       write (luo,'("  ",A,3(F10.6," "),A2,I2.2,a)') &
           "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
     end do
-    write (luo,'(X,A)') "endcrystal"
+    write (luo,'(" ",A)') "endcrystal"
     if (plot_mode == 3 .or. plot_mode == 4 .or. plot_mode == 5) then
-       write (luo,'(X,A,3(F10.4,X))') "wigner_seitz edges radius 0.01 at ", ws_origin
+       write (luo,'(" ",A,3(F10.4," "))') "wigner_seitz edges radius 0.01 at ", ws_origin
     else
-       write (luo,'(X,A,3(F10.4,X))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
+       write (luo,'(" ",A,3(F10.4," "))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
     end if
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
@@ -119,12 +120,12 @@ contains
           label = "XZ"
        end if
        if (i <= sy%c%nneq) then
-          write (luo,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
+          write (luo,'(" ",A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
        else
-          write (luo,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"
+          write (luo,'(" ",A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"
        end if
     end do
-    write (luo,'(X,A)') "freehand"
+    write (luo,'(" ",A)') "freehand"
 
     diab = minlen / 2**maxl / 3d0
     do i = 1, nnuc+3
@@ -135,9 +136,9 @@ contains
        else
           zz = maxzat0
        end if
-       write (luo,'(2X,A,I4,A,F10.6,A,3(F6.2,X))') &
+       write (luo,'("  ",A,I4,A,F10.6,A,3(F6.2," "))') &
           "type ", 2*i-1, " pointrad ", diab, " pointrgb ", real(JMLcol(:,zz),8)/255d0
-       write (luo,'(2X,A,I4,A,F10.6,A,3(F6.2,X))') &
+       write (luo,'("  ",A,I4,A,F10.6,A,3(F6.2," "))') &
           "type ", 2*i, " pointrad ", diab, " pointrgb ", real(JMLcol2(:,zz),8)/255d0
     end do
 
@@ -193,7 +194,7 @@ contains
                    end if
                    do m = 1, lend
                       xp2 = matmul(lrotm(:,1:3,m),xp1-ws_origin) + ws_origin
-                      write (luo,'(2X,"ball ",3(F10.6,X),"type ",I2)') &
+                      write (luo,'("  ball ",3(F10.6," "),"type ",I2)') &
                          xp2(1), xp2(2), xp2(3), type
                    end do
                 end if
@@ -204,13 +205,13 @@ contains
     if (plot_mode > 0 .and. plotsticks) then
        do i = 0, maxl
           write (rootloc,'(A,A,I2.2,A,I2.2)') trim(fileroot),"_level",maxl,".",i
-          write (luo,'(2X,"arrows file ",A)') trim(rootloc) // ".stick"
+          write (luo,'("  arrows file ",A)') trim(rootloc) // ".stick"
        end do
     end if
 
-    write (luo,'(X,A)') "endfreehand"
-    write (luo,'(X,3A)') "# vrml ", trim(roottess), ".wrl"
-    write (luo,'(X,3A)') "povray ", trim(roottess), ".pov"
+    write (luo,'(" ",A)') "endfreehand"
+    write (luo,'(" ",3A)') "# vrml ", trim(roottess), ".wrl"
+    write (luo,'(" ",3A)') "povray ", trim(roottess), ".pov"
     write (luo,'(A)') "endmolecule"
     write (luo,'(5A)') "run povray -d +ft +I", trim(roottess), ".pov +O", trim(roottess), ".tga +W2000 +H2000 +A"
     write (luo,'(5A)') "run convert ", &
@@ -250,25 +251,25 @@ contains
     write (ludif,'(A)') "set ball_texture finish{specular 0.2 roughness 0.1 reflection 0.1}"
     write (ludif,'(A)') "set equalscale noscale"
     write (ludif,'(A)') "molecule"
-    write (ludif,'(X,A)') "crystal"
-    write (ludif,'(2X,A)') "title qtree integration."
-    write (ludif,'(2X,A)') "symmatrix seitz"
+    write (ludif,'(" ",A)') "crystal"
+    write (ludif,'("  ",A)') "title qtree integration."
+    write (ludif,'("  ",A)') "symmatrix seitz"
     do i = 1, sy%c%ncv
-       write (ludif,'(3X,A,3(F15.12,X))') "cen ",sy%c%cen(:,i)
+       write (ludif,'("   ",A,3(F15.12," "))') "cen ",sy%c%cen(:,i)
     end do
-    write (ludif,'(3X,A)') "#"
+    write (ludif,'("   ",A)') "#"
     do i = 1, sy%c%neqv
-       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(1,:,i)
-       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(2,:,i)
-       write (ludif,'(3X,3(F5.2,X),F15.12)') sy%c%rotm(3,:,i)
-       write (ludif,'(3X,A)') "#"
+       write (ludif,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(1,:,i)
+       write (ludif,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(2,:,i)
+       write (ludif,'("   ",3(F5.2," "),F15.12)') sy%c%rotm(3,:,i)
+       write (ludif,'("   ",A)') "#"
     end do
-    write (ludif,'(2X,A)') "endsymmatrix"
-    write (ludif,'(2X,A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
-    write (ludif,'(2X,A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
+    write (ludif,'("  ",A)') "endsymmatrix"
+    write (ludif,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+    write (ludif,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
     clip0 = (/-0.5d0,-0.5d0,-0.5d0/) + ws_origin
     clip1 = (/0.5d0,0.5d0,0.5d0/) + ws_origin
-    write (ludif,'(2X,A,6(F10.4,X))') "clippingbox ", clip0, clip1
+    write (ludif,'("  ",A,6(F10.4," "))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
           label = trim(sy%c%spc(sy%c%at(i)%is)%name)
@@ -282,11 +283,11 @@ contains
        else
           label = "XZ"
        end if
-       write (ludif,'(2X,A,3(F10.6," "),A2,I2.2,a)') &
+       write (ludif,'("  ",A,3(F10.6," "),A2,I2.2,a)') &
           "neq ",sy%f(sy%iref)%cp(i)%x,label,i," 0"
     end do
-    write (ludif,'(X,A)') "endcrystal"
-    write (ludif,'(X,A,3(F10.4,X))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
+    write (ludif,'(" ",A)') "endcrystal"
+    write (ludif,'(" ",A,3(F10.4," "))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
           label = trim(sy%c%spc(sy%c%at(i)%is)%name)
@@ -301,12 +302,12 @@ contains
           label = "XZ"
        end if
        if (i <= sy%c%nneq) then
-          write (ludif,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
+          write (ludif,'(" ",A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.2"
        else
-          write (ludif,'(X,A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"
+          write (ludif,'(" ",A5,A,I2.2,A)') "ball ",label,i," jmol radius 0.1"
        end if
     end do
-    write (ludif,'(X,A)') "freehand"
+    write (ludif,'(" ",A)') "freehand"
 
     diab = minlen / 2**maxl / 3d0
     write (ludif,'(A,F10.6,A)') "type 1 pointrad ", diab, " pointrgb 0.8 0.8 0.8"
@@ -319,9 +320,9 @@ contains
     use tools_io, only: fclose
     character*(*), intent(in) :: roottess
 
-    write (ludif,'(X,A)') "endfreehand"
-    write (ludif,'(X,3A)') " vrml ", trim(roottess), ".wrl"
-    write (ludif,'(X,3A)') "# povray ", trim(roottess), ".pov"
+    write (ludif,'(" ",A)') "endfreehand"
+    write (ludif,'(" ",3A)') " vrml ", trim(roottess), ".wrl"
+    write (ludif,'(" ",3A)') "# povray ", trim(roottess), ".pov"
     write (ludif,'(A)') "endmolecule"
     write (ludif,'(5A)') "#run povray -d +ft +I", trim(roottess), ".pov +O", trim(roottess), ".tga +W2000 +H2000 +A"
     write (ludif,'(5A)') "#run convert ",&

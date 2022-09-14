@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Quadrature schemes and integration-related tools.
 submodule (integration) proc
   use param, only: mmlen
   implicit none
@@ -679,7 +680,7 @@ contains
           itaux = string(fid)
        end if
 
-       write (uout,'(A2,99(A,X))') cini, string(i,4,ioj_left), string(label,12,ioj_center), &
+       write (uout,'(A2,99(A," "))') cini, string(i,4,ioj_left), string(label,12,ioj_center), &
           string(itaux,2,ioj_right), string(itype_names(sy%propi(i)%itype),12,ioj_left),&
           string(saux)
     end do
@@ -736,7 +737,7 @@ contains
           endif
           id = nint(bas%xattr(:,i) * sy%f(sy%iref)%grid%n)
           id = modulo(id,sy%f(sy%iref)%grid%n) + 1
-          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), (string(x(j),'f',12,7,4),j=1,3), &
+          write (uout,'("  ",99(A," "))') string(i,4,ioj_left), (string(x(j),'f',12,7,4),j=1,3), &
              string(sy%f(sy%iref)%grid%f(id(1),id(2),id(3)),'e',14,7)
        end do
        write (uout,*)
@@ -757,7 +758,7 @@ contains
           else
              x = (sy%c%x2c(bas%xattr(:,i)) + sy%c%molx0) * dunit0(iunit)
           endif
-          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
+          write (uout,'("  ",99(A," "))') string(i,4,ioj_left), scp, sncp, sname, sz, &
              smult, (string(x(j),'f',12,7,4),j=1,3)
        end do
        write (uout,*)
@@ -786,7 +787,7 @@ contains
              xcm = sy%c%mol(i)%cmass()
              xcm = sy%c%c2x(xcm)
              ! name the molecule
-             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), &
+             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A," "))') string(i), &
                 string(sy%c%mol(i)%nat), (string(xcm(j),'f',10,6,3),j=1,3)
 
              ! Atomic composition
@@ -794,7 +795,7 @@ contains
                 if (idxmol(1,j) /= i) cycle
                 call assign_strings(j,bas%icp(j),usesym,scp,sncp,sname,smult,sz)
                 x = sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%x
-                write (uout,'(A,X,A,"(",2(A,X),A,")",X,99(A,X))') &
+                write (uout,'(A," ",A,"(",2(A," "),A,")"," ",99(A," "))') &
                    string(j,4,ioj_left), scp, (string(sy%c%mol(idxmol(1,j))%at(idxmol(2,j))%lvec(k),2,ioj_right),k=1,3),&
                    sncp, sname, sz, (string(x(k),'f',12,7,4),k=1,3)
              end do
@@ -859,10 +860,10 @@ contains
        ! Table header for this set of properties
        write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
        if (bas%imtype == imtype_isosurface) then
-          write (uout,'("# Id   ",5(A,X))') &
+          write (uout,'("# Id   ",5(A," "))') &
              (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
        else
-          write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A,X))') &
+          write (uout,'("# Id   cp   ncp   Name  Z   mult ",5(A," "))') &
              (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
        end if
 
@@ -882,20 +883,20 @@ contains
           end do
           ! table entry
           if (bas%imtype == imtype_isosurface) then
-             write (uout,'(2X,99(A,X))') string(i,4,ioj_left),&
+             write (uout,'("  ",99(A," "))') string(i,4,ioj_left),&
                 (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
           else
-             write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
+             write (uout,'("  ",99(A," "))') string(i,4,ioj_left), scp, sncp, sname, sz, smult, &
                 (string(res(nacprop(j))%psum(i),'e',15,8,4),j=1,ipmax)
           end if
        end do
        if (bas%imtype == imtype_isosurface) then
           write (uout,'(7("-"),99(A))') ("----------------",j=1,ipmax)
-          write (uout,'(2X,"Sum  ",99(A,X))') &
+          write (uout,'("  Sum  ",99(A," "))') &
              (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
        else
           write (uout,'(32("-"),99(A))') ("----------------",j=1,ipmax)
-          write (uout,'(2X,"Sum                           ",99(A,X))') &
+          write (uout,'("  Sum                           ",99(A," "))') &
              (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
        end if
        write (uout,*)
@@ -938,7 +939,7 @@ contains
 
           ! Table header for this set of properties
           write (uout,'("# Integrable properties ",A," to ",A)') string(nacprop(1)), string(nacprop(ipmax))
-          write (uout,'("# Mol ",5(A,X))') (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
+          write (uout,'("# Mol ",5(A," "))') (string(sy%propi(nacprop(j))%prop_name,15,ioj_center),j=1,ipmax)
 
           ! Table rows
           do k = 1, sy%c%nmol+1
@@ -959,9 +960,9 @@ contains
              end do
              ! table entry
              if (k < sy%c%nmol+1) then
-                write (uout,'(2X,99(A,X))') string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+                write (uout,'("  ",99(A," "))') string(k,4,ioj_left), (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
              else
-                write (uout,'(2X,99(A,X))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
+                write (uout,'("  ",99(A," "))') "????", (string(sump(nacprop(j)),'e',15,8,4),j=1,ipmax)
              end if
           end do
           write (uout,*)
@@ -1724,13 +1725,13 @@ contains
 
           ! Recalculate the number of attractors without cell translation symmetry.
           ! Calculate basin spreads.
-          write (uout,'(99(A,X))') "  Attractors before remapping =", string(bas%nattr)
+          write (uout,'(99(A," "))') "  Attractors before remapping =", string(bas%nattr)
           if (bas%imtype == imtype_bader) then
              call bader_remap(sy,bas,nattn,idg1,ilvec,iatt)
           else
              call yt_remap(sy,bas,dat,nattn,ilvec,iatt)
           end if
-          write (uout,'(99(A,X))') "  Attractors after remapping =", string(nattn)
+          write (uout,'(99(A," "))') "  Attractors after remapping =", string(nattn)
 
           ! allocate the sij
           if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
@@ -1738,20 +1739,20 @@ contains
           res(l)%sijc = 0d0
 
           ! write out some info
-          write (uout,'(99(A,X))') "  Number of bands (nbnd) =", string(nbnd)
-          write (uout,'(99(A,X))') "  ... lattice translations (nlat) =", (string(nlat(j)),j=1,3)
-          write (uout,'(99(A,X))') "  ... unique grid functions (nbnd x nlat) =", string(nlattot)
-          write (uout,'(99(A,X))') "  ... spin channels =", string(nspin)
+          write (uout,'(99(A," "))') "  Number of bands (nbnd) =", string(nbnd)
+          write (uout,'(99(A," "))') "  ... lattice translations (nlat) =", (string(nlat(j)),j=1,3)
+          write (uout,'(99(A," "))') "  ... unique grid functions (nbnd x nlat) =", string(nlattot)
+          write (uout,'(99(A," "))') "  ... spin channels =", string(nspin)
           if (sy%propi(l)%itype == itype_deloc_wnr) then
-             write (uout,'(99(A,X))') "  Calculating overlaps using Wannier functions (wan)"
+             write (uout,'(99(A," "))') "  Calculating overlaps using Wannier functions (wan)"
              if (sy%propi(l)%wancut > 0d0 .and. sy%propi(l)%useu) then
-                write (uout,'(99(A,X))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
+                write (uout,'(99(A," "))') "  Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff = ",&
                    string(sy%propi(l)%wancut,'f',5,2)
              else
-                write (uout,'(99(A,X))') "  Discarding no overlaps."
+                write (uout,'(99(A," "))') "  Discarding no overlaps."
              end if
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
-             write (uout,'(99(A,X))') "  Calculating overlaps using Bloch states (psink)"
+             write (uout,'(99(A," "))') "  Calculating overlaps using Bloch states (psink)"
           end if
 
           if (sy%propi(l)%itype == itype_deloc_wnr) then
@@ -1759,11 +1760,11 @@ contains
              ! prepare the transformed files
              luevc = -1
              luevc_ibnd = 0
-             write (uout,'(99(A,X))') "  Writing temporary evc files..."
+             write (uout,'(99(A," "))') "  Writing temporary evc files..."
              call sy%f(fid)%grid%rotate_qe_evc(luevc,luevc_ibnd,sy%propi(l)%useu)
 
              ! calculate overlaps
-             write (uout,'(99(A,X))') "# Calculating overlaps..."
+             write (uout,'(99(A," "))') "# Calculating overlaps..."
              call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,&
                 bas%docelatom,ilvec,idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
 
@@ -1773,7 +1774,7 @@ contains
 
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              !!! using bloch functions !!!
-             write (uout,'(99(A,X))') "# Calculating overlaps..."
+             write (uout,'(99(A," "))') "# Calculating overlaps..."
              call calc_sij_psink(fid,bas%imtype,nattn,iatt,bas%docelatom,ilvec,idg1,bas%xattr,&
                 dat,res(l)%sijc)
 
@@ -1792,12 +1793,12 @@ contains
        ! calculate the Sij translation mappings
        if (sy%propi(l)%itype == itype_deloc_wnr .or. &
           sy%propi(l)%itype == itype_deloc_sijchk .and. res(l)%sijtype == sijtype_wnr) then
-          write (uout,'(99(A,X))') "# Calculating translation mappings..."
+          write (uout,'(99(A," "))') "# Calculating translation mappings..."
           call find_sij_translations(res(l),nmo,nbnd,nlat,nlattot)
        end if
 
        ! ! check the sanity of the Sij matrix
-       ! write (uout,'(99(A,X))') "# Checking the sanity of the Sij matrix..."
+       ! write (uout,'(99(A," "))') "# Checking the sanity of the Sij matrix..."
        ! call check_sij_sanity(res(l),sy%f(fid)%grid%qe,nspin,nmo,nbnd,nlat,nlattot)
 
        !!! calculate Fa !!!
@@ -2139,7 +2140,7 @@ contains
                 !$omp end parallel do
              end if ! imtype == bader/yt
 
-             write (uout,'(4X,"Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
+             write (uout,'("    Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
                 string(ibnd1), string(ibnd2), string(nbndw(is)), string(is), string(nspin),&
                 string(ncalc), string(natt1*nlat*nlat)
           end do ! ibnd2
@@ -2310,7 +2311,7 @@ contains
              end if ! imtype == bader/yt
           end do ! imo2
           !$omp end parallel do
-          write (uout,'(4X,"State k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
+          write (uout,'("    State k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
              string(ik1), string(ibnd1), string(nks), string(nbndw(is)), string(is), string(nspin)
        end do ! imo1
     end do ! is
@@ -2665,7 +2666,7 @@ contains
           do j = 1, bas%nattr
              if (.not.bas%docelatom(bas%icp(i))) cycle
              call assign_strings(j,bas%icp(j),.false.,scp,sncp,sname,smult,sz)
-             write (uout,'(2X,99(A,X))') &
+             write (uout,'("  ",99(A," "))') &
                 string(j,4,ioj_left), scp, sncp, sname, sz, &
                 (string(res(l)%mpole((i-1)*5+1+k,j),'e',15,8,4),k=0,min(4,size(res(l)%mpole,1)-(i-1)*5-1))
           enddo
@@ -2739,7 +2740,7 @@ contains
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           xli = sum(abs(res(l)%fa(i,i,1,:))) * fspin
           xnn = sum(abs(res(l)%fa(i,:,:,:))) * fspin
-          write (uout,'(2X,99(A,X))') string(i,4,ioj_left), scp, sncp, sname, sz, &
+          write (uout,'("  ",99(A," "))') string(i,4,ioj_left), scp, sncp, sname, sz, &
              string(xli,'f',15,8,4), string(xnn,'f',12,8,4)
        end do
        write (uout,*)
@@ -2765,7 +2766,7 @@ contains
        do i = 1, natt
           if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
-          write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,2X))') &
+          write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
           write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI")')
 
@@ -2800,18 +2801,18 @@ contains
              j = io(m)
              if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              if (dist(j) < 1d-5) then
-                write (uout,'(2X,"Localization index",71("."),A)') string(diout(j),'f',12,8,4)
+                write (uout,'("  Localization index",71("."),A)') string(diout(j),'f',12,8,4)
                 asum = asum + diout(j)
              else
                 call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
                 r1 = bas%xattr(:,idat(j)) + ilvec(:,j)
-                write (uout,'(2X,99(A,X))') string(j,4,ioj_left), scp, sncp, sname, sz,&
+                write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
                    (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
                    string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
                 asum = asum + 0.5d0 * diout(j)
              end if
           end do
-          write (uout,'(2X,"Total (atomic population)",64("."),A)') string(asum,'f',12,8,4)
+          write (uout,'("  Total (atomic population)",64("."),A)') string(asum,'f',12,8,4)
           write (uout,*)
        end do
 
@@ -2878,7 +2879,7 @@ contains
           write (uout,'("+ Localization indices")')
           write (uout,'("# Mol       LI(A)           N(A)")')
           do i = 1, sy%c%nmol
-             write (uout,'(2X,99(A,X))') &
+             write (uout,'("  ",99(A," "))') &
                 string(i,4,ioj_left), string(limol(i),'f',15,8,4), string(namol(i),'f',12,8,4)
           end do
           write (uout,*)
@@ -2893,7 +2894,7 @@ contains
           write (uout,'("+ Delocalization indices")')
           do i = 1, sy%c%nmol
              ! name the molecule
-             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A,X))') string(i), string(sy%c%mol(i)%nat),&
+             write (uout,'("# Molecule ",A," with ",A," atoms at ",3(A," "))') string(i), string(sy%c%mol(i)%nat),&
                 (string(xcm(j,i),'f',10,6,3),j=1,3)
              write (uout,'("# Mol   Latt. vec.    ---- Center of mass (cryst) ----      Distance      LI/DI")')
 
@@ -2921,17 +2922,17 @@ contains
              do m = 1, sy%c%nmol*nlattot
                 j = io(m)
                 if (dist(j) < 1d-5) then
-                   write (uout,'(2X,"Localization index",51("."),A)') string(limol(i),'f',12,8,4)
+                   write (uout,'("  Localization index",51("."),A)') string(limol(i),'f',12,8,4)
                    asum = asum + limol(i)
                 else
                    r1 = xcm(:,idat(j)) + ilvec(:,j)
-                   write (uout,'(2X,99(A,X))') string(idat(j),4,ioj_left), &
+                   write (uout,'("  ",99(A," "))') string(idat(j),4,ioj_left), &
                       (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
                       string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
                    asum = asum + 0.5d0 * diout(j)
                 end if
              end do
-             write (uout,'(2X,"Total (atomic population)",44("."),A)') string(asum,'f',12,8,4)
+             write (uout,'("  Total (atomic population)",44("."),A)') string(asum,'f',12,8,4)
              write (uout,*)
           end do
           deallocate(dimol,limol,namol,idxmol,xcm)
@@ -3173,6 +3174,7 @@ contains
   !> Plot the atomic basins found by YT or BADER to graphical files.
   !> bas = integration driver data.
   subroutine int_gridbasins(bas)
+    use iso_c_binding, only: c_ptr
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
     use global, only: fileroot
@@ -3192,20 +3194,23 @@ contains
     integer :: nvert, nf
     real*8, allocatable :: xvert(:,:), xrho(:)
     integer, allocatable :: iface(:,:)
+    type(c_ptr), target :: fid
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: x0(3)
          real(c_double) :: xvert(3,n)
          integer(c_int) :: nf
+         type(c_ptr) :: fid
        end subroutine runqhull_basintriangulate_step1
-       subroutine runqhull_basintriangulate_step2(nf,iface) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_basintriangulate_step2(nf,iface,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf
          integer(c_int) :: iface(3,nf)
+         type(c_ptr), value :: fid
        end subroutine runqhull_basintriangulate_step2
     end interface
 
@@ -3287,9 +3292,9 @@ contains
        if (nvert > 0) then
           ! run qhull
           x = sy%c%x2c(bas%xattr(:,i))
-          call runqhull_basintriangulate_step1(nvert,x,xvert,nf)
+          call runqhull_basintriangulate_step1(nvert,x,xvert,nf,fid)
           allocate(iface(3,nf))
-          call runqhull_basintriangulate_step2(nf,iface)
+          call runqhull_basintriangulate_step2(nf,iface,fid)
 
           ! orient the faces
           !$omp parallel do private(x1,x2,iaux)

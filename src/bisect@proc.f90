@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Integration and plotting of basins by bisection.
 submodule (bisect) proc
   use global, only: INT_lebedev
   implicit none
@@ -239,7 +240,7 @@ contains
           else
              xnuc = (sy%f(sy%iref)%cpcel(i)%r+sy%c%molx0)*dunit0(iunit)
           endif
-          write (uout,'(99(A,2X))') string(sy%f(sy%iref)%cpcel(i)%idx,length=5,justify=ioj_right),&
+          write (uout,'(99(A,"  "))') string(sy%f(sy%iref)%cpcel(i)%idx,length=5,justify=ioj_right),&
              string(i,length=5,justify=ioj_right), &
              (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
        end do
@@ -249,7 +250,7 @@ contains
        else
           xnuc = (sy%f(sy%iref)%cpcel(cpid)%r+sy%c%molx0)*dunit0(iunit)
        endif
-       write (uout,'(99(A,2X))') string(sy%f(sy%iref)%cpcel(cpid)%idx,length=5,justify=ioj_right),&
+       write (uout,'(99(A,"  "))') string(sy%f(sy%iref)%cpcel(cpid)%idx,length=5,justify=ioj_right),&
           string(cpid,length=5,justify=ioj_right), &
           (string(xnuc(j),'e',length=12,decimal=6,justify=4),j=1,3)
     end if
@@ -502,7 +503,7 @@ contains
     else
        write (uout,'("  Output file format: DBASIN with ",A," radial points")') string(npts)
     end if
-    write (uout,'("  Primary bundle seed: ",3(A,X))') (string(x0(j),'e',decimal=6),j=1,3)
+    write (uout,'("  Primary bundle seed: ",3(A," "))') (string(x0(j),'e',decimal=6),j=1,3)
 
     ! initialize the surface
     if (method == 'bcb') then
@@ -736,7 +737,7 @@ contains
        xnuc = sy%c%x2c(sy%f(sy%iref)%cp(i)%x)
 
        write (uout,'("+ Non-equivalent CP : ",A)') string(i)
-       write (uout,'("  CP at: ",3(A,X))') (string(sy%f(sy%iref)%cp(i)%x(j),'e',decimal=4),j=1,3)
+       write (uout,'("  CP at: ",3(A," "))') (string(sy%f(sy%iref)%cp(i)%x(j),'e',decimal=4),j=1,3)
        write (uout,'("  Initial radius (r0,",A,"): ",A)') iunitname0(iunit), &
           string(r0,'e',decimal=6)
        if (rend < 0d0) then
@@ -770,7 +771,7 @@ contains
           end if
 
           r = r * dunit0(iunit)
-          write (uout,'(2X,99(A,2X))') &
+          write (uout,'("  ",99(A,"  "))') &
              string(r,'e',decimal=6,length=12,justify=4),&
              string(meaneval,length=6,justify=ioj_right),&
              string(abserr,'e',decimal=6,length=12,justify=4),&
@@ -1273,7 +1274,7 @@ contains
        write (uout,'(A)') "               (4)1.1*(last r_{zfs}) (5)1.01* max(r_{far})  (6) mean(r_{far}) "
        write (uout,'(A)') "               (7) 1.2*mean(r_{zfs})"
        write (uout,'("Units: ",A)') string(iunitname0(iunit))
-       write (uout,'("* (",A5,"/",A5,") ",4(A12,2X))') "nray","total","r0_{near}","r_{ZFS}","r0_{far}","nsteps"
+       write (uout,'("* (",A5,"/",A5,") ",4(A12,"  "))') "nray","total","r0_{near}","r_{ZFS}","r0_{far}","nsteps"
     end if
 
     idone = 0
@@ -1406,7 +1407,7 @@ contains
        rlim = sqrt(dot_product(xmed,xmed))
        if (verbose) then
           !$omp critical (IO)
-          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,"(",I1,")",1X,E14.6,2X,E14.6,1X,"(",I1,") ",I8)') &
+          write (uout,'("  (",I5,"/",I5,") ",E14.6," ","(",I1,")"," ",E14.6,"  ",E14.6," ","(",I1,") ",I8)') &
              j,srf%nv,riaprox*dunit0(iunit),id1,rlim*dunit0(iunit),raprox*dunit0(iunit),id2,nstep
           !$omp end critical (IO)
        end if
@@ -1489,12 +1490,12 @@ contains
 
     if (verbose) then
        write (uout,'("+ Starting bisection (primary bundle)")')
-       write (uout,'("  Seed (cartesian coords.) : ",3(A,X))') (string(xseed(j),'e',decimal=6),j=1,3)
-       write (uout,'("  Seed up-limit (omega) : ",3(A,X))') (string(xup(j),'e',decimal=6),j=1,3)
-       write (uout,'("  Seed dn-limit (alpha) : ",3(A,X))') (string(xdn(j),'e',decimal=6),j=1,3)
+       write (uout,'("  Seed (cartesian coords.) : ",3(A," "))') (string(xseed(j),'e',decimal=6),j=1,3)
+       write (uout,'("  Seed up-limit (omega) : ",3(A," "))') (string(xup(j),'e',decimal=6),j=1,3)
+       write (uout,'("  Seed dn-limit (alpha) : ",3(A," "))') (string(xdn(j),'e',decimal=6),j=1,3)
        write (uout,'("  GP tracing maximum num. of steps : ",A)') string(BS_mstep)
        write (uout,*)
-       write (uout,'("  (",A5,"/",A5,") ",A12,1X,A12,2X,A12,1X,A8)') &
+       write (uout,'("  (",A5,"/",A5,") ",A12," ",A12,"  ",A12," ",A8)') &
           "nray","mray","r_inner","r_ias","r_outer","nstep"
        write (uout,'(64("-"))')
     end if
@@ -1608,7 +1609,7 @@ contains
        !$omp end critical (srfwrite)
        if (verbose) then
           !$omp critical (IO)
-          write (uout,'("  (",I5,"/",I5,") ",E14.6,1X,E14.6,2X,E14.6,1X,I8)') &
+          write (uout,'("  (",I5,"/",I5,") ",E14.6," ",E14.6,"  ",E14.6," ",I8)') &
              i,srf%nv,riaprox,srf%r(i),raprox,nstep
           !$omp end critical (IO)
        end if
@@ -1711,11 +1712,11 @@ contains
        write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
 
        write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+       write (uout,'("  ",a2," ",a10," ",a12," ",a17)') "id","property",&
           "IAS error","Integral (sph.)"
-       write (uout,'(2x,42("-"))')
+       write (uout,'("  ",42("-"))')
        do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
+          write (uout,'("  ",i2," ",a10," ",1p,e14.6," ",e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
        end do
        write (uout,*)
     end if
@@ -1728,11 +1729,11 @@ contains
     if (verbose) then
        write (uout,'(a,i10)') " Number of evaluations : ", neval
        write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
-       write (uout,'(2xa2,x,a10,x,a12,x,a17)') "id","property",&
+       write (uout,'("  ",a2," ",a10," ",a12," ",a17)') "id","property",&
           "IAS error","Integral"
-       write (uout,'(2x,42("-"))')
+       write (uout,'("  ",42("-"))')
        do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
+          write (uout,'("  ",i2," ",a10," ",1p,e14.6," ",e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
        end do
        write (uout,*)
     end if
@@ -1833,11 +1834,11 @@ contains
        write (uout,'(a,1p,E12.4)') " Beta-sphere radius : ",r_betaint
        write (uout,'(a,i10)') " Number of evaluations : ", neval
        write (uout,'(a,i10)') " Avg. evaluations per ray : ", meaneval
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+       write (uout,'("  ",a2," ",a10," ",a12," ",a17)') "id","property",&
           "IAS error","Integral (sph.)"
-       write (uout,'(2x,42("-"))')
+       write (uout,'("  ",42("-"))')
        do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
+          write (uout,'("  ",i2," ",a10," ",1p,e14.6," ",e17.9)') j,sy%propi(j)%prop_name,0d0,sprop(j)
        end do
        write (uout,*)
     end if
@@ -1850,11 +1851,11 @@ contains
     if (verbose) then
        write (uout,'(a,i10)') " Number of evaluations : ", neval
        write (uout,'(a,i10)') " Avg. evaluations per ray : ", ceiling(real(neval,8) / srf%nv)
-       write (uout,'(2x,a2,x,a10,x,a12,x,a17)') "id","property",&
+       write (uout,'("  ",a2," ",a10," ",a12," ",a17)') "id","property",&
           "IAS error","Integral (neg.)"
-       write (uout,'(2x,42("-"))')
+       write (uout,'("  ",42("-"))')
        do j = 1, sy%npropi
-          write (uout,'(2x,i2,x,a10,x,1p,e14.6,x,e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
+          write (uout,'("  ",i2," ",a10," ",1p,e14.6," ",e17.9)') j,sy%propi(j)%prop_name,iaserr(j),atprop(j)
        end do
        write (uout,*)
     end if
@@ -2036,19 +2037,19 @@ contains
     lud = fopen_write(offfile)
 
     x = sy%c%c2x(s%n)
-    write (lud,'("# POS(cryst) ",3(E22.14,X))') x
+    write (lud,'("# POS(cryst) ",3(E22.14," "))') x
     write (lud,'("# CRYS2CART ")')
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_x2c(i,1:3), rr
+       write (lud,'("# ",3(E22.14," "),E10.2)') sy%c%m_x2c(i,1:3), rr
     end do
-    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
+    write (lud,'("# ",3(E22.14," "),E10.2)') 0d0, 0d0, 0d0, 0d0
     write (lud,'("# CART2CRYS ")')
     rr = 0d0
     do i = 1, 3
-       write (lud,'("# ",3(E22.14,X),E10.2)') sy%c%m_c2x(i,1:3), rr
+       write (lud,'("# ",3(E22.14," "),E10.2)') sy%c%m_c2x(i,1:3), rr
     end do
-    write (lud,'("# ",3(E22.14,X),E10.2)') 0d0, 0d0, 0d0, 0d0
+    write (lud,'("# ",3(E22.14," "),E10.2)') 0d0, 0d0, 0d0, 0d0
 
     write (lud,105) s%nv, s%nf, s%nv + s%nf - 2
     if (doprops) then
@@ -2081,8 +2082,8 @@ contains
     call fclose(lud)
 
 105 format (3i7)
-106 format (999(a22,1x))
-110 format (1p,999(e22.15,1x))
+106 format (999(a22," "))
+110 format (1p,999(e22.15," "))
 115 format (999(i7))
 
   end subroutine minisurf_writebasin

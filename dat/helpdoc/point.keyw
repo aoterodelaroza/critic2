@@ -1,0 +1,1 @@
+POINT [x.r y.r z.r|file.s] [ALL] [FIELD {id.s/"expr"}]

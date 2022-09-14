@@ -15,6 +15,25 @@
 ! in the root directory of the present distribution,
 ! or http://www.gnu.org/copyleft/gpl.txt .
 !
+
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Quantum ESPRESSO densities and structures.
 submodule (qe_private) proc
   implicit none
 
@@ -289,7 +308,7 @@ contains
   end subroutine qe_latgen
 
   module subroutine sup_spacegroup(tau,ityp,extfor,if_pos,space_group_number,not_eq,&
-     uniqueb,rhombohedral,choice,ibrav)
+     uniqueb,rhombohedral,choice,ibrav,nattot,tautot,ityptot)
     INTEGER, INTENT(IN) :: space_group_number, choice
     LOGICAL, INTENT (IN) :: uniqueb, rhombohedral
     INTEGER, INTENT (INOUT) ::  not_eq
@@ -297,12 +316,17 @@ contains
     REAL(DP), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: tau, extfor
     INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(IN) :: ityp
     INTEGER, DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: if_pos
+    integer, intent(out) :: nattot
+    real(dp), allocatable, intent(inout) :: tautot(:,:)
+    integer, allocatable, intent(inout) :: ityptot(:)
+
     INTEGER :: i,k,l,sym_n
     INTEGER,DIMENSION(:),allocatable :: msym_n
     character(LEN=1) :: unique
     REAL(DP), DIMENSION(:,:), ALLOCATABLE :: inco
     REAL(DP), DIMENSION(:,:,:), ALLOCATABLE :: outco
-
+    real(dp), allocatable :: extfortot(:,:)
+    integer, allocatable :: if_postot(:,:)
 
     ALLOCATE(inco(3,not_eq))
     ALLOCATE(msym_n(not_eq))

@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,11 +15,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> One-dimensional grid class
 submodule (grid1mod) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine read_critic(g,file,n,abspath)
+  ! subroutine read_critic(g,file,n,abspath,ti)
 
   ! radial grid derivation formulas
   integer, parameter :: noef(6,3) = reshape((/&
@@ -55,13 +56,14 @@ contains
   end subroutine grid1_end
 
   !> Read a density core file from the database.
-  module subroutine read_db(g,z,q)
+  module subroutine read_db(g,z,q,ti)
     use global, only: critic_home
     use tools_io, only: nameguess, warning, lower, ferror
     use param, only: dirsep
     class(grid1), intent(inout) :: g !< Output radial grid
     integer, intent(in) :: z !< Atomic number
     integer, intent(in) :: q !< Atomic pseudopotential charge
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: file
 
@@ -73,7 +75,7 @@ contains
        call ferror('read_db','Anions not supported: neutral atomic density used instead',warning)
 
     ! do it
-    call read_critic(g,file,z-q,.true.)
+    call read_critic(g,file,z-q,.true.,ti=ti)
     g%z = z
     g%qat = q
 
@@ -201,7 +203,7 @@ contains
   !> Read grid in critic format. This format is adapted from the wfc files
   !> of the ld1 program in the quantum espresso distribution. Only n electrons
   !> out of the total Z are used to build the grid.
-  subroutine read_critic(g,file,n,abspath)
+  subroutine read_critic(g,file,n,abspath,ti)
     use types, only: realloc
     use tools_io, only: uout, warning, ferror, fopen_read, string, fclose
     use param, only: pi
@@ -209,6 +211,7 @@ contains
     character*(*), intent(in) :: file !< File with the grid description
     integer, intent(in) :: n !< Number of electrons read
     logical, intent(in) :: abspath !< Absolute path?
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, lu, nn
     integer, allocatable :: occ(:)
@@ -228,7 +231,7 @@ contains
     end if
 
     ! Read header and allocate arrays
-    lu = fopen_read(file,abspath0=abspath)
+    lu = fopen_read(file,abspath0=abspath,ti=ti)
     read (lu,*) nn
 
     allocate(wfcin(nn),wfcl(nn),occ(nn))

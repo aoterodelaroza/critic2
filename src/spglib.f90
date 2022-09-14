@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! interface to the spglib library
 module spglib
   use iso_c_binding, only: c_char, c_int, c_double, c_ptr, c_null_char, c_f_pointer, c_associated
 
@@ -22,6 +23,7 @@ module spglib
 
   private
 
+  public :: spg_build_hall_mapping
   public :: SpglibSpaceGroupType
   public :: SpglibDataset
   public :: spg_get_major_version
@@ -40,7 +42,6 @@ module spglib
   public :: spg_get_pointgroup
   public :: spg_refine_cell, spgat_refine_cell
   public :: spg_get_error_code
-
   public :: spg_get_error_message
   public :: spg_get_dataset
   public :: spg_get_spacegroup_type
@@ -102,6 +103,11 @@ module spglib
   end type SpglibDataset
 
   interface
+     ! ! build the mapping of international numbers/names for spg
+     ! ! (run once at the beginning)
+     module subroutine spg_build_hall_mapping()
+     end subroutine spg_build_hall_mapping
+
      ! ## spglib.h
      ! int spg_get_major_version(void)
      !   Returns the major version number
@@ -387,15 +393,16 @@ module spglib
      end function spgat_refine_cell
 
      ! SpglibError spg_get_error_code(void);
-     ! Get the error code from the last operation
+     ! Get the error code from the last operation (NOT THREAD-SAFE)
      function spg_get_error_code() bind(c)
-       integer(kind(SPGLIB_SUCCESS)) :: spg_get_error_code
+       import c_int
+       integer(c_int) :: spg_get_error_code
      end function spg_get_error_code
 
      !xx! functions implemented in the submodule
 
      ! char *spg_get_error_message(SpglibError spglib_error);
-     ! Returns the error message based on the id from the last operation.
+     ! Returns the error message based on the id from the last operation. (NOT THREAD-SAFE)
      module function spg_get_error_message(spglib_error)
        integer(kind(SPGLIB_SUCCESS)) :: spglib_error
        character(len=32) :: spg_get_error_message

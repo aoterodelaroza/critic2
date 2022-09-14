@@ -1,10 +1,11 @@
 + Field number 1
+  Name: <generated>, grid: $0
   Source: <generated>
   Type: grid
-  Grid dimensions : 2  2  2
-  Max. length Voronoi-relevant vector (bohr):  5.25816
-  First elements... 1.810108118799E-03  1.045154298839E-03
-  Last elements... 1.810108118799E-03  1.045154298839E-03
+  Grid dimensions : 2  2  2  
+  Max. length Voronoi-relevant vector (bohr):  5.25816  
+  First elements... 1.810108118799E-03  1.045154298839E-03  
+  Last elements... 1.810108118799E-03  1.045154298839E-03  
   Sum of elements... 1.256793063492E+00
   Sum of squares of elements... 7.219436162369E-01
   Cell integral (grid SUM) = 153.78628953
@@ -48,10 +49,10 @@
 * Field number 0 is now REFERENCE.
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      0  Pop  
-    3  lval      0  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      0  Pop    
+    3  lval      0  Lap    
 
 * Summary of critical points for the reference field
   Non-equivalent critical points = 5
@@ -62,10 +63,10 @@
 * Field number 1 is now REFERENCE.
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      1  Pop  
-    3  lval      1  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      1  Pop    
+    3  lval      1  Lap    
 
 * Summary of critical points for the reference field
   Non-equivalent critical points = 5
@@ -76,10 +77,10 @@
 * Field number 2 is now REFERENCE.
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      2  Pop  
-    3  lval      2  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      2  Pop    
+    3  lval      2  Lap    
 
 * Summary of critical points for the reference field
   Non-equivalent critical points = 5
@@ -90,10 +91,10 @@
 * Field number 9 is now REFERENCE.
 
 * List of integrable properties (3)
-#  Id  Type  Field  Name
-    1   v        0  Volume  
-    2  fval      9  Pop  
-    3  lval      9  Lap  
+#  Id  Type  Field  Name  
+    1   v        0  Volume    
+    2  fval      9  Pop    
+    3  lval      9  Lap    
 
 * Summary of critical points for the reference field
   Non-equivalent critical points = 5

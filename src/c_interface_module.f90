@@ -87,6 +87,10 @@ module c_interface_module
      module procedure C_F_string_chars
   end interface C_F_string
 
+  interface C_F_string_alloc
+     module procedure C_F_string_ptr_alloc
+  end interface C_F_string_alloc
+
   interface F_C_string
      module procedure F_C_string_ptr
      module procedure F_C_string_chars
@@ -280,6 +284,24 @@ contains
        if (i<len(F_string)) F_string(i:) = ' '
     end if
   end subroutine F_string_assign_C_string
+
+  ! Copy a C string, passed by pointer, to a Fortran variable-length
+  ! string. If c_string is NULL, the fortran string is initialized to
+  ! empty. Otherwise, the fortran string contains exactly the C string
+  ! up to the null character, which should always be present.
+  subroutine C_F_string_ptr_alloc(C_string, F_string)
+    type(C_ptr), intent(in) :: C_string
+    character(len=:), allocatable, intent(inout) :: F_string
+
+    if (c_associated_pure(C_string)) then
+       if (allocated(F_string)) deallocate(F_string)
+       allocate(character(C_strlen(C_string)) :: F_string)
+       call c_f_string(C_string,F_string)
+    else
+       F_string = ""
+    end if
+
+  end subroutine C_F_string_ptr_alloc
 
   ! Copy a C string, passed by pointer, to a Fortran string.
   ! If the C pointer is NULL, the Fortran string is blanked.

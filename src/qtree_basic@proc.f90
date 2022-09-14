@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Qtree, basic routines.
 submodule (qtree_basic) proc
   implicit none
 
@@ -329,9 +330,9 @@ contains
        do i = 1, ntetrag
           write (uout,'("+ Tetrahedron : ",I3," with points at ")') i
           do j = 1, 4
-             write (uout,'(4X,I3,3(1X,E20.13))') j, tetrag(:,j,i)
+             write (uout,'("    ",I3,3(" ",E20.13))') j, tetrag(:,j,i)
           end do
-          write (uout,'(4X," Volume : ",1p,E20.12)') tvol(i)
+          write (uout,'("    "," Volume : ",1p,E20.12)') tvol(i)
           sumi = sumi + tvol(i)
        end do
        write (uout,'("+ Sum of tetrahedra volumes : ",1p,E20.12)') sumi

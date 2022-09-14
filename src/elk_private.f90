@@ -5,7 +5,7 @@
 
 ! J.L. Casals Sainz contributed the adaptation to elk 2.1.25
 
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -22,9 +22,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to ELK densities.
+!> Interface to ELK densities and structures.
 module elk_private
   use environmod, only: environ
+  use types, only: thread_info
   implicit none
 
   private
@@ -57,11 +58,12 @@ module elk_private
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
      end subroutine elkwfn_end
-     module subroutine read_out(f,env,file,file2,file3)
+     module subroutine read_out(f,env,file,file2,file3,ti)
        class(elkwfn), intent(inout) :: f
        type(environ), intent(in), target :: env
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_out
      module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
        class(elkwfn), intent(in) :: f

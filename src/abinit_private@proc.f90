@@ -7,7 +7,7 @@
 ! or http://www.gnu.org/copyleft/gpl.txt .
 ! For the initials of contributors, see ~abinit/doc/developers/contributor
 
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -24,6 +24,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! abinit tools and readers
 submodule (abinit_private) proc
   implicit none
 
@@ -33,9 +34,6 @@ submodule (abinit_private) proc
   real(dp), parameter :: tol6= 0.000001_dp
   real(dp), parameter :: Ha_eV=27.21138386_dp
   integer, parameter :: md5_slen = 32
-
-  ! headform for fail-to-read situation
-  integer :: headform_1, headform_2
 
   ! paw info
   type pawrhoij_type
@@ -175,8 +173,8 @@ submodule (abinit_private) proc
   end type hdr_type_2
 
   !xx! private subroutines
-  ! subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
-  ! subroutine hdr_io_2(fform,hdr,unit,errmsg)
+  ! subroutine hdr_io_1(fform,hdr,unitfi,headform_1,errmsg)
+  ! subroutine hdr_io_2(fform,hdr,unit,headform_2,errmsg)
   ! subroutine pawrhoij_io(pawrhoij,unitfi,nspden_in,typat,headform,errmsg)
 
 contains
@@ -191,6 +189,7 @@ contains
 
     type(hdr_type_1) :: hdr_1
     type(hdr_type_2) :: hdr_2
+    integer :: headform_1, headform_2
 
     errmsg = ""
     ! read the headform
@@ -202,10 +201,10 @@ contains
        rewind(unitfi)
     end if
 
-    call hdr_io_1(fform,hdr_1,unitfi,errmsg)
+    call hdr_io_1(fform,hdr_1,unitfi,headform_1,errmsg)
     if (headform_1 /= 0) then
        rewind(unitfi)
-       call hdr_io_2(fform,hdr_2,unitfi,errmsg)
+       call hdr_io_2(fform,hdr_2,unitfi,headform_2,errmsg)
        if (headform_2 /= 0) then
           errmsg = "Can not handle headform: " // string(headform_2) // &
              ". The version of abinit you are using is not supported &
@@ -253,7 +252,7 @@ contains
   ! or http://www.gnu.org/copyleft/gpl.txt .
 
   !> The hdr_io subroutine from abinit.
-  subroutine hdr_io_1(fform,hdr,unitfi,errmsg)
+  subroutine hdr_io_1(fform,hdr,unitfi,headform_1,errmsg)
     use tools_io, only: string
     !! This subroutine deals with the I/O of the hdr_type
     !! structured variables (read/write/echo).
@@ -327,6 +326,7 @@ contains
     integer,intent(inout) :: fform
     integer,intent(in) :: unitfi
     type(hdr_type_1),intent(inout) :: hdr
+    integer, intent(out) :: headform_1
     character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
@@ -643,11 +643,12 @@ contains
 
   end subroutine hdr_io_1
 
-  subroutine hdr_io_2(fform,hdr,unit,errmsg)
+  subroutine hdr_io_2(fform,hdr,unit,headform_2,errmsg)
     implicit none
     integer, intent(out) :: fform
     integer, intent(in) :: unit
     type(hdr_type_2), intent(out) :: hdr
+    integer, intent(out) :: headform_2
     character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
@@ -664,6 +665,7 @@ contains
     ! fform is not a record of hdr_type
     read(unit, err=10, iomsg=errmsgl) hdr%codvsn,hdr%headform,fform
 
+    headform_2 = 0
     if (hdr%headform < 80) then
        headform_2 = hdr%headform
        errmsg = ""

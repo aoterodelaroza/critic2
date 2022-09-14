@@ -1,10 +1,11 @@
 + Field number 1
+  Name: AECCAR0
   Source: ../zz_source/vasp-5.3.3/agtao3/AECCAR0
   Type: grid
-  Grid dimensions : 56  56  56
-  Max. length Voronoi-relevant vector (bohr):  0.19052
-  First elements... 1.252373820233E+06  2.442894148772E+02  3.752289400415E+01
-  Last elements... 2.505188821486E+00  8.443252466652E+00  2.521651151056E+01
+  Grid dimensions : 56  56  56  
+  Max. length Voronoi-relevant vector (bohr):  0.19052  
+  First elements... 1.252373820233E+06  2.442894148772E+02  3.752289400415E+01  
+  Last elements... 2.505188821486E+00  8.443252466652E+00  2.521651151056E+01  
   Sum of elements... 2.823341656104E+06
   Sum of squares of elements... 3.177025558575E+12
   Cell integral (grid SUM) = 13517.18690807
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: AECCAR2
   Source: ../zz_source/vasp-5.3.3/agtao3/AECCAR2
   Type: grid
-  Grid dimensions : 56  56  56
-  Max. length Voronoi-relevant vector (bohr):  0.19052
-  First elements... 7.341336153604E+01  8.832923273850E-01  1.076043837629E+00
-  Last elements... 4.264810305034E-01  5.430981994511E-02  4.063066199712E-01
+  Grid dimensions : 56  56  56  
+  Max. length Voronoi-relevant vector (bohr):  0.19052  
+  First elements... 7.341336153604E+01  8.832923273850E-01  1.076043837629E+00  
+  Last elements... 4.264810305034E-01  5.430981994511E-02  4.063066199712E-01  
   Sum of elements... 1.686762987920E+04
   Sum of squares of elements... 1.732227258520E+04
   Cell integral (grid SUM) = 80.75639917
@@ -43,12 +45,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: CHG
   Source: ../zz_source/vasp-5.3.3/agtao3/CHG
   Type: grid
-  Grid dimensions : 56  56  56
-  Max. length Voronoi-relevant vector (bohr):  0.19052
-  First elements... 6.397206321844E-01  6.342733670546E-01  6.158501930673E-01
-  Last elements... 5.018857946515E-01  5.621387316557E-01  6.012686492917E-01
+  Grid dimensions : 56  56  56  
+  Max. length Voronoi-relevant vector (bohr):  0.19052  
+  First elements... 6.397206321844E-01  6.342733670546E-01  6.158501930673E-01  
+  Last elements... 5.018857946515E-01  5.621387316557E-01  6.012686492917E-01  
   Sum of elements... 1.670963871393E+04
   Sum of squares of elements... 5.859434997571E+03
   Cell integral (grid SUM) = 79.99999192
@@ -64,12 +67,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: CHGCAR
   Source: ../zz_source/vasp-5.3.3/agtao3/CHGCAR
   Type: grid
-  Grid dimensions : 56  56  56
-  Max. length Voronoi-relevant vector (bohr):  0.19052
-  First elements... 6.397182317721E-01  6.342675940596E-01  6.158500568381E-01
-  Last elements... 5.018819587540E-01  5.621374430088E-01  6.012700890586E-01
+  Grid dimensions : 56  56  56  
+  Max. length Voronoi-relevant vector (bohr):  0.19052  
+  First elements... 6.397182317721E-01  6.342675940596E-01  6.158500568381E-01  
+  Last elements... 5.018819587540E-01  5.621374430088E-01  6.012700890586E-01  
   Sum of elements... 1.670963778790E+04
   Sum of squares of elements... 5.859434364966E+03
   Cell integral (grid SUM) = 79.99998748
@@ -85,12 +89,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: ELFCAR
   Source: ../zz_source/vasp-5.3.3/agtao3/ELFCAR
   Type: grid
-  Grid dimensions : 28  28  28
-  Max. length Voronoi-relevant vector (bohr):  0.38104
-  First elements... 3.101200000000E-11  2.984300000000E-03  1.261800000000E-01
-  Last elements... 3.437300000000E-01  4.073800000000E-01  2.495100000000E-01
+  Grid dimensions : 28  28  28  
+  Max. length Voronoi-relevant vector (bohr):  0.38104  
+  First elements... 3.101200000000E-11  2.984300000000E-03  1.261800000000E-01  
+  Last elements... 3.437300000000E-01  4.073800000000E-01  2.495100000000E-01  
   Sum of elements... 5.900819949140E+03
   Sum of squares of elements... 2.928589351186E+03
   Cell integral (grid SUM) = 226.00873965
@@ -105,27 +110,27 @@
   Number of critical points in the unit cell: 10
   Alias for this field (1): $5
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): -0.5260342  -0.9111180  5.2628332
-  Coordinates (ang): -0.2783653  -0.4821429  2.7849714
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): -0.5260342  -0.9111180  5.2628332  
+  Coordinates (ang): -0.2783653  -0.4821429  2.7849714  
 + Field: 1
   Type : (3,-1)
   Field value (f): 3.490252726E-02
   Field value, valence (fval): 3.490252726E-02
-  Gradient (grad f): 4.781179065E-02  8.953012147E-02  1.308195897E-01
+  Gradient (grad f): 4.781179065E-02  8.953012147E-02  1.308195897E-01  
   Gradient norm (|grad f|): 1.655758890E-01
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 8.503710131E-01
   Laplacian, valence (del2 fval): 8.503710131E-01
   Hessian:
-     1.943696319E-01   3.186083848E-01   3.255681828E-01
-     3.186083848E-01   1.782176538E-01   4.421167287E-01
-     3.255681828E-01   4.421167287E-01   4.777837275E-01
-  Hessian eigenvalues: -1.698796560E-01  -1.639620220E-02  1.036646871E+00
+     1.943696319E-01   3.186083848E-01   3.255681828E-01  
+     3.186083848E-01   1.782176538E-01   4.421167287E-01  
+     3.255681828E-01   4.421167287E-01   4.777837275E-01  
+  Hessian eigenvalues: -1.698796560E-01  -1.639620220E-02  1.036646871E+00  
   Ellipticity (l_1/l_2 - 1): 9.360914923E+00
-  Field 0 (f,|grad|,lap): 1.617426494E-01  4.764841138E-01  1.073122485E+00
-  Field 2 (f,|grad|,lap): 1.230878741E-01  3.070499737E-01  5.207178388E-01
-  Field 3 (f,|grad|,lap): 1.273009155E-01  3.368226171E-01  3.509932944E-01
-  Field 4 (f,|grad|,lap): 1.273009024E-01  3.368251718E-01  3.518567834E-01
-  Field 5 (f,|grad|,lap): 2.540279926E-01  4.138535746E-02  -1.380058109E+00
+  Field 0 (f,|grad|,lap): 1.617426494E-01  4.764841138E-01  1.073122485E+00  
+  Field 2 (f,|grad|,lap): 1.230878741E-01  3.070499737E-01  5.207178388E-01  
+  Field 3 (f,|grad|,lap): 1.273009155E-01  3.368226171E-01  3.509932944E-01  
+  Field 4 (f,|grad|,lap): 1.273009024E-01  3.368251718E-01  3.518567834E-01  
+  Field 5 (f,|grad|,lap): 2.540279926E-01  4.138535746E-02  -1.380058109E+00  
 

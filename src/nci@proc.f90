@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! non-covalent interaction index plots
 submodule (nci) proc
   implicit none
 
@@ -427,11 +428,11 @@ contains
     write(uout,'("  RDG cutoff (for dat file): ",A)') string(dimcut,'f',decimal=6)
     write(uout,'("  Density plot cutoff: ",A)') string(rhoplot,'f',decimal=6)
     write(uout,'("  RDG plot cutoff: ",A)') string(dimplot,'f',decimal=6)
-    write(uout,'("+ Cube origin (crystal coord.): ",3(A,X))') (string(x0x(j),'f',decimal=6),j=1,3)
-    write(uout,'("  Cube end (crystal coord.): ",3(A,X))') (string(x1x(j),'f',decimal=6),j=1,3)
-    write(uout,'("  Cube nodes in each direction: ",3(A,X))') (string(nstep(j)),j=1,3)
-    write(uout,'("  Cube steps in each direction: ",3(A,X))') (string(xinc(j),'f',decimal=6),j=1,3)
-    write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A,X))') &
+    write(uout,'("+ Cube origin (crystal coord.): ",3(A," "))') (string(x0x(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube end (crystal coord.): ",3(A," "))') (string(x1x(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube nodes in each direction: ",3(A," "))') (string(nstep(j)),j=1,3)
+    write(uout,'("  Cube steps in each direction: ",3(A," "))') (string(xinc(j),'f',decimal=6),j=1,3)
+    write(uout,'("  Cube side lengths in each direction (",A,"): ",3(A," "))') &
        iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit0(iunit),'f',decimal=4),j=1,3)
     if (nstep_from_grid) &
        write(uout,'("  Values of NSTEP derived from reference field grid dimensions.")')
@@ -741,7 +742,7 @@ contains
         do i = 1, 12
            xx0 = matmul(sy%c%x2c(xlist0(:,i)) + delta,rchol)
            xx1 = matmul(sy%c%x2c(xlist1(:,i)) + delta,rchol)
-           write (luvmd,'("draw cylinder {",3(F14.4,X),"} {",3(F14.4,X),"} radius 0.05 resolution 20")') &
+           write (luvmd,'("draw cylinder {",3(F14.4," "),"} {",3(F14.4," "),"} radius 0.05 resolution 20")') &
               xx0 * bohrtoa, xx1 * bohrtoa
         end do
         write (luvmd,'("")')
@@ -757,7 +758,7 @@ contains
      write (luvmd,'("mol modstyle 0 top Isosurface ",F8.2," 1 0 0 1 1")') dimplot
      write (luvmd,'("mol modcolor 0 top Volume 0")')
      write (luvmd,'("mol modmaterial 0 top Opaque")')
-     write (luvmd,'("mol scaleminmax top 0 ",F8.2,X,F8.2)') -rhoplot/2d0*100d0, rhoplot/2d0*100d0
+     write (luvmd,'("mol scaleminmax top 0 ",F8.2," ",F8.2)') -rhoplot/2d0*100d0, rhoplot/2d0*100d0
      write (luvmd,'("mol selupdate 0 top 0")')
      write (luvmd,'("mol colupdate 0 top 0")')
      write (luvmd,'("color scale method BGR")')
@@ -888,7 +889,7 @@ contains
 
     do i = 0, n(1)-1
        do j = 0, n(2)-1
-          write (lu,'(6(1x,1p,e13.5e3))') (c(k,j,i),k=0,n(3)-1)
+          write (lu,'(6(" ",1p,e13.5e3))') (c(k,j,i),k=0,n(3)-1)
        enddo
     enddo
     call fclose(lu)

@@ -1,4 +1,5 @@
 + Field number 1
+  Name: STATE.OUT
   Source: ../zz_source/elk-6.3.02/sbpo4/STATE.OUT
   Type: elk
   Number of LM pairs: 49
@@ -14,35 +15,36 @@
 * Field number 1 is now REFERENCE.
 
 * Muffin-tin discontinuity test
-  Atom: 1 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000977  -0.000578  -0.001170
-  Atom: 2 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000952  -0.000529  -0.001187
-  Atom: 3 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000980  -0.000563  -0.001243
+  Atom: 1 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000977  -0.000578  -0.001170  
+  Atom: 2 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000952  -0.000529  -0.001187  
+  Atom: 3 rmt= 1.2475081 RMS/max/min(fout-fin) = 0.000980  -0.000563  -0.001243  
   Atom: 4 delta_m = 0.001000 delta_p = 0.001000
 
-  Atom: 4 rmt= 1.5690148 RMS/max/min(fout-fin) = 0.005823  0.012898  -0.016768
-  Atom: 5 rmt= 2.5266197 RMS/max/min(fout-fin) = 0.002593  0.007751  -0.006189
+  Atom: 4 rmt= 1.5690148 RMS/max/min(fout-fin) = 0.005823  0.012898  -0.016768  
+  Atom: 5 rmt= 2.5266197 RMS/max/min(fout-fin) = 0.002593  0.007751  -0.006189  
 + Assert - no spurious CPs on the muffin tin surface: F
 
-WARNING(testrmt): Spurious CPs on the muffin tin surface!
+WARNING (testrmt): Spurious CPs on the muffin tin surface!
+
 * LINE written to file: 011_load-elk.line
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): 0.6813415  2.5786584  2.6522272
-  Coordinates (ang): 0.3605504  1.3645672  1.4034982
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.6813415  2.5786584  2.6522272  
+  Coordinates (ang): 0.3605504  1.3645672  1.4034982  
 + Field: 1
   Type : (3,-1)
   Field value (f): 2.207543460E-01
   Field value, valence (fval): 2.207543460E-01
-  Gradient (grad f): 2.043390119E-01  5.742808455E-01  -6.865040681E-01
+  Gradient (grad f): 2.043390119E-01  5.742808455E-01  -6.865040681E-01  
   Gradient norm (|grad f|): 9.180635909E-01
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 5.502151989E+00
   Laplacian, valence (del2 fval): 5.502151989E+00
   Hessian:
-    -5.261430743E-01   7.974107269E-01  -1.051309346E+00
-     7.974107269E-01   2.691444640E+00  -3.961664101E+00
-    -1.051309346E+00  -3.961664101E+00   3.336850424E+00
-  Hessian eigenvalues: -1.018270497E+00  -6.915122636E-01  7.211934750E+00
+    -5.261430743E-01   7.974107269E-01  -1.051309346E+00  
+     7.974107269E-01   2.691444640E+00  -3.961664101E+00  
+    -1.051309346E+00  -3.961664101E+00   3.336850424E+00  
+  Hessian eigenvalues: -1.018270497E+00  -6.915122636E-01  7.211934750E+00  
   Ellipticity (l_1/l_2 - 1): 4.725270257E-01
-  Field 0 (f,|grad|,lap): 2.384306159E-01  8.865602224E-01  5.280982592E+00
+  Field 0 (f,|grad|,lap): 2.384306159E-01  8.865602224E-01  5.280982592E+00  
 

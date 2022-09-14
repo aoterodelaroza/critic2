@@ -1,5 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza
-! <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -18,7 +17,7 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Field seed class.
+! Scalar field seed class.
 module fieldseedmod
   use wfn_private, only: molden_type_unknown
   use param, only: ifformat_unknown, mlen, mmlen
@@ -60,6 +59,8 @@ module fieldseedmod
   end type fieldseed
   public :: fieldseed
 
+  public :: field_detect_format
+
   interface
      module subroutine fieldseed_end(f)
        class(fieldseed), intent(inout) :: f
@@ -75,6 +76,11 @@ module fieldseedmod
        character*(*) :: line
        integer, intent(inout), optional :: lp0
      end subroutine fieldseed_parse_options
+     module function field_detect_format(file,molden_type)
+       character*(*), intent(in) :: file
+       integer, intent(out), optional :: molden_type
+       integer :: field_detect_format
+     end function field_detect_format
   end interface
 
 end module fieldseedmod

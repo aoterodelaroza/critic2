@@ -1,4 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -155,6 +155,8 @@ module global
   integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
 
   interface
+     module subroutine critic_main()
+     end subroutine critic_main
      module subroutine global_init(ghome,datadir)
        character*(*) :: ghome, datadir
      end subroutine global_init

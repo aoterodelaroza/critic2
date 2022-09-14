@@ -1,0 +1,3 @@
+BASINPLOT [CUBE [lvl.i] | TRIANG [lvl.i] | SPHERE [ntheta.i nphi.i]]
+          [OFF|OBJ|PLY|BASIN|DBASIN [npts.i]}]
+          [CP cp.i] [PREC delta.r] [VERBOSE] [MAP id.s|"expr"]

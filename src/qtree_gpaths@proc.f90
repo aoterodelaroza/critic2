@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Qtree, gradient path tracing.
 submodule (qtree_gpaths) proc
   implicit none
 
@@ -265,13 +266,13 @@ contains
     !    xp = sy%c%c2x(xp)
     !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
-    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
+    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,"  "))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     !    !$omp end critical (IO)
     ! ! end if
     cpout = nnuc+3
 
-    ! write (uout,'("* Last point: ",3(F20.12,2X))') xp
+    ! write (uout,'("* Last point: ",3(F20.12,"  "))') xp
     ! write (uout,'("* Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     ! call ferror('grdient_qtree','too many steps in gradient',faterr)
 
@@ -490,13 +491,13 @@ contains
     !    xp = sy%c%c2x(xp)
     !    call nearest_cp(xp,nid,dist,type=sy%f(sy%iref)%typnuc)
     !    !$omp critical (IO)
-    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,2X))') xp
+    !    write (uout,'("+ Unknown term., marked as unknown : ",3(F20.12,"  "))') xp
     !    write (uout,'("  Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     !    !$omp end critical (IO)
     ! ! end if
     cpout = nnuc+3
 
-    ! write (uout,'("* Last point: ",3(F20.12,2X))') xp
+    ! write (uout,'("* Last point: ",3(F20.12,"  "))') xp
     ! write (uout,'("* Closest nuc.: ",I4," at distance ",F20.12)') nid, dist
     ! call ferror('gradient_color','too many steps in gradient',faterr)
 

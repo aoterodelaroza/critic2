@@ -14,7 +14,7 @@ NumberOfAtoms     48
 
 LatticeConstant 1.0 ang
 %block LatticeParameters
-   11.9380000000    12.3760000000     3.6552000000      90.00000000     120.90000000      90.00000000
+   11.9380000000    12.3760000000     3.6552000000      90.00000000     120.90000000      90.00000000 
 %endblock LatticeParameters
 AtomicCoordinatesFormat Fractional
 %block AtomicCoordinatesAndAtomicSpecies

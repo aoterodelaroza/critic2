@@ -1,4 +1,4 @@
-! Copyright (c) 2016 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2016-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,10 +15,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Interface to DFTB+ wavefunctions.
+! DFTB+ wavefunctions and readers
 module dftb_private
   use grid1mod, only: grid1
   use environmod, only: environ
+  use types, only: thread_info
   implicit none
 
   private
@@ -70,13 +71,14 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,env)
+     module subroutine dftb_read(f,filexml,filebin,filehsd,env,ti)
        use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
        class(dftbwfn), intent(inout) :: f

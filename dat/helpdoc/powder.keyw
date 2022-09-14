@@ -1,0 +1,3 @@
+POWDER [TH2INI t2i.r] [TH2END t2e.r] [{L|LAMBDA} l.r]
+       [FPOL fpol.r] [NPTS npts.i] [SIGMA sigma.r]
+       [ROOT root.s] [HARD|SOFT]

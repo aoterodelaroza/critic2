@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! molecular wavefunction readers and tools
 submodule (wfn_private) proc
   implicit none
 
@@ -207,7 +208,7 @@ contains
   end subroutine wfn_end
 
   !> Read the molecular geometry from an xyz file
-  module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, isinteger, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
@@ -216,6 +217,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character*4 :: atsym
     integer :: lu
@@ -229,7 +231,7 @@ contains
     if (allocated(name)) deallocate(name)
 
     ! read the number of atoms
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -263,7 +265,7 @@ contains
   end subroutine wfn_read_xyz_geometry
 
   !> Read the molecular geometry from a wfn file
-  module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -271,6 +273,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character*4 :: atsym, orbtyp
     integer :: lu
@@ -283,7 +286,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -319,7 +322,7 @@ contains
   end subroutine wfn_read_wfn_geometry
 
   !> Read the molecular geometry from a wfx file
-  module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, nameguess, zatguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -327,6 +330,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: line, line2, errmsg2
@@ -339,7 +343,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -418,7 +422,7 @@ contains
   end subroutine wfn_read_wfx_geometry
 
   !> Read the molecular geometry from a fchk file
-  module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -426,6 +430,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, i, j
     character(len=:), allocatable :: line
@@ -438,7 +443,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -494,7 +499,7 @@ contains
 
   !> Read the molecular geometry from a molden file. See the manual
   !> for the list of molden-generating programs that have been tested.
-  module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, lower, getline_raw, lgetword, nameguess, fclose
     use param, only: bohrtoa
     character*(*), intent(in) :: file !< Input file name
@@ -503,6 +508,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, idum, i
     character(len=:), allocatable :: line, keyword, word1, word2
@@ -515,7 +521,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -597,7 +603,7 @@ contains
   end subroutine wfn_read_molden_geometry
 
   !> Read the molecular geometry from a Gaussian output file (.log).
-  module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, nameguess
     use types, only: realloc
     use param, only: bohrtoa
@@ -607,6 +613,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, idum
     character(len=:), allocatable :: line
@@ -618,7 +625,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -666,7 +673,7 @@ contains
   end subroutine wfn_read_log_geometry
 
   !> Read the molecular geometry from a psi4 output file (.dat).
-  module subroutine wfn_read_dat_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_dat_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess
     use types, only: realloc
     use param, only: bohrtoa
@@ -676,6 +683,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i
     character(len=:), allocatable :: line
@@ -687,7 +695,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -738,7 +746,7 @@ contains
   end subroutine wfn_read_dat_geometry
 
   !> Read the molecular geometry from a postg output file (.pgout).
-  module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess
     use types, only: realloc
     character*(*), intent(in) :: file !< Input file name
@@ -747,6 +755,7 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, idum
     character(len=:), allocatable :: line
@@ -758,7 +767,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -800,7 +809,7 @@ contains
   end subroutine wfn_read_pgout_geometry
 
   !> Read the molecular geometry from an orca output file (.out).
-  module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg)
+  module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess
     use types, only: realloc
     use param, only: bohrtoa
@@ -810,6 +819,7 @@ contains
     integer, allocatable, intent(inout) :: z(:)
     character*(10), allocatable, intent(inout) :: name(:)
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: line
@@ -821,7 +831,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -868,11 +878,12 @@ contains
   end subroutine wfn_read_orca_geometry
 
   !> Read the wavefunction from a wfn file
-  module subroutine read_wfn(f,file,env)
+  module subroutine read_wfn(f,file,env,ti)
     use tools_io, only: fopen_read, zatguess, ferror, faterr, fclose
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luwfn, nat, iz, istat, i, j, num1, num2
     integer :: nalpha, ioc
@@ -889,7 +900,7 @@ contains
     f%nedf = 0
 
     ! read number of atoms, primitives, orbitals
-    luwfn = fopen_read(file)
+    luwfn = fopen_read(file,ti=ti)
     read (luwfn,*)
     read (luwfn,101) orbtyp, f%nmoocc, f%npri, nat
     f%nmoall = f%nmoocc
@@ -998,12 +1009,13 @@ contains
   end subroutine read_wfn
 
   !> Read the wavefunction from a wfx file
-  module subroutine read_wfx(f,file,env)
+  module subroutine read_wfx(f,file,env,ti)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
     character(len=:), allocatable :: line
@@ -1017,7 +1029,7 @@ contains
     f%nalpha_virt = 0
 
     ! first pass
-    luwfn = fopen_read(file)
+    luwfn = fopen_read(file,ti=ti)
     f%nmoocc = 0
     ncore = 0
     f%npri = 0
@@ -1149,7 +1161,7 @@ contains
   end subroutine read_wfx
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
-  module subroutine read_fchk(f,file,readvirtual,env)
+  module subroutine read_fchk(f,file,readvirtual,env,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
 #ifdef HAVE_CINT
     use param, only: sqpi
@@ -1158,6 +1170,7 @@ contains
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, nn, nm, nl, nc, ns, ncar, nsph
@@ -1226,7 +1239,7 @@ contains
     f%nedf = 0
 
     ! first pass: dimensions
-    luwfn = fopen_read(file)
+    luwfn = fopen_read(file,ti=ti)
     f%wfntyp = wfn_rhf
 
     ! first pass: dimensions
@@ -1662,7 +1675,7 @@ contains
   !> of molden file (orca, psi4).  Uses the environment env for
   !> calculating the range of each primitive. See the manual for the
   !> list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,molden_type,readvirtual,env)
+  module subroutine read_molden(f,file,molden_type,readvirtual,env,ti)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: mlen
@@ -1671,6 +1684,7 @@ contains
     integer, intent(in) :: molden_type !< Type of molden file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, keyword, word, word1
     character(len=mlen) :: mword
@@ -1742,7 +1756,7 @@ contains
     is5d = .false.
     is7f = .false.
     is9g = .false.
-    luwfn = fopen_read(file)
+    luwfn = fopen_read(file,ti=ti)
     nat = 0
     f%wfntyp = -1
     line = ""

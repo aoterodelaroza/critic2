@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Qtree, work with tetrahedra.
 submodule (qtree_tetrawork) proc
   implicit none
 
@@ -77,7 +78,7 @@ contains
           end do
           do i = 1, 4
              do j = i+1, 4
-                write (lustick(l),'(2(3(F8.5,X),X))') xp(:,i), xp(:,j)
+                write (lustick(l),'(2(3(F8.5," ")," "))') xp(:,i), xp(:,j)
              end do
           end do
        end if
@@ -138,7 +139,7 @@ contains
                 write (uout,*) " Make beta-spheres smaller for atoms with negative index: "
                 write (uout,*) " terms: ", ts
                 write (uout,*) " Offending vertex: "
-                write (uout,'("Tetrah: ",I3/,4(10X,"(",3(I5,X),")"/))') base_t, iv * lrest
+                write (uout,'("Tetrah: ",I3/,4("          ","(",3(I5," "),")"/))') base_t, iv * lrest
                 !$omp end critical (IO)
                 call ferror('qtree_integration','beta-sphere leaks out of the basin',faterr)
              end if
@@ -344,11 +345,11 @@ contains
        call gradient_full(xp,nbase,raux,res,termi(2),ier)
        ngrd2 = ngrd2 + ngrd_term - nini
 
-       write (uout,'(I3,X,3(F10.6,X),3(F12.8,X),I4,X,I4)') &
+       write (uout,'(I3," ",3(F10.6," "),3(F12.8," "),I4," ",I4)') &
           base_t, rver, xcrys, termi(1), termi(2)
        if (termi(1) /= termi(2)) then
           ndiff = ndiff + 1
-          write (ludif,'(2X,"ball ",3(F10.6,X),"type ",I2)') &
+          write (ludif,'("  ball ",3(F10.6," "),"type ",I2)') &
              xcrys(1), xcrys(2), xcrys(3), 1
        end if
        gradient_mode = -1
@@ -388,11 +389,11 @@ contains
        call gradient_full(xp,nbase,raux,res,termi(2),ier)
        ngrd2 = ngrd2 + ngrd_term - nini
 
-       write (uout,'(I3,X,3(F10.6,X),3(F12.8,X),I4,X,I4)') &
+       write (uout,'(I3," ",3(F10.6," "),3(F12.8," "),I4," ",I4)') &
           base_t, rver, xcrys, termi(1), termi(2)
        if (termi(1) /= termi(2)) then
           ndiff = ndiff + 1
-          write (ludif,'(2X,"ball ",3(F10.6,X),"type ",I2)') &
+          write (ludif,'("  ball ",3(F10.6," "),"type ",I2)') &
              xcrys(1), xcrys(2), xcrys(3), 1
        end if
        gradient_mode = -2
@@ -432,11 +433,11 @@ contains
        call gradient_full(xp,nbase,raux,res,termi(2),ier)
        ngrd2 = ngrd2 + ngrd_term - nini
 
-       write (uout,'(I3,X,3(F10.6,X),3(F12.8,X),I4,X,I4)') &
+       write (uout,'(I3," ",3(F10.6," "),3(F12.8," "),I4," ",I4)') &
           base_t, rver, xcrys, termi(1), termi(2)
        if (termi(1) /= termi(2)) then
           ndiff = ndiff + 1
-          write (ludif,'(2X,"ball ",3(F10.6,X),"type ",I2)') &
+          write (ludif,'("  ball ",3(F10.6," "),"type ",I2)') &
              xcrys(1), xcrys(2), xcrys(3), 1
        end if
        gradient_mode = -3
@@ -903,8 +904,8 @@ contains
        else
           !$omp critical (IO)
           write (uout,'("ins : ",I2)') ins
-          write (uout,'("in_vector : ",4(L2,X))') in
-          write (uout,'("trm_vector : ",4(I2,X))') ts
+          write (uout,'("in_vector : ",4(L2," "))') in
+          write (uout,'("trm_vector : ",4(I2," "))') ts
           write (uout,'("r : ",F14.9)') sqrt(r2)
           write (uout,'("d1 : ",F14.9)') sqrt(xdot(1,1))
           write (uout,'("d2 : ",F14.9)') sqrt(xdot(2,2))
@@ -1229,8 +1230,8 @@ contains
        else
           !$omp critical (IO)
           write (uout,'("ins : ",I2)') ins
-          write (uout,'("in_vector : ",4(L2,X))') in
-          write (uout,'("trm_vector : ",4(I2,X))') ts
+          write (uout,'("in_vector : ",4(L2," "))') in
+          write (uout,'("trm_vector : ",4(I2," "))') ts
           write (uout,'("r : ",F14.9)') sqrt(r2)
           write (uout,'("d1 : ",F14.9)') sqrt(xdot(1,1))
           write (uout,'("d2 : ",F14.9)') sqrt(xdot(2,2))

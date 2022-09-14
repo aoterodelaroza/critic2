@@ -1,0 +1,26 @@
+CPREPORT {SHORT|LONG|VERYLONG|SHELLS [n.i]}
+CPREPORT file.{xyz,gjf,cml,vmd} [SPHERE rad.r [x0.r y0.r z0.r]]
+         [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+         [MOLMOTIF] [ONEMOTIF] [ENVIRON dist.r]
+         [NMER nmer.i]
+CPREPORT file.{obj,ply,off} [SPHERE rad.r [x0.r y0.r z0.r]]
+         [CUBE side.r [x0.r y0.r z0.r]] [BORDER] [ix.i iy.i iz.i]
+         [MOLMOTIF] [ONEMOTIF] [CELL] [MOLCELL]
+CPREPORT file.scf.in
+CPREPORT file.tess
+CPREPORT file.cri|file.incritic
+CPREPORT {[file.]POSCAR|[file.]CONTCAR}
+CPREPORT file.abin
+CPREPORT file.elk
+CPREPORT file.gau
+CPREPORT file.cif
+CPREPORT file.m
+CPREPORT file.gin
+CPREPORT file.lammps
+CPREPORT file.fdf
+CPREPORT file.STRUCT_IN
+CPREPORT file.hsd
+CPREPORT file.gen
+CPREPORT file.json
+CPREPORT file.test
+CPREPORT [...] [GRAPH]

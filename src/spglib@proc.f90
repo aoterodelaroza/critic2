@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! interface to the spglib library
 submodule (spglib) proc
   use hashmod, only: hash
   implicit none
@@ -27,6 +28,33 @@ submodule (spglib) proc
 
 contains
 
+  ! Build the mapping that gives the Hall number from symbols, etc.
+  module subroutine spg_build_hall_mapping()
+    use tools_io, only: deblank, stripchar
+    type(SpglibSpaceGroupType) :: sa
+    integer :: i, iaux
+    character(len=:), allocatable :: aux
+
+    if (mapavail) return
+
+    do i = 1, 530
+       sa = spg_get_spacegroup_type(i)
+
+       aux = deblank(sa%international_short,todn=.true.)
+       aux = trim(stripchar(aux,"_"))
+       if (.not.ints%iskey(aux)) call ints%put(aux,i)
+
+       aux = deblank(sa%international_full,todn=.true.)
+       aux = trim(stripchar(aux,"_"))
+       if (.not.intf%iskey(aux)) call intf%put(aux,i)
+
+       iaux = sa%number
+       if (inthnum(iaux) == 0) inthnum(iaux) = i
+    end do
+    mapavail = .true.
+
+  end subroutine spg_build_hall_mapping
+
   ! char *spg_get_error_message(SpglibError spglib_error);
   ! Returns the error message based on the id from the last operation.
   module function spg_get_error_message(spglib_error)
@@ -36,8 +64,8 @@ contains
 
     interface
        function spg_get_error_message_c(spglib_error) bind(c, name='spg_get_error_message')
-         import c_ptr, SPGLIB_SUCCESS
-         integer(kind(SPGLIB_SUCCESS)), value :: spglib_error
+         import c_ptr, c_int
+         integer(c_int), value :: spglib_error
          type(c_ptr) :: spg_get_error_message_c
        end function spg_get_error_message_c
     end interface
@@ -244,7 +272,7 @@ contains
     integer :: iaux, lp
     character(len=:), allocatable :: word, symbol
 
-    call build_hall_mapping()
+    call spg_build_hall_mapping()
 
     hnum = -1
     lp = 1
@@ -267,33 +295,6 @@ contains
   end function spg_get_hall_number_from_symbol
 
   !xx! private procedures
-
-  ! Build the mapping that gives the Hall number from symbols, etc.
-  subroutine build_hall_mapping()
-    use tools_io, only: deblank, stripchar
-    type(SpglibSpaceGroupType) :: sa
-    integer :: i, iaux
-    character(len=:), allocatable :: aux
-
-    if (mapavail) return
-
-    do i = 1, 530
-       sa = spg_get_spacegroup_type(i)
-
-       aux = deblank(sa%international_short,todn=.true.)
-       aux = trim(stripchar(aux,"_"))
-       if (.not.ints%iskey(aux)) call ints%put(aux,i)
-
-       aux = deblank(sa%international_full,todn=.true.)
-       aux = trim(stripchar(aux,"_"))
-       if (.not.intf%iskey(aux)) call intf%put(aux,i)
-
-       iaux = sa%number
-       if (inthnum(iaux) == 0) inthnum(iaux) = i
-    end do
-    mapavail = .true.
-
-  end subroutine build_hall_mapping
 
   ! Return the symmetry operations from the Hall number. If failed,
   ! return nrot = ncv = 0.
@@ -456,7 +457,7 @@ contains
           strcs = "??"
        end if
 
-       write (uout,'(6(A,X),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
+       write (uout,'(6(A," "),"[",A,"]")') string(i,5,ioj_left), string(sa%number,5,ioj_left),&
           string(strs,8,ioj_left), string(strf,14,ioj_left), string(sa%choice,6,ioj_left), &
           string(strcs,12,ioj_left), string(sa%hall_symbol)
     end do

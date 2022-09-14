@@ -3,10 +3,10 @@
 * Transformation to a new unit cell (NEWCELL)
 
   Lattice vectors of the new cell in the old setting (cryst. coord.):
-      1.0000000    1.0000000    0.0000000 
-      0.0000000    0.0000000    1.0000000 
-      0.0000000   -1.0000000    0.0000000 
-  Origin translation:   0.4000000    0.6000000    0.9000000 
+      1.0000000    1.0000000    0.0000000  
+      0.0000000    0.0000000    1.0000000  
+      0.0000000   -1.0000000    0.0000000  
+  Origin translation:   0.4000000    0.6000000    0.9000000  
 
 * COMPARE: compare structures
   Crystal 1 : <current>

@@ -1,0 +1,2 @@
+SPHEREINTEGRALS {GAULEG [ntheta.i nphi.i]|LEBEDEV [nleb.i]}
+                [NR npts.i] [R0 r0.r] [REND rend.r] [CP ncp.i]

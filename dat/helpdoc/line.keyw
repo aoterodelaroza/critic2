@@ -1,0 +1,2 @@
+LINE x0.r y0.r z0.r x1.r y1.r z1.r npts.i [FILE file.s] [FIELD id.s/"expr"]
+     [GX,GY,GZ,GMOD,HXX,HXY,HXZ,HYY,HYZ,HZZ,LAP]

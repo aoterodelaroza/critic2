@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Evaluation of arithmetic expressions. This entire module is
+! THREAD-SAFE (or should be, at least).
 submodule (arithmetic) proc
 #ifdef HAVE_LIBXC
   use xc_f90_types_m, only: xc_f90_pointer_t
@@ -202,9 +204,10 @@ contains
     real*8 :: q(100)
     integer :: nq, ns
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
     ! recover the system pointer
+    syl => null()
     eval = 0d0
     if (present(sptr)) then
        call c_f_pointer(sptr,syl)
@@ -375,9 +378,10 @@ contains
     integer :: nq, ns
     real*8, allocatable :: q(:,:,:,:)
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
     ! recover the system pointer
+    syl => null()
     call c_f_pointer(sptr,syl)
     if (.not.syl%isinit) goto 999
 
@@ -511,8 +515,9 @@ contains
     logical :: ok
     integer :: ntok
     type(token), allocatable :: toklist(:)
-    type(system), pointer :: syl => null()
+    type(system), pointer :: syl
 
+    syl => null()
     ! recover the system pointer
     call c_f_pointer(sptr,syl)
     if (.not.syl%isinit) &
@@ -754,7 +759,7 @@ contains
   function tokenize(expr,ntok,toklist,lpexit,syl)
     use systemmod, only: system
     use tools_io, only: lower, isinteger
-    use param, only: vh
+    use param, only: vh, tab
     logical :: tokenize
     character(*), intent(in) :: expr
     integer, intent(out) :: ntok
@@ -793,7 +798,7 @@ contains
     main: do while (lp <= ll)
        lpexit = lp
        ! skip blanks and quotes
-       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == '\t'.or.expr(lp:lp)=='\n'.or.&
+       do while (expr(lp:lp) == ' '.or.expr(lp:lp) == tab.or.expr(lp:lp)==new_line('a').or.&
           expr(lp:lp) == '"'.or.expr(lp:lp) == "'")
           lp = lp + 1
           if (lp > ll) exit main
@@ -1770,11 +1775,16 @@ contains
 #ifdef HAVE_LIBXC
        ia = tointeger(q(nq))
 
+       ! dirty trick for syncing the threads
        if (.not.ifun(ia)%init) then
-          ifun(ia)%id = ia
-          ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
-          call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
-          ifun(ia)%init = .true.
+          !$omp critical (ifuninit)
+          if (.not.ifun(ia)%init) then
+             ifun(ia)%id = ia
+             ifun(ia)%family = xc_f90_family_from_id(ifun(ia)%id)
+             call xc_f90_func_init(ifun(ia)%conf,ifun(ia)%info,ifun(ia)%id,XC_UNPOLARIZED)
+             ifun(ia)%init = .true.
+          end if
+          !$omp end critical (ifuninit)
        endif
 
        if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&

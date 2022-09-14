@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Toolbox with miscellaneous tools.
 submodule (tools) proc
   implicit none
 
@@ -408,6 +409,65 @@ contains
 
   end subroutine mergesort_i4
 
+  !> Sort a variable-length string array (arr(ini:n)) in ascending
+  !> order by mergesort. Returns the ordering permutation in array
+  !> iord (normally, iord = ini:n). This sort is stable and uses n
+  !> additional work space.
+  module subroutine mergesort_str(arr, iord, ini, n)
+    type(vstring), dimension(:), intent(in) :: arr
+    integer, dimension(:), intent(inout) :: iord
+    integer, intent(in) :: ini, n
+
+    integer :: w, i
+    integer :: ileft, iright, iend
+    integer :: i0, i1, k
+    integer, allocatable :: iaux(:)
+    logical :: doleft, useaux
+
+    if (n <= ini) return
+    w = 1
+    allocate(iaux(ini:n))
+
+    useaux = .false.
+    do while (w < n)
+       useaux = .not.useaux
+       do i = ini, n, 2*w
+          ileft = i
+          iright = min(i+w,n)
+          iend = min(i+2*w,n+1)
+
+          i0 = ileft
+          i1 = iright
+          do k = ileft, iend-1
+             doleft = (i1 >= iend)
+             if (useaux) then
+                if (.not.doleft) doleft = (arr(iord(i0))%s <= arr(iord(i1))%s)
+                if (i0 < iright .and. doleft) then
+                   iaux(k) = iord(i0)
+                   i0 = i0 + 1
+                else
+                   iaux(k) = iord(i1)
+                   i1 = i1 + 1
+                end if
+             else
+                if (.not.doleft) doleft = (arr(iaux(i0))%s <= arr(iaux(i1))%s)
+                if (i0 < iright .and. doleft) then
+                   iord(k) = iaux(i0)
+                   i0 = i0 + 1
+                else
+                   iord(k) = iaux(i1)
+                   i1 = i1 + 1
+                end if
+             end if
+          end do
+       end do
+       w = 2 * w
+    end do
+    if (useaux) iord(ini:n) = iaux
+    deallocate(iaux)
+
+  end subroutine mergesort_str
+
   !> Return the atom type for TINKER's tiny force field (see tiny.prm
   !> in the TINKER distribution). iz is the atomic number and nn is
   !> the number of neighbors. Return 0 if the atom is unknown.
@@ -618,7 +678,7 @@ contains
   module subroutine wscell(m_x2c,doreduction,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
      isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
      isortho_del)
-    use, intrinsic :: iso_c_binding, only: c_int, c_double
+    use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use tools_math, only: cross, matinv, mnorm2
     use tools_io, only: ferror, faterr
     use param, only: eye
@@ -647,19 +707,21 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
+         type(c_ptr) :: fid
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws) bind(c)
-         use, intrinsic :: iso_c_binding, only: c_int, c_double
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
+         type(c_ptr), value :: fid
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -687,6 +749,7 @@ contains
     real*8 :: m_xr2c_(3,3) !< reduced cryst -> input cartesian matrix
     real*8 :: m_c2xr_(3,3) !< cartesian -> reduced cryst matrix
     integer, allocatable :: ineighxr_(:,:) !< WS neighbor lattice points (del cell, cryst.)
+    type(c_ptr), target :: fid ! file handle
 
     ! delaunay reduction
     call delaunay_reduction(m_x2c,rmat,rbas=rdel)
@@ -715,10 +778,10 @@ contains
     end do
 
     ! determine the WS cell
-    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_)
+    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_,fid)
     allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
     nside_ = 0
-    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_)
+    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
     if (present(nf)) nf = nf_
     if (present(nv)) nv = nv_
     if (present(mnfv)) mnfv = mnfv_

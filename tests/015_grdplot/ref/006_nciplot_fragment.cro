@@ -12,10 +12,10 @@
   RDG cutoff (for dat file): 1.000000
   Density plot cutoff: 0.120000
   RDG plot cutoff: 0.300000
-+ Cube origin (crystal coord.): 0.200000 0.200000 0.200000
-  Cube end (crystal coord.): 0.800000 0.800000 0.800000
-  Cube nodes in each direction: 2 2 2
-  Cube steps in each direction: 3.154898 3.154898 2.655443
-  Cube side lengths in each direction (bohr): 6.3098 6.3098 5.3109
++ Cube origin (crystal coord.): 0.200000 0.200000 0.200000 
+  Cube end (crystal coord.): 0.800000 0.800000 0.800000 
+  Cube nodes in each direction: 2 2 2 
+  Cube steps in each direction: 3.154898 3.154898 2.655443 
+  Cube side lengths in each direction (bohr): 6.3098 6.3098 5.3109 
   Using scalar field differentiation for derivative calculation.
 

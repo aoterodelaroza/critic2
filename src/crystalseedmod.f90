@@ -1,5 +1,4 @@
-! Copyright (c) 2015 Alberto Otero de la Roza
-! <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -18,10 +17,10 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! Crystal seed class. External file readers.
+! Crystal seed class, contains the structure file readers.
 module crystalseedmod
   use fragmentmod, only: fragment
-  use types, only: species
+  use types, only: species, thread_info
   use param, only: mlen
   implicit none
 
@@ -59,6 +58,9 @@ module crystalseedmod
      real*8 :: border = 0d0 !< border of the molecular cell (bohr)
      logical :: havex0 = .false. !< an origin of the cell for molecules has bene given
      real*8 :: molx0(3) = 0d0 !< origin of the cell for molecules
+     ! calculated properties
+     real*8 :: energy = huge(1d0) !< energy (Hartree)
+     real*8 :: pressure = huge(1d0) !< pressure (GPa)
    contains
      procedure :: end => seed_end !< Deallocate arrays and nullify variables
      procedure :: parse_crystal_env
@@ -121,11 +123,13 @@ module crystalseedmod
        integer, intent(in) :: lu
        logical, intent(out) :: oksyn
      end subroutine parse_molecule_env
-     module subroutine read_library(seed,line,mol,oksyn)
+     module subroutine read_library(seed,line,oksyn,mol,file,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: line
-       logical, intent(in) :: mol
        logical, intent(out) :: oksyn
+       logical, intent(in), optional :: mol
+       character*(*), intent(in), optional :: file
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_library
      module subroutine from_fragment(seed,fr,order_by_cidx0)
        class(crystalseed), intent(inout) :: seed
@@ -135,128 +139,147 @@ module crystalseedmod
      module subroutine strip_hydrogens(seed)
        class(crystalseed), intent(inout) :: seed
      end subroutine strip_hydrogens
-     module subroutine read_any_file(seed,file,mol0,errmsg)
+     module subroutine read_any_file(seed,file,mol0,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        integer, intent(in) :: mol0
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_any_file
-     module subroutine read_cif(seed,file,dblock,mol,errmsg)
+     module subroutine read_cif(seed,file,dblock,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        character*(*), intent(in) :: dblock
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_cif
-     module subroutine read_shelx(seed,file,mol,errmsg)
+     module subroutine read_shelx(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout)  :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_shelx
-     module subroutine read_f21(seed,file,mol,errmsg)
+     module subroutine read_f21(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_f21
-     module subroutine read_cube(seed,file,mol,errmsg)
+     module subroutine read_cube(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_cube
-     module subroutine read_bincube(seed,file,mol,errmsg)
+     module subroutine read_bincube(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_bincube
-     module subroutine read_wien(seed,file,mol,errmsg)
+     module subroutine read_wien(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_wien
-     module subroutine read_vasp(seed,file,mol,hastypes,errmsg)
+     module subroutine read_vasp(seed,file,mol,hastypes,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        logical, intent(out) :: hastypes
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_vasp
-     module subroutine read_abinit(seed,file,mol,errmsg)
+     module subroutine read_abinit(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_abinit
-     module subroutine read_elk(seed,file,mol,errmsg)
+     module subroutine read_elk(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_elk
-     module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg)
+     module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        integer, intent(in) :: fmt
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_mol
-     module subroutine read_qeout(seed,file,mol,istruct,errmsg)
+     module subroutine read_qeout(seed,file,mol,istruct,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        integer, intent(in) :: istruct
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_qeout
-     module subroutine read_qein(seed,file,mol,errmsg)
+     module subroutine read_qein(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_qein
-     module subroutine read_crystalout(seed,file,mol,errmsg)
+     module subroutine read_crystalout(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_crystalout
-     module subroutine read_siesta(seed,file,mol,errmsg)
+     module subroutine read_siesta(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_siesta
-     module subroutine read_dmain(seed,file,mol,errmsg)
+     module subroutine read_dmain(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_dmain
-     module subroutine read_dftbp(seed,file,rborder,docube,errmsg)
+     module subroutine read_dftbp(seed,file,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_dftbp
-     module subroutine read_xsf(seed,file,rborder,docube,errmsg)
+     module subroutine read_xsf(seed,file,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_xsf
-     module subroutine read_pwc(seed,file,mol,errmsg)
+     module subroutine read_pwc(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_pwc
-     module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg)
+     module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        integer, intent(in) :: nread0
@@ -264,55 +287,67 @@ module crystalseedmod
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_axsf
-     module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg)
+     module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_aimsin
-     module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg)
+     module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_aimsout
-     module subroutine read_tinkerfrac(seed,file,mol,errmsg)
+     module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_tinkerfrac
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_crystalseed
-     module subroutine struct_detect_format(file,isformat,alsofield)
+     module subroutine struct_detect_format(file,isformat,alsofield,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: isformat
        logical, intent(out), optional :: alsofield
+       type(thread_info), intent(in), optional :: ti
      end subroutine struct_detect_format
-     module subroutine struct_detect_ismol(file,isformat,ismol)
+     module subroutine struct_detect_ismol(file,isformat,ismol,ti)
        character*(*), intent(in) :: file
        integer, intent(in) :: isformat
        logical, intent(out) :: ismol
+       type(thread_info), intent(in), optional :: ti
      end subroutine struct_detect_ismol
-     module subroutine read_potcar(seed,file,errmsg)
+     module subroutine read_potcar(seed,file,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_potcar
-     module subroutine read_seeds_from_file(file,mol0,nseed,seed,errmsg,iafield)
+     module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
+        nseed,seed,collapse,errmsg,iafield,ti)
        character*(*), intent(in) :: file
        integer, intent(in) :: mol0
+       integer, intent(in) :: isformat0
+       logical, intent(in) :: readlastonly
        integer, intent(out) :: nseed
        type(crystalseed), allocatable, intent(inout) :: seed(:)
+       logical, intent(out) :: collapse
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_seeds_from_file
   end interface
 

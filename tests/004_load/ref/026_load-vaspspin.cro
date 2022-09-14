@@ -1,10 +1,11 @@
 + Field number 1
+  Name: CHGCAR
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
-  Grid dimensions : 50  40  56
-  Max. length Voronoi-relevant vector (bohr):  0.22958
-  First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
-  Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
+  Grid dimensions : 50  40  56  
+  Max. length Voronoi-relevant vector (bohr):  0.22958  
+  First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02  
+  Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02  
   Sum of elements... 1.359728581679E+04
   Sum of squares of elements... 8.996573645613E+03
   Cell integral (grid SUM) = 67.99999850
@@ -22,12 +23,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: CHGCAR
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
-  Grid dimensions : 50  40  56
-  Max. length Voronoi-relevant vector (bohr):  0.22958
-  First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02
-  Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02
+  Grid dimensions : 50  40  56  
+  Max. length Voronoi-relevant vector (bohr):  0.22958  
+  First elements... 1.403478891793E-02  1.395092231276E-02  1.370983304481E-02  
+  Last elements... 1.419898242958E-02  1.473841972345E-02  1.517102678619E-02  
   Sum of elements... 1.359728581679E+04
   Sum of squares of elements... 8.996573645613E+03
   Cell integral (grid SUM) = 67.99999850
@@ -43,12 +45,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: CHGCAR
   Source: ../zz_source/vasp-5.3.3/cuo/CHGCAR
   Type: grid
-  Grid dimensions : 50  40  56
-  Max. length Voronoi-relevant vector (bohr):  0.22958
-  First elements... -6.226877545933E-04  -6.177467460372E-04  -6.032108254941E-04
-  Last elements... -5.865005252390E-04  -6.141022018626E-04  -6.346120592282E-04
+  Grid dimensions : 50  40  56  
+  Max. length Voronoi-relevant vector (bohr):  0.22958  
+  First elements... -6.226877545933E-04  -6.177467460372E-04  -6.032108254941E-04  
+  Last elements... -5.865005252390E-04  -6.141022018626E-04  -6.346120592282E-04  
   Sum of elements... -1.116499275845E-10
   Sum of squares of elements... 6.048697289968E+01
   Cell integral (grid SUM) = -0.00000000
@@ -64,12 +67,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: CHG
   Source: ../zz_source/vasp-5.3.3/cuo/CHG
   Type: grid
-  Grid dimensions : 50  40  56
-  Max. length Voronoi-relevant vector (bohr):  0.22958
-  First elements... 1.403487734992E-02  1.395096552646E-02  1.370976366794E-02
-  Last elements... 1.419895174517E-02  1.473848691647E-02  1.517107914681E-02
+  Grid dimensions : 50  40  56  
+  Max. length Voronoi-relevant vector (bohr):  0.22958  
+  First elements... 1.403487734992E-02  1.395096552646E-02  1.370976366794E-02  
+  Last elements... 1.419895174517E-02  1.473848691647E-02  1.517107914681E-02  
   Sum of elements... 1.359728588756E+04
   Sum of squares of elements... 8.996571887307E+03
   Cell integral (grid SUM) = 67.99999885
@@ -85,12 +89,13 @@
   Alias for this field (1): $4
 
 + Field number 5
+  Name: CHG
   Source: ../zz_source/vasp-5.3.3/cuo/CHG
   Type: grid
-  Grid dimensions : 50  40  56
-  Max. length Voronoi-relevant vector (bohr):  0.22958
-  First elements... -6.226792908540E-04  -6.177517029228E-04  -6.032188892418E-04
-  Last elements... -5.865079388665E-04  -6.141095727128E-04  -6.346054819338E-04
+  Grid dimensions : 50  40  56  
+  Max. length Voronoi-relevant vector (bohr):  0.22958  
+  First elements... -6.226792908540E-04  -6.177517029228E-04  -6.032188892418E-04  
+  Last elements... -5.865079388665E-04  -6.141095727128E-04  -6.346054819338E-04  
   Sum of elements... -2.008504188830E-05
   Sum of squares of elements... 6.048708583256E+01
   Cell integral (grid SUM) = -0.00000010
@@ -105,27 +110,27 @@
   Number of critical points in the unit cell: 8
   Alias for this field (1): $5
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (bohr): 0.4409156  1.3246005  2.9028142
-  Coordinates (ang): 0.2333225  0.7009484  1.5361031
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.4409156  1.3246005  2.9028142  
+  Coordinates (ang): 0.2333225  0.7009484  1.5361031  
 + Field: 1
   Type : (3,-1)
   Field value (f): 5.155732505E-02
   Field value, valence (fval): 5.155732505E-02
-  Gradient (grad f): -5.001115044E-02  9.941542903E-02  -3.466794159E-02
+  Gradient (grad f): -5.001115044E-02  9.941542903E-02  -3.466794159E-02  
   Gradient norm (|grad f|): 1.165607519E-01
   Gradient norm, valence: 0.000000000E+00
   Laplacian (del2 f): 1.235501618E-01
   Laplacian, valence (del2 fval): 1.235501618E-01
   Hessian:
-     6.540650526E-05  -1.433287902E-01   3.704504383E-02
-    -1.433287902E-01   1.373065043E-01  -9.478629353E-02
-     3.704504383E-02  -9.478629353E-02  -1.382174903E-02
-  Hessian eigenvalues: -9.720940389E-02  -4.296117330E-02  2.637207389E-01
+     6.540650526E-05  -1.433287902E-01   3.704504383E-02  
+    -1.433287902E-01   1.373065043E-01  -9.478629353E-02  
+     3.704504383E-02  -9.478629353E-02  -1.382174903E-02  
+  Hessian eigenvalues: -9.720940389E-02  -4.296117330E-02  2.637207389E-01  
   Ellipticity (l_1/l_2 - 1): 1.262726933E+00
-  Field 0 (f,|grad|,lap): 4.609783626E-02  1.021050374E-01  1.892880339E-01
-  Field 2 (f,|grad|,lap): 5.155732505E-02  1.165607519E-01  1.235501618E-01
-  Field 3 (f,|grad|,lap): 1.618646376E-03  3.473435843E-03  -2.088617566E-03
-  Field 4 (f,|grad|,lap): 5.155680978E-02  1.165605353E-01  1.238116774E-01
-  Field 5 (f,|grad|,lap): 1.618640364E-03  3.473205141E-03  -2.095264181E-03
+  Field 0 (f,|grad|,lap): 4.609783626E-02  1.021050374E-01  1.892880339E-01  
+  Field 2 (f,|grad|,lap): 5.155732505E-02  1.165607519E-01  1.235501618E-01  
+  Field 3 (f,|grad|,lap): 1.618646376E-03  3.473435843E-03  -2.088617566E-03  
+  Field 4 (f,|grad|,lap): 5.155680978E-02  1.165605353E-01  1.238116774E-01  
+  Field 5 (f,|grad|,lap): 1.618640364E-03  3.473205141E-03  -2.095264181E-03  
 

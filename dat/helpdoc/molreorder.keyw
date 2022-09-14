@@ -1,0 +1,1 @@
+MOLREORDER template.s target.s [WRITE file.s] [MOVEATOMS] [INV] [UMEYAMA|ULLMANN]

@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,11 +15,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Interface to aiPI (pi7) densities and structures.
 submodule (pi_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine read_ion(f,fichero,ni)
+  ! subroutine read_ion(f,fichero,ni,ti)
   ! subroutine buscapar(line,chpar,nchpar,ipar,nipar)
   ! function entero (palabra,ipal)
   ! subroutine rhoex1(f,ni,rion0,rhoval,firstder,secondder)
@@ -50,7 +51,7 @@ contains
   end subroutine pi_end
 
   !> Build a pi field from external file
-  module subroutine pi_read(f,nfile,piat,file,env,errmsg)
+  module subroutine pi_read(f,nfile,piat,file,env,errmsg,ti)
     use global, only: cutrad
     use tools_io, only: isinteger, equali
     use param, only: mlen
@@ -60,6 +61,7 @@ contains
     character(len=mlen), intent(in) :: file(:)
     type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, ithis
     logical :: iok, found
@@ -79,11 +81,11 @@ contains
        found = .false.
        do j = 1, env%nspc
           if (equali(piat(i),env%spc(j)%name)) then
-             call read_ion(f,file(i),j)
+             call read_ion(f,file(i),j,ti=ti)
              found = .true.
           else if (iok) then
              if (ithis == j) then
-                call read_ion(f,file(i),j)
+                call read_ion(f,file(i),j,ti=ti)
                 found = .true.
              end if
           end if
@@ -168,6 +170,8 @@ contains
 
     real*8, parameter :: pi4 = 4d0 * pi
     real*8, parameter :: eps = 1d-6
+    real*8, parameter :: eps0 = 1d-7
+
     integer :: ion
     integer :: i, j, k, j1, l
     real*8 :: xion, yion, zion, rions2, rion, rion1, rion2
@@ -178,8 +182,6 @@ contains
     integer :: n0, nm1, nm2, nenv, ierr
     real*8 :: tmprho
     integer, allocatable :: eid(:)
-
-    real*8, parameter :: eps0 = 1d-7
 
     ! calculate the environment of the input point
     rho = 0d0
@@ -304,12 +306,13 @@ contains
   !xx! private procedures
 
   !> Read a PI ion description file from file fichero and species ni.
-  subroutine read_ion(f,fichero,ni)
+  subroutine read_ion(f,fichero,ni,ti)
     use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
     use param, only: fact, zero
     type(piwfn), intent(inout) :: f
     character*(*) :: fichero
     integer :: ni
+    type(thread_info), intent(in), optional :: ti
 
     ! parameters
     integer, parameter :: mpar=5
@@ -354,7 +357,7 @@ contains
     allocate(f%bas(ni)%nelec(maos))
 
     !.....abrir el fichero:
-    lui=fopen_read(fichero)
+    lui=fopen_read(fichero,ti=ti)
 
     !.....Determinar la version de pi a que corresponde el fichero:
     ok = getline_raw(lui,linea,.true.)
@@ -607,11 +610,11 @@ contains
     real*8, intent(out) :: rhoval, firstder, secondder
 
     real*8, parameter :: pi4 = 4d0 * pi
+    real*8, parameter :: eps0 = 1d-7
+
     real*8  :: dumr, dumgr, dumgr2, gradr, grad2r
     real*8  :: or, zj, rion, rion1, rion2
     integer :: nj1, nj2, l, norb, norb1, j, j1
-
-    real*8, parameter :: eps0 = 1d-7
 
     rhoval = zero
     gradr = zero

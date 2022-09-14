@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Scalar field seed class.
 submodule (fieldseedmod) proc
   implicit none
 
@@ -174,60 +175,8 @@ contains
     end if
 
     ! detect the field extension
-    if (f%iff == ifformat_unknown) then
-       if (equal(extdot,'cube')) then
-          f%iff = ifformat_cube
-       elseif (equal(extdot,'bincube')) then
-          f%iff = ifformat_bincube
-       else if (equal(extdot,'DEN').or.equal(extund,'DEN').or.equal(extdot,'ELF').or.equal(extund,'ELF').or.&
-          equal(extdot,'POT').or.equal(extund,'POT').or.equal(extdot,'VHA').or.equal(extund,'VHA').or.&
-          equal(extdot,'VHXC').or.equal(extund,'VHXC').or.equal(extdot,'VXC').or.equal(extund,'VXC').or.&
-          equal(extdot,'GDEN1').or.equal(extund,'GDEN1').or.equal(extdot,'GDEN2').or.equal(extund,'GDEN2').or.&
-          equal(extdot,'GDEN3').or.equal(extund,'GDEN3').or.equal(extdot,'LDEN').or.equal(extund,'LDEN').or.&
-          equal(extdot,'KDEN').or.equal(extund,'KDEN').or.equal(extdot,'PAWDEN').or.equal(extund,'PAWDEN').or.&
-          equal(extdot,'VCLMB').or.equal(extund,'VCLMB').or.equal(extdot,'VPSP').or.equal(extund,'VPSP')) then
-          f%iff = ifformat_abinit
-       else if (equal(extdot,'RHO') .or. equal(extdot,'BADER') .or.&
-          equal(extdot,'DRHO') .or. equal(extdot,'LDOS') .or.&
-          equal(extdot,'VT') .or. equal(extdot,'VH')) then
-          f%iff = ifformat_siestagrid
-       else if (equal(extdot,'xml')) then
-          f%iff = ifformat_dftb
-       else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.&
-          equal(extdot,'AECCAR0').or.equal(extdot,'AECCAR1').or.&
-          equal(extdot,'AECCAR2')) then
-          f%iff = ifformat_vasp
-       else if (equal(extdot,'ELFCAR')) then
-          f%iff = ifformat_vaspnov
-       else if (equal(extdot,'qub')) then
-          f%iff = ifformat_qub
-       else if (equal(extdot,'xsf')) then
-          f%iff = ifformat_xsf
-       else if (equal(extdot,'wfn')) then
-          f%iff = ifformat_wfn
-       else if (equal(extdot,'wfx')) then
-          f%iff = ifformat_wfx
-       else if (equal(extdot,'fchk')) then
-          f%iff = ifformat_fchk
-       else if (equal(extdot,'molden')) then
-          f%iff = ifformat_molden
-          f%molden_type = molden_type_unknown
-       else if (equal(extdot2,'molden.input')) then
-          f%iff = ifformat_molden
-          f%molden_type = molden_type_orca
-       else if (equal(extdot,'clmsum').or.equal(extdot,'clmup').or.equal(extdot,'clmdn')) then
-          f%iff = ifformat_wien
-       else if (equal(extdot,'grid')) then
-          f%iff = ifformat_elkgrid
-       else if (equal(extdot,'OUT')) then
-          f%iff = ifformat_elk
-       else if (equal(extdot,'ion')) then
-          f%iff = ifformat_pi
-       else if (equal(extdot,'pwc')) then
-          f%iff = ifformat_pwc
-       end if
-    end if
-
+    if (f%iff == ifformat_unknown) &
+       f%iff = field_detect_format(file,f%molden_type)
     if (f%iff == ifformat_unknown) then
        call f%end()
        f%errmsg = "unknown file format"
@@ -447,7 +396,8 @@ contains
           call backtrack()
           f%iff = ifformat_as
           ok = isexpression(word,line,lp)
-          if (.not.ok .or. len_trim(word) < 1) then
+          if (ok) ok = len_trim(word) >= 1
+          if (.not.ok) then
              call f%end()
              f%errmsg = "wrong expression in load as"
              return
@@ -505,7 +455,6 @@ contains
       lpo = lp
       file = getword(line,lp)
       lfile = lower(file)
-      word = file(index(file,dirsep,.true.)+1:)
       word = file(index(file,dirsep,.true.)+1:)
       extund = word(index(word,'_',.true.)+1:)
 
@@ -688,5 +637,90 @@ contains
     if (present(lp0)) lp0 = lp
 
   end subroutine fieldseed_parse_options
+
+  !> Detect the field format from the file name (extension).
+  module function field_detect_format(file,molden_type)
+    use wfn_private, only: molden_type_unknown, molden_type_orca
+    use tools_io, only: ferror, faterr, equal
+    use param, only: dirsep,&
+       ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,&
+       ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,&
+       ifformat_xsf,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,&
+       ifformat_molden,ifformat_wien,ifformat_elkgrid,ifformat_elk,&
+       ifformat_pi,ifformat_pwc,ifformat_unknown
+    character*(*), intent(in) :: file
+    integer, intent(out), optional :: molden_type
+    integer :: field_detect_format
+
+    character(len=:), allocatable :: extdot, extdot2, word, extund
+    integer :: lp, idx
+
+    word = file(index(file,dirsep,.true.)+1:)
+    idx = index(word,'.',.true.)
+    extdot = word(idx+1:)
+    extund = word(index(word,'_',.true.)+1:)
+
+    idx = index(word,'.',.true.)
+    if (idx > 0) then
+       extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
+    else
+       extdot2 = ""
+    end if
+
+    if (equal(extdot,'cube')) then
+       field_detect_format = ifformat_cube
+    elseif (equal(extdot,'bincube')) then
+       field_detect_format = ifformat_bincube
+    else if (equal(extdot,'DEN').or.equal(extund,'DEN').or.equal(extdot,'ELF').or.equal(extund,'ELF').or.&
+       equal(extdot,'POT').or.equal(extund,'POT').or.equal(extdot,'VHA').or.equal(extund,'VHA').or.&
+       equal(extdot,'VHXC').or.equal(extund,'VHXC').or.equal(extdot,'VXC').or.equal(extund,'VXC').or.&
+       equal(extdot,'GDEN1').or.equal(extund,'GDEN1').or.equal(extdot,'GDEN2').or.equal(extund,'GDEN2').or.&
+       equal(extdot,'GDEN3').or.equal(extund,'GDEN3').or.equal(extdot,'LDEN').or.equal(extund,'LDEN').or.&
+       equal(extdot,'KDEN').or.equal(extund,'KDEN').or.equal(extdot,'PAWDEN').or.equal(extund,'PAWDEN').or.&
+       equal(extdot,'VCLMB').or.equal(extund,'VCLMB').or.equal(extdot,'VPSP').or.equal(extund,'VPSP')) then
+       field_detect_format = ifformat_abinit
+    else if (equal(extdot,'RHO') .or. equal(extdot,'BADER') .or.&
+       equal(extdot,'DRHO') .or. equal(extdot,'LDOS') .or.&
+       equal(extdot,'VT') .or. equal(extdot,'VH')) then
+       field_detect_format = ifformat_siestagrid
+    else if (equal(extdot,'xml')) then
+       field_detect_format = ifformat_dftb
+    else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.&
+       equal(extdot,'AECCAR0').or.equal(extdot,'AECCAR1').or.&
+       equal(extdot,'AECCAR2')) then
+       field_detect_format = ifformat_vasp
+    else if (equal(extdot,'ELFCAR')) then
+       field_detect_format = ifformat_vaspnov
+    else if (equal(extdot,'qub')) then
+       field_detect_format = ifformat_qub
+    else if (equal(extdot,'xsf')) then
+       field_detect_format = ifformat_xsf
+    else if (equal(extdot,'wfn')) then
+       field_detect_format = ifformat_wfn
+    else if (equal(extdot,'wfx')) then
+       field_detect_format = ifformat_wfx
+    else if (equal(extdot,'fchk')) then
+       field_detect_format = ifformat_fchk
+    else if (equal(extdot,'molden')) then
+       field_detect_format = ifformat_molden
+       molden_type = molden_type_unknown
+    else if (equal(extdot2,'molden.input')) then
+       field_detect_format = ifformat_molden
+       molden_type = molden_type_orca
+    else if (equal(extdot,'clmsum').or.equal(extdot,'clmup').or.equal(extdot,'clmdn')) then
+       field_detect_format = ifformat_wien
+    else if (equal(extdot,'grid')) then
+       field_detect_format = ifformat_elkgrid
+    else if (equal(extdot,'OUT')) then
+       field_detect_format = ifformat_elk
+    else if (equal(extdot,'ion')) then
+       field_detect_format = ifformat_pi
+    else if (equal(extdot,'pwc')) then
+       field_detect_format = ifformat_pwc
+    else
+       field_detect_format = ifformat_unknown
+    end if
+
+  end function field_detect_format
 
 end submodule proc

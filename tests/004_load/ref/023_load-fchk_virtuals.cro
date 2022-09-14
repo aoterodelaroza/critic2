@@ -1,4 +1,5 @@
 + Field number 1
+  Name: h2o_hf.fchk
   Source: ../zz_source/g16A.03/h2o/h2o_hf.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -23,11 +24,11 @@
   Mesh level     good
 + Integral(2 * ($1:1)^2 + 2 * ($1:2)^2 + 2 * ($1:3)^2 + 2 * ($1:4)^2 + 2 * ($1:5)^2 - $1) = -0.00000000   
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
   Expression ($1:homo): 2.175139883E-01
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
   Expression ($1:lumo): 1.825147400E-03
 

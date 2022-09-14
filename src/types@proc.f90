@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> User-defined types and overloaded reallocation procedures.
 submodule (types) proc
   implicit none
 
@@ -57,6 +58,28 @@ contains
     s%avail_spin = .false.
 
   end subroutine scalar_value_clear
+
+  !> Adapt the size of an allocatable 1D type(vstring) array
+  module subroutine realloc_vstring(a,nnew)
+    type(vstring), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(vstring), allocatable :: temp(:)
+    integer :: l1, u1
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    l1 = lbound(a,1)
+    u1 = ubound(a,1)
+    if (u1 == nnew) return
+    allocate(temp(l1:nnew))
+
+    temp(l1:min(nnew,u1)) = a(l1:min(nnew,u1))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_vstring
 
   !> Adapt the size of an allocatable 1D type(pointpropable) array
   module subroutine realloc_pointpropable(a,nnew)

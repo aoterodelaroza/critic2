@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Scalar field class
 submodule (fieldmod) proc
   implicit none
 
@@ -243,7 +244,7 @@ contains
   !> and the parent system's C pointer (sptr). If an error was
   !> found, returns a non-zero-length error message (errmsg).
   !> Some new fields are handled at system level (see load_field_string).
-  module subroutine field_new(f,seed,c,id,sptr,errmsg)
+  module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
@@ -266,6 +267,7 @@ contains
     integer, intent(in) :: id
     type(c_ptr), intent(in) :: sptr
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, k, n(3)
     type(fragment) :: fr
@@ -297,30 +299,30 @@ contains
 
     elseif (seed%iff == ifformat_wien) then
        call f%wien%end()
-       call f%wien%read_clmsum(seed%file(1),seed%file(2))
+       call f%wien%read_clmsum(seed%file(1),seed%file(2),ti=ti)
        f%type = type_wien
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
           call f%grid%end()
-          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
+          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3))
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3),ti=ti)
           f%type = type_elk
           f%file = seed%file(3)
        endif
 
     elseif (seed%iff == ifformat_pi) then
-       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg)
+       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
           call f%end()
           return
@@ -330,55 +332,55 @@ contains
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
-       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        call f%grid%end()
-       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        call f%grid%end()
-       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env)
+       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
        call f%grid%end()
-       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        call f%grid%end()
-       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
        call f%grid%end()
-       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
        call f%grid%end()
-       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env)
+       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env)
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -388,70 +390,76 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env)
+          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env,ti=ti)
        if (seed%nfile == 2) then
-          call f%grid%read_wannier_chk(seed%file(2))
+          call f%grid%read_wannier_chk(seed%file(2),ti=ti)
        elseif (seed%nfile == 3) then
-          call f%grid%read_wannier_chk(seed%file(2),seed%file(3))
+          call f%grid%read_wannier_chk(seed%file(2),seed%file(3),ti=ti)
        end if
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1),f%c%env)
+       call f%wfn%read_wfn(seed%file(1),f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1),f%c%env)
+       call f%wfn%read_wfx(seed%file(1),f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env)
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env)
+       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_promolecular) then
        call f%load_promolecular(f%c,id,"<promolecular>")
+       f%name = "<promolecular>"
 
     elseif (seed%iff == ifformat_promolecular_fragment) then
-       fr = f%c%identify_fragment_from_xyz(seed%file(1))
+       fr = f%c%identify_fragment_from_xyz(seed%file(1),ti=ti)
        if (fr%nat == 0) then
           errmsg = "fragment contains unknown atoms"
           call f%end()
           return
        end if
        call f%load_promolecular(f%c,id,trim(seed%file(1)),fr)
+       f%name = "<promolecular using fragment>"
 
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
        if (seed%iff == ifformat_as_promolecular) then
           if (seed%nfile > 0) then
-             fr = c%identify_fragment_from_xyz(seed%file(1))
+             fr = c%identify_fragment_from_xyz(seed%file(1),ti=ti)
              if (fr%nat == 0) then
                 errmsg = "zero atoms in the fragment"
                 call f%end()
                 return
              end if
              call c%promolecular_grid(f%grid,seed%n,fr=fr)
+             f%name = "<generated>, promolecular grid using fragment"
           else
              call c%promolecular_grid(f%grid,seed%n)
+             f%name = "<generated>, promolecular grid"
           end if
        else
           call c%promolecular_grid(f%grid,seed%n,zpsp=c%zpsp)
+          f%name = "<generated>, core grid"
        end if
        f%type = type_grid
        f%file = ""
 
     elseif (seed%iff == ifformat_as_ghost) then
        call f%load_ghost(c,id,"<ghost>",seed%expr,sptr)
+       f%name = "<ghost>, " // trim(seed%expr)
 
     elseif (seed%iff == ifformat_as) then
        f%type = type_grid
@@ -484,6 +492,7 @@ contains
           !$omp end parallel do
           f%grid%isinit = .true.
        end if
+       f%name = "<generated>, grid: " // trim(seed%expr)
 
     elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
        seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
@@ -1052,7 +1061,6 @@ contains
     logical, intent(in), optional :: periodic
 
     real*8 :: err
-
     real*8 :: ww, hh, erract, n(ndif_jmax, ndif_jmax)
     real*8 :: fx, fp, fm, f0
     integer :: i, j
@@ -1277,11 +1285,11 @@ contains
        ! grids
        n = f%grid%n
        if (isload) then
-          write (uout,'("  Grid dimensions : ",3(A,2X))') (string(n(j)),j=1,3)
-          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,2X))') iunitname0(iunit), &
+          write (uout,'("  Grid dimensions : ",3(A,"  "))') (string(n(j)),j=1,3)
+          write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,"  "))') iunitname0(iunit), &
              string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
-          write (uout,'("  First elements... ",3(A,2X))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
-          write (uout,'("  Last elements... ",3(A,2X))') &
+          write (uout,'("  First elements... ",3(A,"  "))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
+          write (uout,'("  Last elements... ",3(A,"  "))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
           write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
           write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
@@ -1327,7 +1335,7 @@ contains
           else
              str = "<not used>"
           end if
-          write (uout,'(99(2X,A))') &
+          write (uout,'(99("  ",A))') &
              string(i,length=3,justify=ioj_right), &
              string(f%c%spc(f%c%at(i)%is)%name,length=5,justify=ioj_center), &
              string(f%c%spc(f%c%at(i)%is)%z,length=2,justify=ioj_right), &
@@ -1421,13 +1429,13 @@ contains
        write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
           string(f%grid%qe%nbnd)
        do i = 1, f%grid%qe%nks
-          write (uout,'("# kpt ",A," (",A,X,A,X,A,") w=",A)') string(i,2,justify=ioj_right), &
+          write (uout,'("# kpt ",A," (",A," ",A," ",A,") w=",A)') string(i,2,justify=ioj_right), &
              (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
              string(f%grid%qe%wk(i),'e',decimal=8)
           do is = 1, f%grid%qe%nspin
-             write (uout,'("  Ek(",A,"):",99(X,A))') string(is),&
+             write (uout,'("  Ek(",A,"):",99(" ",A))') string(is),&
                 (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(" Occ(",A,"):",99(X,A))') string(is),&
+             write (uout,'(" Occ(",A,"):",99(" ",A))') string(is),&
                 (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
           end do
        end do
@@ -1436,13 +1444,13 @@ contains
     if (f%grid%iswan) then
        write (uout,*)
        write (uout,'("+ Wannier functions information for this field")')
-       write (uout,'("  Real-space lattice vectors: ",3(A,X))') (string(f%grid%qe%nk(i)),i=1,3)
+       write (uout,'("  Real-space lattice vectors: ",3(A," "))') (string(f%grid%qe%nk(i)),i=1,3)
        write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
        write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
        write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
        do i = 1, f%grid%qe%nspin
           do j = 1, f%grid%qe%nbndw(i)
-             write (uout,'(2X,99(A,X))') string(j,4,ioj_center), string(i,2,ioj_center), &
+             write (uout,'("  ",99(A," "))') string(j,4,ioj_center), string(i,2,ioj_center), &
                 (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
                 string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
           end do
@@ -1641,13 +1649,14 @@ contains
 
   !> Test the muffin tin discontinuity. ilvl = 0: quiet. ilvl = 1:
   !> normal output.  ilvl = 2: verbose output.
-  module subroutine testrmt(f,ilvl,errmsg)
+  module subroutine testrmt(f,ilvl,errmsg,ti)
     use tools_io, only: uout, ferror, warning, string, fopen_write, fclose
     use types, only: scalar_value
     use param, only: pi
     class(field), intent(inout) :: f
     integer, intent(in) :: ilvl
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     integer :: n, i, j
     integer :: ntheta, nphi
@@ -1690,12 +1699,12 @@ contains
        end if
 
        xnuc = f%c%at(n)%x
-       if (ilvl > 1) write (uout,'("  coords = ",3(A,X))') (string(xnuc(j),'f',decimal=9),j=1,3)
+       if (ilvl > 1) write (uout,'("  coords = ",3(A," "))') (string(xnuc(j),'f',decimal=9),j=1,3)
        xnuc = f%c%x2c(xnuc)
 
        if (ilvl > 1) then
           write (uout,'("  rmt = ",A)') string(rmt,'f',decimal=7)
-          write (uout,'(2(A8,X),6(A12,X),A4)') "Azim.", "Polar", "f_in",&
+          write (uout,'(2(A8," "),6(A12," "),A4)') "Azim.", "Polar", "f_in",&
              "f_out", "f_in-f_out", "gf_in", "gf_out", "gf_in-gf_out", "ok?"
           write (uout,'(100("-"))')
        end if
@@ -1707,10 +1716,10 @@ contains
        if (ilvl > 1) then
           ! write line
           linefile = "plane_" // string(n,2,pad0=.true.) // ".dbg"
-          luplane = fopen_write(linefile)
+          luplane = fopen_write(linefile,ti=ti)
           write (luplane,'("#",A,I3)') " atom: ", n
-          write (luplane,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
-          write (luplane,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+          write (luplane,'("#",A,1p,3(E20.13," "))') " at: ", f%c%at(n)%x
+          write (luplane,'("#",A,1p,3(E20.13," "))') " atc: ", xnuc
           write (luplane,'("#",A,1p,E20.13)') " rmt: ", rmt
           write (luplane,'("#  theta phi in out")')
        end if
@@ -1739,7 +1748,7 @@ contains
 
              if (ilvl > 1) then
                 ! write line
-                write (luplane,'(1p,4(E20.13,X))') theta, phi, fin, fout
+                write (luplane,'(1p,4(E20.13," "))') theta, phi, fin, fout
              end if
 
              if (gfin*gfout > 0d0) then
@@ -1751,19 +1760,19 @@ contains
                    ! write line
                    linefile = "line_" // string(n,2,pad0=.true.) // "_" // string(nt,3,pad0=.true.) //&
                       "_" // string(np,3,pad0=.true.) // ".dbg"
-                   luline = fopen_write(linefile)
+                   luline = fopen_write(linefile,ti=ti)
                    write (luline,'("#",A,I3)') " atom: ", n
-                   write (luline,'("#",A,1p,3(E20.13,X))') " at: ", f%c%at(n)%x
-                   write (luline,'("#",A,1p,3(E20.13,X))') " atc: ", xnuc
+                   write (luline,'("#",A,1p,3(E20.13," "))') " at: ", f%c%at(n)%x
+                   write (luline,'("#",A,1p,3(E20.13," "))') " atc: ", xnuc
                    write (luline,'("#",A,1p,E20.13)') " rmt: ", rmt
-                   write (luline,'("#",A,1p,3(E20.13,X))') " dir: ", dir
+                   write (luline,'("#",A,1p,3(E20.13," "))') " dir: ", dir
                    write (luline,'("#",A,1p,E20.13)') " r_ini: ", 0.50d0 * rmt
                    write (luline,'("#",A,1p,E20.13)') " r_end: ", 4.50d0 * rmt
                    do i = 0, 1000
                       r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
                       xp = xnuc + r * dir
                       call f%grd(xp,1,res)
-                      write (luline,'(1p,3(E20.13,X))') r, res%f, dot_product(res%gf,xp-xnuc) / r
+                      write (luline,'(1p,3(E20.13," "))') r, res%f, dot_product(res%gf,xp-xnuc) / r
                    end do
                    call fclose(luline)
                 end if
@@ -1773,7 +1782,7 @@ contains
                 mepsp = max(epsp,mepsp)
                 nfail(n) = nfail(n) + 1
              end if
-             if (ilvl > 1) write (uout,'(2(F8.4,X),1p,6(E12.4,X),0p,A4)') &
+             if (ilvl > 1) write (uout,'(2(F8.4," "),1p,6(E12.4," "),0p,A4)') &
                 theta, phi, fin, fout, fin-fout, gfin, gfout, gfin-gfout, label
           end do
        end do
@@ -1790,7 +1799,7 @@ contains
              string(n), string(mepsm+1d-3,'f',decimal=6), string(mepsp+1d-3,'f',decimal=6)
           write (uout,*)
        end if
-       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,2X))') &
+       write (uout,'("  Atom: ",A," rmt= ",A," RMS/max/min(fout-fin) = ",3(A,"  "))') &
           string(n), string(rmt,'f',decimal=7), string(dosum,'f',decimal=6), &
           string(maxdif,'f',decimal=6), string(mindif,'f',decimal=6)
     end do
@@ -1798,10 +1807,10 @@ contains
     ok = .true.
     if (ilvl > 0) then
        write (uout,'("+ Summary ")')
-       write (uout,'(A4,3(X,A7))') "Atom", "Pass", "Fail", "Total"
+       write (uout,'(A4,3(" ",A7))') "Atom", "Pass", "Fail", "Total"
     end if
     do n = 1, f%c%nneq
-       if (ilvl > 0) write (uout,'(I4,3(X,I7))') n, npass(n), nfail(n), npass(n)+nfail(n)
+       if (ilvl > 0) write (uout,'(I4,3(" ",I7))') n, npass(n), nfail(n), npass(n)+nfail(n)
        ok = ok .and. (nfail(n) == 0)
     end do
     if (ilvl > 0) write (uout,*)
@@ -1919,7 +1928,7 @@ contains
     real*8, intent(in) :: gfnormeps
 
     integer :: it
-    real*8 :: wx(3), x0(3), x0ref(3), dist
+    real*8 :: wx(3)
     type(scalar_value) :: res
 
     integer, parameter :: maxit = 200
@@ -1928,7 +1937,7 @@ contains
        ! evaluate and stop criterion
        call f%grd(r,2,res)
        wx = f%c%c2x(r)
-       ! write (*,'("xx ",I4,X,3(F14.6,X),1p,3(E14.6,X))') it, wx, res%gfmod
+       ! write (*,'("xx ",I4," ",3(F14.6," "),1p,3(E14.6," "))') it, wx, res%gfmod
 
        if (res%gfmod < gfnormeps) then
           ier = 0
@@ -1976,12 +1985,8 @@ contains
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
     integer :: lnuc, lshell
-    character*3 :: namecrit(0:3)
-    character*(1) :: smallnamecrit(0:3)
+    character*(1), parameter :: smallnamecrit(0:3) =(/'n','b','r','c'/)
     type(scalar_value) :: res
-
-    data smallnamecrit   /'n','b','r','c'/
-    data namecrit /'ncp','bcp','rcp','ccp'/
 
     ! Transform to cryst. and main cell
     xc = f%c%c2x(x0)
@@ -2173,6 +2178,7 @@ contains
     real*8, parameter :: minstep = 1d-12
     integer, parameter :: mhist = 5
     integer, parameter :: mstep0 = 10000
+    real*8, parameter :: hfirst = 0.01d0
 
     integer :: mstep
     integer :: i, npath
@@ -2184,8 +2190,6 @@ contains
     integer :: lvec(3)
     logical :: ok, incstep
     type(scalar_value) :: res, resaux
-
-    real*8, parameter :: hfirst = 0.01d0
 
     ! initialization
     ier = 0

@@ -5,7 +5,7 @@
 
 ! J.L. Casals Sainz contributed the adaptation to elk 2.1.25
 
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -22,13 +22,14 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Interface to ELK densities and structures.
 submodule (elk_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine elk_geometry(f,filename)
-  ! subroutine read_elk_state(f,filename)
-  ! subroutine read_elk_myout(f,filename)
+  ! subroutine elk_geometry(f,filename,ti)
+  ! subroutine read_elk_state(f,filename,ti)
+  ! subroutine read_elk_myout(f,filename,ti)
   ! subroutine sortidx(n,a,idx)
 
   ! private to the module
@@ -52,25 +53,26 @@ contains
   end subroutine elkwfn_end
 
   !> Read a elkwfn scalar field from an OUT file
-  module subroutine read_out(f,env,file,file2,file3)
+  module subroutine read_out(f,env,file,file2,file3,ti)
     class(elkwfn), intent(inout) :: f
     type(environ), intent(in), target :: env
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
+    type(thread_info), intent(in), optional :: ti
 
     real*8 :: maxrmt
 
     call f%end()
 
     ! geometry data
-    call elk_geometry(f,file2)
+    call elk_geometry(f,file2,ti=ti)
 
     ! state data
-    call read_elk_state(f,file,env)
+    call read_elk_state(f,file,env,ti=ti)
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(f,file3,env)
+       call read_elk_myout(f,file3,env,ti=ti)
     end if
 
     ! save pointer to the environment
@@ -270,11 +272,12 @@ contains
   ! version 1.3.2 Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma
   ! and C. Ambrosch-Draxl.  This file is distributed under the terms
   ! of the GNU General Public License.
-  subroutine elk_geometry(f,filename)
+  subroutine elk_geometry(f,filename,ti)
     use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, fclose
     use tools_math, only: matinv
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, atname
     integer :: lu, i, j, lp
@@ -282,7 +285,7 @@ contains
     logical :: ok
     real*8 :: x(3)
 
-    lu = fopen_read(filename)
+    lu = fopen_read(filename,ti=ti)
     ! ignore the 'scale' stuff
     do i = 1, 14
        read(lu,*)
@@ -314,7 +317,7 @@ contains
 
   end subroutine elk_geometry
 
-  subroutine read_elk_state(f,filename,env)
+  subroutine read_elk_state(f,filename,env,ti)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det3
@@ -322,6 +325,7 @@ contains
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, k, idum
     integer :: vdum(3)
@@ -348,7 +352,7 @@ contains
     isnewer(i,j,k) = (vdum(1)>i).or.(vdum(1)==i.and.vdum(2)>j).or.(vdum(1)==i.and.vdum(2)==j.and.vdum(3)>=k)
 
     ! open the file
-    lu = fopen_read(filename,"unformatted")
+    lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
     read(lu) vdum  ! version
@@ -521,11 +525,12 @@ contains
 
   end subroutine read_elk_state
 
-  subroutine read_elk_myout(f,filename,env)
+  subroutine read_elk_myout(f,filename,env,ti)
     use tools_io, only: ferror, faterr, fopen_read, fclose
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
     type(environ), intent(in), target :: env
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     integer :: lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
@@ -534,7 +539,7 @@ contains
     real*8, allocatable :: rhoktmp(:), rhotmp(:,:)
 
     ! open the file
-    lu = fopen_read(filename,"unformatted")
+    lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
     read(lu) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies

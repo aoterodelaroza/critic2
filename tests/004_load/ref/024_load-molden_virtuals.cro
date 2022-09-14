@@ -1,4 +1,5 @@
 + Field number 1
+  Name: benzene_all.molden
   Source: ../zz_source/psi4-1.4/benzene/benzene_all.molden
   Type: molecular wavefunction
   Molden file dialect: psi4
@@ -40,11 +41,11 @@
   Mesh level     good
 + Integral(($1:lumo)^2) = 0.99999976    
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
   Expression ($1:homo): 1.292599577E-02
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
   Expression ($1:lumo): 2.339773155E-03
 

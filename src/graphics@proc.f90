@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,12 +15,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Output routines for several common graphics formats
 submodule (graphics) proc
   implicit none
 
   !xx! private procedures
   ! subroutine graphics_init()
-  ! subroutine obj_open(g)
+  ! subroutine obj_open(g,ti)
   ! subroutine obj_close(g)
   ! subroutine obj_ball(g,x,rgb,r)
   ! subroutine obj_polygon(g,x,rgb)
@@ -28,15 +29,15 @@ submodule (graphics) proc
   ! subroutine obj_surf(g,srf,fsurf)
   ! subroutine obj_triangulation(g,srf,nv,xv,nf,if,xrho)
   ! function register_texture(g,rgb) result(imtl)
-  ! subroutine ply_open(g)
-  ! subroutine ply_close(g)
+  ! subroutine ply_open(g,ti)
+  ! subroutine ply_close(g,ti)
   ! subroutine ply_ball(g,x,rgb,r)
   ! subroutine ply_polygon(g,x,rgb)
   ! subroutine ply_stick(g,x1,x2,rgb,r)
   ! subroutine ply_surf(g,srf,fsurf)
   ! subroutine ply_triangulation(g,srf,nv,xv,nf,if,xrho)
-  ! subroutine off_open(g)
-  ! subroutine off_close(g)
+  ! subroutine off_open(g,ti)
+  ! subroutine off_close(g,ti)
   ! subroutine off_ball(g,x,rgb,r)
   ! subroutine off_polygon(g,x,rgb)
   ! subroutine off_stick(g,x1,x2,rgb,r)
@@ -66,11 +67,12 @@ contains
 
   !> Open a graphics file (file) with format fmt. Returns the logical
   !> unit and (in obj files) the mtl file.
-  module subroutine graphics_open(g,fmt,file)
+  module subroutine graphics_open(g,fmt,file,ti)
     use tools_io, only: equal, lower
     class(grhandle), intent(inout) :: g
     character*3, intent(in) :: fmt
     character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
 
     character*3 :: fmt0
 
@@ -87,28 +89,29 @@ contains
 
     if (equal(fmt0,"obj")) then
        g%fmt = ifmt_obj
-       call obj_open(g)
+       call obj_open(g,ti=ti)
     elseif (equal(fmt0,"ply")) then
        g%fmt = ifmt_ply
-       call ply_open(g)
+       call ply_open(g,ti=ti)
     elseif (equal(fmt0,"off")) then
        g%fmt = ifmt_off
-       call off_open(g)
+       call off_open(g,ti=ti)
     end if
 
   end subroutine graphics_open
 
   !> Open a graphics file (lu, lumtl) with format fmt.
-  module subroutine graphics_close(g)
+  module subroutine graphics_close(g,ti)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     if (g%fmt == ifmt_obj) then
        call obj_close(g)
     elseif (g%fmt == ifmt_ply) then
-       call ply_close(g)
+       call ply_close(g,ti=ti)
     elseif (g%fmt == ifmt_off) then
-       call off_close(g)
+       call off_close(g,ti=ti)
     end if
     g%lu = 0
     g%lumtl = 0
@@ -2990,15 +2993,16 @@ contains
   end subroutine graphics_init
 
   !> Open an obj file (and its mtl companion)
-  subroutine obj_open(g)
+  subroutine obj_open(g,ti)
     use tools_io, only: faterr, ferror, fopen_write
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: idx
     character(len=:), allocatable :: filemtl, aux
 
     ! open the obj
-    g%lu = fopen_write(g%file)
+    g%lu = fopen_write(g%file,ti=ti)
 
     ! name of the mtl
     filemtl = g%file
@@ -3008,7 +3012,7 @@ contains
     filemtl = aux
 
     ! open the mtl
-    g%lumtl = fopen_write(filemtl)
+    g%lumtl = fopen_write(filemtl,ti=ti)
 
     ! clear and initialize the mtl database
     g%nmtl = 0
@@ -3036,7 +3040,7 @@ contains
        write (g%lumtl,'("newmtl mat",A)') string(i)
        write (g%lumtl,'("Ns 96.078")')
        write (g%lumtl,'("Ka 0.0 0.0 0.0")')
-       write (g%lumtl,'("Kd ",3(F12.5,X))') real(g%mtlrgb(:,i),8)/255d0
+       write (g%lumtl,'("Kd ",3(F12.5," "))') real(g%mtlrgb(:,i),8)/255d0
        write (g%lumtl,'("Ks 0.5 0.5 0.5")')
        write (g%lumtl,'("Ni 1.0")')
        write (g%lumtl,'("illum 2")')
@@ -3082,10 +3086,10 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvsph(lvl)
-       write (g%lu,'("v ",3(F20.12,X))') x + r * vsph(:,i,lvl)
+       write (g%lu,'("v ",3(F20.12," "))') x + r * vsph(:,i,lvl)
     end do
     do i = 1, nfsph(lvl)
-       write (g%lu,'("f ",3(I10,X))') g%nv + fsph(:,i,lvl)
+       write (g%lu,'("f ",3(I10," "))') g%nv + fsph(:,i,lvl)
     end do
     g%nv = g%nv + nvsph(lvl)
 
@@ -3110,7 +3114,7 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, n
-       write (g%lu,'("v ",3(F20.12,X))') x(:,i)
+       write (g%lu,'("v ",3(F20.12," "))') x(:,i)
     end do
     str = ""
     do i = 1, n
@@ -3167,11 +3171,11 @@ contains
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvcyl(lvl)
-       write (g%lu,'("v ",3(F20.12,X))') x1+vcyl(1,i,lvl)*v1+&
+       write (g%lu,'("v ",3(F20.12," "))') x1+vcyl(1,i,lvl)*v1+&
           vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd
     end do
     do i = 1, nfcyl(lvl)
-       write (g%lu,'("f ",3(I10,X))') g%nv + fcyl(:,i,lvl)
+       write (g%lu,'("f ",3(I10," "))') g%nv + fcyl(:,i,lvl)
     end do
     g%nv = g%nv + nvcyl(lvl)
 
@@ -3221,13 +3225,13 @@ contains
              xrgb(2) = z**3
              xrgb(3) = sin(2*z*pi)
           end if
-          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') x, xrgb
+          write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') x, xrgb
        else
-          write (g%lu,'("v ",3(E20.12,X))') x
+          write (g%lu,'("v ",3(E20.12," "))') x
        endif
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f ",999(I10,X))') &
+       write (g%lu,'("f ",999(I10," "))') &
           (g%nv+srf%f(i)%v(j),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3267,13 +3271,13 @@ contains
           xrgb(1) = sqrt(z)
           xrgb(2) = z**3
           xrgb(3) = sin(2*z*pi)
-          write (g%lu,'("v ",3(E20.12,X),3(F8.5,X))') xv(:,i), xrgb
+          write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') xv(:,i), xrgb
        else
-          write (g%lu,'("v ",3(E20.12,X))') xv(:,i)
+          write (g%lu,'("v ",3(E20.12," "))') xv(:,i)
        end if
     end do
     do i = 1, nf
-       write (g%lu,'("f ",999(I10,X))') (if(j,i),j=1,3)
+       write (g%lu,'("f ",999(I10," "))') (if(j,i),j=1,3)
     end do
     g%nv = g%nv + nv
 
@@ -3302,12 +3306,13 @@ contains
   end function register_texture
 
   !> Open a ply file
-  subroutine ply_open(g)
+  subroutine ply_open(g,ti)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     ! open the temporary ply file
-    g%lu = fopen_scratch("formatted")
+    g%lu = fopen_scratch("formatted",ti=ti)
 
     ! clear and initialize the database
     g%nv = 0
@@ -3316,9 +3321,10 @@ contains
   end subroutine ply_open
 
   !> Close a ply file
-  subroutine ply_close(g)
+  subroutine ply_close(g,ti)
     use tools_io, only: ferror, getline_raw, fopen_write, string, fclose
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: file, line
@@ -3326,7 +3332,7 @@ contains
 
     ! get the temporary file name from the first line and open
     rewind(g%lu)
-    lu = fopen_write(g%file)
+    lu = fopen_write(g%file,ti=ti)
 
     ! write the header
     write (lu,'("ply ")')
@@ -3391,12 +3397,12 @@ contains
 
     ! write the ball to the ply
     do i = 1, nvsph(lvl)
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x + r * vsph(:,i,lvl), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfsph(lvl)
        iff = g%nv + fsph(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvsph(lvl)
     g%nf = g%nf + nfsph(lvl)
@@ -3424,15 +3430,15 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
+       write (g%lu,'("f3 ",3(A," "))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
     g%nv = g%nv + n + 1
     g%nf = g%nf + n
@@ -3479,13 +3485,13 @@ contains
 
     ! write the stick to the ply
     do i = 1, nvcyl(lvl)
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfcyl(lvl)
        iff = g%nv + fcyl(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvcyl(lvl)
     g%nf = g%nf + nfcyl(lvl)
@@ -3533,11 +3539,11 @@ contains
              rgb = nint(xrgb * 255)
           end if
        endif
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+       write (g%lu,'("f",999(A," "))') string(srf%f(i)%nv),&
           (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3575,10 +3581,10 @@ contains
           xrgb(3) = sin(2*z*pi)
           rgb = nint(xrgb * 255)
        end if
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(rgb(j)),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(rgb(j)),j=1,3)
     end do
     do i = 1, nf
-       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+       write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
     end do
     g%nv = g%nv + nv
     g%nf = g%nf + nf
@@ -3586,12 +3592,13 @@ contains
   end subroutine ply_triangulation
 
   !> Open an off file
-  subroutine off_open(g)
+  subroutine off_open(g,ti)
     use tools_io, only: ferror, fopen_scratch
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     ! open the temporary off file
-    g%lu = fopen_scratch("formatted")
+    g%lu = fopen_scratch("formatted",ti=ti)
 
     ! clear and initialize the database
     g%nv = 0
@@ -3600,9 +3607,10 @@ contains
   end subroutine off_open
 
   !> Close a off file
-  subroutine off_close(g)
+  subroutine off_close(g,ti)
     use tools_io, only: ferror, getline_raw, string, fopen_write, fclose
     type(grhandle), intent(inout) :: g
+    type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     character(len=:), allocatable :: file, line
@@ -3610,11 +3618,11 @@ contains
 
     ! get the temporary file name from the first line and open
     rewind(g%lu)
-    lu = fopen_write(g%file)
+    lu = fopen_write(g%file,ti=ti)
 
     ! write the header
     write (lu,'("COFF")')
-    write (lu,'(3(A,X))') string(g%nv), string(g%nf), string(g%nv+g%nf-2)
+    write (lu,'(3(A," "))') string(g%nv), string(g%nf), string(g%nv+g%nf-2)
 
     ! transfer the vertices from the scratch file over to the off file
     do while(getline_raw(g%lu,line))
@@ -3665,12 +3673,12 @@ contains
     ! write the ball to the off
     do i = 1, nvsph(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0.0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0.0")') x + r * vsph(:,i,lvl), &
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfsph(lvl)
        iff = g%nv + fsph(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvsph(lvl)
     g%nf = g%nf + nfsph(lvl)
@@ -3698,15 +3706,15 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
        i1 = mod(i,n) + 1
-       write (g%lu,'("f3 ",3(A,X))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
+       write (g%lu,'("f3 ",3(A," "))') string(g%nv+i-1), string(g%nv+i1-1), string(g%nv+n)
     end do
     g%nv = g%nv + n + 1
     g%nf = g%nf + n
@@ -3755,13 +3763,13 @@ contains
     ! write the stick to the off
     do i = 1, nvcyl(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfcyl(lvl)
        iff = g%nv + fcyl(:,i,lvl) - 1
-       write (g%lu,'("f3 ",3(A,X))') string(iff(1)), string(iff(2)), string(iff(3))
+       write (g%lu,'("f3 ",3(A," "))') string(iff(1)), string(iff(2)), string(iff(3))
     end do
     g%nv = g%nv + nvcyl(lvl)
     g%nf = g%nf + nfcyl(lvl)
@@ -3811,11 +3819,11 @@ contains
              xrgb(3) = sin(2*z*pi)
           endif
        endif
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, srf%nf
-       write (g%lu,'("f",999(A,X))') string(srf%f(i)%nv),&
+       write (g%lu,'("f",999(A," "))') string(srf%f(i)%nv),&
           (string(g%nv+srf%f(i)%v(j)-1),j=1,srf%f(i)%nv)
     end do
     g%nv = g%nv + srf%nv
@@ -3852,10 +3860,10 @@ contains
           xrgb(2) = z**3
           xrgb(3) = sin(2*z*pi)
        end if
-       write (g%lu,'("v",3(F20.12,X),3(A,X),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
     end do
     do i = 1, nf
-       write (g%lu,'("f",999(A,X))') "3", (string(g%nv+if(j,i)-1),j=1,3)
+       write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
     end do
     g%nv = g%nv + nv
     g%nf = g%nf + nf

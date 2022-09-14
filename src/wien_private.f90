@@ -1,7 +1,7 @@
 !> This module contains routines  adapted (with permission) from the WIEN2k
 !> source by P. Blaha, K. Schwarz et al.
 
-! Copyright (c) 2015 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2015-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -18,8 +18,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!> Interface to WIEN2k densities.
+!> Interface to WIEN2k densities and structures
 module wien_private
+  use types, only: thread_info
   implicit none
 
   private
@@ -81,9 +82,10 @@ module wien_private
        real*8, intent(in) :: x(3)
        real*8 :: rmt_atom
      end function rmt_atom
-     module subroutine read_clmsum(f,file,file2)
+     module subroutine read_clmsum(f,file,file2,ti)
        class(wienwfn), intent(inout) :: f
        character*(*), intent(in) :: file, file2
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_clmsum
      module subroutine rho2(f,v0,nder,rho,grad,h)
        class(wienwfn), intent(in) :: f

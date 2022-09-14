@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! meshmod: becke-style meshes for molecular integrals.
 submodule (meshmod) proc
   implicit none
 
@@ -493,22 +494,22 @@ contains
     use tools_io, only: uout, string
     class(mesh), intent(inout) :: m
 
-    write (uout,'(2X,"Mesh size      ",A)') string(m%n)
+    write (uout,'("  Mesh size      ",A)') string(m%n)
     if (m%type == mesh_type_becke) then
-       write (uout,'(2X,"Mesh type      Becke")')
+       write (uout,'("  Mesh type      Becke")')
     elseif (m%type == mesh_type_franchini) then
-       write (uout,'(2X,"Mesh type      Franchini")')
+       write (uout,'("  Mesh type      Franchini")')
     end if
     if (m%lvl == mesh_level_small) then
-       write (uout,'(2X,"Mesh level     small")')
+       write (uout,'("  Mesh level     small")')
     elseif (m%lvl == mesh_level_normal) then
-       write (uout,'(2X,"Mesh level     normal")')
+       write (uout,'("  Mesh level     normal")')
     elseif (m%lvl == mesh_level_good) then
-       write (uout,'(2X,"Mesh level     good")')
+       write (uout,'("  Mesh level     good")')
     elseif (m%lvl == mesh_level_vgood) then
-       write (uout,'(2X,"Mesh level     very good")')
+       write (uout,'("  Mesh level     very good")')
     elseif (m%lvl == mesh_level_amazing) then
-       write (uout,'(2X,"Mesh level     amazing")')
+       write (uout,'("  Mesh level     amazing")')
     end if
 
   end subroutine report

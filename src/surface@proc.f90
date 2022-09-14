@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Surface and mini-surface user-defined types and tools to work with them.
 submodule (surface) proc
   implicit none
 
@@ -809,9 +810,9 @@ contains
 
     lud = fopen_write(offfile)
 
-    write (lud,'(I10,x,I10,x,I2)') n1, n2, meth
-    write (lud,'(3(E23.15,x))') s%n(1), s%n(2), s%n(3)
-    write (lud,'(3(E23.15,x))') (s%r(i),i=1,s%nv)
+    write (lud,'(I10," ",I10," ",I2)') n1, n2, meth
+    write (lud,'(3(E23.15," "))') s%n(1), s%n(2), s%n(3)
+    write (lud,'(3(E23.15," "))') (s%r(i),i=1,s%nv)
 
     call fclose(lud)
 
@@ -836,19 +837,19 @@ contains
     ierr = 0
     lud = fopen_read(offfile)
 
-    read (lud,'(I10,x,I10,x,I2)') n1_, n2_, method_
+    read (lud,'(I10," ",I10," ",I2)') n1_, n2_, method_
     if (n1 /= n1_ .or. meth /= method_ .or. (meth == INT_gauleg .and. n2 /= n2_)) then
        call ferror ('readint', 'Wrong ntheta, nphi or method',warning,string(offfile))
        ierr = 1
        return
     end if
-    read (lud,'(3(E23.15,x))') xn
+    read (lud,'(3(E23.15," "))') xn
     if (any(abs(xn - s%n) > 1d-13)) then
        call ferror ('readint', 'Wrong CP position in integrals file',warning,string(offfile))
        ierr = 1
        return
     end if
-    read (lud,'(3(E23.15,x))') (s%r(i),i=1,s%nv)
+    read (lud,'(3(E23.15," "))') (s%r(i),i=1,s%nv)
 
     call fclose(lud)
 

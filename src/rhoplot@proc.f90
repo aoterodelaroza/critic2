@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!> Basic plotting capabilities: contour diagrams, 1d, 2d and 3d representations.
 submodule (rhoplot) proc
   implicit none
 
@@ -148,13 +149,13 @@ contains
 
     do i = 1, np
        x0 = xp(:,i)
-       write (uout,'("* POINT ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
+       write (uout,'("* POINT ",3(A,"  "))') (string(x0(j),'f',decimal=7),j=1,3)
        if (.not.sy%c%ismolecule) then
           xx = sy%c%x2c(x0)
-          write (uout,'("  Coordinates (bohr): ",3(A,2X))') (string(xx(j),'f',decimal=7),j=1,3)
-          write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(xx(j)*bohrtoa,'f',decimal=7),j=1,3)
+          write (uout,'("  Coordinates (bohr): ",3(A,"  "))') (string(xx(j),'f',decimal=7),j=1,3)
+          write (uout,'("  Coordinates (ang): ",3(A,"  "))') (string(xx(j)*bohrtoa,'f',decimal=7),j=1,3)
        else
-          write (uout,'("  Coordinates (ang): ",3(A,2X))') (string(x0(j),'f',decimal=7),j=1,3)
+          write (uout,'("  Coordinates (ang): ",3(A,"  "))') (string(x0(j),'f',decimal=7),j=1,3)
           xx = x0 / dunit0(iunit) - sy%c%molx0
           x0 = sy%c%c2x(xx)
        endif
@@ -295,7 +296,7 @@ contains
 
     ! header
     write (luout,'("# Field values (f) along a line (d = distance).")')
-    write (luout,'("#",1x,4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
+    write (luout,'("# ",4a15,1p,2a20,0p)') "x","y","z","d","f",string(prop)
 
     ! calculate the line
     if (.not.sy%c%ismolecule) then
@@ -369,10 +370,10 @@ contains
           xout = (xp + sy%c%molx0) * dunit0(iunit)
        end if
        if (nti == 0) then
-          write (luout,'(99(X,A))') (string(xout(j),'f',18,13),j=1,3),&
+          write (luout,'(99(" ",A))') (string(xout(j),'f',18,13),j=1,3),&
              string(dist,'f',18,13), string(rhoout(i),'e',20,13)
        else
-          write (luout,'(99(X,A))') (string(xout(j),'f',18,13),j=1,3),&
+          write (luout,'(99(" ",A))') (string(xout(j),'f',18,13),j=1,3),&
              string(dist,'f',18,13), string(rhoout(i),'e',20,13),&
              string(lapout(i),'e',20,13)
        end if
@@ -1140,7 +1141,7 @@ contains
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
           xp = (sy%c%x2c(xp) + sy%c%molx0) * dunit0(iunit)
-          write (luout,'(1x,5(f15.10,x),1p,1(e18.10,x),0p)') xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
+          write (luout,'(" ",5(f15.10," "),1p,1(e18.10," "),0p)') xp, real(ix-1,8)*du, real(iy-1,8)*dv, ff(ix,iy)
        end do
        write (luout,*)
     end do
@@ -1586,9 +1587,9 @@ contains
        xo1 = (sy%c%x2c(r1) + sy%c%molx0) * dunit0(iunit)
        xo2 = (sy%c%x2c(r2) + sy%c%molx0) * dunit0(iunit)
     end if
-    write (uout,'("  Plane origin: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
-    write (uout,'("  Plane x-end:  ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
-    write (uout,'("  Plane y-end:  ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
+    write (uout,'("  Plane origin: ",3(A," "))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
+    write (uout,'("  Plane x-end:  ",3(A," "))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
+    write (uout,'("  Plane y-end:  ",3(A," "))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
 
     ! calculate the contour plot
     if (docontour) then
@@ -2243,7 +2244,7 @@ contains
     do i = 1, n
        write (luw,20) x(i) * dunit0(iunit), y(i) * dunit0(iunit)
     enddo
-20  format (1p, 2(1x,e15.8))
+20  format (1p, 2(" ",e15.8))
 
   end subroutine linea
 
@@ -2307,19 +2308,19 @@ contains
     write (uout,'("    r = r0 + u * (r1 - r0) + v * (r2 - r0)")')
     write (uout,'("  where the parametric coordinates u and v go from 0 to 1.")')
     if (.not.sy%c%ismolecule) then
-       write (uout,'("+ Crystal coordinates of r0: ",3(A,2X))') (string(r0(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Crystal coordinates of r1: ",3(A,2X))') (string(r1(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Crystal coordinates of r2: ",3(A,2X))') (string(r2(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Cartesian coordinates of r0: ",3(A,X))') (string(rp0(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Cartesian coordinates of r1: ",3(A,X))') (string(rp1(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Cartesian coordinates of r2: ",3(A,X))') (string(rp2(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Crystal coordinates of r0: ",3(A,"  "))') (string(r0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Crystal coordinates of r1: ",3(A,"  "))') (string(r1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Crystal coordinates of r2: ",3(A,"  "))') (string(r2(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r0: ",3(A," "))') (string(rp0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r1: ",3(A," "))') (string(rp1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Cartesian coordinates of r2: ",3(A," "))') (string(rp2(j),'f',12,6,ioj_right),j=1,3)
     else
        xo0 = (sy%c%x2c(r0) + sy%c%molx0) * dunit0(iunit)
        xo1 = (sy%c%x2c(r1) + sy%c%molx0) * dunit0(iunit)
        xo2 = (sy%c%x2c(r2) + sy%c%molx0) * dunit0(iunit)
-       write (uout,'("+ Coordinates of r0: ",3(A,X))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Coordinates of r1: ",3(A,X))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
-       write (uout,'("+ Coordinates of r2: ",3(A,X))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Coordinates of r0: ",3(A," "))') (string(xo0(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Coordinates of r1: ",3(A," "))') (string(xo1(j),'f',12,6,ioj_right),j=1,3)
+       write (uout,'("+ Coordinates of r2: ",3(A," "))') (string(xo2(j),'f',12,6,ioj_right),j=1,3)
     endif
     ! Check the in-plane CPs
     if (autocheck) call autochk(rp0)
@@ -2338,7 +2339,7 @@ contains
        xtemp = grpx(:,iorig)
        if (sy%c%ismolecule) &
           xtemp = (sy%c%x2c(xtemp) + sy%c%molx0) * dunit0(iunit)
-       write (uout,'(99(A,2X))') string(iorig,length=5,justify=ioj_left), &
+       write (uout,'(99(A,"  "))') string(iorig,length=5,justify=ioj_left), &
           (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
           string(grpatr(iorig),length=3,justify=ioj_right), &
           string(grpup(iorig),length=3,justify=ioj_right), &
@@ -2392,7 +2393,7 @@ contains
 
           xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
 
-          write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
+          write (uout,'(4(A,"  "),"(",A,","A,") ",3(A,"  "))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(nindex,length=3,justify=ioj_right),&
@@ -2488,7 +2489,7 @@ contains
 
           xtemp = (grpx(:,iorig) + sy%c%molx0) * dunit0(iunit)
 
-          write (uout,'(4(A,2X),"(",A,","A,") ",3(A,2X))') &
+          write (uout,'(4(A,"  "),"(",A,","A,") ",3(A,"  "))') &
              string(iorig,length=5,justify=ioj_left), &
              (string(xtemp(j),'f',decimal=6,length=11,justify=4),j=1,3),&
              string(res%r,length=3,justify=ioj_right),&
@@ -2589,7 +2590,7 @@ contains
     write (uout,'("# cp       x           y           z")')
     do i = 1, newncriticp
        newcriticp(:,i) = newcriticp(:,i) - floor(newcriticp(:,i))
-       write (uout,'(2X,4(A,2X))') string(i,length=3,justify=ioj_left), &
+       write (uout,'("  ",4(A,"  "))') string(i,length=3,justify=ioj_left), &
           (string(newcriticp(j,i),'f',10,6,ioj_right),j=1,3)
     enddo
     write (uout,*)
@@ -2618,7 +2619,7 @@ contains
        !.discard repeated points
        do j = i+1, newncriticp
           if (sy%c%are_close(newcriticp(:,j),xp,epsf)) then
-             write (uout,'(2X,"CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
+             write (uout,'("  CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
              cycle
           endif
        enddo
@@ -2627,7 +2628,7 @@ contains
        xp = sy%c%x2c(newcriticp(:,i))
        call sy%f(sy%iref)%grd(xp,2,res,periodic=.not.sy%c%ismolecule)
        if (res%gfmod > grpcpeps) then
-          write (uout,'(2X,"CP ",A," has a large gradient: ",A," -> Rejected!")') &
+          write (uout,'("  CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)
           cycle
        else
@@ -2684,7 +2685,7 @@ contains
              end if
           endif
        enddo
-       write (uout,'(2X,"CP ",A," created ",A," copies in plane (hmin = ",A,")")') &
+       write (uout,'("  CP ",A," created ",A," copies in plane (hmin = ",A,")")') &
           string(i), string(ncopies), string(hmin,'f',decimal=6)
     end do
     write (uout,*)
@@ -2827,8 +2828,7 @@ contains
     write (lun,'("plot ",A)') swri
     call fclose(lun)
 
-18  format (1x,'set xrange [',f7.3,':',f7.3,'] '/                     &
-       &        1x,'set yrange [',f7.3,':',f7.3,']')
+18  format (' set xrange [',f7.3,':',f7.3,'] '/' set yrange [',f7.3,':',f7.3,']')
 
   end subroutine write_fichgnu
 

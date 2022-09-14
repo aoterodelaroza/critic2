@@ -1,4 +1,5 @@
 + Field number 1
+  Name: benzene.fchk
   Source: ../zz_source/g16A.03/benzene/benzene.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -25,22 +26,22 @@
   Mesh level     good
 + Integral($1) = 42.00000337   
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
 + Field: 1
   Type : (3,1)
   Field value (f): 2.746563866E-02
   Field value, valence (fval): 2.746563866E-02
-  Gradient (grad f): 1.504989952E-02  3.006885867E-02  -1.139583843E-02
+  Gradient (grad f): 1.504989952E-02  3.006885867E-02  -1.139583843E-02  
   Gradient norm (|grad f|): 3.550353322E-02
   Gradient norm, valence: 3.550353322E-02
   Kinetic energy density (G,tau): 3.596195690E-02
   Laplacian (del2 f): 1.538442820E-01
   Laplacian, valence (del2 fval): 1.538442820E-01
   Hessian:
-     8.141171230E-02   4.563562421E-03  -8.278821661E-03
-     4.563562421E-03   8.787083039E-02  -1.652991650E-02
-    -8.278821661E-03  -1.652991650E-02  -1.543826071E-02
-  Hessian eigenvalues: -1.857932904E-02  7.905102345E-02  9.337258757E-02
-  Field 0 (f,|grad|,lap): 4.645248138E-02  3.592372603E-02  1.208349491E-01
+     8.141171230E-02   4.563562421E-03  -8.278821661E-03  
+     4.563562421E-03   8.787083039E-02  -1.652991650E-02  
+    -8.278821661E-03  -1.652991650E-02  -1.543826071E-02  
+  Hessian eigenvalues: -1.857932904E-02  7.905102345E-02  9.337258757E-02  
+  Field 0 (f,|grad|,lap): 4.645248138E-02  3.592372603E-02  1.208349491E-01  
 

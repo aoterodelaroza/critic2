@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -58,6 +58,8 @@
 !       Computational Mathematics and Mathematical Physics, Vol. 15,
 !       1975, pp. 44-51.
 !
+
+! Math functions and subroutines, Lebedev integration
 submodule (tools_math) lebedev
   implicit none
 

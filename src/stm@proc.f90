@@ -1,4 +1,4 @@
-! Copyright (c) 2007-2018 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! Calculate the STM map of the surface slab in the input using the
+! Tersoff-Hamann approximation and either a constant height or a constant
+! current. The reference field is assumed to be the DOS at the Fermi level
+! (although the density will also give reasonable results).
 submodule (stm) proc
   implicit none
 
@@ -222,7 +226,7 @@ contains
                    xmax = max(xmax,xr(ip1))
                    ymin = min(ymin,xr(ip2))
                    ymax = max(ymax,xr(ip2))
-                   write (fid,'(5(A,X))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
+                   write (fid,'(5(A," "))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
                       string(xr(ip1),'e',15,7,4), string(xr(ip2),'e',15,7,4), &
                       string(ff(i,j),'e',20,12,6)
                 end do
@@ -329,7 +333,7 @@ contains
           xx(ix) = rtop0
           xr = sy%c%x2c(xx) * bohrtoa
           dist = sqrt(xr(ip2)**2+xr(ip1)**2)
-          write (fid,'(6(A,X))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
+          write (fid,'(6(A," "))') string(xx(ip1),'e',15,7,4), string(xx(ip2),'e',15,7,4), &
              string(xr(ip1),'e',15,7,4), string(xr(ip2),'e',15,7,4), &
              string(dist,'e',15,7,4), string(fl(i),'e',20,12,6)
        end do

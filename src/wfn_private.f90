@@ -4,7 +4,7 @@
 !> Ross M. Dickson <ross.dickson@dal.ca>, Hartmut Schmider <hs7@post.queensu.ca>,
 !> and Axel D. Becke <axel.becke@dal.ca>
 
-! Copyright (c) 2009-2017 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Copyright (c) 2009-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
 ! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
 ! <victor@fluor.quimica.uniovi.es>.
 !
@@ -24,6 +24,7 @@
 ! molecular wavefunction readers and tools
 module wfn_private
   use environmod, only: environ
+  use types, only: thread_info
   implicit none
 
   private
@@ -165,100 +166,113 @@ module wfn_private
      module subroutine wfn_end(f)
        class(molwfn), intent(inout) :: f
      end subroutine wfn_end
-     module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_xyz_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_xyz_geometry
-     module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_wfn_geometry
-     module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_wfx_geometry
-     module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_fchk_geometry
-     module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_molden_geometry
-     module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_log_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_log_geometry
-     module subroutine wfn_read_dat_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_dat_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_dat_geometry
-     module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_pgout_geometry
-     module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg)
+     module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_orca_geometry
-     module subroutine read_wfn(f,file,env)
+     module subroutine read_wfn(f,file,env,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_wfn
-     module subroutine read_wfx(f,file,env)
+     module subroutine read_wfx(f,file,env,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_wfx
-     module subroutine read_fchk(f,file,readvirtual,env)
+     module subroutine read_fchk(f,file,readvirtual,env,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_fchk
-     module subroutine read_molden(f,file,molden_type,readvirtual,env)
+     module subroutine read_molden(f,file,molden_type,readvirtual,env,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        integer, intent(in) :: molden_type
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
+       type(thread_info), intent(in), optional :: ti
      end subroutine read_molden
      module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
        class(molwfn), intent(in) :: f

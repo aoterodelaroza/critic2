@@ -2,12 +2,13 @@
 + Written 2 1-mers
 
 + Field number 1
+  Name: <generated>, promolecular grid
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  0.00000
-  First elements... 1.810108118799E-03  1.828138463408E-03  1.778835744176E-03
-  Last elements... 7.881849380377E-03  9.252841906953E-03  7.521267642563E-03
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  First elements... 1.810108118799E-03  1.828138463408E-03  1.778835744176E-03  
+  Last elements... 7.881849380377E-03  9.252841906953E-03  7.521267642563E-03  
   Sum of elements... 3.872283571907E+02
   Sum of squares of elements... 5.243704823284E+04
   Cell integral (grid SUM) = 379.06264114
@@ -25,12 +26,13 @@
 * Field number 1 is now REFERENCE.
 
 + Field number 2
+  Name: <generated>, promolecular grid using fragment
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  0.00000
-  First elements... 9.050540593993E-04  1.235328355314E-03  1.411521139781E-03
-  Last elements... 3.275648043679E-04  3.987268129546E-04  6.033219720813E-04
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  First elements... 9.050540593993E-04  1.235328355314E-03  1.411521139781E-03  
+  Last elements... 3.275648043679E-04  3.987268129546E-04  6.033219720813E-04  
   Sum of elements... 1.936141785953E+02
   Sum of squares of elements... 2.621830893127E+04
   Cell integral (grid SUM) = 189.53132057
@@ -46,12 +48,13 @@
   Alias for this field (1): $2
 
 + Field number 3
+  Name: <generated>, promolecular grid using fragment
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  0.00000
-  First elements... 9.050540593993E-04  5.928101080941E-04  3.673146043942E-04
-  Last elements... 7.554284576009E-03  8.854115093998E-03  6.917945670482E-03
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  First elements... 9.050540593993E-04  5.928101080941E-04  3.673146043942E-04  
+  Last elements... 7.554284576009E-03  8.854115093998E-03  6.917945670482E-03  
   Sum of elements... 1.936141785953E+02
   Sum of squares of elements... 2.621830893127E+04
   Cell integral (grid SUM) = 189.53132057
@@ -67,12 +70,13 @@
   Alias for this field (1): $3
 
 + Field number 4
+  Name: <generated>, grid: $2 + $3 - $1
   Source: <generated>
   Type: grid
-  Grid dimensions : 10  10  10
-  Max. length Voronoi-relevant vector (bohr):  1.05163
-  First elements... 2.168404344971E-19  0.000000000000E+00  -2.168404344971E-19
-  Last elements... -1.734723475977E-18  3.469446951954E-18  0.000000000000E+00
+  Grid dimensions : 10  10  10  
+  Max. length Voronoi-relevant vector (bohr):  1.05163  
+  First elements... 2.168404344971E-19  0.000000000000E+00  -2.168404344971E-19  
+  Last elements... -1.734723475977E-18  3.469446951954E-18  0.000000000000E+00  
   Sum of elements... 6.977990234247E-14
   Sum of squares of elements... 1.717236992394E-27
   Cell integral (grid SUM) = 0.00000000

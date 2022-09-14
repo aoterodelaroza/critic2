@@ -1,4 +1,5 @@
 + Field number 1
+  Name: benzene.wfx
   Source: ../zz_source/g16A.03/benzene/benzene.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -15,76 +16,76 @@
 
 * Field number 1 is now REFERENCE.
 
-* POINT 0.1000000  0.2000000  0.3000000
-  Coordinates (ang): 0.1000000  0.2000000  0.3000000
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
 + Field: 1
   Type : (3,1)
   Field value (f): 2.746563878E-02
   Field value, valence (fval): 2.746563878E-02
-  Gradient (grad f): 1.504989957E-02  3.006885886E-02  -1.139583849E-02
+  Gradient (grad f): 1.504989957E-02  3.006885886E-02  -1.139583849E-02  
   Gradient norm (|grad f|): 3.550353341E-02
   Gradient norm, valence: 3.550353341E-02
   Kinetic energy density (G,tau): 3.596195710E-02
   Laplacian (del2 f): 1.538442827E-01
   Laplacian, valence (del2 fval): 1.538442827E-01
   Hessian:
-     8.141171257E-02   4.563562429E-03  -8.278821700E-03
-     4.563562429E-03   8.787083096E-02  -1.652991662E-02
-    -8.278821700E-03  -1.652991662E-02  -1.543826078E-02
-  Hessian eigenvalues: -1.857932914E-02  7.905102377E-02  9.337258810E-02
+     8.141171257E-02   4.563562429E-03  -8.278821700E-03  
+     4.563562429E-03   8.787083096E-02  -1.652991662E-02  
+    -8.278821700E-03  -1.652991662E-02  -1.543826078E-02  
+  Hessian eigenvalues: -1.857932914E-02  7.905102377E-02  9.337258810E-02  
 
-* POINT 0.5000000  0.9000000  0.2333800
-  Coordinates (ang): 0.5000000  0.9000000  0.2333800
+* POINT 0.5000000  0.9000000  0.2333800  
+  Coordinates (ang): 0.5000000  0.9000000  0.2333800  
 + Field: 1
   Type : (3,-1)
   Field value (f): 2.464940898E-01
   Field value, valence (fval): 2.464940898E-01
-  Gradient (grad f): 8.232235968E-02  1.522831012E-01  -1.846800391E-01
+  Gradient (grad f): 8.232235968E-02  1.522831012E-01  -1.846800391E-01  
   Gradient norm (|grad f|): 2.531280914E-01
   Gradient norm, valence: 2.531280914E-01
   Kinetic energy density (G,tau): 1.123191190E-01
   Laplacian (del2 f): -4.399216479E-01
   Laplacian, valence (del2 fval): -4.399216479E-01
   Hessian:
-     2.370679074E-02  -2.179124414E-01  -8.660469173E-02
-    -2.179124414E-01  -2.262054771E-01  -1.553174760E-01
-    -8.660469173E-02  -1.553174760E-01  -2.374229616E-01
-  Hessian eigenvalues: -4.818161051E-01  -1.080793322E-01  1.499737894E-01
+     2.370679074E-02  -2.179124414E-01  -8.660469173E-02  
+    -2.179124414E-01  -2.262054771E-01  -1.553174760E-01  
+    -8.660469173E-02  -1.553174760E-01  -2.374229616E-01  
+  Hessian eigenvalues: -4.818161051E-01  -1.080793322E-01  1.499737894E-01  
   Ellipticity (l_1/l_2 - 1): 3.457985585E+00
 
-* POINT -0.3000000  0.2000000  0.8000000
-  Coordinates (ang): -0.3000000  0.2000000  0.8000000
+* POINT -0.3000000  0.2000000  0.8000000  
+  Coordinates (ang): -0.3000000  0.2000000  0.8000000  
 + Field: 1
   Type : (3,1)
   Field value (f): 1.808688812E-02
   Field value, valence (fval): 1.808688812E-02
-  Gradient (grad f): -1.832812461E-02  1.225866260E-02  -2.078137368E-02
+  Gradient (grad f): -1.832812461E-02  1.225866260E-02  -2.078137368E-02  
   Gradient norm (|grad f|): 3.029951241E-02
   Gradient norm, valence: 3.029951241E-02
   Kinetic energy density (G,tau): 1.805736621E-02
   Laplacian (del2 f): 7.872077144E-02
   Laplacian, valence (del2 fval): 7.872077144E-02
   Hessian:
-     3.266157043E-02   6.644467384E-05   2.594055080E-02
-     6.644467384E-05   3.317822914E-02  -1.737802362E-02
-     2.594055080E-02  -1.737802362E-02   1.288097187E-02
-  Hessian eigenvalues: -9.947214856E-03  3.307868063E-02  5.558930566E-02
+     3.266157043E-02   6.644467384E-05   2.594055080E-02  
+     6.644467384E-05   3.317822914E-02  -1.737802362E-02  
+     2.594055080E-02  -1.737802362E-02   1.288097187E-02  
+  Hessian eigenvalues: -9.947214856E-03  3.307868063E-02  5.558930566E-02  
 
-* POINT 1.3000000  2.4000000  8.9000000
-  Coordinates (ang): 1.3000000  2.4000000  8.9000000
+* POINT 1.3000000  2.4000000  8.9000000  
+  Coordinates (ang): 1.3000000  2.4000000  8.9000000  
 + Field: 1
   Type : (0,0)
   Field value (f): 3.901275957E-13
   Field value, valence (fval): 3.901275957E-13
-  Gradient (grad f): -3.805641229E-14  -6.768057402E-14  -8.054111154E-13
+  Gradient (grad f): -3.805641229E-14  -6.768057402E-14  -8.054111154E-13  
   Gradient norm (|grad f|): 8.091452376E-13
   Gradient norm, valence: 8.091452376E-13
   Kinetic energy density (G,tau): 2.265206064E-13
   Laplacian (del2 f): 1.602631690E-12
   Laplacian, valence (del2 fval): 1.602631690E-12
   Hessian:
-    -1.373088564E-14  -1.285208216E-14   8.570502778E-14
-    -1.285208216E-14  -2.874443982E-14   1.545444748E-13
-     8.570502778E-14   1.545444748E-13   1.645107016E-12
-  Hessian eigenvalues: -5.449352394E-14  -6.356366898E-15  1.663481581E-12
+    -1.373088564E-14  -1.285208216E-14   8.570502778E-14  
+    -1.285208216E-14  -2.874443982E-14   1.545444748E-13  
+     8.570502778E-14   1.545444748E-13   1.645107016E-12  
+  Hessian eigenvalues: -5.449352394E-14  -6.356366898E-15  1.663481581E-12  
 

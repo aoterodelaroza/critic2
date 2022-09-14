@@ -1,10 +1,11 @@
 + Field number 1
+  Name: mgo.pwc
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02
-  Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02  
+  Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 7.612419486289E+02
   Cell integral (grid SUM) = 8.00000000
@@ -21,39 +22,39 @@
 + Plane-wave Kohn-Sham states for this field
   Spin: 1 K-points: 8 Bands: 4
 # kpt  1 (0.0000 0.0000 0.0000) w=1.25000000E-01
-  Ek(1): -10.98   6.71   6.71   6.71
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1): -10.98   6.71   6.71   6.71 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  2 (-0.0000 0.0000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  3 (0.0000 -0.5000 0.0000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  4 (0.0000 -0.5000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  5 (-0.5000 -0.0000 -0.0000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  6 (-0.5000 0.0000 -0.5000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  7 (0.5000 0.5000 -0.0000) w=1.25000000E-01
-  Ek(1):  -9.15   2.20   5.22   5.22
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.15   2.20   5.22   5.22 
+ Occ(1):   2.00   2.00   2.00   2.00 
 # kpt  8 (0.5000 0.5000 0.5000) w=1.25000000E-01
-  Ek(1):  -9.46   1.62   5.96   5.96
- Occ(1):   2.00   2.00   2.00   2.00
+  Ek(1):  -9.46   1.62   5.96   5.96 
+ Occ(1):   2.00   2.00   2.00   2.00 
 
 + Wannier functions information for this field
-  Real-space lattice vectors: 2 2 2
+  Real-space lattice vectors: 2 2 2 
   Spin: 1 Bands: 4
   Wannier function centers (cryst. coords.) and spreads: 
 # bnd spin        ----  center  ----        spread(bohr)
-   1   1    1.843939   1.552172   0.551842   1.30644363  
-   2   1    0.051991   0.551851   1.552215   1.30645587  
-   3   1    0.051871   0.343939   1.552002   1.30644502  
-   4   1    0.052200   1.552038   0.343941   1.30644910  
+   1   1    1.843939   1.552172   0.551842   1.30644363   
+   2   1    0.051991   0.551851   1.552215   1.30645587   
+   3   1    0.051871   0.343939   1.552002   1.30644502   
+   4   1    0.052200   1.552038   0.343941   1.30644910   
   Alias for this field (1): $1
 
 * Field number 1 is now REFERENCE.
@@ -123,13 +124,13 @@
 * CUBE written to file: 018_cube_mlwf-2-08-i.cube
 
 + Field number 2
-  Name: r11
+  Name: 018_cube_mlwf-1-01-r.cube
   Source: 018_cube_mlwf-1-01-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.177004686858E-02  1.315787519528E-02  1.453207904791E-02
-  Last elements... 4.975212122336E-04  4.597125641650E-04  3.415910231172E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.177004686858E-02  1.315787519528E-02  1.453207904791E-02  
+  Last elements... 4.975212122336E-04  4.597125641650E-04  3.415910231172E-04  
   Sum of elements... -2.150137103168E+01
   Sum of squares of elements... 6.951101973645E-01
   Cell integral (grid SUM) = -0.07793880
@@ -145,13 +146,13 @@
   Alias for this field (2): $2, $r11
 
 + Field number 3
-  Name: r12
+  Name: 018_cube_mlwf-1-02-r.cube
   Source: 018_cube_mlwf-1-02-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.199641562438E-05  -1.753641661339E-04  -3.844413179364E-04
-  Last elements... 1.591004195908E-02  1.482011337839E-02  1.367799165828E-02
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.199641562438E-05  -1.753641661339E-04  -3.844413179364E-04  
+  Last elements... 1.591004195908E-02  1.482011337839E-02  1.367799165828E-02  
   Sum of elements... 1.107101653015E+02
   Sum of squares of elements... 3.453067245994E+00
   Cell integral (grid SUM) = 0.40130547
@@ -167,13 +168,13 @@
   Alias for this field (2): $3, $r12
 
 + Field number 4
-  Name: r13
+  Name: 018_cube_mlwf-1-03-r.cube
   Source: 018_cube_mlwf-1-03-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 3.860198833508E-04  6.907002290165E-04  1.047117842446E-03
-  Last elements... 2.313832496724E-03  2.013907986580E-03  1.663011042012E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 3.860198833508E-04  6.907002290165E-04  1.047117842446E-03  
+  Last elements... 2.313832496724E-03  2.013907986580E-03  1.663011042012E-03  
   Sum of elements... -3.803712959555E+02
   Sum of squares of elements... 3.700236437337E+01
   Cell integral (grid SUM) = -1.37878110
@@ -189,13 +190,13 @@
   Alias for this field (2): $4, $r13
 
 + Field number 5
-  Name: r14
+  Name: 018_cube_mlwf-1-04-r.cube
   Source: 018_cube_mlwf-1-04-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -7.713765622063E-04  -1.019963012317E-03  -1.260974433759E-03
-  Last elements... 1.185245982389E-03  8.770929056390E-04  6.431207165314E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -7.713765622063E-04  -1.019963012317E-03  -1.260974433759E-03  
+  Last elements... 1.185245982389E-03  8.770929056390E-04  6.431207165314E-04  
   Sum of elements... 1.375271931558E+03
   Sum of squares of elements... 2.241485962344E+02
   Cell integral (grid SUM) = 4.98512629
@@ -211,13 +212,13 @@
   Alias for this field (2): $5, $r14
 
 + Field number 6
-  Name: r15
+  Name: 018_cube_mlwf-1-05-r.cube
   Source: 018_cube_mlwf-1-05-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 2.044784885213E-04  8.481620892954E-05  -3.415336309883E-05
-  Last elements... 3.158510940811E-04  -3.671272240200E-05  -4.324079010788E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 2.044784885213E-04  8.481620892954E-05  -3.415336309883E-05  
+  Last elements... 3.158510940811E-04  -3.671272240200E-05  -4.324079010788E-04  
   Sum of elements... -4.064430603792E+00
   Sum of squares of elements... 2.208622584943E-02
   Cell integral (grid SUM) = -0.01473287
@@ -233,13 +234,13 @@
   Alias for this field (2): $6, $r15
 
 + Field number 7
-  Name: r16
+  Name: 018_cube_mlwf-1-06-r.cube
   Source: 018_cube_mlwf-1-06-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.466538038801E-03  1.015064955766E-03  4.966810307897E-04
-  Last elements... -1.656068537949E-04  -4.715129501987E-05  5.210290754202E-06
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.466538038801E-03  1.015064955766E-03  4.966810307897E-04  
+  Last elements... -1.656068537949E-04  -4.715129501987E-05  5.210290754201E-06  
   Sum of elements... 1.449509350407E+01
   Sum of squares of elements... 1.209946114560E-01
   Cell integral (grid SUM) = 0.05254224
@@ -255,13 +256,13 @@
   Alias for this field (2): $7, $r16
 
 + Field number 8
-  Name: r17
+  Name: 018_cube_mlwf-1-07-r.cube
   Source: 018_cube_mlwf-1-07-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.162303655624E-02  1.033251864800E-02  9.113104522809E-03
-  Last elements... 5.137809431772E-04  3.812752254906E-04  3.424143563190E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.162303655624E-02  1.033251864800E-02  9.113104522809E-03  
+  Last elements... 5.137809431772E-04  3.812752254906E-04  3.424143563190E-04  
   Sum of elements... -2.135783638144E+01
   Sum of squares of elements... 6.905713435616E-01
   Cell integral (grid SUM) = -0.07741852
@@ -277,13 +278,13 @@
   Alias for this field (2): $8, $r17
 
 + Field number 9
-  Name: r18
+  Name: 018_cube_mlwf-1-08-r.cube
   Source: 018_cube_mlwf-1-08-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.141124572790E-05  -1.705663233300E-05  5.458111788950E-05
-  Last elements... 9.898973709565E-03  1.178769282254E-02  1.381951790423E-02
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.141124572790E-05  -1.705663233300E-05  5.458111788950E-05  
+  Last elements... 9.898973709565E-03  1.178769282254E-02  1.381951790423E-02  
   Sum of elements... 1.104721649655E+02
   Sum of squares of elements... 3.437840052527E+00
   Cell integral (grid SUM) = 0.40044276
@@ -299,13 +300,13 @@
   Alias for this field (2): $9, $r18
 
 + Field number 10
-  Name: i11
+  Name: 018_cube_mlwf-1-01-i.cube
   Source: 018_cube_mlwf-1-01-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.801952984556E-03  2.014602135798E-03  2.225194895884E-03
-  Last elements... 7.614872616776E-05  7.037379070218E-05  5.231930794688E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.801952984556E-03  2.014602135798E-03  2.225194895884E-03  
+  Last elements... 7.614872616776E-05  7.037379070218E-05  5.231930794688E-05  
   Sum of elements... -3.284905822368E+00
   Sum of squares of elements... 1.625527174183E-02
   Cell integral (grid SUM) = -0.01190722
@@ -321,13 +322,13 @@
   Alias for this field (2): $10, $i11
 
 + Field number 11
-  Name: i12
+  Name: 018_cube_mlwf-1-02-i.cube
   Source: 018_cube_mlwf-1-02-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.896576292402E-06  -2.677641850903E-05  -5.876821576356E-05
-  Last elements... 2.432509959171E-03  2.266032567809E-03  2.091553625353E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.896576292402E-06  -2.677641850903E-05  -5.876821576356E-05  
+  Last elements... 2.432509959171E-03  2.266032567809E-03  2.091553625353E-03  
   Sum of elements... 1.693419538021E+01
   Sum of squares of elements... 8.080426072592E-02
   Cell integral (grid SUM) = 0.06138357
@@ -343,13 +344,13 @@
   Alias for this field (2): $11, $i12
 
 + Field number 12
-  Name: i13
+  Name: 018_cube_mlwf-1-03-i.cube
   Source: 018_cube_mlwf-1-03-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 5.899316171277E-05  1.055452033863E-04  1.600052742800E-04
-  Last elements... 3.535343556987E-04  3.076723061118E-04  2.540267524101E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 5.899316171277E-05  1.055452033863E-04  1.600052742800E-04  
+  Last elements... 3.535343556987E-04  3.076723061118E-04  2.540267524101E-04  
   Sum of elements... -5.807938790303E+01
   Sum of squares of elements... 8.644398282804E-01
   Cell integral (grid SUM) = -0.21052788
@@ -365,13 +366,13 @@
   Alias for this field (2): $12, $i13
 
 + Field number 13
-  Name: i14
+  Name: 018_cube_mlwf-1-04-i.cube
   Source: 018_cube_mlwf-1-04-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -1.177252537934E-04  -1.557212594925E-04  -1.925491969489E-04
-  Last elements... 1.819363781251E-04  1.346240209833E-04  9.869184856367E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -1.177252537934E-04  -1.557212594925E-04  -1.925491969489E-04  
+  Last elements... 1.819363781251E-04  1.346240209833E-04  9.869184856367E-05  
   Sum of elements... 2.103267599807E+02
   Sum of squares of elements... 5.243003306941E+00
   Cell integral (grid SUM) = 0.76239865
@@ -387,13 +388,13 @@
   Alias for this field (2): $13, $i14
 
 + Field number 14
-  Name: i15
+  Name: 018_cube_mlwf-1-05-i.cube
   Source: 018_cube_mlwf-1-05-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 3.136920492887E-05  1.299339264217E-05  -5.255368111286E-06
-  Last elements... 4.845108738597E-05  -5.437271671502E-06  -6.591746793830E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 3.136920492887E-05  1.299339264217E-05  -5.255368111286E-06  
+  Last elements... 4.845108738597E-05  -5.437271671502E-06  -6.591746793830E-05  
   Sum of elements... -6.130972730034E-01
   Sum of squares of elements... 5.168684016879E-04
   Cell integral (grid SUM) = -0.00222237
@@ -409,13 +410,13 @@
   Alias for this field (2): $14, $i15
 
 + Field number 15
-  Name: i16
+  Name: 018_cube_mlwf-1-06-i.cube
   Source: 018_cube_mlwf-1-06-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 2.240120004771E-04  1.549746064711E-04  7.571472603364E-05
-  Last elements... -2.528945211088E-05  -7.174942328742E-06  8.325031833095E-07
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 2.240120004771E-04  1.549746064711E-04  7.571472603364E-05  
+  Last elements... -2.528945211088E-05  -7.174942328742E-06  8.325031833095E-07  
   Sum of elements... 2.215895976708E+00
   Sum of squares of elements... 2.830090909361E-03
   Cell integral (grid SUM) = 0.00803225
@@ -431,13 +432,13 @@
   Alias for this field (2): $15, $i16
 
 + Field number 16
-  Name: i17
+  Name: 018_cube_mlwf-1-07-i.cube
   Source: 018_cube_mlwf-1-07-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.777848593916E-03  1.580597935059E-03  1.394184807015E-03
-  Last elements... 7.870655746529E-05  5.842428066683E-05  5.245607303074E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.777848593916E-03  1.580597935059E-03  1.394184807015E-03  
+  Last elements... 7.870655746529E-05  5.842428066683E-05  5.245607303074E-05  
   Sum of elements... -3.261542215712E+00
   Sum of squares of elements... 1.614138139939E-02
   Cell integral (grid SUM) = -0.01182253
@@ -453,13 +454,13 @@
   Alias for this field (2): $16, $i17
 
 + Field number 17
-  Name: i18
+  Name: 018_cube_mlwf-1-08-i.cube
   Source: 018_cube_mlwf-1-08-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.795501450129E-06  -2.555090279181E-06  8.400215296052E-06
-  Last elements... 1.514646089672E-03  1.803733442708E-03  2.114762126662E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.795501450129E-06  -2.555090279181E-06  8.400215296052E-06  
+  Last elements... 1.514646089672E-03  1.803733442708E-03  2.114762126662E-03  
   Sum of elements... 1.689541522232E+01
   Sum of squares of elements... 8.042232285605E-02
   Cell integral (grid SUM) = 0.06124300
@@ -475,13 +476,13 @@
   Alias for this field (2): $17, $i18
 
 + Field number 18
-  Name: r21
+  Name: 018_cube_mlwf-2-01-r.cube
   Source: 018_cube_mlwf-2-01-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.100355729628E-02  1.210617790337E-02  1.263558895749E-02
-  Last elements... 1.143735836951E-04  6.787579996871E-05  -2.232430633029E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.100355729628E-02  1.210617790337E-02  1.263558895749E-02  
+  Last elements... 1.143735836951E-04  6.787579996871E-05  -2.232430633029E-05  
   Sum of elements... 2.094558484724E+01
   Sum of squares of elements... 1.495698753474E+00
   Cell integral (grid SUM) = 0.07592417
@@ -497,13 +498,13 @@
   Alias for this field (2): $18, $r21
 
 + Field number 19
-  Name: r22
+  Name: 018_cube_mlwf-2-02-r.cube
   Source: 018_cube_mlwf-2-02-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.122055192242E-05  1.443219525011E-05  -4.692492475222E-05
-  Last elements... -1.117575565422E-03  5.713070784291E-04  2.930264135857E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.122055192242E-05  1.443219525011E-05  -4.692492475222E-05  
+  Last elements... -1.117575565422E-03  5.713070784291E-04  2.930264135857E-03  
   Sum of elements... 6.241356453394E+01
   Sum of squares of elements... 2.127863717286E+00
   Cell integral (grid SUM) = 0.22623853
@@ -519,13 +520,13 @@
   Alias for this field (2): $19, $r22
 
 + Field number 20
-  Name: r23
+  Name: 018_cube_mlwf-2-03-r.cube
   Source: 018_cube_mlwf-2-03-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.370202843723E-03  3.381475715233E-04  -4.155259629349E-04
-  Last elements... -8.525788984421E-05  6.809981088804E-05  2.845056051212E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.370202843723E-03  3.381475715233E-04  -4.155259629349E-04  
+  Last elements... -8.525788984421E-05  6.809981088804E-05  2.845056051212E-04  
   Sum of elements... 1.153048258514E+01
   Sum of squares of elements... 9.190771441376E-02
   Cell integral (grid SUM) = 0.04179603
@@ -541,13 +542,13 @@
   Alias for this field (2): $20, $r23
 
 + Field number 21
-  Name: r24
+  Name: 018_cube_mlwf-2-04-r.cube
   Source: 018_cube_mlwf-2-04-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.915472658002E-04  5.015848267139E-05  3.036966013614E-05
-  Last elements... 5.917778044549E-04  5.974519317960E-04  5.722705479214E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.915472658002E-04  5.015848267139E-05  3.036966013614E-05  
+  Last elements... 5.917778044549E-04  5.974519317960E-04  5.722705479214E-04  
   Sum of elements... -1.786686198531E+00
   Sum of squares of elements... 3.297915690687E-02
   Cell integral (grid SUM) = -0.00647643
@@ -563,13 +564,13 @@
   Alias for this field (2): $21, $r24
 
 + Field number 22
-  Name: r25
+  Name: 018_cube_mlwf-2-05-r.cube
   Source: 018_cube_mlwf-2-05-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -7.207485462060E-04  -1.412378944923E-03  -2.165610467973E-03
-  Last elements... -1.679277129370E-04  -2.018985439082E-04  -6.371289836192E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -7.207485462060E-04  -1.412378944923E-03  -2.165610467973E-03  
+  Last elements... -1.679277129370E-04  -2.018985439082E-04  -6.371289836192E-05  
   Sum of elements... 8.490235002744E+02
   Sum of squares of elements... 1.531857463656E+02
   Cell integral (grid SUM) = 3.07756544
@@ -585,13 +586,13 @@
   Alias for this field (2): $22, $r25
 
 + Field number 23
-  Name: r26
+  Name: 018_cube_mlwf-2-06-r.cube
   Source: 018_cube_mlwf-2-06-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 3.601476106708E-04  4.360783262440E-04  6.781473776247E-04
-  Last elements... 9.168087036377E-03  6.641934698605E-03  4.583422703802E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 3.601476106708E-04  4.360783262440E-04  6.781473776247E-04  
+  Last elements... 9.168087036377E-03  6.641934698605E-03  4.583422703802E-03  
   Sum of elements... 8.048666748342E+01
   Sum of squares of elements... 7.477675306663E+01
   Cell integral (grid SUM) = 0.29175045
@@ -607,13 +608,13 @@
   Alias for this field (2): $23, $r26
 
 + Field number 24
-  Name: r27
+  Name: 018_cube_mlwf-2-07-r.cube
   Source: 018_cube_mlwf-2-07-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.085243366906E-02  1.509434936703E-02  1.988882074539E-02
-  Last elements... -1.475783340142E-04  -8.189680800633E-05  -2.143942230764E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.085243366906E-02  1.509434936703E-02  1.988882074539E-02  
+  Last elements... -1.475783340142E-04  -8.189680800633E-05  -2.143942230764E-05  
   Sum of elements... 2.109077040222E+01
   Sum of squares of elements... 1.489279507765E+00
   Cell integral (grid SUM) = 0.07645045
@@ -629,13 +630,13 @@
   Alias for this field (2): $24, $r27
 
 + Field number 25
-  Name: r28
+  Name: 018_cube_mlwf-2-08-r.cube
   Source: 018_cube_mlwf-2-08-r.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 1.058407452575E-05  3.431739600932E-05  8.923821184012E-05
-  Last elements... -2.341365305858E-03  5.918814698475E-04  3.075755280687E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.058407452575E-05  3.431739600931E-05  8.923821184012E-05  
+  Last elements... -2.341365305858E-03  5.918814698475E-04  3.075755280687E-03  
   Sum of elements... 6.217122972548E+01
   Sum of squares of elements... 2.115282040549E+00
   Cell integral (grid SUM) = 0.22536011
@@ -651,13 +652,13 @@
   Alias for this field (2): $25, $r28
 
 + Field number 26
-  Name: i21
+  Name: 018_cube_mlwf-2-01-i.cube
   Source: 018_cube_mlwf-2-01-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -4.568556640046E-03  -5.026277008088E-03  -5.246026282976E-03
-  Last elements... -4.742381921942E-05  -2.815917014467E-05  9.260604714033E-06
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -4.568556640046E-03  -5.026277008088E-03  -5.246026282976E-03  
+  Last elements... -4.742381921942E-05  -2.815917014467E-05  9.260604714033E-06  
   Sum of elements... -8.700675438970E+00
   Sum of squares of elements... 2.578057271894E-01
   Cell integral (grid SUM) = -0.03153847
@@ -673,13 +674,13 @@
   Alias for this field (2): $26, $i21
 
 + Field number 27
-  Name: i22
+  Name: 018_cube_mlwf-2-02-i.cube
   Source: 018_cube_mlwf-2-02-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -4.746442659412E-06  -6.110534156017E-06  1.933778299393E-05
-  Last elements... 4.651101546498E-04  -2.358324207514E-04  -1.214943610499E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -4.746442659412E-06  -6.110534156017E-06  1.933778299393E-05  
+  Last elements... 4.651101546498E-04  -2.358324207514E-04  -1.214943610499E-03  
   Sum of elements... -2.590464552966E+01
   Sum of squares of elements... 3.666703636163E-01
   Cell integral (grid SUM) = -0.09389992
@@ -695,13 +696,13 @@
   Alias for this field (2): $27, $i22
 
 + Field number 28
-  Name: i23
+  Name: 018_cube_mlwf-2-03-i.cube
   Source: 018_cube_mlwf-2-03-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -5.691294003257E-04  -1.406609031213E-04  1.722353301198E-04
-  Last elements... 3.534633715939E-05  -2.834077092853E-05  -1.182093683455E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -5.691294003257E-04  -1.406609031213E-04  1.722353301198E-04  
+  Last elements... 3.534633715939E-05  -2.834077092853E-05  -1.182093683455E-04  
   Sum of elements... -4.787158702281E+00
   Sum of squares of elements... 1.584233566952E-02
   Cell integral (grid SUM) = -0.01735263
@@ -717,13 +718,13 @@
   Alias for this field (2): $28, $i23
 
 + Field number 29
-  Name: i24
+  Name: 018_cube_mlwf-2-04-i.cube
   Source: 018_cube_mlwf-2-04-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -7.937273168452E-05  -2.070745859223E-05  -1.253144346583E-05
-  Last elements... -2.455438093684E-04  -2.478763110137E-04  -2.374062653719E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -7.937273168452E-05  -2.070745859223E-05  -1.253144346583E-05  
+  Last elements... -2.455438093684E-04  -2.478763110137E-04  -2.374062653719E-04  
   Sum of elements... 7.368025350691E-01
   Sum of squares of elements... 5.684002199075E-03
   Cell integral (grid SUM) = 0.00267078
@@ -739,13 +740,13 @@
   Alias for this field (2): $29, $i24
 
 + Field number 30
-  Name: i25
+  Name: 018_cube_mlwf-2-05-i.cube
   Source: 018_cube_mlwf-2-05-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 2.994399475820E-04  5.865997015738E-04  8.993341857316E-04
-  Last elements... 6.991621789764E-05  8.399573980516E-05  2.660001988686E-05
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 2.994399475820E-04  5.865997015738E-04  8.993341857316E-04  
+  Last elements... 6.991621789764E-05  8.399573980516E-05  2.660001988686E-05  
   Sum of elements... -3.525420032807E+02
   Sum of squares of elements... 2.640603539300E+01
   Cell integral (grid SUM) = -1.27790466
@@ -761,13 +762,13 @@
   Alias for this field (2): $30, $i25
 
 + Field number 31
-  Name: i26
+  Name: 018_cube_mlwf-2-06-i.cube
   Source: 018_cube_mlwf-2-06-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -1.496220416004E-04  -1.811639337597E-04  -2.816786271567E-04
-  Last elements... -3.806415286500E-03  -2.757691141928E-03  -1.903103271658E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -1.496220416004E-04  -1.811639337597E-04  -2.816786271567E-04  
+  Last elements... -3.806415286500E-03  -2.757691141928E-03  -1.903103271658E-03  
   Sum of elements... -3.330835918076E+01
   Sum of squares of elements... 1.288638656627E+01
   Cell integral (grid SUM) = -0.12073712
@@ -783,13 +784,13 @@
   Alias for this field (2): $31, $i26
 
 + Field number 32
-  Name: i27
+  Name: 018_cube_mlwf-2-07-i.cube
   Source: 018_cube_mlwf-2-07-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -4.504033481782E-03  -6.264931259056E-03  -8.255234970151E-03
-  Last elements... 6.129121825873E-05  3.401100780292E-05  8.888746537882E-06
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -4.504033481782E-03  -6.264931259056E-03  -8.255234970151E-03  
+  Last elements... 6.129121825873E-05  3.401100780292E-05  8.888746537882E-06  
   Sum of elements... -8.762643825689E+00
   Sum of squares of elements... 2.566681385100E-01
   Cell integral (grid SUM) = -0.03176309
@@ -805,13 +806,13 @@
   Alias for this field (2): $32, $i27
 
 + Field number 33
-  Name: i28
+  Name: 018_cube_mlwf-2-08-i.cube
   Source: 018_cube_mlwf-2-08-i.cube
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... -4.482449122902E-06  -1.436693439541E-05  -3.719551547040E-05
-  Last elements... 9.718898042838E-04  -2.458711020529E-04  -1.277059785024E-03
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... -4.482449122901E-06  -1.436693439541E-05  -3.719551547040E-05  
+  Last elements... 9.718898042838E-04  -2.458711020529E-04  -1.277059785024E-03  
   Sum of elements... -2.580094525098E+01
   Sum of squares of elements... 3.644407666891E-01
   Cell integral (grid SUM) = -0.09352403
@@ -827,17 +828,18 @@
   Alias for this field (2): $33, $i28
 
 + Field number 34
+  Name: <generated>, grid: ($r11*$r21+$i11*$i21 + $r12*$r22+$i12*$i22 + $r13*$r23+$i13*$i23 + $r14*$r24+$i14*$i24 + $r15*$r25+$i15*$i25 + $r16*$r26+$i16*$i26 + $r17*$r27+$i17*$i27 + $r18*$r28+$i18*$i28)
   Source: <generated>
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 2.401246513868E-04  2.956962011757E-04  3.416502911897E-04
-  Last elements... -3.937177640993E-05  1.479849010780E-05  7.816557980844E-05
-  Sum of elements... 1.507128298030E-13
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 2.401246513868E-04  2.956962011757E-04  3.416502911897E-04  
+  Last elements... -3.937177640993E-05  1.479849010780E-05  7.816557980844E-05  
+  Sum of elements... 1.504620809455E-13
   Sum of squares of elements... 3.336753242043E-03
   Cell integral (grid SUM) = 0.00000000
   Min: -5.71498012E-03
-  Average: 4.59939056E-18
+  Average: 4.59173831E-18
   Max: 2.88544981E-03
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
@@ -848,12 +850,13 @@
   Alias for this field (1): $34
 
 + Field number 35
+  Name: <generated>, grid: ($r11*$r11+$i11*$i11 + $r12*$r12+$i12*$i12 + $r13*$r13+$i13*$i13 + $r14*$r14+$i14*$i14 + $r15*$r15+$i15*$i15 + $r16*$r16+$i16*$i16 + $r17*$r17+$i17*$i17 + $r18*$r18+$i18*$i18)
   Source: <generated>
   Type: grid
-  Grid dimensions : 32  32  32
-  Max. length Voronoi-relevant vector (bohr):  0.17243
-  First elements... 2.830421264636E-04  2.890938167522E-04  3.042823456082E-04
-  Last elements... 3.669007555417E-04  3.722804481948E-04  3.905975964967E-04
+  Grid dimensions : 32  32  32  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 2.830421264636E-04  2.890938167522E-04  3.042823456082E-04  
+  Last elements... 3.669007555417E-04  3.722804481948E-04  3.905975964967E-04  
   Sum of elements... 2.758750436157E+02
   Sum of squares of elements... 2.603009578649E+01
   Cell integral (grid SUM) = 1.00000000
