@@ -414,7 +414,7 @@ contains
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     elseif (w%type == wintype_scfplot) then
-       w%name = "SCF Iterations##" // string(w%scfplot_isys) // c_null_char
+       w%name = "SCF Iterations (" // string(w%scfplot_isys) // ")" // c_null_char
        w%flags = ImGuiWindowFlags_None
        inisize%x = 45 * fontsize%x
        inisize%y = inisize%x
@@ -3322,6 +3322,9 @@ contains
     class(window), intent(inout), target :: w
 
     real(c_double), allocatable, target, save :: x(:), y(:)
+    real(c_double) :: xmin, xmax
+    real(c_double), save :: ymin, ymax
+    real*8 :: dy
     logical :: doquit
     integer :: i, isys, num, n
     type(ImVec2) :: sz
@@ -3350,6 +3353,8 @@ contains
           end do
           x(num) = real(num,8)
           y(num) = sysc(isys)%seed%energy
+          ymax = maxval(y)
+          ymin = minval(y)
        end if
 
        ! make the plot
@@ -3359,20 +3364,22 @@ contains
           str1 = "SCF Iteration" // c_null_char
           str2 = "Energy (Ha)" // c_null_char
           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-          str1 = "%.6f" // c_null_char
-          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1));
+
+          dy = (ymax - ymin)
+          str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
+          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
+          call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) ! these need to be switched
+
           str1 = "Energy" // c_null_char
           auto%x = 0._c_float
           auto%y = 0._c_float
           auto%z = 0._c_float
           auto%w = -1._c_float
           call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
-          call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),10_c_int,ImPlotLineFlags_None,0_c_int)
+
+          call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),size(x,1),ImPlotLineFlags_None,0_c_int)
           call ipEndPlot()
        end if
-
-       ! xxxx ! make the y plot format depend on the range
-       ! xxxx ! plot properties other than the energy?
     end if
 
     ! exit if focused and received the close keybinding

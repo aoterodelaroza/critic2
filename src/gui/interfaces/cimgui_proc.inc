@@ -2366,8 +2366,13 @@ subroutine ipPlotLine(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotLine
   integer(c_int), value :: flags
   integer(c_int), value :: offset
 end subroutine ipPlotLine
+! void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax);
+subroutine ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) bind(c,name="ipGetPlotCurrentLimits")
+  import c_double
+  real(c_double) :: xmin, xmax, ymin, ymax
+end subroutine ipGetPlotCurrentLimits
 ! void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
-subroutine ipSetNextMarkerStyle(marker,size,fill,weight,outline) bind(c,name="SetNextMarkerStyle")
+subroutine ipSetNextMarkerStyle(marker,size,fill,weight,outline) bind(c,name="ipSetNextMarkerStyle")
   import c_int, c_float, ImVec4
   integer(c_int), value :: marker
   real(c_float), value :: size

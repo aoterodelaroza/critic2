@@ -43,7 +43,14 @@ CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxis
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset){
   ImPlot::PlotLine(label_id,xs,ys,count,flags,offset,sizeof(double));
 }
-CIMGUI_API void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline){
+CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax){
+  ImPlotRect im = ImPlot::GetPlotLimits();
+  *xmin = im.X.Min;
+  *xmax = im.X.Max;
+  *ymin = im.Y.Min;
+  *ymax = im.Y.Max;
+}
+CIMGUI_API void ipSetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline){
   ImPlot::SetNextMarkerStyle(marker,size,fill,weight,outline);
 }
 CIMGUI_API void ipShowDemoWindow(bool* p_open){
