@@ -540,7 +540,7 @@ contains
 
     ! button: export
     export = iw_button("Export",sameline=.true.)
-    call iw_tooltip("Write a the current table to the output console in csv-style (for copying)",ttshown)
+    call iw_tooltip("Write the current table to the output console in csv-style (for copying)",ttshown)
 
     ! helper
     call iw_text("(?)",sameline=.true.)
