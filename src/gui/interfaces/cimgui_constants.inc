@@ -1041,4 +1041,4 @@
   integer(c_int), bind(C,name="const_ImPlotMarker_Asterisk") :: ImPlotMarker_Asterisk
 
   ! default font for the critic2 GUI (POINTER)
-  type(c_ptr), bind(C,name="const_myfont_ttf_compressed_data_base85_ptr") :: myfont_ttf_compressed_data_base85_ptr
+  type(c_ptr), bind(C,name="const_font_dejavu_base85_ptr") :: font_dejavu_base85_ptr

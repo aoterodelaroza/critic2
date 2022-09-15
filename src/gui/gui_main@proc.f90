@@ -162,7 +162,7 @@ contains
             9632_c_short,  9727_c_short,& ! geometric shapes
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
-    ptrc = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,myfont_ttf_compressed_data_base85_ptr,&
+    ptrc = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
        16._c_float,c_null_ptr,c_loc(range))
 
     ! get the ImGui context pointer and the main viewport

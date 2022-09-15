@@ -1066,7 +1066,7 @@ const int const_ImPlotMarker_Asterisk = ImPlotMarker_Asterisk;
 
 //// The default font for the critic2 GUI
 // DejaVu Sans Mono
-static const char myfont_ttf_compressed_data_base85[316260+1] =
+static const char font_dejavu_base85[316260+1] =
    "7])#######wK/cj'/###I),##c'ChLYqH##$@;*>R?8?,(.>>#e?'o/fY;99r0jeG*J,hLU,/S[^6se=rN(ES2N(<-U)2>5iFxF>_<*E$`9iu5wH:;$v[n42HrG(ElhES71=Ps/VNV=B"
    "j06:g?Q4U%kD'##HE8'I9Y%jS6G###-<###,gW-GUODd#oq*##g1o92j[x<Bda:8%tIX&#Hncw'+1HkE.%j]]sfl--Gj'v#p2CUC6oZ[t4+A;$7$j--f'TqLm=Q/_i%[w'T<cw'E3n0F"
    "[5w1Dn8`w'FWQ,+G4JuBVtcQuFWG293H9D3'K[^I>Q)K$s,$pI@3jq/+>00Fd@xLoFP4U%UO)##9HAiFOD.]^Z`?;$9D*##rOEfGP2_%dEhUV$Nh)##PR/R3uQj-$Ec.;ONd6F%,RB2i"
@@ -3328,4 +3328,4 @@ static const char myfont_ttf_compressed_data_base85[316260+1] =
    "NV10_QZJo5JURW$JtJ2'']6s]?Crv#>U2##TEuP&]XOgLx5*ZuH3=x#EOR8%X@+gLS`ZYuBq*x#Sn^O.&;(Z#AK3`#b2,##g$JJ19I[w#B3)/CcYni0MWZP-B_1>agRVV$hsU([b$###"
    "";
 
-const char *const_myfont_ttf_compressed_data_base85_ptr = &myfont_ttf_compressed_data_base85[0];
+const char *const_font_dejavu_base85_ptr = &font_dejavu_base85[0];

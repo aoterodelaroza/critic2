@@ -1055,7 +1055,7 @@ extern "C" const int const_ImPlotMarker_Plus;
 extern "C" const int const_ImPlotMarker_Asterisk;
 // const int const_ImPlotMarker_COUNT
 
-//// The default font for the critic2 GUI
-extern "C" const char *const_myfont_ttf_compressed_data_base85_ptr;
+//// The fonts for the critic2 GUI
+extern "C" const char *const_font_dejavu_base85_ptr;
 
 #endif // CONSTANTS_H

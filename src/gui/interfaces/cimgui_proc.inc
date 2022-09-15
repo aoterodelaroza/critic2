@@ -1295,8 +1295,16 @@ end subroutine ImDrawList_AddRectFilled
 !x! void ImDrawData_Clear(ImDrawData* self);
 !x! void ImDrawData_DeIndexAllBuffers(ImDrawData* self);
 !x! void ImDrawData_ScaleClipRects(ImDrawData* self,const ImVec2 fb_scale);
-!x! ImFontConfig* ImFontConfig_ImFontConfig(void);
-!x! void ImFontConfig_destroy(ImFontConfig* self);
+! ImFontConfig* ImFontConfig_ImFontConfig(void);
+function ImFontConfig_ImFontConfig() bind(c,name="ImFontConfig_ImFontConfig")
+  import c_ptr
+  type(c_ptr) :: ImFontConfig_ImFontConfig
+end function ImFontConfig_ImFontConfig
+! void ImFontConfig_destroy(ImFontConfig* self);
+subroutine ImFontConfig_destroy(self) bind(c,name="ImFontConfig_destroy")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImFontConfig_destroy
 !x! ImFontGlyphRangesBuilder* ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder(void);
 !x! void ImFontGlyphRangesBuilder_destroy(ImFontGlyphRangesBuilder* self);
 !x! void ImFontGlyphRangesBuilder_Clear(ImFontGlyphRangesBuilder* self);
