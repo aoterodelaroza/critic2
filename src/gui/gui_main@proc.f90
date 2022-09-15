@@ -106,7 +106,7 @@ contains
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-    call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1)
+    call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
     ! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
 
     ! set up window

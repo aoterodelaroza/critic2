@@ -45,6 +45,8 @@ const int const_mtx_timed = mtx_timed;
 const int const_mtx_recursive = mtx_recursive;
 
 // OpenGL
+const int const_GL_TRUE = GL_TRUE;
+const int const_GL_FALSE = GL_FALSE;
 const int const_GL_COLOR_BUFFER_BIT = GL_COLOR_BUFFER_BIT;
 
 // GLFW

@@ -36,6 +36,8 @@ extern "C" const int const_mtx_timed;
 extern "C" const int const_mtx_recursive;
 
 // OpenGL
+extern "C" const int const_GL_TRUE;
+extern "C" const int const_GL_FALSE;
 extern "C" const int const_GL_COLOR_BUFFER_BIT;
 
 extern "C" // GLFW;
