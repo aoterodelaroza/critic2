@@ -1263,9 +1263,11 @@ contains
          ! set as current system option
          strpop = "Set as Current System" // c_null_char
          enabled = (sysc(isys)%status == sys_init)
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             win(iwin_console_input)%inpcon_selected = isys
-         call iw_tooltip("Set this system as current, the system on which commands are effected",ttshown)
+            w%table_selected = isys
+         end if
+         call iw_tooltip("Set this system as current",ttshown)
 
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
