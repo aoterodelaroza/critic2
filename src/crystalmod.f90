@@ -488,7 +488,7 @@ module crystalmod
      module subroutine amd(c,imax,res)
        class(crystal), intent(in) :: c
        integer, intent(in) :: imax
-       real*8, allocatable, intent(inout) :: res(:)
+       real*8, intent(out) :: res(imax)
      end subroutine amd
      module subroutine calculate_ewald_cutoffs(c)
        class(crystal), intent(inout) :: c

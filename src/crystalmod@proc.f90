@@ -2207,7 +2207,7 @@ contains
     use param, only: icrd_crys
     class(crystal), intent(in) :: c
     integer, intent(in) :: imax
-    real*8, allocatable, intent(inout) :: res(:)
+    real*8, intent(out) :: res(imax)
 
     integer :: i, j
     integer :: nat, ierr, imax_
@@ -2224,8 +2224,6 @@ contains
     dmax0 = c%env%dmax0
     imax_ = imax
     if (c%ismolecule .and. imax > c%ncel-1) imax_ = c%ncel - 1
-    if (allocated(res)) deallocate(res)
-    allocate(res(imax_))
     res = 0d0
 
     ! calculate the amd

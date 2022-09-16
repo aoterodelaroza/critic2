@@ -1232,19 +1232,15 @@ contains
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right, warning
-    use param, only: icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    integer :: i, j, lp
-    integer :: imax, nat, ierr
-    real*8, allocatable :: dist(:), amd(:)
+    integer :: i, lp
+    integer :: imax
+    real*8, allocatable :: amd(:)
     logical :: ok
-    type(environ), target :: le
-    type(environ), pointer :: eptr
 
     integer, parameter :: imax_default = 100 ! default maximum nearest neighbor ordinal
-    integer, parameter :: maxtries = 5 ! maximum number of environment max. distance doubling before crashing
 
     ! initialize
     imax = imax_default
@@ -1269,6 +1265,7 @@ contains
     end if
 
     ! calcualte the amd
+    allocate(amd(imax))
     call s%c%amd(imax,amd)
     amd = amd * dunit0(iunit)
 
@@ -1296,7 +1293,7 @@ contains
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
-       ioj_left, string, lower
+       ioj_left, string, lower, lgetword
     use types, only: realloc
     use param, only: isformat_unknown, maxzat
     type(system), intent(in) :: s
@@ -1306,6 +1303,7 @@ contains
     integer :: doguess0
     integer :: lp, i, j, k, l, n, iz, is
     integer :: ns, imol, isformat, mcon, nlist
+    integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
     real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
@@ -1326,6 +1324,7 @@ contains
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
+    integer, parameter :: amd_imax = 100
 
     integer :: imethod
     integer, parameter :: imethod_default = 0
@@ -1334,6 +1333,7 @@ contains
     integer, parameter :: imethod_sorted = 3
     integer, parameter :: imethod_umeyama = 4
     integer, parameter :: imethod_ullmann = 5
+    integer, parameter :: imethod_amd = 6
 
     ! initialize
     imethod = imethod_default
@@ -1344,6 +1344,7 @@ contains
     sigma = sigma0
     epsreduce = -1d0
     imol = -1
+    amd_norm = 0
 
     ! read the input options
     do while(.true.)
@@ -1371,6 +1372,8 @@ contains
           imethod = imethod_powder
        elseif (equal(lword,'rdf')) then
           imethod = imethod_rdf
+       elseif (equal(lword,'amd')) then
+          imethod = imethod_amd
        elseif (equal(lword,'ullmann')) then
           imethod = imethod_ullmann
        elseif (equal(lword,'umeyama')) then
@@ -1381,6 +1384,17 @@ contains
           imol = 1
        elseif (equal(lword,'crystal')) then
           imol = 0
+       elseif (equal(lword,'norm')) then
+          word = lgetword(line,lp)
+          if (equal(word,'1')) then
+             amd_norm = 1
+          elseif (equal(word,'2')) then
+             amd_norm = 2
+          elseif (equal(word,'inf')) then
+             amd_norm = 0
+          else
+             call ferror('struct_compare','incorrect NORM',faterr,syntax=.true.)
+          end if
        elseif (len_trim(word) > 0) then
           ns = ns + 1
           if (ns > size(fname)) &
@@ -1477,17 +1491,28 @@ contains
           imethod = imethod_ullmann
        end if
     else
-       if (imethod /= imethod_rdf) imethod = imethod_powder
+       if (imethod /= imethod_rdf .and. imethod /= imethod_amd) imethod = imethod_powder
     end if
 
     ! rest of the header and default variables
     if (imethod == imethod_powder) then
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = th2end0
        difstr = "DIFF"
     elseif (imethod == imethod_rdf) then
        write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       if (xend < 0d0) xend = rend0
+       difstr = "DIFF"
+    elseif (imethod == imethod_amd) then
+       write (uout,'("# Using average minimum distances (AMD) in bohr.")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
@@ -1508,7 +1533,7 @@ contains
     diff = 1d0
 
     if (imethod == imethod_powder .or. imethod == imethod_rdf) then
-       ! crystals
+       ! crystals: POWDER and RDF
        allocate(iha(npts,ns),singleatom(ns))
        singleatom = -1
        do i = 1, ns
@@ -1565,6 +1590,31 @@ contains
           end do
        end do
        deallocate(xnorm)
+    elseif (imethod == imethod_amd) then
+       ! crystals: AMD
+       allocate(iha(amd_imax,ns))
+       do i = 1, ns
+          ! calculate the AMD
+          call c(i)%amd(amd_imax,iha(:,i))
+       end do
+
+       ! compare
+       diff = 0d0
+       allocate(ip(amd_imax))
+       do i = 1, ns
+          do j = i+1, ns
+             ip = abs(iha(:,i)-iha(:,j))
+             if (amd_norm == 0) then
+                diff(i,j) = maxval(ip)
+             elseif (amd_norm == 1) then
+                diff(i,j) = sum(ip)
+             else
+                diff(i,j) = norm2(ip)
+             end if
+             diff(j,i) = diff(i,j)
+          end do
+       end do
+       deallocate(ip)
     else
        ! molecules, ullmann, sorted, and umeyama. We have already made sure
        ! that the atoms counts are the same, so now we need the permutation
