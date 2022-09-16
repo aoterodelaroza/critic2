@@ -21,6 +21,9 @@ submodule (gui_window) proc
   use types, only: vstring
   implicit none
 
+  ! initial side for the view texture
+  integer(c_int), parameter :: initial_texture_side = 1024_c_int
+
   ! Count unique IDs for keeping track of windows and widget
   integer :: idcount = 0
 
@@ -182,10 +185,11 @@ contains
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen,purpose,isys)
+    use gui_interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
-    class(window), intent(inout) :: w
+    class(window), intent(inout), target :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
@@ -223,7 +227,7 @@ contains
 
     ! type-specific initialization
     if (type == wintype_dialog) then
-       ! create the dialog object and set up the style
+       ! dialog
        w%dptr = IGFD_Create()
        str1 = "+" // c_null_char
        call IGFD_SetFileStyle(w%dptr,IGFD_FileStyleByTypeDir,c_null_ptr,ColorDialogDir,c_loc(str1),c_null_ptr)
@@ -233,24 +237,73 @@ contains
           call ferror('window_init','dialog requires a purpose',faterr)
        w%dialog_purpose = purpose
     elseif (type == wintype_load_field) then
+       ! dialog: load field window
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
        w%loadfield_isys = isys
     elseif (type == wintype_scfplot) then
+       ! SCF plot window
        if (.not.present(isys)) &
           call ferror('window_init','scfplot requires isys',faterr)
        w%scfplot_isys = isys
+    elseif (type == wintype_view) then
+       ! FBO and buffers
+       call glGenTextures(1, c_loc(w%FBOtex))
+       call glGenRenderbuffers(1, c_loc(w%FBOdepth))
+       call glGenFramebuffers(1, c_loc(w%FBO))
+
+       ! texture
+       call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
+       call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, initial_texture_side, initial_texture_side,&
+          0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+       call glBindTexture(GL_TEXTURE_2D, 0)
+
+       ! render buffer
+       call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
+       call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, &
+          initial_texture_side, initial_texture_side)
+       call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+       ! frame buffer
+       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+       call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
+       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
+
+       ! check for errors
+       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+          call ferror('window_init','framebuffer is not complete',faterr)
+
+       ! clear the framebuffer
+       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+       call glViewport(0,0,initial_texture_side,initial_texture_side)
+       call glClearColor(0.,0.,0.,0.)
+       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+       ! finish and write the texture size
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+       w%FBOside = initial_texture_side
     end if
 
   end subroutine window_init
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
-    class(window), intent(inout) :: w
+    use gui_interfaces_opengl3
+    class(window), intent(inout), target :: w
 
     ! window-specific destruction
-    if (w%isinit .and. w%type == wintype_dialog .and. c_associated(w%dptr)) &
-       call IGFD_Destroy(w%dptr)
+    if (w%isinit) then
+       if (w%type == wintype_dialog .and. c_associated(w%dptr)) then
+          call IGFD_Destroy(w%dptr)
+       elseif (w%type == wintype_view) then
+          call glDeleteTextures(1, c_loc(w%FBOtex))
+          call glDeleteRenderbuffers(1, c_loc(w%FBOdepth))
+          call glDeleteFramebuffers(1, c_loc(w%FBO))
+       end if
+    end if
 
     ! deallocate the rest of the data
     w%isinit = .false.
@@ -431,7 +484,7 @@ contains
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
-                call iw_text("Hello View!")
+                call w%draw_view()
              elseif (w%type == wintype_console_input) then
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
@@ -1569,6 +1622,36 @@ contains
     w%forcesort = .false.
 
   end subroutine sort_tree
+
+  !> Draw the view.
+  module subroutine draw_view(w)
+    use gui_interfaces_opengl3
+    use gui_interfaces_cimgui
+    use gui_utils, only: iw_text
+    class(window), intent(inout), target :: w
+
+    type(ImVec2) :: szavail, sz0, sz1
+    type(ImVec4) :: tint_col, border_col
+
+    call iw_text("Hello View!")
+
+    ! draw the image
+    call igGetContentRegionAvail(szavail)
+    sz0%x = 0._c_float
+    sz0%y = 0._c_float
+    sz1%x = 1._c_float
+    sz1%y = 1._c_float
+    tint_col%x = 1._c_float
+    tint_col%y = 1._c_float
+    tint_col%z = 1._c_float
+    tint_col%w = 1._c_float
+    border_col%x = 0._c_float
+    border_col%y = 0._c_float
+    border_col%z = 0._c_float
+    border_col%w = 0._c_float
+    call igImage(w%FBOtex, szavail, sz0, sz1, tint_col, border_col)
+
+  end subroutine draw_view
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)

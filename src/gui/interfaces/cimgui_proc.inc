@@ -454,7 +454,17 @@ function igArrowButton(str_id,dir) bind(c,name="igArrowButton")
   integer(c_int), value :: dir
   logical(c_bool) :: igArrowButton
 end function igArrowButton
-!x! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
+! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
+subroutine igImage(user_texture_id,size,uv0,uv1,tint_col,border_col) bind(c,name="igImage")
+  import c_int, c_ptr, ImVec2, ImVec4
+  ! type(c_ptr), value :: user_texture_id
+  integer(c_int), value :: user_texture_id
+  type(ImVec2), intent(in), value :: size
+  type(ImVec2), intent(in), value :: uv0
+  type(ImVec2), intent(in), value :: uv1
+  type(ImVec4), intent(in), value :: tint_col
+  type(ImVec4), intent(in), value :: border_col
+end subroutine igImage
 !x! bool igImageButton(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,int frame_padding,const ImVec4 bg_col,const ImVec4 tint_col);
 ! bool igCheckbox(const char* label,bool* v);
 function igCheckbox(label,v) bind(c,name="igCheckbox")

@@ -136,6 +136,10 @@ contains
     ! set glfw options
     call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
 
+    ! set opengl options
+    call glEnable(GL_DEPTH_TEST)
+    call glEnable(GL_CULL_FACE)
+
     ! set up backend and renderer
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
     if (.not.ldum)&

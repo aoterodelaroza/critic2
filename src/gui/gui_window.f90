@@ -58,6 +58,12 @@ module gui_window
      logical :: forceupdate = .false. ! make true to force an update of the tree
      logical :: forceinit = .false. ! make true to force an initialization of the systems
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
+     ! view parameters
+     integer(c_int) :: FBO ! framebuffer
+     integer(c_int) :: FBOtex ! framebuffer, texture
+     integer(c_int) :: FBOdepth ! framebuffer, depth buffer
+     real(c_float) :: FBOside ! side of the render texture (pixels)
+     real(c_float) :: renderside ! side of the square used for rendering (pixels)
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
@@ -81,6 +87,8 @@ module gui_window
      procedure :: draw_tree ! draw a tree
      procedure :: update_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
+     ! view procedures
+     procedure :: draw_view ! draw a view
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -150,14 +158,14 @@ module gui_window
        integer, intent(out), optional :: changed
      end subroutine update_window_id
      module subroutine window_init(w,type,isopen,purpose,isys)
-       class(window), intent(inout) :: w
+       class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
      end subroutine window_init
      module subroutine window_end(w)
-       class(window), intent(inout) :: w
+       class(window), intent(inout), target :: w
      end subroutine window_end
      module function window_focused(w)
        class(window), intent(inout) :: w
@@ -176,6 +184,9 @@ module gui_window
        class(window), intent(inout) :: w
        integer(c_int), intent(in) :: cid, dir
      end subroutine sort_tree
+     module subroutine draw_view(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_view
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog
