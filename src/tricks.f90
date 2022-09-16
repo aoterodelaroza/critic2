@@ -2164,7 +2164,7 @@ contains
   ! Compare structures, allowing deformation of one crystal into the other such
   ! as may be cause by temperature or pressure effects without a phase change.
   !
-  ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r]
+  ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r] [AMD]
   ! 2:  TRICK COMPARE struct1 xyfile a b c alpha beta gamma ...
   !
   ! Mode 1: compare the two structures.
@@ -2189,7 +2189,7 @@ contains
     use param, only: pi, icrd_crys, eye, bohrtoa
     character*(*), intent(in) :: line0
 
-    type(crystalseed) :: seed
+    type(crystalseed) :: seed, c2seed
     type(environ) :: e
     integer :: lp, lp2, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
@@ -2204,7 +2204,7 @@ contains
     integer, allocatable :: hvecp(:,:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
-    logical :: ok, dowrite, noh
+    logical :: ok, dowrite, noh, useamd
     real*8 :: powdiff_thr, max_elong, max_ang
     real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
     integer :: npts
@@ -2220,6 +2220,7 @@ contains
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
+    integer, parameter :: imax_amd = 100 ! the maximum nn in AMD
 
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
@@ -2258,6 +2259,7 @@ contains
     powdiff_thr = -1d0
     dowrite = .false.
     noh = .false.
+    useamd = .false.
     do while (.true.)
        word = lgetword(line0,lp)
        if (equal(word,'thr')) then
@@ -2273,6 +2275,8 @@ contains
           dowrite = .true.
        elseif (equal(word,'noh')) then
           noh = .true.
+       elseif (equal(word,'amd')) then
+          useamd = .true.
        elseif (len_trim(word) > 0) then
           if (.not.ok) call ferror('trick_compare_deformed','Unknown keyword',faterr)
        else
@@ -2432,39 +2436,59 @@ contains
     write (uout,*)
 
     ! calculate the powder of structure 1 (reference)
-    h = (th2end-th2ini) / real(npts-1,8)
-    if (usexy) then
-       iha1 = intxy
+    if (useamd) then
+       ! AMD
+       allocate(iha1(imax_amd))
+       call c1%amd(imax_amd,iha1)
     else
-       call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+       ! POWDER
+       h = (th2end-th2ini) / real(npts-1,8)
+       if (usexy) then
+          iha1 = intxy
+       else
+          call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+       end if
+       tini = iha1(1)**2
+       tend = iha1(npts)**2
+       nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+       iha1 = iha1 / sqrt(nor)
+       xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
+       xnorm1 = sqrt(abs(xnorm1))
     end if
-    tini = iha1(1)**2
-    tend = iha1(npts)**2
-    nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-    iha1 = iha1 / sqrt(nor)
-    xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
-    xnorm1 = sqrt(abs(xnorm1))
 
     ! calculate the powder of structure 2 and prepare
-    c2del = c2
-    c2del%aa = targetaa
-    c2del%bb = targetbb
-    c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
-    c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
-    call matinv(c2del%grtensor,3)
-    do i = 1, 3
-       c2del%ar(i) = sqrt(c2del%grtensor(i,i))
-    end do
-    call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
-    tini = iha2(1)**2
-    tend = iha2(npts)**2
-    nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-    iha2 = iha2 / sqrt(nor)
-    xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
-    xnorm2 = sqrt(abs(xnorm2))
+    if (useamd) then
+       call c2%makeseed(c2seed,.false.)
+       c2seed%useabr = 2
+       c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
+       call c2del%struct_new(c2seed,.true.)
+       allocate(iha2(imax_amd))
+       call c2del%amd(imax_amd,iha2)
 
-    ! calculate baseline powdiff
-    mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+       ! calculate baseline powdiff
+       ! mindiff = maxval(abs(iha1-iha2))
+       mindiff = sum(abs(iha1-iha2))
+    else
+       c2del = c2
+       c2del%aa = targetaa
+       c2del%bb = targetbb
+       c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+       c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+       call matinv(c2del%grtensor,3)
+       do i = 1, 3
+          c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+       end do
+       call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+       tini = iha2(1)**2
+       tend = iha2(npts)**2
+       nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+       iha2 = iha2 / sqrt(nor)
+       xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+       xnorm2 = sqrt(abs(xnorm2))
+
+       ! calculate baseline powdiff
+       mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+    end if
     xd2min = eye
 
     ! run over all permutations
@@ -2478,7 +2502,7 @@ contains
     write (uout,'("# max-dlen = maximum difference in cell lengths (bohr).")')
     write (uout,'("# max-dang = maximum difference in angles (degree).")')
     write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
-    write (uout,'("+ INITIAL POWDIFF = ",A)') string(mindiff,'f',12,9)
+    write (uout,'("+ INITIAL DIFF = ",A)') string(mindiff,'f',12,9)
     if (mindiff < powdiff_thr) goto 999
     do i1 = 1, n1
        cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
@@ -2518,32 +2542,50 @@ contains
                 if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
              end if
 
-             ! make the new crystal
-             c2del = c2
-             call c2del%newcell(xd2,noenv=.true.)
-             c2del%aa = targetaa
-             c2del%bb = targetbb
-             c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
-             c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
-             call matinv(c2del%grtensor,3)
-             do i = 1, 3
-                c2del%ar(i) = sqrt(c2del%grtensor(i,i))
-             end do
+             if (useamd) then
+                !! AMD
+                c2del = c2
+                call c2del%newcell(xd2,noenv=.true.)
+                call c2del%makeseed(c2seed,.false.)
+                c2seed%useabr = 2
+                c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
+                call c2del%struct_new(c2seed,.true.)
+                call c2del%amd(imax_amd,iha2)
+                ! diff = maxval(abs(iha1-iha2))
+                diff = sum(abs(iha1-iha2))
+                if (diff < mindiff) then
+                   mindiff = diff
+                   xd2min = xd2
+                end if
+             else
+                !! powder diffraction
+                ! make the new crystal
+                c2del = c2
+                call c2del%newcell(xd2,noenv=.true.)
+                c2del%aa = targetaa
+                c2del%bb = targetbb
+                c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+                c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+                call matinv(c2del%grtensor,3)
+                do i = 1, 3
+                   c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+                end do
 
-             ! calculate the powder of structure 2
-             call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
-             tini = iha2(1)**2
-             tend = iha2(npts)**2
-             nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-             iha2 = iha2 / sqrt(nor)
-             xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
-             xnorm2 = sqrt(abs(xnorm2))
+                ! calculate the powder of structure 2
+                call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+                tini = iha2(1)**2
+                tend = iha2(npts)**2
+                nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+                iha2 = iha2 / sqrt(nor)
+                xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+                xnorm2 = sqrt(abs(xnorm2))
 
-             ! calculate the powdiff
-             diff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
-             if (diff < mindiff) then
-                mindiff = diff
-                xd2min = xd2
+                ! calculate the powdiff
+                diff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+                if (diff < mindiff) then
+                   mindiff = diff
+                   xd2min = xd2
+                end if
              end if
 
              ! write output
@@ -2558,8 +2600,8 @@ contains
 
 999 continue
     if (mindiff < powdiff_thr) &
-       write (uout,'("--- Last POWDIFF satisfies the threshold requirement for matching structures, skipping...")')
-    write (uout,'("+ FINAL POWDIFF = ",A)') string(mindiff,'f',12,9)
+       write (uout,'("--- Last DIFF satisfies the threshold requirement for matching structures, skipping...")')
+    write (uout,'("+ FINAL DIFF = ",A)') string(mindiff,'f',12,9)
     write (uout,*)
 
     if (dowrite) then
