@@ -2466,8 +2466,7 @@ contains
        call c2del%amd(imax_amd,iha2)
 
        ! calculate baseline powdiff
-       ! mindiff = maxval(abs(iha1-iha2))
-       mindiff = sum(abs(iha1-iha2))
+       mindiff = maxval(abs(iha1-iha2))
     else
        c2del = c2
        c2del%aa = targetaa
@@ -2551,8 +2550,7 @@ contains
                 c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
                 call c2del%struct_new(c2seed,.true.)
                 call c2del%amd(imax_amd,iha2)
-                ! diff = maxval(abs(iha1-iha2))
-                diff = sum(abs(iha1-iha2))
+                diff = maxval(abs(iha1-iha2))
                 if (diff < mindiff) then
                    mindiff = diff
                    xd2min = xd2
