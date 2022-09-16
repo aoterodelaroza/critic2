@@ -45,7 +45,7 @@ contains
        struct_powder, struct_rdf, struct_compare, struct_environ, struct_econ,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
        struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
-       struct_kpoints, struct_bz, struct_newcell
+       struct_kpoints, struct_bz, struct_newcell, struct_amd
     use systemmod, only: sy
     use spglib, only: spg_list_spg
     use arithmetic, only: listvariables, listlibxc
@@ -191,6 +191,12 @@ contains
           call check_structure_defined(ok)
           if (.not.ok) cycle
           call struct_rdf(sy,line(lp:))
+
+          ! amd
+       elseif (equal(word,'amd')) then
+          call check_structure_defined(ok)
+          if (.not.ok) cycle
+          call struct_amd(sy,line(lp:))
 
           ! compare
        elseif (equal(word,'compare')) then

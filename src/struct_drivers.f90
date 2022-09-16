@@ -32,6 +32,7 @@ module struct_drivers
   public :: struct_atomlabel
   public :: struct_powder
   public :: struct_rdf
+  public :: struct_amd
   public :: struct_compare
   public :: struct_environ
   public :: struct_econ
@@ -85,6 +86,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_rdf
+     module subroutine struct_amd(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line
+     end subroutine struct_amd
      module subroutine struct_compare(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
