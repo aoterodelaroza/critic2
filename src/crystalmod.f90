@@ -194,6 +194,7 @@ module crystalmod
      ! complex operations
      procedure :: powder !< Calculate the powder diffraction pattern
      procedure :: rdf !< Calculate the radial distribution function
+     procedure :: amd !< Calculate the average minimum distances (Widdowson et al.)
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
@@ -484,6 +485,11 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: ihat(:,:)
        real*8, intent(in), optional :: intpeak(:)
      end subroutine rdf
+     module subroutine amd(c,imax,res)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: imax
+       real*8, allocatable, intent(inout) :: res(:)
+     end subroutine amd
      module subroutine calculate_ewald_cutoffs(c)
        class(crystal), intent(inout) :: c
      end subroutine calculate_ewald_cutoffs

@@ -1267,29 +1267,10 @@ contains
        imax = s%c%ncel - 1
        call ferror('struct_amd','The AMD in a molecule can only have nn up to the number of atoms - 1',warning)
     end if
-    allocate(amd(imax))
-    amd = 0d0
 
-    ! calculate the amd
-    eptr => s%c%env
-    do i = 1, s%c%nneq
-       ok = .false.
-       do j = 1, maxtries
-          call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax,nozero=.true.)
-          if (ierr /= 0 .or. nat < imax) then
-             ! create an environment with double the maximum distance and point to it
-             call le%build(s%c%ismolecule,s%c%nspc,s%c%spc(1:s%c%nspc),s%c%ncel,s%c%atcel(1:s%c%ncel),s%c%m_x2c,dmax0=2*eptr%dmax0)
-             eptr => le
-          else
-             ok = .true.
-             exit
-          end if
-       end do
-       if (.not.ok) &
-          call ferror('struct_amd','Error calculating environment for atom: ' // string(i),faterr)
-       amd = amd + s%c%at(i)%mult * dist
-    end do
-    amd = amd / real(s%c%ncel,8) * dunit0(iunit)
+    ! calcualte the amd
+    call s%c%amd(imax,amd)
+    amd = amd * dunit0(iunit)
 
     ! print results
     write (uout,'("+ AMD vector in ",A)') iunitname0(iunit)
