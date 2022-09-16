@@ -641,7 +641,7 @@ contains
   !> Detect the field format from the file name (extension).
   module function field_detect_format(file,molden_type)
     use wfn_private, only: molden_type_unknown, molden_type_orca
-    use tools_io, only: ferror, faterr, equal
+    use tools_io, only: ferror, equal
     use param, only: dirsep,&
        ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,&
        ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,&
@@ -653,7 +653,7 @@ contains
     integer :: field_detect_format
 
     character(len=:), allocatable :: extdot, extdot2, word, extund
-    integer :: lp, idx
+    integer :: idx
 
     word = file(index(file,dirsep,.true.)+1:)
     idx = index(word,'.',.true.)
