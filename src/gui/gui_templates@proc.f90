@@ -25,78 +25,79 @@ submodule (gui_templates) proc
   ! the keywords
   !- structural tools
   integer, parameter :: ikeyw_none = 0
-  integer, parameter :: ikeyw_atomlabel = 1        ! ATOMLABEL
-  integer, parameter :: ikeyw_bz = 2               ! BZ
-  integer, parameter :: ikeyw_compare = 3          ! COMPARE
-  integer, parameter :: ikeyw_coord = 4            ! COORD
-  integer, parameter :: ikeyw_econ = 5             ! ECON
-  integer, parameter :: ikeyw_environ = 6          ! ENVIRON
-  integer, parameter :: ikeyw_ewald = 7            ! EWALD
-  integer, parameter :: ikeyw_identify = 8         ! IDENTIFY
-  integer, parameter :: ikeyw_kpoints = 9          ! KPOINTS
-  integer, parameter :: ikeyw_molmove = 10         ! MOLMOVE
-  integer, parameter :: ikeyw_molreorder = 11      ! MOLREORDER
-  integer, parameter :: ikeyw_newcell = 12         ! NEWCELL
-  integer, parameter :: ikeyw_packing = 13         ! PACKING
-  integer, parameter :: ikeyw_polyhedra = 14       ! POLYHEDRA
-  integer, parameter :: ikeyw_powder = 15          ! POWDER
-  integer, parameter :: ikeyw_rdf = 16             ! RDF
-  integer, parameter :: ikeyw_spg = 17             ! SPG
-  integer, parameter :: ikeyw_sym = 18             ! SYM/SYMM/NOSYM/NOSYMM
-  integer, parameter :: ikeyw_vdw = 19             ! VDW
+  integer, parameter :: ikeyw_amd = 1              ! AMD
+  integer, parameter :: ikeyw_atomlabel = 2        ! ATOMLABEL
+  integer, parameter :: ikeyw_bz = 3               ! BZ
+  integer, parameter :: ikeyw_compare = 4          ! COMPARE
+  integer, parameter :: ikeyw_coord = 5            ! COORD
+  integer, parameter :: ikeyw_econ = 6             ! ECON
+  integer, parameter :: ikeyw_environ = 7          ! ENVIRON
+  integer, parameter :: ikeyw_ewald = 8            ! EWALD
+  integer, parameter :: ikeyw_identify = 9         ! IDENTIFY
+  integer, parameter :: ikeyw_kpoints = 10          ! KPOINTS
+  integer, parameter :: ikeyw_molmove = 11         ! MOLMOVE
+  integer, parameter :: ikeyw_molreorder = 12      ! MOLREORDER
+  integer, parameter :: ikeyw_newcell = 13         ! NEWCELL
+  integer, parameter :: ikeyw_packing = 14         ! PACKING
+  integer, parameter :: ikeyw_polyhedra = 15       ! POLYHEDRA
+  integer, parameter :: ikeyw_powder = 16          ! POWDER
+  integer, parameter :: ikeyw_rdf = 17             ! RDF
+  integer, parameter :: ikeyw_spg = 18             ! SPG
+  integer, parameter :: ikeyw_sym = 19             ! SYM/SYMM/NOSYM/NOSYMM
+  integer, parameter :: ikeyw_vdw = 20             ! VDW
   !- fields
-  integer, parameter :: ikeyw_load = 20            ! LOAD
-  integer, parameter :: ikeyw_reference = 21       ! REFERENCE
-  integer, parameter :: ikeyw_setfield = 22        ! SETFIELD
-  integer, parameter :: ikeyw_unload = 23          ! UNLOAD
+  integer, parameter :: ikeyw_load = 21            ! LOAD
+  integer, parameter :: ikeyw_reference = 22       ! REFERENCE
+  integer, parameter :: ikeyw_setfield = 23        ! SETFIELD
+  integer, parameter :: ikeyw_unload = 24          ! UNLOAD
   !- read and write files
-  integer, parameter :: ikeyw_makemolsnc = 24      ! MAKEMOLSNC
-  integer, parameter :: ikeyw_write = 25           ! WRITE
+  integer, parameter :: ikeyw_makemolsnc = 25      ! MAKEMOLSNC
+  integer, parameter :: ikeyw_write = 26           ! WRITE
   !- misc
-  integer, parameter :: ikeyw_benchmark = 26       ! BENCHMARK
-  integer, parameter :: ikeyw_libxc = 27           ! LIBXC
-  integer, parameter :: ikeyw_molcell = 28         ! MOLCELL
-  integer, parameter :: ikeyw_root = 29            ! ROOT
-  integer, parameter :: ikeyw_units = 30           ! UNITS
-  integer, parameter :: ikeyw_zpsp = 31            ! ZPSP/Q/QAT/NOCORE
-  integer, parameter :: ikeyw_addopts = 32         ! additional options
+  integer, parameter :: ikeyw_benchmark = 27       ! BENCHMARK
+  integer, parameter :: ikeyw_libxc = 28           ! LIBXC
+  integer, parameter :: ikeyw_molcell = 29         ! MOLCELL
+  integer, parameter :: ikeyw_root = 30            ! ROOT
+  integer, parameter :: ikeyw_units = 31           ! UNITS
+  integer, parameter :: ikeyw_zpsp = 32            ! ZPSP/Q/QAT/NOCORE
+  integer, parameter :: ikeyw_addopts = 33         ! additional options
   !- variables
-  integer, parameter :: ikeyw_clear = 33           ! CLEAR
-  integer, parameter :: ikeyw_list = 34            ! LIST
+  integer, parameter :: ikeyw_clear = 34           ! CLEAR
+  integer, parameter :: ikeyw_list = 35            ! LIST
   !- field evaluation
-  integer, parameter :: ikeyw_point = 35           ! POINT
-  integer, parameter :: ikeyw_line = 36            ! LINE
-  integer, parameter :: ikeyw_plane = 37           ! PLANE
-  integer, parameter :: ikeyw_cube = 38            ! CUBE
+  integer, parameter :: ikeyw_point = 36           ! POINT
+  integer, parameter :: ikeyw_line = 37            ! LINE
+  integer, parameter :: ikeyw_plane = 38           ! PLANE
+  integer, parameter :: ikeyw_cube = 39            ! CUBE
   !- critical points
-  integer, parameter :: ikeyw_auto = 39            ! AUTO
-  integer, parameter :: ikeyw_cpreport = 40        ! CPREPORT
-  integer, parameter :: ikeyw_pointprop = 41       ! POINTPROP
+  integer, parameter :: ikeyw_auto = 40            ! AUTO
+  integer, parameter :: ikeyw_cpreport = 41        ! CPREPORT
+  integer, parameter :: ikeyw_pointprop = 42       ! POINTPROP
   !- qtaim plots
-  integer, parameter :: ikeyw_grdvec = 42          ! GRDVEC
-  integer, parameter :: ikeyw_fluxprint = 43       ! FLUXPRINT
-  integer, parameter :: ikeyw_basinplot = 44       ! BASINPLOT
-  integer, parameter :: ikeyw_bundleplot = 45      ! BUNDLEPLOT
+  integer, parameter :: ikeyw_grdvec = 43          ! GRDVEC
+  integer, parameter :: ikeyw_fluxprint = 44       ! FLUXPRINT
+  integer, parameter :: ikeyw_basinplot = 45       ! BASINPLOT
+  integer, parameter :: ikeyw_bundleplot = 46      ! BUNDLEPLOT
   !- integration
-  integer, parameter :: ikeyw_integrable = 46      ! INTEGRABLE
-  integer, parameter :: ikeyw_integrals = 47       ! INTEGRALS
-  integer, parameter :: ikeyw_sphereintegrals = 48 ! SPHEREINTEGRALS
-  integer, parameter :: ikeyw_qtree = 49           ! QTREE
-  integer, parameter :: ikeyw_yt = 50              ! YT
-  integer, parameter :: ikeyw_bader = 51           ! BADER
-  integer, parameter :: ikeyw_isosurface = 52      ! ISOSURFACE
-  integer, parameter :: ikeyw_hirshfeld = 53       ! HIRSHFELD
-  integer, parameter :: ikeyw_voronoi = 54         ! VORONOI
-  integer, parameter :: ikeyw_molcalc = 55         ! MOLCALC
+  integer, parameter :: ikeyw_integrable = 47      ! INTEGRABLE
+  integer, parameter :: ikeyw_integrals = 48       ! INTEGRALS
+  integer, parameter :: ikeyw_sphereintegrals = 49 ! SPHEREINTEGRALS
+  integer, parameter :: ikeyw_qtree = 50           ! QTREE
+  integer, parameter :: ikeyw_yt = 51              ! YT
+  integer, parameter :: ikeyw_bader = 52           ! BADER
+  integer, parameter :: ikeyw_isosurface = 53      ! ISOSURFACE
+  integer, parameter :: ikeyw_hirshfeld = 54       ! HIRSHFELD
+  integer, parameter :: ikeyw_voronoi = 55         ! VORONOI
+  integer, parameter :: ikeyw_molcalc = 56         ! MOLCALC
   !- nciplot
-  integer, parameter :: ikeyw_nciplot = 56         ! NCIPLOT
+  integer, parameter :: ikeyw_nciplot = 57         ! NCIPLOT
   !- stm
-  integer, parameter :: ikeyw_stm = 57             ! STM
+  integer, parameter :: ikeyw_stm = 58             ! STM
   !- sigma hole
-  integer, parameter :: ikeyw_sigmahole = 58       ! SIGMAHOLE
+  integer, parameter :: ikeyw_sigmahole = 59       ! SIGMAHOLE
   !- xdm
-  integer, parameter :: ikeyw_xdm = 59             ! XDM
-  integer, parameter :: ikeyw_NUM = 59
+  integer, parameter :: ikeyw_xdm = 60             ! XDM
+  integer, parameter :: ikeyw_NUM = 60
 
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
@@ -115,6 +116,7 @@ submodule (gui_templates) proc
   integer, parameter :: isection_misc = 13            ! miscellaneous
   integer, parameter :: isection_NUM = 13
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
+     isection_structural_tools,& ! AMD
      isection_structural_tools,& ! ATOMLABEL
      isection_structural_tools,& ! BZ
      isection_structural_tools,& ! COMPARE
@@ -178,6 +180,7 @@ submodule (gui_templates) proc
 
   ! keyword titles
   character(len=*,kind=c_char), parameter :: keyword_titles(ikeyw_NUM) = (/&
+     "AMD (average minimum distances)             ",& ! AMD
      "ATOMLABEL (relabel atoms)                   ",& ! ATOMLABEL
      "BZ (print Brillouin zone)                   ",& ! BZ
      "COMPARE (compare structures)                ",& ! COMPARE
@@ -275,6 +278,7 @@ submodule (gui_templates) proc
 
   ! template (keyw) files
   character*(*), parameter :: template_file(ikeyw_NUM) = (/&
+     "amd            ",& ! AMD
      "atomlabel      ",& ! ATOMLABEL
      "bz             ",& ! BZ
      "compare        ",& ! COMPARE
@@ -338,6 +342,7 @@ submodule (gui_templates) proc
 
   ! documentation (md) files
   character*(*), parameter :: doclink(ikeyw_NUM) = (/&
+     "structure/#c2-amd         ",& ! AMD
      "structure/#c2-atomlabel   ",& ! ATOMLABEL
      "structure/#c2-bz          ",& ! BZ
      "structure/#c2-compare     ",& ! COMPARE
