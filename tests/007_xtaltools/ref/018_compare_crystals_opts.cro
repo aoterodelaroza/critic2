@@ -35,3 +35,12 @@
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.713496E-04
 
+* COMPARE: compare structures
+  Crystal 1 : <current>
+  Crystal 2 : 018_compare_crystals_opts_gen.scf.in
+# Using average minimum distances (AMD) in bohr.
+# Please cite:
+#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)
+# Two structures are exactly equal if DIFF = 0.
++ DIFF = 6.077256E-01
+

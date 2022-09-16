@@ -9,4 +9,5 @@ newcell 1 1 0 0 0 1 0 -1 0 origin 0.4 0.6 0.9
 compare crystal . 018_compare_crystals_opts_gen.scf.in
 compare . 018_compare_crystals_opts_gen.scf.in xend 60 sigma 0.1
 compare . 018_compare_crystals_opts_gen.scf.in rdf
+compare . 018_compare_crystals_opts_gen.scf.in amd
 

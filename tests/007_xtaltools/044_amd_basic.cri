@@ -1,0 +1,6 @@
+## check: 044_amd_basic.cro -a1e-10
+## labels: regression quick nodata
+
+crystal library urea
+amd 120
+

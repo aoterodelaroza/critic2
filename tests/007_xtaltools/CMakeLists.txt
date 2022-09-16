@@ -42,6 +42,7 @@ set(TESTS
   041_kpoints                ## kpoints keyword
   042_bz                     ## bz keyword
   043_molmove                ## molmove keyword
+  044_amd_basic              ## amd keyword
   )
 
 runtests(${TESTS})
