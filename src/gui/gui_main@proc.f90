@@ -152,6 +152,7 @@ contains
     ! get the ImGUI IO interface and enable docking
     ptrc = igGetIO()
     call c_f_pointer(ptrc,io)
+    io%MouseDrawCursor = .true. ! can't get anything other than the arrow otherwise
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DpiEnableScaleFonts)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_NavEnableKeyboard)
