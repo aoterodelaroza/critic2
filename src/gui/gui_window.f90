@@ -64,6 +64,7 @@ module gui_window
      integer(c_int) :: FBOdepth ! framebuffer, depth buffer
      real(c_float) :: FBOside ! side of the render texture (pixels)
      real(c_float) :: renderside ! side of the square used for rendering (pixels)
+     integer :: view_selected = 1 ! the system selected in the view window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback

@@ -164,6 +164,7 @@ contains
             8704_c_short,  8959_c_short,& ! mathematical operators
             9472_c_short,  9599_c_short,& ! box drawing
             9632_c_short,  9727_c_short,& ! geometric shapes
+            9728_c_short,  9983_c_short,& ! miscellaneous symbols
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
     ptrc = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&

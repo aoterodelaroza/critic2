@@ -214,6 +214,7 @@ contains
     w%inpcon_selected = 1
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
+    w%view_selected = 1
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
@@ -518,7 +519,8 @@ contains
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
-       ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon
+       ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
+       tree_select_updates_view
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -685,9 +687,11 @@ contains
              end if
              w%table_selected = newsel
           end if
-          ! if we removed the system for the input console, update
+          ! if we removed the system for the input console or the view, update
           if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
              win(iwin_console_input)%inpcon_selected = w%table_selected
+          if (w%forceremove(k) == win(iwin_view)%view_selected) &
+             win(iwin_view)%view_selected = w%table_selected
        end do
        deallocate(w%forceremove)
        ! restart initialization if the threads were killed
@@ -967,6 +971,8 @@ contains
                       w%table_selected = i
                       if (tree_select_updates_inpcon) &
                          win(iwin_console_input)%inpcon_selected = i
+                      if (tree_select_updates_view) &
+                         win(iwin_view)%view_selected = i
                       call sys(i)%set_reference(k,.false.)
                    end if
                    call igPopStyleColor(1)
@@ -1287,6 +1293,8 @@ contains
          w%table_selected = isys
          if (tree_select_updates_inpcon) &
             win(iwin_console_input)%inpcon_selected = isys
+         if (tree_select_updates_view) &
+            win(iwin_view)%view_selected = isys
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
             sysc(isys)%showfields = .true.
       end if
@@ -1318,6 +1326,7 @@ contains
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             win(iwin_console_input)%inpcon_selected = isys
+            win(iwin_view)%view_selected = isys
             w%table_selected = isys
          end if
          call iw_tooltip("Set this system as current",ttshown)
@@ -1448,6 +1457,10 @@ contains
       if (win(iwin_console_input)%inpcon_selected >= 1 .and. win(iwin_console_input)%inpcon_selected <= nsys) then
          if (sysc(win(iwin_console_input)%inpcon_selected)%collapse == i) &
             win(iwin_console_input)%inpcon_selected = i
+      end if
+      if (win(iwin_view)%view_selected >= 1 .and. win(iwin_view)%view_selected <= nsys) then
+         if (sysc(win(iwin_view)%view_selected)%collapse == i) &
+            win(iwin_view)%view_selected = i
       end if
       w%forceupdate = .true.
 
@@ -1627,13 +1640,58 @@ contains
   module subroutine draw_view(w)
     use gui_interfaces_opengl3
     use gui_interfaces_cimgui
-    use gui_utils, only: iw_text
+    use gui_main, only: sysc, sys_init, nsys
+    use gui_utils, only: iw_text, iw_button, iw_tooltip
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    type(ImVec2) :: szavail, sz0, sz1
+    integer :: i
+    type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    logical(c_bool) :: ldum, is_selected
 
-    call iw_text("Hello View!")
+    logical, save :: ttshown = .false. ! tooltip flag
+
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+
+    ! gear menu
+    str1="##viewgear" // c_null_char
+    if (iw_button("⚙")) then
+       call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
+    end if
+    if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
+       str2 = "Empty for now" // c_null_char
+       ldum = igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)
+       call igEndPopup()
+    end if
+    call iw_tooltip("Change the view options")
+
+    ! the selected system combo
+    call igSameLine(0._c_float,-1._c_float)
+    str2 = "" // c_null_char
+    if (w%view_selected >= 1 .and. w%view_selected <= nsys) then
+       if (sysc(w%view_selected)%status == sys_init) &
+          str2 = string(w%view_selected) // ": " // trim(sysc(w%view_selected)%seed%name) // c_null_char
+    end if
+    str1 = "##systemcombo" // c_null_char
+    ! call igSetNextItemWidth(combowidth)
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init) then
+             is_selected = (w%view_selected == i)
+             str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
+                w%view_selected = i
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end if
+       end do
+       call igEndCombo()
+    end if
+    call iw_tooltip("Choose the system displayed in the view",ttshown)
 
     ! draw the image
     call igGetContentRegionAvail(szavail)
