@@ -12,6 +12,8 @@
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -19,6 +21,8 @@
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 8.881784E-16
 
@@ -26,6 +30,8 @@
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated radial distribution functions (RDF).
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.713496E-04
 

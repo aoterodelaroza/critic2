@@ -15,6 +15,8 @@
   Crystal 2 : 017_compare_crystals_gen.scf.in
   Crystal 3 : 017_compare_crystals_gen.cif
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
     Crystal        <derived>    017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif 
      DIFF              1               2               3        

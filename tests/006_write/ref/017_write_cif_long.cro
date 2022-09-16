@@ -4,6 +4,8 @@
   Crystal 1 : 001_tetrazole.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -13,6 +15,8 @@
   Crystal 1 : 002_kyanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -22,6 +26,8 @@
   Crystal 1 : 003a_b-kyb2f7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -31,6 +37,8 @@
   Crystal 1 : 003b_b-kyb2f7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -40,6 +48,8 @@
   Crystal 1 : 003c_b-kyb2f7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -49,6 +59,8 @@
   Crystal 1 : 004a_alloclasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -58,6 +70,8 @@
   Crystal 1 : 004b_alloclasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -67,6 +81,8 @@
   Crystal 1 : 004c_alloclasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -76,6 +92,8 @@
   Crystal 1 : 005a_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -85,6 +103,8 @@
   Crystal 1 : 005b_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -94,6 +114,8 @@
   Crystal 1 : 005c_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -103,6 +125,8 @@
   Crystal 1 : 005d_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -112,6 +136,8 @@
   Crystal 1 : 005e_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -121,6 +147,8 @@
   Crystal 1 : 005f_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -130,6 +158,8 @@
   Crystal 1 : 005g_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -139,6 +169,8 @@
   Crystal 1 : 005h_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -148,6 +180,8 @@
   Crystal 1 : 005i_taikanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -157,6 +191,8 @@
   Crystal 1 : 006a_li3na3n2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -166,6 +202,8 @@
   Crystal 1 : 006b_li3na3n2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -175,6 +213,8 @@
   Crystal 1 : 006c_li3na3n2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -184,6 +224,8 @@
   Crystal 1 : 007a_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -193,6 +235,8 @@
   Crystal 1 : 007b_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -202,6 +246,8 @@
   Crystal 1 : 007c_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -211,6 +257,8 @@
   Crystal 1 : 007d_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -220,6 +268,8 @@
   Crystal 1 : 007e_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -229,6 +279,8 @@
   Crystal 1 : 007f_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -238,6 +290,8 @@
   Crystal 1 : 007g_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -247,6 +301,8 @@
   Crystal 1 : 007h_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -256,6 +312,8 @@
   Crystal 1 : 007i_dervillite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -265,6 +323,8 @@
   Crystal 1 : 008a_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -274,6 +334,8 @@
   Crystal 1 : 008b_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -283,6 +345,8 @@
   Crystal 1 : 008c_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -292,6 +356,8 @@
   Crystal 1 : 008d_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -301,6 +367,8 @@
   Crystal 1 : 008e_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -310,6 +378,8 @@
   Crystal 1 : 008f_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -319,6 +389,8 @@
   Crystal 1 : 008g_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -328,6 +400,8 @@
   Crystal 1 : 008h_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -337,6 +411,8 @@
   Crystal 1 : 008i_up4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -346,6 +422,8 @@
   Crystal 1 : 009a_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -355,6 +433,8 @@
   Crystal 1 : 009b_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -364,6 +444,8 @@
   Crystal 1 : 009c_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -373,6 +455,8 @@
   Crystal 1 : 009d_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -382,6 +466,8 @@
   Crystal 1 : 009e_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -391,6 +477,8 @@
   Crystal 1 : 009f_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -400,6 +488,8 @@
   Crystal 1 : 009g_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -409,6 +499,8 @@
   Crystal 1 : 009h_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -418,6 +510,8 @@
   Crystal 1 : 009i_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -427,6 +521,8 @@
   Crystal 1 : 009j_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -436,6 +532,8 @@
   Crystal 1 : 009k_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -445,6 +543,8 @@
   Crystal 1 : 009l_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -454,6 +554,8 @@
   Crystal 1 : 009m_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -463,6 +565,8 @@
   Crystal 1 : 009n_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -472,6 +576,8 @@
   Crystal 1 : 009o_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -481,6 +587,8 @@
   Crystal 1 : 009p_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -490,6 +598,8 @@
   Crystal 1 : 009q_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -499,6 +609,8 @@
   Crystal 1 : 009r_tilasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -508,6 +620,8 @@
   Crystal 1 : 010a_muthmannite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -517,6 +631,8 @@
   Crystal 1 : 010b_muthmannite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -526,6 +642,8 @@
   Crystal 1 : 010c_muthmannite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -535,6 +653,8 @@
   Crystal 1 : 011a_kinoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -544,6 +664,8 @@
   Crystal 1 : 011b_kinoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -553,6 +675,8 @@
   Crystal 1 : 011c_kinoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -562,6 +686,8 @@
   Crystal 1 : 012a_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -571,6 +697,8 @@
   Crystal 1 : 012b_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -580,6 +708,8 @@
   Crystal 1 : 012c_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -589,6 +719,8 @@
   Crystal 1 : 012d_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -598,6 +730,8 @@
   Crystal 1 : 012e_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -607,6 +741,8 @@
   Crystal 1 : 012f_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -616,6 +752,8 @@
   Crystal 1 : 012g_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -625,6 +763,8 @@
   Crystal 1 : 012h_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -634,6 +774,8 @@
   Crystal 1 : 012i_calaverite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -643,6 +785,8 @@
   Crystal 1 : 013a_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -652,6 +796,8 @@
   Crystal 1 : 013b_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -661,6 +807,8 @@
   Crystal 1 : 013c_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -670,6 +818,8 @@
   Crystal 1 : 013d_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -679,6 +829,8 @@
   Crystal 1 : 013e_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -688,6 +840,8 @@
   Crystal 1 : 013f_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -697,6 +851,8 @@
   Crystal 1 : 013g_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -706,6 +862,8 @@
   Crystal 1 : 013h_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -715,6 +873,8 @@
   Crystal 1 : 013i_petalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -724,6 +884,8 @@
   Crystal 1 : 014a_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -733,6 +895,8 @@
   Crystal 1 : 014b_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -742,6 +906,8 @@
   Crystal 1 : 014c_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -751,6 +917,8 @@
   Crystal 1 : 014d_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -760,6 +928,8 @@
   Crystal 1 : 014e_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -769,6 +939,8 @@
   Crystal 1 : 014f_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -778,6 +950,8 @@
   Crystal 1 : 014g_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -787,6 +961,8 @@
   Crystal 1 : 014h_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -796,6 +972,8 @@
   Crystal 1 : 014i_baddeleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -805,6 +983,8 @@
   Crystal 1 : 015a_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -814,6 +994,8 @@
   Crystal 1 : 015b_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -823,6 +1005,8 @@
   Crystal 1 : 015c_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -832,6 +1016,8 @@
   Crystal 1 : 015d_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -841,6 +1027,8 @@
   Crystal 1 : 015e_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -850,6 +1038,8 @@
   Crystal 1 : 015f_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -859,6 +1049,8 @@
   Crystal 1 : 015g_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -868,6 +1060,8 @@
   Crystal 1 : 015h_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -877,6 +1071,8 @@
   Crystal 1 : 015i_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -886,6 +1082,8 @@
   Crystal 1 : 015j_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -895,6 +1093,8 @@
   Crystal 1 : 015k_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -904,6 +1104,8 @@
   Crystal 1 : 015l_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -913,6 +1115,8 @@
   Crystal 1 : 015m_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -922,6 +1126,8 @@
   Crystal 1 : 015n_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -931,6 +1137,8 @@
   Crystal 1 : 015o_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -940,6 +1148,8 @@
   Crystal 1 : 015p_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -949,6 +1159,8 @@
   Crystal 1 : 015q_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -958,6 +1170,8 @@
   Crystal 1 : 015r_coesite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -967,6 +1181,8 @@
   Crystal 1 : 016_alps4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -976,6 +1192,8 @@
   Crystal 1 : 017a_lueshite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -985,6 +1203,8 @@
   Crystal 1 : 017b_lueshite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -994,6 +1214,8 @@
   Crystal 1 : 017c_lueshite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1003,6 +1225,8 @@
   Crystal 1 : 018a_bas3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1012,6 +1236,8 @@
   Crystal 1 : 018b_bas3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1021,6 +1247,8 @@
   Crystal 1 : 018c_bas3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1030,6 +1258,8 @@
   Crystal 1 : 019_baalf5.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1039,6 +1269,8 @@
   Crystal 1 : 020a_bas3v.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1048,6 +1280,8 @@
   Crystal 1 : 020b_bas3v.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1057,6 +1291,8 @@
   Crystal 1 : 020c_bas3v.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1066,6 +1302,8 @@
   Crystal 1 : 021a_anhydrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1075,6 +1313,8 @@
   Crystal 1 : 021b_anhydrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1084,6 +1324,8 @@
   Crystal 1 : 021c_anhydrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1093,6 +1335,8 @@
   Crystal 1 : 022_ru2ceb2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1102,6 +1346,8 @@
   Crystal 1 : 023_nd2so6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1111,6 +1357,8 @@
   Crystal 1 : 024_c4h6br2cdn6o.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1120,6 +1368,8 @@
   Crystal 1 : 025a_dyscrasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1129,6 +1379,8 @@
   Crystal 1 : 025b_dyscrasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1138,6 +1390,8 @@
   Crystal 1 : 025c_dyscrasite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1147,6 +1401,8 @@
   Crystal 1 : 026a_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1156,6 +1412,8 @@
   Crystal 1 : 026b_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1165,6 +1423,8 @@
   Crystal 1 : 026c_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1174,6 +1434,8 @@
   Crystal 1 : 026d_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1183,6 +1445,8 @@
   Crystal 1 : 026e_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1192,6 +1456,8 @@
   Crystal 1 : 026f_krupkaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1201,6 +1467,8 @@
   Crystal 1 : 027a_c8h6bri.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1210,6 +1478,8 @@
   Crystal 1 : 027b_c8h6bri.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1219,6 +1489,8 @@
   Crystal 1 : 027c_c8h6bri.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1228,6 +1500,8 @@
   Crystal 1 : 028a_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1237,6 +1511,8 @@
   Crystal 1 : 028b_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1246,6 +1522,8 @@
   Crystal 1 : 028c_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1255,6 +1533,8 @@
   Crystal 1 : 028d_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1264,6 +1544,8 @@
   Crystal 1 : 028e_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1273,6 +1555,8 @@
   Crystal 1 : 028f_krennerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1282,6 +1566,8 @@
   Crystal 1 : 029a_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1291,6 +1577,8 @@
   Crystal 1 : 029b_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1300,6 +1588,8 @@
   Crystal 1 : 029c_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1309,6 +1599,8 @@
   Crystal 1 : 029d_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1318,6 +1610,8 @@
   Crystal 1 : 029e_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1327,6 +1621,8 @@
   Crystal 1 : 029f_cobaltite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1336,6 +1632,8 @@
   Crystal 1 : 030a_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1345,6 +1643,8 @@
   Crystal 1 : 030b_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1354,6 +1654,8 @@
   Crystal 1 : 030c_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1363,6 +1665,8 @@
   Crystal 1 : 030d_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1372,6 +1676,8 @@
   Crystal 1 : 030e_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1381,6 +1687,8 @@
   Crystal 1 : 030f_kcuta3o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1390,6 +1698,8 @@
   Crystal 1 : 031a_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1399,6 +1709,8 @@
   Crystal 1 : 031b_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1408,6 +1720,8 @@
   Crystal 1 : 031c_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1417,6 +1731,8 @@
   Crystal 1 : 031d_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1426,6 +1742,8 @@
   Crystal 1 : 031e_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1435,6 +1753,8 @@
   Crystal 1 : 031f_enargite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1444,6 +1764,8 @@
   Crystal 1 : 032a_minyulite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1453,6 +1775,8 @@
   Crystal 1 : 032b_minyulite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1462,6 +1786,8 @@
   Crystal 1 : 032c_minyulite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1471,6 +1797,8 @@
   Crystal 1 : 033a_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1480,6 +1808,8 @@
   Crystal 1 : 033b_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1489,6 +1819,8 @@
   Crystal 1 : 033c_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1498,6 +1830,8 @@
   Crystal 1 : 033d_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1507,6 +1841,8 @@
   Crystal 1 : 033e_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1516,6 +1852,8 @@
   Crystal 1 : 033f_lautite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1525,6 +1863,8 @@
   Crystal 1 : 034a_seinajokite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1534,6 +1874,8 @@
   Crystal 1 : 034b_seinajokite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1543,6 +1885,8 @@
   Crystal 1 : 034c_seinajokite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1552,6 +1896,8 @@
   Crystal 1 : 035a_seeligerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1561,6 +1907,8 @@
   Crystal 1 : 035b_seeligerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1570,6 +1918,8 @@
   Crystal 1 : 035c_seeligerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1579,6 +1929,8 @@
   Crystal 1 : 036a_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1588,6 +1940,8 @@
   Crystal 1 : 036b_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1597,6 +1951,8 @@
   Crystal 1 : 036c_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1606,6 +1962,8 @@
   Crystal 1 : 036d_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1615,6 +1973,8 @@
   Crystal 1 : 036e_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1624,6 +1984,8 @@
   Crystal 1 : 036f_polarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1633,6 +1995,8 @@
   Crystal 1 : 037a_cagabo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1642,6 +2006,8 @@
   Crystal 1 : 037b_cagabo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1651,6 +2017,8 @@
   Crystal 1 : 037c_cagabo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1660,6 +2028,8 @@
   Crystal 1 : 038a_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1669,6 +2039,8 @@
   Crystal 1 : 038b_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1678,6 +2050,8 @@
   Crystal 1 : 038c_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1687,6 +2061,8 @@
   Crystal 1 : 038d_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1696,6 +2072,8 @@
   Crystal 1 : 038e_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1705,6 +2083,8 @@
   Crystal 1 : 038f_weeksite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1714,6 +2094,8 @@
   Crystal 1 : 039a_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1723,6 +2105,8 @@
   Crystal 1 : 039b_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1732,6 +2116,8 @@
   Crystal 1 : 039c_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1741,6 +2127,8 @@
   Crystal 1 : 039d_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1750,6 +2138,8 @@
   Crystal 1 : 039e_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1759,6 +2149,8 @@
   Crystal 1 : 039f_smirnite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1768,6 +2160,8 @@
   Crystal 1 : 040a_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1777,6 +2171,8 @@
   Crystal 1 : 040b_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1786,6 +2182,8 @@
   Crystal 1 : 040c_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1795,6 +2193,8 @@
   Crystal 1 : 040d_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1804,6 +2204,8 @@
   Crystal 1 : 040e_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1813,6 +2215,8 @@
   Crystal 1 : 040f_vaterite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1822,6 +2226,8 @@
   Crystal 1 : 041a_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1831,6 +2237,8 @@
   Crystal 1 : 041b_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1840,6 +2248,8 @@
   Crystal 1 : 041c_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1849,6 +2259,8 @@
   Crystal 1 : 041d_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1858,6 +2270,8 @@
   Crystal 1 : 041e_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1867,6 +2281,8 @@
   Crystal 1 : 041f_so2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1876,6 +2292,8 @@
   Crystal 1 : 042a_libgeo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1885,6 +2303,8 @@
   Crystal 1 : 042b_libgeo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1894,6 +2314,8 @@
   Crystal 1 : 042c_libgeo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -1903,6 +2325,8 @@
   Crystal 1 : 043a_blossite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1912,6 +2336,8 @@
   Crystal 1 : 043b_blossite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1921,6 +2347,8 @@
   Crystal 1 : 043c_blossite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1930,6 +2358,8 @@
   Crystal 1 : 044a_cr2p.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1939,6 +2369,8 @@
   Crystal 1 : 044b_cr2p.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1948,6 +2380,8 @@
   Crystal 1 : 044c_cr2p.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -1957,6 +2391,8 @@
   Crystal 1 : 045a_banalsite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1966,6 +2402,8 @@
   Crystal 1 : 045b_banalsite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1975,6 +2413,8 @@
   Crystal 1 : 045c_banalsite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1984,6 +2424,8 @@
   Crystal 1 : 046a_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -1993,6 +2435,8 @@
   Crystal 1 : 046b_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2002,6 +2446,8 @@
   Crystal 1 : 046c_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2011,6 +2457,8 @@
   Crystal 1 : 046d_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2020,6 +2468,8 @@
   Crystal 1 : 046e_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2029,6 +2479,8 @@
   Crystal 1 : 046f_fesiti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2038,6 +2490,8 @@
   Crystal 1 : 047_ba2ycu3o7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2047,6 +2501,8 @@
   Crystal 1 : 048a_znc48h84n4o4li.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2056,6 +2512,8 @@
   Crystal 1 : 048b_znc48h84n4o4li.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2065,6 +2523,8 @@
   Crystal 1 : 049a_beta-ta2o5.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2074,6 +2534,8 @@
   Crystal 1 : 049b_beta-ta2o5.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2083,6 +2545,8 @@
   Crystal 1 : 049c_beta-ta2o5.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2092,6 +2556,8 @@
   Crystal 1 : 050a_ru8c208h328n8o8f60p18.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2101,6 +2567,8 @@
   Crystal 1 : 050c_ru8c208h328n8o8f60p18.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2110,6 +2578,8 @@
   Crystal 1 : 050d_ru8c208h328n8o8f60p18.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2119,6 +2589,8 @@
   Crystal 1 : 050e_ru8c208h328n8o8f60p18.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2128,6 +2600,8 @@
   Crystal 1 : 050f_ru8c208h328n8o8f60p18.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2137,6 +2611,8 @@
   Crystal 1 : 051a_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2146,6 +2622,8 @@
   Crystal 1 : 051b_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2155,6 +2633,8 @@
   Crystal 1 : 051c_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2164,6 +2644,8 @@
   Crystal 1 : 051d_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2173,6 +2655,8 @@
   Crystal 1 : 051e_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2182,6 +2666,8 @@
   Crystal 1 : 051f_valleriite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2191,6 +2677,8 @@
   Crystal 1 : 052a_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2200,6 +2688,8 @@
   Crystal 1 : 052b_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2209,6 +2699,8 @@
   Crystal 1 : 052c_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2218,6 +2710,8 @@
   Crystal 1 : 052d_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2227,6 +2721,8 @@
   Crystal 1 : 052e_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2236,6 +2732,8 @@
   Crystal 1 : 052f_ba3ga2n4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2245,6 +2743,8 @@
   Crystal 1 : 053a_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2254,6 +2754,8 @@
   Crystal 1 : 053b_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2263,6 +2765,8 @@
   Crystal 1 : 053c_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2272,6 +2776,8 @@
   Crystal 1 : 053d_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2281,6 +2787,8 @@
   Crystal 1 : 053e_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2290,6 +2798,8 @@
   Crystal 1 : 053f_fenbte2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2299,6 +2809,8 @@
   Crystal 1 : 054a_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2308,6 +2820,8 @@
   Crystal 1 : 054b_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2317,6 +2831,8 @@
   Crystal 1 : 054c_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2326,6 +2842,8 @@
   Crystal 1 : 054d_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2335,6 +2853,8 @@
   Crystal 1 : 054e_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2344,6 +2864,8 @@
   Crystal 1 : 054f_agclo2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2353,6 +2875,8 @@
   Crystal 1 : 055a_reinerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2362,6 +2886,8 @@
   Crystal 1 : 055b_reinerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2371,6 +2897,8 @@
   Crystal 1 : 055c_reinerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2380,6 +2908,8 @@
   Crystal 1 : 056a_sophiite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2389,6 +2919,8 @@
   Crystal 1 : 056b_sophiite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2398,6 +2930,8 @@
   Crystal 1 : 056c_sophiite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2407,6 +2941,8 @@
   Crystal 1 : 057a_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2416,6 +2952,8 @@
   Crystal 1 : 057b_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2425,6 +2963,8 @@
   Crystal 1 : 057c_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2434,6 +2974,8 @@
   Crystal 1 : 057d_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2443,6 +2985,8 @@
   Crystal 1 : 057e_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2452,6 +2996,8 @@
   Crystal 1 : 057f_massicot.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2461,6 +3007,8 @@
   Crystal 1 : 058a_cacl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2470,6 +3018,8 @@
   Crystal 1 : 058b_cacl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2479,6 +3029,8 @@
   Crystal 1 : 058c_cacl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2488,6 +3040,8 @@
   Crystal 1 : 059a_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2497,6 +3051,8 @@
   Crystal 1 : 059b_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2506,6 +3062,8 @@
   Crystal 1 : 059c_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2515,6 +3073,8 @@
   Crystal 1 : 059d_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2524,6 +3084,8 @@
   Crystal 1 : 059e_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2533,6 +3095,8 @@
   Crystal 1 : 059f_pasavaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2542,6 +3106,8 @@
   Crystal 1 : 060a_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2551,6 +3117,8 @@
   Crystal 1 : 060b_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2560,6 +3128,8 @@
   Crystal 1 : 060c_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2569,6 +3139,8 @@
   Crystal 1 : 060d_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2578,6 +3150,8 @@
   Crystal 1 : 060e_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2587,6 +3161,8 @@
   Crystal 1 : 060f_fersmite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2596,6 +3172,8 @@
   Crystal 1 : 061a_brookite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2605,6 +3183,8 @@
   Crystal 1 : 061b_brookite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2614,6 +3194,8 @@
   Crystal 1 : 062a_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2623,6 +3205,8 @@
   Crystal 1 : 062b_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2632,6 +3216,8 @@
   Crystal 1 : 062c_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2641,6 +3227,8 @@
   Crystal 1 : 062d_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2650,6 +3238,8 @@
   Crystal 1 : 062e_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2659,6 +3249,8 @@
   Crystal 1 : 062f_chrysoberyl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2668,6 +3260,8 @@
   Crystal 1 : 063a_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2677,6 +3271,8 @@
   Crystal 1 : 063b_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2686,6 +3282,8 @@
   Crystal 1 : 063c_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2695,6 +3293,8 @@
   Crystal 1 : 063d_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2704,6 +3304,8 @@
   Crystal 1 : 063e_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2713,6 +3315,8 @@
   Crystal 1 : 063f_rasvumite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2722,6 +3326,8 @@
   Crystal 1 : 064a_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2731,6 +3337,8 @@
   Crystal 1 : 064b_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2740,6 +3348,8 @@
   Crystal 1 : 064c_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2749,6 +3359,8 @@
   Crystal 1 : 064d_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2758,6 +3370,8 @@
   Crystal 1 : 064e_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2767,6 +3381,8 @@
   Crystal 1 : 064f_gallium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2776,6 +3392,8 @@
   Crystal 1 : 065a_naio3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2785,6 +3403,8 @@
   Crystal 1 : 065b_naio3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2794,6 +3414,8 @@
   Crystal 1 : 065c_naio3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2803,6 +3425,8 @@
   Crystal 1 : 066a_thi3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -2812,6 +3436,8 @@
   Crystal 1 : 066b_thi3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -2821,6 +3447,8 @@
   Crystal 1 : 066c_thi3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -2830,6 +3458,8 @@
   Crystal 1 : 067a_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2839,6 +3469,8 @@
   Crystal 1 : 067b_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2848,6 +3480,8 @@
   Crystal 1 : 067c_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2857,6 +3491,8 @@
   Crystal 1 : 067d_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2866,6 +3502,8 @@
   Crystal 1 : 067e_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2875,6 +3513,8 @@
   Crystal 1 : 067f_litharge.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2884,6 +3524,8 @@
   Crystal 1 : 068a_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2893,6 +3535,8 @@
   Crystal 1 : 068b_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2902,6 +3546,8 @@
   Crystal 1 : 068c_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2911,6 +3557,8 @@
   Crystal 1 : 068d_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2920,6 +3568,8 @@
   Crystal 1 : 068e_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2929,6 +3579,8 @@
   Crystal 1 : 068f_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2938,6 +3590,8 @@
   Crystal 1 : 068g_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2947,6 +3601,8 @@
   Crystal 1 : 068h_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2956,6 +3612,8 @@
   Crystal 1 : 068i_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2965,6 +3623,8 @@
   Crystal 1 : 068j_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -2974,6 +3634,8 @@
   Crystal 1 : 068k_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2983,6 +3645,8 @@
   Crystal 1 : 068l_pbcl2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -2992,6 +3656,8 @@
   Crystal 1 : 069_tlf.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3001,6 +3667,8 @@
   Crystal 1 : 070a_a-sulfur.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3010,6 +3678,8 @@
   Crystal 1 : 070b_a-sulfur.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3019,6 +3689,8 @@
   Crystal 1 : 071_beyerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3028,6 +3700,8 @@
   Crystal 1 : 072a_pinchite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3037,6 +3711,8 @@
   Crystal 1 : 072b_pinchite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3046,6 +3722,8 @@
   Crystal 1 : 072c_pinchite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3055,6 +3733,8 @@
   Crystal 1 : 073a_chesnokovite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3064,6 +3744,8 @@
   Crystal 1 : 073b_chesnokovite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3073,6 +3755,8 @@
   Crystal 1 : 074a_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3082,6 +3766,8 @@
   Crystal 1 : 074b_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3091,6 +3777,8 @@
   Crystal 1 : 074c_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3100,6 +3788,8 @@
   Crystal 1 : 074d_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3109,6 +3799,8 @@
   Crystal 1 : 074e_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3118,6 +3810,8 @@
   Crystal 1 : 074f_wadsleyite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3127,6 +3821,8 @@
   Crystal 1 : 075_ni8bi8si.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3136,6 +3832,8 @@
   Crystal 1 : 076_b-ca2p2o7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3145,6 +3843,8 @@
   Crystal 1 : 077_pinnoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3154,6 +3854,8 @@
   Crystal 1 : 078_cerhc2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3163,6 +3865,8 @@
   Crystal 1 : 079_wocl4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3172,6 +3876,8 @@
   Crystal 1 : 080_c12h10br2te.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3181,6 +3887,8 @@
   Crystal 1 : 081_cu2te2o5cl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3190,6 +3898,8 @@
   Crystal 1 : 082_tugtupite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3199,6 +3909,8 @@
   Crystal 1 : 083_ga3ti2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3208,6 +3920,8 @@
   Crystal 1 : 084_vysotskite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 2.220446E-16
 
@@ -3217,6 +3931,8 @@
   Crystal 1 : 085a_bki4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated radial distribution functions (RDF).
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3226,6 +3942,8 @@
   Crystal 1 : 085b_bki4o12.cif
   Crystal 2 : <current>
 # Using cross-correlated radial distribution functions (RDF).
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3235,6 +3953,8 @@
   Crystal 1 : 086a_n4p4cl8.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3244,6 +3964,8 @@
   Crystal 1 : 086b_n4p4cl8.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3253,6 +3975,8 @@
   Crystal 1 : 087_a-mno2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3262,6 +3986,8 @@
   Crystal 1 : 088a_scheelite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3271,6 +3997,8 @@
   Crystal 1 : 088b_scheelite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3280,6 +4008,8 @@
   Crystal 1 : 089_c136h136o32fe8pt8.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3289,6 +4019,8 @@
   Crystal 1 : 090_cu4o17p4srti.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3298,6 +4030,8 @@
   Crystal 1 : 091_mgfe2o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3307,6 +4041,8 @@
   Crystal 1 : 092_a-cristobalite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3316,6 +4052,8 @@
   Crystal 1 : 093_c864h90n96o72cl4cd24.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3325,6 +4063,8 @@
   Crystal 1 : 094_li2mof6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3334,6 +4074,8 @@
   Crystal 1 : 095_mn2tio4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3343,6 +4085,8 @@
   Crystal 1 : 096_retgersite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3352,6 +4096,8 @@
   Crystal 1 : 097_ekanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3361,6 +4107,8 @@
   Crystal 1 : 098_c8h8cl2con4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3370,6 +4118,8 @@
   Crystal 1 : 099_macedonite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3379,6 +4129,8 @@
   Crystal 1 : 100_fresnoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3388,6 +4140,8 @@
   Crystal 1 : 102_beta-uranium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3397,6 +4151,8 @@
   Crystal 1 : 103_se2vo6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3406,6 +4162,8 @@
   Crystal 1 : 104_hgtl4i6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3415,6 +4173,8 @@
   Crystal 1 : 105_bage2p2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3424,6 +4184,8 @@
   Crystal 1 : 106_2-methylfuran.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3433,6 +4195,8 @@
   Crystal 1 : 107_lipdsi3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3442,6 +4206,8 @@
   Crystal 1 : 108_bi2pdo4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3451,6 +4217,8 @@
   Crystal 1 : 109_diethylzinc.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3460,6 +4228,8 @@
   Crystal 1 : 110_diomignite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3469,6 +4239,8 @@
   Crystal 1 : 111_ag2hgi4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3478,6 +4250,8 @@
   Crystal 1 : 112_eskebornite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3487,6 +4261,8 @@
   Crystal 1 : 113_urea.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3496,6 +4272,8 @@
   Crystal 1 : 114_adamantane.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3505,6 +4283,8 @@
   Crystal 1 : 115_mawsonite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3514,6 +4294,8 @@
   Crystal 1 : 116_si3os2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3523,6 +4305,8 @@
   Crystal 1 : 117_bi2o3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3532,6 +4316,8 @@
   Crystal 1 : 118_mnb2h8.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3541,6 +4327,8 @@
   Crystal 1 : 119_jasmundite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3550,6 +4338,8 @@
   Crystal 1 : 120_rbalf4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3559,6 +4349,8 @@
   Crystal 1 : 121_stannite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3568,6 +4360,8 @@
   Crystal 1 : 122_chalcopyrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3577,6 +4371,8 @@
   Crystal 1 : 123_tetrataenite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3586,6 +4382,8 @@
   Crystal 1 : 124_conb4p.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3595,6 +4393,8 @@
   Crystal 1 : 125a_c44h56cl8la4n8na20o48.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3604,6 +4404,8 @@
   Crystal 1 : 125b_c44h56cl8la4n8na20o48.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3613,6 +4415,8 @@
   Crystal 1 : 126a_torbernite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3622,6 +4426,8 @@
   Crystal 1 : 126b_torbernite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3631,6 +4437,8 @@
   Crystal 1 : 127_phosgenite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3640,6 +4448,8 @@
   Crystal 1 : 128_apophyllite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3649,6 +4459,8 @@
   Crystal 1 : 129a_matlockite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3658,6 +4470,8 @@
   Crystal 1 : 129b_matlockite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3667,6 +4481,8 @@
   Crystal 1 : 130a_gillespite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3676,6 +4492,8 @@
   Crystal 1 : 130b_gillespite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3685,6 +4503,8 @@
   Crystal 1 : 131_cooperite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3694,6 +4514,8 @@
   Crystal 1 : 132_agtaf6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3703,6 +4525,8 @@
   Crystal 1 : 133a_denningite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3712,6 +4536,8 @@
   Crystal 1 : 133b_denningite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3721,6 +4547,8 @@
   Crystal 1 : 134a_a-boron.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3730,6 +4558,8 @@
   Crystal 1 : 134b_a-boron.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3739,6 +4569,8 @@
   Crystal 1 : 135_minium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3748,6 +4580,8 @@
   Crystal 1 : 136_rutile.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3757,6 +4591,8 @@
   Crystal 1 : 137a_coccinite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3766,6 +4602,8 @@
   Crystal 1 : 137b_coccinite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3775,6 +4613,8 @@
   Crystal 1 : 138a_aui.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3784,6 +4624,8 @@
   Crystal 1 : 138b_aui.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3793,6 +4635,8 @@
   Crystal 1 : 139_indium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3802,6 +4646,8 @@
   Crystal 1 : 140_anyuiite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3811,6 +4657,8 @@
   Crystal 1 : 141a_zircon.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3820,6 +4668,8 @@
   Crystal 1 : 141b_zircon.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3829,6 +4679,8 @@
   Crystal 1 : 142a_braunite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3838,6 +4690,8 @@
   Crystal 1 : 142b_braunite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3847,6 +4701,8 @@
   Crystal 1 : 143_basi4o9.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3856,6 +4712,8 @@
   Crystal 1 : 144_stillwellite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3865,6 +4723,8 @@
   Crystal 1 : 145_boricacid.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3874,6 +4734,8 @@
   Crystal 1 : 146a_a-eucryptite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3883,6 +4745,8 @@
   Crystal 1 : 146b_a-eucryptite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3892,6 +4756,8 @@
   Crystal 1 : 147_na2so3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3901,6 +4767,8 @@
   Crystal 1 : 148a_ilmenite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3910,6 +4778,8 @@
   Crystal 1 : 148b_ilmenite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3919,6 +4789,8 @@
   Crystal 1 : 149_srgeteo6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3928,6 +4800,8 @@
   Crystal 1 : 150_malladrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3937,6 +4811,8 @@
   Crystal 1 : 152_selenium.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3946,6 +4822,8 @@
   Crystal 1 : 153_crcl3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3955,6 +4833,8 @@
   Crystal 1 : 154_quartz.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3964,6 +4844,8 @@
   Crystal 1 : 155a_alf3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3973,6 +4855,8 @@
   Crystal 1 : 155b_alf3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -3982,6 +4866,8 @@
   Crystal 1 : 156_pbi2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -3991,6 +4877,8 @@
   Crystal 1 : 157_pbtegeo6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4000,6 +4888,8 @@
   Crystal 1 : 158_mn2nb2o9zn2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4009,6 +4899,8 @@
   Crystal 1 : 159_nierite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4018,6 +4910,8 @@
   Crystal 1 : 160a_millerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4027,6 +4921,8 @@
   Crystal 1 : 160b_millerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4036,6 +4932,8 @@
   Crystal 1 : 161a_proustite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4045,6 +4943,8 @@
   Crystal 1 : 161b_proustite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4054,6 +4954,8 @@
   Crystal 1 : 162_rosiaite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4063,6 +4965,8 @@
   Crystal 1 : 163_murchisite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4072,6 +4976,8 @@
   Crystal 1 : 164_melonite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4081,6 +4987,8 @@
   Crystal 1 : 165_cu3p.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4090,6 +4998,8 @@
   Crystal 1 : 166a_cdcl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4099,6 +5009,8 @@
   Crystal 1 : 166b_cdcl2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4108,6 +5020,8 @@
   Crystal 1 : 167a_corundum.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4117,6 +5031,8 @@
   Crystal 1 : 167b_corundum.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4126,6 +5042,8 @@
   Crystal 1 : 168_c18h12con3o6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4135,6 +5053,8 @@
   Crystal 1 : 169_trinepheline.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4144,6 +5064,8 @@
   Crystal 1 : 170_c15h20o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4153,6 +5075,8 @@
   Crystal 1 : 171_c23h19cl2cun7.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4162,6 +5086,8 @@
   Crystal 1 : 172_c8h4f6n4zn.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4171,6 +5097,8 @@
   Crystal 1 : 173_nepheline.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4180,6 +5108,8 @@
   Crystal 1 : 174_gdis.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4189,6 +5119,8 @@
   Crystal 1 : 175_hmgn.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4198,6 +5130,8 @@
   Crystal 1 : 176_fluorapatite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4207,6 +5141,8 @@
   Crystal 1 : 177_c36h26cofen6o13.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4216,6 +5152,8 @@
   Crystal 1 : 178_cscucl3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4225,6 +5163,8 @@
   Crystal 1 : 179_c20h22ag2cl2n4o8s2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4234,6 +5174,8 @@
   Crystal 1 : 180_b-quartz.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4243,6 +5185,8 @@
   Crystal 1 : 181_b-eucryptite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4252,6 +5196,8 @@
   Crystal 1 : 182_edgarite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4261,6 +5207,8 @@
   Crystal 1 : 183_ta21te13.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4270,6 +5218,8 @@
   Crystal 1 : 184_kmn2zn3si12o30.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4279,6 +5229,8 @@
   Crystal 1 : 185_iceih.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4288,6 +5240,8 @@
   Crystal 1 : 186_wurtzite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4297,6 +5251,8 @@
   Crystal 1 : 187_wc.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4306,6 +5262,8 @@
   Crystal 1 : 188_benitoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4315,6 +5273,8 @@
   Crystal 1 : 189_monipite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4324,6 +5284,8 @@
   Crystal 1 : 190_troilite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4333,6 +5295,8 @@
   Crystal 1 : 191_mnb2.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4342,6 +5306,8 @@
   Crystal 1 : 192_beryl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4351,6 +5317,8 @@
   Crystal 1 : 193_xifengite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4360,6 +5328,8 @@
   Crystal 1 : 194_graphite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4369,6 +5339,8 @@
   Crystal 1 : 195_c80h276cl10gd18n8o188.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4378,6 +5350,8 @@
   Crystal 1 : 196_c32h35cdn9o6.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4387,6 +5361,8 @@
   Crystal 1 : 197_sillenite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4396,6 +5372,8 @@
   Crystal 1 : 198_brownleeite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4405,6 +5383,8 @@
   Crystal 1 : 199_corderoite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4414,6 +5394,8 @@
   Crystal 1 : 200_na2cd11.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4423,6 +5405,8 @@
   Crystal 1 : 201b_ksbo3.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4432,6 +5416,8 @@
   Crystal 1 : 202_buckminsterfullerene.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4441,6 +5427,8 @@
   Crystal 1 : 203a_tychite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4450,6 +5438,8 @@
   Crystal 1 : 203b_tychite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4459,6 +5449,8 @@
   Crystal 1 : 204_kieftite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4468,6 +5460,8 @@
   Crystal 1 : 205_pyrite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4477,6 +5471,8 @@
   Crystal 1 : 206_mcalpineite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4486,6 +5482,8 @@
   Crystal 1 : 207_palladseite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4495,6 +5493,8 @@
   Crystal 1 : 208_na11u5o16.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4504,6 +5504,8 @@
   Crystal 1 : 209_mof-boracite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4513,6 +5515,8 @@
   Crystal 1 : 210_mg-dodecaborate.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4522,6 +5526,8 @@
   Crystal 1 : 211_mof-c48h82k2o42.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4531,6 +5537,8 @@
   Crystal 1 : 212_ga5lio8.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4540,6 +5548,8 @@
   Crystal 1 : 213_uytenbogaardtite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4549,6 +5559,8 @@
   Crystal 1 : 214_petzite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4558,6 +5570,8 @@
   Crystal 1 : 215_sulvanite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4567,6 +5581,8 @@
   Crystal 1 : 216_sphalerite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4576,6 +5592,8 @@
   Crystal 1 : 217_manganese.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4585,6 +5603,8 @@
   Crystal 1 : 218_ag3po4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4594,6 +5614,8 @@
   Crystal 1 : 219_high-boracite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4603,6 +5625,8 @@
   Crystal 1 : 220_domeykite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4612,6 +5636,8 @@
   Crystal 1 : 221_cscl.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4621,6 +5647,8 @@
   Crystal 1 : 222a_fec4o6h4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4630,6 +5658,8 @@
   Crystal 1 : 222b_fec4o6h4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4639,6 +5669,8 @@
   Crystal 1 : 223_pt3o4.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4648,6 +5680,8 @@
   Crystal 1 : 224a_cuprite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4657,6 +5691,8 @@
   Crystal 1 : 224b_cuprite.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4666,6 +5702,8 @@
   Crystal 1 : 225_mgo.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4675,6 +5713,8 @@
   Crystal 1 : 226_ube13.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4684,6 +5724,8 @@
   Crystal 1 : 227a_diamond.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.110223E-16
 
@@ -4693,6 +5735,8 @@
   Crystal 1 : 227b_diamond.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4702,6 +5746,8 @@
   Crystal 1 : 228a_telluricacid.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4711,6 +5757,8 @@
   Crystal 1 : 228b_telluricacid.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4720,6 +5768,8 @@
   Crystal 1 : 229_li.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -4729,6 +5779,8 @@
   Crystal 1 : 230_pyrope.cif
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 

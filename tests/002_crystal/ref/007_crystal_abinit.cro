@@ -4,6 +4,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN1
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -11,6 +13,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN2
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -18,6 +22,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN3
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -25,6 +31,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_LDEN
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -32,6 +40,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_POT
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -39,6 +49,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VCLMB
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -46,6 +58,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHA
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -53,6 +67,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHXC
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -60,6 +76,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VPSP
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -67,6 +85,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VXC
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -74,6 +94,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 
@@ -81,6 +103,8 @@
   Crystal 1 : ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Crystal 2 : ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 

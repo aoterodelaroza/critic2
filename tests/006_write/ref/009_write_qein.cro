@@ -4,6 +4,8 @@
   Crystal 1 : 009_write_qein.scf.in
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 0.000000E+00
 

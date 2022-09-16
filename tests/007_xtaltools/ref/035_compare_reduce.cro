@@ -5,6 +5,8 @@
   Molecule 4 : ../zz_source/g16A.03/benzene/benzene.fchk
   Molecule 5 : ../zz_source/g16A.03/benzene/benzene.log
 # Using cross-correlated radial distribution functions (RDF).
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
    Molecule     neopentane (library) ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk ../zz_source/g16A.03/benzene/benzene.log 
      DIFF              1               2               3               4               5        

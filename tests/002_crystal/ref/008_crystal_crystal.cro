@@ -4,6 +4,8 @@
   Crystal 1 : ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 4.440892E-16
 
@@ -11,6 +13,8 @@
   Crystal 1 : ../zz_source/crystal14/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 4.440892E-16
 
@@ -18,6 +22,8 @@
   Crystal 1 : ../zz_source/crystal17/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
 # Using cross-correlated POWDER diffraction patterns.
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 4.440892E-16
 
