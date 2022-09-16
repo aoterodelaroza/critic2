@@ -2209,7 +2209,7 @@ contains
     integer, intent(in) :: imax
     real*8, intent(out) :: res(imax)
 
-    integer :: i, j
+    integer :: i, j, jini
     integer :: nat, ierr, imax_
     real*8, allocatable :: dist(:)
     real*8 :: dmax0
@@ -2227,9 +2227,11 @@ contains
     res = 0d0
 
     ! calculate the amd
-    do i = 1, c%nneq
+    jini = 1
+    do i = 1, c%ncel
        ok = .false.
-       do j = 1, maxtries
+       do j = jini, maxtries
+          jini = j
           if (localenv) then
              call le%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
           else
@@ -2249,7 +2251,7 @@ contains
        end do
        if (.not.ok) &
           call ferror('struct_amd','Error calculating environment for atom: ' // string(i),faterr)
-       res = res + c%at(i)%mult * dist
+       res = res + dist
     end do
     res = res / real(c%ncel,8)
 
