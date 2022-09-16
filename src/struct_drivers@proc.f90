@@ -1231,7 +1231,7 @@ contains
   module subroutine struct_amd(s,line)
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
-    use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right
+    use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right, warning
     use param, only: icrd_crys
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
@@ -1263,6 +1263,10 @@ contains
     ! check input and allocate
     if (imax < 1) &
        call ferror('struct_amd','The size of the AMD vector must be positive',faterr)
+    if (s%c%ismolecule .and. imax > s%c%ncel-1) then
+       imax = s%c%ncel - 1
+       call ferror('struct_amd','The AMD in a molecule can only have nn up to the number of atoms - 1',warning)
+    end if
     allocate(amd(imax))
     amd = 0d0
 
