@@ -185,11 +185,12 @@ contains
     logical, intent(in), optional :: noenv
     type(thread_info), intent(in), optional :: ti
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border, xx(3)
     logical :: good, clearsym
-    integer :: i, j, k, iat, newmult
+    integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:)
     integer, allocatable :: irotm(:), icenv(:)
+    logical, allocatable :: useatom(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
 
@@ -204,52 +205,28 @@ contains
     ! initialize the structure
     call c%init()
 
-    ! copy the atomic information
-    c%nspc = seed%nspc
-    c%nneq = seed%nat
-    border = max(seed%border,1d-6)
-    if (c%nneq > 0) then
-       if (allocated(c%at)) deallocate(c%at)
-       allocate(c%at(c%nneq))
-       if (allocated(c%spc)) deallocate(c%spc)
-       allocate(c%spc(c%nspc))
-       c%spc = seed%spc(1:seed%nspc)
-       do i = 1, c%nneq
-          c%at(i)%x = seed%x(:,i)
-          c%at(i)%is = seed%is(i)
-       end do
+    !! first the cell, then the atoms !!
 
-       ! if this is a molecule, calculate the center and encompassing cell
-       if (seed%ismolecule) then
-          xmax = -1d40
-          xmin =  1d40
-          do i = 1, seed%nat
-             do j = 1, 3
-                xmax(j) = max(seed%x(j,i)+border,xmax(j))
-                xmin(j) = min(seed%x(j,i)-border,xmin(j))
-             end do
+    ! if this is a molecule, calculate the center and encompassing cell
+    border = max(seed%border,1d-6)
+    if (seed%ismolecule .and. seed%nat > 0) then
+       xmax = -1d40
+       xmin =  1d40
+       do i = 1, seed%nat
+          do j = 1, 3
+             xmax(j) = max(seed%x(j,i)+border,xmax(j))
+             xmin(j) = min(seed%x(j,i)-border,xmin(j))
           end do
-          if (seed%cubic) then
-             xmin = minval(xmin)
-             xmax = maxval(xmax)
-          end if
-          xcm = xmin + 0.5d0 * (xmax-xmin)
+       end do
+       if (seed%cubic) then
+          xmin = minval(xmin)
+          xmax = maxval(xmax)
        end if
+       xcm = xmin + 0.5d0 * (xmax-xmin)
     else
        xmax = 1d0
        xcm = 0.5d0
        xmin = 0d0
-    end if
-
-    ! check if we have any atoms
-    haveatoms = .false.
-    if (seed%nat > 0) then
-       do i = 1, c%nspc
-          if (c%spc(i)%z > 0) then
-             haveatoms = .true.
-             exit
-          end if
-       end do
     end if
 
     ! basic cell and centering information
@@ -295,6 +272,72 @@ contains
        else
           return
        end if
+    end if
+
+    ! rest of the cell metrics
+    c%gtensor = g
+    c%omega = sqrt(max(det3(g),0d0))
+    c%grtensor = g
+    call matinv(c%grtensor,3)
+    do i = 1, 3
+       c%ar(i) = sqrt(c%grtensor(i,i))
+    end do
+    c%n2_x2c = mnorm2(c%m_x2c)
+    c%n2_c2x = mnorm2(c%m_c2x)
+
+    ! calculate the wigner-seitz cell
+    call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
+       c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
+       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
+
+    !! now the atoms, we can use shortest() and related functions past this !!
+
+    ! check for repeats in the seed (for cif & shelx formats)
+    allocate(useatom(seed%nat))
+    useatom = .true.
+    if (seed%havesym > 0 .and. .not.seed%ismolecule .and. seed%nat > 0 .and. seed%checkrepeats) then
+       do i = 1, seed%nat
+          if (.not.useatom(i)) cycle
+          do j = 1, seed%neqv
+             do  k = 1, seed%ncv
+                xx = matmul(seed%rotm(1:3,1:3,j),seed%x(:,i)) + seed%rotm(:,4,j) + seed%cen(:,k)
+                do l = i+1, seed%nat
+                   if (.not.useatom(l)) cycle
+                   if (c%eql_distance(seed%x(:,l),xx) < atomeps) useatom(l) = .false.
+                end do
+             enddo
+          enddo
+       end do
+    end if
+
+    ! copy the atomic information
+    c%nspc = seed%nspc
+    c%nneq = count(useatom)
+    if (c%nneq > 0) then
+       if (allocated(c%at)) deallocate(c%at)
+       allocate(c%at(c%nneq))
+       if (allocated(c%spc)) deallocate(c%spc)
+       allocate(c%spc(c%nspc))
+       c%spc = seed%spc(1:seed%nspc)
+       i = 0
+       do j = 1, seed%nat
+          if (useatom(j)) then
+             i = i + 1
+             c%at(i)%x = seed%x(:,i)
+             c%at(i)%is = seed%is(i)
+          end if
+       end do
+    end if
+
+    ! check if we have any atoms
+    haveatoms = .false.
+    if (c%nneq > 0) then
+       do i = 1, c%nspc
+          if (c%spc(i)%z > 0) then
+             haveatoms = .true.
+             exit
+          end if
+       end do
     end if
 
     ! transform the atomic coordinates in the case of a molecule, and fill
@@ -356,22 +399,6 @@ contains
        c%at(i)%wyc = "?"
     end do
 
-    ! rest of the cell metrics
-    c%gtensor = g
-    c%omega = sqrt(max(det3(g),0d0))
-    c%grtensor = g
-    call matinv(c%grtensor,3)
-    do i = 1, 3
-       c%ar(i) = sqrt(c%grtensor(i,i))
-    end do
-    c%n2_x2c = mnorm2(c%m_x2c)
-    c%n2_c2x = mnorm2(c%m_c2x)
-
-    ! calculate the wigner-seitz cell
-    call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
-       c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
-       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
-
     ! copy the symmetry information, if available
     if (seed%havesym > 0 .and..not.seed%ismolecule) then
        c%havesym = 1
@@ -415,11 +442,6 @@ contains
 
              newmult = 0
              jloop: do j = 1, c%at(i)%mult
-                if (seed%checkrepeats) then
-                   do k = 1, iat
-                      if (c%eql_distance(atpos(:,j),c%atcel(k)%x) < atomeps) cycle jloop
-                   end do
-                end if
                 iat = iat + 1
                 newmult = newmult + 1
                 c%atcel(iat)%x = atpos(:,j)
@@ -433,6 +455,14 @@ contains
                    c%rotm(1:3,4,irotm(j)) + c%cen(:,icenv(j))))
                 c%atcel(iat)%is = c%at(i)%is
              end do jloop
+
+             if (newmult /= c%at(i)%mult) then
+                if (crashfail) then
+                   call ferror('struct_new','inconsistent multiplicity for atom ' // string(i),faterr)
+                else
+                   return
+                end if
+             end if
           end do
           c%ncel = iat
           if (allocated(atpos)) deallocate(atpos)
