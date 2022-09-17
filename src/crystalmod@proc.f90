@@ -187,7 +187,7 @@ contains
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border
     logical :: good, clearsym
-    integer :: i, j, k, iat
+    integer :: i, j, k, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:)
     integer, allocatable :: irotm(:), icenv(:)
     character(len=:), allocatable :: errmsg
@@ -413,6 +413,7 @@ contains
           do i = 1, c%nneq
              call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
 
+             newmult = 0
              jloop: do j = 1, c%at(i)%mult
                 if (seed%checkrepeats) then
                    do k = 1, iat
@@ -420,6 +421,7 @@ contains
                    end do
                 end if
                 iat = iat + 1
+                newmult = newmult + 1
                 c%atcel(iat)%x = atpos(:,j)
                 c%atcel(iat)%r = c%x2c(atpos(:,j))
                 c%atcel(iat)%idx = i
@@ -2228,14 +2230,14 @@ contains
 
     ! calculate the amd
     jini = 1
-    do i = 1, c%ncel
+    do i = 1, c%nneq
        ok = .false.
        do j = jini, maxtries
           jini = j
           if (localenv) then
-             call le%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
+             call le%list_near_atoms(c%at(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
           else
-             call c%env%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
+             call c%env%list_near_atoms(c%at(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
           end if
 
           ! failed to get the requested number of atoms
@@ -2251,7 +2253,7 @@ contains
        end do
        if (.not.ok) &
           call ferror('struct_amd','Error calculating environment for atom: ' // string(i),faterr)
-       res = res + dist
+       res = res + c%at(i)%mult * dist
     end do
     res = res / real(c%ncel,8)
 
