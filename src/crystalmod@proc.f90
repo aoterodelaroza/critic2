@@ -204,6 +204,7 @@ contains
 
     ! initialize the structure
     call c%init()
+    c%ismolecule = seed%ismolecule
 
     !! first the cell, then the atoms !!
 
@@ -343,8 +344,6 @@ contains
     ! transform the atomic coordinates in the case of a molecule, and fill
     ! the remaining molecular fields
     if (seed%ismolecule) then
-       c%ismolecule = seed%ismolecule
-
        if (seed%useabr == 0) then
           ! a cell has not been given
 
