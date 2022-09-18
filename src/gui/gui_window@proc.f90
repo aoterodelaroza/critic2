@@ -203,7 +203,7 @@ contains
     w%isopen = isopen
     w%type = type
     w%id = -1
-    w%name = ""
+    w%name = "" // c_null_char
     w%table_selected = 1
     w%table_sortcid = 0
     w%table_sortdir = 1
@@ -310,7 +310,7 @@ contains
     w%isinit = .false.
     w%isopen = .false.
     w%id = -1
-    w%name = ""
+    w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)
 
@@ -464,13 +464,13 @@ contains
           inisize%x = 60 * fontsize%x
           inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_scfplot) then
+          w%name = "SCF Iterations (" // string(w%scfplot_isys) // ")" // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 45 * fontsize%x
+          inisize%y = inisize%x
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
-    elseif (w%type == wintype_scfplot) then
-       w%name = "SCF Iterations (" // string(w%scfplot_isys) // ")" // c_null_char
-       w%flags = ImGuiWindowFlags_None
-       inisize%x = 45 * fontsize%x
-       inisize%y = inisize%x
-       call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
     end if
 
     if (w%isopen) then
@@ -1677,7 +1677,6 @@ contains
           str2 = string(w%view_selected) // ": " // trim(sysc(w%view_selected)%seed%name) // c_null_char
     end if
     str1 = "##systemcombo" // c_null_char
-    ! call igSetNextItemWidth(combowidth)
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
