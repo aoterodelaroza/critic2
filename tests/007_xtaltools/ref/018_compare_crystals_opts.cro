@@ -42,5 +42,5 @@
 # Please cite:
 #   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 6.077256E-01
++ DIFF = 1.847411E-13
 
