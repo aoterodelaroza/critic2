@@ -324,11 +324,12 @@ contains
        do j = 1, seed%nat
           if (useatom(j)) then
              i = i + 1
-             c%at(i)%x = seed%x(:,i)
-             c%at(i)%is = seed%is(i)
+             c%at(i)%x = seed%x(:,j)
+             c%at(i)%is = seed%is(j)
           end if
        end do
     end if
+    deallocate(useatom)
 
     ! check if we have any atoms
     haveatoms = .false.
