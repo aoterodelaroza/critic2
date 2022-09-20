@@ -7,6 +7,12 @@
 ! GLbitfield = c_int (unsigned int)
 ! GLfloat = c_float
 
+! void glBindBuffer(GLenum target, GLuint buffer);
+subroutine glBindBuffer(target_,buffer) bind(c,name="glBindBuffer")
+  import c_int
+  integer(c_int), value :: target_
+  integer(c_int), value :: buffer
+end subroutine glBindBuffer
 ! void glBindFramebuffer(GLenum target, GLuint framebuffer);
 subroutine glBindFramebuffer(target_,framebuffer) bind(c,name="glBindFramebuffer")
   import c_int
@@ -25,6 +31,19 @@ subroutine glBindTexture(target_,texture) bind(c,name="glBindTexture")
   integer(c_int), value :: target_
   integer(c_int), value :: texture
 end subroutine glBindTexture
+! void glBufferData(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
+subroutine glBufferData(target_,size,data,usage) bind(c,name="glBufferData")
+  import c_int, c_int64_t, c_ptr
+  integer(c_int), value :: target_
+  integer(c_int64_t), value :: size
+  type(c_ptr), intent(in), value :: data
+  integer(c_int), value :: usage
+end subroutine glBufferData
+! void glBindVertexArray(GLuint array);
+subroutine glBindVertexArray(array) bind(c,name="glBindVertexArray")
+  import c_int
+  integer(c_int), value :: array
+end subroutine glBindVertexArray
 ! GLenum glCheckFramebufferStatus(GLenum target);
 function glCheckFramebufferStatus(target_) bind(c,name="glCheckFramebufferStatus")
   import c_int
@@ -41,6 +60,12 @@ subroutine glClearColor(red, green, blue, alpha) bind(c,name="glClearColor")
   import c_float
   real(c_float), value :: red, green, blue, alpha
 end subroutine glClearColor
+! void glDeleteBuffers(GLsizei n, const GLuint *buffers)
+subroutine glDeleteBuffers(n,buffers) bind(c,name="glDeleteBuffers")
+  import c_int, c_ptr
+  integer(c_int), value :: n
+  type(c_ptr), intent(in), value :: buffers
+end subroutine glDeleteBuffers
 ! void glDeleteFramebuffers(GLsizei n, GLuint *framebuffers);
 subroutine glDeleteFramebuffers(n,framebuffers) bind(c,name="glDeleteFramebuffers")
   import c_int, c_ptr
@@ -59,11 +84,22 @@ subroutine glDeleteTextures(n,textures) bind(c,name="glDeleteTextures")
   integer(c_int), value :: n
   type(c_ptr), intent(in), value :: textures
 end subroutine glDeleteTextures
+! void glDeleteVertexArrays(GLsizei n, const GLuint *arrays)
+subroutine glDeleteVertexArrays(n,arrays) bind(c,name="glDeleteVertexArrays")
+  import c_int, c_ptr
+  integer(c_int), value :: n
+  type(c_ptr), intent(in), value :: arrays
+end subroutine glDeleteVertexArrays
 ! void glEnable(GLenum cap)
 subroutine glEnable(cap) bind(c,name="glEnable")
   import c_int
   integer(c_int), value :: cap
 end subroutine glEnable
+! void glEnableVertexAttribArray(GLuint index);
+subroutine glEnableVertexAttribArray(index) bind(c,name="glEnableVertexAttribArray")
+  import c_int
+  integer(c_int), value :: index
+end subroutine glEnableVertexAttribArray
 ! void glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget,
 !                                GLuint renderbuffer);
 subroutine glFramebufferRenderbuffer(target_,attachment,renderbuffertarget,renderbuffer) bind(c,name="glFramebufferRenderbuffer")
@@ -73,6 +109,12 @@ subroutine glFramebufferRenderbuffer(target_,attachment,renderbuffertarget,rende
   integer(c_int), value :: renderbuffertarget
   integer(c_int), value :: renderbuffer
 end subroutine glFramebufferRenderbuffer
+! void glGenBuffers(GLsizei n, GLuint* buffers);
+subroutine glGenBuffers(n,buffers) bind(c,name="glGenBuffers")
+  import c_int, c_ptr
+  integer(c_int), value :: n
+  type(c_ptr), value :: buffers
+end subroutine glGenBuffers
 ! void glGenFramebuffers(GLsizei n,GLuint *ids);
 subroutine glGenFramebuffers(n,ids) bind(c,name="glGenFramebuffers")
   import c_int, c_ptr
@@ -106,6 +148,12 @@ subroutine glGenTextures(n,textures) bind(c,name="glGenTextures")
   integer(c_int), value :: n
   type(c_ptr), value :: textures
 end subroutine glGenTextures
+! void glGenVertexArrays(GLsizei n, GLuint *arrays);
+subroutine glGenVertexArrays(n,arrays) bind(c,name="glGenVertexArrays")
+  import c_int, c_ptr
+  integer(c_int), value :: n
+  type(c_ptr), value :: arrays
+end subroutine glGenVertexArrays
 ! void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
 subroutine glRenderbufferStorage(target_,internalformat,width,height) bind(c,name="glRenderbufferStorage")
   import c_int
@@ -142,6 +190,18 @@ subroutine glTexParameteri(target_,pname,param) bind(c,name="glTexParameteri")
   integer(c_int), value :: pname
   integer(c_int), value :: param
 end subroutine glTexParameteri
+! void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized,
+!                            GLsizei stride, const GLvoid * pointer);
+subroutine glVertexAttribPointer(index,size,type,normalized,stride,point) bind(c,name="glVertexAttribPointer")
+  import c_int, c_signed_char, c_ptr
+  integer(c_int), value :: index
+  integer(c_int), value :: size
+  integer(c_int), value :: type
+  integer(c_signed_char), value :: normalized
+  integer(c_int), value :: stride
+  ! type(c_ptr), intent(in), value :: point
+  integer(c_int), value :: point ! (void *)
+end subroutine glVertexAttribPointer
 ! void glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
 subroutine glViewport(x, y, width, height) bind(c,name="glViewport")
   import c_int

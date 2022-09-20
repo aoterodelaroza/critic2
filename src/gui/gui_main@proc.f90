@@ -49,6 +49,7 @@ contains
     use gui_interfaces_cimgui
     use gui_interfaces_glfw
     use gui_interfaces_opengl3
+    use shapes, only: shapes_init
     use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, stack_realloc_maybe
@@ -183,6 +184,9 @@ contains
 
     ! set default keybindings
     call set_default_keybindings()
+
+    ! create buffers for objects
+    call shapes_init()
 
     ! initialize the window stack with the toggle-able windows (open, for now)
     iwin_tree = stack_create_window(wintype_tree,.true.)

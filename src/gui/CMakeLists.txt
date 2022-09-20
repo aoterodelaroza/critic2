@@ -20,6 +20,7 @@ set(SOURCES
   gui_window.f90 gui_window@proc.f90
   gui_utils.f90 gui_utils@proc.f90
   gui_templates.f90 gui_templates@proc.f90
+  shapes.f90 shapes@proc.f90
   )
 if (FREETYPE2_FOUND)
   set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
