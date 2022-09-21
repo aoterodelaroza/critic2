@@ -7,6 +7,12 @@
 ! GLbitfield = c_int (unsigned int)
 ! GLfloat = c_float
 
+! void glAttachShader(GLuint program, GLuint shader);
+subroutine glAttachShader(prog,shader) bind(c,name="glAttachShader")
+  import c_int
+  integer(c_int), value :: prog
+  integer(c_int), value :: shader
+end subroutine glAttachShader
 ! void glBindBuffer(GLenum target, GLuint buffer);
 subroutine glBindBuffer(target_,buffer) bind(c,name="glBindBuffer")
   import c_int
@@ -60,6 +66,22 @@ subroutine glClearColor(red, green, blue, alpha) bind(c,name="glClearColor")
   import c_float
   real(c_float), value :: red, green, blue, alpha
 end subroutine glClearColor
+! void glCompileShader(GLuint shader)
+subroutine glCompileShader(shader) bind(c,name="glCompileShader")
+  import c_int
+  integer(c_int), value :: shader
+end subroutine glCompileShader
+! GLuint glCreateProgram(void);
+function glCreateProgram() bind(c,name="glCreateProgram")
+  import c_int
+  integer(c_int) :: glCreateProgram
+end function glCreateProgram
+! GLuint glCreateShader(GLenum shaderType);
+function glCreateShader(shaderType) bind(c,name="glCreateShader")
+  import c_int
+  integer(c_int), value :: shaderType
+  integer(c_int) :: glCreateShader
+end function glCreateShader
 ! void glDeleteBuffers(GLsizei n, const GLuint *buffers)
 subroutine glDeleteBuffers(n,buffers) bind(c,name="glDeleteBuffers")
   import c_int, c_ptr
@@ -72,12 +94,22 @@ subroutine glDeleteFramebuffers(n,framebuffers) bind(c,name="glDeleteFramebuffer
   integer(c_int), value :: n
   type(c_ptr), intent(in), value :: framebuffers
 end subroutine glDeleteFramebuffers
+! void glDeleteProgram(GLuint program);
+subroutine glDeleteProgram(prog) bind(c,name="glDeleteProgram")
+  import c_int
+  integer(c_int), value :: prog
+end subroutine glDeleteProgram
 ! void glDeleteRenderbuffers(GLsizei n, GLuint *renderbuffers);
 subroutine glDeleteRenderbuffers(n,renderbuffers) bind(c,name="glDeleteRenderbuffers")
   import c_int, c_ptr
   integer(c_int), value :: n
   type(c_ptr), intent(in), value :: renderbuffers
 end subroutine glDeleteRenderbuffers
+! void glDeleteShader(GLuint program);
+subroutine glDeleteShader(shader) bind(c,name="glDeleteShader")
+  import c_int
+  integer(c_int), value :: shader
+end subroutine glDeleteShader
 ! void glDeleteTextures(GLsizei n, const GLuint *textures);
 subroutine glDeleteTextures(n,textures) bind(c,name="glDeleteTextures")
   import c_int, c_ptr
@@ -90,6 +122,12 @@ subroutine glDeleteVertexArrays(n,arrays) bind(c,name="glDeleteVertexArrays")
   integer(c_int), value :: n
   type(c_ptr), intent(in), value :: arrays
 end subroutine glDeleteVertexArrays
+! void glDetachShader(GLuint program, GLuint shader)
+subroutine glDetachShader(prog,shader) bind(c,name="glDetachShader")
+  import c_int
+  integer(c_int), value :: prog
+  integer(c_int), value :: shader
+end subroutine glDetachShader
 ! void glEnable(GLenum cap)
 subroutine glEnable(cap) bind(c,name="glEnable")
   import c_int
@@ -126,6 +164,36 @@ function glGetError() bind(c,name="glGetError")
   import c_int
   integer(c_int) :: glGetError
 end function glGetError
+! void glGetProgramInfoLog(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+subroutine glGetProgramInfoLog(prog,maxLength,length,infoLog) bind(c,name="glGetProgramInfoLog")
+  import c_int, c_ptr
+  integer(c_int), value :: prog
+  integer(c_int), value :: maxLength
+  integer(c_int) :: length
+  type(c_ptr), value :: infoLog
+end subroutine glGetProgramInfoLog
+! void glGetProgramiv(GLuint program, GLenum pname, GLint *params);
+subroutine glGetProgramiv(prog,pname,params) bind(c,name="glGetProgramiv")
+  import c_int
+  integer(c_int), value :: prog
+  integer(c_int), value :: pname
+  integer(c_int) :: params
+end subroutine glGetProgramiv
+! void glGetShaderInfoLog(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+subroutine glGetShaderInfoLog(shader,maxLength,length,infoLog) bind(c,name="glGetShaderInfoLog")
+  import c_int, c_ptr
+  integer(c_int), value :: shader
+  integer(c_int), value :: maxLength
+  integer(c_int) :: length
+  type(c_ptr), value :: infoLog
+end subroutine glGetShaderInfoLog
+! void glGetShaderiv(GLuint shader, GLenum pname, GLint *params);
+subroutine glGetShaderiv(shader,pname,params) bind(c,name="glGetShaderiv")
+  import c_int
+  integer(c_int), value :: shader
+  integer(c_int), value :: pname
+  integer(c_int) :: params
+end subroutine glGetShaderiv
 ! void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture,
 !      GLint level);
 subroutine glFramebufferTexture2D(target_,attachment,textarget,texture,level) bind(c,name="glFramebufferTexture2D")
@@ -154,6 +222,11 @@ subroutine glGenVertexArrays(n,arrays) bind(c,name="glGenVertexArrays")
   integer(c_int), value :: n
   type(c_ptr), value :: arrays
 end subroutine glGenVertexArrays
+! void glLinkProgram(GLuint program)
+subroutine glLinkProgram(prog) bind(c,name="glLinkProgram")
+  import c_int
+  integer(c_int), value :: prog
+end subroutine glLinkProgram
 ! void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
 subroutine glRenderbufferStorage(target_,internalformat,width,height) bind(c,name="glRenderbufferStorage")
   import c_int
@@ -162,6 +235,14 @@ subroutine glRenderbufferStorage(target_,internalformat,width,height) bind(c,nam
   integer(c_int), value :: width
   integer(c_int), value :: height
 end subroutine glRenderbufferStorage
+! void glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
+subroutine glShaderSource(shader,count,string,length) bind(c,name="glShaderSource")
+  import c_int, c_ptr
+  integer(c_int), value :: shader
+  integer(c_int), value :: count
+  type(c_ptr), intent(in) :: string
+  type(c_ptr), intent(in), value :: length
+end subroutine glShaderSource
 ! void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height,
 !                   GLint border, GLenum format, GLenum type, const GLvoid * data);
 subroutine glTexImage2D(target_,level,internalFormat,width,height,border,format_,type,data) bind(c,name="glTexImage2D")

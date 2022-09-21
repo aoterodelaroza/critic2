@@ -15,29 +15,28 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! OpenGL buffers for simple shapes
-module shapes
+! OpenGL shader programs
+module shaders
   use iso_c_binding
   implicit none
 
   private
 
-  public :: shapes_init
-  public :: shapes_end
+  integer, parameter, public :: shader_test = 1
+  integer, parameter, public :: shader_phong = 2
+  integer, parameter, public :: shader_NUM = 2
+  integer(c_int), public :: ishad_prog(shader_NUM)
 
-  ! sphere objects
-  integer, parameter :: nmaxsph = 1
-  integer(c_int), target :: sphVAO(nmaxsph) ! vertex array object
-  integer(c_int), target :: sphVBO          ! vertex buffer object
-  integer(c_int), target :: sphEBO(nmaxsph) ! element buffer object
+  public :: shaders_init
+  public :: shaders_end
 
   ! module procedure interfaces
   interface
-     module subroutine shapes_init()
-     end subroutine shapes_init
-     module subroutine shapes_end()
-     end subroutine shapes_end
+     module subroutine shaders_init()
+     end subroutine shaders_init
+     module subroutine shaders_end()
+     end subroutine shaders_end
   end interface
 
-end module shapes
+end module shaders
 
