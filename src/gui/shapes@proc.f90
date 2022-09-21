@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
+! OpenGL buffers for simple shapes
 submodule (shapes) proc
   use iso_c_binding
   implicit none

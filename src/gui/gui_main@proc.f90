@@ -832,6 +832,9 @@ contains
                    win(iwin_tree)%forceresize = .true.
                    win(iwin_tree)%forcesort = .true.
                 end if
+
+                ! initialize the scene
+                call sysc(i)%sc%init(i)
              end if
 
              ! unlock

@@ -15,28 +15,35 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! OpenGL buffers for simple shapes
-module shapes
-  use iso_c_binding
+! Scene object and GL rendering utilities
+submodule (scenemod) proc
   implicit none
 
-  private
+contains
 
-  public :: shapes_init
+  ! Initialize a scene object associated with system isys.
+  module subroutine scene_init(s,isys)
+    use gui_main, only: nsys, sysc, sys_init, sys
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: isys
 
-  ! sphere objects
-  integer, parameter :: nmaxsph = 1
-  integer(c_int), target :: sphVAO(nmaxsph) ! vertex array object
-  integer(c_int), target :: sphVBO          ! vertex buffer object
-  integer(c_int), target :: sphEBO(nmaxsph) ! element buffer object
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status /= sys_init) return
 
-  ! module procedure interfaces
-  interface
-     module subroutine shapes_init()
-     end subroutine shapes_init
-     module subroutine shapes_end()
-     end subroutine shapes_end
-  end interface
+    s%id = isys
+    s%showcell = .not.(sys(isys)%c%ismolecule)
+    s%ncell = 1
+    s%isinit = .true.
 
-end module shapes
+  end subroutine scene_init
 
+  ! Terminate a scene object
+  module subroutine scene_end(s)
+    class(scene), intent(inout), target :: s
+
+    s%isinit = .false.
+    s%id = 0
+
+  end subroutine scene_end
+
+end submodule proc

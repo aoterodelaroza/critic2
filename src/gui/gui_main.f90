@@ -24,6 +24,7 @@ module gui_main
   use gui_window, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
+  use scenemod, only: scene
   implicit none
 
   private
@@ -75,6 +76,7 @@ module gui_main
      character(len=:), allocatable :: fullname ! full-path name
      logical :: renamed = .false. ! true if the system has been renamed
      integer :: idwin_plotscf = 0 ! window ID for the scf plot
+     type(scene) :: sc ! scene for the system in the main view
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
@@ -124,7 +126,5 @@ module gui_main
        integer, intent(in) :: idx
      end subroutine remove_system
   end interface
-
-contains
 
 end module gui_main
