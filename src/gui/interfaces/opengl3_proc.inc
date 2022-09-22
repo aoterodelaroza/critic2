@@ -128,6 +128,13 @@ subroutine glDetachShader(prog,shader) bind(c,name="glDetachShader")
   integer(c_int), value :: prog
   integer(c_int), value :: shader
 end subroutine glDetachShader
+! void glDrawArrays(GLenum mode, GLint first, GLsizei count);
+subroutine glDrawArrays(mode,first,count) bind(c,name="glDrawArrays")
+  import c_int
+  integer(c_int), value :: mode
+  integer(c_int), value :: first
+  integer(c_int), value :: count
+end subroutine glDrawArrays
 ! void glEnable(GLenum cap)
 subroutine glEnable(cap) bind(c,name="glEnable")
   import c_int
@@ -271,6 +278,11 @@ subroutine glTexParameteri(target_,pname,param) bind(c,name="glTexParameteri")
   integer(c_int), value :: pname
   integer(c_int), value :: param
 end subroutine glTexParameteri
+! void glUseProgram(GLuint program);
+subroutine glUseProgram(prog_) bind(c,name="glUseProgram")
+  import c_int
+  integer(c_int), value :: prog_
+end subroutine glUseProgram
 ! void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized,
 !                            GLsizei stride, const GLvoid * pointer);
 subroutine glVertexAttribPointer(index,size,type,normalized,stride,point) bind(c,name="glVertexAttribPointer")

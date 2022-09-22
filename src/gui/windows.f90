@@ -62,8 +62,8 @@ module windows
      integer(c_int) :: FBO ! framebuffer
      integer(c_int) :: FBOtex ! framebuffer, texture
      integer(c_int) :: FBOdepth ! framebuffer, depth buffer
-     real(c_float) :: FBOside ! side of the render texture (pixels)
-     real(c_float) :: renderside ! side of the square used for rendering (pixels)
+     integer(c_int) :: FBOside ! side of the render texture (pixels)
+     integer(c_int) :: renderside ! side of the square used for rendering (pixels)
      integer :: view_selected = 1 ! the system selected in the view window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)

@@ -276,16 +276,10 @@ contains
        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
           call ferror('window_init','framebuffer is not complete',faterr)
 
-       ! clear the framebuffer
-       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
-       call glViewport(0,0,initial_texture_side,initial_texture_side)
-       call glClearColor(0.,0.,0.,0.)
-       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
        ! finish and write the texture size
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
        w%FBOside = initial_texture_side
+       w%renderside = initial_texture_side
     end if
 
   end subroutine window_init
@@ -1640,6 +1634,8 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
+    use shaders, only: ishad_prog, shader_test
+    use shapes, only: testVAO
     use gui_main, only: sysc, sys_init, nsys
     use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
@@ -1692,7 +1688,19 @@ contains
     end if
     call iw_tooltip("Choose the system displayed in the view",ttshown)
 
-    ! draw the image
+    ! xxxx render the image to the texture
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+    call glViewport(0_c_int,0_c_int,w%renderside,w%renderside)
+    call glClearColor(0.,0.,0.,0.)
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    call glUseProgram(ishad_prog(shader_test))
+    call glBindVertexArray(testVAO)
+    call glDrawArrays(GL_TRIANGLES, 0, 3)
+    call glBindVertexArray(0)
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    ! xxxx
+
+    ! draw the texture
     call igGetContentRegionAvail(szavail)
     sz0%x = 0._c_float
     sz0%y = 0._c_float
@@ -4133,7 +4141,7 @@ contains
           sa = spg_get_spacegroup_type(i)
 
           ! Hall
-          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
           if (igTableSetColumnIndex(0)) then
              str = string(i) // c_null_char
              flags = ImGuiSelectableFlags_SpanAllColumns
