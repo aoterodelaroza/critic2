@@ -25,10 +25,19 @@ module shaders
   integer, parameter, public :: shader_test = 1
   integer, parameter, public :: shader_phong = 2
   integer, parameter, public :: shader_NUM = 2
-  integer(c_int), public :: ishad_prog(shader_NUM)
 
   public :: shaders_init
   public :: shaders_end
+  public :: useshader
+  public :: setuniform
+
+  ! overloaded procedures
+  interface setuniform
+     module procedure setuniform_vec3
+     module procedure setuniform_float
+     module procedure setuniform_int
+     module procedure setuniform_mat4
+  end interface setuniform
 
   ! module procedure interfaces
   interface
@@ -36,6 +45,33 @@ module shaders
      end subroutine shaders_init
      module subroutine shaders_end()
      end subroutine shaders_end
+     module subroutine useshader(id)
+       integer, intent(in) :: id
+     end subroutine useshader
+     module subroutine setuniform_int(name,x)
+       character*(*), intent(in), target :: name
+       integer(c_int), intent(in) :: x
+     end subroutine setuniform_int
+     module subroutine setuniform_float(name,x)
+       character*(*), intent(in), target :: name
+       real(c_float), intent(in) :: x
+     end subroutine setuniform_float
+     module subroutine setuniform_vec3(name,x)
+       character*(*), intent(in), target :: name
+       real(c_float), intent(in), target :: x(3)
+     end subroutine setuniform_vec3
+     module subroutine setuniform_vec4(name,x)
+       character*(*), intent(in), target :: name
+       real(c_float), intent(in), target :: x(4)
+     end subroutine setuniform_vec4
+     module subroutine setuniform_mat3(name,x)
+       character*(*), intent(in), target :: name
+       real(c_float), intent(in), target :: x(3,3)
+     end subroutine setuniform_mat3
+     module subroutine setuniform_mat4(name,x)
+       character*(*), intent(in), target :: name
+       real(c_float), intent(in), target :: x(4,4)
+     end subroutine setuniform_mat4
   end interface
 
 end module shaders

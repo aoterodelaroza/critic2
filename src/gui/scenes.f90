@@ -27,6 +27,8 @@ module scenes
      integer :: id ! system ID
      logical :: showcell = .false. ! show the unit cell?
      integer :: ncell(3) ! number of cells show in each direction
+     integer :: imotif = 0 ! 0 = none, 1 = border, 2 = onemotif, 3 = molmotif
+     real*8 :: scenerad = 1d0 ! scene radius
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end

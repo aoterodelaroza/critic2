@@ -205,6 +205,13 @@ subroutine glGetShaderiv(shader,pname,params) bind(c,name="glGetShaderiv")
   integer(c_int), value :: pname
   integer(c_int) :: params
 end subroutine glGetShaderiv
+! GLint glGetUniformLocation(GLuint program, const GLchar *name);
+function glGetUniformLocation(prog_,name) bind(c,name="glGetUniformLocation")
+  import c_int, c_ptr
+  integer(c_int), value :: prog_
+  type(c_ptr), intent(in), value :: name
+  integer(c_int) :: glGetUniformLocation
+end function glGetUniformLocation
 ! void glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture,
 !      GLint level);
 subroutine glFramebufferTexture2D(target_,attachment,textarget,texture,level) bind(c,name="glFramebufferTexture2D")
@@ -282,6 +289,48 @@ subroutine glTexParameteri(target_,pname,param) bind(c,name="glTexParameteri")
   integer(c_int), value :: pname
   integer(c_int), value :: param
 end subroutine glTexParameteri
+! void glUniform1i(GLint location, GLint v0);
+subroutine glUniform1i(location,v0) bind(c,name="glUniform1i")
+  import c_int, c_float
+  integer(c_int), value :: location
+  integer(c_int), value :: v0
+end subroutine glUniform1i
+! void glUniform1f(GLint location, GLfloat v0)
+subroutine glUniform1f(location,v0) bind(c,name="glUniform1f")
+  import c_int, c_float
+  integer(c_int), value :: location
+  real(c_float), value :: v0
+end subroutine glUniform1f
+! void glUniform3fv(GLint location, GLsizei count, const GLfloat *value);
+subroutine glUniform3fv(location,count,val) bind(c,name="glUniform3fv")
+  import c_int, c_float, c_ptr
+  integer(c_int), value :: location
+  integer(c_int), value :: count
+  type(c_ptr), intent(in), value :: val
+end subroutine glUniform3fv
+! void glUniform4fv(GLint location, GLsizei count, const GLfloat *value);
+subroutine glUniform4fv(location,count,val) bind(c,name="glUniform4fv")
+  import c_int, c_float, c_ptr
+  integer(c_int), value :: location
+  integer(c_int), value :: count
+  type(c_ptr), intent(in), value :: val
+end subroutine glUniform4fv
+! void glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+subroutine glUniformMatrix3fv(location,count,transpose,val) bind(c,name="glUniformMatrix3fv")
+  import c_int, c_signed_char, c_ptr
+  integer(c_int), value :: location
+  integer(c_int), value :: count
+  integer(c_signed_char), value :: transpose
+  type(c_ptr), intent(in), value :: val
+end subroutine glUniformMatrix3fv
+! void glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+subroutine glUniformMatrix4fv(location,count,transpose,val) bind(c,name="glUniformMatrix4fv")
+  import c_int, c_signed_char, c_ptr
+  integer(c_int), value :: location
+  integer(c_int), value :: count
+  integer(c_signed_char), value :: transpose
+  type(c_ptr), intent(in), value :: val
+end subroutine glUniformMatrix4fv
 ! void glUseProgram(GLuint program);
 subroutine glUseProgram(prog_) bind(c,name="glUseProgram")
   import c_int

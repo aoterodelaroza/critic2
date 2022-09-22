@@ -25,6 +25,12 @@ submodule (shaders) proc
      "phong"& ! shader_phong
      /)
 
+  ! shader programs
+  integer(c_int) :: ishad_prog(shader_NUM)
+
+  ! current shader
+  integer :: icur_shader = 0
+
 contains
 
   !> Compile and link the shader programs
@@ -104,5 +110,81 @@ contains
     end do
 
   end subroutine shaders_end
+
+  !> Use shader with the given ID, if valid and not currently in use
+  module subroutine useshader(id)
+    use interfaces_opengl3, only: glUseProgram
+    integer, intent(in) :: id
+
+    if (id < 1 .or. id > shader_NUM) return
+
+    if (id /= icur_shader) then
+       call glUseProgram(ishad_prog(id))
+       icur_shader = id
+    end if
+
+  end subroutine useshader
+
+  !> Set an integer uniform.
+  module subroutine setuniform_int(name,x)
+    use interfaces_opengl3, only: glUniform1i, glGetUniformLocation
+    character*(*), intent(in), target :: name
+    integer(c_int), intent(in) :: x
+
+    call glUniform1i(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), x)
+
+  end subroutine setuniform_int
+
+  !> Set a float uniform.
+  module subroutine setuniform_float(name,x)
+    use interfaces_opengl3, only: glUniform1f, glGetUniformLocation
+    character*(*), intent(in), target :: name
+    real(c_float), intent(in) :: x
+
+    call glUniform1f(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), x)
+
+  end subroutine setuniform_float
+
+  !> Set a vec3 float uniform.
+  module subroutine setuniform_vec3(name,x)
+    use interfaces_opengl3, only: glUniform3fv, glGetUniformLocation
+    character*(*), intent(in), target :: name
+    real(c_float), intent(in), target :: x(3)
+
+    call glUniform3fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, c_loc(x))
+
+  end subroutine setuniform_vec3
+
+  !> Set a vec4 float uniform.
+  module subroutine setuniform_vec4(name,x)
+    use interfaces_opengl3, only: glUniform4fv, glGetUniformLocation
+    character*(*), intent(in), target :: name
+    real(c_float), intent(in), target :: x(4)
+
+    call glUniform4fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, c_loc(x))
+
+  end subroutine setuniform_vec4
+
+  !> Set a mat3 float uniform
+  module subroutine setuniform_mat3(name,x)
+    use interfaces_opengl3, only: glUniformMatrix3fv, glGetUniformLocation, GL_FALSE
+    character*(*), intent(in), target :: name
+    real(c_float), intent(in), target :: x(3,3)
+
+    call glUniformMatrix3fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, &
+       int(GL_FALSE,c_signed_char), c_loc(x))
+
+  end subroutine setuniform_mat3
+
+  !> Set a mat4 float uniform
+  module subroutine setuniform_mat4(name,x)
+    use interfaces_opengl3, only: glUniformMatrix4fv, glGetUniformLocation, GL_FALSE
+    character*(*), intent(in), target :: name
+    real(c_float), intent(in), target :: x(4,4)
+
+    call glUniformMatrix4fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, &
+       int(GL_FALSE,c_signed_char), c_loc(x))
+
+  end subroutine setuniform_mat4
 
 end submodule proc

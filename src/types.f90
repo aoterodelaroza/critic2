@@ -38,7 +38,7 @@ module types
   public :: basindat
   public :: int_result
 
-  ! overloaded functions
+  ! overloaded procedures
   interface realloc
      module procedure realloc_vstring
      module procedure realloc_pointpropable
