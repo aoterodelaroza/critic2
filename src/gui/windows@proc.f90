@@ -1684,7 +1684,7 @@ contains
 
     ! draw the texture, largest region with the same shape as the available region
     ! that fits into the texture square
-    scal = real(w%FBOside,c_float) / max(max(szavail%x,szavail%y),1d0)
+    scal = real(w%FBOside,c_float) / max(max(szavail%x,szavail%y),1._c_float)
     sz0%x = 0.5 * (real(w%FBOside,c_float) - szavail%x * scal) / real(w%FBOside,c_float)
     sz0%y = 0.5 * (real(w%FBOside,c_float) - szavail%y * scal) / real(w%FBOside,c_float)
     sz1%x = 1._c_float - sz0%x
