@@ -24,4 +24,8 @@
 #include "../imgui/imgui.h"
 #include "../cimgui/cimgui.h"
 
+// my widgets
 CIMGUI_API bool my_CloseButton(const char* str_id, ImVec4 buttonbg);
+
+// my fonts
+extern "C" const char *const_font_dejavu_base85_ptr;

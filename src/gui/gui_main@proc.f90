@@ -241,7 +241,7 @@ contains
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft2)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), iright2)
-          call igDockBuilderFinish(iddock);
+          call igDockBuilderFinish(iddock)
        end if
 
        ! show demo window
@@ -263,7 +263,7 @@ contains
        call glViewport(0, 0, display_w, display_h)
        call glClearColor(0.45, 0.55, 0.60, 1.00)
        call glClear(GL_COLOR_BUFFER_BIT)
-       call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+       call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)

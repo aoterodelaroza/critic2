@@ -811,7 +811,7 @@ contains
           end if
 
           ! start defining the table row
-          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float);
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
           hadenabledcolumn = .false.
 
           ! close button
@@ -1676,7 +1676,7 @@ contains
        ! xxxx
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(0.,0.,0.,0.)
+       call glClearColor(0.,0.,0.,1.)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        call glUseProgram(ishad_prog(shader_test))
        call glBindVertexArray(testVAO)

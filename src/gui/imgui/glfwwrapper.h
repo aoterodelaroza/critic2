@@ -18,29 +18,20 @@
 // along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#include "tinycwrapper.h"
-#include <stdlib.h>
+// Wrapper to the GLFW library
 
-/* Function return values */
-const int const_thrd_error = thrd_error;
-const int const_thrd_success = thrd_success;
-const int const_thrd_timedout = thrd_timedout;
-const int const_thrd_busy = thrd_busy;
-const int const_thrd_nomem = thrd_nomem;
-/* Mutex types */
-const int const_mtx_plain = mtx_plain;
-const int const_mtx_timed = mtx_timed;
-const int const_mtx_recursive = mtx_recursive;
+#ifndef GLFWWRAPPER_H
+#define GLFWWRAPPER_H
 
-// Allocate and deallocate mutex objects
-void *allocate_mtx(){
-  return (void *) malloc(sizeof(mtx_t));
-}
-void deallocate_mtx(void *p){
-  if (p) free(p);
-}
+// constants //
+extern "C" const int const_GLFW_TRUE;
+extern "C" const int const_GLFW_FALSE;
+extern "C" const int const_GLFW_SAMPLES;
+extern "C" const int const_GLFW_CONTEXT_VERSION_MAJOR;
+extern "C" const int const_GLFW_CONTEXT_VERSION_MINOR;
+extern "C" const int const_GLFW_OPENGL_PROFILE;
+extern "C" const int const_GLFW_OPENGL_FORWARD_COMPAT;
+extern "C" const int const_GLFW_OPENGL_CORE_PROFILE;
+extern "C" const int const_GLFW_STICKY_KEYS;
 
-// Wrapper for thread functions
-int wrap_thrd_join(thrd_t *thr, int *res){
-  return thrd_join(*thr,res);
-}
+#endif

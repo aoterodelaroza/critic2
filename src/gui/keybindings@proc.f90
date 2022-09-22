@@ -135,11 +135,11 @@ contains
     if (group == group_global) then
        ! unbind in all other groups
        do i = 2, ngroupbinds
-          call erase_bind(key,mod,i);
+          call erase_bind(key,mod,i)
        end do
     else
        ! unbind from the global group
-       call erase_bind(key,mod,group_global);
+       call erase_bind(key,mod,group_global)
     end if
 
     ! make the new bind

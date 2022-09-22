@@ -18,13 +18,26 @@
 // along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 
-// Wrapper to allocate and deallocate mutex objects
+// Wrapper to the tinythread library
 
 #ifndef TINYCWRAPPER_H
 #define TINYCWRAPPER_H
 
 #include "tinycthread.h"
 
+// constants //
+/* Function return values */
+extern const int const_thrd_error;
+extern const int const_thrd_success;
+extern const int const_thrd_timedout;
+extern const int const_thrd_busy;
+extern const int const_thrd_nomem;
+/* Mutex types */
+extern const int const_mtx_plain;
+extern const int const_mtx_timed;
+extern const int const_mtx_recursive;
+
+// wrapper functions //
 // mutexes
 void *allocate_mtx();
 void deallocate_mtx(void *p);
