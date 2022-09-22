@@ -22,6 +22,6 @@
 #endif
 #include "../imgui/imgui_internal.h"
 #include "../imgui/imgui.h"
-#include "../imgui/cimgui.h"
+#include "../cimgui/cimgui.h"
 
 CIMGUI_API bool my_CloseButton(const char* str_id, ImVec4 buttonbg);

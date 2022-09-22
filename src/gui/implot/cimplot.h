@@ -20,7 +20,7 @@
 #ifndef CIMPLOT_INCLUDED
 #define CIMPLOT_INCLUDED
 
-#include "cimgui.h"
+#include "../cimgui/cimgui.h"
 
 // types
 typedef int ImPlotFlags;

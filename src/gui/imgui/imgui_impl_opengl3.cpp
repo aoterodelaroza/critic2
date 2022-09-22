@@ -93,8 +93,8 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "cimgui.h"
-#include "cimgui_impl.h"
+#include "../cimgui/cimgui.h"
+#include "../cimgui/cimgui_impl.h"
 
 #include <stdio.h>
 #if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier

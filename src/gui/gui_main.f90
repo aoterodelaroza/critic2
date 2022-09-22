@@ -20,11 +20,11 @@
 ! Structure class and routines for basic crystallography computations
 module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
-  use gui_interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport
-  use gui_window, only: window
+  use interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport
+  use windows, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
-  use scenemod, only: scene
+  use scenes, only: scene
   implicit none
 
   private

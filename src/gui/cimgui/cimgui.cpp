@@ -12,11 +12,11 @@
 #error "IMGUI_FREETYPE should not be defined without freetype generated cimgui"
 #endif
 #endif
-#include "imgui.h"
+#include "../imgui/imgui.h"
 #ifdef IMGUI_ENABLE_FREETYPE
-#include "imgui_freetype.h"
+#include "../imgui/imgui_freetype.h"
 #endif
-#include "imgui_internal.h"
+#include "../imgui/imgui_internal.h"
 #include "cimgui.h"
 
 

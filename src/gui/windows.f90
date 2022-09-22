@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! The class to handle ImGui windows.
-module gui_window
+module windows
   use iso_c_binding
   use global, only: rborder_def
   use param, only: isformat_unknown
@@ -231,4 +231,4 @@ module gui_window
      end subroutine draw_scfplot
   end interface
 
-end module gui_window
+end module windows

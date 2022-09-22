@@ -24,12 +24,12 @@
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_internal.h"
 #include "../imgui/imgui_freetype.h"
-#include "../imgui/cimgui.h"
+#include "../cimgui/cimgui.h"
 #include "constants.h"
-#include "../threads/tinycthread.h"
+#include "../tinycthread/tinycthread.h"
 #include "../filedialog/ImGuiFileDialog.h"
-#include "../imgui/implot.h"
-#include "../imgui/cimplot.h"
+#include "../implot/implot.h"
+#include "../implot/cimplot.h"
 
 // threads
 /* Function return values */

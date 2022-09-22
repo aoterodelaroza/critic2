@@ -45,16 +45,16 @@ contains
 
   ! Start the critic2 GUI.
   module subroutine gui_start()
-    use gui_interfaces_threads
-    use gui_interfaces_cimgui
-    use gui_interfaces_glfw
-    use gui_interfaces_opengl3
+    use interfaces_threads
+    use interfaces_cimgui
+    use interfaces_glfw
+    use interfaces_opengl3
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
-    use gui_window, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
+    use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, stack_realloc_maybe
-    use gui_keybindings, only: set_default_keybindings
+    use keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use omp_lib, only: omp_get_max_threads
@@ -317,7 +317,7 @@ contains
   !> Launch the initialization threads, which will go over all systems
   !> trying to initialize them.
   module subroutine launch_initialization_thread()
-    use gui_interfaces_threads
+    use interfaces_threads
     integer :: i, idum
 
     force_quit_threads = .false.
@@ -330,7 +330,7 @@ contains
   !> Force the initialization threads to quit and wait for them to
   !> finish before returning.
   module subroutine kill_initialization_thread()
-    use gui_interfaces_threads
+    use interfaces_threads
     integer :: i
     integer(c_int) :: res, idum
 
@@ -446,11 +446,11 @@ contains
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed.
   module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
-    use gui_interfaces_cimgui, only: getCurrentWorkDir
+    use interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
-    use gui_window, only: nwin, win, iwin_tree
-    use gui_interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
+    use windows, only: nwin, win, iwin_tree
+    use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout
     use types, only: realloc
@@ -607,7 +607,7 @@ contains
   ! master and collapsed, kill all dependents. If master and extended,
   ! make all dependents master.
   recursive module subroutine remove_system(idx)
-    use gui_interfaces_threads, only: deallocate_mtx
+    use interfaces_threads, only: deallocate_mtx
     integer, intent(in) :: idx
 
     integer :: i
@@ -662,13 +662,13 @@ contains
 
   ! Show the main menu
   subroutine show_main_menu()
-    use gui_interfaces_cimgui
-    use gui_window, only: win, iwin_tree, iwin_view, iwin_console_input,&
+    use interfaces_cimgui
+    use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
        wintype_new_struct, wintype_new_struct_library, update_window_id
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
-    use gui_keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
-    use gui_interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
+    use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
+    use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
     ! enum for the dialog types that can be launched from the menu
@@ -787,8 +787,8 @@ contains
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
-    use gui_interfaces_threads
-    use gui_window, only: nwin, win, iwin_tree
+    use interfaces_threads
+    use windows, only: nwin, win, iwin_tree
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker

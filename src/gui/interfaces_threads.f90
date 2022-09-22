@@ -15,35 +15,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Scene object and GL rendering utilities
-submodule (scenemod) proc
+! Fortran interfaces for tinycthread
+module interfaces_threads
+  use iso_c_binding
   implicit none
 
-contains
+  public
 
-  ! Initialize a scene object associated with system isys.
-  module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sysc, sys_init, sys
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: isys
+  !xx! tinycthread constants
+  include "interfaces/threads_constants.inc"
 
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status /= sys_init) return
+  interface
+     !xx! tinycthread procedures
+     include "interfaces/threads_proc.inc"
+  end interface
 
-    s%id = isys
-    s%showcell = .not.(sys(isys)%c%ismolecule)
-    s%ncell = 1
-    s%isinit = .true.
-
-  end subroutine scene_init
-
-  ! Terminate a scene object
-  module subroutine scene_end(s)
-    class(scene), intent(inout), target :: s
-
-    s%isinit = .false.
-    s%id = 0
-
-  end subroutine scene_end
-
-end submodule proc
+end module interfaces_threads

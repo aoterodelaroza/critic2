@@ -57,8 +57,8 @@
 //  2016-10-15: Misc: Added a void* user_data parameter to Clipboard function handlers.
 
 #include "imgui_internal.h"
-#include "cimgui.h"
-#include "cimgui_impl.h"
+#include "../cimgui/cimgui.h"
+#include "../cimgui/cimgui_impl.h"
 #include "imgui_impl_glfw.h"
 
 // Clang warnings with -Weverything

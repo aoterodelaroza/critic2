@@ -15,34 +15,28 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Scene object and GL rendering utilities
-module scenemod
+! Fortran interfaces for cimgui
+module interfaces_cimgui
   use iso_c_binding
   implicit none
 
-  private
+  public
 
-  type scene
-     logical :: isinit = .false. ! whether the scene has been initialized
-     integer :: id ! system ID
-     logical :: showcell = .false. ! show the unit cell?
-     integer :: ncell(3) ! number of cells show in each direction
-   contains
-     procedure :: init => scene_init
-     procedure :: end => scene_end
-  end type scene
-  public :: scene
+  !xx! cimgui constants
+  include "interfaces/cimgui_constants.inc"
 
-  ! module procedure interfaces
+  !xx! cimgui user-defined types
+  include "interfaces/cimgui_types.inc"
+
   interface
-     module subroutine scene_init(s,isys)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: isys
-     end subroutine scene_init
-     module subroutine scene_end(s)
-       class(scene), intent(inout), target :: s
-     end subroutine scene_end
+     !xx! ImGui GLFW platform backend (imgui_impl_glfw)
+     include "interfaces/imgui_glfw_proc.inc"
+
+     !xx! ImGui OpenGL3 renderer backend (imgui_impl_opengl3)
+     include "interfaces/imgui_opengl3_proc.inc"
+
+     !xx! cimgui
+     include "interfaces/cimgui_proc.inc"
   end interface
 
-end module scenemod
-
+end module interfaces_cimgui

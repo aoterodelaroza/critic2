@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! This module handles the key-bindings for the critic2 GUI.
-module gui_keybindings
+module keybindings
   use iso_c_binding, only: c_int
   implicit none
 
@@ -73,4 +73,4 @@ module gui_keybindings
      end function get_bind_keyname
   end interface
 
-end module gui_keybindings
+end module keybindings

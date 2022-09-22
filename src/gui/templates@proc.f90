@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
-submodule (gui_templates) proc
+submodule (templates) proc
   use iso_c_binding
   use hashmod, only: hash
   use param, only: newline
@@ -415,7 +415,7 @@ contains
   !> of the consolie input window. If textinsert is true, insert the
   !> tempalte, otherwise bring up the help.
   module subroutine draw_keyword_context_menu(textinsert)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     logical, intent(in) :: textinsert
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -445,8 +445,8 @@ contains
   !> textinsert, insert the template into the console
   !> input. Otherwise, open the documentation.
   subroutine launch_keyword_action(textinsert,ikeyw)
-    use gui_window, only: win, iwin_console_input, stack_create_window
-    use gui_interfaces_cimgui
+    use windows, only: win, iwin_console_input, stack_create_window
+    use interfaces_cimgui
     logical, intent(in) :: textinsert
     integer, intent(in) :: ikeyw
 

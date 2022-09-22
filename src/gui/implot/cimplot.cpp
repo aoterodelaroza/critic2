@@ -17,8 +17,8 @@
 // along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "../imgui/imgui.h"
+#include "../imgui/imgui_internal.h"
 #include "implot.h"
 #include "cimplot.h"
 

@@ -29,7 +29,7 @@ contains
 
   !> Compile and link the shader programs
   module subroutine shaders_init()
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
     use global, only: critic_home
     use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr, uout
     use param, only: dirsep, newline
@@ -96,7 +96,7 @@ contains
 
   !> Delete the shader programs
   module subroutine shaders_end()
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
     integer :: i
 
     do i = 1, shader_NUM

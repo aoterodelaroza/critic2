@@ -15,19 +15,21 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Fortran interfaces for tinycthread
-module gui_interfaces_threads
+! Templates and other static data for the GUI
+module templates
   use iso_c_binding
   implicit none
 
-  public
+  private
 
-  !xx! tinycthread constants
-  include "interfaces/threads_constants.inc"
+  public :: draw_keyword_context_menu
 
+  ! module procedure interfaces
   interface
-     !xx! tinycthread procedures
-     include "interfaces/threads_proc.inc"
+     module subroutine draw_keyword_context_menu(textinsert)
+       logical, intent(in) :: textinsert
+     end subroutine draw_keyword_context_menu
   end interface
 
-end module gui_interfaces_threads
+end module templates
+

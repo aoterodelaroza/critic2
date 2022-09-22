@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
-module gui_utils
+module utils
   use iso_c_binding
   implicit none
 
@@ -109,5 +109,5 @@ module gui_utils
      end subroutine buffer_to_string_array
   end interface
 
-end module gui_utils
+end module utils
 

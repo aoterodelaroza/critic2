@@ -17,7 +17,7 @@
 // along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#include "my_imgui.h"
+#include "imgui_own_widgets.h"
 
 using namespace ImGui;
 

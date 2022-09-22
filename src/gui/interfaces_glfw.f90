@@ -15,22 +15,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Fortran interfaces for opengl3
-module gui_interfaces_opengl3
+! Fortran interfaces for glfw.
+module interfaces_glfw
   use iso_c_binding
   implicit none
 
   public
 
-  !xx! OpenGL constants
-  include "interfaces/opengl3_constants.inc"
+  !xx! GLFW constants
+  include "interfaces/glfw_constants.inc"
 
   interface
-     !xx! GL3W
-     include "interfaces/gl3w_proc.inc"
-
-     !xx! OpenGL
-     include "interfaces/opengl3_proc.inc"
+     !xx! GLFW
+     include "interfaces/glfw_proc.inc"
   end interface
 
-end module gui_interfaces_opengl3
+end module interfaces_glfw

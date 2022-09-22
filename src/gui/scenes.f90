@@ -15,19 +15,34 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Fortran interfaces for glfw.
-module gui_interfaces_glfw
+! Scene object and GL rendering utilities
+module scenes
   use iso_c_binding
   implicit none
 
-  public
+  private
 
-  !xx! GLFW constants
-  include "interfaces/glfw_constants.inc"
+  type scene
+     logical :: isinit = .false. ! whether the scene has been initialized
+     integer :: id ! system ID
+     logical :: showcell = .false. ! show the unit cell?
+     integer :: ncell(3) ! number of cells show in each direction
+   contains
+     procedure :: init => scene_init
+     procedure :: end => scene_end
+  end type scene
+  public :: scene
 
+  ! module procedure interfaces
   interface
-     !xx! GLFW
-     include "interfaces/glfw_proc.inc"
+     module subroutine scene_init(s,isys)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: isys
+     end subroutine scene_init
+     module subroutine scene_end(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_end
   end interface
 
-end module gui_interfaces_glfw
+end module scenes
+

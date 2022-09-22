@@ -104,7 +104,7 @@ contains
 
   !> Create and initialize the buffers for the basic shapes
   module subroutine shapes_init()
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
     use tools_math, only: cross
 
     real(c_float) :: tau, rad0, xico, zico, zero
@@ -332,7 +332,7 @@ contains
 
   !> Terminate the shapes buffers
   module subroutine shapes_end()
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
 
     call glDeleteVertexArrays(nmaxsph, c_loc(sphVAO))
     call glDeleteBuffers(1, c_loc(sphVBO))

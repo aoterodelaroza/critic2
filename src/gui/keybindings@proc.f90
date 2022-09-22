@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! This module handles the key-bindings for the critic2 GUI.
-submodule (gui_keybindings) proc
+submodule (keybindings) proc
   use iso_c_binding
   use hashmod, only: hash
   implicit none
@@ -90,7 +90,7 @@ contains
 
   ! unbind the key/mod/group combination
   subroutine erase_bind(key, mod, group)
-    use gui_interfaces_cimgui, only: ImGuiKey_None
+    use interfaces_cimgui, only: ImGuiKey_None
     integer(c_int), intent(in) :: key, mod
     integer, intent(in) :: group
 
@@ -109,7 +109,7 @@ contains
 
   ! Associate a bind with a key/mod combination
   module subroutine set_bind(bind, key, mod)
-    use gui_interfaces_cimgui, only: ImGuiKey_None
+    use interfaces_cimgui, only: ImGuiKey_None
     use tools_io, only: ferror, faterr
     integer, intent(in) :: bind
     integer(c_int), intent(in) :: key, mod
@@ -150,7 +150,7 @@ contains
   end subroutine set_bind
 
   module subroutine set_default_keybindings()
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     integer :: i
 
     ! initialize to no keys and modifiers
@@ -187,7 +187,7 @@ contains
   ! Return whether the bind event is happening. If held (optional),
   ! the event happens only if the button is held down (for mouse).
   module function is_bind_event(bind,held)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
     logical :: is_bind_event
@@ -267,7 +267,7 @@ contains
 
   ! Return the key+mod combination for a given bind
   module function get_bind_keyname(bind)
-    use gui_interfaces_cimgui, only: ImGuiKey_None, igGetKeyName, &
+    use interfaces_cimgui, only: ImGuiKey_None, igGetKeyName, &
        ImGuiKey_ModCtrl, ImGuiKey_ModShift, ImGuiKey_ModAlt, ImGuiKey_ModSuper
     use c_interface_module, only: C_F_string_ptr_alloc
     use tools_io, only: lower

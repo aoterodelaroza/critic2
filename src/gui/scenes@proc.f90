@@ -15,21 +15,35 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Templates and other static data for the GUI
-module gui_templates
-  use iso_c_binding
+! Scene object and GL rendering utilities
+submodule (scenes) proc
   implicit none
 
-  private
+contains
 
-  public :: draw_keyword_context_menu
+  ! Initialize a scene object associated with system isys.
+  module subroutine scene_init(s,isys)
+    use gui_main, only: nsys, sysc, sys_init, sys
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: isys
 
-  ! module procedure interfaces
-  interface
-     module subroutine draw_keyword_context_menu(textinsert)
-       logical, intent(in) :: textinsert
-     end subroutine draw_keyword_context_menu
-  end interface
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status /= sys_init) return
 
-end module gui_templates
+    s%id = isys
+    s%showcell = .not.(sys(isys)%c%ismolecule)
+    s%ncell = 1
+    s%isinit = .true.
 
+  end subroutine scene_init
+
+  ! Terminate a scene object
+  module subroutine scene_end(s)
+    class(scene), intent(inout), target :: s
+
+    s%isinit = .false.
+    s%id = 0
+
+  end subroutine scene_end
+
+end submodule proc

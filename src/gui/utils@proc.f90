@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
-submodule (gui_utils) proc
+submodule (utils) proc
   use iso_c_binding
   implicit none
 
@@ -25,7 +25,7 @@ contains
   !> Set the cursor X position a distance from the end of the content
   !> region corresponding to ntext characters and nbutton buttons.
   module subroutine iw_setposx_fromend(ntext,nbutton)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     integer, intent(in) :: ntext
     integer, intent(in) :: nbutton
 
@@ -42,7 +42,7 @@ contains
   !>   frame-line1-frame-itemspace-frame-line2-frame-windowpad
   !> If endpad, add the end window padding
   module function iw_calcheight(npadline,nline,endpad)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: npadline
     integer, intent(in) :: nline
@@ -72,7 +72,7 @@ contains
   !> calculated distance from the end of the window, or the current
   !> position if it is negative.
   module function iw_calcwidth(ntext,nbutton,from_end)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: ntext
     integer, intent(in) :: nbutton
@@ -106,7 +106,7 @@ contains
   !> Simple combo with title str. stropt contains the options separated
   !> by \0 and terminated by \0\0.
   module subroutine iw_combo_simple(str,stropt,ival,sameline)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     character(len=*,kind=c_char), intent(in) :: stropt
     integer, intent(inout) :: ival
@@ -145,7 +145,7 @@ contains
   !> intval are presented, associated with integer int and with value
   !> intval
   module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: bool
     logical, intent(in), optional :: boolval
@@ -182,7 +182,7 @@ contains
   !> (without advancing to a new line and with a comma after the string).
   module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance,&
      copy_to_output)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use gui_main, only: ColorHighlightText
     use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
@@ -238,7 +238,7 @@ contains
   !> button. If popupcontext and poupflags, open a popup context with
   !> the given flags and return the resulting bool in popupcontext.
   module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use gui_main, only: ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: danger
@@ -284,7 +284,7 @@ contains
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
   module subroutine iw_tooltip(str,ttshown)
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use gui_main, only: tooltip_wrap_factor, tooltip_delay
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
@@ -315,7 +315,7 @@ contains
   ! do not use the delay.
   module function igIsItemHovered_delayed(flags,thr,already_shown)
     use gui_main, only: g
-    use gui_interfaces_cimgui, only: igIsItemHovered
+    use interfaces_cimgui, only: igIsItemHovered
     integer(c_int), value :: flags
     real(c_float), intent(in) :: thr
        logical, intent(in) :: already_shown

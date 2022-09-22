@@ -16,8 +16,8 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
-submodule (gui_window) proc
-  use gui_interfaces_cimgui
+submodule (windows) proc
+  use interfaces_cimgui
   use types, only: vstring
   implicit none
 
@@ -127,7 +127,7 @@ contains
   !> the window ID.
   module function stack_create_window(type,isopen,purpose,isys)
     use tools_io, only: ferror, faterr
-    use gui_window, only: window, nwin, win
+    use windows, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
@@ -185,7 +185,7 @@ contains
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen,purpose,isys)
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
@@ -292,7 +292,7 @@ contains
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
-    use gui_interfaces_opengl3
+    use interfaces_opengl3
     class(window), intent(inout), target :: w
 
     ! window-specific destruction
@@ -337,7 +337,7 @@ contains
   !> Draw an ImGui window.
   module subroutine window_draw(w)
     use gui_main, only: fontsize
-    use gui_utils, only: iw_text
+    use utils, only: iw_text
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
@@ -511,8 +511,8 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use gui_keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
+    use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
@@ -1265,7 +1265,7 @@ contains
 
     subroutine write_maybe_selectable(isys,bclose,bexpand)
       use gui_main, only: are_threads_running
-      use gui_utils, only: iw_text
+      use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
@@ -1638,10 +1638,10 @@ contains
 
   !> Draw the view.
   module subroutine draw_view(w)
-    use gui_interfaces_opengl3
-    use gui_interfaces_cimgui
+    use interfaces_opengl3
+    use interfaces_cimgui
     use gui_main, only: sysc, sys_init, nsys
-    use gui_utils, only: iw_text, iw_button, iw_tooltip
+    use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1712,7 +1712,7 @@ contains
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
@@ -1812,10 +1812,10 @@ contains
 
   !> Draw the contents of the input console
   module subroutine draw_ci(w)
-    use gui_keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
+    use keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands
-    use gui_templates, only: draw_keyword_context_menu
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
+    use templates, only: draw_keyword_context_menu
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
     use systemmod, only: sy
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1988,7 +1988,7 @@ contains
   !> in the console input.
   module subroutine block_gui_ci(w)
     use gui_main, only: mainvwp, io, g, ColorWaitBg
-    use gui_utils, only: iw_text
+    use utils, only: iw_text
     use param, only: newline
     class(window), intent(inout), target :: w
 
@@ -2068,7 +2068,7 @@ contains
   !> to a command, so create the command i/o object. Return true if
   !> output has been read.
   module function read_output_ci(w,iscom,cominfo)
-    use gui_utils, only: get_time_string
+    use utils, only: get_time_string
     use gui_main, only: are_threads_running
     use tools_io, only: uout, getline_raw, string, ferror, faterr
     use types, only: realloc
@@ -2272,7 +2272,7 @@ contains
   !> Draw the contents of the output console
   module subroutine draw_co(w)
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
        iw_setposx_fromend, iw_calcheight, iw_calcwidth
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2501,10 +2501,10 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new_struct(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
@@ -2840,10 +2840,10 @@ contains
 
   !> Draw the contents of the new structure from library window.
   module subroutine draw_new_struct_from_library(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth, iw_radiobutton
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
@@ -3069,10 +3069,10 @@ contains
        ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG
     use gui_main, only: nsys, sysc, sys, sys_init, g
-    use gui_utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
+    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
     use tools_io, only: string, uout
     class(window), intent(inout), target :: w
@@ -3462,9 +3462,9 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
-    use gui_keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: nsys, sysc, sys_init
-    use gui_utils, only: iw_text
+    use utils, only: iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -3877,9 +3877,9 @@ contains
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
     use gui_main, only: g
-    use gui_utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
        iw_combo_simple
-    use gui_interfaces_cimgui
+    use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
@@ -4071,7 +4071,7 @@ contains
 
   !> Draw a space group table. Entry ispg (Hall number) is selected.
   subroutine draw_spg_table(ispg)
-    use gui_utils, only: iw_text
+    use utils, only: iw_text
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use tools_io, only: ioj_left, string, deblank, stripchar
     integer, intent(inout) :: ispg
