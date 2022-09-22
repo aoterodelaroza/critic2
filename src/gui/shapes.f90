@@ -27,9 +27,13 @@ module shapes
 
   ! sphere objects
   integer, parameter :: nmaxsph = 1
-  integer(c_int), target :: sphVAO(nmaxsph) ! vertex array object
-  integer(c_int), target :: sphVBO          ! vertex buffer object
-  integer(c_int), target :: sphEBO(nmaxsph) ! element buffer object
+  integer(c_int), target :: sphVAO(nmaxsph) ! sphere: vertex array object
+  integer(c_int), target :: sphVBO          ! sphere: vertex buffer object
+  integer(c_int), target :: sphEBO(nmaxsph) ! sphere: element buffer object
+
+  ! test objects
+  integer(c_int), target :: testVAO ! test: vertex array object
+  integer(c_int), target :: testVBO ! test: vertex buffer object
 
   ! module procedure interfaces
   interface

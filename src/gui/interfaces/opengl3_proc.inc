@@ -280,8 +280,7 @@ subroutine glVertexAttribPointer(index,size,type,normalized,stride,point) bind(c
   integer(c_int), value :: type
   integer(c_signed_char), value :: normalized
   integer(c_int), value :: stride
-  ! type(c_ptr), intent(in), value :: point
-  integer(c_int), value :: point ! (void *)
+  type(c_ptr), intent(in), value :: point
 end subroutine glVertexAttribPointer
 ! void glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
 subroutine glViewport(x, y, width, height) bind(c,name="glViewport")

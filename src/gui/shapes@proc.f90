@@ -100,6 +100,9 @@ submodule (shapes) proc
   !   1, 13,   8,
   ! };
 
+  ! test vertices
+  real(c_float), allocatable, target :: testv(:,:)
+
 contains
 
   !> Create and initialize the buffers for the basic shapes
@@ -162,171 +165,50 @@ contains
     sphi(:,20) = (/ 7_c_int, 11_c_int,  2_c_int/)
 
     ! // recursive subdivision for the other icospheres
-    ! for (int i = 1; i < nmaxsph; i++){
-    !   std::map<std::pair<int,int>,int> edgev = {};
 
-    !   int n = sphnve[i-1] - 1;
-    !   int nface = sphneladd[i]-1;
-    !   for (int j = sphneladd[i-1]; j < sphneladd[i]; j++){
-    !     int k1 = sphi[3*j+0];
-    !     int k2 = sphi[3*j+1];
-    !     int k3 = sphi[3*j+2];
-    !     int nk1, nk2, nk3;
+    ! ! build the buffers for the spheres
+    ! call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
+    ! call glGenBuffers(1, c_loc(sphVBO))
+    ! call glGenBuffers(nmaxsph, c_loc(sphEBO))
+    ! call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
+    ! call glBufferData(GL_ARRAY_BUFFER, 6*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
 
-    !     // create the new vertices
-    !     if (edgev[std::make_pair(k1,k2)]){
-    !       nk1 = edgev[std::make_pair(k1,k2)];
-    !     } else {
-    !       edgev[std::make_pair(k1,k2)] = edgev[std::make_pair(k2,k1)] = nk1 = ++n;
-    !       sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k1+0] + sphv[6*k2+0]);
-    !       sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k1+1] + sphv[6*k2+1]);
-    !       sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k1+2] + sphv[6*k2+2]);
-    !     }
-    !     if (edgev[std::make_pair(k1,k3)]){
-    !       nk2 = edgev[std::make_pair(k1,k3)];
-    !     } else {
-    !       edgev[std::make_pair(k1,k3)] = edgev[std::make_pair(k3,k1)] = nk2 = ++n;
-    !       sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k1+0] + sphv[6*k3+0]);
-    !       sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k1+1] + sphv[6*k3+1]);
-    !       sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k1+2] + sphv[6*k3+2]);
-    !     }
-    !     if (edgev[std::make_pair(k2,k3)]){
-    !       nk3 = edgev[std::make_pair(k2,k3)];
-    !     } else {
-    !       edgev[std::make_pair(k2,k3)] = edgev[std::make_pair(k3,k2)] = nk3 = ++n;
-    !       sphv[6*n+0] = sphv[6*n+3] = 0.5f * (sphv[6*k2+0] + sphv[6*k3+0]);
-    !       sphv[6*n+1] = sphv[6*n+4] = 0.5f * (sphv[6*k2+1] + sphv[6*k3+1]);
-    !       sphv[6*n+2] = sphv[6*n+5] = 0.5f * (sphv[6*k2+2] + sphv[6*k3+2]);
-    !     }
+    ! do i = 1, nmaxsph
+    !    call glBindVertexArray(sphVAO(i))
+    !    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
+    !    call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
 
-    !     // create the new faces
-    !     nface++;
-    !     sphi[3*nface+0] = k1;  sphi[3*nface+1] = nk1; sphi[3*nface+2] = nk2;
-    !     nface++;
-    !     sphi[3*nface+0] = nk1; sphi[3*nface+1] = nk3; sphi[3*nface+2] = nk2;
-    !     nface++;
-    !     sphi[3*nface+0] = nk1; sphi[3*nface+1] = k2;  sphi[3*nface+2] = nk3;
-    !     nface++;
-    !     sphi[3*nface+0] = nk2; sphi[3*nface+1] = nk3; sphi[3*nface+2] = k3;
-    !   }
+    !    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+    !       0_c_int)
+    !    call glEnableVertexAttribArray(0)
+    !    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+    !       int(3 * c_sizeof(c_float_),c_int))
+    !    call glEnableVertexAttribArray(1)
+    ! end do
 
-    !   // normalize the vertices
-    !   for (int j = sphnve[i-1]; j < sphnve[i]; j++){
-    !     float anorm = sqrtf(sphv[6*j+0]*sphv[6*j+0]+sphv[6*j+1]*sphv[6*j+1]+sphv[6*j+2]*sphv[6*j+2]);
-    !     sphv[6*j+0] = sphv[6*j+3] = sphv[6*j+0] / anorm;
-    !     sphv[6*j+1] = sphv[6*j+4] = sphv[6*j+1] / anorm;
-    !     sphv[6*j+2] = sphv[6*j+5] = sphv[6*j+2] / anorm;
-    !   }
-    ! }
-
-    ! build the buffers for the spheres
-    call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
-    call glGenBuffers(1, c_loc(sphVBO))
-    call glGenBuffers(nmaxsph, c_loc(sphEBO))
-    call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
-    call glBufferData(GL_ARRAY_BUFFER, 6*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
-
-    do i = 1, nmaxsph
-       call glBindVertexArray(sphVAO(i))
-       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
-       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
-
-       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-          0_c_int)
-       call glEnableVertexAttribArray(0)
-       call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-          int(3 * c_sizeof(c_float_),c_int))
-       call glEnableVertexAttribArray(1)
-    end do
-
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    ! call glBindVertexArray(0)
+    ! call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
     ! // allocate space for the cylinders
-    ! cylv = new GLfloat [6*cylnveadd[nmaxcyl]];
-    ! cyli = new GLuint [3*cylneladd[nmaxcyl]];
-    ! memcpy(cylv,cylv0,sizeof(cylv0));
-    ! memcpy(cyli,cyli0,sizeof(cyli0));
 
-    ! // create the vertices, normals, and faces
-    ! for (int ncyl = 0; ncyl < nmaxcyl; ncyl++){
-    !   int n = cylnveadd[ncyl]-1;
-    !   int npt = (cylnve[ncyl]-2)/2;
+    ! test object
+    if (allocated(testv)) deallocate(testv)
+    allocate(testv(3,3))
+    testv(:,1) = (/-0.5_c_float, -0.5_c_float, 0.0_c_float/)
+    testv(:,2) = (/ 0.5_c_float, -0.5_c_float, 0.0_c_float/)
+    testv(:,3) = (/ 0.0_c_float,  0.5_c_float, 0.0_c_float/)
 
-    !   n++;
-    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = -0.5f;
-    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = -1.0f;
-    !   n++;
-    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = 0.5f;
-    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = 1.0f;
-
-
-    !   float half = 0.5f;
-    !   for (int j=0;j<2;j++){
-    !     half = -half;
-    !     for (int i=0;i<npt;i++){
-    !       float angle = ((float) i) / ((float) npt) * 2.f * PI;
-    !       float ca = cos(angle), sa = sin(angle);
-    !       n++;
-    !       cylv[6*n+0] = 0.5f * ca; cylv[6*n+1] = 0.5f * sa; cylv[6*n+2] = half;
-    !       cylv[6*n+3] = ca; cylv[6*n+4] = sa; cylv[6*n+5] = 0.f;
-    !     }
-    !   }
-
-    !   int nface = cylneladd[ncyl]-1;
-    !   int shift1 = 2;
-    !   int shift2 = 2+npt;
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = 0;
-    !     cyli[3*nface+1] = (i+1)%npt+shift1;
-    !     cyli[3*nface+2] = i+shift1;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = 1;
-    !     cyli[3*nface+1] = i+shift2;
-    !     cyli[3*nface+2] = (i+1)%npt+shift2;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = i+shift1;
-    !     cyli[3*nface+1] = (i+1)%npt+shift1;
-    !     cyli[3*nface+2] = (i+1)%npt+shift2;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = i+shift1;
-    !     cyli[3*nface+1] = (i+1)%npt+shift2;
-    !     cyli[3*nface+2] = i+shift2;
-    !   }
-    ! }
-
-
-    ! // build the buffers for the cylinders
-    ! glGenVertexArrays(nmaxcyl, cylVAO);
-    ! glGenBuffers(nmaxcyl, cylVBO);
-    ! glGenBuffers(nmaxcyl, cylEBO);
-
-    ! for (int i=0;i<nmaxcyl;i++){
-    !   glBindBuffer(GL_ARRAY_BUFFER, cylVBO[i]);
-    !   glBufferData(GL_ARRAY_BUFFER, 6 * cylnve[i] * sizeof(GLfloat), &(cylv[6*cylnveadd[i]]), GL_STATIC_DRAW);
-
-    !   glBindVertexArray(cylVAO[i]);
-
-    !   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO[i]);
-    !   glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * cylnel[i] * sizeof(GLuint), &(cyli[3*cylneladd[i]]), GL_STATIC_DRAW);
-
-    !   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
-    !   glEnableVertexAttribArray(0);
-    !   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-    !   glEnableVertexAttribArray(1);
-    ! }
-
-    ! glBindBuffer(GL_ARRAY_BUFFER, 0);
-    ! glBindVertexArray(0);
-    ! glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    call glGenVertexArrays(1, c_loc(testVAO))
+    call glGenBuffers(1, c_loc(testVBO))
+    call glBindVertexArray(testVAO)
+    call glBindBuffer(GL_ARRAY_BUFFER, testVBO)
+    call glBufferData(GL_ARRAY_BUFFER, 9*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), &
+       int(3*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glEnableVertexAttribArray(0)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
   end subroutine shapes_init
 
@@ -334,6 +216,7 @@ contains
   module subroutine shapes_end()
     use interfaces_opengl3
 
+    ! spheres
     call glDeleteVertexArrays(nmaxsph, c_loc(sphVAO))
     call glDeleteBuffers(1, c_loc(sphVBO))
     call glDeleteBuffers(nmaxsph, c_loc(sphEBO))
