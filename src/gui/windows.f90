@@ -63,8 +63,8 @@ module windows
      integer(c_int) :: FBOtex ! framebuffer, texture
      integer(c_int) :: FBOdepth ! framebuffer, depth buffer
      integer(c_int) :: FBOside ! side of the render texture (pixels)
-     integer(c_int) :: renderside ! side of the square used for rendering (pixels)
      integer :: view_selected = 1 ! the system selected in the view window
+     logical :: forcerender = .true. ! force render of the scene
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
@@ -90,6 +90,8 @@ module windows
      procedure :: sort_tree ! sort the systems in the tree
      ! view procedures
      procedure :: draw_view ! draw a view
+     procedure :: create_texture_view ! create the texture for the view
+     procedure :: delete_texture_view ! delete the texture for the view
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -188,6 +190,13 @@ module windows
      module subroutine draw_view(w)
        class(window), intent(inout), target :: w
      end subroutine draw_view
+     module subroutine create_texture_view(w,atex)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: atex
+     end subroutine create_texture_view
+     module subroutine delete_texture_view(w)
+       class(window), intent(inout), target :: w
+     end subroutine delete_texture_view
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog

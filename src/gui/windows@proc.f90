@@ -21,9 +21,6 @@ submodule (windows) proc
   use types, only: vstring
   implicit none
 
-  ! initial side for the view texture
-  integer(c_int), parameter :: initial_texture_side = 1024_c_int
-
   ! Count unique IDs for keeping track of windows and widget
   integer :: idcount = 0
 
@@ -80,6 +77,9 @@ submodule (windows) proc
   integer, allocatable :: icom(:) ! order in which to show the commands
   type(command_inout), allocatable, target :: com(:) ! the actual commands
   integer(c_size_t), parameter :: maxcomout = 20000000 ! maximum command size
+
+  ! initial side for the view texture
+  integer(c_int), parameter :: initial_texture_side = 1024_c_int
 
   !xx! private procedures
   ! function tree_system_tooltip_string(i)
@@ -215,6 +215,7 @@ contains
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
+    w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
@@ -248,38 +249,8 @@ contains
           call ferror('window_init','scfplot requires isys',faterr)
        w%scfplot_isys = isys
     elseif (type == wintype_view) then
-       ! FBO and buffers
-       call glGenTextures(1, c_loc(w%FBOtex))
-       call glGenRenderbuffers(1, c_loc(w%FBOdepth))
-       call glGenFramebuffers(1, c_loc(w%FBO))
-
-       ! texture
-       call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
-       call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, initial_texture_side, initial_texture_side,&
-          0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
-       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-       call glBindTexture(GL_TEXTURE_2D, 0)
-
-       ! render buffer
-       call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
-       call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, &
-          initial_texture_side, initial_texture_side)
-       call glBindRenderbuffer(GL_RENDERBUFFER, 0)
-
-       ! frame buffer
-       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
-       call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
-       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
-
-       ! check for errors
-       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
-          call ferror('window_init','framebuffer is not complete',faterr)
-
-       ! finish and write the texture size
-       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
-       w%FBOside = initial_texture_side
-       w%renderside = initial_texture_side
+       ! view window
+       call w%create_texture_view(initial_texture_side)
     end if
 
   end subroutine window_init
@@ -294,9 +265,7 @@ contains
        if (w%type == wintype_dialog .and. c_associated(w%dptr)) then
           call IGFD_Destroy(w%dptr)
        elseif (w%type == wintype_view) then
-          call glDeleteTextures(1, c_loc(w%FBOtex))
-          call glDeleteRenderbuffers(1, c_loc(w%FBOdepth))
-          call glDeleteFramebuffers(1, c_loc(w%FBO))
+          call w%delete_texture_view()
        end if
     end if
 
@@ -1646,6 +1615,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical(c_bool) :: ldum, is_selected
+    integer(c_int) :: amax
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1688,20 +1658,33 @@ contains
     end if
     call iw_tooltip("Choose the system displayed in the view",ttshown)
 
-    ! xxxx render the image to the texture
-    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
-    call glViewport(0_c_int,0_c_int,w%renderside,w%renderside)
-    call glClearColor(0.,0.,0.,0.)
-    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-    call glUseProgram(ishad_prog(shader_test))
-    call glBindVertexArray(testVAO)
-    call glDrawArrays(GL_TRIANGLES, 0, 3)
-    call glBindVertexArray(0)
-    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
-    ! xxxx
+    ! get the remaining size for the texture
+    call igGetContentRegionAvail(szavail)
+
+    ! resize the render texture if not large enough
+    amax = max(ceiling(max(szavail%x,szavail%y)),1)
+    if (amax > w%FBOside) then
+       amax = max(ceiling(1.5 * ceiling(max(szavail%x,szavail%y))),1)
+       call w%delete_texture_view()
+       call w%create_texture_view(amax)
+    end if
+
+    ! render the image to the texture, if requested
+    if (w%forcerender) then
+       ! xxxx
+       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+       call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+       call glClearColor(0.,0.,0.,0.)
+       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+       call glUseProgram(ishad_prog(shader_test))
+       call glBindVertexArray(testVAO)
+       call glDrawArrays(GL_TRIANGLES, 0, 3)
+       call glBindVertexArray(0)
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+       w%forcerender = .false.
+    end if
 
     ! draw the texture
-    call igGetContentRegionAvail(szavail)
     sz0%x = 0._c_float
     sz0%y = 0._c_float
     sz1%x = 1._c_float
@@ -1717,6 +1700,58 @@ contains
     call igImage(w%FBOtex, szavail, sz0, sz1, tint_col, border_col)
 
   end subroutine draw_view
+
+  !> Create the texture for the view window, with atex x atex pixels.
+  module subroutine create_texture_view(w,atex)
+    use interfaces_opengl3
+    use tools_io, only: ferror, faterr
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: atex
+
+    ! FBO and buffers
+    call glGenTextures(1, c_loc(w%FBOtex))
+    call glGenRenderbuffers(1, c_loc(w%FBOdepth))
+    call glGenFramebuffers(1, c_loc(w%FBO))
+
+    ! texture
+    call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex,&
+       0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    call glBindTexture(GL_TEXTURE_2D, 0)
+
+    ! render buffer
+    call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, &
+       atex, atex)
+    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+    ! frame buffer
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+    call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
+
+    ! check for errors
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+       call ferror('window_init','framebuffer is not complete',faterr)
+
+    ! finish and write the texture size
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    w%FBOside = atex
+
+  end subroutine create_texture_view
+
+  !> Delete the texture for the view window
+  module subroutine delete_texture_view(w)
+    use interfaces_opengl3
+    class(window), intent(inout), target :: w
+
+    call glDeleteTextures(1, c_loc(w%FBOtex))
+    call glDeleteRenderbuffers(1, c_loc(w%FBOdepth))
+    call glDeleteFramebuffers(1, c_loc(w%FBO))
+
+  end subroutine delete_texture_view
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
