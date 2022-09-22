@@ -1616,6 +1616,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical(c_bool) :: ldum, is_selected
     integer(c_int) :: amax
+    real(c_float) :: scal
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1667,6 +1668,7 @@ contains
        amax = max(ceiling(1.5 * ceiling(max(szavail%x,szavail%y))),1)
        call w%delete_texture_view()
        call w%create_texture_view(amax)
+       w%forcerender = .true.
     end if
 
     ! render the image to the texture, if requested
@@ -1684,11 +1686,14 @@ contains
        w%forcerender = .false.
     end if
 
-    ! draw the texture
-    sz0%x = 0._c_float
-    sz0%y = 0._c_float
-    sz1%x = 1._c_float
-    sz1%y = 1._c_float
+    ! draw the texture, largest region with the same shape as the available region
+    ! that fits into the texture square
+    scal = real(w%FBOside,c_float) / max(max(szavail%x,szavail%y),1d0)
+    sz0%x = 0.5 * (real(w%FBOside,c_float) - szavail%x * scal) / real(w%FBOside,c_float)
+    sz0%y = 0.5 * (real(w%FBOside,c_float) - szavail%y * scal) / real(w%FBOside,c_float)
+    sz1%x = 1._c_float - sz0%x
+    sz1%y = 1._c_float - sz0%y
+
     tint_col%x = 1._c_float
     tint_col%y = 1._c_float
     tint_col%z = 1._c_float
