@@ -21,7 +21,7 @@ submodule (scenes) proc
 
 contains
 
-  ! Initialize a scene object associated with system isys.
+  !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
     use gui_main, only: nsys, sysc, sys_init, sys
     class(scene), intent(inout), target :: s
@@ -37,7 +37,7 @@ contains
 
   end subroutine scene_init
 
-  ! Terminate a scene object
+  !> Terminate a scene object
   module subroutine scene_end(s)
     class(scene), intent(inout), target :: s
 
@@ -45,5 +45,20 @@ contains
     s%id = 0
 
   end subroutine scene_end
+
+  !> Draw the scene
+  module subroutine scene_render(s)
+    use interfaces_opengl3
+    use shaders, only: ishad_prog, shader_test
+    use shapes, only: testVAO
+    class(scene), intent(inout), target :: s
+
+    ! xxxx
+    call glUseProgram(ishad_prog(shader_test))
+    call glBindVertexArray(testVAO)
+    call glDrawArrays(GL_TRIANGLES, 0, 3)
+    call glBindVertexArray(0)
+
+  end subroutine scene_render
 
 end submodule proc

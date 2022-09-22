@@ -204,8 +204,7 @@ contains
     call glBindVertexArray(testVAO)
     call glBindBuffer(GL_ARRAY_BUFFER, testVBO)
     call glBufferData(GL_ARRAY_BUFFER, 9*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), &
-       int(3*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int), c_null_ptr)
     call glEnableVertexAttribArray(0)
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)

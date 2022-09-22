@@ -30,6 +30,7 @@ module scenes
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
+     procedure :: render => scene_render
   end type scene
   public :: scene
 
@@ -42,6 +43,9 @@ module scenes
      module subroutine scene_end(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_end
+     module subroutine scene_render(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_render
   end interface
 
 end module scenes

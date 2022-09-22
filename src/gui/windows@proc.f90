@@ -223,8 +223,8 @@ contains
     w%dialog_data%isformat = isformat_unknown
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
-    w%dialog_data%molcubic = logical(.false.,c_bool)
-    w%dialog_data%rborder = real(rborder_def*bohrtoa,c_float)
+    w%dialog_data%molcubic = .false.
+    w%dialog_data%rborder = rborder_def*bohrtoa
     w%forcequitdialog = .false.
 
     ! type-specific initialization
@@ -1603,8 +1603,6 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
-    use shaders, only: ishad_prog, shader_test
-    use shapes, only: testVAO
     use gui_main, only: sysc, sys_init, nsys
     use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
@@ -1673,15 +1671,13 @@ contains
 
     ! render the image to the texture, if requested
     if (w%forcerender) then
-       ! xxxx
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(0.,0.,0.,1.)
+       call glClearColor(0.,0.,0.,0.)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       call glUseProgram(ishad_prog(shader_test))
-       call glBindVertexArray(testVAO)
-       call glDrawArrays(GL_TRIANGLES, 0, 3)
-       call glBindVertexArray(0)
+       if (w%view_selected > 0 .and. w%view_selected <= nsys) then
+          call sysc(w%view_selected)%sc%render()
+       end if
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
        w%forcerender = .false.
     end if
@@ -1694,6 +1690,7 @@ contains
     sz1%x = 1._c_float - sz0%x
     sz1%y = 1._c_float - sz0%y
 
+    ! border and tint for the image, draw the image
     tint_col%x = 1._c_float
     tint_col%y = 1._c_float
     tint_col%z = 1._c_float
@@ -1805,7 +1802,7 @@ contains
                 name = trim(path) // dirsep // trim(name)
                 readlastonly = w%dialog_data%readlastonly
                 call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),&
-                   readlastonly,real(w%dialog_data%rborder/bohrtoa,8),logical(w%dialog_data%molcubic))
+                   readlastonly,w%dialog_data%rborder/bohrtoa,logical(w%dialog_data%molcubic))
              end do
 
              ! initialize
@@ -2589,7 +2586,7 @@ contains
     real(c_float), save :: scale = 1._c_float ! scale factor for lattice vectors
     real(c_float), save :: aa(3) = 10._c_float ! cell lengths
     real(c_float), save :: bb(3) = 90._c_float ! cell angles
-    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float) ! cell border, molecule (ang)
+    real(c_float), save :: rborder = rborder_def*bohrtoa ! cell border, molecule (ang)
     logical(c_bool), save :: molcubic = .false. ! cell for molecule is cubic
 
     ! initialize
@@ -2854,7 +2851,7 @@ contains
       scale = 1._c_float
       aa = 10._c_float
       bb = 90._c_float
-      rborder = real(rborder_def*bohrtoa,c_float)
+      rborder = rborder_def*bohrtoa
       molcubic = .false.
 
       if (allocated(atposbuf)) deallocate(atposbuf)
@@ -2917,7 +2914,7 @@ contains
     type(vstring), allocatable, save :: st(:) ! library structures
     logical(c_bool), allocatable, save :: lst(:) ! selected structures (1->nst)
     integer, save :: lastselected = 0 ! last selected structure (for shift/ctrl selection)
-    real(c_float), save :: rborder = real(rborder_def*bohrtoa,c_float)
+    real(c_float), save :: rborder = rborder_def*bohrtoa
     logical(c_bool), save :: molcubic = .false.
 
     ! initialize
@@ -3093,7 +3090,7 @@ contains
       idopenlibfile = 0
       nst = 0
       lastselected = 0
-      rborder = real(rborder_def*bohrtoa,c_float)
+      rborder = rborder_def*bohrtoa
       molcubic = .false.
       w%okfile = trim(clib_file)
       w%okfile_set = .false.
@@ -3542,11 +3539,11 @@ contains
           do i = 1, nsys
              if (sysc(i)%collapse == isys) then
                 n = n + 1
-                x(n) = real(n,8)
+                x(n) = n
                 y(n) = sysc(i)%seed%energy
              end if
           end do
-          x(num) = real(num,8)
+          x(num) = num
           y(num) = sysc(isys)%seed%energy
           ymax = maxval(y)
           ymin = minval(y)
