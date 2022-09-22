@@ -2,10 +2,14 @@
 
 !xx! OpenGL3 procedures
 
-! -- Type equivalence chart --
-! GLenum = GLuint = GLint = GLsizei = c_int
-! GLbitfield = c_int (unsigned int)
-! GLfloat = c_float
+! -- Type equivalence chart (see glcorearb.h) --
+! GLbitfield = GLenum = GLuint = GLint = GLsizei = c_int
+! GLhalf = GLushort = GLshort = c_short
+! GLclampf = GLfloat = c_float
+! GLubyte = GLbyte = GLchar = GLboolean = c_char
+! GLdouble = GLclampd = c_double
+! GLsizeiptr = ptrdiff_t
+! GLvoid = void
 
 ! void glAttachShader(GLuint program, GLuint shader);
 subroutine glAttachShader(prog,shader) bind(c,name="glAttachShader")
@@ -39,9 +43,9 @@ subroutine glBindTexture(target_,texture) bind(c,name="glBindTexture")
 end subroutine glBindTexture
 ! void glBufferData(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
 subroutine glBufferData(target_,size,data,usage) bind(c,name="glBufferData")
-  import c_int, c_int64_t, c_ptr
+  import c_int, c_int64_t, c_ptr, c_ptrdiff_t
   integer(c_int), value :: target_
-  integer(c_int64_t), value :: size
+  integer(c_ptrdiff_t), value :: size
   type(c_ptr), intent(in), value :: data
   integer(c_int), value :: usage
 end subroutine glBufferData
