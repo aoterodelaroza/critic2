@@ -29,6 +29,7 @@ module tricks
   private :: trick_makecif_ccdc
   private :: trick_bfgs
   private :: trick_compare_deformed
+  private :: trick_check_valence
 
 contains
 
@@ -52,6 +53,8 @@ contains
        call trick_bfgs(line0(lp:))
     else if (equal(word,'compare')) then
        call trick_compare_deformed(line0(lp:))
+    else if (equal(word,'check_valence')) then
+       call trick_check_valence(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2679,5 +2682,181 @@ contains
     end subroutine readxy
 
   end subroutine trick_compare_deformed
+
+  !> Check that the valence of each atom in the molecule is
+  !> correct. Only for molecules and only with atoms C, H, N, and
+  !> O. Done for filtering the systems in Spiekermann's (Grambow) set
+  !> for the sausage project.
+  subroutine trick_check_valence(line0)
+    use systemmod, only: sy
+    use tools_io, only: ferror, faterr, uout
+    use param, only: pi
+    character*(*), intent(in) :: line0
+
+    integer :: i, j, iz, ncon
+    logical :: ok, okfin
+    real*8 :: v1(3), v2(3), v3(3), v4(3), angle
+
+    ! consistency checks
+    if (.not.associated(sy)) &
+       call ferror('trick_check_valence','system not defined',faterr)
+    if (.not.associated(sy%c)) &
+       call ferror('trick_check_valence','crystal structure not defined',faterr)
+    if (.not.sy%c%isinit) &
+       call ferror('trick_check_valence','crystal structure not initialized',faterr)
+    if (.not.sy%c%ismolecule) &
+       call ferror('trick_check_valence','structure is not a molecule',faterr)
+
+    okfin = .true.
+    do i = 1, sy%c%ncel
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
+       ncon = sy%c%nstar(i)%ncon
+
+       if (iz == 1) then
+          ! H = only one atom
+          ok = (ncon == 1)
+       elseif (iz == 6) then
+          ! C, four possibilities
+          if (ncon == 2) then
+             ! C sp
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 180d0) < 20d0)
+          elseif (ncon == 3) then
+             ! C sp2
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v3 = sy%c%atcel(sy%c%nstar(i)%idcon(3))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             v3 = v3 / norm2(v3)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 120d0) < 20d0)
+             angle = acos(dot_product(v1,v3)) * 180d0 / pi
+             ok = ok .and. (abs(angle - 120d0) < 20d0)
+             angle = acos(dot_product(v2,v3)) * 180d0 / pi
+             ok = ok .and. (abs(angle - 120d0) < 20d0)
+          elseif (ncon == 4) then
+             ! C sp3
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v3 = sy%c%atcel(sy%c%nstar(i)%idcon(3))%r - sy%c%atcel(i)%r
+             v4 = sy%c%atcel(sy%c%nstar(i)%idcon(4))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             v3 = v3 / norm2(v3)
+             v4 = v4 / norm2(v4)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v1,v3)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v1,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v2,v3)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v2,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v3,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+          else
+             ok = .false.
+          end if
+       elseif (iz == 7) then
+          ! N, four possibilities
+          if (ncon == 1) then
+             ! sp
+             ok = .true.
+          elseif (ncon == 2) then
+             ! sp2
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 120d0) < 20d0)
+          elseif (ncon == 3) then
+             ! sp3
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v3 = sy%c%atcel(sy%c%nstar(i)%idcon(3))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             v3 = v3 / norm2(v3)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v1,v3)) * 180d0 / pi
+             ok = ok .and. (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v2,v3)) * 180d0 / pi
+             ok = ok .and. (abs(angle - 109.47d0) < 20d0)
+             if (.not.ok) then
+                ! sp2 cation
+                v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+                v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+                v3 = sy%c%atcel(sy%c%nstar(i)%idcon(3))%r - sy%c%atcel(i)%r
+                v1 = v1 / norm2(v1)
+                v2 = v2 / norm2(v2)
+                v3 = v3 / norm2(v3)
+                angle = acos(dot_product(v1,v2)) * 180d0 / pi
+                ok = (abs(angle - 120d0) < 20d0)
+                angle = acos(dot_product(v1,v3)) * 180d0 / pi
+                ok = ok .and. (abs(angle - 120d0) < 20d0)
+                angle = acos(dot_product(v2,v3)) * 180d0 / pi
+                ok = ok .and. (abs(angle - 120d0) < 20d0)
+             end if
+          elseif (ncon == 4) then
+             ! sp3 cation
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v3 = sy%c%atcel(sy%c%nstar(i)%idcon(3))%r - sy%c%atcel(i)%r
+             v4 = sy%c%atcel(sy%c%nstar(i)%idcon(4))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             v3 = v3 / norm2(v3)
+             v4 = v4 / norm2(v4)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v1,v3)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v1,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v2,v3)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v2,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+             angle = acos(dot_product(v3,v4)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+          else
+             ok = .false.
+          end if
+       elseif (iz == 8) then
+          ! O, two possibilities
+          if (ncon == 1) then
+             ok = .true.
+          elseif (ncon == 2) then
+             ! sp2
+             v1 = sy%c%atcel(sy%c%nstar(i)%idcon(1))%r - sy%c%atcel(i)%r
+             v2 = sy%c%atcel(sy%c%nstar(i)%idcon(2))%r - sy%c%atcel(i)%r
+             v1 = v1 / norm2(v1)
+             v2 = v2 / norm2(v2)
+             angle = acos(dot_product(v1,v2)) * 180d0 / pi
+             ok = (abs(angle - 109.47d0) < 20d0)
+          else
+             ok = .false.
+          end if
+       end if
+       ! write (*,*) i, iz, ncon, ok
+       okfin = okfin .and. ok
+    end do
+
+    if (okfin) then
+       write (uout,'("* TRICK CHECK VALENCE: MOLECULE_OK"/)')
+    else
+       write (uout,'("* TRICK CHECK VALENCE: MOLECULE_WRONG"/)')
+    end if
+
+  end subroutine trick_check_valence
 
 end module tricks
