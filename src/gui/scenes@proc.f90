@@ -21,15 +21,22 @@ submodule (scenes) proc
 
   real*8 :: min_scenerad = 10.d0
 
+  !xx! private procedures
+  ! function infiniteperspective(fovy,aspect,znear)
+  ! function lookat(eye,center,up)
+  ! function cross_c(v1,v2) result (vx)
+
 contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
     use gui_main, only: nsys, sysc, sys_init, sys
+    use param, only: pi
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
     real*8 :: xmin(3), xmax(3), x(3)
+    real(c_float) :: pic
     integer :: i, i1, i2, i3
 
     if (isys < 1 .or. isys > nsys) return
@@ -76,6 +83,34 @@ contains
     end if
     s%scenerad = max(norm2(xmax-xmin),min_scenerad)
 
+    ! phong default settings
+    pic = real(pi,c_float)
+    s%lightpos = (/20._c_float,20._c_float,0._c_float/)
+    s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
+    s%ambient = 0.2_c_float
+    s%diffuse = 0.4_c_float
+    s%specular = 0.6_c_float
+    s%shininess = 8_c_int
+
+    ! default transformation matrices
+    s%ortho_fov = 45._c_float
+    s%persp_fov = 45._c_float
+
+    s%world = 0._c_float
+    do i = 1, 4
+       s%world(i,i) = 1._c_float
+    end do
+
+    s%v_front = (/0._c_float,0._c_float,-1._c_float/)
+    s%v_up = (/0._c_float,1._c_float,0._c_float/)
+    s%v_pos = 0._c_float
+    s%v_pos(3) = 1.1_c_float * s%scenerad * &
+       sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%persp_fov * pic / 180._c_float)
+    s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
+
+    s%znear = 0.1_c_float
+    s%projection = infiniteperspective(s%persp_fov * pic / 180._c_float,1._c_float,s%znear)
+
   end subroutine scene_init
 
   !> Terminate a scene object
@@ -91,7 +126,7 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use gui_main, only: sysc, sys_init
-    use shaders, only: shader_phong, useshader
+    use shaders, only: shader_phong, useshader, setuniform
     use shapes, only: testVAO
     class(scene), intent(inout), target :: s
 
@@ -99,12 +134,82 @@ contains
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)
+    call setuniform("uselighting",1_c_int)
+    call setuniform("lightPos",s%lightpos)
+    call setuniform("lightColor",s%lightcolor)
+    call setuniform("ambient",s%ambient)
+    call setuniform("diffuse",s%diffuse)
+    call setuniform("specular",s%specular)
+    call setuniform("shininess",s%shininess)
+    call setuniform("world",s%world)
+    call setuniform("view",s%view)
+    call setuniform("projection",s%projection)
 
     ! call glBindVertexArray(testVAO)
     ! call glDrawArrays(GL_TRIANGLES, 0, 3)
     ! call glBindVertexArray(0)
 
   end subroutine scene_render
+
+  !xx! private procedures
+
+  !> Return the projection matrix for an infinite perspective with
+  !> field of view fovy, aspect ratio aspect, and near plane znear
+  function infiniteperspective(fovy,aspect,znear) result(x)
+    real(c_float), intent(in) :: fovy, aspect, znear
+    real(c_float) :: x(4,4)
+
+    real(c_float) :: range, left, right, bottom, top
+
+    range = tan(fovy / 2._c_float) * znear
+    left = -range * aspect
+    right = range * aspect
+    bottom = -range
+    top = range
+
+    x = 0._c_float
+    x(1,1) = (2._c_float * znear) / (right - left)
+    x(2,2) = (2._c_float * znear) / (top - bottom)
+    x(3,3) = -1._c_float
+    x(4,3) = -1._c_float
+    x(3,4) = -2._c_float * znear
+
+  end function infiniteperspective
+
+  !> Camera (view) transformation matrix for a camera at position eye
+  !> pointing in the directon towards center and with the given up vector.
+  function lookat(eye,center,up)
+    real(c_float) :: eye(3)
+    real(c_float) :: center(3)
+    real(c_float) :: up(3)
+    real(c_float) :: lookat(4,4)
+
+    real(c_float) :: f(3), s(3), u(3)
+
+    f = center - eye
+    f = f / norm2(f)
+    s = cross_c(f,up)
+    s = s / norm2(s)
+    u = cross_c(s,f)
+    u = u / norm2(u)
+    lookat(:,1) = (/ s(1), s(2), s(3), -dot_product(s,eye)/)
+    lookat(:,2) = (/ u(1), u(2), u(3), -dot_product(u,eye)/)
+    lookat(:,3) = (/-f(1),-f(2),-f(3), dot_product(f,eye)/)
+    lookat(:,4) = (/0._c_float,0._c_float,0._c_float,1._c_float/)
+
+  end function lookat
+
+  !> Cross product of two 3-vectors
+  function cross_c(v1,v2) result (vx)
+    real(c_float), intent(in) :: v1(3) !< First vector
+    real(c_float), intent(in) :: v2(3) !< Second vector
+    real(c_float) :: vx(3)
+
+    vx(1) = + v1(2)*v2(3) - v1(3)*v2(2)
+    vx(2) = - v1(1)*v2(3) + v1(3)*v2(1)
+    vx(3) = + v1(1)*v2(2) - v1(2)*v2(1)
+
+  end function cross_c
 
 end submodule proc
 

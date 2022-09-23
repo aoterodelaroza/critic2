@@ -1,5 +1,5 @@
 #version 330 core
-                                                                              
+
 uniform int uselighting;
 uniform vec4 vColor;
 uniform vec3 lightPos;

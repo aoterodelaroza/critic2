@@ -29,6 +29,23 @@ module scenes
      integer :: ncell(3) ! number of cells show in each direction
      integer :: imotif = 0 ! 0 = none, 1 = border, 2 = onemotif, 3 = molmotif
      real*8 :: scenerad = 1d0 ! scene radius
+     ! phong shader settings
+     real(c_float) :: lightpos(3) ! light position
+     real(c_float) :: lightcolor(3) ! light color
+     real(c_float) :: ambient ! ambient light coefficent
+     real(c_float) :: diffuse ! diffuse light coefficent
+     real(c_float) :: specular ! specular light coefficent
+     integer(c_int) :: shininess ! shininess parameter
+     ! scene transformation matrices
+     real(c_float) :: ortho_fov ! orthographic field of view
+     real(c_float) :: persp_fov ! perspective field of view
+     real(c_float) :: znear ! in perspective, position of the near plane
+     real(c_float) :: world(4,4) ! world transform matrix
+     real(c_float) :: v_pos(3) ! camera position vector
+     real(c_float) :: v_front(3) ! camera front vector
+     real(c_float) :: v_up(3) ! camera up vector
+     real(c_float) :: view(4,4) ! view transform matrix
+     real(c_float) :: projection(4,4) ! projection transform matrix
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
