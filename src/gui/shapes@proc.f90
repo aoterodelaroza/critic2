@@ -110,10 +110,11 @@ contains
     use interfaces_opengl3
     use tools_math, only: cross
 
-    real(c_float) :: tau, rad0, xico, zico, zero
+    real(c_float) :: tau, rad0, xico, zico, zero, half
     integer :: i
     integer(c_int) :: c_int_
     real(c_float) :: c_float_
+    type(c_ptr) :: c_ptr_
 
     ! allocate icosphere vertex and face arrays
     if (allocated(sphv)) deallocate(sphv)
@@ -164,47 +165,47 @@ contains
     sphi(:,19) = (/ 9_c_int,  5_c_int,  2_c_int/)
     sphi(:,20) = (/ 7_c_int, 11_c_int,  2_c_int/)
 
-    ! // recursive subdivision for the other icospheres
+    ! build the buffers for the spheres
+    call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
+    call glGenBuffers(1, c_loc(sphVBO))
+    call glGenBuffers(nmaxsph, c_loc(sphEBO))
+    call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
+    call glBufferData(GL_ARRAY_BUFFER, 6*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
 
-    ! ! build the buffers for the spheres
-    ! call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
-    ! call glGenBuffers(1, c_loc(sphVBO))
-    ! call glGenBuffers(nmaxsph, c_loc(sphEBO))
-    ! call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
-    ! call glBufferData(GL_ARRAY_BUFFER, 6*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
+    do i = 1, nmaxsph
+       call glBindVertexArray(sphVAO(i))
+       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
+       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
 
-    ! do i = 1, nmaxsph
-    !    call glBindVertexArray(sphVAO(i))
-    !    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
-    !    call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
+       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+          c_null_ptr)
+       call glEnableVertexAttribArray(0)
+       call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+          transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
+       call glEnableVertexAttribArray(1)
+    end do
 
-    !    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-    !       0_c_int)
-    !    call glEnableVertexAttribArray(0)
-    !    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-    !       int(3 * c_sizeof(c_float_),c_int))
-    !    call glEnableVertexAttribArray(1)
-    ! end do
-
-    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    ! call glBindVertexArray(0)
-    ! call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-
-    ! // allocate space for the cylinders
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
     ! test object
     if (allocated(testv)) deallocate(testv)
-    allocate(testv(3,3))
-    testv(:,1) = (/-0.5_c_float, -0.5_c_float, 0.0_c_float/)
-    testv(:,2) = (/ 0.5_c_float, -0.5_c_float, 0.0_c_float/)
-    testv(:,3) = (/ 0.0_c_float,  0.5_c_float, 0.0_c_float/)
+    allocate(testv(6,3))
+    half = 0.5_c_float
+    testv(:,1) = (/half, half, half, -half, -half, zero /)
+    testv(:,2) = (/half, half, half,  half, -half, zero /)
+    testv(:,3) = (/half, half, half,  zero,  half, zero /)
 
     call glGenVertexArrays(1, c_loc(testVAO))
     call glGenBuffers(1, c_loc(testVBO))
     call glBindVertexArray(testVAO)
     call glBindBuffer(GL_ARRAY_BUFFER, testVBO)
-    call glBufferData(GL_ARRAY_BUFFER, 9*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glBufferData(GL_ARRAY_BUFFER, 18*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
+    ! call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int), &
+       transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
+
     call glEnableVertexAttribArray(0)
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
@@ -215,20 +216,17 @@ contains
   module subroutine shapes_end()
     use interfaces_opengl3
 
+    ! test object
+    call glDeleteVertexArrays(1, c_loc(testVAO))
+    call glDeleteBuffers(1, c_loc(testVBO))
+    if (allocated(testv)) deallocate(testv)
+
     ! spheres
     call glDeleteVertexArrays(nmaxsph, c_loc(sphVAO))
     call glDeleteBuffers(1, c_loc(sphVBO))
     call glDeleteBuffers(nmaxsph, c_loc(sphEBO))
     if (allocated(sphv)) deallocate(sphv)
     if (allocated(sphi)) deallocate(sphi)
-
-    ! glDeleteVertexArrays(nmaxcyl, cylVAO);
-    ! glDeleteBuffers(nmaxcyl, cylVBO);
-    ! glDeleteBuffers(nmaxcyl, cylEBO);
-    ! delete [] sphi;
-    ! delete [] sphv;
-    ! delete [] cyli;
-    ! delete [] cylv;
 
   end subroutine shapes_end
 

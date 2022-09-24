@@ -126,9 +126,12 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use gui_main, only: sysc, sys_init
-    use shaders, only: shader_phong, useshader, setuniform
+    use shaders, only: shader_test, shader_phong, useshader, setuniform
     use shapes, only: testVAO
     class(scene), intent(inout), target :: s
+
+    real(c_float) :: vcolor(4), model(4,4), normrot(3,3)
+    integer :: i
 
     if (.not.sysc(s%id)%status == sys_init) return
 
@@ -145,6 +148,23 @@ contains
     call setuniform("view",s%view)
     call setuniform("projection",s%projection)
 
+    ! draw the sphere
+    vcolor = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+    call setuniform("vColor",vcolor)
+    model = 0._c_float
+    do i = 1, 4
+       model(i,i) = 1._c_float
+    end do
+    call setuniform("model",model)
+    normrot = 0._c_float
+    do i = 1, 3
+       normrot(i,i) = 1._c_float
+    end do
+    call setuniform("normrot",model)
+    call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
+
+    ! ! draw the test triangle
+    ! call useshader(shader_test)
     ! call glBindVertexArray(testVAO)
     ! call glDrawArrays(GL_TRIANGLES, 0, 3)
     ! call glBindVertexArray(0)

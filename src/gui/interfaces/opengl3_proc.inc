@@ -139,6 +139,14 @@ subroutine glDrawArrays(mode,first,count) bind(c,name="glDrawArrays")
   integer(c_int), value :: first
   integer(c_int), value :: count
 end subroutine glDrawArrays
+! void glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices);
+subroutine glDrawElements(mode,count,type,indices) bind(c,name="glDrawElements")
+  import c_int, c_ptr
+  integer(c_int), value :: mode
+  integer(c_int), value :: count
+  integer(c_int), value :: type
+  type(c_ptr), intent(in), value :: indices
+end subroutine glDrawElements
 ! void glEnable(GLenum cap)
 subroutine glEnable(cap) bind(c,name="glEnable")
   import c_int
