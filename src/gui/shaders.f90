@@ -29,15 +29,13 @@ module shaders
   public :: shaders_init
   public :: shaders_end
   public :: useshader
-  public :: setuniform
+  public :: setuniform_int
+  public :: setuniform_float
+  public :: setuniform_vec3
+  public :: setuniform_vec4
+  public :: setuniform_mat3
+  public :: setuniform_mat4
 
-  ! overloaded procedures
-  interface setuniform
-     module procedure setuniform_vec3
-     module procedure setuniform_float
-     module procedure setuniform_int
-     module procedure setuniform_mat4
-  end interface setuniform
 
   ! module procedure interfaces
   interface

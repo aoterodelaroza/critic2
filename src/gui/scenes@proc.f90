@@ -126,45 +126,63 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use gui_main, only: sysc, sys_init
-    use shaders, only: shader_test, shader_phong, useshader, setuniform
-    use shapes, only: testVAO
+    use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
+       setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
+       setuniform_mat4
+    use shapes, only: testVAO, sphVAO
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: vcolor(4), model(4,4), normrot(3,3)
+    real(c_float), target :: vcolor(4), model(4,4), normrot(3,3)
     integer :: i
 
     if (.not.sysc(s%id)%status == sys_init) return
 
+    ! ! xxxx
+    ! s%projection = s%world
+
+    s%projection(:,1) = (/0.0733545050, 0.0000000000, 0.0000000000, 0.0000000000/)
+    s%projection(:,2) = (/0.0000000000, 0.0733545050, 0.0000000000, 0.0000000000/)
+    s%projection(:,3) = (/0.0000000000, 0.0000000000, -0.0020001999, 0.0000000000/)
+    s%projection(:,4) = (/-0.0000000000, -0.0000000000, -1.0001999140, 1.0000000000/)
+    write (*,*) "projection:"
+    write (*,*) s%projection(:,1)
+    write (*,*) s%projection(:,2)
+    write (*,*) s%projection(:,3)
+    write (*,*) s%projection(:,4)
+    stop 1
+
     ! set up the shader and the uniforms
     call useshader(shader_phong)
-    call setuniform("uselighting",1_c_int)
-    call setuniform("lightPos",s%lightpos)
-    call setuniform("lightColor",s%lightcolor)
-    call setuniform("ambient",s%ambient)
-    call setuniform("diffuse",s%diffuse)
-    call setuniform("specular",s%specular)
-    call setuniform("shininess",s%shininess)
-    call setuniform("world",s%world)
-    call setuniform("view",s%view)
-    call setuniform("projection",s%projection)
+    call setuniform_int("uselighting",1_c_int)
+    call setuniform_vec3("lightPos",s%lightpos)
+    call setuniform_vec3("lightColor",s%lightcolor)
+    call setuniform_float("ambient",s%ambient)
+    call setuniform_float("diffuse",s%diffuse)
+    call setuniform_float("specular",s%specular)
+    call setuniform_int("shininess",s%shininess)
+    call setuniform_mat4("world",s%world)
+    call setuniform_mat4("view",s%view)
+    call setuniform_mat4("projection",s%projection)
 
     ! draw the sphere
     vcolor = (/1._c_float,0._c_float,0._c_float,1._c_float/)
-    call setuniform("vColor",vcolor)
+    call setuniform_vec4("vColor",vcolor)
     model = 0._c_float
     do i = 1, 4
        model(i,i) = 1._c_float
     end do
-    call setuniform("model",model)
+    call setuniform_mat4("model",model)
     normrot = 0._c_float
     do i = 1, 3
        normrot(i,i) = 1._c_float
     end do
-    call setuniform("normrot",model)
+    call setuniform_mat3("normrot",model)
+    call glBindVertexArray(sphVAO(1))
     call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
+    call glBindVertexArray(0)
 
     ! ! draw the test triangle
-    ! call useshader(shader_test)
+    ! ! call useshader(shader_test)
     ! call glBindVertexArray(testVAO)
     ! call glDrawArrays(GL_TRIANGLES, 0, 3)
     ! call glBindVertexArray(0)
@@ -212,10 +230,10 @@ contains
     s = s / norm2(s)
     u = cross_c(s,f)
     u = u / norm2(u)
-    lookat(:,1) = (/ s(1), s(2), s(3), -dot_product(s,eye)/)
-    lookat(:,2) = (/ u(1), u(2), u(3), -dot_product(u,eye)/)
-    lookat(:,3) = (/-f(1),-f(2),-f(3), dot_product(f,eye)/)
-    lookat(:,4) = (/0._c_float,0._c_float,0._c_float,1._c_float/)
+    lookat(:,1) = (/ s(1), u(1), -f(1), 0._c_float/)
+    lookat(:,2) = (/ s(2), u(2), -f(2), 0._c_float/)
+    lookat(:,3) = (/ s(3), u(3), -f(3), 0._c_float/)
+    lookat(:,4) = (/-dot_product(s,eye),-dot_product(u,eye),dot_product(f,eye),1._c_float/)
 
   end function lookat
 
