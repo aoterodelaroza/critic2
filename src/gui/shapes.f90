@@ -26,10 +26,15 @@ module shapes
   public :: shapes_end
 
   ! sphere objects
-  integer, parameter, public :: nmaxsph = 1
+  integer, parameter, public :: nmaxsph = 4
   integer(c_int), target, public :: sphVAO(nmaxsph) ! sphere: vertex array object
   integer(c_int), target, public :: sphVBO          ! sphere: vertex buffer object
   integer(c_int), target, public :: sphEBO(nmaxsph) ! sphere: element buffer object
+
+  ! sphere dimensions
+  integer(c_int), parameter, public :: sphnve(nmaxsph) = (/12,42,162,642/)
+  integer(c_int), parameter, public :: sphnel(nmaxsph) = (/20,80,320,1280/)
+  integer(c_int), parameter, public :: sphneladd(0:nmaxsph) = (/0,20,100,420,1700/)
 
   ! test objects
   integer(c_int), target, public :: testVAO ! test: vertex array object

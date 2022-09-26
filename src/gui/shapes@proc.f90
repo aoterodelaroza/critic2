@@ -21,12 +21,6 @@ submodule (shapes) proc
   implicit none
 
   ! number of vertices and faces
-  integer(c_int), parameter :: sphnve(nmaxsph) = (/12/)
-  integer(c_int), parameter :: sphnel(nmaxsph) = (/20/)
-  integer(c_int), parameter :: sphneladd(0:nmaxsph) = (/0,20/)
-  ! integer(c_int), parameter :: sphnve(nmaxsph) = (/12,42,162,642/)
-  ! integer(c_int), parameter :: sphnel(nmaxsph) = (/20,80,320,1280/)
-  ! integer(c_int), parameter :: sphneladd(0:nmaxsph) = (/0,20,100,420,1700/)
 
   ! static float cylr = cosf(30.f * PI / 180.f);
   ! static float cylnorm = sqrtf(0.5f + cylr * cylr);
@@ -109,12 +103,16 @@ contains
   module subroutine shapes_init()
     use interfaces_opengl3
     use tools_math, only: cross
+    use hashmod, only: hash
 
     real(c_float) :: tau, rad0, xico, zico, zero, half
-    integer :: i
+    integer :: i, j, k(3), nk1, nk2, nk3, n, nface
+    integer :: nk1, nk2, nk3, maxsphnve
     integer(c_int) :: c_int_
     real(c_float) :: c_float_
     type(c_ptr) :: c_ptr_
+    type(hash) :: ipair
+    character(len=:), allocatable :: idx
 
     ! allocate icosphere vertex and face arrays
     if (allocated(sphv)) deallocate(sphv)
@@ -165,6 +163,61 @@ contains
     sphi(:,19) = (/ 9_c_int,  5_c_int,  2_c_int/)
     sphi(:,20) = (/ 7_c_int, 11_c_int,  2_c_int/)
 
+    ! vertices and edges of the rest of the spheres
+    maxsphnve = maxval(sphnve)
+    do i = 1, nmaxsph-1
+       n = sphnve(i)
+       nface = sphneladd(i)
+       do j = sphneladd(i-1)+1, sphneladd(i)
+          k = sphi(:,j) + 1
+
+          ! create the new vertices
+          call ipack(k(1),k(2))
+          if (ipair%iskey(idx)) then
+             nk1 = ipair%get(idx,nk1)
+          else
+             n = n + 1
+             nk1 = n
+             call ipair%put(idx,n)
+             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(2)))
+             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
+             sphv(4:6,n) = sphv(1:3,n)
+          end if
+          call ipack(k(1),k(3))
+          if (ipair%iskey(idx)) then
+             nk2 = ipair%get(idx,nk2)
+          else
+             n = n + 1
+             nk2 = n
+             call ipair%put(idx,n)
+             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(3)))
+             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
+             sphv(4:6,n) = sphv(1:3,n)
+          end if
+          call ipack(k(2),k(3))
+          if (ipair%iskey(idx)) then
+             nk3 = ipair%get(idx,nk3)
+          else
+             n = n + 1
+             nk3 = n
+             call ipair%put(idx,n)
+             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(2)) + sphv(1:3,k(3)))
+             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
+             sphv(4:6,n) = sphv(1:3,n)
+          end if
+
+          ! create the new faces
+          nface = nface + 1
+          sphi(:,nface) = (/k(1),nk1,nk2/) - 1
+          nface = nface + 1
+          sphi(:,nface) = (/nk1,nk3,nk2/) - 1
+          nface = nface + 1
+          sphi(:,nface) = (/nk1,k(2),nk3/) - 1
+          nface = nface + 1
+          sphi(:,nface) = (/nk2,nk3,k(3)/) - 1
+       end do
+    end do
+
     ! build the buffers for the spheres
     call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
     call glGenBuffers(1, c_loc(sphVBO))
@@ -211,6 +264,19 @@ contains
     call glEnableVertexAttribArray(0)
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
+
+  contains
+    subroutine ipack(i,j)
+      use tools_io, only: string
+      integer, intent(in) :: i, j
+
+      if (i < j) then
+         idx = string(i) // "_" // string(j)
+      else
+         idx = string(j) // "_" // string(i)
+      end if
+
+    end subroutine ipack
 
   end subroutine shapes_init
 

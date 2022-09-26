@@ -27,6 +27,10 @@ submodule (scenes) proc
   ! function lookat(eye,center,up)
   ! function cross_c(v1,v2) result (vx)
 
+  ! sphere resolution
+  integer, parameter :: isphres = 3
+
+  ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
   real(c_float), parameter :: eye4(4,4) = reshape((/&
@@ -184,7 +188,7 @@ contains
     call setuniform_mat4("projection",s%projection)
 
     ! draw the atoms
-    call glBindVertexArray(sphVAO(1))
+    call glBindVertexArray(sphVAO(isphres))
     do i = 1, sys(s%id)%c%ncel
        iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(i)%is)%z
        rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
@@ -202,6 +206,7 @@ contains
   module subroutine draw_sphere(s,x0,rad,rgba)
     use interfaces_opengl3
     use shaders, only: setuniform_vec4, setuniform_mat4
+    use shapes, only: sphnel
     class(scene), intent(inout), target :: s
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
@@ -219,7 +224,7 @@ contains
     ! draw the sphere
     call setuniform_vec4("vColor",rgba)
     call setuniform_mat4("model",model)
-    call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
+    call glDrawElements(GL_TRIANGLES, int(3*sphnel(isphres),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_sphere
 
