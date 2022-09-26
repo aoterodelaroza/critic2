@@ -28,6 +28,7 @@ module scenes
      logical :: showcell = .false. ! show the unit cell?
      integer :: ncell(3) ! number of cells show in each direction
      integer :: imotif = 0 ! 0 = none, 1 = border, 2 = onemotif, 3 = molmotif
+     real*8 :: scenecenter(3) = (/0d0,0d0,0d0/) ! scene center
      real*8 :: scenerad = 1d0 ! scene radius
      ! phong shader settings
      real(c_float) :: lightpos(3) ! light position
@@ -51,6 +52,7 @@ module scenes
      procedure :: end => scene_end
      procedure :: reset => scene_reset
      procedure :: render => scene_render
+     procedure :: draw_sphere
   end type scene
   public :: scene
 
@@ -69,6 +71,12 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
+     module subroutine draw_sphere(s,x0,rad,rgba)
+       class(scene), intent(inout), target :: s
+       real(c_float), intent(in) :: x0(3)
+       real(c_float), intent(in) :: rad
+       real(c_float), intent(in) :: rgba(4)
+     end subroutine draw_sphere
   end interface
 
 end module scenes

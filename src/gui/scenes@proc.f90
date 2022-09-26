@@ -27,6 +27,14 @@ submodule (scenes) proc
   ! function lookat(eye,center,up)
   ! function cross_c(v1,v2) result (vx)
 
+  real(c_float), parameter :: zero = 0._c_float
+  real(c_float), parameter :: one = 1._c_float
+  real(c_float), parameter :: eye4(4,4) = reshape((/&
+     one,zero,zero,zero,&
+     zero,one,zero,zero,&
+     zero,zero,one,zero,&
+     zero,zero,zero,one/),shape(eye4))
+
 contains
 
   !> Initialize a scene object associated with system isys.
@@ -77,8 +85,9 @@ contains
 
   end subroutine scene_end
 
-  !> Reset the camera position and direction. Sets scenerad, ortho_fov,
-  !> persp_fov, v_front, v_up, v_pos, view, world, projection, and znear.
+  !> Reset the camera position and direction. Sets scenerad,
+  !> scenecenter, ortho_fov, persp_fov, v_front, v_up, v_pos, view,
+  !> world, projection, and znear.
   module subroutine scene_reset(s)
     use gui_main, only: sys
     use param, only: pi
@@ -118,15 +127,16 @@ contains
     end if
     s%scenerad = max(norm2(xmax-xmin),min_scenerad)
 
+    ! calculate the scene center
+    s%scenecenter = (/0.5d0,0.5d0,0.5d0/)
+    s%scenecenter = sys(isys)%c%x2c(s%scenecenter)
+
     ! default transformation matrices
     pic = real(pi,c_float)
     s%ortho_fov = 45._c_float
     s%persp_fov = 45._c_float
 
-    s%world = 0._c_float
-    do i = 1, 4
-       s%world(i,i) = 1._c_float
-    end do
+    s%world = eye4
 
     s%v_front = (/0._c_float,0._c_float,-1._c_float/)
     s%v_up = (/0._c_float,1._c_float,0._c_float/)
@@ -146,16 +156,18 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use tools_math, only: matinv
-    use gui_main, only: sysc, sys_init
+    use gui_main, only: sysc, sys_init, sys
     use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
     use shapes, only: testVAO, sphVAO
+    use param, only: jmlcol2, atmcov
     class(scene), intent(inout), target :: s
 
-    real(c_float), target :: vcolor(4), model(4,4)
-    integer :: i
+    real(c_float), target :: vcolor(4), model(4,4), rgba(4), x0(3), rad
+    integer :: i, iz
 
+    if (.not.s%isinit) return
     if (.not.sysc(s%id)%status == sys_init) return
 
     ! set up the shader and the uniforms
@@ -171,19 +183,45 @@ contains
     call setuniform_mat4("view",s%view)
     call setuniform_mat4("projection",s%projection)
 
-    ! draw the sphere
-    vcolor = (/1._c_float,0._c_float,0._c_float,1._c_float/)
-    call setuniform_vec4("vColor",vcolor)
-    model = 0._c_float
-    do i = 1, 4
-       model(i,i) = 1._c_float
-    end do
-    call setuniform_mat4("model",model)
+    ! draw the atoms
     call glBindVertexArray(sphVAO(1))
-    call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
+    do i = 1, sys(s%id)%c%ncel
+       iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(i)%is)%z
+       rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+       rgba(4) = 1._c_float
+       x0 = real(sys(s%id)%c%atcel(i)%r - s%scenecenter,c_float)
+       rad = 0.7_c_float * real(atmcov(iz),c_float)
+       call s%draw_sphere(x0,rad,rgba)
+    end do
     call glBindVertexArray(0)
 
   end subroutine scene_render
+
+  !> Draw a sphere with center x0, radius rad and color rgba. Requires
+  !> having the sphere VAO bound.
+  module subroutine draw_sphere(s,x0,rad,rgba)
+    use interfaces_opengl3
+    use shaders, only: setuniform_vec4, setuniform_mat4
+    class(scene), intent(inout), target :: s
+    real(c_float), intent(in) :: x0(3)
+    real(c_float), intent(in) :: rad
+    real(c_float), intent(in) :: rgba(4)
+
+    real(c_float) :: model(4,4)
+
+    ! initialize the model
+    model = eye4
+    model(1:3,4) = x0
+    model(1,1) = rad
+    model(2,2) = rad
+    model(3,3) = rad
+
+    ! draw the sphere
+    call setuniform_vec4("vColor",rgba)
+    call setuniform_mat4("model",model)
+    call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
+
+  end subroutine draw_sphere
 
   !xx! private procedures
 
