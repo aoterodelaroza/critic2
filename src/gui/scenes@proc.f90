@@ -128,6 +128,7 @@ contains
   !> Draw the scene
   module subroutine scene_render(s)
     use interfaces_opengl3
+    use tools_math, only: matinv
     use gui_main, only: sysc, sys_init
     use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
@@ -135,14 +136,14 @@ contains
     use shapes, only: testVAO, sphVAO
     class(scene), intent(inout), target :: s
 
-    real(c_float), target :: vcolor(4), model(4,4), normrot(3,3)
+    real(c_float), target :: vcolor(4), model(4,4)
     integer :: i
 
     if (.not.sysc(s%id)%status == sys_init) return
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)
-    call setuniform_int("uselighting",1_c_int)
+    call setuniform_int("uselighting",0_c_int)
     call setuniform_vec3("lightPos",s%lightpos)
     call setuniform_vec3("lightColor",s%lightcolor)
     call setuniform_float("ambient",s%ambient)
@@ -161,20 +162,9 @@ contains
        model(i,i) = 1._c_float
     end do
     call setuniform_mat4("model",model)
-    normrot = 0._c_float
-    do i = 1, 3
-       normrot(i,i) = 1._c_float
-    end do
-    call setuniform_mat3("normrot",model)
     call glBindVertexArray(sphVAO(1))
     call glDrawElements(GL_TRIANGLES, 60_c_int, GL_UNSIGNED_INT, c_null_ptr)
     call glBindVertexArray(0)
-
-    ! ! draw the test triangle
-    ! ! call useshader(shader_test)
-    ! call glBindVertexArray(testVAO)
-    ! call glDrawArrays(GL_TRIANGLES, 0, 3)
-    ! call glBindVertexArray(0)
 
   end subroutine scene_render
 
