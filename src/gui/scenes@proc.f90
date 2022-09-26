@@ -23,6 +23,7 @@ submodule (scenes) proc
 
   !xx! private procedures
   ! function infiniteperspective(fovy,aspect,znear)
+  ! function ortho(left,right,bottom,top,znear,zfar)
   ! function lookat(eye,center,up)
   ! function cross_c(v1,v2) result (vx)
 
@@ -36,7 +37,7 @@ contains
     integer, intent(in) :: isys
 
     real*8 :: xmin(3), xmax(3), x(3)
-    real(c_float) :: pic
+    real(c_float) :: pic, hw2
     integer :: i, i1, i2, i3
 
     if (isys < 1 .or. isys > nsys) return
@@ -105,11 +106,13 @@ contains
     s%v_up = (/0._c_float,1._c_float,0._c_float/)
     s%v_pos = 0._c_float
     s%v_pos(3) = 1.1_c_float * s%scenerad * &
-       sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%persp_fov * pic / 180._c_float)
+       sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
 
     s%znear = 0.1_c_float
-    s%projection = infiniteperspective(s%persp_fov * pic / 180._c_float,1._c_float,s%znear)
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%v_pos(3)
+    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,1000._c_float)
+    ! s%projection = infiniteperspective(s%persp_fov * pic / 180._c_float,1._c_float,s%znear)
 
   end subroutine scene_init
 
@@ -136,20 +139,6 @@ contains
     integer :: i
 
     if (.not.sysc(s%id)%status == sys_init) return
-
-    ! ! xxxx
-    ! s%projection = s%world
-
-    s%projection(:,1) = (/0.0733545050, 0.0000000000, 0.0000000000, 0.0000000000/)
-    s%projection(:,2) = (/0.0000000000, 0.0733545050, 0.0000000000, 0.0000000000/)
-    s%projection(:,3) = (/0.0000000000, 0.0000000000, -0.0020001999, 0.0000000000/)
-    s%projection(:,4) = (/-0.0000000000, -0.0000000000, -1.0001999140, 1.0000000000/)
-    write (*,*) "projection:"
-    write (*,*) s%projection(:,1)
-    write (*,*) s%projection(:,2)
-    write (*,*) s%projection(:,3)
-    write (*,*) s%projection(:,4)
-    stop 1
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)
@@ -213,6 +202,24 @@ contains
     x(3,4) = -2._c_float * znear
 
   end function infiniteperspective
+
+  !> Return the projection matrix for an orthographic perspective with
+  !> fustrum limits left, right, bottom, top and clipping planes znear
+  !> and zfar.
+  function ortho(left,right,bottom,top,znear,zfar) result(x)
+    real(c_float), intent(in) :: left, right, bottom, top, znear, zfar
+    real(c_float) :: x(4,4)
+
+    x = 0._c_float
+    x(1,1) = 2._c_float / (right - left)
+    x(2,2) = 2._c_float / (top - bottom)
+    x(3,3) = -2._c_float / (zfar - znear)
+    x(1,4) = - (right + left) / (right - left)
+    x(2,4) = - (top + bottom) / (top - bottom)
+    x(3,4) = - (zfar + znear) / (zfar - znear)
+    x(4,4) = 1._c_float
+
+  end function ortho
 
   !> Camera (view) transformation matrix for a camera at position eye
   !> pointing in the directon towards center and with the given up vector.
