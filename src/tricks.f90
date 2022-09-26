@@ -2852,9 +2852,11 @@ contains
     end do
 
     if (okfin) then
-       write (uout,'("* TRICK CHECK VALENCE: MOLECULE_OK"/)')
+       write (uout,'("* TRICK CHECK VALENCE (",A,"): MOLECULE_OK"/)') &
+          trim(sy%c%file)
     else
-       write (uout,'("* TRICK CHECK VALENCE: MOLECULE_WRONG"/)')
+       write (uout,'("* TRICK CHECK VALENCE (",A,"): MOLECULE_WRONG"/)') &
+          trim(sy%c%file)
     end if
 
   end subroutine trick_check_valence
