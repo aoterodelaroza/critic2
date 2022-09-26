@@ -129,10 +129,6 @@ contains
     xico = (tau - 1._c_float) / rad0
     zico = 1._c_float / rad0
 
-    ! xxxx
-    xico = xico / 2d0
-    zico = zico / 2d0
-
     ! vertices and normals
     sphv(:,1 ) = (/-xico,  zero,  zico, -xico,  zero,  zico/)
     sphv(:,2 ) = (/ xico,  zero,  zico,  xico,  zero,  zico/)
