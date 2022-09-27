@@ -653,8 +653,10 @@ contains
           ! if we removed the system for the input console or the view, update
           if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
              win(iwin_console_input)%inpcon_selected = w%table_selected
-          if (w%forceremove(k) == win(iwin_view)%view_selected) &
+          if (w%forceremove(k) == win(iwin_view)%view_selected) then
              win(iwin_view)%view_selected = w%table_selected
+             win(iwin_view)%forcerender = .true.
+          end if
        end do
        deallocate(w%forceremove)
        ! restart initialization if the threads were killed
@@ -934,8 +936,11 @@ contains
                       w%table_selected = i
                       if (tree_select_updates_inpcon) &
                          win(iwin_console_input)%inpcon_selected = i
-                      if (tree_select_updates_view) &
+                      if (tree_select_updates_view) then
+                         if (win(iwin_view)%view_selected /= i) &
+                            win(iwin_view)%forcerender = .true.
                          win(iwin_view)%view_selected = i
+                      end if
                       call sys(i)%set_reference(k,.false.)
                    end if
                    call igPopStyleColor(1)
@@ -1256,8 +1261,11 @@ contains
          w%table_selected = isys
          if (tree_select_updates_inpcon) &
             win(iwin_console_input)%inpcon_selected = isys
-         if (tree_select_updates_view) &
+         if (tree_select_updates_view) then
+            if (win(iwin_view)%view_selected /= isys) &
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = isys
+         end if
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
             sysc(isys)%showfields = .true.
       end if
@@ -1289,6 +1297,8 @@ contains
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             win(iwin_console_input)%inpcon_selected = isys
+            if (win(iwin_view)%view_selected /= isys) &
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = isys
             w%table_selected = isys
          end if
@@ -1422,8 +1432,11 @@ contains
             win(iwin_console_input)%inpcon_selected = i
       end if
       if (win(iwin_view)%view_selected >= 1 .and. win(iwin_view)%view_selected <= nsys) then
-         if (sysc(win(iwin_view)%view_selected)%collapse == i) &
+         if (sysc(win(iwin_view)%view_selected)%collapse == i) then
+            if (win(iwin_view)%view_selected /= i) &
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = i
+         end if
       end if
       w%forceupdate = .true.
 
@@ -1647,8 +1660,10 @@ contains
           if (sysc(i)%status == sys_init) then
              is_selected = (w%view_selected == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
-             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+                if (w%view_selected /= i) w%forcerender = .true.
                 w%view_selected = i
+             end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
           end if
@@ -1675,9 +1690,10 @@ contains
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
        call glClearColor(0.,0.,0.,0.)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       if (w%view_selected > 0 .and. w%view_selected <= nsys) then
+
+       if (w%view_selected > 0 .and. w%view_selected <= nsys) &
           call sysc(w%view_selected)%sc%render()
-       end if
+
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
        w%forcerender = .false.
     end if
