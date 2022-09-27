@@ -159,7 +159,6 @@ contains
   !> Draw the scene
   module subroutine scene_render(s)
     use interfaces_opengl3
-    use tools_math, only: matinv
     use gui_main, only: sysc, sys_init, sys
     use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
