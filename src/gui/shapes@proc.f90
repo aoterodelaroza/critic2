@@ -20,79 +20,13 @@ submodule (shapes) proc
   use iso_c_binding
   implicit none
 
-  ! number of vertices and faces
+  ! icospheres
+  real(c_float), allocatable, target :: sphv(:,:) ! vertices (1:3) and normals (4:6)
+  integer(c_int), allocatable, target :: sphi(:,:) ! faces
 
-  ! static float cylr = cosf(30.f * PI / 180.f);
-  ! static float cylnorm = sqrtf(0.5f + cylr * cylr);
-  ! static float cylrn = cylr / cylnorm;
-  ! static float halfn = 0.5f / cylnorm;
-  ! static float halfn2 = 2 * halfn;
-
-  ! // global variables
-  ! GLuint sphVAO[nmaxsph];
-  ! GLuint sphVBO;
-  ! GLuint sphEBO[nmaxsph];
-  ! GLuint cylVAO[nmaxcyl];
-  ! GLuint cylVBO[nmaxcyl];
-  ! GLuint cylEBO[nmaxcyl];
-  ! const GLuint cylnve[nmaxcyl]      =    {14, 26, 38};
-  ! const GLuint cylnveadd[nmaxcyl+1] = {0, 14, 40, 78};
-  ! const GLuint cylnel[nmaxcyl]      =    {24, 48, 72};
-  ! const GLuint cylneladd[nmaxcyl+1] = {0, 24, 72, 144};
-
-  ! icosphere vertices (1:3) and normals (4:6)
-  real(c_float), allocatable, target :: sphv(:,:)
-
-  ! icosphere faces
-  integer(c_int), allocatable, target :: sphi(:,:)
-
-  ! // cylinder vertices (hexagonal prism)
-  ! static GLfloat *cylv;
-  ! static GLfloat cylv0[] = {
-  !     0.0,  0.0, -0.5,     0.0,     0.0,   -1.0,
-  !    cylr,  0.5, -0.5,   cylrn,   halfn, -halfn,
-  !    cylr, -0.5, -0.5,   cylrn,  -halfn, -halfn,
-  !     0.0, -1.0, -0.5,     0.0, -halfn2, -halfn,
-  !   -cylr, -0.5, -0.5,  -cylrn,  -halfn, -halfn,
-  !   -cylr,  0.5, -0.5,  -cylrn,   halfn, -halfn,
-  !     0.0,  1.0, -0.5,     0.0,  halfn2, -halfn,
-  !     0.0,  0.0,  0.5,     0.0,     0.0,    1.0,
-  !    cylr,  0.5,  0.5,   cylrn,   halfn,  halfn,
-  !    cylr, -0.5,  0.5,   cylrn,  -halfn,  halfn,
-  !     0.0, -1.0,  0.5,     0.0, -halfn2,  halfn,
-  !   -cylr, -0.5,  0.5,  -cylrn,  -halfn,  halfn,
-  !   -cylr,  0.5,  0.5,  -cylrn,   halfn,  halfn,
-  !     0.0,  1.0,  0.5,     0.0,  halfn2,  halfn,
-  ! };
-
-  ! // hexagonal prism faces
-  ! static GLuint *cyli;
-  ! static GLuint cyli0[] = {
-  !   0,  1,   2,
-  !   0,  2,   3,
-  !   0,  3,   4,
-  !   0,  4,   5,
-  !   0,  5,   6,
-  !   0,  6,   1,
-  !   7,  9,   8,
-  !   7, 10,   9,
-  !   7, 11,  10,
-  !   7, 12,  11,
-  !   7, 13,  12,
-  !   7,  8,  13,
-  !   1,  8,   2,
-  !   2,  8,   9,
-  !   2,  9,   3,
-  !   3,  9,  10,
-  !   3, 10,   4,
-  !   4, 10,  11,
-  !   4, 11,   5,
-  !   5, 11,  12,
-  !   5, 12,   6,
-  !   6, 12,  13,
-  !   6, 13,   1,
-  !   1, 13,   8,
-  ! };
+  ! cylinders
+  real(c_float), allocatable, target :: cylv(:,:) ! vertices (1:3) and normals (4:6)
+  integer(c_int), allocatable, target :: cyli(:,:) ! faces
 
   ! test vertices
   real(c_float), allocatable, target :: testv(:,:)
@@ -104,8 +38,9 @@ contains
     use interfaces_opengl3
     use tools_math, only: cross
     use hashmod, only: hash
-
-    real(c_float) :: tau, rad0, xico, zico, zero, half
+    use param, only: pi
+    real(c_float) :: tau, rad0, xico, zico, zero, half, one
+    real(c_float) :: cylr, pic, cylnorm, cylrn, halfn, halfn2
     integer :: i, j, k(3), nk1, nk2, nk3, n, nface
     integer :: nk1, nk2, nk3, maxsphnve
     integer(c_int) :: c_int_
@@ -141,7 +76,7 @@ contains
     sphv(:,11) = (/ zico, -xico,  zero,  zico, -xico,  zero/)
     sphv(:,12) = (/-zico, -xico,  zero, -zico, -xico,  zero/)
 
-    ! faces, counter-clock-wise
+    ! sphere faces, counter-clock-wise
     sphi(:,1 ) = (/ 0_c_int,  1_c_int,  4_c_int/)
     sphi(:,2 ) = (/ 0_c_int,  4_c_int,  9_c_int/)
     sphi(:,3 ) = (/ 9_c_int,  4_c_int,  5_c_int/)
@@ -242,10 +177,145 @@ contains
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
+    ! allocate cylinder vertex and face arrays
+    if (allocated(cylv)) deallocate(cylv)
+    if (allocated(cyli)) deallocate(cyli)
+    allocate(cylv(6,cylnveadd(nmaxcyl)))
+    allocate(cyli(3,cylneladd(nmaxcyl)))
+
+    ! initialize cylinders
+    pic = real(pi,c_float)
+    half = 0.5_c_float
+    one = 1.0_c_float
+    cylr = cos(30._c_float * pic / 180._c_float)
+    cylnorm = sqrt(0.5_c_float + cylr * cylr)
+    cylrn = cylr / cylnorm
+    halfn = 0.5_c_float / cylnorm
+    halfn2 = 2 * halfn
+
+    ! vertices and normals
+    cylv(:,1 ) = (/ zero, zero,-half,    zero,    zero,   -one/)
+    cylv(:,2 ) = (/ cylr, half,-half,   cylrn,   halfn, -halfn/)
+    cylv(:,3 ) = (/ cylr,-half,-half,   cylrn,  -halfn, -halfn/)
+    cylv(:,4 ) = (/ zero, -one,-half,    zero, -halfn2, -halfn/)
+    cylv(:,5 ) = (/-cylr,-half,-half,  -cylrn,  -halfn, -halfn/)
+    cylv(:,6 ) = (/-cylr, half,-half,  -cylrn,   halfn, -halfn/)
+    cylv(:,7 ) = (/ zero,  one,-half,    zero,  halfn2, -halfn/)
+    cylv(:,8 ) = (/ zero, zero, half,    zero,    zero,    one/)
+    cylv(:,9 ) = (/ cylr, half, half,   cylrn,   halfn,  halfn/)
+    cylv(:,10) = (/ cylr,-half, half,   cylrn,  -halfn,  halfn/)
+    cylv(:,11) = (/ zero, -one, half,    zero, -halfn2,  halfn/)
+    cylv(:,12) = (/-cylr,-half, half,  -cylrn,  -halfn,  halfn/)
+    cylv(:,13) = (/-cylr, half, half,  -cylrn,   halfn,  halfn/)
+    cylv(:,14) = (/ zero,  one, half,    zero,  halfn2,  halfn/)
+
+    ! cylinder faces, counter-clock-wise
+    cyli(:,1 ) = (/0_c_int,  1_c_int,  2_c_int/)
+    cyli(:,2 ) = (/0_c_int,  2_c_int,  3_c_int/)
+    cyli(:,3 ) = (/0_c_int,  3_c_int,  4_c_int/)
+    cyli(:,4 ) = (/0_c_int,  4_c_int,  5_c_int/)
+    cyli(:,5 ) = (/0_c_int,  5_c_int,  6_c_int/)
+    cyli(:,6 ) = (/0_c_int,  6_c_int,  1_c_int/)
+    cyli(:,7 ) = (/7_c_int,  9_c_int,  8_c_int/)
+    cyli(:,8 ) = (/7_c_int, 10_c_int,  9_c_int/)
+    cyli(:,9 ) = (/7_c_int, 11_c_int, 10_c_int/)
+    cyli(:,10) = (/7_c_int, 12_c_int, 11_c_int/)
+    cyli(:,11) = (/7_c_int, 13_c_int, 12_c_int/)
+    cyli(:,12) = (/7_c_int,  8_c_int, 13_c_int/)
+    cyli(:,13) = (/1_c_int,  8_c_int,  2_c_int/)
+    cyli(:,14) = (/2_c_int,  8_c_int,  9_c_int/)
+    cyli(:,15) = (/2_c_int,  9_c_int,  3_c_int/)
+    cyli(:,16) = (/3_c_int,  9_c_int, 10_c_int/)
+    cyli(:,17) = (/3_c_int, 10_c_int,  4_c_int/)
+    cyli(:,18) = (/4_c_int, 10_c_int, 11_c_int/)
+    cyli(:,19) = (/4_c_int, 11_c_int,  5_c_int/)
+    cyli(:,20) = (/5_c_int, 11_c_int, 12_c_int/)
+    cyli(:,21) = (/5_c_int, 12_c_int,  6_c_int/)
+    cyli(:,22) = (/6_c_int, 12_c_int, 13_c_int/)
+    cyli(:,23) = (/6_c_int, 13_c_int,  1_c_int/)
+    cyli(:,24) = (/1_c_int, 13_c_int,  8_c_int/)
+
+    ! // create the vertices, normals, and faces
+    ! for (int ncyl = 0; ncyl < nmaxcyl; ncyl++){
+    !   int n = cylnveadd[ncyl]-1;
+    !   int npt = (cylnve[ncyl]-2)/2;
+
+    !   n++;
+    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = -0.5f;
+    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = -1.0f;
+    !   n++;
+    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = 0.5f;
+    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = 1.0f;
+
+
+    !   float half = 0.5f;
+    !   for (int j=0;j<2;j++){
+    !     half = -half;
+    !     for (int i=0;i<npt;i++){
+    !       float angle = ((float) i) / ((float) npt) * 2.f * PI;
+    !       float ca = cos(angle), sa = sin(angle);
+    !       n++;
+    !       cylv[6*n+0] = 0.5f * ca; cylv[6*n+1] = 0.5f * sa; cylv[6*n+2] = half;
+    !       cylv[6*n+3] = ca; cylv[6*n+4] = sa; cylv[6*n+5] = 0.f;
+    !     }
+    !   }
+
+    !   int nface = cylneladd[ncyl]-1;
+    !   int shift1 = 2;
+    !   int shift2 = 2+npt;
+    !   for (int i=0; i<npt; i++){
+    !     nface++;
+    !     cyli[3*nface+0] = 0;
+    !     cyli[3*nface+1] = (i+1)%npt+shift1;
+    !     cyli[3*nface+2] = i+shift1;
+    !   }
+    !   for (int i=0; i<npt; i++){
+    !     nface++;
+    !     cyli[3*nface+0] = 1;
+    !     cyli[3*nface+1] = i+shift2;
+    !     cyli[3*nface+2] = (i+1)%npt+shift2;
+    !   }
+    !   for (int i=0; i<npt; i++){
+    !     nface++;
+    !     cyli[3*nface+0] = i+shift1;
+    !     cyli[3*nface+1] = (i+1)%npt+shift1;
+    !     cyli[3*nface+2] = (i+1)%npt+shift2;
+    !   }
+    !   for (int i=0; i<npt; i++){
+    !     nface++;
+    !     cyli[3*nface+0] = i+shift1;
+    !     cyli[3*nface+1] = (i+1)%npt+shift2;
+    !     cyli[3*nface+2] = i+shift2;
+    !   }
+    ! }
+
+    ! build the buffers for the spheres
+    call glGenVertexArrays(nmaxcyl, c_loc(cylVAO))
+    call glGenBuffers(nmaxcyl, c_loc(cylVBO))
+    call glGenBuffers(nmaxcyl, c_loc(cylEBO))
+
+    do i = 1, nmaxcyl
+       call glBindBuffer(GL_ARRAY_BUFFER, cylVBO(i))
+       call glBufferData(GL_ARRAY_BUFFER, 6*cylnve(i)*c_sizeof(c_float_), c_loc(cylv(1,cylnveadd(i-1)+1)), GL_STATIC_DRAW)
+       call glBindVertexArray(cylVAO(i))
+       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO(i))
+       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*cylnel(i)*c_sizeof(c_int_), c_loc(cyli(1,cylneladd(i-1)+1)), GL_STATIC_DRAW)
+
+       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+          c_null_ptr)
+       call glEnableVertexAttribArray(0)
+       call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+          transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
+       call glEnableVertexAttribArray(1)
+    end do
+
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
     ! test object
     if (allocated(testv)) deallocate(testv)
     allocate(testv(6,3))
-    half = 0.5_c_float
     testv(:,1) = (/ -half, -half, zero, half, half, half/)
     testv(:,2) = (/  half, -half, zero, half, half, half/)
     testv(:,3) = (/  zero,  half, zero, half, half, half/)

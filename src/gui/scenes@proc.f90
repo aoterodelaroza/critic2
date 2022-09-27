@@ -27,8 +27,9 @@ submodule (scenes) proc
   ! function lookat(eye,center,up)
   ! function cross_c(v1,v2) result (vx)
 
-  ! sphere resolution
-  integer, parameter :: isphres = 3
+  ! object resolution
+  integer, parameter :: isphres = 3 ! sphere
+  integer, parameter :: icylres = 1 ! cylinder
 
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
@@ -98,7 +99,7 @@ contains
     class(scene), intent(inout), target :: s
 
     real(c_float) :: pic, hw2
-    real*8 :: xmin(3), xmax(3), x(3)
+    real*8 :: xmin(3), xmax(3), x(3), center(3)
     integer :: isys
     integer :: i, i1, i2, i3
 
@@ -132,8 +133,8 @@ contains
     s%scenerad = max(norm2(xmax-xmin),min_scenerad)
 
     ! calculate the scene center
-    s%scenecenter = (/0.5d0,0.5d0,0.5d0/)
-    s%scenecenter = sys(isys)%c%x2c(s%scenecenter)
+    center = (/0.5d0,0.5d0,0.5d0/)
+    center = sys(isys)%c%x2c(center)
 
     ! default transformation matrices
     pic = real(pi,c_float)
@@ -144,8 +145,8 @@ contains
 
     s%v_front = (/0._c_float,0._c_float,-1._c_float/)
     s%v_up = (/0._c_float,1._c_float,0._c_float/)
-    s%v_pos = 0._c_float
-    s%v_pos(3) = 1.1_c_float * s%scenerad * &
+    s%v_pos = real(center,c_float)
+    s%v_pos(3) = s%v_pos(3) + 1.1_c_float * s%scenerad * &
        sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
 
@@ -163,12 +164,26 @@ contains
     use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
-    use shapes, only: testVAO, sphVAO
+    use shapes, only: testVAO, sphVAO, cylVAO
     use param, only: jmlcol2, atmcov
     class(scene), intent(inout), target :: s
 
-    real(c_float), target :: vcolor(4), model(4,4), rgba(4), x0(3), rad
+    real(c_float), target :: vcolor(4), model(4,4), rgba(4), x0(3), x1(3), rad
     integer :: i, iz
+
+    real*8, parameter :: uc(3,2,12) = reshape((/&
+       0._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,0._c_float,&
+       0._c_float,0._c_float,0._c_float,  0._c_float,1._c_float,0._c_float,&
+       0._c_float,0._c_float,0._c_float,  0._c_float,0._c_float,1._c_float,&
+       1._c_float,1._c_float,1._c_float,  1._c_float,1._c_float,0._c_float,&
+       1._c_float,1._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
+       1._c_float,1._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
+       1._c_float,0._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
+       0._c_float,1._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
+       0._c_float,1._c_float,0._c_float,  0._c_float,1._c_float,1._c_float,&
+       0._c_float,0._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
+       0._c_float,0._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
+       1._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,1._c_float/),shape(uc))
 
     if (.not.s%isinit) return
     if (.not.sysc(s%id)%status == sys_init) return
@@ -192,11 +207,24 @@ contains
        iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(i)%is)%z
        rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
        rgba(4) = 1._c_float
-       x0 = real(sys(s%id)%c%atcel(i)%r - s%scenecenter,c_float)
+       x0 = real(sys(s%id)%c%atcel(i)%r,c_float)
        rad = 0.7_c_float * real(atmcov(iz),c_float)
        call s%draw_sphere(x0,rad,rgba)
     end do
     call glBindVertexArray(0)
+
+    ! draw the unit cell
+    if (s%showcell) then
+       call glBindVertexArray(cylVAO(icylres))
+       rad = 0.2_c_float
+       rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+       do i = 1, 12
+          x0 = real(sys(s%id)%c%x2c(uc(:,1,i)),c_float)
+          x1 = real(sys(s%id)%c%x2c(uc(:,2,i)),c_float)
+          call s%draw_cylinder(x0,x1,rad,rgba)
+       end do
+       call glBindVertexArray(0)
+    end if
 
   end subroutine scene_render
 
@@ -213,7 +241,7 @@ contains
 
     real(c_float) :: model(4,4)
 
-    ! initialize the model
+    ! the model matrix: scale and translate
     model = eye4
     model(1:3,4) = x0
     model(1,1) = rad
@@ -226,6 +254,63 @@ contains
     call glDrawElements(GL_TRIANGLES, int(3*sphnel(isphres),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_sphere
+
+  !> Draw a cylinder from x1 to x2 with radius rad and color
+  !> rgba. Requires having the cylinder VAO bound.
+  module subroutine draw_cylinder(s,x1,x2,rad,rgba)
+    use interfaces_opengl3
+    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shapes, only: cylnel
+    class(scene), intent(inout), target :: s
+    real(c_float), intent(in) :: x1(3)
+    real(c_float), intent(in) :: x2(3)
+    real(c_float), intent(in) :: rad
+    real(c_float), intent(in) :: rgba(4)
+
+    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
+    real(c_float) :: a, ca, sa, axis(3), temp(3)
+
+    xmid = 0.5_c_float * (x1 + x2)
+    xdif = x2 - x1
+    blen = norm2(xdif)
+    xdif = xdif / blen
+    up = (/0._c_float,0._c_float,1._c_float/)
+    crs = cross_c(up,xdif)
+
+    ! the model matrix
+    model = eye4
+    model(1:3,4) = xmid ! translate(m_model,xmid);
+    if (dot_product(crs,crs) > 1e-14_c_float) then
+       ! m_model = m_model * rotate(acos(dot(xdif,up)),crs);
+       a = acos(dot_product(xdif,up))
+       ca = cos(a)
+       sa = sin(a)
+       axis = crs / norm2(crs)
+       temp = (1._c_float - ca) * axis
+
+       model(1,1) = ca + temp(1) * axis(1)
+       model(2,1) = temp(1) * axis(2) + sa * axis(3)
+       model(3,1) = temp(1) * axis(3) - sa * axis(2)
+
+       model(1,2) = temp(2) * axis(1) - sa * axis(3)
+       model(2,2) = ca + temp(2) * axis(2)
+       model(3,2) = temp(2) * axis(3) + sa * axis(1)
+
+       model(1,3) = temp(3) * axis(1) + sa * axis(2)
+       model(2,3) = temp(3) * axis(2) - sa * axis(1)
+       model(3,3) = ca + temp(3) * axis(3)
+    end if
+    ! m_model = scale(m_model,glm::vec3(rad,rad,blen));
+    model(:,1) = model(:,1) * rad
+    model(:,2) = model(:,2) * rad
+    model(:,3) = model(:,3) * blen
+
+    ! draw the cylinder
+    call setuniform_vec4("vColor",rgba)
+    call setuniform_mat4("model",model)
+    call glDrawElements(GL_TRIANGLES, int(3*cylnel(icylres),c_int), GL_UNSIGNED_INT, c_null_ptr)
+
+  end subroutine draw_cylinder
 
   !xx! private procedures
 

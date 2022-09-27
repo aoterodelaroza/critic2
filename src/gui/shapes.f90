@@ -36,6 +36,18 @@ module shapes
   integer(c_int), parameter, public :: sphnel(nmaxsph) = (/20,80,320,1280/)
   integer(c_int), parameter, public :: sphneladd(0:nmaxsph) = (/0,20,100,420,1700/)
 
+  ! cylinder objects
+  integer, parameter, public :: nmaxcyl = 3
+  integer(c_int), target, public :: cylVAO(nmaxcyl) ! cylinder: vertex array object
+  integer(c_int), target, public :: cylVBO(nmaxcyl) ! cylinder: vertex buffer object
+  integer(c_int), target, public :: cylEBO(nmaxcyl) ! cylinder: element buffer object
+
+  ! cylinder dimensions
+  integer(c_int), parameter, public :: cylnve(nmaxcyl) = (/14,26,38/)
+  integer(c_int), parameter, public :: cylnveadd(0:nmaxcyl) = (/0,14,40,78/)
+  integer(c_int), parameter, public :: cylnel(nmaxcyl) = (/24,48,72/)
+  integer(c_int), parameter, public :: cylneladd(0:nmaxcyl) = (/0,24,72,144/)
+
   ! test objects
   integer(c_int), target, public :: testVAO ! test: vertex array object
   integer(c_int), target, public :: testVBO ! test: vertex buffer object
