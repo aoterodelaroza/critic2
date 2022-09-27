@@ -164,7 +164,7 @@ contains
     use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
-    use shapes, only: testVAO, sphVAO, cylVAO
+    use shapes, only: sphVAO, cylVAO
     use param, only: jmlcol2, atmcov
     class(scene), intent(inout), target :: s
 

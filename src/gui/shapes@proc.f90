@@ -28,9 +28,6 @@ submodule (shapes) proc
   real(c_float), allocatable, target :: cylv(:,:) ! vertices (1:3) and normals (4:6)
   integer(c_int), allocatable, target :: cyli(:,:) ! faces
 
-  ! test vertices
-  real(c_float), allocatable, target :: testv(:,:)
-
 contains
 
   !> Create and initialize the buffers for the basic shapes
@@ -272,27 +269,6 @@ contains
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-    ! test object
-    if (allocated(testv)) deallocate(testv)
-    allocate(testv(6,3))
-    testv(:,1) = (/ -half, -half, zero, half, half, half/)
-    testv(:,2) = (/  half, -half, zero, half, half, half/)
-    testv(:,3) = (/  zero,  half, zero, half, half, half/)
-
-    call glGenVertexArrays(1, c_loc(testVAO))
-    call glGenBuffers(1, c_loc(testVBO))
-    call glBindVertexArray(testVAO)
-    call glBindBuffer(GL_ARRAY_BUFFER, testVBO)
-    call glBufferData(GL_ARRAY_BUFFER, 18*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int), &
-       transfer(0_c_int * c_sizeof(c_float_),c_ptr_))
-    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-       transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
-
-    call glEnableVertexAttribArray(0)
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-
   contains
     subroutine ipack(i,j)
       use tools_io, only: string
@@ -311,11 +287,6 @@ contains
   !> Terminate the shapes buffers
   module subroutine shapes_end()
     use interfaces_opengl3
-
-    ! test object
-    call glDeleteVertexArrays(1, c_loc(testVAO))
-    call glDeleteBuffers(1, c_loc(testVBO))
-    if (allocated(testv)) deallocate(testv)
 
     ! spheres
     call glDeleteVertexArrays(nmaxsph, c_loc(sphVAO))

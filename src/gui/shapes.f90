@@ -48,10 +48,6 @@ module shapes
   integer(c_int), parameter, public :: cylnel(nmaxcyl) = (/24,48,72/)
   integer(c_int), parameter, public :: cylneladd(0:nmaxcyl) = (/0,24,72,144/)
 
-  ! test objects
-  integer(c_int), target, public :: testVAO ! test: vertex array object
-  integer(c_int), target, public :: testVBO ! test: vertex buffer object
-
   ! module procedure interfaces
   interface
      module subroutine shapes_init()
