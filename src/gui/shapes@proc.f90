@@ -39,10 +39,11 @@ contains
     use tools_math, only: cross
     use hashmod, only: hash
     use param, only: pi
-    real(c_float) :: tau, rad0, xico, zico, zero, half, one
-    real(c_float) :: cylr, pic, cylnorm, cylrn, halfn, halfn2
-    integer :: i, j, k(3), nk1, nk2, nk3, n, nface
-    integer :: nk1, nk2, nk3, maxsphnve
+    real(c_float) :: tau, rad0, xico, zico, zero, half, one, angle
+    real(c_float) :: cylr, pic, cylnorm, cylrn, halfn, halfn2, ca, sa
+    integer :: i, l, j, k(3), nk1, nk2, nk3, n, nface, npt
+    integer :: nk1, nk2, nk3
+    integer(c_int) :: shift1, shift2
     integer(c_int) :: c_int_
     real(c_float) :: c_float_
     type(c_ptr) :: c_ptr_
@@ -99,7 +100,6 @@ contains
     sphi(:,20) = (/ 7_c_int, 11_c_int,  2_c_int/)
 
     ! vertices and edges of the rest of the spheres
-    maxsphnve = maxval(sphnve)
     do i = 1, nmaxsph-1
        n = sphnve(i)
        nface = sphneladd(i)
@@ -193,101 +193,60 @@ contains
     halfn = 0.5_c_float / cylnorm
     halfn2 = 2 * halfn
 
-    ! vertices and normals
-    cylv(:,1 ) = (/ zero, zero,-half,    zero,    zero,   -one/)
-    cylv(:,2 ) = (/ cylr, half,-half,   cylrn,   halfn, -halfn/)
-    cylv(:,3 ) = (/ cylr,-half,-half,   cylrn,  -halfn, -halfn/)
-    cylv(:,4 ) = (/ zero, -one,-half,    zero, -halfn2, -halfn/)
-    cylv(:,5 ) = (/-cylr,-half,-half,  -cylrn,  -halfn, -halfn/)
-    cylv(:,6 ) = (/-cylr, half,-half,  -cylrn,   halfn, -halfn/)
-    cylv(:,7 ) = (/ zero,  one,-half,    zero,  halfn2, -halfn/)
-    cylv(:,8 ) = (/ zero, zero, half,    zero,    zero,    one/)
-    cylv(:,9 ) = (/ cylr, half, half,   cylrn,   halfn,  halfn/)
-    cylv(:,10) = (/ cylr,-half, half,   cylrn,  -halfn,  halfn/)
-    cylv(:,11) = (/ zero, -one, half,    zero, -halfn2,  halfn/)
-    cylv(:,12) = (/-cylr,-half, half,  -cylrn,  -halfn,  halfn/)
-    cylv(:,13) = (/-cylr, half, half,  -cylrn,   halfn,  halfn/)
-    cylv(:,14) = (/ zero,  one, half,    zero,  halfn2,  halfn/)
+    ! vertices and edges of the rest of the cylinders
+    do i = 1, nmaxcyl
+       n = cylnveadd(i-1)
+       npt = (cylnve(i)-2)/2
 
-    ! cylinder faces, counter-clock-wise
-    cyli(:,1 ) = (/0_c_int,  1_c_int,  2_c_int/)
-    cyli(:,2 ) = (/0_c_int,  2_c_int,  3_c_int/)
-    cyli(:,3 ) = (/0_c_int,  3_c_int,  4_c_int/)
-    cyli(:,4 ) = (/0_c_int,  4_c_int,  5_c_int/)
-    cyli(:,5 ) = (/0_c_int,  5_c_int,  6_c_int/)
-    cyli(:,6 ) = (/0_c_int,  6_c_int,  1_c_int/)
-    cyli(:,7 ) = (/7_c_int,  9_c_int,  8_c_int/)
-    cyli(:,8 ) = (/7_c_int, 10_c_int,  9_c_int/)
-    cyli(:,9 ) = (/7_c_int, 11_c_int, 10_c_int/)
-    cyli(:,10) = (/7_c_int, 12_c_int, 11_c_int/)
-    cyli(:,11) = (/7_c_int, 13_c_int, 12_c_int/)
-    cyli(:,12) = (/7_c_int,  8_c_int, 13_c_int/)
-    cyli(:,13) = (/1_c_int,  8_c_int,  2_c_int/)
-    cyli(:,14) = (/2_c_int,  8_c_int,  9_c_int/)
-    cyli(:,15) = (/2_c_int,  9_c_int,  3_c_int/)
-    cyli(:,16) = (/3_c_int,  9_c_int, 10_c_int/)
-    cyli(:,17) = (/3_c_int, 10_c_int,  4_c_int/)
-    cyli(:,18) = (/4_c_int, 10_c_int, 11_c_int/)
-    cyli(:,19) = (/4_c_int, 11_c_int,  5_c_int/)
-    cyli(:,20) = (/5_c_int, 11_c_int, 12_c_int/)
-    cyli(:,21) = (/5_c_int, 12_c_int,  6_c_int/)
-    cyli(:,22) = (/6_c_int, 12_c_int, 13_c_int/)
-    cyli(:,23) = (/6_c_int, 13_c_int,  1_c_int/)
-    cyli(:,24) = (/1_c_int, 13_c_int,  8_c_int/)
+       ! end caps
+       n = n + 1
+       cylv(1:2,n) = 0._c_float
+       cylv(3,n) = -0.5_c_float
+       cylv(4:5,n) = 0._c_float
+       cylv(6,n) = -1._c_float
+       n = n + 1
+       cylv(1:2,n) = 0._c_float
+       cylv(3,n) = 0.5_c_float
+       cylv(4:5,n) = 0._c_float
+       cylv(6,n) = 1._c_float
 
-    ! // create the vertices, normals, and faces
-    ! for (int ncyl = 0; ncyl < nmaxcyl; ncyl++){
-    !   int n = cylnveadd[ncyl]-1;
-    !   int npt = (cylnve[ncyl]-2)/2;
+       half = 0.5_c_float
+       do j = 1, 2
+          half = -half
+          do l = 1, npt
+             angle = real(l-1,c_float) / real(npt,c_float) * 2._c_float * pic
+             ca = cos(angle)
+             sa = sin(angle)
+             n = n + 1
+             cylv(1,n) = 0.5_c_float * ca
+             cylv(2,n) = 0.5_c_float * sa
+             cylv(3,n) = half
+             cylv(4,n) = ca
+             cylv(5,n) = sa
+             cylv(6,n) = 0._c_float
+          end do
+       end do
 
-    !   n++;
-    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = -0.5f;
-    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = -1.0f;
-    !   n++;
-    !   cylv[6*n+0] = cylv[6*n+1] = 0.f; cylv[6*n+2] = 0.5f;
-    !   cylv[6*n+3] = cylv[6*n+4] = 0.f; cylv[6*n+5] = 1.0f;
-
-
-    !   float half = 0.5f;
-    !   for (int j=0;j<2;j++){
-    !     half = -half;
-    !     for (int i=0;i<npt;i++){
-    !       float angle = ((float) i) / ((float) npt) * 2.f * PI;
-    !       float ca = cos(angle), sa = sin(angle);
-    !       n++;
-    !       cylv[6*n+0] = 0.5f * ca; cylv[6*n+1] = 0.5f * sa; cylv[6*n+2] = half;
-    !       cylv[6*n+3] = ca; cylv[6*n+4] = sa; cylv[6*n+5] = 0.f;
-    !     }
-    !   }
-
-    !   int nface = cylneladd[ncyl]-1;
-    !   int shift1 = 2;
-    !   int shift2 = 2+npt;
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = 0;
-    !     cyli[3*nface+1] = (i+1)%npt+shift1;
-    !     cyli[3*nface+2] = i+shift1;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = 1;
-    !     cyli[3*nface+1] = i+shift2;
-    !     cyli[3*nface+2] = (i+1)%npt+shift2;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = i+shift1;
-    !     cyli[3*nface+1] = (i+1)%npt+shift1;
-    !     cyli[3*nface+2] = (i+1)%npt+shift2;
-    !   }
-    !   for (int i=0; i<npt; i++){
-    !     nface++;
-    !     cyli[3*nface+0] = i+shift1;
-    !     cyli[3*nface+1] = (i+1)%npt+shift2;
-    !     cyli[3*nface+2] = i+shift2;
-    !   }
-    ! }
+       nface = cylneladd(i-1)
+       shift1 = 2
+       shift2 = 2+npt
+       do j = 1, npt
+          nface = nface + 1
+          cyli(:,nface) = (/0, mod(j,npt)+shift1, j+shift1-1/)
+       end do
+       do j = 1, npt
+          nface = nface + 1
+          cyli(:,nface) = (/1, j+shift2-1, mod(j,npt)+shift2/)
+       end do
+       do j = 1, npt
+          nface = nface + 1
+          cyli(:,nface) = (/j+shift1-1, mod(j,npt)+shift1, mod(j,npt)+shift2/)
+       end do
+       do j = 1, npt
+          nface = nface + 1
+          cyli(:,nface) = (/j+shift1-1, mod(j,npt)+shift2, j+shift2-1/)
+       end do
+    end do
 
     ! build the buffers for the spheres
     call glGenVertexArrays(nmaxcyl, c_loc(cylVAO))
@@ -325,7 +284,6 @@ contains
     call glBindVertexArray(testVAO)
     call glBindBuffer(GL_ARRAY_BUFFER, testVBO)
     call glBufferData(GL_ARRAY_BUFFER, 18*c_sizeof(c_float_), c_loc(testv), GL_STATIC_DRAW)
-    ! call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int), c_null_ptr)
     call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int), &
        transfer(0_c_int * c_sizeof(c_float_),c_ptr_))
     call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
@@ -365,6 +323,13 @@ contains
     call glDeleteBuffers(nmaxsph, c_loc(sphEBO))
     if (allocated(sphv)) deallocate(sphv)
     if (allocated(sphi)) deallocate(sphi)
+
+    ! cylinders
+    call glDeleteVertexArrays(nmaxcyl, c_loc(cylVAO))
+    call glDeleteBuffers(nmaxcyl, c_loc(cylVBO))
+    call glDeleteBuffers(nmaxcyl, c_loc(cylEBO))
+    if (allocated(cylv)) deallocate(cylv)
+    if (allocated(cyli)) deallocate(cyli)
 
   end subroutine shapes_end
 

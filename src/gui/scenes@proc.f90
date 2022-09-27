@@ -29,7 +29,7 @@ submodule (scenes) proc
 
   ! object resolution
   integer, parameter :: isphres = 3 ! sphere
-  integer, parameter :: icylres = 1 ! cylinder
+  integer, parameter :: icylres = 3 ! cylinder
 
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
