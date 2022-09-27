@@ -788,7 +788,7 @@ contains
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
     use interfaces_threads
-    use windows, only: nwin, win, iwin_tree
+    use windows, only: nwin, win, iwin_tree, iwin_view
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
@@ -839,6 +839,13 @@ contains
 
                 ! initialize the scene
                 call sysc(i)%sc%init(i)
+
+                ! force render, if this system is selected
+                if (iwin_view > 0 .and. iwin_view <= nwin) then
+                   if (win(iwin_view)%view_selected == i) then
+                      win(iwin_view)%forcerender = .true.
+                   end if
+                end if
              end if
 
              ! unlock
