@@ -1288,7 +1288,7 @@ contains
   module subroutine struct_compare(s,line)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use crystalseedmod, only: struct_detect_format, struct_detect_ismol
+    use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching
@@ -1312,10 +1312,11 @@ contains
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
     integer, allocatable :: singleatom(:)
-    logical :: ok
+    logical :: ok, noh
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
     logical, allocatable :: unique(:)
+    type(crystalseed) :: seed
 
     real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -1345,6 +1346,7 @@ contains
     epsreduce = -1d0
     imol = -1
     amd_norm = 0
+    noh = .false.
 
     ! read the input options
     do while(.true.)
@@ -1384,6 +1386,8 @@ contains
           imol = 1
        elseif (equal(lword,'crystal')) then
           imol = 0
+       elseif (equal(lword,'noh')) then
+          noh = .true.
        elseif (equal(lword,'norm')) then
           word = lgetword(line,lp)
           if (equal(word,'1')) then
@@ -1492,6 +1496,16 @@ contains
        end if
     else
        if (imethod /= imethod_rdf .and. imethod /= imethod_amd) imethod = imethod_powder
+    end if
+
+    ! strip the hydrogens
+    if (noh) then
+       write (uout,'("# Removing hydrogens from the structures.")')
+       do i = 1, ns
+          call c(i)%makeseed(seed,.true.)
+          call seed%strip_hydrogens()
+          call c(i)%struct_new(seed,.true.)
+       end do
     end if
 
     ! rest of the header and default variables
