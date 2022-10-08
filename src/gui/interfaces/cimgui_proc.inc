@@ -1018,8 +1018,19 @@ function igGetKeyName(key) bind(c,name="igGetKeyName")
   type(c_ptr) :: igGetKeyName
 end function igGetKeyName
 !x! void igSetNextFrameWantCaptureKeyboard(bool want_capture_keyboard);
-!x! bool igIsMouseDown(ImGuiMouseButton button);
-!x! bool igIsMouseClicked(ImGuiMouseButton button,bool repeat);
+! bool igIsMouseDown(ImGuiMouseButton button);
+function igIsMouseDown(button) bind(c,name="igIsMouseDown")
+  import c_int, c_bool
+  integer(c_int), value :: button
+  logical(c_bool) :: igIsMouseDown
+end function igIsMouseDown
+! bool igIsMouseClicked(ImGuiMouseButton button,bool repeat);
+function igIsMouseClicked(button,repeat) bind(c,name="igIsMouseClicked")
+  import c_int, c_bool
+  integer(c_int), value :: button
+  logical(c_bool), value :: repeat
+  logical(c_bool) :: igIsMouseClicked
+end function igIsMouseClicked
 !x! bool igIsMouseReleased(ImGuiMouseButton button);
 ! bool igIsMouseDoubleClicked(ImGuiMouseButton button);
 function igIsMouseDoubleClicked(button) bind(c,name="igIsMouseDoubleClicked")

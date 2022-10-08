@@ -151,9 +151,7 @@ contains
     s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
 
     s%znear = 0.1_c_float
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%v_pos(3)
-    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,1000._c_float)
-    ! s%projection = infiniteperspective(s%persp_fov * pic / 180._c_float,1._c_float,s%znear)
+    call s%update_projection_matrix()
 
   end subroutine scene_reset
 
@@ -227,6 +225,19 @@ contains
     end if
 
   end subroutine scene_render
+
+  !> Update the projection matrix from the v_pos
+  module subroutine update_projection_matrix(s)
+    use param, only: pi
+    class(scene), intent(inout), target :: s
+
+    real(c_float) :: pic, hw2
+
+    pic = real(pi,c_float)
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%v_pos(3)
+    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,1000._c_float)
+
+  end subroutine update_projection_matrix
 
   !> Draw a sphere with center x0, radius rad and color rgba. Requires
   !> having the sphere VAO bound.

@@ -24,6 +24,9 @@ module windows
 
   private
 
+  ! view mouse behavior parameters
+  integer, parameter :: MB_navigation = 1
+
   ! user data for the file open dialog
   type, bind(c) :: dialog_userdata
      type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
@@ -65,6 +68,7 @@ module windows
      integer(c_int) :: FBOside ! side of the render texture (pixels)
      integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
+     integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
@@ -92,6 +96,7 @@ module windows
      procedure :: draw_view ! draw a view
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
+     procedure :: process_events_view ! process the mouse events in the view
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -197,6 +202,13 @@ module windows
      module subroutine delete_texture_view(w)
        class(window), intent(inout), target :: w
      end subroutine delete_texture_view
+     module subroutine process_events_view(w,hover,rmin,rmax)
+       use interfaces_cimgui, only: ImVec2
+       class(window), intent(inout), target :: w
+       logical, intent(in) :: hover
+       type(ImVec2), intent(in) :: rmin
+       type(ImVec2), intent(in) :: rmax
+     end subroutine process_events_view
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog

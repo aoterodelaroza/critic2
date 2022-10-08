@@ -215,6 +215,7 @@ contains
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
+    w%view_mousebehavior = MB_navigation
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
@@ -1626,8 +1627,10 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical(c_bool) :: ldum, is_selected
+    logical :: hover
     integer(c_int) :: amax
     real(c_float) :: scal
+    type(ImVec2) :: rmin, rmax
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1716,6 +1719,12 @@ contains
     border_col%z = 0._c_float
     border_col%w = 0._c_float
     call igImage(w%FBOtex, szavail, sz0, sz1, tint_col, border_col)
+    hover = igIsItemHovered(ImGuiHoveredFlags_None)
+    call igGetItemRectMin(rmin)
+    call igGetItemRectMax(rmax)
+
+    ! Process mouse events
+    call w%process_events_view(hover,rmin,rmax)
 
   end subroutine draw_view
 
@@ -1770,6 +1779,204 @@ contains
     call glDeleteFramebuffers(1, c_loc(w%FBO))
 
   end subroutine delete_texture_view
+
+  !> Process the mouse events in the view window
+  module subroutine process_events_view(w,hover,rmin,rmax)
+    use interfaces_cimgui
+    use scenes, only: scene
+    use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
+       BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
+    use gui_main, only: io, nsys, sysc
+    class(window), intent(inout), target :: w
+    logical, intent(in) :: hover
+    type(ImVec2), intent(in) :: rmin
+    type(ImVec2), intent(in) :: rmax
+
+    type(ImVec2) :: pos, mousepos
+    real(c_float) :: dx, dy, xratio, yratio, ratio
+    type(scene), pointer :: sc
+
+    integer, parameter :: ilock_no = 1
+    integer, parameter :: ilock_left = 2
+    integer, parameter :: ilock_mid = 3
+    integer, parameter :: ilock_right = 4
+    integer, parameter :: ilock_scroll = 5
+    integer, parameter :: ilock_NUM = 5
+
+    real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
+    real(c_float), parameter :: min_zoom = 1._c_float
+    real(c_float), parameter :: max_zoom = 100._c_float
+
+    real(c_float) :: mpos0(ilock_NUM)
+    integer, save :: ilock = ilock_no
+
+    ! first pass when opened, reset the state
+    if (w%firstpass) call init_state()
+
+    ! only process if there is an associated system is viewed and scene is initialized
+    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    sc => sysc(w%view_selected)%sc
+    if (.not.sc%isinit) return
+
+    ! process global events
+    ! if (hover && IsBindEvent(BIND_VIEW_ALIGN_A_AXIS,false))
+    !   outb |= sc->alignViewAxis(1);
+    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_B_AXIS,false))
+    !   outb |= sc->alignViewAxis(2);
+    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_C_AXIS,false))
+    !   outb |= sc->alignViewAxis(3);
+    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_X_AXIS,false))
+    !   outb |= sc->alignViewAxis(-1);
+    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Y_AXIS,false))
+    !   outb |= sc->alignViewAxis(-2);
+    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Z_AXIS,false))
+    !   outb |= sc->alignViewAxis(-3);
+
+    ! process mode-specific events
+    if (w%view_mousebehavior == MB_Navigation) then
+       call igGetMousePos(mousepos)
+       pos = mousepos
+
+       ! transform to the texture pos
+       if (abs(pos%x) < 1e20 .and. abs(pos%y) < 1e20) then
+          ! mouse pos to normalized texture pos
+          dx = max(rmax%x - rmin%x,1._c_float)
+          dy = max(rmax%y - rmin%y,1._c_float)
+          xratio = 2._c_float * dx / max(dx,dy)
+          yratio = 2._c_float * dy / max(dx,dy)
+          pos%x = ((pos%x - rmin%x) / dx - 0.5_c_float) * xratio
+          pos%y = (0.5_c_float - (pos%y - rmin%y) / dy) * yratio
+
+          ! normalize texture pos to texture pos
+          pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
+          pos%y = (0.5_c_float * pos%y + 0.5_c_float) * w%FBOside
+       end if
+
+       ! Zoom. There are two behaviors: mouse scroll and hold key and
+       ! translate mouse
+       ratio = 0._c_float
+       if (hover.and.(ilock == ilock_no .or. ilock == ilock_scroll)) then
+          if (is_bind_event(BIND_NAV_ZOOM,.false.)) then
+             if (is_bind_mousescroll(BIND_NAV_ZOOM)) then
+                ! mouse scroll
+                ratio = mousesens_zoom0 * io%MouseWheel
+             else
+                ! keys
+                mpos0(ilock_scroll) = mousepos%y
+                ilock = ilock_scroll
+             end if
+          end if
+       elseif (ilock == ilock_scroll) then
+          if (is_bind_event(BIND_NAV_ZOOM,.true.)) then
+             ! 10/a to make it adimensional
+             ratio = mousesens_zoom0 * (mpos0(ilock_scroll)-mousepos%y) * (10._c_float / w%FBOside)
+             mpos0(ilock_scroll) = mousepos%y
+          else
+             ilock = ilock_no
+          end if
+       end if
+
+       ! apply the zoom with the obtained ratio
+       if (ratio /= 0._c_float) then
+          ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
+          sc%v_pos = sc%v_pos - ratio * sc%v_pos
+          if (norm2(sc%v_pos) < min_zoom) &
+             sc%v_pos = sc%v_pos / norm2(sc%v_pos) * min_zoom
+          if (norm2(sc%v_pos) > max_zoom * sc%scenerad) &
+             sc%v_pos = sc%v_pos / norm2(sc%v_pos) * (max_zoom * sc%scenerad)
+          call sc%update_projection_matrix()
+          w%forcerender = .true.
+       end if
+
+       ! // drag
+       ! if (hover && IsBindEvent(BIND_NAV_TRANSLATE,false) && !llock && !slock && sc){
+       !   // xxxx define this operation in scene.h //
+       !   float depth = texpos_viewdepth(texpos);
+       !   if (depth < 1.0){
+       !     mpos0_r = {texpos.x,texpos.y,depth};
+       !   }else{
+       !     mpos0_r = {texpos.x,texpos.y,0.f};
+       !     view_to_texpos({0.f,0.f,0.f},&mpos0_r.z);
+       !   }
+       !   cpos0_r = {sc->v_pos[0],sc->v_pos[1],0.f};
+       !   rlock = true;
+       !   mposlast = mousepos;
+       ! } else if (rlock) {
+       !   // xxxx define this operation in scene.h //
+       !   SetMouseCursor(ImGuiMouseCursor_Move);
+       !   if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
+       !     if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
+       !       glm::vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
+       !       glm::vec3 vold = texpos_to_view(glm::vec2(mpos0_r),mpos0_r.z);
+       !       if (sc){
+       !         sc->v_pos.x = cpos0_r.x - (vnew.x - vold.x);
+       !         sc->v_pos.y = cpos0_r.y - (vnew.y - vold.y);
+       !       }
+       !       mposlast = mousepos;
+       !       updateview = true;
+       !     }
+       !   } else {
+       !     rlock = false;
+       !   }
+       !   // updatenone = true; // only if we draw some guiding element
+       ! }
+
+       ! // rotate
+       ! if (hover && IsBindEvent(BIND_NAV_ROTATE,false) && !rlock && !slock){
+       !   mpos0_l = {texpos.x, texpos.y, 0.f};
+       !   view_to_texpos({0.f,0.f,0.f},&mpos0_l.z);
+       !   cpos0_l = texpos_to_view(texpos,mpos0_l.z);
+       !   llock = true;
+       ! } else if (llock) {
+       !   // xxxx define this operation in scene.h //
+       !   SetMouseCursor(ImGuiMouseCursor_Move);
+       !   if (IsBindEvent(BIND_NAV_ROTATE,true)){
+       !     if (texpos.x != mpos0_l.x || texpos.y != mpos0_l.y){
+       !       glm::vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
+       !       glm::vec3 axis = glm::cross(glm::vec3(0.f,0.f,1.f),cpos1-cpos0_l);
+       !       float lax = glm::length(axis);
+       !       if (lax > 1e-10f && sc){
+       !         axis = glm::inverse(glm::mat3(sc->m_world)) * glm::normalize(axis);
+       !         glm::vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
+       !         float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / arender;
+       !         sc->m_world = glm::rotate(sc->m_world,ang,axis);
+       !         updateworld = true;
+       !       }
+       !       mpos0_l = {texpos.x, texpos.y, 0.f};
+       !       cpos0_l = texpos_to_view(texpos,mpos0_l.z);
+       !     }
+       !   } else {
+       !     llock = false;
+       !   }
+       !   // updatenone = true; // only if we draw some guiding element
+       ! }
+
+       ! // double click
+       ! if (hover && IsBindEvent(BIND_NAV_RESET,false) && sc){
+       !   sc->resetView();
+       !   updateprojection = true;
+       !   updateview = true;
+       !   updateworld = true;
+       ! }
+
+       ! if (updateworld && sc)
+       !   sc->updateWorld();
+       ! if (updateview && sc)
+       !   sc->updateView();
+       ! if (updateprojection && sc)
+       !   sc->updateProjection();
+    end if
+
+  contains
+    ! initialize the state for this window
+    subroutine init_state()
+      ilock = ilock_no
+      mpos0 = 0._c_float
+    end subroutine init_state
+    subroutine end_state()
+    end subroutine end_state
+
+  end subroutine process_events_view
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)

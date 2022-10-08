@@ -17,9 +17,19 @@
 
 ! This module handles the key-bindings for the critic2 GUI.
 submodule (keybindings) proc
+  use interfaces_cimgui, only: ImGuiKey_COUNT
   use iso_c_binding
   use hashmod, only: hash
   implicit none
+
+  ! mouse keybindings
+  integer, parameter :: ImGuiKey_MouseLeft = ImGuiKey_COUNT + 1
+  integer, parameter :: ImGuiKey_MouseLeftDouble = ImGuiKey_COUNT + 2
+  integer, parameter :: ImGuiKey_MouseRight = ImGuiKey_COUNT + 3
+  integer, parameter :: ImGuiKey_MouseRightDouble = ImGuiKey_COUNT + 4
+  integer, parameter :: ImGuiKey_MouseMiddle = ImGuiKey_COUNT + 5
+  integer, parameter :: ImGuiKey_MouseMiddleDouble = ImGuiKey_COUNT + 6
+  integer, parameter :: ImGuiKey_MouseScroll = ImGuiKey_COUNT + 11
 
   ! Processing level for bind events. Right now 0 = all and 1 = none.
   ! Perhaps more will be added in the future.
@@ -33,8 +43,11 @@ submodule (keybindings) proc
      "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
      "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     "Run the commands               "/) ! BIND_INPCON_RUN
-  !   "Close last dialog",
+     "Run the commands               ",& ! BIND_INPCON_RUN
+     "Rotate the camera              ",& ! BIND_NAV_ROTATE
+     "Translate the camera           ",& ! BIND_NAV_TRANSLATE
+     "Camera zoom                    ",& ! BIND_NAV_ZOOM
+     "Reset the camera               "/) ! BIND_NAV_RESET
   !   "Close all dialogs",
   !   "Align view with a axis",
   !   "Align view with b axis",
@@ -42,16 +55,13 @@ submodule (keybindings) proc
   !   "Align view with x axis",
   !   "Align view with y axis",
   !   "Align view with z axis",
-  !   "Camera rotate",
-  !   "Camera pan",
-  !   "Camera zoom",
-  !   "Camera reset",
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
   integer, parameter :: group_tree = 2   ! if the tree is active
   integer, parameter :: group_inpcon = 3 ! the input console is active
   integer, parameter :: group_dialog = 4 ! a dialog is active
+  integer, parameter :: group_view = 5   ! if the view is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
@@ -59,8 +69,11 @@ submodule (keybindings) proc
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     group_inpcon/) ! BIND_INPCON_RUN
-  !   1, // close last dialog
+     group_inpcon,& ! BIND_INPCON_RUN
+     group_view,&   ! BIND_NAV_ROTATE
+     group_view,&   ! BIND_NAV_TRANSLATE
+     group_view,&   ! BIND_NAV_ZOOM
+     group_view/)   ! BIND_NAV_RESET
   !   1, // close all dialogs
   !   2, // align view with a axis
   !   2, // align view with b axis
@@ -68,10 +81,7 @@ submodule (keybindings) proc
   !   2, // align view with x axis
   !   2, // align view with y axis
   !   2, // align view with z axis
-  !   2, // rotate camera (navigation)
-  !   2, // pan camera (navigation)
-  !   2, // zoom camera (navigation)
-  !   2, // reset camera (navigation)
+
   integer, parameter :: ngroupbinds = 2
 
   ! The key associated with each bind, bind -> key
@@ -168,25 +178,25 @@ contains
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
+    call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,ImGuiKey_None)
+    call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,ImGuiKey_None)
+    call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,ImGuiKey_None)
+    call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,ImGuiKey_None)
+
     !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
-    !
     !   set_bind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
     !   set_bind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
     !   set_bind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
     !   set_bind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
     !   set_bind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
     !   set_bind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
-    !
-    !   // Default mouse bindings
-    !   set_bind(BIND_NAV_ROTATE,GLFW_MOUSE_LEFT,NOMOD);
-    !   set_bind(BIND_NAV_TRANSLATE,GLFW_MOUSE_RIGHT,NOMOD);
-    !   set_bind(BIND_NAV_ZOOM,GLFW_MOUSE_SCROLL,NOMOD);
-    !   set_bind(BIND_NAV_RESET,GLFW_MOUSE_LEFT_DOUBLE,NOMOD);
+
   end subroutine set_default_keybindings
 
   ! Return whether the bind event is happening. If held (optional),
   ! the event happens only if the button is held down (for mouse).
   module function is_bind_event(bind,held)
+    use gui_main, only: io
     use interfaces_cimgui
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
@@ -219,48 +229,26 @@ contains
        else
           is_bind_event = igIsKeyPressed(key,.true._c_bool)
        end if
-    else
-       ! mouse interaction
-       !   else{
-       !     if (key == GLFW_MOUSE_LEFT)
-       !       if (!held)
-       !       return IsMouseClicked(0);
-       !       else
-       !       return IsMouseDown(0);
-       !     else if (key == GLFW_MOUSE_RIGHT)
-       !       if (!held)
-       !       return IsMouseClicked(1);
-       !       else
-       !       return IsMouseDown(1);
-       !     else if (key == GLFW_MOUSE_MIDDLE)
-       !       if (!held)
-       !       return IsMouseClicked(2);
-       !       else
-       !       return IsMouseDown(2);
-       !     else if (key == GLFW_MOUSE_BUTTON3)
-       !       if (!held)
-       !       return IsMouseClicked(3);
-       !       else
-       !       return IsMouseDown(3);
-       !     else if (key == GLFW_MOUSE_BUTTON4)
-       !       if (!held)
-       !       return IsMouseClicked(4);
-       !       else
-       !       return IsMouseDown(4);
-       !     else if (key == GLFW_MOUSE_LEFT_DOUBLE && !held)
-       !       return IsMouseDoubleClicked(0);
-       !     else if (key == GLFW_MOUSE_RIGHT_DOUBLE && !held)
-       !       return IsMouseDoubleClicked(1);
-       !     else if (key == GLFW_MOUSE_MIDDLE_DOUBLE && !held)
-       !       return IsMouseDoubleClicked(2);
-       !     else if (key == GLFW_MOUSE_BUTTON3_DOUBLE && !held)
-       !       return IsMouseDoubleClicked(3);
-       !     else if (key == GLFW_MOUSE_BUTTON4_DOUBLE && !held)
-       !       return IsMouseDoubleClicked(4);
-       !     else if (key == GLFW_MOUSE_SCROLL)
-       !       return abs(GetCurrentContext()->IO.MouseWheel) > 1e-8;
-       !     return false;
-       !   }
+    elseif (key == ImGuiKey_MouseLeft .and. held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)
+    elseif (key == ImGuiKey_MouseLeft .and. .not.held_) then
+       is_bind_event = igIsMouseDown(ImGuiMouseButton_Left)
+    elseif (key == ImGuiKey_MouseRight .and. held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)
+    elseif (key == ImGuiKey_MouseRight .and. .not.held_) then
+       is_bind_event = igIsMouseDown(ImGuiMouseButton_Right)
+    elseif (key == ImGuiKey_MouseMiddle .and. held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)
+    elseif (key == ImGuiKey_MouseMiddle .and. .not.held_) then
+       is_bind_event = igIsMouseDown(ImGuiMouseButton_Middle)
+    elseif (key == ImGuiKey_MouseLeftDouble .and. .not.held_) then
+       is_bind_event = igIsMouseDoubleClicked(ImGuiMouseButton_Left)
+    elseif (key == ImGuiKey_MouseRightDouble .and. .not.held_) then
+       is_bind_event = igIsMouseDoubleClicked(ImGuiMouseButton_Right)
+    elseif (key == ImGuiKey_MouseMiddleDouble .and. .not.held_) then
+       is_bind_event = igIsMouseDoubleClicked(ImGuiMouseButton_Middle)
+    elseif (key == ImGuiKey_MouseScroll) then
+       is_bind_event = (abs(io%MouseWheel) > 1e-8_c_float)
     end if
 
   end function is_bind_event
@@ -300,6 +288,15 @@ contains
     end if
 
   end function get_bind_keyname
+
+  ! Returns true if the bind corresponds to a mouse scroll
+  module function is_bind_mousescroll(bind)
+    integer, intent(in) :: bind
+    logical :: is_bind_mousescroll
+
+    is_bind_mousescroll = (keybind(bind) == ImGuiKey_MouseScroll)
+
+  end function is_bind_mousescroll
 
   !xx! private procedures
 
