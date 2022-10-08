@@ -253,6 +253,15 @@ subroutine glLinkProgram(prog) bind(c,name="glLinkProgram")
   import c_int
   integer(c_int), value :: prog
 end subroutine glLinkProgram
+! void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid * data);
+subroutine glReadPixels(x,y,width,height,form,type,data) bind(c,name="glReadPixels")
+  import c_int, c_ptr
+  integer(c_int), value :: x, y
+  integer(c_int), value :: width, height
+  integer(c_int), value :: form
+  integer(c_int), value :: type
+  type(c_ptr), intent(in), value :: data
+end subroutine glReadPixels
 ! void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
 subroutine glRenderbufferStorage(target_,internalformat,width,height) bind(c,name="glRenderbufferStorage")
   import c_int

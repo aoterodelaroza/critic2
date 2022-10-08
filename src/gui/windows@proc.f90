@@ -1630,7 +1630,6 @@ contains
     logical :: hover
     integer(c_int) :: amax
     real(c_float) :: scal
-    type(ImVec2) :: rmin, rmax
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1709,7 +1708,7 @@ contains
     sz1%x = 1._c_float - sz0%x
     sz1%y = 1._c_float - sz0%y
 
-    ! border and tint for the image, draw the image
+    ! border and tint for the image, draw the image, update the rectangle
     tint_col%x = 1._c_float
     tint_col%y = 1._c_float
     tint_col%z = 1._c_float
@@ -1720,11 +1719,11 @@ contains
     border_col%w = 0._c_float
     call igImage(w%FBOtex, szavail, sz0, sz1, tint_col, border_col)
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
-    call igGetItemRectMin(rmin)
-    call igGetItemRectMax(rmax)
+    call igGetItemRectMin(w%v_rmin)
+    call igGetItemRectMax(w%v_rmax)
 
     ! Process mouse events
-    call w%process_events_view(hover,rmin,rmax)
+    call w%process_events_view(hover)
 
   end subroutine draw_view
 
@@ -1750,8 +1749,7 @@ contains
 
     ! render buffer
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, &
-       atex, atex)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
     ! frame buffer
@@ -1781,7 +1779,7 @@ contains
   end subroutine delete_texture_view
 
   !> Process the mouse events in the view window
-  module subroutine process_events_view(w,hover,rmin,rmax)
+  module subroutine process_events_view(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
@@ -1789,11 +1787,9 @@ contains
     use gui_main, only: io, nsys, sysc
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
-    type(ImVec2), intent(in) :: rmin
-    type(ImVec2), intent(in) :: rmax
 
-    type(ImVec2) :: pos, mousepos
-    real(c_float) :: dx, dy, xratio, yratio, ratio
+    type(ImVec2) :: texpos, mousepos
+    real(c_float) :: ratio, depth
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -1807,7 +1803,8 @@ contains
     real(c_float), parameter :: min_zoom = 1._c_float
     real(c_float), parameter :: max_zoom = 100._c_float
 
-    real(c_float) :: mpos0(ilock_NUM)
+    real(c_float), save :: mpos0_r(3)
+    real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
     ! first pass when opened, reset the state
@@ -1835,42 +1832,31 @@ contains
     ! process mode-specific events
     if (w%view_mousebehavior == MB_Navigation) then
        call igGetMousePos(mousepos)
-       pos = mousepos
+       texpos = mousepos
 
        ! transform to the texture pos
-       if (abs(pos%x) < 1e20 .and. abs(pos%y) < 1e20) then
-          ! mouse pos to normalized texture pos
-          dx = max(rmax%x - rmin%x,1._c_float)
-          dy = max(rmax%y - rmin%y,1._c_float)
-          xratio = 2._c_float * dx / max(dx,dy)
-          yratio = 2._c_float * dy / max(dx,dy)
-          pos%x = ((pos%x - rmin%x) / dx - 0.5_c_float) * xratio
-          pos%y = (0.5_c_float - (pos%y - rmin%y) / dy) * yratio
-
-          ! normalize texture pos to texture pos
-          pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
-          pos%y = (0.5_c_float * pos%y + 0.5_c_float) * w%FBOside
+       if (abs(texpos%x) < 1e20 .and. abs(texpos%y) < 1e20) then
+          call w%mousepos_to_ntexpos(texpos)
+          call w%ntexpos_to_texpos(texpos)
        end if
 
        ! Zoom. There are two behaviors: mouse scroll and hold key and
        ! translate mouse
        ratio = 0._c_float
-       if (hover.and.(ilock == ilock_no .or. ilock == ilock_scroll)) then
-          if (is_bind_event(BIND_NAV_ZOOM,.false.)) then
-             if (is_bind_mousescroll(BIND_NAV_ZOOM)) then
-                ! mouse scroll
-                ratio = mousesens_zoom0 * io%MouseWheel
-             else
-                ! keys
-                mpos0(ilock_scroll) = mousepos%y
-                ilock = ilock_scroll
-             end if
+       if (hover.and.(ilock == ilock_no .or. ilock == ilock_scroll).and. is_bind_event(BIND_NAV_ZOOM,.false.)) then
+          if (is_bind_mousescroll(BIND_NAV_ZOOM)) then
+             ! mouse scroll
+             ratio = mousesens_zoom0 * io%MouseWheel
+          else
+             ! keys
+             mpos0_s = mousepos%y
+             ilock = ilock_scroll
           end if
        elseif (ilock == ilock_scroll) then
           if (is_bind_event(BIND_NAV_ZOOM,.true.)) then
              ! 10/a to make it adimensional
-             ratio = mousesens_zoom0 * (mpos0(ilock_scroll)-mousepos%y) * (10._c_float / w%FBOside)
-             mpos0(ilock_scroll) = mousepos%y
+             ratio = mousesens_zoom0 * (mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
+             mpos0_s = mousepos%y
           else
              ilock = ilock_no
           end if
@@ -1888,21 +1874,19 @@ contains
           w%forcerender = .true.
        end if
 
-       ! // drag
-       ! if (hover && IsBindEvent(BIND_NAV_TRANSLATE,false) && !llock && !slock && sc){
-       !   // xxxx define this operation in scene.h //
-       !   float depth = texpos_viewdepth(texpos);
-       !   if (depth < 1.0){
-       !     mpos0_r = {texpos.x,texpos.y,depth};
-       !   }else{
-       !     mpos0_r = {texpos.x,texpos.y,0.f};
+       ! drag
+       if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_right)) then
+          depth = w%texpos_viewdepth(texpos)
+          if (depth < 1._c_float) then
+             mpos0_r = (/texpos%x,texpos%y,depth/)
+          else
+             mpos0_r = (/texpos%x,texpos%y,0._c_float/)
        !     view_to_texpos({0.f,0.f,0.f},&mpos0_r.z);
-       !   }
+          end if
        !   cpos0_r = {sc->v_pos[0],sc->v_pos[1],0.f};
        !   rlock = true;
        !   mposlast = mousepos;
-       ! } else if (rlock) {
-       !   // xxxx define this operation in scene.h //
+       elseif (ilock == ilock_right) then
        !   SetMouseCursor(ImGuiMouseCursor_Move);
        !   if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
        !     if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
@@ -1918,8 +1902,7 @@ contains
        !   } else {
        !     rlock = false;
        !   }
-       !   // updatenone = true; // only if we draw some guiding element
-       ! }
+       end if
 
        ! // rotate
        ! if (hover && IsBindEvent(BIND_NAV_ROTATE,false) && !rlock && !slock){
@@ -1971,12 +1954,83 @@ contains
     ! initialize the state for this window
     subroutine init_state()
       ilock = ilock_no
-      mpos0 = 0._c_float
+      mpos0_s = 0._c_float
+      mpos0_r = 0._c_float
     end subroutine init_state
     subroutine end_state()
     end subroutine end_state
 
   end subroutine process_events_view
+
+  !> Mouse position to normalized texture position
+  module subroutine mousepos_to_ntexpos(w,pos)
+    class(window), intent(inout), target :: w
+    type(ImVec2), intent(inout) :: pos
+
+    real(c_float) :: dx, dy, xratio, yratio
+
+    dx = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
+    dy = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
+    xratio = 2._c_float * dx / max(dx,dy)
+    yratio = 2._c_float * dy / max(dx,dy)
+    pos%x = ((pos%x - w%v_rmin%x) / dx - 0.5_c_float) * xratio
+    pos%y = (0.5_c_float - (pos%y - w%v_rmin%y) / dy) * yratio
+
+  end subroutine mousepos_to_ntexpos
+
+  !> Normalized texture position to mouse position
+  module subroutine ntexpos_to_mousepos(w,pos)
+    class(window), intent(inout), target :: w
+    type(ImVec2), intent(inout) :: pos
+
+    real(c_float) :: x, y, xratio1, yratio1
+
+    x = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
+    y = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
+    xratio1 = 0.5_c_float * max(x,y) / x
+    yratio1 = 0.5_c_float * max(x,y) / y
+
+    pos%x = w%v_rmin%x + x * (0.5_c_float + xratio1 * pos%x)
+    pos%y = w%v_rmin%y + y * (0.5_c_float + yratio1 * pos%y)
+
+  end subroutine ntexpos_to_mousepos
+
+  !> Texture position to normalized texture position
+  module subroutine texpos_to_ntexpos(w,pos)
+    class(window), intent(inout), target :: w
+    type(ImVec2), intent(inout) :: pos
+
+    pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
+    pos%y = (pos%y / w%FBOside) * 2._c_float - 1._c_float
+
+  end subroutine texpos_to_ntexpos
+
+  !> Normalized texture position to texture position
+  module subroutine ntexpos_to_texpos(w,pos)
+    class(window), intent(inout), target :: w
+    type(ImVec2), intent(inout) :: pos
+
+    pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
+    pos%y = (0.5_c_float * pos%y + 0.5_c_float) * w%FBOside
+
+  end subroutine ntexpos_to_texpos
+
+  !> Get the view depth from the texture position
+  module function texpos_viewdepth(w,pos)
+    use interfaces_opengl3
+    class(window), intent(inout), target :: w
+    type(ImVec2), intent(inout) :: pos
+    real(c_float) :: texpos_viewdepth
+
+    real(c_float), target :: depth
+
+    ! pixels have the origin (0,0) at top left; the other end is bottom right, (FBOside-1,FBOside-1)
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+    call glReadPixels(int(pos%x), int(w%FBOside - pos%y), 1_c_int, 1_c_int, GL_DEPTH_COMPONENT, GL_FLOAT, c_loc(depth))
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    texpos_viewdepth = depth
+
+  end function texpos_viewdepth
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
