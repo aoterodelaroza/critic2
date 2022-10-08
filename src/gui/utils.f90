@@ -22,6 +22,7 @@ module utils
 
   private
 
+  !xx! proc submodule !xx!
   public :: iw_setposx_fromend
   public :: iw_calcheight
   public :: iw_calcwidth
@@ -33,9 +34,16 @@ module utils
   public :: igIsItemHovered_delayed
   public :: get_time_string
   public :: buffer_to_string_array
+  !xx! math submodule !xx!
+  public :: infiniteperspective
+  public :: ortho
+  public :: lookat
+  public :: cross_c
+  public :: project
 
   ! module procedure interfaces
   interface
+     !xx! proc submodule !xx!
      module subroutine iw_setposx_fromend(ntext,nbutton)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
@@ -107,6 +115,38 @@ module utils
        character*(*), intent(in), optional :: prefix
        character*(*), intent(in), optional :: suffix
      end subroutine buffer_to_string_array
+     !xx! math submodule !xx!
+     module function infiniteperspective(fovy,aspect,znear)
+       use iso_c_binding, only: c_float
+       real(c_float), intent(in) :: fovy, aspect, znear
+       real(c_float) :: infiniteperspective(4,4)
+     end function infiniteperspective
+     module function ortho(left,right,bottom,top,znear,zfar)
+       use iso_c_binding, only: c_float
+       real(c_float), intent(in) :: left, right, bottom, top, znear, zfar
+       real(c_float) :: ortho(4,4)
+     end function ortho
+     module function lookat(eye,center,up)
+       use iso_c_binding, only: c_float
+       real(c_float) :: eye(3)
+       real(c_float) :: center(3)
+       real(c_float) :: up(3)
+       real(c_float) :: lookat(4,4)
+     end function lookat
+     module function cross_c(v1,v2)
+       use iso_c_binding, only: c_float
+       real(c_float), intent(in) :: v1(3) !< First vector
+       real(c_float), intent(in) :: v2(3) !< Second vector
+       real(c_float) :: cross_c(3)
+     end function cross_c
+     module function project(pos,mview,proj,viewport_a)
+       use iso_c_binding, only: c_float, c_int
+       real(c_float), intent(in) :: pos(3)
+       real(c_float), intent(in) :: mview(4,4)
+       real(c_float), intent(in) :: proj(4,4)
+       integer(c_int), intent(in) :: viewport_a
+       real(c_float) :: project(3)
+     end function project
   end interface
 
 end module utils

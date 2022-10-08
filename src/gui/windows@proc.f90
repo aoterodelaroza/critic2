@@ -1789,7 +1789,7 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos
-    real(c_float) :: ratio, depth
+    real(c_float) :: ratio, depth, pos3(3)
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -1881,7 +1881,10 @@ contains
              mpos0_r = (/texpos%x,texpos%y,depth/)
           else
              mpos0_r = (/texpos%x,texpos%y,0._c_float/)
-       !     view_to_texpos({0.f,0.f,0.f},&mpos0_r.z);
+             pos3 = 0._c_float
+             call w%view_to_texpos(pos3)
+             mpos0_r(3) = pos3(3)
+             write (*,*) mpos0_r(3)
           end if
        !   cpos0_r = {sc->v_pos[0],sc->v_pos[1],0.f};
        !   rlock = true;
@@ -1911,7 +1914,6 @@ contains
        !   cpos0_l = texpos_to_view(texpos,mpos0_l.z);
        !   llock = true;
        ! } else if (llock) {
-       !   // xxxx define this operation in scene.h //
        !   SetMouseCursor(ImGuiMouseCursor_Move);
        !   if (IsBindEvent(BIND_NAV_ROTATE,true)){
        !     if (texpos.x != mpos0_l.x || texpos.y != mpos0_l.y){
@@ -2031,6 +2033,24 @@ contains
     texpos_viewdepth = depth
 
   end function texpos_viewdepth
+
+  !> Transform from view coordinates to texture position (x,y)
+  !> plus depth (z).
+  module subroutine view_to_texpos(w,pos)
+    use utils, only: project
+    use scenes, only: scene
+    use gui_main, only: sysc, nsys
+    class(window), intent(inout), target :: w
+    real(c_float), intent(inout) :: pos(3)
+
+    type(scene), pointer :: sc
+
+    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    sc => sysc(w%view_selected)%sc
+    if (.not.sc%isinit) return
+    pos = project(pos,sc%view,sc%projection,w%FBOside)
+
+  end subroutine view_to_texpos
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)

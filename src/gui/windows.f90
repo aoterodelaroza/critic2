@@ -103,7 +103,8 @@ module windows
      procedure :: ntexpos_to_mousepos ! normalized texture position to mouse position
      procedure :: texpos_to_ntexpos ! texture position to normalized texture position
      procedure :: ntexpos_to_texpos ! normalized texture position to texture position
-     procedure :: texpos_viewdepth ! get depth from texture positon
+     procedure :: texpos_viewdepth ! get depth from texture position
+     procedure :: view_to_texpos ! view coordinates to texture position
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -234,6 +235,10 @@ module windows
        type(ImVec2), intent(inout) :: pos
        real(c_float) :: texpos_viewdepth
      end function texpos_viewdepth
+     module subroutine view_to_texpos(w,pos)
+       class(window), intent(inout), target :: w
+       real(c_float), intent(inout) :: pos(3)
+     end subroutine view_to_texpos
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog

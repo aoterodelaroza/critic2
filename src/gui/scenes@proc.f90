@@ -21,12 +21,6 @@ submodule (scenes) proc
 
   real*8 :: min_scenerad = 10.d0
 
-  !xx! private procedures
-  ! function infiniteperspective(fovy,aspect,znear)
-  ! function ortho(left,right,bottom,top,znear,zfar)
-  ! function lookat(eye,center,up)
-  ! function cross_c(v1,v2) result (vx)
-
   ! object resolution
   integer, parameter :: isphres = 3 ! sphere
   integer, parameter :: icylres = 3 ! cylinder
@@ -94,6 +88,7 @@ contains
   !> scenecenter, ortho_fov, persp_fov, v_front, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
+    use utils, only: lookat
     use gui_main, only: sys
     use param, only: pi
     class(scene), intent(inout), target :: s
@@ -228,6 +223,7 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
+    use utils, only: ortho
     use param, only: pi
     class(scene), intent(inout), target :: s
 
@@ -270,6 +266,7 @@ contains
   !> rgba. Requires having the cylinder VAO bound.
   module subroutine draw_cylinder(s,x1,x2,rad,rgba)
     use interfaces_opengl3
+    use utils, only: cross_c
     use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: cylnel
     class(scene), intent(inout), target :: s
@@ -322,83 +319,5 @@ contains
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(icylres),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_cylinder
-
-  !xx! private procedures
-
-  !> Return the projection matrix for an infinite perspective with
-  !> field of view fovy, aspect ratio aspect, and near plane znear
-  function infiniteperspective(fovy,aspect,znear) result(x)
-    real(c_float), intent(in) :: fovy, aspect, znear
-    real(c_float) :: x(4,4)
-
-    real(c_float) :: range, left, right, bottom, top
-
-    range = tan(fovy / 2._c_float) * znear
-    left = -range * aspect
-    right = range * aspect
-    bottom = -range
-    top = range
-
-    x = 0._c_float
-    x(1,1) = (2._c_float * znear) / (right - left)
-    x(2,2) = (2._c_float * znear) / (top - bottom)
-    x(3,3) = -1._c_float
-    x(4,3) = -1._c_float
-    x(3,4) = -2._c_float * znear
-
-  end function infiniteperspective
-
-  !> Return the projection matrix for an orthographic perspective with
-  !> fustrum limits left, right, bottom, top and clipping planes znear
-  !> and zfar.
-  function ortho(left,right,bottom,top,znear,zfar) result(x)
-    real(c_float), intent(in) :: left, right, bottom, top, znear, zfar
-    real(c_float) :: x(4,4)
-
-    x = 0._c_float
-    x(1,1) = 2._c_float / (right - left)
-    x(2,2) = 2._c_float / (top - bottom)
-    x(3,3) = -2._c_float / (zfar - znear)
-    x(1,4) = - (right + left) / (right - left)
-    x(2,4) = - (top + bottom) / (top - bottom)
-    x(3,4) = - (zfar + znear) / (zfar - znear)
-    x(4,4) = 1._c_float
-
-  end function ortho
-
-  !> Camera (view) transformation matrix for a camera at position eye
-  !> pointing in the directon towards center and with the given up vector.
-  function lookat(eye,center,up)
-    real(c_float) :: eye(3)
-    real(c_float) :: center(3)
-    real(c_float) :: up(3)
-    real(c_float) :: lookat(4,4)
-
-    real(c_float) :: f(3), s(3), u(3)
-
-    f = center - eye
-    f = f / norm2(f)
-    s = cross_c(f,up)
-    s = s / norm2(s)
-    u = cross_c(s,f)
-    u = u / norm2(u)
-    lookat(:,1) = (/ s(1), u(1), -f(1), 0._c_float/)
-    lookat(:,2) = (/ s(2), u(2), -f(2), 0._c_float/)
-    lookat(:,3) = (/ s(3), u(3), -f(3), 0._c_float/)
-    lookat(:,4) = (/-dot_product(s,eye),-dot_product(u,eye),dot_product(f,eye),1._c_float/)
-
-  end function lookat
-
-  !> Cross product of two 3-vectors
-  function cross_c(v1,v2) result (vx)
-    real(c_float), intent(in) :: v1(3) !< First vector
-    real(c_float), intent(in) :: v2(3) !< Second vector
-    real(c_float) :: vx(3)
-
-    vx(1) = + v1(2)*v2(3) - v1(3)*v2(2)
-    vx(2) = - v1(1)*v2(3) + v1(3)*v2(1)
-    vx(3) = + v1(1)*v2(2) - v1(2)*v2(1)
-
-  end function cross_c
 
 end submodule proc
