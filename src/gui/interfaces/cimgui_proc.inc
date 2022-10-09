@@ -1059,7 +1059,11 @@ end subroutine igGetMousePos
 !x! void igGetMouseDragDelta(ImVec2 *pOut,ImGuiMouseButton button,float lock_threshold);
 !x! void igResetMouseDragDelta(ImGuiMouseButton button);
 !x! ImGuiMouseCursor igGetMouseCursor(void);
-!x! void igSetMouseCursor(ImGuiMouseCursor cursor_type);
+! void igSetMouseCursor(ImGuiMouseCursor cursor_type);
+subroutine igSetMouseCursor(cursor_type) bind(c,name="igSetMouseCursor")
+  import c_int
+  integer(c_int), value :: cursor_type
+end subroutine igSetMouseCursor
 !x! void igSetNextFrameWantCaptureMouse(bool want_capture_mouse);
 !x! const char* igGetClipboardText(void);
 ! void igSetClipboardText(const char* text);

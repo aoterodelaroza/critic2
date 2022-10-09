@@ -81,6 +81,15 @@ submodule (windows) proc
   ! initial side for the view texture
   integer(c_int), parameter :: initial_texture_side = 1024_c_int
 
+  ! 4-identity matrix (c-float)
+  real(c_float), parameter :: zero = 0._c_float
+  real(c_float), parameter :: one = 1._c_float
+  real(c_float), parameter :: eye4(4,4) = reshape((/&
+     one,zero,zero,zero,&
+     zero,one,zero,zero,&
+     zero,zero,one,zero,&
+     zero,zero,zero,one/),shape(eye4))
+
   !xx! private procedures
   ! function tree_system_tooltip_string(i)
   ! function tree_field_tooltip_string(si,fj)
@@ -1789,7 +1798,7 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos
-    real(c_float) :: ratio, depth, pos3(3)
+    real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3)
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -1803,7 +1812,8 @@ contains
     real(c_float), parameter :: min_zoom = 1._c_float
     real(c_float), parameter :: max_zoom = 100._c_float
 
-    real(c_float), save :: mpos0_r(3)
+    type(ImVec2), save :: mposlast
+    real(c_float), save :: mpos0_r(3), cpos0_r(3)
     real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
@@ -1865,11 +1875,14 @@ contains
        ! apply the zoom with the obtained ratio
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
+
           sc%v_pos = sc%v_pos - ratio * sc%v_pos
           if (norm2(sc%v_pos) < min_zoom) &
              sc%v_pos = sc%v_pos / norm2(sc%v_pos) * min_zoom
           if (norm2(sc%v_pos) > max_zoom * sc%scenerad) &
              sc%v_pos = sc%v_pos / norm2(sc%v_pos) * (max_zoom * sc%scenerad)
+
+          call sc%update_view_matrix()
           call sc%update_projection_matrix()
           w%forcerender = .true.
        end if
@@ -1881,31 +1894,33 @@ contains
              mpos0_r = (/texpos%x,texpos%y,depth/)
           else
              mpos0_r = (/texpos%x,texpos%y,0._c_float/)
-             pos3 = real(sc%scenecenter,c_float)
+             pos3 = 0._c_float
              call w%view_to_texpos(pos3)
              mpos0_r(3) = pos3(3)
-             write (*,*) mpos0_r(3) ! xxxx
-             stop 1
           end if
-       !   cpos0_r = {sc->v_pos[0],sc->v_pos[1],0.f};
-       !   rlock = true;
-       !   mposlast = mousepos;
+          cpos0_r = (/sc%v_pos(1),sc%v_pos(2),zero/)
+          ilock = ilock_right
+          mposlast = mousepos
        elseif (ilock == ilock_right) then
-       !   SetMouseCursor(ImGuiMouseCursor_Move);
-       !   if (IsBindEvent(BIND_NAV_TRANSLATE,true)){
-       !     if (mousepos.x != mposlast.x || mousepos.y != mposlast.y){
-       !       glm::vec3 vnew = texpos_to_view(texpos,mpos0_r.z);
-       !       glm::vec3 vold = texpos_to_view(glm::vec2(mpos0_r),mpos0_r.z);
-       !       if (sc){
-       !         sc->v_pos.x = cpos0_r.x - (vnew.x - vold.x);
-       !         sc->v_pos.y = cpos0_r.y - (vnew.y - vold.y);
-       !       }
-       !       mposlast = mousepos;
-       !       updateview = true;
-       !     }
-       !   } else {
-       !     rlock = false;
-       !   }
+          call igSetMouseCursor(ImGuiMouseCursor_Hand)
+          if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
+             if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
+                vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
+                call w%texpos_to_view(vnew)
+                vold = mpos0_r
+                call w%texpos_to_view(vold)
+
+                sc%v_pos(1) = cpos0_r(1) - (vnew(1) - vold(1))
+                sc%v_pos(2) = cpos0_r(2) + (vnew(2) - vold(2))
+                call sc%update_view_matrix()
+                call sc%update_projection_matrix()
+
+                mposlast = mousepos
+                w%forcerender = .true.
+             end if
+          else
+             ilock = ilock_no
+          end if
        end if
 
        ! // rotate
@@ -1959,6 +1974,8 @@ contains
       ilock = ilock_no
       mpos0_s = 0._c_float
       mpos0_r = 0._c_float
+      mposlast%x = 0._c_float
+      mposlast%y = 0._c_float
     end subroutine init_state
     subroutine end_state()
     end subroutine end_state
@@ -2050,9 +2067,66 @@ contains
     sc => sysc(w%view_selected)%sc
     if (.not.sc%isinit) return
 
-    pos = project(pos,sc%view,sc%projection,w%FBOside)
+    pos = project(pos,eye4,sc%projection,w%FBOside)
 
   end subroutine view_to_texpos
+
+  !> Transform texture position (x,y) plus depth (z) to view
+  !> coordinates.
+  module subroutine texpos_to_view(w,pos)
+    use utils, only: unproject
+    use scenes, only: scene
+    use gui_main, only: sysc, nsys
+    class(window), intent(inout), target :: w
+    real(c_float), intent(inout) :: pos(3)
+
+    type(scene), pointer :: sc
+
+    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    sc => sysc(w%view_selected)%sc
+    if (.not.sc%isinit) return
+
+    pos = unproject(pos,eye4,sc%projection,w%FBOside)
+
+  end subroutine texpos_to_view
+
+  !> Transform from world coordinates to texture position (x,y)
+  !> plus depth (z).
+  module subroutine world_to_texpos(w,pos)
+    use utils, only: project
+    use scenes, only: scene
+    use gui_main, only: sysc, nsys
+    class(window), intent(inout), target :: w
+    real(c_float), intent(inout) :: pos(3)
+
+    type(scene), pointer :: sc
+
+    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    sc => sysc(w%view_selected)%sc
+    if (.not.sc%isinit) return
+
+    pos = project(pos,sc%view,sc%projection,w%FBOside)
+
+  end subroutine world_to_texpos
+
+  !> Transform texture position (x,y) plus depth (z) to world
+  !> coordinates.
+  module subroutine texpos_to_world(w,pos)
+    use utils, only: unproject
+    use scenes, only: scene
+    use gui_main, only: sysc, nsys
+    class(window), intent(inout), target :: w
+    real(c_float), intent(inout) :: pos(3)
+
+    type(scene), pointer :: sc
+
+    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    sc => sysc(w%view_selected)%sc
+    if (.not.sc%isinit) return
+
+    pos = unproject(pos,sc%view,sc%projection,w%FBOside)
+
+  end subroutine texpos_to_world
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)

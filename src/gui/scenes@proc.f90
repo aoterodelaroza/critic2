@@ -88,7 +88,6 @@ contains
   !> scenecenter, ortho_fov, persp_fov, v_front, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
-    use utils, only: lookat
     use gui_main, only: sys
     use param, only: pi
     class(scene), intent(inout), target :: s
@@ -143,7 +142,7 @@ contains
     s%v_pos = real(s%scenecenter,c_float)
     s%v_pos(3) = s%v_pos(3) + 1.1_c_float * s%scenerad * &
        sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
-    s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
+    call s%update_view_matrix()
 
     s%znear = 0.1_c_float
     call s%update_projection_matrix()
@@ -234,6 +233,15 @@ contains
     s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,1000._c_float)
 
   end subroutine update_projection_matrix
+
+  !> Update the view matrix from the v_pos, v_front, and v_up
+  module subroutine update_view_matrix(s)
+    use utils, only: lookat
+    class(scene), intent(inout), target :: s
+
+    s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
+
+  end subroutine update_view_matrix
 
   !> Draw a sphere with center x0, radius rad and color rgba. Requires
   !> having the sphere VAO bound.

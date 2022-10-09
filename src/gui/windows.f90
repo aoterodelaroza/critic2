@@ -105,6 +105,9 @@ module windows
      procedure :: ntexpos_to_texpos ! normalized texture position to texture position
      procedure :: texpos_viewdepth ! get depth from texture position
      procedure :: view_to_texpos ! view coordinates to texture position
+     procedure :: texpos_to_view ! texture position to view coordinates
+     procedure :: world_to_texpos ! world coordinates to texture position
+     procedure :: texpos_to_world ! texture position to world coordinates
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -239,6 +242,18 @@ module windows
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
      end subroutine view_to_texpos
+     module subroutine texpos_to_view(w,pos)
+       class(window), intent(inout), target :: w
+       real(c_float), intent(inout) :: pos(3)
+     end subroutine texpos_to_view
+     module subroutine world_to_texpos(w,pos)
+       class(window), intent(inout), target :: w
+       real(c_float), intent(inout) :: pos(3)
+     end subroutine world_to_texpos
+     module subroutine texpos_to_world(w,pos)
+       class(window), intent(inout), target :: w
+       real(c_float), intent(inout) :: pos(3)
+     end subroutine texpos_to_world
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog

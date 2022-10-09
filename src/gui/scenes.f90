@@ -53,6 +53,7 @@ module scenes
      procedure :: reset => scene_reset
      procedure :: render => scene_render
      procedure :: update_projection_matrix
+     procedure :: update_view_matrix
      procedure :: draw_sphere
      procedure :: draw_cylinder
   end type scene
@@ -76,6 +77,9 @@ module scenes
      module subroutine update_projection_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_projection_matrix
+     module subroutine update_view_matrix(s)
+       class(scene), intent(inout), target :: s
+     end subroutine update_view_matrix
      module subroutine draw_sphere(s,x0,rad,rgba)
        class(scene), intent(inout), target :: s
        real(c_float), intent(in) :: x0(3)

@@ -230,17 +230,17 @@ contains
           is_bind_event = igIsKeyPressed(key,.true._c_bool)
        end if
     elseif (key == ImGuiKey_MouseLeft .and. held_) then
-       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)
-    elseif (key == ImGuiKey_MouseLeft .and. .not.held_) then
        is_bind_event = igIsMouseDown(ImGuiMouseButton_Left)
+    elseif (key == ImGuiKey_MouseLeft .and. .not.held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)
     elseif (key == ImGuiKey_MouseRight .and. held_) then
-       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)
-    elseif (key == ImGuiKey_MouseRight .and. .not.held_) then
        is_bind_event = igIsMouseDown(ImGuiMouseButton_Right)
+    elseif (key == ImGuiKey_MouseRight .and. .not.held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)
     elseif (key == ImGuiKey_MouseMiddle .and. held_) then
-       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)
-    elseif (key == ImGuiKey_MouseMiddle .and. .not.held_) then
        is_bind_event = igIsMouseDown(ImGuiMouseButton_Middle)
+    elseif (key == ImGuiKey_MouseMiddle .and. .not.held_) then
+       is_bind_event = igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)
     elseif (key == ImGuiKey_MouseLeftDouble .and. .not.held_) then
        is_bind_event = igIsMouseDoubleClicked(ImGuiMouseButton_Left)
     elseif (key == ImGuiKey_MouseRightDouble .and. .not.held_) then
