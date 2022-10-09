@@ -143,4 +143,15 @@ contains
 
   end function unproject
 
+  ! Apply a translation matrix to m by vector v. Return the translated matrix.
+  module function translate(m,v)
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: v(3)
+    real(c_float) :: translate(4,4)
+
+    translate = m
+    translate(:,4) = m(:,1) * v(1) + m(:,2) * v(2) + m(:,3) * v(3) + m(:,4)
+
+  end function translate
+
 end submodule math

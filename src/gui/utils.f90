@@ -41,6 +41,7 @@ module utils
   public :: lookat
   public :: project
   public :: unproject
+  public :: translate
 
   ! module procedure interfaces
   interface
@@ -150,6 +151,11 @@ module utils
        integer(c_int), intent(in) :: viewport_a
        real(c_float) :: unproject(3)
      end function unproject
+     module function translate(m,v)
+       real(c_float), intent(in) :: m(4,4)
+       real(c_float), intent(in) :: v(3)
+       real(c_float) :: translate(4,4)
+     end function translate
   end interface
 
 end module utils

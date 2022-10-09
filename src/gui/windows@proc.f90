@@ -1791,6 +1791,7 @@ contains
   module subroutine process_events_view(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
+    use utils, only: translate
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
     use gui_main, only: io, nsys, sysc
@@ -1813,7 +1814,7 @@ contains
     real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), cpos0_r(3)
+    real(c_float), save :: mpos0_r(3), cpos0_r(3), world0(4,4)
     real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
@@ -1872,16 +1873,15 @@ contains
           end if
        end if
 
-       ! apply the zoom with the obtained ratio
+       ! zoom: apply the zoom with the obtained ratio
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          sc%v_pos = sc%v_pos - ratio * sc%v_pos
-          if (norm2(sc%v_pos) < min_zoom) &
-             sc%v_pos = sc%v_pos / norm2(sc%v_pos) * min_zoom
-          if (norm2(sc%v_pos) > max_zoom * sc%scenerad) &
-             sc%v_pos = sc%v_pos / norm2(sc%v_pos) * (max_zoom * sc%scenerad)
-
+          sc%camdistance = (1 - ratio) * sc%camdistance
+          if (sc%camdistance < min_zoom) &
+             sc%camdistance = min_zoom
+          if (sc%camdistance > max_zoom * sc%scenerad) &
+             sc%camdistance = max_zoom * sc%scenerad
           call sc%update_view_matrix()
           call sc%update_projection_matrix()
           w%forcerender = .true.
@@ -1894,11 +1894,10 @@ contains
              mpos0_r = (/texpos%x,texpos%y,depth/)
           else
              mpos0_r = (/texpos%x,texpos%y,0._c_float/)
-             pos3 = 0._c_float
-             call w%view_to_texpos(pos3)
-             mpos0_r(3) = pos3(3)
           end if
-          cpos0_r = (/sc%v_pos(1),sc%v_pos(2),zero/)
+          cpos0_r = mpos0_r
+          call w%texpos_to_world(cpos0_r)
+          world0 = sc%world
           ilock = ilock_right
           mposlast = mousepos
        elseif (ilock == ilock_right) then
@@ -1906,15 +1905,8 @@ contains
           if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
              if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
                 vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
-                call w%texpos_to_view(vnew)
-                vold = mpos0_r
-                call w%texpos_to_view(vold)
-
-                sc%v_pos(1) = cpos0_r(1) - (vnew(1) - vold(1))
-                sc%v_pos(2) = cpos0_r(2) + (vnew(2) - vold(2))
-                call sc%update_view_matrix()
-                call sc%update_projection_matrix()
-
+                call w%texpos_to_world(vnew)
+                sc%world = translate(world0,vnew-cpos0_r)
                 mposlast = mousepos
                 w%forcerender = .true.
              end if
@@ -1922,6 +1914,42 @@ contains
              ilock = ilock_no
           end if
        end if
+
+       ! ! drag
+       ! if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_right)) then
+       !    depth = w%texpos_viewdepth(texpos)
+       !    if (depth < 1._c_float) then
+       !       mpos0_r = (/texpos%x,texpos%y,depth/)
+       !    else
+       !       mpos0_r = (/texpos%x,texpos%y,0._c_float/)
+       !       pos3 = 0._c_float
+       !       call w%view_to_texpos(pos3)
+       !       mpos0_r(3) = pos3(3)
+       !    end if
+       !    cpos0_r = (/sc%v_pos(1),sc%v_pos(2),zero/)
+       !    ilock = ilock_right
+       !    mposlast = mousepos
+       ! elseif (ilock == ilock_right) then
+       !    call igSetMouseCursor(ImGuiMouseCursor_Hand)
+       !    if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
+       !       if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
+       !          vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
+       !          call w%texpos_to_view(vnew)
+       !          vold = mpos0_r
+       !          call w%texpos_to_view(vold)
+
+       !          sc%v_pos(1) = cpos0_r(1) - (vnew(1) - vold(1))
+       !          sc%v_pos(2) = cpos0_r(2) + (vnew(2) - vold(2))
+       !          call sc%update_view_matrix()
+       !          call sc%update_projection_matrix()
+
+       !          mposlast = mousepos
+       !          w%forcerender = .true.
+       !       end if
+       !    else
+       !       ilock = ilock_no
+       !    end if
+       ! end if
 
        ! // rotate
        ! if (hover && IsBindEvent(BIND_NAV_ROTATE,false) && !rlock && !slock){
@@ -2012,7 +2040,7 @@ contains
     type(ImVec2), intent(inout) :: pos
 
     pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
-    pos%y = (pos%y / w%FBOside) * 2._c_float - 1._c_float
+    pos%y = 1._c_float - (pos%y / w%FBOside) * 2._c_float
 
   end subroutine texpos_to_ntexpos
 
@@ -2022,7 +2050,7 @@ contains
     type(ImVec2), intent(inout) :: pos
 
     pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
-    pos%y = (0.5_c_float * pos%y + 0.5_c_float) * w%FBOside
+    pos%y = (0.5_c_float - 0.5_c_float * pos%y) * w%FBOside
 
   end subroutine ntexpos_to_texpos
 

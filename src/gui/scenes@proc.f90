@@ -85,9 +85,10 @@ contains
   end subroutine scene_end
 
   !> Reset the camera position and direction. Sets scenerad,
-  !> scenecenter, ortho_fov, persp_fov, v_front, v_up, v_pos, view,
+  !> scenecenter, ortho_fov, persp_fov, v_center, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
+    use utils, only: translate
     use gui_main, only: sys
     use param, only: pi
     class(scene), intent(inout), target :: s
@@ -135,16 +136,17 @@ contains
     s%ortho_fov = 45._c_float
     s%persp_fov = 45._c_float
 
-    s%world = eye4
+    ! world matrix, translate to put scene center in the middle
+    s%world = translate(eye4,real(-s%scenecenter,c_float))
 
-    s%v_front = (/0._c_float,0._c_float,-1._c_float/)
-    s%v_up = (/0._c_float,1._c_float,0._c_float/)
-    s%v_pos = real(s%scenecenter,c_float)
-    s%v_pos(3) = s%v_pos(3) + 1.1_c_float * s%scenerad * &
+    ! camera distance and view matrix
+    s%camdistance = 1.1_c_float * s%scenerad * &
        sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     call s%update_view_matrix()
 
+    ! projection matrix
     s%znear = 0.1_c_float
+    s%zfar = 100000._c_float
     call s%update_projection_matrix()
 
   end subroutine scene_reset
@@ -229,8 +231,8 @@ contains
     real(c_float) :: pic, hw2
 
     pic = real(pi,c_float)
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%v_pos(3)
-    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,1000._c_float)
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%camdistance
+    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
 
   end subroutine update_projection_matrix
 
@@ -239,7 +241,16 @@ contains
     use utils, only: lookat
     class(scene), intent(inout), target :: s
 
-    s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
+    real(c_float) :: center(3), up(3), pos(3)
+
+    center = 0._c_float
+    up = 0._c_float
+    pos = 0._c_float
+
+    up(2) = 1._c_float
+    pos(3) = s%camdistance
+
+    s%view = lookat(pos,center,up)
 
   end subroutine update_view_matrix
 
