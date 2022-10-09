@@ -1952,20 +1952,11 @@ contains
        !   // updatenone = true; // only if we draw some guiding element
        ! }
 
-       ! // double click
-       ! if (hover && IsBindEvent(BIND_NAV_RESET,false) && sc){
-       !   sc->resetView();
-       !   updateprojection = true;
-       !   updateview = true;
-       !   updateworld = true;
-       ! }
-
-       ! if (updateworld && sc)
-       !   sc->updateWorld();
-       ! if (updateview && sc)
-       !   sc->updateView();
-       ! if (updateprojection && sc)
-       !   sc->updateProjection();
+       ! double click resets the view
+       if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
+          call sc%reset()
+          w%forcerender = .true.
+       end if
     end if
 
   contains
