@@ -1792,7 +1792,7 @@ contains
     use interfaces_cimgui
     use scenes, only: scene
     use utils, only: translate, rotate
-    use tools_math, only: cross_cfloat
+    use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
     use gui_main, only: io, nsys, sysc
@@ -1818,7 +1818,7 @@ contains
 
     type(ImVec2), save :: mposlast
     real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_r(3), cpos0_l(3), world0(4,4)
-    real(c_float), save :: mpos0_s
+    real(c_float), save :: world0inv(3,3), mpos0_s
     integer, save :: ilock = ilock_no
 
     ! first pass when opened, reset the state
@@ -1927,6 +1927,8 @@ contains
           cpos0_l = mpos0_l
           call w%texpos_to_view(cpos0_l)
           world0 = sc%world
+          world0inv = world0(1:3,1:3)
+          call matinv_cfloat(world0inv,3)
           ilock = ilock_left
        elseif (ilock == ilock_left) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
@@ -1939,10 +1941,16 @@ contains
                 axis = cross_cfloat(pos3,vnew - cpos0_l)
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
+                   axis = axis / lax
+                   axis = matmul(world0inv,axis)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                   sc%world = rotate(world0,ang,axis)
+
+                   sc%world = translate(world0,real(sc%scenecenter,c_float))
+                   sc%world = rotate(sc%world,ang,axis)
+                   sc%world = translate(sc%world,real(-sc%scenecenter,c_float))
+
                    w%forcerender = .true.
                 end if
              end if
