@@ -1875,8 +1875,6 @@ contains
              ilock = ilock_no
           end if
        end if
-
-       ! zoom: apply the zoom with the obtained ratio
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
@@ -1930,21 +1928,14 @@ contains
 
        ! rotate
        if (hover .and. is_bind_event(BIND_NAV_ROTATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_left)) then
-          mpos0_l = zero
-          call w%view_to_texpos(mpos0_l)
-          mpos0_l(1) = texpos%x
-          mpos0_l(2) = texpos%y
+          mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
           cpos0_l = mpos0_l
           call w%texpos_to_view(cpos0_l)
-          world0 = sc%world
-          world0inv = world0(1:3,1:3)
-          call matinv_cfloat(world0inv,3)
           ilock = ilock_left
        elseif (ilock == ilock_left) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
           if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
              if (texpos%x /= mpos0_l(1) .or. texpos%y /= mpos0_l(2)) then
-
                 vnew = (/texpos%x,texpos%y,mpos0_l(3)/)
                 call w%texpos_to_view(vnew)
                 pos3 = (/0._c_float,0._c_float,1._c_float/)
@@ -1952,17 +1943,22 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
+                   world0inv = sc%world(1:3,1:3)
+                   call matinv_cfloat(world0inv,3)
                    axis = matmul(world0inv,axis)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
 
-                   sc%world = translate(world0,real(sc%scenecenter,c_float))
+                   sc%world = translate(sc%world,real(sc%scenecenter,c_float))
                    sc%world = rotate(sc%world,ang,axis)
                    sc%world = translate(sc%world,real(-sc%scenecenter,c_float))
 
                    w%forcerender = .true.
                 end if
+                mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
+                cpos0_l = mpos0_l
+                call w%texpos_to_view(cpos0_l)
              end if
           else
              ilock = ilock_no
