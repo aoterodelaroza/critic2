@@ -154,4 +154,38 @@ contains
 
   end function translate
 
+  ! Apply a rotation matrix to m by axis and angle. Return the rotated matrix.
+  module function rotate(m,angle,axis)
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: angle
+    real(c_float), intent(in) :: axis(3)
+    real(c_float) :: rotate(4,4)
+
+    real(c_float) :: a, c, s, ax(3), temp(3), mm(3,3)
+
+    a = angle
+    c = cos(angle)
+    s = sin(angle)
+    ax = axis / norm2(axis)
+    temp = (1-c) * ax
+
+    mm(1,1) = c + temp(1) * ax(1)
+    mm(2,1) = temp(1) * ax(2) + s * ax(3)
+    mm(3,1) = temp(1) * ax(3) - s * ax(2)
+
+    mm(1,2) = temp(2) * ax(1) - s * ax(3)
+    mm(2,2) = c + temp(2) * ax(2)
+    mm(3,2) = temp(2) * ax(3) + s * ax(1)
+
+    mm(1,3) = temp(3) * ax(1) + s * ax(2)
+    mm(2,3) = temp(3) * ax(2) - s * ax(1)
+    mm(3,3) = c + temp(3) * ax(3)
+
+    rotate(:,1) = m(:,1) * mm(1,1) + m(:,2) * mm(2,1) + m(:,3) * mm(3,1)
+    rotate(:,2) = m(:,1) * mm(1,2) + m(:,2) * mm(2,2) + m(:,3) * mm(3,2)
+    rotate(:,3) = m(:,1) * mm(1,3) + m(:,2) * mm(2,3) + m(:,3) * mm(3,3)
+    rotate(:,4) = m(:,4)
+
+  end function rotate
+
 end submodule math

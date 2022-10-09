@@ -42,6 +42,7 @@ module utils
   public :: project
   public :: unproject
   public :: translate
+  public :: rotate
 
   ! module procedure interfaces
   interface
@@ -156,6 +157,12 @@ module utils
        real(c_float), intent(in) :: v(3)
        real(c_float) :: translate(4,4)
      end function translate
+     module function rotate(m,angle,axis)
+       real(c_float), intent(in) :: m(4,4)
+       real(c_float), intent(in) :: angle
+       real(c_float), intent(in) :: axis(3)
+       real(c_float) :: rotate(4,4)
+     end function rotate
   end interface
 
 end module utils

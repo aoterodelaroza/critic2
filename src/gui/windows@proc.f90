@@ -1791,7 +1791,8 @@ contains
   module subroutine process_events_view(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
-    use utils, only: translate
+    use utils, only: translate, rotate
+    use tools_math, only: cross_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
     use gui_main, only: io, nsys, sysc
@@ -1799,7 +1800,8 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos
-    real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3)
+    real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3), axis(3), lax
+    real(c_float) :: mpos2(2), ang
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -1810,11 +1812,12 @@ contains
     integer, parameter :: ilock_NUM = 5
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
+    real(c_float), parameter :: mousesens_rot0 = 2._c_float
     real(c_float), parameter :: min_zoom = 1._c_float
     real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), cpos0_r(3), world0(4,4)
+    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_r(3), cpos0_l(3), world0(4,4)
     real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
@@ -1915,70 +1918,38 @@ contains
           end if
        end if
 
-       ! ! drag
-       ! if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_right)) then
-       !    depth = w%texpos_viewdepth(texpos)
-       !    if (depth < 1._c_float) then
-       !       mpos0_r = (/texpos%x,texpos%y,depth/)
-       !    else
-       !       mpos0_r = (/texpos%x,texpos%y,0._c_float/)
-       !       pos3 = 0._c_float
-       !       call w%view_to_texpos(pos3)
-       !       mpos0_r(3) = pos3(3)
-       !    end if
-       !    cpos0_r = (/sc%v_pos(1),sc%v_pos(2),zero/)
-       !    ilock = ilock_right
-       !    mposlast = mousepos
-       ! elseif (ilock == ilock_right) then
-       !    call igSetMouseCursor(ImGuiMouseCursor_Hand)
-       !    if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
-       !       if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
-       !          vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
-       !          call w%texpos_to_view(vnew)
-       !          vold = mpos0_r
-       !          call w%texpos_to_view(vold)
+       ! rotate
+       if (hover .and. is_bind_event(BIND_NAV_ROTATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_left)) then
+          mpos0_l = zero
+          call w%view_to_texpos(mpos0_l)
+          mpos0_l(1) = texpos%x
+          mpos0_l(2) = texpos%y
+          cpos0_l = mpos0_l
+          call w%texpos_to_view(cpos0_l)
+          world0 = sc%world
+          ilock = ilock_left
+       elseif (ilock == ilock_left) then
+          call igSetMouseCursor(ImGuiMouseCursor_Hand)
+          if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
+             if (texpos%x /= mpos0_l(1) .or. texpos%y /= mpos0_l(2)) then
 
-       !          sc%v_pos(1) = cpos0_r(1) - (vnew(1) - vold(1))
-       !          sc%v_pos(2) = cpos0_r(2) + (vnew(2) - vold(2))
-       !          call sc%update_view_matrix()
-       !          call sc%update_projection_matrix()
-
-       !          mposlast = mousepos
-       !          w%forcerender = .true.
-       !       end if
-       !    else
-       !       ilock = ilock_no
-       !    end if
-       ! end if
-
-       ! // rotate
-       ! if (hover && IsBindEvent(BIND_NAV_ROTATE,false) && !rlock && !slock){
-       !   mpos0_l = {texpos.x, texpos.y, 0.f};
-       !   view_to_texpos({0.f,0.f,0.f},&mpos0_l.z);
-       !   cpos0_l = texpos_to_view(texpos,mpos0_l.z);
-       !   llock = true;
-       ! } else if (llock) {
-       !   SetMouseCursor(ImGuiMouseCursor_Move);
-       !   if (IsBindEvent(BIND_NAV_ROTATE,true)){
-       !     if (texpos.x != mpos0_l.x || texpos.y != mpos0_l.y){
-       !       glm::vec3 cpos1 = texpos_to_view(texpos,mpos0_l.z);
-       !       glm::vec3 axis = glm::cross(glm::vec3(0.f,0.f,1.f),cpos1-cpos0_l);
-       !       float lax = glm::length(axis);
-       !       if (lax > 1e-10f && sc){
-       !         axis = glm::inverse(glm::mat3(sc->m_world)) * glm::normalize(axis);
-       !         glm::vec2 mpos = {texpos.x-mpos0_l.x, texpos.y-mpos0_l.y};
-       !         float ang = 2.0f * glm::length(mpos) * mousesens_rot0 * view_mousesens_rot / arender;
-       !         sc->m_world = glm::rotate(sc->m_world,ang,axis);
-       !         updateworld = true;
-       !       }
-       !       mpos0_l = {texpos.x, texpos.y, 0.f};
-       !       cpos0_l = texpos_to_view(texpos,mpos0_l.z);
-       !     }
-       !   } else {
-       !     llock = false;
-       !   }
-       !   // updatenone = true; // only if we draw some guiding element
-       ! }
+                vnew = (/texpos%x,texpos%y,mpos0_l(3)/)
+                call w%texpos_to_view(vnew)
+                pos3 = (/0._c_float,0._c_float,1._c_float/)
+                axis = cross_cfloat(pos3,vnew - cpos0_l)
+                lax = norm2(axis)
+                if (lax > 1e-10_c_float) then
+                   mpos2(1) = texpos%x - mpos0_l(1)
+                   mpos2(2) = texpos%y - mpos0_l(2)
+                   ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
+                   sc%world = rotate(world0,ang,axis)
+                   w%forcerender = .true.
+                end if
+             end if
+          else
+             ilock = ilock_no
+          end if
+       end if
 
        ! double click resets the view
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
