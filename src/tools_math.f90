@@ -40,11 +40,13 @@ module tools_math
   public :: eig
   public :: rsindex
   public :: cross
+  public :: cross_cfloat
   public :: mixed
   public :: mnorm2
   public :: det3sym
   public :: det3
   public :: matinv
+  public :: matinv_cfloat
   public :: matinvsym
   public :: plane_scale_extend
   public :: assign_ziso
@@ -212,6 +214,12 @@ module tools_math
        real*8, intent(in) :: v2(3)
        real*8 :: vx(3)
      end function cross
+     module function cross_cfloat(v1,v2) result (vx)
+       use iso_c_binding, only: c_float
+       real(c_float), intent(in) :: v1(3)
+       real(c_float), intent(in) :: v2(3)
+       real(c_float) :: vx(3)
+     end function cross_cfloat
      module function mixed(v1,v2,v3)
        real*8, intent(in) :: v1(3)
        real*8, intent(in) :: v2(3)
@@ -239,6 +247,12 @@ module tools_math
        real*8, intent(inout) :: m(n0,n0)
        integer, intent(out), optional :: ier
      end subroutine matinv
+     module subroutine matinv_cfloat(m,n0,ier)
+       use iso_c_binding, only: c_float
+       integer, intent(in) :: n0
+       real(c_float), intent(inout) :: m(n0,n0)
+       integer, intent(out), optional :: ier
+     end subroutine matinv_cfloat
      module subroutine matinvsym(m,n0,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: m(n0,n0)

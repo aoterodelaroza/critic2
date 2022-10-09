@@ -15,7 +15,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Some utilities for building the GUI (e.g. wrappers around ImGui routines).
+! Some utilities for building the GUI: wrappers around ImGui routines,
+! math utilities adapted from the glm library,...
 module utils
   use iso_c_binding
   implicit none
@@ -38,8 +39,8 @@ module utils
   public :: infiniteperspective
   public :: ortho
   public :: lookat
-  public :: cross_c
   public :: project
+  public :: unproject
 
   ! module procedure interfaces
   interface
@@ -133,12 +134,6 @@ module utils
        real(c_float) :: up(3)
        real(c_float) :: lookat(4,4)
      end function lookat
-     module function cross_c(v1,v2)
-       use iso_c_binding, only: c_float
-       real(c_float), intent(in) :: v1(3) !< First vector
-       real(c_float), intent(in) :: v2(3) !< Second vector
-       real(c_float) :: cross_c(3)
-     end function cross_c
      module function project(pos,mview,proj,viewport_a)
        use iso_c_binding, only: c_float, c_int
        real(c_float), intent(in) :: pos(3)
@@ -147,6 +142,14 @@ module utils
        integer(c_int), intent(in) :: viewport_a
        real(c_float) :: project(3)
      end function project
+     module function unproject(pos,mview,proj,viewport_a)
+       use iso_c_binding, only: c_float, c_int
+       real(c_float), intent(in) :: pos(3)
+       real(c_float), intent(in) :: mview(4,4)
+       real(c_float), intent(in) :: proj(4,4)
+       integer(c_int), intent(in) :: viewport_a
+       real(c_float) :: unproject(3)
+     end function unproject
   end interface
 
 end module utils

@@ -128,8 +128,8 @@ contains
     s%scenerad = max(norm2(xmax-xmin),min_scenerad)
 
     ! calculate the scene center
-    center = (/0.5d0,0.5d0,0.5d0/)
-    center = sys(isys)%c%x2c(center)
+    s%scenecenter = (/0.5d0,0.5d0,0.5d0/)
+    s%scenecenter = sys(isys)%c%x2c(s%scenecenter)
 
     ! default transformation matrices
     pic = real(pi,c_float)
@@ -140,7 +140,7 @@ contains
 
     s%v_front = (/0._c_float,0._c_float,-1._c_float/)
     s%v_up = (/0._c_float,1._c_float,0._c_float/)
-    s%v_pos = real(center,c_float)
+    s%v_pos = real(s%scenecenter,c_float)
     s%v_pos(3) = s%v_pos(3) + 1.1_c_float * s%scenerad * &
        sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%view = lookat(s%v_pos,s%v_pos+s%v_front,s%v_up)
@@ -266,7 +266,7 @@ contains
   !> rgba. Requires having the cylinder VAO bound.
   module subroutine draw_cylinder(s,x1,x2,rad,rgba)
     use interfaces_opengl3
-    use utils, only: cross_c
+    use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: cylnel
     class(scene), intent(inout), target :: s
@@ -283,7 +283,7 @@ contains
     blen = norm2(xdif)
     xdif = xdif / blen
     up = (/0._c_float,0._c_float,1._c_float/)
-    crs = cross_c(up,xdif)
+    crs = cross_cfloat(up,xdif)
 
     ! the model matrix
     model = eye4

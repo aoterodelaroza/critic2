@@ -939,6 +939,19 @@ contains
 
   end function cross
 
+  !> Cross product of two 3-vectors, C float version
+  module function cross_cfloat(v1,v2) result (vx)
+    use iso_c_binding, only: c_float
+    real(c_float), intent(in) :: v1(3) !< First vector
+    real(c_float), intent(in) :: v2(3) !< Second vector
+    real(c_float) :: vx(3)
+
+    vx(1) = + v1(2)*v2(3) - v1(3)*v2(2)
+    vx(2) = - v1(1)*v2(3) + v1(3)*v2(1)
+    vx(3) = + v1(1)*v2(2) - v1(2)*v2(1)
+
+  end function cross_cfloat
+
   !> Mixed product of three 3-vectors
   module function mixed(v1,v2,v3)
     real*8, intent(in) :: v1(3) !< First vector
@@ -989,7 +1002,7 @@ contains
 
   end function det3
 
-  !> Invert an nxn real general matrix. Uses LAPACK. If ier = 0, no
+  !> Invert an nxn double general matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.
   module subroutine matinv(m,n0,ier)
     integer, intent(in) :: n0
@@ -1024,6 +1037,43 @@ contains
     if (present(ier)) ier = info
 
   end subroutine matinv
+
+  !> Invert an nxn real(c_float) general matrix. Uses LAPACK. If ier =
+  !> 0, no error; otherwise, ier contains the LAPACK error code.
+  module subroutine matinv_cfloat(m,n0,ier)
+    use iso_c_binding, only: c_float
+    integer, intent(in) :: n0
+    real(c_float), intent(inout) :: m(n0,n0)
+    integer, intent(out), optional :: ier
+
+    integer :: lwork
+    real(c_float) :: onework(1)
+    real(c_float), allocatable :: work(:)
+    integer :: ipiv(n0), info, n
+
+    n = n0
+    ! LU factorization
+    call sgetrf(n,n,m,n,ipiv,info)
+    if (info /= 0) goto 999
+
+    ! allocate work space for inverse
+    lwork = -1
+    call sgetri(n,m,n,ipiv,onework,lwork,info)
+    if (info /= 0) goto 999
+    lwork = nint(onework(1))
+    allocate(work(lwork))
+
+    ! calculate the inverse
+    call sgetri(n,m,n,ipiv,work,lwork,info)
+    if (info /= 0) goto 999
+    deallocate(work)
+    if (present(ier)) ier = 0
+
+    return
+999 continue
+    if (present(ier)) ier = info
+
+  end subroutine matinv_cfloat
 
   !> Invert an nxn real symmetric matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.

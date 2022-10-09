@@ -1881,10 +1881,11 @@ contains
              mpos0_r = (/texpos%x,texpos%y,depth/)
           else
              mpos0_r = (/texpos%x,texpos%y,0._c_float/)
-             pos3 = 0._c_float
+             pos3 = real(sc%scenecenter,c_float)
              call w%view_to_texpos(pos3)
              mpos0_r(3) = pos3(3)
-             write (*,*) mpos0_r(3)
+             write (*,*) mpos0_r(3) ! xxxx
+             stop 1
           end if
        !   cpos0_r = {sc->v_pos[0],sc->v_pos[1],0.f};
        !   rlock = true;
@@ -2037,7 +2038,7 @@ contains
   !> Transform from view coordinates to texture position (x,y)
   !> plus depth (z).
   module subroutine view_to_texpos(w,pos)
-    use utils, only: project
+    use utils, only: project, unproject
     use scenes, only: scene
     use gui_main, only: sysc, nsys
     class(window), intent(inout), target :: w
@@ -2048,6 +2049,7 @@ contains
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
     if (.not.sc%isinit) return
+
     pos = project(pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine view_to_texpos
