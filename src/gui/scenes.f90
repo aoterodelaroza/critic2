@@ -42,7 +42,7 @@ module scenes
      real(c_float) :: persp_fov ! perspective field of view
      real(c_float) :: znear ! position of the near plane
      real(c_float) :: zfar  ! position of the far plane
-     real(c_float) :: camdistance ! camera distance to view center
+     real(c_float) :: campos(3) ! position of the camera
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix

@@ -1812,7 +1812,7 @@ contains
     integer, parameter :: ilock_NUM = 5
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
-    real(c_float), parameter :: mousesens_rot0 = 2._c_float
+    real(c_float), parameter :: mousesens_rot0 = 3._c_float
     real(c_float), parameter :: min_zoom = 1._c_float
     real(c_float), parameter :: max_zoom = 100._c_float
 
@@ -1880,11 +1880,14 @@ contains
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          sc%camdistance = (1 - ratio) * sc%camdistance
-          if (sc%camdistance < min_zoom) &
-             sc%camdistance = min_zoom
-          if (sc%camdistance > max_zoom * sc%scenerad) &
-             sc%camdistance = max_zoom * sc%scenerad
+          pos3 = sc%campos - sc%scenecenter
+          pos3 = pos3 - ratio * pos3
+          if (norm2(pos3) < min_zoom) &
+             pos3 = pos3 / norm2(pos3) * min_zoom
+          if (norm2(pos3) > max_zoom * sc%scenerad) &
+             pos3 = pos3 / norm2(pos3) * (max_zoom * sc%scenerad)
+          sc%campos = sc%scenecenter + pos3
+
           call sc%update_view_matrix()
           call sc%update_projection_matrix()
           w%forcerender = .true.
@@ -1896,11 +1899,12 @@ contains
           if (depth < 1._c_float) then
              mpos0_r = (/texpos%x,texpos%y,depth/)
           else
-             mpos0_r = (/texpos%x,texpos%y,0._c_float/)
+             pos3 = 0._c_float
+             call w%view_to_texpos(pos3)
+             mpos0_r = (/texpos%x,texpos%y,pos3(3)/)
           end if
-          cpos0_r = mpos0_r
-          call w%texpos_to_world(cpos0_r)
-          world0 = sc%world
+          cpos0_r = (/sc%campos(1),sc%campos(2),zero/)
+
           ilock = ilock_right
           mposlast = mousepos
        elseif (ilock == ilock_right) then
@@ -1908,8 +1912,14 @@ contains
           if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
              if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
                 vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
-                call w%texpos_to_world(vnew)
-                sc%world = translate(world0,vnew-cpos0_r)
+                call w%texpos_to_view(vnew)
+                vold = mpos0_r
+                call w%texpos_to_view(vold)
+
+                sc%campos(1) = cpos0_r(1) - (vnew(1) - vold(1))
+                sc%campos(2) = cpos0_r(2) - (vnew(2) - vold(2))
+                call sc%update_view_matrix()
+
                 mposlast = mousepos
                 w%forcerender = .true.
              end if
@@ -1959,7 +1969,7 @@ contains
           end if
        end if
 
-       ! double click resets the view
+       ! reset the view
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
           call sc%reset()
           w%forcerender = .true.

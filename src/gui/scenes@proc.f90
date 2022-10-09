@@ -88,7 +88,6 @@ contains
   !> scenecenter, ortho_fov, persp_fov, v_center, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
-    use utils, only: translate
     use gui_main, only: sys
     use param, only: pi
     class(scene), intent(inout), target :: s
@@ -136,11 +135,12 @@ contains
     s%ortho_fov = 45._c_float
     s%persp_fov = 45._c_float
 
-    ! world matrix, translate to put scene center in the middle
-    s%world = translate(eye4,real(-s%scenecenter,c_float))
+    ! world matrix
+    s%world = eye4
 
     ! camera distance and view matrix
-    s%camdistance = 1.1_c_float * s%scenerad * &
+    s%campos = s%scenecenter
+    s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad * &
        sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     call s%update_view_matrix()
 
@@ -231,7 +231,7 @@ contains
     real(c_float) :: pic, hw2
 
     pic = real(pi,c_float)
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%camdistance
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%campos(3)
     s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
 
   end subroutine update_projection_matrix
@@ -241,16 +241,11 @@ contains
     use utils, only: lookat
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: center(3), up(3), pos(3)
+    real(c_float) :: front(3), up(3)
 
-    center = 0._c_float
-    up = 0._c_float
-    pos = 0._c_float
-
-    up(2) = 1._c_float
-    pos(3) = s%camdistance
-
-    s%view = lookat(pos,center,up)
+    front = (/zero,zero,-one/)
+    up = (/zero,one,zero/)
+    s%view = lookat(s%campos,s%campos+front,up)
 
   end subroutine update_view_matrix
 
