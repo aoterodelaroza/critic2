@@ -1979,11 +1979,16 @@ contains
   contains
     ! initialize the state for this window
     subroutine init_state()
-      ilock = ilock_no
-      mpos0_s = 0._c_float
-      mpos0_r = 0._c_float
       mposlast%x = 0._c_float
       mposlast%y = 0._c_float
+      mpos0_r = 0._c_float
+      mpos0_l = 0._c_float
+      cpos0_r = 0._c_float
+      cpos0_l = 0._c_float
+      world0 = 0._c_float
+      world0inv = 0._c_float
+      mpos0_s = 0._c_float
+      ilock = ilock_no
     end subroutine init_state
     subroutine end_state()
     end subroutine end_state
