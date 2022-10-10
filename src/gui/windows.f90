@@ -25,6 +25,39 @@ module windows
 
   private
 
+  ! the buffer for the output console
+  character(kind=c_char,len=:), allocatable, target :: outputb
+  integer(c_size_t) :: lob = 0
+  integer(c_size_t), parameter :: maxlob = 2000000
+
+  ! the buffer for the input console
+  character(kind=c_char,len=:), allocatable, target :: inputb
+  integer(c_size_t), parameter :: maxlib = 40000
+
+  ! command input and output
+  integer, parameter :: command_inout_empty = 0
+  integer, parameter :: command_inout_used = 1
+  type command_inout
+     integer :: id ! unique command ID
+     integer :: status = command_inout_empty ! status of this command
+     integer(c_size_t) :: size = 0 ! size of the output
+     real(c_float) :: scrolly = 0._c_float ! scrolling position in console output view
+     character(len=:,kind=c_char), allocatable :: tooltipinfo ! tooltip info for command (c_null_char term)
+     character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
+     character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
+   contains
+     procedure :: end => command_end
+  end type command_inout
+
+  ! command inout stack
+  integer :: ncomid = 0 ! unique command ID generator (always incremented)
+  integer :: ncom = 0 ! number of commands (com(:))
+  integer :: nicom = 0 ! number of ordered commands (icom(:))
+  integer :: idcom = 0 ! current output shown (0 = all)
+  integer, allocatable :: icom(:) ! order in which to show the commands
+  type(command_inout), allocatable, target :: com(:) ! the actual commands
+  integer(c_size_t), parameter :: maxcomout = 20000000 ! maximum command size
+
   ! view mouse behavior parameters
   integer, parameter :: MB_navigation = 1
 
@@ -160,7 +193,11 @@ module windows
   public :: stack_create_window
   public :: update_window_id
 
+  !xx! Interfaces
   interface
+     module subroutine command_end(c)
+       class(command_inout), intent(inout) :: c
+     end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
      module function stack_create_window(type,isopen,purpose,isys)
