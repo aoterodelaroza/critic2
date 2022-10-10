@@ -1850,10 +1850,8 @@ contains
 
        ! transform to the texture pos
        if (abs(texpos%x) < 1e20 .and. abs(texpos%y) < 1e20) then
-          call w%mousepos_to_ntexpos(texpos)
-          call w%ntexpos_to_texpos(texpos)
+          call w%mousepos_to_texpos(texpos)
        end if
-
        ! Zoom. There are two behaviors: mouse scroll and hold key and
        ! translate mouse
        ratio = 0._c_float
@@ -1991,8 +1989,8 @@ contains
 
   end subroutine process_events_view
 
-  !> Mouse position to normalized texture position
-  module subroutine mousepos_to_ntexpos(w,pos)
+  !> Mouse position to texture position (screen coordinates)
+  module subroutine mousepos_to_texpos(w,pos)
     class(window), intent(inout), target :: w
     type(ImVec2), intent(inout) :: pos
 
@@ -2002,17 +2000,24 @@ contains
     dy = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
     xratio = 2._c_float * dx / max(dx,dy)
     yratio = 2._c_float * dy / max(dx,dy)
+
     pos%x = ((pos%x - w%v_rmin%x) / dx - 0.5_c_float) * xratio
     pos%y = (0.5_c_float - (pos%y - w%v_rmin%y) / dy) * yratio
 
-  end subroutine mousepos_to_ntexpos
+    pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
+    pos%y = (0.5_c_float - 0.5_c_float * pos%y) * w%FBOside
 
-  !> Normalized texture position to mouse position
-  module subroutine ntexpos_to_mousepos(w,pos)
+  end subroutine mousepos_to_texpos
+
+  !> Texture position (screen coordinates) to mouse position
+  module subroutine texpos_to_mousepos(w,pos)
     class(window), intent(inout), target :: w
     type(ImVec2), intent(inout) :: pos
 
     real(c_float) :: x, y, xratio1, yratio1
+
+    pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
+    pos%y = 1._c_float - (pos%y / w%FBOside) * 2._c_float
 
     x = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
     y = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
@@ -2022,27 +2027,7 @@ contains
     pos%x = w%v_rmin%x + x * (0.5_c_float + xratio1 * pos%x)
     pos%y = w%v_rmin%y + y * (0.5_c_float + yratio1 * pos%y)
 
-  end subroutine ntexpos_to_mousepos
-
-  !> Texture position to normalized texture position
-  module subroutine texpos_to_ntexpos(w,pos)
-    class(window), intent(inout), target :: w
-    type(ImVec2), intent(inout) :: pos
-
-    pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
-    pos%y = 1._c_float - (pos%y / w%FBOside) * 2._c_float
-
-  end subroutine texpos_to_ntexpos
-
-  !> Normalized texture position to texture position
-  module subroutine ntexpos_to_texpos(w,pos)
-    class(window), intent(inout), target :: w
-    type(ImVec2), intent(inout) :: pos
-
-    pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
-    pos%y = (0.5_c_float - 0.5_c_float * pos%y) * w%FBOside
-
-  end subroutine ntexpos_to_texpos
+  end subroutine texpos_to_mousepos
 
   !> Get the view depth from the texture position
   module function texpos_viewdepth(w,pos)

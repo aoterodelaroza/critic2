@@ -99,10 +99,8 @@ module windows
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: process_events_view ! process the mouse events in the view
-     procedure :: mousepos_to_ntexpos ! mouse position to normalized texture position
-     procedure :: ntexpos_to_mousepos ! normalized texture position to mouse position
-     procedure :: texpos_to_ntexpos ! texture position to normalized texture position
-     procedure :: ntexpos_to_texpos ! normalized texture position to texture position
+     procedure :: mousepos_to_texpos ! mouse position to texture position
+     procedure :: texpos_to_mousepos ! texture position to mouse position
      procedure :: texpos_viewdepth ! get depth from texture position
      procedure :: view_to_texpos ! view coordinates to texture position
      procedure :: texpos_to_view ! texture position to view coordinates
@@ -217,22 +215,14 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover
      end subroutine process_events_view
-     module subroutine mousepos_to_ntexpos(w,pos)
+     module subroutine mousepos_to_texpos(w,pos)
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
-     end subroutine mousepos_to_ntexpos
-     module subroutine ntexpos_to_mousepos(w,pos)
+     end subroutine mousepos_to_texpos
+     module subroutine texpos_to_mousepos(w,pos)
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
-     end subroutine ntexpos_to_mousepos
-     module subroutine texpos_to_ntexpos(w,pos)
-       class(window), intent(inout), target :: w
-       type(ImVec2), intent(inout) :: pos
-     end subroutine texpos_to_ntexpos
-     module subroutine ntexpos_to_texpos(w,pos)
-       class(window), intent(inout), target :: w
-       type(ImVec2), intent(inout) :: pos
-     end subroutine ntexpos_to_texpos
+     end subroutine texpos_to_mousepos
      module function texpos_viewdepth(w,pos)
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
