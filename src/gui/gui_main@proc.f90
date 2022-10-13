@@ -219,7 +219,7 @@ contains
 
        ! show main dockspace
        iddock = igDockSpaceOverViewport(igGetMainViewport(),&
-          ImGuiDockNodeFlags_PassthruCentralNode,&
+          ior(ImGuiDockNodeFlags_PassthruCentralNode,ImGuiDockNodeFlags_AutoHideTabBar),&
           c_null_ptr)
 
        ! maybe reallocate the window stack
