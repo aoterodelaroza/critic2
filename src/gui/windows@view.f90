@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Windows, view.
-submodule (windows) tree
+submodule (windows) view
   use interfaces_cimgui
   implicit none
 
@@ -531,4 +531,4 @@ contains
 
   end subroutine texpos_to_world
 
-end submodule tree
+end submodule view

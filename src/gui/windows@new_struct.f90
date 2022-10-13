@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Windows, new structure and new structure from library dialogs.
-submodule (windows) tree
+submodule (windows) new_struct
   use interfaces_cimgui
   implicit none
 
@@ -773,4 +773,4 @@ contains
 
   end subroutine draw_spg_table
 
-end submodule tree
+end submodule new_struct

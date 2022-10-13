@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Windows, console output.
-submodule (windows) tree
+submodule (windows) co
   use interfaces_cimgui
   implicit none
 
@@ -252,4 +252,4 @@ contains
 
   end subroutine draw_co
 
-end submodule tree
+end submodule co

@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Windows, dialog.
-submodule (windows) tree
+submodule (windows) dialog
   use interfaces_cimgui
   implicit none
 
@@ -122,4 +122,4 @@ contains
 
   end subroutine draw_dialog
 
-end submodule tree
+end submodule dialog

@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Windows, console input.
-submodule (windows) tree
+submodule (windows) ci
   use interfaces_cimgui
   implicit none
 
@@ -481,4 +481,4 @@ contains
 
   end subroutine get_input_details_ci
 
-end submodule tree
+end submodule ci
