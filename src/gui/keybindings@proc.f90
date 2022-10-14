@@ -43,6 +43,8 @@ submodule (keybindings) proc
      "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
      "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
+     "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
      "Run the commands               ",& ! BIND_INPCON_RUN
      "Rotate the camera              ",& ! BIND_NAV_ROTATE
      "Translate the camera           ",& ! BIND_NAV_TRANSLATE
@@ -69,6 +71,8 @@ submodule (keybindings) proc
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     group_tree,&   ! BIND_TREE_MOVE_UP
+     group_tree,&   ! BIND_TREE_MOVE_DOWN
      group_inpcon,& ! BIND_INPCON_RUN
      group_view,&   ! BIND_NAV_ROTATE
      group_view,&   ! BIND_NAV_TRANSLATE
@@ -177,6 +181,8 @@ contains
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)
+    call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_UpArrow,ImGuiKey_ModCtrl)
+    call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_DownArrow,ImGuiKey_ModCtrl)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,ImGuiKey_None)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,ImGuiKey_None)

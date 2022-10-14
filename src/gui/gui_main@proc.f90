@@ -183,7 +183,7 @@ contains
     ! set the initial ImGui style
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
-
+c
     ! set default keybindings
     call set_default_keybindings()
 
@@ -694,6 +694,7 @@ contains
     do i = 1, 3
        enabled(i) = (id(i) == 0)
     end do
+
     launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
     launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
     launch(d_newlib) = .false.

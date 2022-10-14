@@ -49,7 +49,8 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
-    use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD
+    use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
+       BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
@@ -58,7 +59,7 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view
+       tree_select_updates_view, io
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -71,7 +72,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -256,6 +257,10 @@ contains
     sz%x = 2._c_float
     sz%y = 2._c_float
     call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
+
+    ! next and previous systems
+    inext = 0
+    iprev = 0
 
     str = "Structures##0,0" // c_null_char
     flags = ImGuiTableFlags_Borders
@@ -797,6 +802,19 @@ contains
     end if
     call igPopStyleVar(3_c_int)
 
+    ! process the key bindings
+    if (is_bind_event(BIND_TREE_MOVE_UP)) then
+       if (iprev > 0) then
+          w%forceselect = iprev
+          call igSetWindowFocus_Str(c_loc(w%name))
+       end if
+    elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
+       if (inext > 0) then
+          w%forceselect = inext
+          call igSetWindowFocus_Str(c_loc(w%name))
+       end if
+    end if
+
     ! if exporting, read the export command
     if (export) &
        ldum = win(iwin_console_input)%read_output_ci(.true.,"[Table export]")
@@ -832,8 +850,14 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
       selected = (w%table_selected==isys)
       strl = "##selectable" // string(isys) // c_null_char
-      if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+      ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
+      ok = ok .or. (w%forceselect == isys)
+      if (ok) then
          w%table_selected = isys
+         if (w%forceselect > 0) then
+            w%forceselect = 0
+            call igSetKeyboardFocusHere(0)
+         end if
          if (tree_select_updates_inpcon) &
             win(iwin_console_input)%inpcon_selected = isys
          if (tree_select_updates_view) then
@@ -846,6 +870,13 @@ contains
       end if
       call igSameLine(0._c_float,-1._c_float)
       call igSetCursorPosX(pos)
+
+      ! update the iprev and inext
+      if (isys < w%table_selected) then
+         iprev = isys
+      elseif (isys > w%table_selected .and. inext == 0) then
+         inext = isys
+      end if
 
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then

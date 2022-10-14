@@ -160,7 +160,9 @@ end subroutine igSetNextWindowBgAlpha
 !x! void igSetWindowPos_Vec2(const ImVec2 pos,ImGuiCond cond);
 !x! void igSetWindowSize_Vec2(const ImVec2 size,ImGuiCond cond);
 !x! void igSetWindowCollapsed_Bool(bool collapsed,ImGuiCond cond);
-!x! void igSetWindowFocus_Nil(void);
+! void igSetWindowFocus_Nil(void);
+subroutine igSetWindowFocus_Nil() bind(c,name="igSetWindowFocus_Nil")
+end subroutine igSetWindowFocus_Nil
 !x! void igSetWindowFontScale(float scale);
 !x! void igSetWindowPos_Str(const char* name,const ImVec2 pos,ImGuiCond cond);
 !x! void igSetWindowSize_Str(const char* name,const ImVec2 size,ImGuiCond cond);
@@ -388,7 +390,12 @@ end subroutine igPushID_Str
 ! void igPopID(void);
 subroutine igPopID() bind(c,name="igPopID")
 end subroutine igPopID
-!x! ImGuiID igGetID_Str(const char* str_id);
+! ImGuiID igGetID_Str(const char* str_id);
+function igGetID_Str(str_id) bind(c,name="igGetID_Str")
+  import c_int, c_ptr
+  type(c_ptr), intent(in), value :: str_id
+  integer(c_int) :: igGetID_Str
+end function igGetID_Str
 !x! ImGuiID igGetID_StrStr(const char* str_id_begin,const char* str_id_end);
 !x! ImGuiID igGetID_Ptr(const void* ptr_id);
 ! void igTextUnformatted(const char* text,const char* text_end);
@@ -1103,7 +1110,11 @@ end subroutine igSetClipboardText
 !x! void ImGuiIO_SetKeyEventNativeData(ImGuiIO* self,ImGuiKey key,int native_keycode,int native_scancode,int native_legacy_index);
 !x! void ImGuiIO_SetAppAcceptingEvents(ImGuiIO* self,bool accepting_events);
 !x! void ImGuiIO_ClearInputCharacters(ImGuiIO* self);
-!x! void ImGuiIO_ClearInputKeys(ImGuiIO* self);
+! void ImGuiIO_ClearInputKeys(ImGuiIO* self);
+subroutine ImGuiIO_ClearInputKeys(self) bind(c,name="ImGuiIO_ClearInputKeys")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImGuiIO_ClearInputKeys
 !x! ImGuiIO* ImGuiIO_ImGuiIO(void);
 !x! void ImGuiIO_destroy(ImGuiIO* self);
 !x! ImGuiInputTextCallbackData* ImGuiInputTextCallbackData_ImGuiInputTextCallbackData(void);
@@ -1850,8 +1861,16 @@ end subroutine igClosePopupsExceptModals
 !x! float igGetNavInputAmount(ImGuiNavInput n,ImGuiNavReadMode mode);
 !x! void igGetNavInputAmount2d(ImVec2 *pOut,ImGuiNavDirSourceFlags dir_sources,ImGuiNavReadMode mode,float slow_factor,float fast_factor);
 !x! int igCalcTypematicRepeatAmount(float t0,float t1,float repeat_delay,float repeat_rate);
-!x! void igActivateItem(ImGuiID id);
-!x! void igSetNavWindow(ImGuiWindow* window);
+! void igActivateItem(ImGuiID id);
+subroutine igActivateItem(id) bind(c,name="igActivateItem")
+  import c_int
+  integer(c_int), value :: id
+end subroutine igActivateItem
+! void igSetNavWindow(ImGuiWindow* window);
+subroutine igSetNavWindow(window) bind(c,name="igSetNavWindow")
+  import c_ptr
+  type(c_ptr), intent(in), value :: window
+end subroutine igSetNavWindow
 !x! void igSetNavID(ImGuiID id,ImGuiNavLayer nav_layer,ImGuiID focus_scope_id,const ImRect rect_rel);
 !x! void igPushFocusScope(ImGuiID id);
 !x! void igPopFocusScope(void);

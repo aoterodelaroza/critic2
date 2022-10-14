@@ -36,12 +36,14 @@ module keybindings
   integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 4 ! close focused dialog
   integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 5 ! OK focused dialog
   integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 6 ! tree: remove system or field
-  integer, parameter, public :: BIND_INPCON_RUN = 7 ! tree: remove system
-  integer, parameter, public :: BIND_NAV_ROTATE = 8 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 9 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 10 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 11 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 11 ! total number of binds
+  integer, parameter, public :: BIND_TREE_MOVE_UP = 7 ! tree: move selection up
+  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 8 ! tree: move selection down
+  integer, parameter, public :: BIND_INPCON_RUN = 9 ! tree: remove system
+  integer, parameter, public :: BIND_NAV_ROTATE = 10 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 11 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 12 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 13 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 13 ! total number of binds
   ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
   ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
   ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis

@@ -151,6 +151,7 @@ contains
     w%forcesort = .false.
     w%forceupdate = .false.
     w%forceinit = .false.
+    w%forceselect = 0
     w%inpcon_selected = 1
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib

@@ -95,6 +95,7 @@ module windows
      logical :: forceupdate = .false. ! make true to force an update of the tree
      logical :: forceinit = .false. ! make true to force an initialization of the systems
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
+     integer :: forceselect = 0 ! make the tree select this system in the next pass
      ! view parameters
      integer(c_int) :: FBO ! framebuffer
      integer(c_int) :: FBOtex ! framebuffer, texture
