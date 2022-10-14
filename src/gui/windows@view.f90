@@ -215,10 +215,8 @@ contains
 
     integer, parameter :: ilock_no = 1
     integer, parameter :: ilock_left = 2
-    integer, parameter :: ilock_mid = 3
-    integer, parameter :: ilock_right = 4
-    integer, parameter :: ilock_scroll = 5
-    integer, parameter :: ilock_NUM = 5
+    integer, parameter :: ilock_right = 3
+    integer, parameter :: ilock_scroll = 4
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -357,9 +355,9 @@ contains
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
 
-                   sc%world = translate(sc%world,real(sc%scenecenter,c_float))
+                   sc%world = translate(sc%world,sc%scenecenter)
                    sc%world = rotate(sc%world,ang,axis)
-                   sc%world = translate(sc%world,real(-sc%scenecenter,c_float))
+                   sc%world = translate(sc%world,-sc%scenecenter)
 
                    w%forcerender = .true.
                 end if
@@ -393,8 +391,6 @@ contains
       mpos0_s = 0._c_float
       ilock = ilock_no
     end subroutine init_state
-    subroutine end_state()
-    end subroutine end_state
 
   end subroutine process_events_view
 

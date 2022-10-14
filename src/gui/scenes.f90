@@ -28,8 +28,8 @@ module scenes
      logical :: showcell = .false. ! show the unit cell?
      integer :: ncell(3) ! number of cells show in each direction
      integer :: imotif = 0 ! 0 = none, 1 = border, 2 = onemotif, 3 = molmotif
-     real*8 :: scenerad = 1d0 ! scene radius
-     real*8 :: scenecenter(3) ! scene center
+     real(c_float) :: scenerad = 1d0 ! scene radius
+     real(c_float) :: scenecenter(3) ! scene center
      ! phong shader settings
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color

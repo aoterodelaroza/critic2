@@ -19,7 +19,7 @@
 submodule (scenes) proc
   implicit none
 
-  real*8 :: min_scenerad = 10.d0
+  real(c_float) :: min_scenerad = 10._c_float
 
   ! object resolution
   integer, parameter :: isphres = 3 ! sphere
@@ -41,8 +41,6 @@ contains
     use gui_main, only: nsys, sysc, sys_init, sys
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
-
-    real*8 :: xmin(3), xmax(3), x(3)
 
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) return
@@ -92,8 +90,8 @@ contains
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, hw2
-    real*8 :: xmin(3), xmax(3), x(3), center(3)
+    real(c_float) :: pic
+    real*8 :: xmin(3), xmax(3), x(3)
     integer :: isys
     integer :: i, i1, i2, i3
 
@@ -124,11 +122,13 @@ contains
           end do
        end if
     end if
-    s%scenerad = max(norm2(xmax-xmin),min_scenerad)
+    s%scenerad = real(norm2(xmax-xmin),c_float)
+    s%scenerad = max(s%scenerad,min_scenerad)
 
     ! calculate the scene center
-    s%scenecenter = (/0.5d0,0.5d0,0.5d0/)
-    s%scenecenter = sys(isys)%c%x2c(s%scenecenter)
+    x = (/0.5d0,0.5d0,0.5d0/)
+    x = sys(isys)%c%x2c(x)
+    s%scenecenter = real(x,c_float)
 
     ! default transformation matrices
     pic = real(pi,c_float)
@@ -155,14 +155,14 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use gui_main, only: sysc, sys_init, sys
-    use shaders, only: shader_test, shader_phong, useshader, setuniform_int,&
+    use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
     use shapes, only: sphVAO, cylVAO
     use param, only: jmlcol2, atmcov
     class(scene), intent(inout), target :: s
 
-    real(c_float), target :: vcolor(4), model(4,4), rgba(4), x0(3), x1(3), rad
+    real(c_float), target :: rgba(4), x0(3), x1(3), rad
     integer :: i, iz
 
     real*8, parameter :: uc(3,2,12) = reshape((/&
