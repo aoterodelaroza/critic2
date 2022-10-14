@@ -90,7 +90,7 @@ contains
        end do
        call igEndCombo()
     end if
-    call iw_tooltip("Choose the system displayed in the view",ttshown)
+    call iw_tooltip("Choose the system displayed",ttshown)
 
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)

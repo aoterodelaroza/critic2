@@ -22,12 +22,39 @@ module scenes
 
   private
 
+  integer, parameter :: reptype_none = 0
+  integer, parameter :: reptype_atoms = 1
+  integer, parameter :: reptype_bonds = 2
+  integer, parameter :: reptype_unitcell = 3
+  integer, parameter :: reptype_labels = 4
+
+  !> Representation: objects to draw on the scene
+  type representation
+     logical :: isinit = .false. ! true if the representation has been initialized
+     logical :: shown = .false. ! true if the representation is currently shown
+     integer :: type = reptype_none ! type of representation (atoms, bonds,...)
+     integer :: id ! system ID
+     character(kind=c_char,len=:), allocatable :: name ! name of the representation
+     ! global parameters
+     integer :: ncell(3) ! number of unit cells drawn (or zero if controlled by the global +/-)
+     logical :: border = .true. ! draw atoms at the border of the unit cell
+     logical :: onemotif = .false. ! draw connected molecules
+     ! atoms
+     real*8 :: atom_scale = 1d0 ! atomic radius scaling factor
+     ! bonds
+     real*8 :: bond_scale = 1d0 ! bond scaling factor
+   contains
+     procedure :: draw => representation_draw
+     procedure :: draw_atoms
+     procedure :: draw_bonds
+     procedure :: draw_unitcell
+     procedure :: draw_labels
+  end type representation
+
+  !> Scene: objects from the system to be drawn and plot settings
   type scene
      logical :: isinit = .false. ! whether the scene has been initialized
      integer :: id ! system ID
-     logical :: showcell = .false. ! show the unit cell?
-     integer :: ncell(3) ! number of cells show in each direction
-     integer :: imotif = 0 ! 0 = none, 1 = border, 2 = onemotif, 3 = molmotif
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center
      ! phong shader settings
@@ -46,6 +73,9 @@ module scenes
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
+     ! list of representations
+     integer :: nrep = 0
+     type(representation), allocatable :: rep(:)
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -53,13 +83,12 @@ module scenes
      procedure :: render => scene_render
      procedure :: update_projection_matrix
      procedure :: update_view_matrix
-     procedure :: draw_sphere
-     procedure :: draw_cylinder
   end type scene
   public :: scene
 
   ! module procedure interfaces
   interface
+     ! scene
      module subroutine scene_init(s,isys)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: isys
@@ -79,19 +108,32 @@ module scenes
      module subroutine update_view_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
-     module subroutine draw_sphere(s,x0,rad,rgba)
-       class(scene), intent(inout), target :: s
-       real(c_float), intent(in) :: x0(3)
-       real(c_float), intent(in) :: rad
-       real(c_float), intent(in) :: rgba(4)
-     end subroutine draw_sphere
-     module subroutine draw_cylinder(s,x1,x2,rad,rgba)
-       class(scene), intent(inout), target :: s
-       real(c_float), intent(in) :: x1(3)
-       real(c_float), intent(in) :: x2(3)
-       real(c_float), intent(in) :: rad
-       real(c_float), intent(in) :: rgba(4)
-     end subroutine draw_cylinder
+     ! representation
+     module subroutine representation_draw(r,xmin,xmax)
+       class(representation), intent(inout), target :: r
+       real*8, optional, intent(inout) :: xmin(3)
+       real*8, optional, intent(inout) :: xmax(3)
+     end subroutine representation_draw
+     module subroutine draw_atoms(r,xmin,xmax)
+       class(representation), intent(inout), target :: r
+       real*8, optional, intent(inout) :: xmin(3)
+       real*8, optional, intent(inout) :: xmax(3)
+     end subroutine draw_atoms
+     module subroutine draw_bonds(r,xmin,xmax)
+       class(representation), intent(inout), target :: r
+       real*8, optional, intent(inout) :: xmin(3)
+       real*8, optional, intent(inout) :: xmax(3)
+     end subroutine draw_bonds
+     module subroutine draw_unitcell(r,xmin,xmax)
+       class(representation), intent(inout), target :: r
+       real*8, optional, intent(inout) :: xmin(3)
+       real*8, optional, intent(inout) :: xmax(3)
+     end subroutine draw_unitcell
+     module subroutine draw_labels(r,xmin,xmax)
+       class(representation), intent(inout), target :: r
+       real*8, optional, intent(inout) :: xmin(3)
+       real*8, optional, intent(inout) :: xmax(3)
+     end subroutine draw_labels
   end interface
 
 end module scenes

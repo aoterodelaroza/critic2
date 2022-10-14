@@ -34,7 +34,13 @@ submodule (scenes) proc
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
+  !xx! private procedures: low-level draws
+  ! subroutine draw_sphere(x0,rad,rgba)
+  ! subroutine draw_cylinder(x1,x2,rad,rgba)
+
 contains
+
+  !xx! scene
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
@@ -47,18 +53,7 @@ contains
 
     ! basic variables
     s%id = isys
-    s%showcell = .not.(sys(isys)%c%ismolecule)
-    s%ncell = 1
     s%isinit = .true.
-
-    ! default imotif
-    if (sys(isys)%c%ismolecule) then
-       s%imotif = 0
-    elseif (sys(isys)%c%ismol3d) then
-       s%imotif = 3
-    else
-       s%imotif = 1
-    end if
 
     ! phong default settings
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
@@ -67,6 +62,57 @@ contains
     s%diffuse = 0.4_c_float
     s%specular = 0.6_c_float
     s%shininess = 8_c_int
+
+    ! initialize representations
+    if (allocated(s%rep)) deallocate(s%rep)
+    allocate(s%rep(20))
+    s%nrep = 0
+
+    ! atoms
+    s%nrep = s%nrep + 1
+    s%rep(s%nrep)%isinit = .true.
+    s%rep(s%nrep)%shown = .true.
+    s%rep(s%nrep)%type = reptype_atoms
+    s%rep(s%nrep)%id = s%id
+    s%rep(s%nrep)%name = "Atoms"
+    if (sys(isys)%c%ismolecule) then
+       s%rep(s%nrep)%ncell = 0
+       s%rep(s%nrep)%border = .false.
+       s%rep(s%nrep)%onemotif = .false.
+    else
+       s%rep(s%nrep)%border = .true.
+       s%rep(s%nrep)%onemotif = sys(isys)%c%ismol3d
+       s%rep(s%nrep)%ncell = 1
+    end if
+    s%rep(s%nrep)%atom_scale = 1d0
+
+    ! bonds
+    s%nrep = s%nrep + 1
+    s%rep(s%nrep)%isinit = .true.
+    s%rep(s%nrep)%shown = .true.
+    s%rep(s%nrep)%type = reptype_bonds
+    s%rep(s%nrep)%id = s%id
+    s%rep(s%nrep)%name = "Bonds"
+    if (sys(isys)%c%ismolecule) then
+       s%rep(s%nrep)%ncell = 0
+       s%rep(s%nrep)%border = .false.
+       s%rep(s%nrep)%onemotif = .false.
+    else
+       s%rep(s%nrep)%border = .true.
+       s%rep(s%nrep)%onemotif = sys(isys)%c%ismol3d
+       s%rep(s%nrep)%ncell = 1
+    end if
+    s%rep(s%nrep)%bond_scale = 1d0
+
+    ! unit cell
+    if (.not.sys(isys)%c%ismolecule) then
+       s%nrep = s%nrep + 1
+       s%rep(s%nrep)%isinit = .true.
+       s%rep(s%nrep)%shown = .true.
+       s%rep(s%nrep)%type = reptype_unitcell
+       s%rep(s%nrep)%id = s%id
+       s%rep(s%nrep)%name = "Unit cell"
+    end if
 
     ! reset the camera
     call s%reset()
@@ -79,6 +125,8 @@ contains
 
     s%isinit = .false.
     s%id = 0
+    if (allocated(s%rep)) deallocate(s%rep)
+    s%nrep = 0
 
   end subroutine scene_end
 
@@ -97,6 +145,14 @@ contains
 
     ! initialize
     isys = s%id
+
+    ! use xmin and xmax
+    ! ! draw all initialized and visible representations
+    ! do i = 1, s%nrep
+    !    if (s%rep(i)%isinit .and. s%rep(i)%shown) then
+    !       call s%rep(i)%draw()
+    !    end if
+    ! end do
 
     ! calculate the initial scene radius
     xmin = 0d0
@@ -140,8 +196,9 @@ contains
 
     ! camera distance and view matrix
     s%campos = s%scenecenter
-    s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad * &
-       sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    ! s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad * &
+    !    sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     call s%update_view_matrix()
 
     ! projection matrix
@@ -158,27 +215,11 @@ contains
     use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
-    use shapes, only: sphVAO, cylVAO
-    use param, only: jmlcol2, atmcov
     class(scene), intent(inout), target :: s
 
-    real(c_float), target :: rgba(4), x0(3), x1(3), rad
-    integer :: i, iz
+    integer :: i
 
-    real*8, parameter :: uc(3,2,12) = reshape((/&
-       0._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,0._c_float,&
-       0._c_float,0._c_float,0._c_float,  0._c_float,1._c_float,0._c_float,&
-       0._c_float,0._c_float,0._c_float,  0._c_float,0._c_float,1._c_float,&
-       1._c_float,1._c_float,1._c_float,  1._c_float,1._c_float,0._c_float,&
-       1._c_float,1._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
-       1._c_float,1._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
-       1._c_float,0._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
-       0._c_float,1._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
-       0._c_float,1._c_float,0._c_float,  0._c_float,1._c_float,1._c_float,&
-       0._c_float,0._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
-       0._c_float,0._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
-       1._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,1._c_float/),shape(uc))
-
+    ! check that the scene and system are initialized
     if (.not.s%isinit) return
     if (.not.sysc(s%id)%status == sys_init) return
 
@@ -195,30 +236,12 @@ contains
     call setuniform_mat4("view",s%view)
     call setuniform_mat4("projection",s%projection)
 
-    ! draw the atoms
-    call glBindVertexArray(sphVAO(isphres))
-    do i = 1, sys(s%id)%c%ncel
-       iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(i)%is)%z
-       rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
-       rgba(4) = 1._c_float
-       x0 = real(sys(s%id)%c%atcel(i)%r,c_float)
-       rad = 0.7_c_float * real(atmcov(iz),c_float)
-       call s%draw_sphere(x0,rad,rgba)
+    ! draw all initialized and visible representations
+    do i = 1, s%nrep
+       if (s%rep(i)%isinit .and. s%rep(i)%shown) then
+          call s%rep(i)%draw()
+       end if
     end do
-    call glBindVertexArray(0)
-
-    ! draw the unit cell
-    if (s%showcell) then
-       call glBindVertexArray(cylVAO(icylres))
-       rad = 0.2_c_float
-       rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
-       do i = 1, 12
-          x0 = real(sys(s%id)%c%x2c(uc(:,1,i)),c_float)
-          x1 = real(sys(s%id)%c%x2c(uc(:,2,i)),c_float)
-          call s%draw_cylinder(x0,x1,rad,rgba)
-       end do
-       call glBindVertexArray(0)
-    end if
 
   end subroutine scene_render
 
@@ -249,13 +272,126 @@ contains
 
   end subroutine update_view_matrix
 
+  !xx! representation
+
+  !> Draw a representation. If xmin and xmax are present, calculate
+  !> the bounding box instead of drawing.
+  module subroutine representation_draw(r,xmin,xmax)
+    class(representation), intent(inout), target :: r
+    real*8, optional, intent(inout) :: xmin(3)
+    real*8, optional, intent(inout) :: xmax(3)
+
+    ! initial checks
+    if (.not.r%isinit) return
+    if (.not.r%shown) return
+    if (r%type == reptype_none) return
+
+    ! draw the objects
+    if (r%type == reptype_atoms) then
+       call r%draw_atoms(xmin,xmax)
+    elseif (r%type == reptype_bonds) then
+       call r%draw_bonds(xmin,xmax)
+    elseif (r%type == reptype_unitcell) then
+       call r%draw_unitcell(xmin,xmax)
+    elseif (r%type == reptype_labels) then
+       call r%draw_labels(xmin,xmax)
+    end if
+
+  end subroutine representation_draw
+
+  !> Draw an atoms representation. If xmin and xmax are present,
+  !> calculate the bounding box instead of drawing.
+  module subroutine draw_atoms(r,xmin,xmax)
+    use interfaces_opengl3
+    use gui_main, only: sys
+    use shapes, only: sphVAO
+    use param, only: jmlcol2, atmcov
+    class(representation), intent(inout), target :: r
+    real*8, optional, intent(inout) :: xmin(3)
+    real*8, optional, intent(inout) :: xmax(3)
+
+    real(c_float) :: rgba(4), x0(3), x1(3), rad
+    integer :: i, iz
+
+    call glBindVertexArray(sphVAO(isphres))
+    do i = 1, sys(r%id)%c%ncel
+       iz = sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z
+       rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+       rgba(4) = 1._c_float
+       x0 = real(sys(r%id)%c%atcel(i)%r,c_float)
+       rad = 0.7_c_float * real(atmcov(iz),c_float)
+       call draw_sphere(x0,rad,rgba)
+    end do
+    call glBindVertexArray(0)
+
+  end subroutine draw_atoms
+
+  !> Draw a bonds representation. If xmin and xmax are present,
+  !> calculate the bounding box instead of drawing.
+  module subroutine draw_bonds(r,xmin,xmax)
+    class(representation), intent(inout), target :: r
+    real*8, optional, intent(inout) :: xmin(3)
+    real*8, optional, intent(inout) :: xmax(3)
+
+
+  end subroutine draw_bonds
+
+  !> Draw a unit cell representation. If xmin and xmax are present,
+  !> calculate the bounding box instead of drawing.
+  module subroutine draw_unitcell(r,xmin,xmax)
+    class(representation), intent(inout), target :: r
+    real*8, optional, intent(inout) :: xmin(3)
+    real*8, optional, intent(inout) :: xmax(3)
+
+    ! use shapes, only: cylVAO
+
+    ! real*8, parameter :: uc(3,2,12) = reshape((/&
+    !    0._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,0._c_float,&
+    !    0._c_float,0._c_float,0._c_float,  0._c_float,1._c_float,0._c_float,&
+    !    0._c_float,0._c_float,0._c_float,  0._c_float,0._c_float,1._c_float,&
+    !    1._c_float,1._c_float,1._c_float,  1._c_float,1._c_float,0._c_float,&
+    !    1._c_float,1._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
+    !    1._c_float,1._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
+    !    1._c_float,0._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
+    !    0._c_float,1._c_float,0._c_float,  1._c_float,1._c_float,0._c_float,&
+    !    0._c_float,1._c_float,0._c_float,  0._c_float,1._c_float,1._c_float,&
+    !    0._c_float,0._c_float,1._c_float,  0._c_float,1._c_float,1._c_float,&
+    !    0._c_float,0._c_float,1._c_float,  1._c_float,0._c_float,1._c_float,&
+    !    1._c_float,0._c_float,0._c_float,  1._c_float,0._c_float,1._c_float/),shape(uc))
+
+    ! ! ! draw the unit cell
+    ! ! if (s%showcell) then
+    ! !    call glBindVertexArray(cylVAO(icylres))
+    ! !    rad = 0.2_c_float
+    ! !    rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+    ! !    do i = 1, 12
+    ! !       x0 = real(sys(s%id)%c%x2c(uc(:,1,i)),c_float)
+    ! !       x1 = real(sys(s%id)%c%x2c(uc(:,2,i)),c_float)
+    ! !       call s%draw_cylinder(x0,x1,rad,rgba)
+    ! !    end do
+    ! !    call glBindVertexArray(0)
+    ! ! end if
+
+  end subroutine draw_unitcell
+
+  !> Draw a labels representation. If xmin and xmax are present,
+  !> calculate the bounding box instead of drawing.
+  module subroutine draw_labels(r,xmin,xmax)
+    class(representation), intent(inout), target :: r
+    real*8, optional, intent(inout) :: xmin(3)
+    real*8, optional, intent(inout) :: xmax(3)
+
+
+  end subroutine draw_labels
+
+  !xx! private procedures: low-level draws
+
   !> Draw a sphere with center x0, radius rad and color rgba. Requires
   !> having the sphere VAO bound.
-  module subroutine draw_sphere(s,x0,rad,rgba)
+  subroutine draw_sphere(x0,rad,rgba)
     use interfaces_opengl3
     use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: sphnel
-    class(scene), intent(inout), target :: s
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
     real(c_float), intent(in) :: rgba(4)
@@ -278,12 +414,11 @@ contains
 
   !> Draw a cylinder from x1 to x2 with radius rad and color
   !> rgba. Requires having the cylinder VAO bound.
-  module subroutine draw_cylinder(s,x1,x2,rad,rgba)
+  subroutine draw_cylinder(x1,x2,rad,rgba)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: cylnel
-    class(scene), intent(inout), target :: s
     real(c_float), intent(in) :: x1(3)
     real(c_float), intent(in) :: x2(3)
     real(c_float), intent(in) :: rad
