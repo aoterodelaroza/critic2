@@ -183,7 +183,7 @@ contains
     ! set the initial ImGui style
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
-c
+
     ! set default keybindings
     call set_default_keybindings()
 
