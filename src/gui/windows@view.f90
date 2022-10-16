@@ -41,13 +41,13 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i
+    integer :: i, nrep
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, changed
-    integer(c_int) :: amax, flags, idum
+    integer(c_int) :: amax, flags
     real(c_float) :: scal, width
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -76,8 +76,9 @@ contains
        flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        sz0%x = 0
-       idum = min(sysc(w%view_selected)%sc%nrep,5)
-       sz0%y = iw_calcheight(idum,0,.true.)
+       nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
+       nrep = min(nrep,10)
+       sz0%y = iw_calcheight(nrep,0,.true.)
        if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
           str3 = "[close button]##1closebutton" // c_null_char
           flags = ImGuiTableColumnFlags_None

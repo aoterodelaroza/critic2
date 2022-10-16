@@ -44,6 +44,8 @@ module scenes
      ! bonds
      real*8 :: bond_scale = 1d0 ! bond scaling factor
    contains
+     procedure :: init => representation_init
+     procedure :: end => representation_end
      procedure :: draw => representation_draw
      procedure :: draw_atoms
      procedure :: draw_bonds
@@ -114,6 +116,12 @@ module scenes
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
      ! representation
+     module subroutine representation_init(r)
+       class(representation), intent(inout), target :: r
+     end subroutine representation_init
+     module subroutine representation_end(r)
+       class(representation), intent(inout), target :: r
+     end subroutine representation_end
      module subroutine representation_draw(r,xmin,xmax)
        class(representation), intent(inout), target :: r
        real*8, optional, intent(inout) :: xmin(3)

@@ -70,6 +70,7 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
+    call s%rep(s%nrep)%init()
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_atoms
@@ -88,6 +89,7 @@ contains
 
     ! bonds
     s%nrep = s%nrep + 1
+    call s%rep(s%nrep)%init()
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_bonds
@@ -107,6 +109,7 @@ contains
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
+       call s%rep(s%nrep)%init()
        s%rep(s%nrep)%isinit = .true.
        s%rep(s%nrep)%shown = .true.
        s%rep(s%nrep)%type = reptype_unitcell
@@ -258,7 +261,7 @@ contains
     integer :: i
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: ldum
-    logical :: discol
+    logical :: discol, doerase
     type(ImVec2) :: szero, sz
 
     ! coordinate this with draw_view in windows@view module
@@ -277,12 +280,11 @@ contains
        if (.not.s%rep(i)%isinit) cycle
 
        ! close button
+       doerase = .false.
        call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
        if (igTableSetColumnIndex(ic_closebutton)) then
           str1 = "##2ic_closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
-          if (my_CloseButton(c_loc(str1),ColorDangerButton)) then
-             write (*,*) "bleh!"
-          end if
+          if (my_CloseButton(c_loc(str1),ColorDangerButton)) doerase = .true.
        end if
 
        ! view button
@@ -311,6 +313,12 @@ contains
           if (igSmallButton(c_loc(str1))) then
              write (*,*) "bleh2!"
           end if
+       end if
+
+       ! delete the representation if asked
+       if (doerase) then
+          call s%rep(i)%end()
+          changed = .true.
        end if
     end do
 
@@ -344,6 +352,34 @@ contains
   end subroutine update_view_matrix
 
   !xx! representation
+
+  !> Initialize a representation
+  module subroutine representation_init(r)
+    class(representation), intent(inout), target :: r
+
+    r%isinit = .false.
+    r%shown = .false.
+    r%type = reptype_none
+    r%id = 0
+    r%name = ""
+    r%ncell = 1
+    r%border = .true.
+    r%onemotif = .false.
+    r%atom_scale = 1d0
+    r%bond_scale = 1d0
+
+  end subroutine representation_init
+
+  !> Terminate a representation
+  module subroutine representation_end(r)
+    class(representation), intent(inout), target :: r
+
+    r%name = ""
+    r%isinit = .false.
+    r%shown = .false.
+    r%id = 0
+
+  end subroutine representation_end
 
   !> Draw a representation. If xmin and xmax are present, calculate
   !> the bounding box instead of drawing.
