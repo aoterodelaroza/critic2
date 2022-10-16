@@ -35,7 +35,8 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
-    use gui_main, only: sysc, sys_init, nsys
+    use utils, only: iw_calcheight
+    use gui_main, only: sysc, sys_init, nsys, g
     use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -43,13 +44,19 @@ contains
     integer :: i
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
-    logical(c_bool) :: ldum, is_selected
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    logical(c_bool) :: is_selected
     logical :: hover
-    integer(c_int) :: amax
-    real(c_float) :: scal
+    integer(c_int) :: amax, flags, idum
+    real(c_float) :: scal, width
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    ! coordinate this with representation_menu in scenes module
+    integer(c_int), parameter :: ic_closebutton = 0
+    integer(c_int), parameter :: ic_viewbutton = 1
+    integer(c_int), parameter :: ic_editbutton = 2
+    integer(c_int), parameter :: ic_name = 3
 
     ! initialize
     szero%x = 0
@@ -61,8 +68,48 @@ contains
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
-       str2 = "Empty for now" // c_null_char
-       ldum = igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)
+       ! representations table
+       str2 = "Representations##0,0" // c_null_char
+
+       flags = ImGuiTableFlags_NoSavedSettings
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       sz0%x = 0
+       idum = min(sysc(w%view_selected)%sc%nrep,5)
+       sz0%y = iw_calcheight(idum,0,.true.)
+       if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
+          str3 = "[close button]##1closebutton" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          width = max(4._c_float, g%FontSize + 2._c_float)
+          call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
+
+          str3 = "[view button]##1viewbutton" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          width = max(4._c_float, g%FontSize + 2._c_float)
+          call igTableSetupColumn(c_loc(str3),flags,width,ic_viewbutton)
+
+          str3 = "[edit button]##1editbutton" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          width = max(4._c_float, g%FontSize + 2._c_float)
+          call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
+
+          str3 = "[name]##1name" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthStretch
+          call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
+
+          if (w%view_selected > 0 .and. w%view_selected <= nsys) &
+             call sysc(w%view_selected)%sc%representation_menu()
+
+          call igEndTable()
+       end if
+
+       ! new representation selectable
+       str2 = "New Representation..." // c_null_char
+       if (igSelectable_Bool(c_loc(str2),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
+          ! xxxx write me
+       end if
+
        call igEndPopup()
     end if
     call iw_tooltip("Change the view options")

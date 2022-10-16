@@ -31,7 +31,7 @@ module scenes
   !> Representation: objects to draw on the scene
   type representation
      logical :: isinit = .false. ! true if the representation has been initialized
-     logical :: shown = .false. ! true if the representation is currently shown
+     logical(c_bool) :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, bonds,...)
      integer :: id ! system ID
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
@@ -81,6 +81,7 @@ module scenes
      procedure :: end => scene_end
      procedure :: reset => scene_reset
      procedure :: render => scene_render
+     procedure :: representation_menu
      procedure :: update_projection_matrix
      procedure :: update_view_matrix
   end type scene
@@ -102,6 +103,9 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
+     module subroutine representation_menu(s)
+       class(scene), intent(inout), target :: s
+     end subroutine representation_menu
      module subroutine update_projection_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_projection_matrix

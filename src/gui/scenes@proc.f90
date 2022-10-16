@@ -245,6 +245,64 @@ contains
 
   end subroutine scene_render
 
+  !> Show the representation menu (called from view)
+  module subroutine representation_menu(s)
+    use interfaces_cimgui
+    use utils, only: iw_text
+    use gui_main, only: ColorDangerButton
+    use tools_io, only: string
+    class(scene), intent(inout), target :: s
+
+    integer :: i
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    logical(c_bool) :: ldum
+    type(ImVec2) :: szero, sz
+
+    ! coordinate this with draw_view in windows@view module
+    integer(c_int), parameter :: ic_closebutton = 0
+    integer(c_int), parameter :: ic_viewbutton = 1
+    integer(c_int), parameter :: ic_editbutton = 2
+    integer(c_int), parameter :: ic_name = 3
+
+    ! initialization
+    szero%x = 0
+    szero%y = 0
+
+    ! representation rows
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) cycle
+
+       ! close button
+       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+       if (igTableSetColumnIndex(ic_closebutton)) then
+          str1 = "##2ic_closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
+          if (my_CloseButton(c_loc(str1),ColorDangerButton)) then
+             write (*,*) "bleh!"
+          end if
+       end if
+
+       ! view button
+       if (igTableSetColumnIndex(ic_viewbutton)) then
+          str1 = "##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i) // c_null_char
+          ldum = igCheckbox(c_loc(str1), s%rep(i)%shown)
+       end if
+
+       ! edit button
+       if (igTableSetColumnIndex(ic_editbutton)) then
+          str1 = "E##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
+          if (igSmallButton(c_loc(str1))) then
+             write (*,*) "bleh2!"
+          end if
+       end if
+
+       ! name
+       if (igTableSetColumnIndex(ic_name)) then
+          call iw_text(s%rep(i)%name)
+       end if
+    end do
+
+  end subroutine representation_menu
+
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
     use utils, only: ortho
