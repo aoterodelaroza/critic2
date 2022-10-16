@@ -37,6 +37,9 @@ CIMGUI_API void ipEndPlot(){
 CIMGUI_API void ipSetupAxisFormat(ImAxis axis, const char* fmt){
   ImPlot::SetupAxisFormat(axis,fmt);
 }
+CIMGUI_API void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks){
+  ImPlot::SetupAxisTicks(axis,v_min,v_max,n_ticks);
+}
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);
 }

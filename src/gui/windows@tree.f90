@@ -1998,6 +1998,10 @@ contains
           str2 = "Energy (Ha)" // c_null_char
           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
 
+          str1 = "%.0f" // c_null_char
+          call ipSetupAxisTicks(ImAxis_X1,x(1),x(size(x,1)),size(x,1))
+          call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
+
           dy = (ymax - ymin)
           str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
           call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))

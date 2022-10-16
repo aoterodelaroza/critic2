@@ -2400,6 +2400,14 @@ subroutine ipSetupAxisFormat(axis,fmt) bind(c,name="ipSetupAxisFormat")
   integer(c_int), value :: axis
   type(c_ptr), intent(in), value :: fmt
 end subroutine ipSetupAxisFormat
+! void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks);
+subroutine ipSetupAxisTicks(axis,v_min,v_max,n_ticks) bind(c,name="ipSetupAxisTicks")
+  import c_int, c_double
+  integer(c_int), value :: axis
+  real(c_double), value :: v_min
+  real(c_double), value :: v_max
+  integer(c_int), value :: n_ticks
+end subroutine ipSetupAxisTicks
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int
