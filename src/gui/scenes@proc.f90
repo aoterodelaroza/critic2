@@ -245,28 +245,32 @@ contains
 
   end subroutine scene_render
 
-  !> Show the representation menu (called from view)
-  module subroutine representation_menu(s)
+  !> Show the representation menu (called from view). Return .true.
+  !> if the scene needs to be rendered again.
+  module function representation_menu(s) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text
-    use gui_main, only: ColorDangerButton
+    use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
     class(scene), intent(inout), target :: s
+    logical :: changed
 
     integer :: i
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: ldum
+    logical :: discol
     type(ImVec2) :: szero, sz
 
     ! coordinate this with draw_view in windows@view module
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
-    integer(c_int), parameter :: ic_editbutton = 2
-    integer(c_int), parameter :: ic_name = 3
+    integer(c_int), parameter :: ic_name = 2
+    integer(c_int), parameter :: ic_editbutton = 3
 
     ! initialization
     szero%x = 0
     szero%y = 0
+    changed = .false.
 
     ! representation rows
     do i = 1, s%nrep
@@ -284,7 +288,21 @@ contains
        ! view button
        if (igTableSetColumnIndex(ic_viewbutton)) then
           str1 = "##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i) // c_null_char
-          ldum = igCheckbox(c_loc(str1), s%rep(i)%shown)
+          if (igCheckbox(c_loc(str1), s%rep(i)%shown)) &
+             changed = .true.
+       end if
+
+       ! name
+       if (igTableSetColumnIndex(ic_name)) then
+          discol = .not.s%rep(i)%shown
+          if (discol) &
+             call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
+          str1 = s%rep(i)%name // "##" // string(ic_name) // "," // string(i) // c_null_char
+          if (igSelectable_Bool(c_loc(str1),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
+             s%rep(i)%shown = .not.s%rep(i)%shown
+             changed = .true.
+          end if
+          if (discol) call igPopStyleColor(1)
        end if
 
        ! edit button
@@ -294,14 +312,9 @@ contains
              write (*,*) "bleh2!"
           end if
        end if
-
-       ! name
-       if (igTableSetColumnIndex(ic_name)) then
-          call iw_text(s%rep(i)%name)
-       end if
     end do
 
-  end subroutine representation_menu
+  end function representation_menu
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)

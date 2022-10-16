@@ -46,7 +46,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
-    logical :: hover
+    logical :: hover, changed
     integer(c_int) :: amax, flags, idum
     real(c_float) :: scal, width
 
@@ -55,8 +55,8 @@ contains
     ! coordinate this with representation_menu in scenes module
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
-    integer(c_int), parameter :: ic_editbutton = 2
-    integer(c_int), parameter :: ic_name = 3
+    integer(c_int), parameter :: ic_name = 2
+    integer(c_int), parameter :: ic_editbutton = 3
 
     ! initialize
     szero%x = 0
@@ -89,18 +89,19 @@ contains
           width = max(4._c_float, g%FontSize + 2._c_float)
           call igTableSetupColumn(c_loc(str3),flags,width,ic_viewbutton)
 
+          str3 = "[name]##1name" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthStretch
+          call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
+
           str3 = "[edit button]##1editbutton" // c_null_char
           flags = ImGuiTableColumnFlags_None
           width = max(4._c_float, g%FontSize + 2._c_float)
           call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
-          str3 = "[name]##1name" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthStretch
-          call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
-
-          if (w%view_selected > 0 .and. w%view_selected <= nsys) &
-             call sysc(w%view_selected)%sc%representation_menu()
-
+          if (w%view_selected > 0 .and. w%view_selected <= nsys) then
+             if (sysc(w%view_selected)%sc%representation_menu()) &
+                w%forcerender = .true.
+          end if
           call igEndTable()
        end if
 

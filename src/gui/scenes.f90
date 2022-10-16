@@ -103,9 +103,10 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
-     module subroutine representation_menu(s)
+     module function representation_menu(s) result(changed)
        class(scene), intent(inout), target :: s
-     end subroutine representation_menu
+       logical :: changed
+     end function representation_menu
      module subroutine update_projection_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_projection_matrix
