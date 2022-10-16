@@ -31,6 +31,8 @@ submodule (windows) view
 
 contains
 
+  !xx! view
+
   !> Draw the view.
   module subroutine draw_view(w)
     use interfaces_opengl3
@@ -41,7 +43,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, nrep
+    integer :: i, nrep, id
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -107,9 +109,15 @@ contains
        end if
 
        ! new representation selectable
-       str2 = "New Representation..." // c_null_char
+       str2 = "Add Representation..." // c_null_char
        if (igSelectable_Bool(c_loc(str2),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
-          ! xxxx write me
+          id = sysc(w%view_selected)%sc%get_new_representation_id()
+          call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected)
+          sysc(w%view_selected)%sc%rep(id)%isinit = .true.
+          sysc(w%view_selected)%sc%rep(id)%shown = .true.
+          sysc(w%view_selected)%sc%rep(id)%name = "<Empty>"
+          sysc(w%view_selected)%sc%rep(id)%idwin = stack_create_window(wintype_editrep,.true.,&
+             isys=w%view_selected,irep=id)
        end if
 
        call igEndPopup()
@@ -575,5 +583,39 @@ contains
     pos = unproject(pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine texpos_to_world
+
+  !xx! edit representation
+
+  !> Draw the SCF plot window.
+  module subroutine draw_editrep(w)
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use gui_main, only: nsys, sysc, sys_init
+    use utils, only: iw_text
+    class(window), intent(inout), target :: w
+
+    integer :: isys, irep
+    logical :: doquit
+
+    ! check the system and representation are still active
+    isys = w%editrep_isys
+    doquit = (isys < 1 .or. isys > nsys)
+    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    irep = w%editrep_irep
+    if (.not.doquit) doquit = (irep < 1 .or. irep > sysc(isys)%sc%nrep)
+    if (.not.doquit) doquit = .not.sysc(isys)%sc%rep(irep)%isinit
+
+    if (.not.doquit) then
+       call iw_text("bleh!")
+    end if
+
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+
+    if (doquit) then
+       ! call end_state()
+       call w%end()
+    end if
+
+  end subroutine draw_editrep
 
 end submodule view

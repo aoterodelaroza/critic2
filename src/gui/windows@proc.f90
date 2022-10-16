@@ -65,13 +65,14 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose,isys)
+  module function stack_create_window(type,isopen,purpose,isys,irep)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
+    integer, intent(in), optional :: irep
 
     integer :: stack_create_window
 
@@ -98,7 +99,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose,isys)
+    call win(id)%init(type,isopen,purpose,isys,irep)
     stack_create_window = id
 
   end function stack_create_window
@@ -124,7 +125,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose,isys)
+  module subroutine window_init(w,type,isopen,purpose,isys,irep)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
@@ -134,6 +135,7 @@ contains
     logical, intent(in) :: isopen
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
+    integer, intent(in), optional :: irep
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -190,6 +192,14 @@ contains
        if (.not.present(isys)) &
           call ferror('window_init','scfplot requires isys',faterr)
        w%scfplot_isys = isys
+    elseif (type == wintype_editrep) then
+       ! edit representation window
+       if (.not.present(isys)) &
+          call ferror('window_init','editrep requires isys',faterr)
+       if (.not.present(irep)) &
+          call ferror('window_init','editrep requires irep',faterr)
+       w%editrep_isys = isys
+       w%editrep_irep = irep
     elseif (type == wintype_view) then
        ! view window
        call w%create_texture_view(initial_texture_side)
@@ -375,6 +385,13 @@ contains
           inisize%x = 45 * fontsize%x
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_editrep) then
+          w%name = "Edit Representation " // string(w%editrep_irep) // ", System " // &
+             string(w%editrep_isys) // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 90 * fontsize%x
+          inisize%y = 40 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -403,6 +420,8 @@ contains
                 call w%draw_load_field()
              elseif (w%type == wintype_scfplot) then
                 call w%draw_scfplot()
+             elseif (w%type == wintype_editrep) then
+                call w%draw_editrep()
              end if
           end if
           call igEnd()

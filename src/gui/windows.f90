@@ -119,6 +119,9 @@ module windows
      integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
      ! scf plot parameters
      integer :: scfplot_isys = 0 ! the system on which the scf plot window operates
+     ! edit representation parameters
+     integer :: editrep_isys = 0 ! the system on which the edit representation window operates
+     integer :: editrep_irep = 0 ! the representation on which the e.r. window operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -159,6 +162,8 @@ module windows
      procedure :: draw_load_field
      ! scf plot
      procedure :: draw_scfplot
+     ! edit representation
+     procedure :: draw_editrep
   end type window
   public :: window
 
@@ -180,6 +185,7 @@ module windows
   integer, parameter, public :: wintype_new_struct_library = 7
   integer, parameter, public :: wintype_load_field = 8
   integer, parameter, public :: wintype_scfplot = 9
+  integer, parameter, public :: wintype_editrep = 10
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -201,23 +207,25 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys)
+     module function stack_create_window(type,isopen,purpose,isys,irep)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
+       integer, intent(in), optional :: irep
        integer :: stack_create_window
      end function stack_create_window
      module subroutine update_window_id(id,changed)
        integer, intent(inout) :: id
        integer, intent(out), optional :: changed
      end subroutine update_window_id
-     module subroutine window_init(w,type,isopen,purpose,isys)
+     module subroutine window_init(w,type,isopen,purpose,isys,irep)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
+       integer, intent(in), optional :: irep
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout), target :: w
@@ -323,6 +331,9 @@ module windows
      module subroutine draw_scfplot(w)
        class(window), intent(inout), target :: w
      end subroutine draw_scfplot
+     module subroutine draw_editrep(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_editrep
   end interface
 
 end module windows

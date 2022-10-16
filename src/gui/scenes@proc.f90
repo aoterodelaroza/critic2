@@ -70,11 +70,10 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init()
+    call s%rep(s%nrep)%init(s%id)
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_atoms
-    s%rep(s%nrep)%id = s%id
     s%rep(s%nrep)%name = "Atoms"
     if (sys(isys)%c%ismolecule) then
        s%rep(s%nrep)%ncell = 0
@@ -89,11 +88,10 @@ contains
 
     ! bonds
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init()
+    call s%rep(s%nrep)%init(s%id)
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_bonds
-    s%rep(s%nrep)%id = s%id
     s%rep(s%nrep)%name = "Bonds"
     if (sys(isys)%c%ismolecule) then
        s%rep(s%nrep)%ncell = 0
@@ -109,11 +107,10 @@ contains
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init()
+       call s%rep(s%nrep)%init(s%id)
        s%rep(s%nrep)%isinit = .true.
        s%rep(s%nrep)%shown = .true.
        s%rep(s%nrep)%type = reptype_unitcell
-       s%rep(s%nrep)%id = s%id
        s%rep(s%nrep)%name = "Unit cell"
     end if
 
@@ -253,6 +250,7 @@ contains
   module function representation_menu(s) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text
+    use windows, only: win, stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
     class(scene), intent(inout), target :: s
@@ -278,6 +276,9 @@ contains
     ! representation rows
     do i = 1, s%nrep
        if (.not.s%rep(i)%isinit) cycle
+
+       ! update window ID
+       call update_window_id(s%rep(i)%idwin)
 
        ! close button
        doerase = .false.
@@ -311,7 +312,11 @@ contains
        if (igTableSetColumnIndex(ic_editbutton)) then
           str1 = "E##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
           if (igSmallButton(c_loc(str1))) then
-             write (*,*) "bleh2!"
+             if (s%rep(i)%idwin == 0) then
+                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i)
+             else
+                call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
+             end if
           end if
        end if
 
@@ -323,6 +328,34 @@ contains
     end do
 
   end function representation_menu
+
+  !> Get the ID for a new representation. If necessary, reallocate the
+  !> representations array.
+  module function get_new_representation_id(s) result(id)
+    class(scene), intent(inout), target :: s
+    integer :: id
+
+    integer :: i
+    type(representation), allocatable :: aux(:)
+
+    ! try to find an empty spot
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) then
+          id = i
+          return
+       end if
+    end do
+
+    ! make new representation at the end
+    s%nrep = s%nrep + 1
+    if (s%nrep > size(s%rep,1)) then
+       allocate(aux(2*s%nrep))
+       aux(1:size(s%rep,1)) = s%rep
+       call move_alloc(aux,s%rep)
+    end if
+    id = s%nrep
+
+  end function get_new_representation_id
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
@@ -354,13 +387,15 @@ contains
   !xx! representation
 
   !> Initialize a representation
-  module subroutine representation_init(r)
+  module subroutine representation_init(r,isys)
     class(representation), intent(inout), target :: r
+    integer, intent(in) :: isys
 
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
-    r%id = 0
+    r%id = isys
+    r%idwin = 0
     r%name = ""
     r%ncell = 1
     r%border = .true.
@@ -377,7 +412,9 @@ contains
     r%name = ""
     r%isinit = .false.
     r%shown = .false.
+    r%type = reptype_none
     r%id = 0
+    r%idwin = 0
 
   end subroutine representation_end
 
@@ -391,7 +428,6 @@ contains
     ! initial checks
     if (.not.r%isinit) return
     if (.not.r%shown) return
-    if (r%type == reptype_none) return
 
     ! draw the objects
     if (r%type == reptype_atoms) then

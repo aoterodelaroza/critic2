@@ -34,6 +34,7 @@ module scenes
      logical(c_bool) :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, bonds,...)
      integer :: id ! system ID
+     integer :: idwin = 0 ! edit representation window ID
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
      integer :: ncell(3) ! number of unit cells drawn (or zero if controlled by the global +/-)
@@ -84,6 +85,7 @@ module scenes
      procedure :: reset => scene_reset
      procedure :: render => scene_render
      procedure :: representation_menu
+     procedure :: get_new_representation_id
      procedure :: update_projection_matrix
      procedure :: update_view_matrix
   end type scene
@@ -109,6 +111,10 @@ module scenes
        class(scene), intent(inout), target :: s
        logical :: changed
      end function representation_menu
+     module function get_new_representation_id(s) result(id)
+       class(scene), intent(inout), target :: s
+       integer :: id
+     end function get_new_representation_id
      module subroutine update_projection_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_projection_matrix
@@ -116,8 +122,9 @@ module scenes
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
      ! representation
-     module subroutine representation_init(r)
+     module subroutine representation_init(r,isys)
        class(representation), intent(inout), target :: r
+       integer, intent(in) :: isys
      end subroutine representation_init
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r
