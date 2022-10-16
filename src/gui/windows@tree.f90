@@ -985,14 +985,16 @@ contains
 
       ! delayed tooltip with info about the system
       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-         if (bclose) then
-            strl = "Close this system" // c_null_char
-         elseif (bexpand) then
-            strl = "Expand this system" // c_null_char
-         else
-            strl = tree_system_tooltip_string(isys)
+         if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+            if (bclose) then
+               strl = "Close this system" // c_null_char
+            elseif (bexpand) then
+               strl = "Expand this system" // c_null_char
+            else
+               strl = tree_system_tooltip_string(isys)
+            end if
+            call igSetTooltip(c_loc(strl))
          end if
-         call igSetTooltip(c_loc(strl))
       end if
       hadenabledcolumn = .true.
 
