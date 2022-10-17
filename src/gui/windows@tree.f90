@@ -1946,6 +1946,22 @@ contains
     end function system_ok
   end subroutine draw_load_field
 
+  !> Update the parameters in an scfplot window
+  module subroutine update_scfplot(w)
+    use gui_main, only: nsys, sysc, sys_init
+    class(window), intent(inout), target :: w
+
+    integer :: isys
+    logical :: doquit
+
+    isys = w%scfplot_isys
+    doquit = (isys < 1 .or. isys > nsys)
+    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
+    if (doquit) call w%end()
+
+  end subroutine update_scfplot
+
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
@@ -1954,15 +1970,15 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    real(c_double), allocatable, target, save :: x(:), y(:)
     real(c_double) :: xmin, xmax
-    real(c_double), save :: ymin, ymax
     real*8 :: dy
     logical :: doquit
     integer :: i, isys, num, n
     type(ImVec2) :: sz
     type(ImVec4) :: auto
     character(len=:,kind=c_char), allocatable, target :: str1, str2
+
+    real(c_double), save :: ymin, ymax
 
     isys = w%scfplot_isys
     doquit = (isys < 1 .or. isys > nsys)
@@ -1971,23 +1987,23 @@ contains
 
     if (.not.doquit) then
        ! get the property and prepare x and y
-       if (.not.allocated(x) .or..not.allocated(y)) then
-          if (allocated(x)) deallocate(x)
-          if (allocated(y)) deallocate(y)
+       if (.not.allocated(w%plotx) .or..not.allocated(w%ploty)) then
+          if (allocated(w%plotx)) deallocate(w%plotx)
+          if (allocated(w%ploty)) deallocate(w%ploty)
           num = count(sysc(1:nsys)%collapse == isys) + 1
-          allocate(x(num),y(num))
+          allocate(w%plotx(num),w%ploty(num))
           n = 0
           do i = 1, nsys
              if (sysc(i)%collapse == isys) then
                 n = n + 1
-                x(n) = n
-                y(n) = sysc(i)%seed%energy
+                w%plotx(n) = n
+                w%ploty(n) = sysc(i)%seed%energy
              end if
           end do
-          x(num) = num
-          y(num) = sysc(isys)%seed%energy
-          ymax = maxval(y)
-          ymin = minval(y)
+          w%plotx(num) = num
+          w%ploty(num) = sysc(isys)%seed%energy
+          ymax = maxval(w%ploty)
+          ymin = minval(w%ploty)
        end if
 
        ! make the plot
@@ -1999,7 +2015,7 @@ contains
           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
 
           str1 = "%.0f" // c_null_char
-          call ipSetupAxisTicks(ImAxis_X1,x(1),x(size(x,1)),size(x,1))
+          call ipSetupAxisTicks(ImAxis_X1,w%plotx(1),w%plotx(size(w%plotx,1)),size(w%plotx,1))
           call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
 
           dy = (ymax - ymin)
@@ -2014,7 +2030,7 @@ contains
           auto%w = -1._c_float
           call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
 
-          call ipPlotLine(c_loc(str1),c_loc(x),c_loc(y),size(x,1),ImPlotLineFlags_None,0_c_int)
+          call ipPlotLine(c_loc(str1),c_loc(w%plotx),c_loc(w%ploty),size(w%plotx,1),ImPlotLineFlags_None,0_c_int)
           call ipEndPlot()
        end if
     end if
@@ -2022,18 +2038,7 @@ contains
     ! exit if focused and received the close keybinding
     if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
 
-    if (doquit) then
-       call end_state()
-       call w%end()
-    end if
-
-  contains
-
-    ! terminate the state for this window
-    subroutine end_state()
-      if (allocated(x)) deallocate(x)
-      if (allocated(y)) deallocate(y)
-    end subroutine end_state
+    if (doquit) call w%end()
 
   end subroutine draw_scfplot
 

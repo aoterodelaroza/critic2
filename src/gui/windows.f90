@@ -119,6 +119,7 @@ module windows
      integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
      ! scf plot parameters
      integer :: scfplot_isys = 0 ! the system on which the scf plot window operates
+     real(c_double), allocatable :: plotx(:), ploty(:)
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
      integer :: editrep_irep = 0 ! the representation on which the e.r. window operates
@@ -161,8 +162,10 @@ module windows
      ! load field
      procedure :: draw_load_field
      ! scf plot
+     procedure :: update_scfplot
      procedure :: draw_scfplot
      ! edit representation
+     procedure :: update_editrep
      procedure :: draw_editrep
   end type window
   public :: window
@@ -328,9 +331,15 @@ module windows
      module subroutine draw_load_field(w)
        class(window), intent(inout), target :: w
      end subroutine draw_load_field
+     module subroutine update_scfplot(w)
+       class(window), intent(inout), target :: w
+     end subroutine update_scfplot
      module subroutine draw_scfplot(w)
        class(window), intent(inout), target :: w
      end subroutine draw_scfplot
+     module subroutine update_editrep(w)
+       class(window), intent(inout), target :: w
+     end subroutine update_editrep
      module subroutine draw_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine draw_editrep

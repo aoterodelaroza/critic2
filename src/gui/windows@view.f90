@@ -586,7 +586,28 @@ contains
 
   !xx! edit representation
 
-  !> Draw the SCF plot window.
+  !> Update the isys and irep in the edit represenatation window.
+  module subroutine update_editrep(w)
+    use gui_main, only: nsys, sysc, sys_init
+    class(window), intent(inout), target :: w
+
+    integer :: isys, irep
+    logical :: doquit
+
+    ! check the system and representation are still active
+    isys = w%editrep_isys
+    doquit = (isys < 1 .or. isys > nsys)
+    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    irep = w%editrep_irep
+    if (.not.doquit) doquit = (irep < 1 .or. irep > sysc(isys)%sc%nrep)
+    if (.not.doquit) doquit = .not.sysc(isys)%sc%rep(irep)%isinit
+
+    ! if they aren't, quit the window
+    if (doquit) call w%end()
+
+  end subroutine update_editrep
+
+  !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: nsys, sysc, sys_init
@@ -612,7 +633,6 @@ contains
     if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
 
     if (doquit) then
-       ! call end_state()
        call w%end()
     end if
 

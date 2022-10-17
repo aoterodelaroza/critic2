@@ -228,6 +228,8 @@ contains
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)
+    if (allocated(w%plotx)) deallocate(w%plotx)
+    if (allocated(w%ploty)) deallocate(w%ploty)
 
   end subroutine window_end
 
@@ -395,6 +397,18 @@ contains
        end if
     end if
 
+    ! Window pre-processing: some windows (scf plot, edit rep)
+    ! require having a valid system/representation/etc.
+    ! associated
+    if (w%isopen) then
+       if (w%type == wintype_scfplot) then
+          call w%update_scfplot()
+       elseif (w%type == wintype_editrep) then
+          call w%update_editrep()
+       end if
+    end if
+
+    ! Draw the window contents, depending on type
     if (w%isopen) then
        ! assign the pointer ID for the window, if not a dialog
        if (w%type == wintype_dialog) then
@@ -402,7 +416,6 @@ contains
           call w%draw_dialog()
        else
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
-             ! draw the window contents, depending on type
              w%ptr = igGetCurrentWindow()
              if (w%type == wintype_tree) then
                 call w%draw_tree()
