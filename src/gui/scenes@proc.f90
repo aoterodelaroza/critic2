@@ -70,7 +70,7 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id)
+    call s%rep(s%nrep)%init(s%id,s%nrep)
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_atoms
@@ -88,7 +88,7 @@ contains
 
     ! bonds
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id)
+    call s%rep(s%nrep)%init(s%id,s%nrep)
     s%rep(s%nrep)%isinit = .true.
     s%rep(s%nrep)%shown = .true.
     s%rep(s%nrep)%type = reptype_bonds
@@ -107,7 +107,7 @@ contains
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init(s%id)
+       call s%rep(s%nrep)%init(s%id,s%nrep)
        s%rep(s%nrep)%isinit = .true.
        s%rep(s%nrep)%shown = .true.
        s%rep(s%nrep)%type = reptype_unitcell
@@ -387,14 +387,16 @@ contains
   !xx! representation
 
   !> Initialize a representation
-  module subroutine representation_init(r,isys)
+  module subroutine representation_init(r,isys,irep)
     class(representation), intent(inout), target :: r
     integer, intent(in) :: isys
+    integer, intent(in) :: irep
 
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
     r%id = isys
+    r%idrep = irep
     r%idwin = 0
     r%name = ""
     r%ncell = 1
@@ -407,6 +409,7 @@ contains
 
   !> Terminate a representation
   module subroutine representation_end(r)
+    use windows, only: win
     class(representation), intent(inout), target :: r
 
     r%name = ""
@@ -414,6 +417,9 @@ contains
     r%shown = .false.
     r%type = reptype_none
     r%id = 0
+    r%idrep = 0
+    if (r%idwin > 0) &
+       nullify(win(r%idwin)%rep)
     r%idwin = 0
 
   end subroutine representation_end

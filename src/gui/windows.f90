@@ -18,6 +18,7 @@
 ! The class to handle ImGui windows.
 module windows
   use iso_c_binding
+  use scenes, only: representation
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use param, only: isformat_unknown
@@ -122,7 +123,7 @@ module windows
      real(c_double), allocatable :: plotx(:), ploty(:)
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
-     integer :: editrep_irep = 0 ! the representation on which the e.r. window operates
+     type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

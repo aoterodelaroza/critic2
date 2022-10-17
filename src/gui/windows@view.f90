@@ -112,7 +112,7 @@ contains
        str2 = "Add Representation..." // c_null_char
        if (igSelectable_Bool(c_loc(str2),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
           id = sysc(w%view_selected)%sc%get_new_representation_id()
-          call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected)
+          call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id)
           sysc(w%view_selected)%sc%rep(id)%isinit = .true.
           sysc(w%view_selected)%sc%rep(id)%shown = .true.
           sysc(w%view_selected)%sc%rep(id)%name = "<Empty>"
@@ -591,16 +591,15 @@ contains
     use gui_main, only: nsys, sysc, sys_init
     class(window), intent(inout), target :: w
 
-    integer :: isys, irep
+    integer :: isys
     logical :: doquit
 
     ! check the system and representation are still active
     isys = w%editrep_isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
-    irep = w%editrep_irep
-    if (.not.doquit) doquit = (irep < 1 .or. irep > sysc(isys)%sc%nrep)
-    if (.not.doquit) doquit = .not.sysc(isys)%sc%rep(irep)%isinit
+    if (.not.doquit) doquit = .not.associated(w%rep)
+    if (.not.doquit) doquit = .not.w%rep%isinit
 
     ! if they aren't, quit the window
     if (doquit) call w%end()
@@ -614,16 +613,15 @@ contains
     use utils, only: iw_text
     class(window), intent(inout), target :: w
 
-    integer :: isys, irep
+    integer :: isys
     logical :: doquit
 
     ! check the system and representation are still active
     isys = w%editrep_isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
-    irep = w%editrep_irep
-    if (.not.doquit) doquit = (irep < 1 .or. irep > sysc(isys)%sc%nrep)
-    if (.not.doquit) doquit = .not.sysc(isys)%sc%rep(irep)%isinit
+    if (.not.doquit) doquit = .not.associated(w%rep)
+    if (.not.doquit) doquit = .not.w%rep%isinit
 
     if (.not.doquit) then
        call iw_text("bleh!")

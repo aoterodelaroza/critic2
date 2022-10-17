@@ -34,6 +34,7 @@ module scenes
      logical(c_bool) :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, bonds,...)
      integer :: id ! system ID
+     integer :: idrep ! representation ID
      integer :: idwin = 0 ! edit representation window ID
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
@@ -53,6 +54,7 @@ module scenes
      procedure :: draw_unitcell
      procedure :: draw_labels
   end type representation
+  public :: representation
 
   !> Scene: objects from the system to be drawn and plot settings
   type scene
@@ -122,9 +124,10 @@ module scenes
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
      ! representation
-     module subroutine representation_init(r,isys)
+     module subroutine representation_init(r,isys,irep)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: isys
+       integer, intent(in) :: irep
      end subroutine representation_init
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r

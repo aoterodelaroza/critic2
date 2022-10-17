@@ -127,7 +127,7 @@ contains
   !> as open.
   module subroutine window_init(w,type,isopen,purpose,isys,irep)
     use interfaces_opengl3
-    use gui_main, only: ColorDialogDir, ColorDialogFile
+    use gui_main, only: ColorDialogDir, ColorDialogFile, sysc
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -199,7 +199,7 @@ contains
        if (.not.present(irep)) &
           call ferror('window_init','editrep requires irep',faterr)
        w%editrep_isys = isys
-       w%editrep_irep = irep
+       w%rep => sysc(isys)%sc%rep(irep)
     elseif (type == wintype_view) then
        ! view window
        call w%create_texture_view(initial_texture_side)
@@ -230,6 +230,7 @@ contains
     if (allocated(w%forceremove)) deallocate(w%forceremove)
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)
+    nullify(w%rep)
 
   end subroutine window_end
 
@@ -388,8 +389,8 @@ contains
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_editrep) then
-          w%name = "Edit Representation " // string(w%editrep_irep) // ", System " // &
-             string(w%editrep_isys) // c_null_char
+          w%name = "Edit Representation " // string(w%rep%name) // ", System " // &
+             string(w%editrep_isys) // "##" // string(w%rep%idrep) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 40 * fontsize%y
