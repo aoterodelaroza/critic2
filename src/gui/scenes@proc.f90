@@ -67,6 +67,9 @@ contains
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
     s%nrep = 0
+    if (allocated(s%icount)) deallocate(s%icount)
+    allocate(s%icount(0:reptype_NUM))
+    s%icount = 0
 
     ! atoms
     s%nrep = s%nrep + 1
@@ -94,6 +97,7 @@ contains
     s%isinit = .false.
     s%id = 0
     if (allocated(s%rep)) deallocate(s%rep)
+    if (allocated(s%icount)) deallocate(s%icount)
     s%nrep = 0
 
   end subroutine scene_end
@@ -295,6 +299,9 @@ contains
              if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = sysc(s%id)%sc%get_new_representation_id()
                 sysc(s%id)%sc%rep(id) = s%rep(i)
+                sysc(s%id)%sc%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
+                s%icount(s%rep(i)%type) = s%icount(s%rep(i)%type) + 1
+                s%icount(0) = s%icount(0) + 1
                 changed = .true.
              end if
              call iw_tooltip("Make a copy of this representation",ttshown)
@@ -400,7 +407,8 @@ contains
   !> fill the representation with the default values for the
   !> corresponding type and set isinit = .true. and shown = .true.
   module subroutine representation_init(r,isys,irep,itype)
-    use gui_main, only: sys
+    use gui_main, only: sys, sysc
+    use tools_io, only: string
     class(representation), intent(inout), target :: r
     integer, intent(in) :: isys
     integer, intent(in) :: irep
@@ -454,6 +462,12 @@ contains
           r%shown = .true.
           r%type = reptype_unitcell
           r%name = "Unit cell"
+       end if
+
+       sysc(isys)%sc%icount(0) = sysc(isys)%sc%icount(0) + 1
+       sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
+       if (sysc(isys)%sc%icount(itype) > 1) then
+          r%name = r%name // " " // string(sysc(isys)%sc%icount(itype))
        end if
     end if
 

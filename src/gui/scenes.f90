@@ -27,6 +27,7 @@ module scenes
   integer, parameter, public :: reptype_bonds = 2
   integer, parameter, public :: reptype_unitcell = 3
   integer, parameter, public :: reptype_labels = 4
+  integer, parameter, public :: reptype_NUM = 4
 
   !> Representation: objects to draw on the scene
   type representation
@@ -79,8 +80,9 @@ module scenes
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
      ! list of representations
-     integer :: nrep = 0
-     type(representation), allocatable :: rep(:)
+     integer :: nrep = 0 ! number of representation
+     type(representation), allocatable :: rep(:) ! representations
+     integer, allocatable :: icount(:) ! last rep counter, for unique names
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
