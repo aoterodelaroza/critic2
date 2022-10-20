@@ -37,6 +37,7 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
+    use scenes, only: reptype_atoms
     use utils, only: iw_calcheight
     use gui_main, only: sysc, sys_init, nsys, g
     use utils, only: iw_text, iw_button, iw_tooltip
@@ -109,16 +110,17 @@ contains
        end if
 
        ! new representation selectable
-       str2 = "Add Representation..." // c_null_char
-       if (igSelectable_Bool(c_loc(str2),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
-          id = sysc(w%view_selected)%sc%get_new_representation_id()
-          call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id)
-          sysc(w%view_selected)%sc%rep(id)%isinit = .true.
-          sysc(w%view_selected)%sc%rep(id)%shown = .true.
-          sysc(w%view_selected)%sc%rep(id)%name = "<Empty>"
-          sysc(w%view_selected)%sc%rep(id)%idwin = stack_create_window(wintype_editrep,.true.,&
-             isys=w%view_selected,irep=id)
+       str2 = "Add Representation" // c_null_char
+       if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+          str3 = "Atoms" // c_null_char
+          if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             id = sysc(w%view_selected)%sc%get_new_representation_id()
+             call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
+          end if
+          call igEndMenu()
        end if
+       call iw_tooltip("Add a representation to the view",ttshown)
+
 
        call igEndPopup()
     end if

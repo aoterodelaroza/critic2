@@ -22,11 +22,11 @@ module scenes
 
   private
 
-  integer, parameter :: reptype_none = 0
-  integer, parameter :: reptype_atoms = 1
-  integer, parameter :: reptype_bonds = 2
-  integer, parameter :: reptype_unitcell = 3
-  integer, parameter :: reptype_labels = 4
+  integer, parameter, public :: reptype_none = 0
+  integer, parameter, public :: reptype_atoms = 1
+  integer, parameter, public :: reptype_bonds = 2
+  integer, parameter, public :: reptype_unitcell = 3
+  integer, parameter, public :: reptype_labels = 4
 
   !> Representation: objects to draw on the scene
   type representation
@@ -124,10 +124,11 @@ module scenes
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
      ! representation
-     module subroutine representation_init(r,isys,irep)
+     module subroutine representation_init(r,isys,irep,itype)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: isys
        integer, intent(in) :: irep
+       integer, intent(in), optional :: itype
      end subroutine representation_init
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r

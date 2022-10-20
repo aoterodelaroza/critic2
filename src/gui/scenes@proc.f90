@@ -70,48 +70,16 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id,s%nrep)
-    s%rep(s%nrep)%isinit = .true.
-    s%rep(s%nrep)%shown = .true.
-    s%rep(s%nrep)%type = reptype_atoms
-    s%rep(s%nrep)%name = "Atoms"
-    if (sys(isys)%c%ismolecule) then
-       s%rep(s%nrep)%ncell = 0
-       s%rep(s%nrep)%border = .false.
-       s%rep(s%nrep)%onemotif = .false.
-    else
-       s%rep(s%nrep)%border = .true.
-       s%rep(s%nrep)%onemotif = sys(isys)%c%ismol3d
-       s%rep(s%nrep)%ncell = 1
-    end if
-    s%rep(s%nrep)%atom_scale = 1d0
+    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms)
 
     ! bonds
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id,s%nrep)
-    s%rep(s%nrep)%isinit = .true.
-    s%rep(s%nrep)%shown = .true.
-    s%rep(s%nrep)%type = reptype_bonds
-    s%rep(s%nrep)%name = "Bonds"
-    if (sys(isys)%c%ismolecule) then
-       s%rep(s%nrep)%ncell = 0
-       s%rep(s%nrep)%border = .false.
-       s%rep(s%nrep)%onemotif = .false.
-    else
-       s%rep(s%nrep)%border = .true.
-       s%rep(s%nrep)%onemotif = sys(isys)%c%ismol3d
-       s%rep(s%nrep)%ncell = 1
-    end if
-    s%rep(s%nrep)%bond_scale = 1d0
+    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_bonds)
 
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init(s%id,s%nrep)
-       s%rep(s%nrep)%isinit = .true.
-       s%rep(s%nrep)%shown = .true.
-       s%rep(s%nrep)%type = reptype_unitcell
-       s%rep(s%nrep)%name = "Unit cell"
+       call s%rep(s%nrep)%init(s%id,s%nrep,reptype_unitcell)
     end if
 
     ! reset the camera
@@ -386,11 +354,15 @@ contains
 
   !xx! representation
 
-  !> Initialize a representation
-  module subroutine representation_init(r,isys,irep)
+  !> Initialize a representation. If itype is present and not _none,
+  !> fill the representation with the default values for the
+  !> corresponding type and set isinit = .true. and shown = .true.
+  module subroutine representation_init(r,isys,irep,itype)
+    use gui_main, only: sys
     class(representation), intent(inout), target :: r
     integer, intent(in) :: isys
     integer, intent(in) :: irep
+    integer, intent(in), optional :: itype
 
     r%isinit = .false.
     r%shown = .false.
@@ -404,6 +376,44 @@ contains
     r%onemotif = .false.
     r%atom_scale = 1d0
     r%bond_scale = 1d0
+    if (present(itype)) then
+       if (itype == reptype_atoms) then
+          r%isinit = .true.
+          r%shown = .true.
+          r%type = reptype_atoms
+          r%name = "Atoms"
+          if (sys(isys)%c%ismolecule) then
+             r%ncell = 0
+             r%border = .false.
+             r%onemotif = .false.
+          else
+             r%border = .true.
+             r%onemotif = sys(isys)%c%ismol3d
+             r%ncell = 1
+          end if
+          r%atom_scale = 1d0
+       elseif (itype == reptype_bonds) then
+          r%isinit = .true.
+          r%shown = .true.
+          r%type = reptype_bonds
+          r%name = "Bonds"
+          if (sys(isys)%c%ismolecule) then
+             r%ncell = 0
+             r%border = .false.
+             r%onemotif = .false.
+          else
+             r%border = .true.
+             r%onemotif = sys(isys)%c%ismol3d
+             r%ncell = 1
+          end if
+          r%bond_scale = 1d0
+       elseif (itype == reptype_unitcell) then
+          r%isinit = .true.
+          r%shown = .true.
+          r%type = reptype_unitcell
+          r%name = "Unit cell"
+       end if
+    end if
 
   end subroutine representation_init
 
