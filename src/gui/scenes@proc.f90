@@ -228,11 +228,12 @@ contains
     class(scene), intent(inout), target :: s
     logical :: changed
 
-    integer :: i, id
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
+    integer :: i, id, ll
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: ldum
     logical :: discol, doerase
     type(ImVec2) :: szero, sz
+    character(kind=c_char,len=1024), target :: txtinp
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -284,8 +285,8 @@ contains
           ! name context menu
           if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then
              ! edit
-             str4 = "Edit" // c_null_char
-             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             str2 = "Edit" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 if (s%rep(i)%idwin == 0) then
                    s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i)
                 else
@@ -295,8 +296,8 @@ contains
              call iw_tooltip("Edit this representation",ttshown)
 
              ! duplicate
-             str4 = "Duplicate" // c_null_char
-             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             str2 = "Duplicate" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = sysc(s%id)%sc%get_new_representation_id()
                 sysc(s%id)%sc%rep(id) = s%rep(i)
                 sysc(s%id)%sc%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
@@ -307,17 +308,32 @@ contains
              call iw_tooltip("Make a copy of this representation",ttshown)
 
              ! show/hide
-             str4 = "Show/Hide" // c_null_char
-             discol = .not.s%rep(i)%shown
-             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             str2 = "Show/Hide" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
              end if
              call iw_tooltip("Toggle hide/show this representation",ttshown)
 
+             ! show/hide
+             str2 = "Rename" // c_null_char
+             if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+                str3 = "##inputrenamerep" // c_null_char
+                txtinp = trim(adjustl(s%rep(i)%name)) // c_null_char
+                call igSetKeyboardFocusHere(0_c_int)
+                if (igInputText(c_loc(str3),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
+                   c_null_ptr,c_null_ptr)) then
+                   ll = index(txtinp,c_null_char)
+                   s%rep(i)%name = txtinp(1:ll-1)
+                   call igCloseCurrentPopup()
+                end if
+                call igEndMenu()
+             end if
+             call iw_tooltip("Rename this representation",ttshown)
+
              ! delete
-             str4 = "Delete" // c_null_char
-             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) &
+             str2 = "Delete" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) &
                 doerase = .true.
              call iw_tooltip("Delete this representation",ttshown)
 
