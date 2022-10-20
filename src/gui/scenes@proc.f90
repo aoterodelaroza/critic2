@@ -217,18 +217,20 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s) result(changed)
     use interfaces_cimgui
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_tooltip
     use windows, only: win, stack_create_window, wintype_editrep, update_window_id
-    use gui_main, only: ColorDangerButton, g
+    use gui_main, only: ColorDangerButton, g, sysc
     use tools_io, only: string
     class(scene), intent(inout), target :: s
     logical :: changed
 
-    integer :: i
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    integer :: i, id
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
     logical(c_bool) :: ldum
     logical :: discol, doerase
     type(ImVec2) :: szero, sz
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! coordinate this with draw_view in windows@view module
     integer(c_int), parameter :: ic_closebutton = 0
@@ -269,11 +271,51 @@ contains
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
           str1 = s%rep(i)%name // "##" // string(ic_name) // "," // string(i) // c_null_char
-          if (igSelectable_Bool(c_loc(str1),.false._c_bool,ImGuiSelectableFlags_None,szero)) then
+          if (igSelectable_Bool(c_loc(str1),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)) then
              s%rep(i)%shown = .not.s%rep(i)%shown
              changed = .true.
           end if
           if (discol) call igPopStyleColor(1)
+
+          ! name context menu
+          if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then
+             ! edit
+             str4 = "Edit" // c_null_char
+             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                if (s%rep(i)%idwin == 0) then
+                   s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i)
+                else
+                   call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
+                end if
+             end if
+             call iw_tooltip("Edit this representation",ttshown)
+
+             ! duplicate
+             str4 = "Duplicate" // c_null_char
+             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = sysc(s%id)%sc%get_new_representation_id()
+                sysc(s%id)%sc%rep(id) = s%rep(i)
+                changed = .true.
+             end if
+             call iw_tooltip("Make a copy of this representation",ttshown)
+
+             ! show/hide
+             str4 = "Show/Hide" // c_null_char
+             discol = .not.s%rep(i)%shown
+             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                s%rep(i)%shown = .not.s%rep(i)%shown
+                changed = .true.
+             end if
+             call iw_tooltip("Toggle hide/show this representation",ttshown)
+
+             ! delete
+             str4 = "Delete" // c_null_char
+             if (igMenuItem_Bool(c_loc(str4),c_null_ptr,.false._c_bool,.true._c_bool)) &
+                doerase = .true.
+             call iw_tooltip("Delete this representation",ttshown)
+
+             call igEndPopup()
+          end if
        end if
 
        ! edit button

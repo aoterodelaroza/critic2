@@ -47,9 +47,9 @@ contains
     integer :: i, nrep, id
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
     logical(c_bool) :: is_selected
-    logical :: hover, changed
+    logical :: hover
     integer(c_int) :: amax, flags
     real(c_float) :: scal, width
 
@@ -116,7 +116,10 @@ contains
           if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
              id = sysc(w%view_selected)%sc%get_new_representation_id()
              call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
+             w%forcerender = .true.
           end if
+          call iw_tooltip("Add a representation for the atoms",ttshown)
+
           call igEndMenu()
        end if
        call iw_tooltip("Add a representation to the view",ttshown)
