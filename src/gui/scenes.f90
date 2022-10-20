@@ -37,6 +37,7 @@ module scenes
      integer :: id ! system ID
      integer :: idrep ! representation ID
      integer :: idwin = 0 ! edit representation window ID
+     integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
      integer :: ncell(3) ! number of unit cells drawn (or zero if controlled by the global +/-)
@@ -61,6 +62,8 @@ module scenes
   type scene
      logical :: isinit = .false. ! whether the scene has been initialized
      integer :: id ! system ID
+     integer, allocatable :: iord(:) ! the representation order
+     logical :: forcesort = .false. ! force sort the representations
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center
      ! phong shader settings

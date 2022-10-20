@@ -70,6 +70,9 @@ contains
     if (allocated(s%icount)) deallocate(s%icount)
     allocate(s%icount(0:reptype_NUM))
     s%icount = 0
+    if (allocated(s%iord)) deallocate(s%iord)
+    allocate(s%iord(20))
+    s%iord = 0
 
     ! atoms
     s%nrep = s%nrep + 1
@@ -88,6 +91,9 @@ contains
     ! reset the camera
     call s%reset()
 
+    ! sort the representations next pass
+    s%forcesort = .true.
+
   end subroutine scene_init
 
   !> Terminate a scene object
@@ -98,6 +104,7 @@ contains
     s%id = 0
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
+    if (allocated(s%iord)) deallocate(s%iord)
     s%nrep = 0
 
   end subroutine scene_end
@@ -225,15 +232,17 @@ contains
     use windows, only: win, stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g, sysc
     use tools_io, only: string
+    use tools, only: mergesort
     class(scene), intent(inout), target :: s
     logical :: changed
 
-    integer :: i, id, ll
+    integer :: i, ii, id, ll
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: ldum
     logical :: discol, doerase
     type(ImVec2) :: szero, sz
     character(kind=c_char,len=1024), target :: txtinp
+    integer, allocatable :: idx(:)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -248,8 +257,21 @@ contains
     szero%y = 0
     changed = .false.
 
+    ! sort the representation array
+    if (s%forcesort) then
+       allocate(idx(s%nrep))
+       do i = 1, s%nrep
+          s%iord(i) = i
+          idx(i) = s%rep(i)%iord
+       end do
+       call mergesort(idx,s%iord,1,s%nrep)
+       deallocate(idx)
+       s%forcesort = .false.
+    end if
+
     ! representation rows
-    do i = 1, s%nrep
+    do ii = 1, s%nrep
+       i = s%iord(ii)
        if (.not.s%rep(i)%isinit) cycle
 
        ! update window ID
@@ -303,6 +325,8 @@ contains
                 sysc(s%id)%sc%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
                 s%icount(s%rep(i)%type) = s%icount(s%rep(i)%type) + 1
                 s%icount(0) = s%icount(0) + 1
+                sysc(s%id)%sc%rep(id)%iord = s%icount(0)
+                s%forcesort = .true.
                 changed = .true.
              end if
              call iw_tooltip("Make a copy of this representation",ttshown)
@@ -365,6 +389,7 @@ contains
   !> Get the ID for a new representation. If necessary, reallocate the
   !> representations array.
   module function get_new_representation_id(s) result(id)
+    use types, only: realloc
     class(scene), intent(inout), target :: s
     integer :: id
 
@@ -385,6 +410,7 @@ contains
        allocate(aux(2*s%nrep))
        aux(1:size(s%rep,1)) = s%rep
        call move_alloc(aux,s%rep)
+       call realloc(s%iord,2*s%nrep)
     end if
     id = s%nrep
 
@@ -480,12 +506,16 @@ contains
           r%name = "Unit cell"
        end if
 
-       sysc(isys)%sc%icount(0) = sysc(isys)%sc%icount(0) + 1
        sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
        if (sysc(isys)%sc%icount(itype) > 1) then
           r%name = r%name // " " // string(sysc(isys)%sc%icount(itype))
        end if
     end if
+
+    ! increment counter and force sort of the parent scene
+    sysc(isys)%sc%icount(0) = sysc(isys)%sc%icount(0) + 1
+    r%iord = sysc(isys)%sc%icount(0)
+    sysc(isys)%sc%forcesort = .true.
 
   end subroutine representation_init
 
@@ -500,6 +530,7 @@ contains
     r%type = reptype_none
     r%id = 0
     r%idrep = 0
+    r%iord = 0
     if (r%idwin > 0) &
        nullify(win(r%idwin)%rep)
     r%idwin = 0
