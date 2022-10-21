@@ -100,12 +100,6 @@ fi
 # check if we need fallow-argument-mismatch
 AX_CHECK_COMPILE_FLAG([-fallow-argument-mismatch], [FCFLAGS="$FCFLAGS -fallow-argument-mismatch"])
 
-# enable compilation of the gui
-AC_ARG_ENABLE([gui],
-[  --enable-gui        Compile the GUI (very experimental, and library dependencies missing from configure)],
-,,[enable_gui=no])
-AM_CONDITIONAL([GUI], [test "$enable_gui" = yes])
-
 # libxc
 # ACX_LIBXC
 
@@ -144,8 +138,8 @@ AC_MSG_NOTICE([LIBS      = ${LIBS}])
 AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 
 # Final output
-AC_CONFIG_FILES([Makefile src/Makefile src/oldlibs/Makefile src/ciftbx/Makefile src/cubpack/Makefile \
+AC_CONFIG_FILES([Makefile src/Makefile src/oldlibs/Makefile src/cubpack/Makefile \
 	   src/qhull/Makefile src/spglib/Makefile src/json-fortran/Makefile tools/Makefile \
-	   src/config@proc.F90 src-gui/Makefile src-gui/imgui/Makefile dat/Makefile \
-	   dat/wfc/Makefile dat/lib/Makefile dat/cif/Makefile dat/fonts/Makefile dat/shaders/Makefile])
+	   src/config@proc.F90 dat/Makefile \
+	   dat/wfc/Makefile dat/lib/Makefile])
 AC_OUTPUT

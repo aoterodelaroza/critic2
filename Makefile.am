@@ -1,8 +1,5 @@
 ## point to places where stuff can be found
-if GUI
-  MAYBE_GUI=src-gui
-endif
-SUBDIRS=dat src tools $(MAYBE_GUI)
+SUBDIRS=dat src tools
 
 EXTRA_DIST = AUTHORS COPYING INSTALL NEWS README.md THANKS ChangeLog
 
