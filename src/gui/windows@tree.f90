@@ -59,7 +59,7 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view, io
+       tree_select_updates_view
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc

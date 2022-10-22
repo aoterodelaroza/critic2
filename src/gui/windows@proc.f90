@@ -65,7 +65,7 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose,isys,irep)
+  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -73,6 +73,7 @@ contains
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
+    integer, intent(in), optional :: idcaller
 
     integer :: stack_create_window
 
@@ -99,7 +100,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose,isys,irep)
+    call win(id)%init(type,isopen,purpose,isys,irep,idcaller)
     stack_create_window = id
 
   end function stack_create_window
@@ -125,7 +126,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose,isys,irep)
+  module subroutine window_init(w,type,isopen,purpose,isys,irep,idcaller)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile, sysc
     use tools_io, only: ferror, faterr
@@ -136,6 +137,7 @@ contains
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
+    integer, intent(in), optional :: idcaller
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -198,8 +200,11 @@ contains
           call ferror('window_init','editrep requires isys',faterr)
        if (.not.present(irep)) &
           call ferror('window_init','editrep requires irep',faterr)
+       if (.not.present(idcaller)) &
+          call ferror('window_init','editrep requires idcaller',faterr)
        w%editrep_isys = isys
        w%rep => sysc(isys)%sc%rep(irep)
+       w%editrep_iview = idcaller
     elseif (type == wintype_view) then
        ! view window
        call w%create_texture_view(initial_texture_side)
@@ -389,8 +394,8 @@ contains
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_editrep) then
-          w%name = "Edit Representation " // string(w%rep%name) // ", System " // &
-             string(w%editrep_isys) // "##" // string(w%rep%idrep) // c_null_char
+          w%name = "Representation [" // string(w%rep%name) // ", " // &
+             string(w%editrep_isys) // "]##" // string(w%rep%idrep) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 40 * fontsize%y

@@ -123,6 +123,7 @@ module windows
      real(c_double), allocatable :: plotx(:), ploty(:)
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
+     integer :: editrep_iview = 0 ! the window ID for the caller view
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
    contains
      procedure :: init => window_init ! initialize the window
@@ -211,25 +212,27 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
+       integer, intent(in), optional :: idcaller
        integer :: stack_create_window
      end function stack_create_window
      module subroutine update_window_id(id,changed)
        integer, intent(inout) :: id
        integer, intent(out), optional :: changed
      end subroutine update_window_id
-     module subroutine window_init(w,type,isopen,purpose,isys,irep)
+     module subroutine window_init(w,type,isopen,purpose,isys,irep,idcaller)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
+       integer, intent(in), optional :: idcaller
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout), target :: w

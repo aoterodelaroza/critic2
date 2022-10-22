@@ -226,7 +226,7 @@ contains
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.
-  module function representation_menu(s) result(changed)
+  module function representation_menu(s,idcaller) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text, iw_tooltip
     use windows, only: win, stack_create_window, wintype_editrep, update_window_id
@@ -234,6 +234,7 @@ contains
     use tools_io, only: string
     use tools, only: mergesort
     class(scene), intent(inout), target :: s
+    integer(c_int), intent(in) :: idcaller
     logical :: changed
 
     integer :: i, ii, id, ll
@@ -242,6 +243,7 @@ contains
     logical :: discol, doerase
     type(ImVec2) :: szero, sz
     character(kind=c_char,len=1024), target :: txtinp
+    integer(c_int) :: flags
     integer, allocatable :: idx(:)
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -297,8 +299,10 @@ contains
           discol = .not.s%rep(i)%shown
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
-          str1 = s%rep(i)%name // "##" // string(ic_name) // "," // string(i) // c_null_char
-          if (igSelectable_Bool(c_loc(str1),.false._c_bool,ImGuiSelectableFlags_SpanAllColumns,szero)) then
+          str1 = trim(s%rep(i)%name) // "##" // string(ic_name) // "," // string(i) // c_null_char
+          flags = ImGuiSelectableFlags_SpanAllColumns
+          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+          if (igSelectable_Bool(c_loc(str1),.false._c_bool,flags,szero)) then
              s%rep(i)%shown = .not.s%rep(i)%shown
              changed = .true.
           end if
@@ -310,7 +314,7 @@ contains
              str2 = "Edit" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 if (s%rep(i)%idwin == 0) then
-                   s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i)
+                   s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
                 else
                    call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
                 end if
@@ -370,7 +374,7 @@ contains
           str1 = "E##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
           if (igSmallButton(c_loc(str1))) then
              if (s%rep(i)%idwin == 0) then
-                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i)
+                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
              else
                 call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
              end if
@@ -508,7 +512,7 @@ contains
 
        sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
        if (sysc(isys)%sc%icount(itype) > 1) then
-          r%name = r%name // " " // string(sysc(isys)%sc%icount(itype))
+          r%name = trim(r%name) // " " // string(sysc(isys)%sc%icount(itype))
        end if
     end if
 

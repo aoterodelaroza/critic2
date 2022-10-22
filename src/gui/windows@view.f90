@@ -103,7 +103,7 @@ contains
           call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
           if (w%view_selected > 0 .and. w%view_selected <= nsys) then
-             if (sysc(w%view_selected)%sc%representation_menu()) &
+             if (sysc(w%view_selected)%sc%representation_menu(w%id)) &
                 w%forcerender = .true.
           end if
           call igEndTable()
@@ -593,6 +593,7 @@ contains
 
   !> Update the isys and irep in the edit represenatation window.
   module subroutine update_editrep(w)
+    use windows, only: nwin, win, wintype_view
     use gui_main, only: nsys, sysc, sys_init
     class(window), intent(inout), target :: w
 
@@ -605,6 +606,10 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = (w%rep%type <= 0)
+    if (.not.doquit) doquit = .not.(w%editrep_iview > 0 .and. w%editrep_iview <= nwin)
+    if (.not.doquit) doquit = .not.(win(w%editrep_iview)%isinit)
+    if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
 
     ! if they aren't, quit the window
     if (doquit) call w%end()
@@ -613,13 +618,20 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
-    use gui_main, only: nsys, sysc, sys_init
-    use utils, only: iw_text
+    use scenes, only: representation
+    use windows, only: nwin, win, wintype_view
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use gui_main, only: nsys, sysc, sys_init, g
+    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth
     class(window), intent(inout), target :: w
 
-    integer :: isys
-    logical :: doquit
+    integer :: isys, ll, itype
+    logical :: doquit, ok, lshown
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=1024), target :: txtinp
+    type(ImVec2) :: szavail
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! check the system and representation are still active
     isys = w%editrep_isys
@@ -627,9 +639,59 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = (w%rep%type <= 0)
+    if (.not.doquit) doquit = .not.(w%editrep_iview > 0 .and. w%editrep_iview <= nwin)
+    if (.not.doquit) doquit = .not.(win(w%editrep_iview)%isinit)
+    if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
 
     if (.not.doquit) then
-       call iw_text("bleh!")
+       ! name and type block
+       call iw_text("Name and Type",highlight=.true.)
+
+       ! the representation type
+       itype = w%rep%type - 1
+       call iw_combo_simple("##type","Atoms" // c_null_char // "Bonds" // c_null_char //&
+          "Unit cell" // c_null_char // "Labels" // c_null_char,itype)
+       w%rep%type = itype + 1
+       call iw_tooltip("Type of representation",ttshown)
+
+       ! name text input
+       str1 = "##name"
+       txtinp = trim(adjustl(w%rep%name)) // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
+          ll = index(txtinp,c_null_char)
+          w%rep%name = txtinp(1:ll-1)
+       end if
+       call iw_tooltip("Name of this representation",ttshown)
+
+       ! right-align and bottom-align for the rest of the contents
+       call igGetContentRegionAvail(szavail)
+       call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.))
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+
+       ! reset button
+       if (iw_button("Reset",danger=.true.)) then
+          str2 = w%rep%name
+          itype = w%rep%type
+          lshown = w%rep%shown
+          call w%rep%init(w%rep%id,w%rep%idrep,itype)
+          w%rep%name = str2
+          w%rep%shown = lshown
+          win(w%editrep_iview)%forcerender = .true.
+       end if
+
+       ! apply button
+       if (iw_button("Apply",sameline=.true.)) &
+          win(w%editrep_iview)%forcerender = .true.
+
+       ! close button
+       ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
+       ok = ok .or. iw_button("Close",sameline=.true.)
+       if (ok) then
+          win(w%editrep_iview)%forcerender = .true.
+          doquit = .true.
+       end if
     end if
 
     ! exit if focused and received the close keybinding

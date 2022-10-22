@@ -114,8 +114,9 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
-     module function representation_menu(s) result(changed)
+     module function representation_menu(s,idcaller) result(changed)
        class(scene), intent(inout), target :: s
+       integer(c_int), intent(in) :: idcaller
        logical :: changed
      end function representation_menu
      module function get_new_representation_id(s) result(id)
