@@ -628,7 +628,7 @@ contains
 
     integer :: isys, ll, itype
     logical :: doquit, ok, lshown
-    logical(c_bool) :: ldum
+    logical(c_bool) :: changed
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail
@@ -647,6 +647,9 @@ contains
     if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
 
     if (.not.doquit) then
+       ! whether the rep has changed
+       changed = .false.
+
        !!! name and type block
        call iw_text("Name and Type",highlight=.true.)
 
@@ -654,6 +657,7 @@ contains
        itype = w%rep%type - 1
        call iw_combo_simple("##type","Atoms" // c_null_char // "Bonds" // c_null_char //&
           "Unit cell" // c_null_char // "Labels" // c_null_char,itype)
+       if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of representation",ttshown)
 
@@ -675,12 +679,17 @@ contains
        ! filter text input
        str1 = "##filter"
        txtinp = trim(adjustl(w%rep%filter)) // c_null_char
-       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
+       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
+          c_null_ptr,c_null_ptr)) then
           ll = index(txtinp,c_null_char)
           w%rep%filter = txtinp(1:ll-1)
+          changed = .true.
        end if
        call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",ttshown)
-       if (iw_button("Clear",sameline=.true.)) w%rep%filter = ""
+       if (iw_button("Clear",sameline=.true.)) then
+          w%rep%filter = ""
+          changed = .true.
+       end if
        call iw_tooltip("Clear the filter",ttshown)
 
        !!! periodicity
@@ -688,11 +697,11 @@ contains
           call iw_text("Periodicity",highlight=.true.)
 
           ! radio buttons for the periodicity type
-          ldum = iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int)
+          changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int)
           call iw_tooltip("Cell not repeated for this representation",ttshown)
-          ldum = ldum .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
+          changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
           call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
-          ldum = ldum .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
+          changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
           call iw_tooltip("Manually set the number of periodic cells",ttshown)
 
           ! number of periodic cells, if manual
@@ -701,27 +710,42 @@ contains
              call iw_text("  a: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##aaxis" // c_null_char
-             ldum = ldum .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
              call igSameLine(0._c_float,g%FontSize)
              call iw_text("b: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##baxis" // c_null_char
-             ldum = ldum .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
              call igSameLine(0._c_float,g%FontSize)
              call iw_text("c: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##caxis" // c_null_char
-             ldum = ldum .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
 
              w%rep%ncell = max(w%rep%ncell,1)
              if (iw_button("Reset",sameline=.true.)) then
                 w%rep%ncell = 1
-                ldum = .true.
+                changed = .true.
              end if
              call igPopItemWidth()
           end if
 
-          if (ldum) win(w%editrep_iview)%forcerender = .true.
+          ! checkbox for molecular motif
+          if (sys(isys)%c%ismol3d) then
+             str2 = "Show connected molecules" // c_null_char
+             changed = changed .or. igCheckbox(c_loc(str2),w%rep%onemotif)
+             call iw_tooltip("Translate atoms to display whole molecules",ttshown)
+          end if
+
+          ! checkbox for border
+          str2 = "Show atoms at cell edges" // c_null_char
+          changed = changed .or. igCheckbox(c_loc(str2),w%rep%border)
+          call iw_tooltip("Display atoms near the unit cell edges",ttshown)
+
+          if (changed) win(w%editrep_iview)%forcerender = .true.
        end if
 
 

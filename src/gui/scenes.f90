@@ -42,9 +42,9 @@ module scenes
      ! global parameters
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
-     integer :: ncell(3) ! number of unit cells drawn (global +/-)
-     logical :: border = .true. ! draw atoms at the border of the unit cell
-     logical :: onemotif = .false. ! draw connected molecules
+     integer(c_int) :: ncell(3) ! number of unit cells drawn (global +/-)
+     logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
+     logical(c_bool) :: onemotif = .false. ! draw connected molecules
      ! atoms
      real*8 :: atom_scale = 1d0 ! atomic radius scaling factor
      ! bonds
