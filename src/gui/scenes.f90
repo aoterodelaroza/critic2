@@ -41,7 +41,8 @@ module scenes
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
-     integer :: ncell(3) ! number of unit cells drawn (or zero if controlled by the global +/-)
+     integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
+     integer :: ncell(3) ! number of unit cells drawn (global +/-)
      logical :: border = .true. ! draw atoms at the border of the unit cell
      logical :: onemotif = .false. ! draw connected molecules
      ! atoms

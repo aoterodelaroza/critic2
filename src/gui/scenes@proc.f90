@@ -468,6 +468,7 @@ contains
     r%idwin = 0
     r%name = ""
     r%filter = ""
+    r%pertype = 1
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
