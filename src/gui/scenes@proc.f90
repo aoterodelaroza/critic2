@@ -467,6 +467,7 @@ contains
     r%idrep = irep
     r%idwin = 0
     r%name = ""
+    r%filter = ""
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
@@ -529,6 +530,7 @@ contains
     class(representation), intent(inout), target :: r
 
     r%name = ""
+    r%filter = ""
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none

@@ -645,7 +645,7 @@ contains
     if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
 
     if (.not.doquit) then
-       ! name and type block
+       !!! name and type block
        call iw_text("Name and Type",highlight=.true.)
 
        ! the representation type
@@ -664,6 +664,22 @@ contains
           w%rep%name = txtinp(1:ll-1)
        end if
        call iw_tooltip("Name of this representation",ttshown)
+
+       !!! filter
+       call iw_text("Filter",highlight=.true.)
+       call iw_text("(?)",sameline=.true.)
+       call iw_tooltip("Explanation for the filter.")
+
+       ! filter text input
+       str1 = "##filter"
+       txtinp = trim(adjustl(w%rep%filter)) // c_null_char
+       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
+          ll = index(txtinp,c_null_char)
+          w%rep%filter = txtinp(1:ll-1)
+       end if
+       call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",ttshown)
+       if (iw_button("Clear",sameline=.true.)) w%rep%filter = ""
+       call iw_tooltip("Clear the filter",ttshown)
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
@@ -687,7 +703,7 @@ contains
 
        ! close button
        ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
-       ok = ok .or. iw_button("Close",sameline=.true.)
+       ok = ok .or. iw_button("OK",sameline=.true.)
        if (ok) then
           win(w%editrep_iview)%forcerender = .true.
           doquit = .true.

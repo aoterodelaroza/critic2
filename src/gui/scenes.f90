@@ -40,6 +40,7 @@ module scenes
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
+     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      integer :: ncell(3) ! number of unit cells drawn (or zero if controlled by the global +/-)
      logical :: border = .true. ! draw atoms at the border of the unit cell
      logical :: onemotif = .false. ! draw connected molecules
