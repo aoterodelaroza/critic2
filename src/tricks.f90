@@ -30,6 +30,7 @@ module tricks
   private :: trick_bfgs
   private :: trick_compare_deformed
   private :: trick_check_valence
+  private :: trick_predict
 
 contains
 
@@ -55,6 +56,8 @@ contains
        call trick_compare_deformed(line0(lp:))
     else if (equal(word,'check_valence')) then
        call trick_check_valence(line0(lp:))
+    else if (equal(word,'predict')) then
+       call trick_predict(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2860,5 +2863,44 @@ contains
     end if
 
   end subroutine trick_check_valence
+
+  subroutine trick_predict(line0)
+    use tools_io, only: ferror, faterr, getline, lgetword, uin, uout,&
+       equal
+    character*(*), intent(in) :: line0
+
+    integer :: lp, lu
+    character(len=:), allocatable :: line, word
+    logical :: ok
+
+    ! read the input file
+    do while (getline(uin,line))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,'data')) then
+          do while (.true.)
+             ok = getline(uin,line)
+             if (.not.ok) &
+                call ferror('trick_predict','error in PREDICT/DATA keyword',faterr)
+             if (equal(line,'end').or.equal(line,'enddata')) exit
+             write (*,*) "line: ", line
+          end do
+       elseif (equal(word,'cell')) then
+       elseif (equal(word,'composition')) then
+       elseif (equal(word,'volume')) then
+       elseif (equal(word,'Z')) then
+       elseif (equal(word,'nsearch')) then
+       elseif (equal(word,'keep')) then
+       elseif (equal(word,'fpol')) then
+       elseif (equal(word,'lambda')) then
+       elseif (equal(word,'eps')) then
+       elseif (equal(word,'end').or. equal(word,'endpredict')) then
+       end if
+    end do
+
+    write (*,*) "bleh!"
+    stop 1
+
+  end subroutine trick_predict
 
 end module tricks
