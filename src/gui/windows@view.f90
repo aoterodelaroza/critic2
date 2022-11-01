@@ -618,22 +618,25 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
+    use global, only: dunit0, iunit
     use scenes, only: representation
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: nsys, sys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
-    use tools_io, only: string
+    use tools_io, only: string, ioj_right
     class(window), intent(inout), target :: w
 
     integer :: i, isys, ll, itype, iz, ispc
     logical :: doquit, ok, lshown
     logical(c_bool) :: changed, ch
     integer(c_int) :: flags
+    character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail, sz0
+    real*8 :: x0(3)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -643,6 +646,7 @@ contains
     integer, parameter :: ic_shown = 3
     integer, parameter :: ic_color = 4
     integer, parameter :: ic_radius = 5
+    integer, parameter :: ic_rest = 6
 
     ! check the system and representation are still active
     isys = w%editrep_isys
@@ -787,7 +791,7 @@ contains
        str1="##tableatomstyles"
        sz0%x = 0
        sz0%y = iw_calcheight(min(5,w%rep%natom_style)+1,0,.false.)
-       if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
+       if (igBeginTable(c_loc(str1),7,flags,sz0,0._c_float)) then
           ! header setup
           str2 = "Id" // c_null_char
           flags = ImGuiTableColumnFlags_None
@@ -812,10 +816,15 @@ contains
           str2 = "Radius" // c_null_char
           flags = ImGuiTableColumnFlags_None
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
+
+          str2 = "Coordinates" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthStretch
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_rest)
           call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
           ! draw the header
           call igTableHeadersRow()
+          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
           ! draw the raws
           do i = 1, w%rep%natom_style
@@ -871,6 +880,23 @@ contains
                    changed = .true.
                 end if
                 call igPopItemWidth()
+             end if
+
+             ! rest of info
+             if (igTableSetColumnIndex(ic_rest)) then
+                s = ""
+                if (w%rep%atom_style_type > 0) then
+                   if (sys(isys)%c%ismolecule) then
+                      x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit)
+                   elseif (w%rep%atom_style_type == 1) then
+                      x0 = sys(isys)%c%at(i)%x
+                   elseif (w%rep%atom_style_type == 2) then
+                      x0 = sys(isys)%c%atcel(i)%x
+                   endif
+                   s = string(x0(1),'f',7,4,ioj_right) //" "// string(x0(2),'f',7,4,ioj_right) //" "//&
+                      string(x0(3),'f',7,4,ioj_right)
+                end if
+                call iw_text(s)
              end if
           end do
           call igEndTable()

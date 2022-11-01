@@ -397,7 +397,7 @@ contains
           w%name = "Representation [" // string(w%rep%name) // ", " // &
              string(w%editrep_isys) // "]##" // string(w%rep%idrep) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 50 * fontsize%x
+          inisize%x = 60 * fontsize%x
           inisize%y = 40 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
