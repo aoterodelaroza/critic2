@@ -22,7 +22,6 @@ submodule (scenes) proc
   real(c_float) :: min_scenerad = 10._c_float
 
   ! object resolution
-  integer, parameter :: isphres = 3 ! sphere
   integer, parameter :: icylres = 3 ! cylinder
 
   ! some math parameters
@@ -35,7 +34,7 @@ submodule (scenes) proc
      zero,zero,zero,one/),shape(eye4))
 
   !xx! private procedures: low-level draws
-  ! subroutine draw_sphere(x0,rad,rgba)
+  ! subroutine draw_sphere(x0,rad,rgba,ires)
   ! subroutine draw_cylinder(x1,x2,rad,rgba)
 
 contains
@@ -477,6 +476,7 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
+    r%atom_res = 3
     r%bond_scale = 1d0
     if (present(itype)) then
        if (itype == reptype_atoms) then
@@ -649,7 +649,7 @@ contains
     real(c_float) :: rgba(4), x0(3), x1(3), rad
     integer :: i, id
 
-    call glBindVertexArray(sphVAO(isphres))
+    call glBindVertexArray(sphVAO(r%atom_res))
     do i = 1, sys(r%id)%c%ncel
        if (r%atom_style_type == 0) then
           id = sys(r%id)%c%atcel(i)%is
@@ -664,7 +664,7 @@ contains
        rad = r%atom_style(id)%rad
 
        x0 = real(sys(r%id)%c%atcel(i)%r,c_float)
-       call draw_sphere(x0,rad,rgba)
+       call draw_sphere(x0,rad,rgba,r%atom_res)
     end do
     call glBindVertexArray(0)
 
@@ -732,13 +732,14 @@ contains
 
   !> Draw a sphere with center x0, radius rad and color rgba. Requires
   !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,rgba)
+  subroutine draw_sphere(x0,rad,rgba,ires)
     use interfaces_opengl3
     use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: sphnel
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
     real(c_float), intent(in) :: rgba(4)
+    integer(c_int), intent(in) :: ires
 
     real(c_float) :: model(4,4)
 
@@ -752,7 +753,7 @@ contains
     ! draw the sphere
     call setuniform_vec4("vColor",rgba)
     call setuniform_mat4("model",model)
-    call glDrawElements(GL_TRIANGLES, int(3*sphnel(isphres),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_sphere
 

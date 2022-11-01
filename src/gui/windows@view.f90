@@ -632,7 +632,7 @@ contains
     integer :: i, isys, ll, itype, iz, ispc
     logical :: doquit, ok, lshown
     logical(c_bool) :: changed, ch, ldum
-    integer(c_int) :: flags
+    integer(c_int) :: flags, ires
     character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(kind=c_char,len=1024), target :: txtinp
@@ -984,7 +984,17 @@ contains
        call iw_tooltip("Set the color of all atoms to the selected values",ttshown)
        call iw_combo_simple("##colortype","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
           w%rep%atom_color_reset_type,sameline=.true.)
-       call iw_tooltip("Type of atomic colors",ttshown)
+       call iw_tooltip("Style of atomic colors to set",ttshown)
+
+       !!! atom resolution
+       call iw_text("Atom Resolution",highlight=.true.)
+       ires = w%rep%atom_res - 1
+       call iw_combo_simple("##atomresolution","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
+          "3: Normal" // c_null_char // "4: Good" // c_null_char,ires)
+       if (ires + 1 /= w%rep%atom_res) then
+          w%rep%atom_res = ires + 1
+          changed = .true.
+       end if
 
        ! render if necessary
        if (changed) win(w%editrep_iview)%forcerender = .true.
