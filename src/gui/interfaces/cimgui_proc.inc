@@ -619,7 +619,14 @@ end function igInputInt3
 !x! bool igInputScalar(const char* label,ImGuiDataType data_type,void* p_data,const void* p_step,const void* p_step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputScalarN(const char* label,ImGuiDataType data_type,void* p_data,int components,const void* p_step,const void* p_step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igColorEdit3(const char* label,float col[3],ImGuiColorEditFlags flags);
-!x! bool igColorEdit4(const char* label,float col[4],ImGuiColorEditFlags flags);
+! bool igColorEdit4(const char* label,float col[4],ImGuiColorEditFlags flags);
+function igColorEdit4(label,col,flags) bind(c,name="igColorEdit4")
+  import c_ptr, c_int, c_float, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: col(4)
+  integer(c_int), value :: flags
+  logical(c_bool) :: igColorEdit4
+end function igColorEdit4
 !x! bool igColorPicker3(const char* label,float col[3],ImGuiColorEditFlags flags);
 !x! bool igColorPicker4(const char* label,float col[4],ImGuiColorEditFlags flags,const float* ref_col);
 !x! bool igColorButton(const char* desc_id,const ImVec4 col,ImGuiColorEditFlags flags,const ImVec2 size);

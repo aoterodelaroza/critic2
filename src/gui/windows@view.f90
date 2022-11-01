@@ -623,17 +623,26 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: nsys, sys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton
+       iw_radiobutton, iw_calcheight
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ll, itype
+    integer :: i, isys, ll, itype, iz, ispc
     logical :: doquit, ok, lshown
-    logical(c_bool) :: changed
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    logical(c_bool) :: changed, ch
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(kind=c_char,len=1024), target :: txtinp
-    type(ImVec2) :: szavail
+    type(ImVec2) :: szavail, sz0
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    integer, parameter :: ic_id = 0
+    integer, parameter :: ic_name = 1
+    integer, parameter :: ic_z = 2
+    integer, parameter :: ic_shown = 3
+    integer, parameter :: ic_color = 4
+    integer, parameter :: ic_radius = 5
 
     ! check the system and representation are still active
     isys = w%editrep_isys
@@ -744,14 +753,135 @@ contains
           str2 = "Show atoms at cell edges" // c_null_char
           changed = changed .or. igCheckbox(c_loc(str2),w%rep%border)
           call iw_tooltip("Display atoms near the unit cell edges",ttshown)
-
-          if (changed) win(w%editrep_iview)%forcerender = .true.
        end if
 
+       !!! atom styles
+
+       ! selector and reset
+       ch = .false.
+       call iw_text("Styles",highlight=.true.)
+       ch = ch .or. iw_radiobutton("Species",int=w%rep%atom_style_type,intval=0_c_int)
+       call iw_tooltip("Set atom styles per chemical species",ttshown)
+       if (.not.sys(isys)%c%ismolecule) then
+          ch = ch .or. iw_radiobutton("Symmetry-unique",int=w%rep%atom_style_type,intval=1_c_int,sameline=.true.)
+          call iw_tooltip("Set atom styles per non-equivalent atom in the cell",ttshown)
+          ch = ch .or. iw_radiobutton("Cell",int=w%rep%atom_style_type,intval=2_c_int,sameline=.true.)
+          call iw_tooltip("Set atom styles per atom in the unit cell",ttshown)
+       else
+          ch = ch .or. iw_radiobutton("Atoms",int=w%rep%atom_style_type,intval=1_c_int,sameline=.true.)
+          call iw_tooltip("Set atom styles per atom in the molecule",ttshown)
+       end if
+       if (ch) then
+          call w%rep%reset_atom_style()
+          changed = .true.
+       end if
+
+       ! atom style table
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_Resizable)
+       flags = ior(flags,ImGuiTableFlags_Reorderable)
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1="##tableatomstyles"
+       sz0%x = 0
+       sz0%y = iw_calcheight(min(5,w%rep%natom_style)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
+          ! header setup
+          str2 = "Id" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_id)
+
+          str2 = "Atom" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_name)
+
+          str2 = "Z" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_z)
+
+          str2 = "Show" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+
+          str2 = "Color" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
+
+          str2 = "Radius" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
+          call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+          ! draw the header
+          call igTableHeadersRow()
+
+          ! draw the raws
+          do i = 1, w%rep%natom_style
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (w%rep%atom_style_type == 0) then
+                ! species
+                ispc = i
+             elseif (w%rep%atom_style_type == 1) then
+                ! nneq
+                ispc = sys(isys)%c%at(i)%is
+             elseif (w%rep%atom_style_type == 2) then
+                ! ncel
+                ispc = sys(isys)%c%atcel(i)%is
+             end if
+             iz = sys(isys)%c%spc(ispc)%z
+
+             ! id
+             if (igTableSetColumnIndex(ic_id)) call iw_text(string(i))
+
+             ! name
+             if (igTableSetColumnIndex(ic_name)) call iw_text(string(sys(isys)%c%spc(ispc)%name))
+
+             ! Z
+             if (igTableSetColumnIndex(ic_z)) call iw_text(string(iz))
+
+             ! shown
+             if (igTableSetColumnIndex(ic_shown)) then
+                str2 = "##shown" // string(i) // c_null_char
+                changed = changed .or. igCheckbox(c_loc(str2),w%rep%atom_style(i)%shown)
+             end if
+
+             ! color
+             if (igTableSetColumnIndex(ic_color)) then
+                str2 = "##color" // string(i) // c_null_char
+                flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
+                ch = igColorEdit4(c_loc(str2),w%rep%atom_style(i)%rgba,flags)
+                if (ch) then
+                   w%rep%atom_style(i)%rgba = min(w%rep%atom_style(i)%rgba,1._c_float)
+                   w%rep%atom_style(i)%rgba = max(w%rep%atom_style(i)%rgba,0._c_float)
+                   changed = .true.
+                end if
+             end if
+
+             ! radius
+             if (igTableSetColumnIndex(ic_radius)) then
+                str2 = "##radius" // string(i) // c_null_char
+                str3 = "%.3f" // c_null_char
+                call igPushItemWidth(iw_calcwidth(5,1))
+                ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
+                   0._c_float,c_loc(str3),ImGuiInputTextFlags_EnterReturnsTrue)
+                if (ch) then
+                   w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
+                   changed = .true.
+                end if
+                call igPopItemWidth()
+             end if
+          end do
+          call igEndTable()
+       end if
+
+       ! render if necessary
+       if (changed) win(w%editrep_iview)%forcerender = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
-       call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.))
+       call igSetCursorPosX(iw_calcwidth(7,2,from_end=.true.))
        call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
        ! reset button
@@ -764,10 +894,6 @@ contains
           w%rep%shown = lshown
           win(w%editrep_iview)%forcerender = .true.
        end if
-
-       ! apply button
-       if (iw_button("Apply",sameline=.true.)) &
-          win(w%editrep_iview)%forcerender = .true.
 
        ! close button
        ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))

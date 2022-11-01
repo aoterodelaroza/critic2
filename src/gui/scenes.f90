@@ -22,6 +22,13 @@ module scenes
 
   private
 
+  !> draw style for atoms
+  type draw_style_atom
+     logical(c_bool) :: shown
+     real(c_float) :: rgba(4) ! color
+     real(c_float) :: rad ! radius
+  end type draw_style_atom
+
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
   integer, parameter, public :: reptype_bonds = 2
@@ -46,12 +53,16 @@ module scenes
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      ! atoms
+     integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell
      real*8 :: atom_scale = 1d0 ! atomic radius scaling factor
+     integer :: natom_style = 0 ! number of atom styles
+     type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! bonds
      real*8 :: bond_scale = 1d0 ! bond scaling factor
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
+     procedure :: reset_atom_style
      procedure :: draw => representation_draw
      procedure :: draw_atoms
      procedure :: draw_bonds
@@ -141,6 +152,9 @@ module scenes
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r
      end subroutine representation_end
+     module subroutine reset_atom_style(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_atom_style
      module subroutine representation_draw(r,xmin,xmax)
        class(representation), intent(inout), target :: r
        real*8, optional, intent(inout) :: xmin(3)

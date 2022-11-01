@@ -472,6 +472,8 @@ contains
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
+    r%atom_style_type = 0
+    r%natom_style = 0
     r%atom_scale = 1d0
     r%bond_scale = 1d0
     if (present(itype)) then
@@ -523,6 +525,9 @@ contains
     r%iord = sysc(isys)%sc%icount(0)
     sysc(isys)%sc%forcesort = .true.
 
+    ! initialize the styles
+    call r%reset_atom_style()
+
   end subroutine representation_init
 
   !> Terminate a representation
@@ -543,6 +548,68 @@ contains
     r%idwin = 0
 
   end subroutine representation_end
+
+  !> Reset atom styles.
+  module subroutine reset_atom_style(r)
+    use gui_main, only: nsys, sysc, sys, sys_init
+    use param, only: jmlcol2, atmcov
+    class(representation), intent(inout), target :: r
+
+    integer :: i, ispc, iz
+
+    ! set the atom style to zero
+    r%natom_style = 0
+    if (allocated(r%atom_style)) deallocate(r%atom_style)
+
+    ! check the system is correct and initialized
+    if (r%id < 1 .or. r%id > nsys) return
+    if (sysc(r%id)%status /= sys_init) return
+
+    ! fill the styles
+    if (r%atom_style_type == 0) then
+       ! species
+       r%natom_style = sys(r%id)%c%nspc
+       allocate(r%atom_style(r%natom_style))
+       do i = 1, sys(r%id)%c%nspc
+          r%atom_style(i)%shown = .true.
+
+          iz = sys(r%id)%c%spc(i)%z
+          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(4) = 1._c_float
+
+          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (r%atom_style_type == 1) then
+       ! nneq
+       r%natom_style = sys(r%id)%c%nneq
+       allocate(r%atom_style(r%natom_style))
+       do i = 1, sys(r%id)%c%nneq
+          r%atom_style(i)%shown = .true.
+
+          ispc = sys(r%id)%c%at(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
+          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(4) = 1._c_float
+
+          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (r%atom_style_type == 2) then
+       ! ncel
+       r%natom_style = sys(r%id)%c%ncel
+       allocate(r%atom_style(r%natom_style))
+       do i = 1, sys(r%id)%c%ncel
+          r%atom_style(i)%shown = .true.
+
+          ispc = sys(r%id)%c%atcel(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
+          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(4) = 1._c_float
+
+          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    end if
+
+  end subroutine reset_atom_style
 
   !> Draw a representation. If xmin and xmax are present, calculate
   !> the bounding box instead of drawing.
@@ -580,15 +647,23 @@ contains
     real*8, optional, intent(inout) :: xmax(3)
 
     real(c_float) :: rgba(4), x0(3), x1(3), rad
-    integer :: i, iz
+    integer :: i, id
 
     call glBindVertexArray(sphVAO(isphres))
     do i = 1, sys(r%id)%c%ncel
-       iz = sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z
-       rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
-       rgba(4) = 1._c_float
+       if (r%atom_style_type == 0) then
+          id = sys(r%id)%c%atcel(i)%is
+       elseif (r%atom_style_type == 1) then
+          id = sys(r%id)%c%atcel(i)%idx
+       else
+          id = i
+       end if
+
+       if (.not.r%atom_style(id)%shown) cycle
+       rgba = r%atom_style(id)%rgba
+       rad = r%atom_style(id)%rad
+
        x0 = real(sys(r%id)%c%atcel(i)%r,c_float)
-       rad = 0.7_c_float * real(atmcov(iz),c_float)
        call draw_sphere(x0,rad,rgba)
     end do
     call glBindVertexArray(0)
