@@ -54,8 +54,9 @@ module scenes
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      ! atoms
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell
-     real*8 :: atom_scale = 1d0 ! atomic radius scaling factor
      integer :: natom_style = 0 ! number of atom styles
+     integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
+     real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! bonds
      real*8 :: bond_scale = 1d0 ! bond scaling factor

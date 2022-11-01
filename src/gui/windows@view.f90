@@ -626,11 +626,12 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
     use tools_io, only: string, ioj_right
+    use param, only: atmcov, atmvdw
     class(window), intent(inout), target :: w
 
     integer :: i, isys, ll, itype, iz, ispc
     logical :: doquit, ok, lshown
-    logical(c_bool) :: changed, ch
+    logical(c_bool) :: changed, ch, ldum
     integer(c_int) :: flags
     character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -873,7 +874,7 @@ contains
                 str2 = "##radius" // string(i) // c_null_char
                 str3 = "%.3f" // c_null_char
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
+                ch = igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
                    0._c_float,c_loc(str3),ImGuiInputTextFlags_EnterReturnsTrue)
                 if (ch) then
                    w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
@@ -903,18 +904,59 @@ contains
        end if
 
        ! style buttons: show/hide
-       if (iw_button("Show All")) &
+       if (iw_button("Show All")) then
           w%rep%atom_style(1:w%rep%natom_style)%shown = .true.
+          changed = .true.
+       end if
        call iw_tooltip("Show all atoms in the system",ttshown)
-       if (iw_button("Hide All",sameline=.true.)) &
+       if (iw_button("Hide All",sameline=.true.)) then
           w%rep%atom_style(1:w%rep%natom_style)%shown = .false.
+          changed = .true.
+       end if
        call iw_tooltip("Hide all atoms in the system",ttshown)
        if (iw_button("Toggle Show/Hide",sameline=.true.)) then
           do i = 1, w%rep%natom_style
              w%rep%atom_style(i)%shown = .not.w%rep%atom_style(i)%shown
           end do
+          changed = .true.
        end if
        call iw_tooltip("Toggle the show/hide status for all atoms",ttshown)
+
+       ! style buttons: set radii
+       if (iw_button("Set radii")) then
+          do i = 1, w%rep%natom_style
+             if (w%rep%atom_style_type == 0) then
+                ! species
+                ispc = i
+             elseif (w%rep%atom_style_type == 1) then
+                ! nneq
+                ispc = sys(isys)%c%at(i)%is
+             elseif (w%rep%atom_style_type == 2) then
+                ! ncel
+                ispc = sys(isys)%c%atcel(i)%is
+             end if
+             iz = sys(isys)%c%spc(ispc)%z
+             if (w%rep%atom_radii_reset_type == 0) then
+                w%rep%atom_style(i)%rad = atmcov(iz)
+             else
+                w%rep%atom_style(i)%rad = atmvdw(iz)
+             end if
+             w%rep%atom_style(i)%rad = w%rep%atom_style(i)%rad * w%rep%atom_radii_reset_scale
+          end do
+          changed = .true.
+       end if
+       call iw_tooltip("Set the radii of all atoms to the selected values",ttshown)
+       call iw_combo_simple("##Type","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+          w%rep%atom_radii_reset_type,sameline=.true.)
+       call iw_tooltip("Type of atomic radii",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
+       call igPushItemWidth(iw_calcwidth(5,1))
+       str2 = "Scale" // c_null_char
+       str3 = "%.3f" // c_null_char
+       ldum = igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
+          0._c_float,c_loc(str3),ImGuiInputTextFlags_None)
+       call iw_tooltip("Scale for the atomic radii",ttshown)
+       call igPopItemWidth()
 
        ! render if necessary
        if (changed) win(w%editrep_iview)%forcerender = .true.

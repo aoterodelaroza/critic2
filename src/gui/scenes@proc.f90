@@ -474,7 +474,8 @@ contains
     r%onemotif = .false.
     r%atom_style_type = 0
     r%natom_style = 0
-    r%atom_scale = 1d0
+    r%atom_radii_reset_type = 0
+    r%atom_radii_reset_scale = 0.7_c_float
     r%bond_scale = 1d0
     if (present(itype)) then
        if (itype == reptype_atoms) then
@@ -491,7 +492,6 @@ contains
              r%onemotif = sys(isys)%c%ismol3d
              r%ncell = 1
           end if
-          r%atom_scale = 1d0
        elseif (itype == reptype_bonds) then
           r%isinit = .true.
           r%shown = .true.
