@@ -57,6 +57,7 @@ module scenes
      integer :: natom_style = 0 ! number of atom styles
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
+     integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! bonds
      real*8 :: bond_scale = 1d0 ! bond scaling factor

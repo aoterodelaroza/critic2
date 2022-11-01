@@ -476,6 +476,7 @@ contains
     r%natom_style = 0
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
+    r%atom_color_reset_type = 0
     r%bond_scale = 1d0
     if (present(itype)) then
        if (itype == reptype_atoms) then
@@ -552,7 +553,7 @@ contains
   !> Reset atom styles.
   module subroutine reset_atom_style(r)
     use gui_main, only: nsys, sysc, sys, sys_init
-    use param, only: jmlcol2, atmcov
+    use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
     integer :: i, ispc, iz
@@ -574,7 +575,7 @@ contains
           r%atom_style(i)%shown = .true.
 
           iz = sys(r%id)%c%spc(i)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
           r%atom_style(i)%rgba(4) = 1._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
@@ -588,7 +589,7 @@ contains
 
           ispc = sys(r%id)%c%at(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
           r%atom_style(i)%rgba(4) = 1._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
@@ -602,7 +603,7 @@ contains
 
           ispc = sys(r%id)%c%atcel(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
           r%atom_style(i)%rgba(4) = 1._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
@@ -641,7 +642,6 @@ contains
     use interfaces_opengl3
     use gui_main, only: sys
     use shapes, only: sphVAO
-    use param, only: jmlcol2, atmcov
     class(representation), intent(inout), target :: r
     real*8, optional, intent(inout) :: xmin(3)
     real*8, optional, intent(inout) :: xmax(3)

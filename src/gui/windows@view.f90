@@ -626,7 +626,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
     use tools_io, only: string, ioj_right
-    use param, only: atmcov, atmvdw
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2
     class(window), intent(inout), target :: w
 
     integer :: i, isys, ll, itype, iz, ispc
@@ -669,7 +669,7 @@ contains
 
        ! the representation type
        itype = w%rep%type - 1
-       call iw_combo_simple("##type","Atoms" // c_null_char // "Bonds" // c_null_char //&
+       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Bonds" // c_null_char //&
           "Unit cell" // c_null_char // "Labels" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
@@ -810,7 +810,7 @@ contains
           flags = ImGuiTableColumnFlags_None
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
 
-          str2 = "Color" // c_null_char
+          str2 = "Col" // c_null_char
           flags = ImGuiTableColumnFlags_None
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
 
@@ -946,7 +946,7 @@ contains
           changed = .true.
        end if
        call iw_tooltip("Set the radii of all atoms to the selected values",ttshown)
-       call iw_combo_simple("##Type","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+       call iw_combo_simple("##radiustype","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
           w%rep%atom_radii_reset_type,sameline=.true.)
        call iw_tooltip("Type of atomic radii",ttshown)
        call igSameLine(0._c_float,-1._c_float)
@@ -957,6 +957,34 @@ contains
           0._c_float,c_loc(str3),ImGuiInputTextFlags_None)
        call iw_tooltip("Scale for the atomic radii",ttshown)
        call igPopItemWidth()
+
+       ! style buttons: set color
+       if (iw_button("Set color")) then
+          do i = 1, w%rep%natom_style
+             if (w%rep%atom_style_type == 0) then
+                ! species
+                ispc = i
+             elseif (w%rep%atom_style_type == 1) then
+                ! nneq
+                ispc = sys(isys)%c%at(i)%is
+             elseif (w%rep%atom_style_type == 2) then
+                ! ncel
+                ispc = sys(isys)%c%atcel(i)%is
+             end if
+             iz = sys(isys)%c%spc(ispc)%z
+             if (w%rep%atom_color_reset_type == 0) then
+                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
+             else
+                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+             end if
+             w%rep%atom_style(i)%rgba(4) = 1._c_float
+          end do
+          changed = .true.
+       end if
+       call iw_tooltip("Set the color of all atoms to the selected values",ttshown)
+       call iw_combo_simple("##colortype","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+          w%rep%atom_color_reset_type,sameline=.true.)
+       call iw_tooltip("Type of atomic colors",ttshown)
 
        ! render if necessary
        if (changed) win(w%editrep_iview)%forcerender = .true.
