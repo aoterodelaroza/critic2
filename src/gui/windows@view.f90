@@ -902,6 +902,20 @@ contains
           call igEndTable()
        end if
 
+       ! style buttons: show/hide
+       if (iw_button("Show All")) &
+          w%rep%atom_style(1:w%rep%natom_style)%shown = .true.
+       call iw_tooltip("Show all atoms in the system",ttshown)
+       if (iw_button("Hide All",sameline=.true.)) &
+          w%rep%atom_style(1:w%rep%natom_style)%shown = .false.
+       call iw_tooltip("Hide all atoms in the system",ttshown)
+       if (iw_button("Toggle Show/Hide",sameline=.true.)) then
+          do i = 1, w%rep%natom_style
+             w%rep%atom_style(i)%shown = .not.w%rep%atom_style(i)%shown
+          end do
+       end if
+       call iw_tooltip("Toggle the show/hide status for all atoms",ttshown)
+
        ! render if necessary
        if (changed) win(w%editrep_iview)%forcerender = .true.
 
