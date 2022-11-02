@@ -626,7 +626,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
     use tools_io, only: string, ioj_right
-    use param, only: atmcov, atmvdw, jmlcol, jmlcol2
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
 
     integer :: i, isys, ll, itype, iz, ispc
@@ -688,7 +688,18 @@ contains
        !!! filter
        call iw_text("Filter",highlight=.true.)
        call iw_text("(?)",sameline=.true.)
-       call iw_tooltip("Explanation for the filter.")
+       call iw_tooltip("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. "&
+          &"Structural variables are very useful for filters. Examples:"//newline//&
+          "- '@x < 3' = all atoms with x lower than 3"//newline//&
+          "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&
+          "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
+          "Click on the Help button for more info.")
+       if (iw_button("Help",sameline=.true.)) then
+          str3 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
+          call openLink(c_loc(str3))
+       end if
+       call iw_tooltip("Open the manual page about arithmetic expressions."&
+          &"The 'basic usage' and 'structural variables' sections are relevant.")
 
        ! filter text input
        str1 = "##filter"
