@@ -126,23 +126,26 @@ submodule (arithmetic) proc
   integer, parameter :: svar_xnucc   = 5  !< x of the closest nucleus (Cartesian)
   integer, parameter :: svar_ynucc   = 6  !< y of the closest nucleus (Cartesian)
   integer, parameter :: svar_znucc   = 7  !< z of the closest nucleus (Cartesian)
-  integer, parameter :: svar_xx      = 8  !< x of the evaluation point (crystallographic)
-  integer, parameter :: svar_yx      = 9  !< y of the evaluation point (crystallographic)
-  integer, parameter :: svar_zx      = 10 !< z of the evaluation point (crystallographic)
-  integer, parameter :: svar_xc      = 11 !< x of the evaluation point (Cartesian)
-  integer, parameter :: svar_yc      = 12 !< y of the evaluation point (Cartesian)
-  integer, parameter :: svar_zc      = 13 !< z of the evaluation point (Cartesian)
-  integer, parameter :: svar_xm      = 14 !< x of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_ym      = 15 !< y of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_zm      = 16 !< z of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_xxr     = 17 !< x of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_yxr     = 18 !< y of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_zxr     = 19 !< z of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_idnuc   = 20 !< complete-list id of the closest nucleus
-  integer, parameter :: svar_nidnuc  = 21 !< non-equivalent-list id of the closest nucleus
-  integer, parameter :: svar_rho0nuc = 22 !< atomic density contribution from the closest nucleus
-  integer, parameter :: svar_spcnuc  = 23 !< species id of the closest nucleus
-  integer, parameter :: svar_zatnuc  = 24 !< atomic number of the closest nucleus
+  integer, parameter :: svar_x       = 8  !< x of the evaluation point (default units)
+  integer, parameter :: svar_y       = 9  !< y of the evaluation point (default units)
+  integer, parameter :: svar_z       = 10 !< z of the evaluation point (default units)
+  integer, parameter :: svar_xx      = 11 !< x of the evaluation point (crystallographic)
+  integer, parameter :: svar_yx      = 12 !< y of the evaluation point (crystallographic)
+  integer, parameter :: svar_zx      = 13 !< z of the evaluation point (crystallographic)
+  integer, parameter :: svar_xc      = 14 !< x of the evaluation point (Cartesian)
+  integer, parameter :: svar_yc      = 15 !< y of the evaluation point (Cartesian)
+  integer, parameter :: svar_zc      = 16 !< z of the evaluation point (Cartesian)
+  integer, parameter :: svar_xm      = 17 !< x of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_ym      = 18 !< y of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_zm      = 19 !< z of the evaluation point (Cartesian molecular)
+  integer, parameter :: svar_xxr     = 20 !< x of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_yxr     = 21 !< y of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_zxr     = 22 !< z of the evaluation point (reduced cryst.)
+  integer, parameter :: svar_idnuc   = 23 !< complete-list id of the closest nucleus
+  integer, parameter :: svar_nidnuc  = 24 !< non-equivalent-list id of the closest nucleus
+  integer, parameter :: svar_rho0nuc = 25 !< atomic density contribution from the closest nucleus
+  integer, parameter :: svar_spcnuc  = 26 !< species id of the closest nucleus
+  integer, parameter :: svar_zatnuc  = 27 !< atomic number of the closest nucleus
 
   ! libxc functional
 #ifdef HAVE_LIBXC
@@ -1099,6 +1102,12 @@ contains
        c = svar_ynucc
     case("znucc")
        c = svar_znucc
+    case("x")
+       c = svar_x
+    case("y")
+       c = svar_y
+    case("z")
+       c = svar_z
     case("xx")
        c = svar_xx
     case("yx")
@@ -1289,6 +1298,19 @@ contains
        q = (x0(2) + syl%c%molx0(2)) * dunit0(iunit)
     case(svar_zm)
        q = (x0(3) + syl%c%molx0(3)) * dunit0(iunit)
+    case(svar_x,svar_y,svar_z)
+       if (syl%c%ismolecule) then
+          x = (x0 + syl%c%molx0) * dunit0(iunit)
+       else
+          x = syl%c%c2x(x0)
+       end if
+       if (svar == svar_x) then
+          q = x(1)
+       elseif (svar == svar_y) then
+          q = x(2)
+       else
+          q = x(3)
+       end if
     case(svar_xx,svar_yx,svar_zx)
        x = syl%c%c2x(x0)
        if (svar == svar_xx) then
