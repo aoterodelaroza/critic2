@@ -618,7 +618,7 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use global, only: dunit0, iunit
+    use global, only: dunit0, iunit_ang
     use scenes, only: representation
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
@@ -818,7 +818,11 @@ contains
           flags = ImGuiTableColumnFlags_None
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
 
-          str2 = "Coordinates" // c_null_char
+          if (sys(isys)%c%ismolecule) then
+             str2 = "Coordinates (Å)" // c_null_char
+          else
+             str2 = "Coordinates (fractional)" // c_null_char
+          end if
           flags = ImGuiTableColumnFlags_WidthStretch
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_rest)
           call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -888,14 +892,14 @@ contains
                 s = ""
                 if (w%rep%atom_style_type > 0) then
                    if (sys(isys)%c%ismolecule) then
-                      x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit)
+                      x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
                    elseif (w%rep%atom_style_type == 1) then
                       x0 = sys(isys)%c%at(i)%x
                    elseif (w%rep%atom_style_type == 2) then
                       x0 = sys(isys)%c%atcel(i)%x
                    endif
-                   s = string(x0(1),'f',7,4,ioj_right) //" "// string(x0(2),'f',7,4,ioj_right) //" "//&
-                      string(x0(3),'f',7,4,ioj_right)
+                   s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+                      string(x0(3),'f',8,4,ioj_right)
                 end if
                 call iw_text(s)
              end if
