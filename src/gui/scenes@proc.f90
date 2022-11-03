@@ -180,7 +180,7 @@ contains
   !> Draw the scene
   module subroutine scene_render(s)
     use interfaces_opengl3
-    use gui_main, only: sysc, sys_init, sys
+    use gui_main, only: sysc, sys_init
     use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
@@ -229,9 +229,8 @@ contains
 
     integer :: i, ii, id, ll
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-    logical(c_bool) :: ldum
     logical :: discol, doerase
-    type(ImVec2) :: szero, sz
+    type(ImVec2) :: szero
     character(kind=c_char,len=1024), target :: txtinp
     integer(c_int) :: flags
     integer, allocatable :: idx(:)
@@ -688,7 +687,7 @@ contains
     real*8, optional, intent(inout) :: xmin(3)
     real*8, optional, intent(inout) :: xmax(3)
 
-    real(c_float) :: rgba(4), x0(3), x1(3), rad
+    real(c_float) :: rgba(4), x0(3), rad
     integer :: i, j, k, id, imol, n(3), i1, i2, i3
     integer :: n0(3), n1(3), lvec(3)
     logical :: havefilter, ok, step

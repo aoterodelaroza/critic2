@@ -169,6 +169,7 @@ module windows
      ! edit representation
      procedure :: update_editrep
      procedure :: draw_editrep
+     procedure :: draw_editrep_atoms
   end type window
   public :: window
 
@@ -347,6 +348,11 @@ module windows
      module subroutine draw_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine draw_editrep
+     module function draw_editrep_atoms(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical(c_bool) :: changed
+     end function draw_editrep_atoms
   end interface
 
 end module windows
