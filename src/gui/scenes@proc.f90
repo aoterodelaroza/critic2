@@ -652,9 +652,9 @@ contains
     real*8, optional, intent(inout) :: xmax(3)
 
     real(c_float) :: rgba(4), x0(3), x1(3), rad
-    integer :: i, j, id, n(3), i1, i2, i3
-    integer :: n0(3), n1(3)
-    logical :: havefilter, ok
+    integer :: i, j, k, id, imol, n(3), i1, i2, i3
+    integer :: n0(3), n1(3), lvec(3)
+    logical :: havefilter, ok, step
     real*8 :: res, xx(3)
 
     real*8, parameter :: rthr = 0.01d0
@@ -672,7 +672,25 @@ contains
     end if
 
     call glBindVertexArray(sphVAO(r%atom_res))
-    do i = 1, sys(r%id)%c%ncel
+    i = 0
+    imol = 0
+    do while(i < sys(r%id)%c%ncel)
+       if (r%onemotif .and. sys(r%id)%c%ismol3d) then
+          step = (imol == 0)
+          if (.not.step) step = (k == sys(r%id)%c%mol(imol)%nat)
+          if (step) then
+             imol = imol + 1
+             k = 0
+          end if
+          if (imol > sys(r%id)%c%nmol) exit
+          k = k + 1
+          i = sys(r%id)%c%mol(imol)%at(k)%cidx
+          lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
+       else
+          i = i + 1
+          lvec = 0
+       end if
+
        ! skip hidden atoms
        if (r%atom_style_type == 0) then
           id = sys(r%id)%c%atcel(i)%is
@@ -694,7 +712,7 @@ contains
        ! calculate the border
        n0 = 1
        n1 = n
-       if (r%border) then
+       if (r%border.and..not.r%onemotif) then
           xx = sys(r%id)%c%atcel(i)%x
           xx = xx - floor(xx)
           do j = 1, 3
@@ -712,7 +730,7 @@ contains
        do i1 = n0(1), n1(1)
           do i2 = n0(2), n1(2)
              do i3 = n0(3), n1(3)
-                xx = sys(r%id)%c%atcel(i)%x + (/i1,i2,i3/) - 1
+                xx = sys(r%id)%c%atcel(i)%x + (/i1,i2,i3/) + lvec - 1
                 xx = sys(r%id)%c%x2c(xx)
                 x0 = real(xx,c_float)
                 call draw_sphere(x0,rad,rgba,r%atom_res)
