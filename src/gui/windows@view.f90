@@ -37,9 +37,10 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
+    use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL
     use scenes, only: reptype_atoms
     use utils, only: iw_calcheight
-    use gui_main, only: sysc, sys, sys_init, nsys, g
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io
     use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -239,6 +240,20 @@ contains
 
     ! Process mouse events
     call w%process_events_view(hover)
+
+    ! process keybindings
+    !! increase and decrease the number of cells in main view
+    if (.not.io%WantTextInput) then
+       if (.not.sys(w%view_selected)%c%ismolecule) then
+          if (is_bind_event(BIND_VIEW_INC_NCELL)) then
+             sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
+             w%forcerender = .true.
+          elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
+             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc - 1,1)
+             w%forcerender = .true.
+          end if
+       end if
+    end if
 
   end subroutine draw_view
 

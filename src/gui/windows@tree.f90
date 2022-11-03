@@ -49,8 +49,9 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
+    use windows, only: win, iwin_view
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
-       BIND_TREE_MOVE_DOWN
+       BIND_TREE_MOVE_DOWN, BIND_VIEW_DEC_NCELL, BIND_VIEW_INC_NCELL
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
@@ -72,7 +73,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev
+    integer :: i, j, k, iw, nshown, newsel, jsel, ll, id, iref, inext, iprev
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -797,12 +798,12 @@ contains
              w%forceremove = (/jsel/)
           end if
        end if
-
        call igEndTable()
     end if
     call igPopStyleVar(3_c_int)
 
-    ! process the key bindings
+    ! process the keybindings
+    !! up and down the tree
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
        if (iprev > 0) then
           w%forceselect = iprev

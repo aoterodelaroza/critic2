@@ -694,6 +694,8 @@ contains
        enabled(i) = (id(i) == 0)
     end do
 
+    ! keybindings
+    !! menu key bindings
     launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
     launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
     launch(d_newlib) = .false.

@@ -46,6 +46,8 @@ submodule (keybindings) proc
      "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
      "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
      "Run the commands               ",& ! BIND_INPCON_RUN
+     "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
+     "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
      "Rotate the camera              ",& ! BIND_NAV_ROTATE
      "Translate the camera           ",& ! BIND_NAV_TRANSLATE
      "Camera zoom                    ",& ! BIND_NAV_ZOOM
@@ -74,6 +76,8 @@ submodule (keybindings) proc
      group_tree,&   ! BIND_TREE_MOVE_UP
      group_tree,&   ! BIND_TREE_MOVE_DOWN
      group_inpcon,& ! BIND_INPCON_RUN
+     group_view,&   ! BIND_VIEW_INC_NCELL
+     group_view,&   ! BIND_VIEW_DEC_NCELL
      group_view,&   ! BIND_NAV_ROTATE
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
@@ -184,6 +188,8 @@ contains
     call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_UpArrow,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_DownArrow,ImGuiKey_ModCtrl)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
+    call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,ImGuiKey_None)
+    call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,ImGuiKey_None)
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,ImGuiKey_None)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,ImGuiKey_None)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,ImGuiKey_None)
