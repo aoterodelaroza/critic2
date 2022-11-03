@@ -180,13 +180,14 @@ contains
   !> the previous widget. If noadvance, do not advance the cursor
   !> after writing. If copy_to_output, write the text to uout as well
   !> (without advancing to a new line and with a comma after the string).
-  module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance,&
-     copy_to_output)
+  module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
+     noadvance,copy_to_output)
     use interfaces_cimgui
-    use gui_main, only: ColorHighlightText
+    use gui_main, only: ColorHighlightText, ColorDangerText
     use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
+    logical, intent(in), optional :: danger
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: sameline_nospace
     logical, intent(in), optional :: disabled
@@ -195,17 +196,19 @@ contains
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
-    logical :: highlight_, disabled_, sameline_, sameline_nospace_, noadvance_
-    logical :: copy_to_output_
+    logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
+    logical :: noadvance_,copy_to_output_
     real(c_float) :: pos
 
     highlight_ = .false.
+    danger_ = .false.
     sameline_ = .false.
     sameline_nospace_ = .false.
     disabled_ = .false.
     noadvance_ = .false.
     copy_to_output_ = .false.
     if (present(highlight)) highlight_ = highlight
+    if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
     if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
     if (present(disabled)) disabled_ = disabled
@@ -220,6 +223,8 @@ contains
        call igTextDisabled(c_loc(str1))
     elseif (highlight_) then
        call igTextColored(ColorHighlightText,c_loc(str1))
+    elseif (danger_) then
+       call igTextColored(ColorDangerText,c_loc(str1))
     else
        call igText(c_loc(str1))
     end if

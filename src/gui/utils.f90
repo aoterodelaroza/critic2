@@ -78,10 +78,11 @@ module utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
-     module subroutine iw_text(str,highlight,disabled,sameline,sameline_nospace,noadvance,&
-        copy_to_output)
+     module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
+        noadvance,copy_to_output)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
+       logical, intent(in), optional :: danger
        logical, intent(in), optional :: disabled
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: sameline_nospace

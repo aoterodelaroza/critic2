@@ -665,14 +665,14 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, isys, ll, itype, iz, ispc
-    logical :: doquit, ok, lshown
+    logical :: doquit, lshown, ok
     logical(c_bool) :: changed, ch, ldum
     integer(c_int) :: flags, ires
     character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail, sz0
-    real*8 :: x0(3)
+    real*8 :: x0(3), res
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -743,14 +743,26 @@ contains
           c_null_ptr,c_null_ptr)) then
           ll = index(txtinp,c_null_char)
           w%rep%filter = txtinp(1:ll-1)
-          changed = .true.
+
+          ! test the filter
+          if (sys(isys)%c%ncel > 0) then
+             x0 = sys(isys)%c%atcel(1)%r
+          else
+             x0 = 0d0
+          end if
+          res = sys(isys)%eval(w%rep%filter,.false.,w%rep%goodfilter,x0)
+
+          if (w%rep%goodfilter) changed = .true.
        end if
+       if (len_trim(w%rep%filter) == 0) w%rep%goodfilter = .true.
        call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",ttshown)
        if (iw_button("Clear",sameline=.true.)) then
           w%rep%filter = ""
           changed = .true.
        end if
        call iw_tooltip("Clear the filter",ttshown)
+       if (.not.w%rep%goodfilter) &
+          call iw_text("Error in the filter expression.",danger=.true.)
 
        !!! periodicity
        if (.not.sys(isys)%c%ismolecule) then

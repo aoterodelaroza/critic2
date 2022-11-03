@@ -468,6 +468,7 @@ contains
     r%idwin = 0
     r%name = ""
     r%filter = ""
+    r%goodfilter = .true.
     r%pertype = 1
     r%ncell = 1
     r%border = .true.
@@ -539,6 +540,7 @@ contains
 
     r%name = ""
     r%filter = ""
+    r%goodfilter = .true.
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
@@ -649,9 +651,20 @@ contains
 
     real(c_float) :: rgba(4), x0(3), x1(3), rad
     integer :: i, id
+    logical :: havefilter, ok
+    real*8 :: res
+
+    havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
 
     call glBindVertexArray(sphVAO(r%atom_res))
     do i = 1, sys(r%id)%c%ncel
+       ! apply the filter
+       if (havefilter) then
+          res = sys(r%id)%eval(r%filter,.false.,ok,sys(r%id)%c%atcel(i)%r)
+          if (ok) then
+             if (res == 0d0) cycle
+          end if
+       end if
        if (r%atom_style_type == 0) then
           id = sys(r%id)%c%atcel(i)%is
        elseif (r%atom_style_type == 1) then

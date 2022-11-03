@@ -48,6 +48,7 @@ module scenes
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
+     logical :: goodfilter ! true if the filter is not in error
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
