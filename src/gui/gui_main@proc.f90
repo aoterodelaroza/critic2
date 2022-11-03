@@ -198,7 +198,6 @@ contains
     iwin_console_output = stack_create_window(wintype_console_output,.true.)
 
     ! main loop
-    show_demo_window = .false.
     show_implot_demo_window = .false.
     firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)

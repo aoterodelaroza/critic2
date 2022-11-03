@@ -53,6 +53,7 @@ contains
     ! basic variables
     s%id = isys
     s%isinit = .true.
+    s%nc = 1
 
     ! phong default settings
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)

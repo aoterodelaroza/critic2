@@ -49,7 +49,7 @@ module scenes
      ! global parameters
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
-     integer(c_int) :: ncell(3) ! number of unit cells drawn (global +/-)
+     integer(c_int) :: ncell(3) ! number of unit cells drawn
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      ! atoms
@@ -82,6 +82,7 @@ module scenes
      logical :: forcesort = .false. ! force sort the representations
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center
+     integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
      ! phong shader settings
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color

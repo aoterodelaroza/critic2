@@ -39,7 +39,7 @@ contains
     use interfaces_cimgui
     use scenes, only: reptype_atoms
     use utils, only: iw_calcheight
-    use gui_main, only: sysc, sys_init, nsys, g
+    use gui_main, only: sysc, sys, sys_init, nsys, g
     use utils, only: iw_text, iw_button, iw_tooltip
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -49,7 +49,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
     logical(c_bool) :: is_selected
-    logical :: hover
+    logical :: hover, ch
     integer(c_int) :: amax, flags
     real(c_float) :: scal, width
 
@@ -71,10 +71,45 @@ contains
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
+       ! number of cells selector
+       if (.not.sys(w%view_selected)%c%ismolecule) then
+          call iw_text("Periodicity",highlight=.true.)
+          call igPushItemWidth(5._c_float * g%FontSize)
+          call iw_text("a: ")
+          call igSameLine(0._c_float,0._c_float)
+          str2 = "##aaxis" // c_null_char
+          ch = igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
+             ImGuiInputTextFlags_EnterReturnsTrue)
+          call igSameLine(0._c_float,g%FontSize)
+          call iw_text("b: ")
+          call igSameLine(0._c_float,0._c_float)
+          str2 = "##baxis" // c_null_char
+          ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
+             ImGuiInputTextFlags_EnterReturnsTrue)
+          call igSameLine(0._c_float,g%FontSize)
+          call iw_text("c: ")
+          call igSameLine(0._c_float,0._c_float)
+          str2 = "##caxis" // c_null_char
+          ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
+             ImGuiInputTextFlags_EnterReturnsTrue)
+
+          sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
+          if (iw_button("Reset",sameline=.true.)) then
+             sysc(w%view_selected)%sc%nc = 1
+             ch = .true.
+          end if
+          call igPopItemWidth()
+
+          if(ch) w%forcerender = .true.
+       end if
+
        ! representations table
+       call iw_text("Representations",highlight=.true.)
        str2 = "Representations##0,0" // c_null_char
 
        flags = ImGuiTableFlags_NoSavedSettings
+       flags = ior(flags,ImGuiTableFlags_BordersOuter)
+       flags = ior(flags,ImGuiTableFlags_BordersH)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
