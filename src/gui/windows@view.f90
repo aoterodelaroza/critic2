@@ -979,7 +979,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Borders)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     flags = ior(flags,ImGuiTableFlags_ScrollY)
-    str1="##tableatomstyles"
+    str1="##tableatomstyles" // c_null_char
     sz0%x = 0
     sz0%y = iw_calcheight(min(5,w%rep%natom_style)+1,0,.false.)
     if (igBeginTable(c_loc(str1),7,flags,sz0,0._c_float)) then
