@@ -652,9 +652,13 @@ contains
     real*8, optional, intent(inout) :: xmax(3)
 
     real(c_float) :: rgba(4), x0(3), x1(3), rad
-    integer :: i, id, n(3), i1, i2, i3
+    integer :: i, j, id, n(3), i1, i2, i3
+    integer :: n0(3), n1(3)
     logical :: havefilter, ok
     real*8 :: res, xx(3)
+
+    real*8, parameter :: rthr = 0.01d0
+    real*8, parameter :: rthr1 = 1-rthr
 
     ! do we have a filter?
     havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
@@ -669,13 +673,7 @@ contains
 
     call glBindVertexArray(sphVAO(r%atom_res))
     do i = 1, sys(r%id)%c%ncel
-       ! apply the filter
-       if (havefilter) then
-          res = sys(r%id)%eval(r%filter,.false.,ok,sys(r%id)%c%atcel(i)%r)
-          if (ok) then
-             if (res == 0d0) cycle
-          end if
-       end if
+       ! skip hidden atoms
        if (r%atom_style_type == 0) then
           id = sys(r%id)%c%atcel(i)%is
        elseif (r%atom_style_type == 1) then
@@ -683,14 +681,37 @@ contains
        else
           id = i
        end if
-
        if (.not.r%atom_style(id)%shown) cycle
+
+       ! apply the filter
+       if (havefilter) then
+          res = sys(r%id)%eval(r%filter,.false.,ok,sys(r%id)%c%atcel(i)%r)
+          if (ok) then
+             if (res == 0d0) cycle
+          end if
+       end if
+
+       ! calculate the border
+       n0 = 1
+       n1 = n
+       if (r%border) then
+          xx = sys(r%id)%c%atcel(i)%x
+          xx = xx - floor(xx)
+          do j = 1, 3
+             if (xx(j) < rthr) then
+                n1(j) = n(j) + 1
+             elseif (xx(j) > rthr1) then
+                n0(j) = 0
+             end if
+          end do
+       end if
+
+       ! draw the spheres
        rgba = r%atom_style(id)%rgba
        rad = r%atom_style(id)%rad
-
-       do i1 = 1, n(1)
-          do i2 = 1, n(2)
-             do i3 = 1, n(3)
+       do i1 = n0(1), n1(1)
+          do i2 = n0(2), n1(2)
+             do i3 = n0(3), n1(3)
                 xx = sys(r%id)%c%atcel(i)%x + (/i1,i2,i3/) - 1
                 xx = sys(r%id)%c%x2c(xx)
                 x0 = real(xx,c_float)
