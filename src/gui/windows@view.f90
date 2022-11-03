@@ -50,7 +50,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, str4
     logical(c_bool) :: is_selected
-    logical :: hover, ch
+    logical :: hover, ch, goodsys
     integer(c_int) :: amax, flags
     real(c_float) :: scal, width
 
@@ -66,6 +66,10 @@ contains
     szero%x = 0
     szero%y = 0
 
+    ! whether the selected view system is a good system
+    goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
+    if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
+
     ! gear menu
     str1="##viewgear" // c_null_char
     if (iw_button("⚙")) then
@@ -73,35 +77,37 @@ contains
     end if
     if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
        ! number of cells selector
-       if (.not.sys(w%view_selected)%c%ismolecule) then
-          call iw_text("Periodicity",highlight=.true.)
-          call igPushItemWidth(5._c_float * g%FontSize)
-          call iw_text("a: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##aaxis" // c_null_char
-          ch = igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
-          call igSameLine(0._c_float,g%FontSize)
-          call iw_text("b: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##baxis" // c_null_char
-          ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
-          call igSameLine(0._c_float,g%FontSize)
-          call iw_text("c: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##caxis" // c_null_char
-          ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
+       if (goodsys) then
+          if (.not.sys(w%view_selected)%c%ismolecule) then
+             call iw_text("Periodicity",highlight=.true.)
+             call igPushItemWidth(5._c_float * g%FontSize)
+             call iw_text("a: ")
+             call igSameLine(0._c_float,0._c_float)
+             str2 = "##aaxis" // c_null_char
+             ch = igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
+             call igSameLine(0._c_float,g%FontSize)
+             call iw_text("b: ")
+             call igSameLine(0._c_float,0._c_float)
+             str2 = "##baxis" // c_null_char
+             ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
+             call igSameLine(0._c_float,g%FontSize)
+             call iw_text("c: ")
+             call igSameLine(0._c_float,0._c_float)
+             str2 = "##caxis" // c_null_char
+             ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
 
-          sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
-          if (iw_button("Reset",sameline=.true.)) then
-             sysc(w%view_selected)%sc%nc = 1
-             ch = .true.
+             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
+             if (iw_button("Reset",sameline=.true.)) then
+                sysc(w%view_selected)%sc%nc = 1
+                ch = .true.
+             end if
+             call igPopItemWidth()
+
+             if(ch) w%forcerender = .true.
           end if
-          call igPopItemWidth()
-
-          if(ch) w%forcerender = .true.
        end if
 
        ! representations table
@@ -115,8 +121,12 @@ contains
        flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        sz0%x = 0
-       nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
-       nrep = min(nrep,10)
+       if (goodsys) then
+          nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
+          nrep = min(nrep,10)
+       else
+          nrep = 0
+       end if
        sz0%y = iw_calcheight(nrep,0,.true.)
        if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
           str3 = "[close button]##1closebutton" // c_null_char
@@ -138,7 +148,7 @@ contains
           width = max(4._c_float, g%FontSize + 2._c_float)
           call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
-          if (w%view_selected > 0 .and. w%view_selected <= nsys) then
+          if (goodsys) then
              if (sysc(w%view_selected)%sc%representation_menu(w%id)) &
                 w%forcerender = .true.
           end if
@@ -146,20 +156,21 @@ contains
        end if
 
        ! new representation selectable
-       str2 = "Add Representation" // c_null_char
-       if (igBeginMenu(c_loc(str2),.true._c_bool)) then
-          str3 = "Atoms" // c_null_char
-          if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
-             id = sysc(w%view_selected)%sc%get_new_representation_id()
-             call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
-             w%forcerender = .true.
+       if (goodsys) then
+          str2 = "Add Representation" // c_null_char
+          if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+             str3 = "Atoms" // c_null_char
+             if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = sysc(w%view_selected)%sc%get_new_representation_id()
+                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
+                w%forcerender = .true.
+             end if
+             call iw_tooltip("Add a representation for the atoms",ttshown)
+
+             call igEndMenu()
           end if
-          call iw_tooltip("Add a representation for the atoms",ttshown)
-
-          call igEndMenu()
+          call iw_tooltip("Add a representation to the view",ttshown)
        end if
-       call iw_tooltip("Add a representation to the view",ttshown)
-
 
        call igEndPopup()
     end if
@@ -168,9 +179,8 @@ contains
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
     str2 = "" // c_null_char
-    if (w%view_selected >= 1 .and. w%view_selected <= nsys) then
-       if (sysc(w%view_selected)%status == sys_init) &
-          str2 = string(w%view_selected) // ": " // trim(sysc(w%view_selected)%seed%name) // c_null_char
+    if (goodsys) then
+       str2 = string(w%view_selected) // ": " // trim(sysc(w%view_selected)%seed%name) // c_null_char
     end if
     str1 = "##systemcombo" // c_null_char
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
@@ -181,6 +191,7 @@ contains
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
                 if (w%view_selected /= i) w%forcerender = .true.
                 w%view_selected = i
+                goodsys = .true.
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
@@ -209,7 +220,7 @@ contains
        call glClearColor(0.,0.,0.,0.)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
-       if (w%view_selected > 0 .and. w%view_selected <= nsys) &
+       if (goodsys) &
           call sysc(w%view_selected)%sc%render()
 
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
@@ -243,7 +254,7 @@ contains
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
-    if (.not.io%WantTextInput) then
+    if (goodsys.and..not.io%WantTextInput) then
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
              sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
