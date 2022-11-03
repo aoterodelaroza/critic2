@@ -298,18 +298,18 @@ contains
              call sysc(w%view_selected)%sc%align_view_axis(3)
              w%forcerender = .true.
           end if
-          if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-1)
-             w%forcerender = .true.
-          end if
-          if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-2)
-             w%forcerender = .true.
-          end if
-          if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-3)
-             w%forcerender = .true.
-          end if
+       end if
+       if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
+          call sysc(w%view_selected)%sc%align_view_axis(-1)
+          w%forcerender = .true.
+       end if
+       if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
+          call sysc(w%view_selected)%sc%align_view_axis(-2)
+          w%forcerender = .true.
+       end if
+       if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
+          call sysc(w%view_selected)%sc%align_view_axis(-3)
+          w%forcerender = .true.
        end if
     end if
 

@@ -442,7 +442,7 @@ contains
   module subroutine align_view_axis(s,iaxis)
     use gui_main, only: sys
     use tools_math, only: cross
-    use utils, only: rotate
+    use utils, only: rotate, translate
     class(scene), intent(inout), target :: s
     integer, intent(in) :: iaxis
 
@@ -477,7 +477,9 @@ contains
     ! set the world matrix
     if (angle > 1e-10_c_float) then
        raxis_c = real(raxis / norm2(raxis),c_float)
+       s%world = translate(s%world,s%scenecenter)
        s%world = rotate(s%world,-angle,raxis_c)
+       s%world = translate(s%world,-s%scenecenter)
     end if
 
   end subroutine align_view_axis
