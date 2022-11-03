@@ -160,13 +160,15 @@ module scenes
      module subroutine reset_atom_style(r)
        class(representation), intent(inout), target :: r
      end subroutine reset_atom_style
-     module subroutine representation_draw(r,xmin,xmax)
+     module subroutine representation_draw(r,nc,xmin,xmax)
        class(representation), intent(inout), target :: r
+       integer, intent(in) :: nc(3)
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine representation_draw
-     module subroutine draw_atoms(r,xmin,xmax)
+     module subroutine draw_atoms(r,nc,xmin,xmax)
        class(representation), intent(inout), target :: r
+       integer, intent(in) :: nc(3)
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_atoms

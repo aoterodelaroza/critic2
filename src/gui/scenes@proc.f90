@@ -218,7 +218,7 @@ contains
     ! draw all initialized and visible representations
     do i = 1, s%nrep
        if (s%rep(i)%isinit .and. s%rep(i)%shown) then
-          call s%rep(i)%draw()
+          call s%rep(i)%draw(s%nc)
        end if
     end do
 
@@ -617,8 +617,9 @@ contains
 
   !> Draw a representation. If xmin and xmax are present, calculate
   !> the bounding box instead of drawing.
-  module subroutine representation_draw(r,xmin,xmax)
+  module subroutine representation_draw(r,nc,xmin,xmax)
     class(representation), intent(inout), target :: r
+    integer, intent(in) :: nc(3)
     real*8, optional, intent(inout) :: xmin(3)
     real*8, optional, intent(inout) :: xmax(3)
 
@@ -628,7 +629,7 @@ contains
 
     ! draw the objects
     if (r%type == reptype_atoms) then
-       call r%draw_atoms(xmin,xmax)
+       call r%draw_atoms(nc,xmin,xmax)
     elseif (r%type == reptype_bonds) then
        call r%draw_bonds(xmin,xmax)
     elseif (r%type == reptype_unitcell) then
@@ -641,20 +642,30 @@ contains
 
   !> Draw an atoms representation. If xmin and xmax are present,
   !> calculate the bounding box instead of drawing.
-  module subroutine draw_atoms(r,xmin,xmax)
+  module subroutine draw_atoms(r,nc,xmin,xmax)
     use interfaces_opengl3
     use gui_main, only: sys
     use shapes, only: sphVAO
     class(representation), intent(inout), target :: r
+    integer, intent(in) :: nc(3)
     real*8, optional, intent(inout) :: xmin(3)
     real*8, optional, intent(inout) :: xmax(3)
 
     real(c_float) :: rgba(4), x0(3), x1(3), rad
-    integer :: i, id
+    integer :: i, id, n(3), i1, i2, i3
     logical :: havefilter, ok
-    real*8 :: res
+    real*8 :: res, xx(3)
 
+    ! do we have a filter?
     havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
+
+    ! calculate the periodicity
+    n = 1
+    if (r%pertype == 1) then
+       n = nc
+    elseif (r%pertype == 2) then
+       n = r%ncell
+    end if
 
     call glBindVertexArray(sphVAO(r%atom_res))
     do i = 1, sys(r%id)%c%ncel
@@ -677,8 +688,16 @@ contains
        rgba = r%atom_style(id)%rgba
        rad = r%atom_style(id)%rad
 
-       x0 = real(sys(r%id)%c%atcel(i)%r,c_float)
-       call draw_sphere(x0,rad,rgba,r%atom_res)
+       do i1 = 1, n(1)
+          do i2 = 1, n(2)
+             do i3 = 1, n(3)
+                xx = sys(r%id)%c%atcel(i)%x + (/i1,i2,i3/) - 1
+                xx = sys(r%id)%c%x2c(xx)
+                x0 = real(xx,c_float)
+                call draw_sphere(x0,rad,rgba,r%atom_res)
+             end do
+          end do
+       end do
     end do
     call glBindVertexArray(0)
 
