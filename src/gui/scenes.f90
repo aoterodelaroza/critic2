@@ -113,6 +113,7 @@ module scenes
      procedure :: get_new_representation_id
      procedure :: update_projection_matrix
      procedure :: update_view_matrix
+     procedure :: align_view_axis
   end type scene
   public :: scene
 
@@ -147,6 +148,10 @@ module scenes
      module subroutine update_view_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
+     module subroutine align_view_axis(s,iaxis)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: iaxis
+     end subroutine align_view_axis
      ! representation
      module subroutine representation_init(r,isys,irep,itype)
        class(representation), intent(inout), target :: r

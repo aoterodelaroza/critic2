@@ -37,7 +37,9 @@ contains
   module subroutine draw_view(w)
     use interfaces_opengl3
     use interfaces_cimgui
-    use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL
+    use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
+       BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
+       BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms
     use utils, only: iw_calcheight
     use gui_main, only: sysc, sys, sys_init, nsys, g, io
@@ -75,9 +77,9 @@ contains
     if (iw_button("⚙")) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
-    if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
-       ! number of cells selector
-       if (goodsys) then
+    if (goodsys) then
+       if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
+          ! number of cells selector
           if (.not.sys(w%view_selected)%c%ismolecule) then
              call iw_text("Periodicity",highlight=.true.)
              call igPushItemWidth(5._c_float * g%FontSize)
@@ -108,55 +110,76 @@ contains
 
              if(ch) w%forcerender = .true.
           end if
-       end if
 
-       ! representations table
-       call iw_text("Representations",highlight=.true.)
-       str2 = "Representations##0,0" // c_null_char
+          ! align view axis
+          call iw_text("Axes Alignment",highlight=.true.)
+          if (.not.sys(w%view_selected)%c%ismolecule) then
+             if (iw_button("a")) then
+                call sysc(w%view_selected)%sc%align_view_axis(1)
+                w%forcerender = .true.
+             end if
+             if (iw_button("b",sameline=.true.)) then
+                call sysc(w%view_selected)%sc%align_view_axis(2)
+                w%forcerender = .true.
+             end if
+             if (iw_button("c",sameline=.true.)) then
+                call sysc(w%view_selected)%sc%align_view_axis(3)
+                w%forcerender = .true.
+             end if
+          end if
+          if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-1)
+             w%forcerender = .true.
+          end if
+          if (iw_button("y",sameline=.true.)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-2)
+             w%forcerender = .true.
+          end if
+          if (iw_button("z",sameline=.true.)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-3)
+             w%forcerender = .true.
+          end if
 
-       flags = ImGuiTableFlags_NoSavedSettings
-       flags = ior(flags,ImGuiTableFlags_BordersOuter)
-       flags = ior(flags,ImGuiTableFlags_BordersH)
-       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
-       flags = ior(flags,ImGuiTableFlags_ScrollY)
-       sz0%x = 0
-       if (goodsys) then
+          ! representations table
+          call iw_text("Representations",highlight=.true.)
+          str2 = "Representations##0,0" // c_null_char
+
+          flags = ImGuiTableFlags_NoSavedSettings
+          flags = ior(flags,ImGuiTableFlags_BordersOuter)
+          flags = ior(flags,ImGuiTableFlags_BordersH)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          sz0%x = 0
           nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
           nrep = min(nrep,10)
-       else
-          nrep = 0
-       end if
-       sz0%y = iw_calcheight(nrep,0,.true.)
-       if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
-          str3 = "[close button]##1closebutton" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          width = max(4._c_float, g%FontSize + 2._c_float)
-          call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
+          sz0%y = iw_calcheight(nrep,0,.true.)
+          if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
+             str3 = "[close button]##1closebutton" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             width = max(4._c_float, g%FontSize + 2._c_float)
+             call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
 
-          str3 = "[view button]##1viewbutton" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          width = max(4._c_float, g%FontSize + 2._c_float)
-          call igTableSetupColumn(c_loc(str3),flags,width,ic_viewbutton)
+             str3 = "[view button]##1viewbutton" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             width = max(4._c_float, g%FontSize + 2._c_float)
+             call igTableSetupColumn(c_loc(str3),flags,width,ic_viewbutton)
 
-          str3 = "[name]##1name" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthStretch
-          call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
+             str3 = "[name]##1name" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthStretch
+             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
 
-          str3 = "[edit button]##1editbutton" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          width = max(4._c_float, g%FontSize + 2._c_float)
-          call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
+             str3 = "[edit button]##1editbutton" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             width = max(4._c_float, g%FontSize + 2._c_float)
+             call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
-          if (goodsys) then
              if (sysc(w%view_selected)%sc%representation_menu(w%id)) &
                 w%forcerender = .true.
+             call igEndTable()
           end if
-          call igEndTable()
-       end if
 
-       ! new representation selectable
-       if (goodsys) then
+          ! new representation selectable
           str2 = "Add Representation" // c_null_char
           if (igBeginMenu(c_loc(str2),.true._c_bool)) then
              str3 = "Atoms" // c_null_char
@@ -170,9 +193,9 @@ contains
              call igEndMenu()
           end if
           call iw_tooltip("Add a representation to the view",ttshown)
-       end if
 
-       call igEndPopup()
+          call igEndPopup()
+       end if
     end if
     call iw_tooltip("Change the view options")
 
@@ -261,6 +284,30 @@ contains
              w%forcerender = .true.
           elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
              sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc - 1,1)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(1)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_B_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(2)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_C_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(3)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-1)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-2)
+             w%forcerender = .true.
+          end if
+          if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
+             call sysc(w%view_selected)%sc%align_view_axis(-3)
              w%forcerender = .true.
           end if
        end if
@@ -358,20 +405,6 @@ contains
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
     if (.not.sc%isinit) return
-
-    ! process global events
-    ! if (hover && IsBindEvent(BIND_VIEW_ALIGN_A_AXIS,false))
-    !   outb |= sc->alignViewAxis(1);
-    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_B_AXIS,false))
-    !   outb |= sc->alignViewAxis(2);
-    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_C_AXIS,false))
-    !   outb |= sc->alignViewAxis(3);
-    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_X_AXIS,false))
-    !   outb |= sc->alignViewAxis(-1);
-    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Y_AXIS,false))
-    !   outb |= sc->alignViewAxis(-2);
-    ! else if (hover && IsBindEvent(BIND_VIEW_ALIGN_Z_AXIS,false))
-    !   outb |= sc->alignViewAxis(-3);
 
     ! process mode-specific events
     if (w%view_mousebehavior == MB_Navigation) then

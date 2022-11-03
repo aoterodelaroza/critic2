@@ -41,18 +41,17 @@ module keybindings
   integer, parameter, public :: BIND_INPCON_RUN = 9 ! tree: remove system
   integer, parameter, public :: BIND_VIEW_INC_NCELL = 10 ! view: increase number of cells
   integer, parameter, public :: BIND_VIEW_DEC_NCELL = 11 ! view: decrease number of cells
-  integer, parameter, public :: BIND_NAV_ROTATE = 12 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 13 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 14 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 15 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 15 ! total number of binds
-  ! #define BIND_CLOSE_ALL_DIALOGS 2  // Closes all windows
-  ! #define BIND_VIEW_ALIGN_A_AXIS 3  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_B_AXIS 4  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_C_AXIS 5  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_X_AXIS 6  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_Y_AXIS 7  // Align view with a axis
-  ! #define BIND_VIEW_ALIGN_Z_AXIS 8  // Align view with a axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 12 ! view: align view with a axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 13 ! view: align view with b axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 14 ! view: align view with c axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 15 ! view: align view with x axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 16 ! view: align view with y axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 17 ! view: align view with z axis
+  integer, parameter, public :: BIND_NAV_ROTATE = 18 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 19 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 20 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 21 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 21 ! total number of binds
 
   ! module procedure interfaces
   interface

@@ -48,17 +48,16 @@ submodule (keybindings) proc
      "Run the commands               ",& ! BIND_INPCON_RUN
      "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
      "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
+     "Align with a axis              ",& ! BIND_VIEW_ALIGN_A_AXIS
+     "Align with b axis              ",& ! BIND_VIEW_ALIGN_B_AXIS
+     "Align with c axis              ",& ! BIND_VIEW_ALIGN_C_AXIS
+     "Align with x axis              ",& ! BIND_VIEW_ALIGN_X_AXIS
+     "Align with y axis              ",& ! BIND_VIEW_ALIGN_Y_AXIS
+     "Align with z axis              ",& ! BIND_VIEW_ALIGN_Z_AXIS
      "Rotate the camera              ",& ! BIND_NAV_ROTATE
      "Translate the camera           ",& ! BIND_NAV_TRANSLATE
      "Camera zoom                    ",& ! BIND_NAV_ZOOM
      "Reset the camera               "/) ! BIND_NAV_RESET
-  !   "Close all dialogs",
-  !   "Align view with a axis",
-  !   "Align view with b axis",
-  !   "Align view with c axis",
-  !   "Align view with x axis",
-  !   "Align view with y axis",
-  !   "Align view with z axis",
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
@@ -78,6 +77,12 @@ submodule (keybindings) proc
      group_inpcon,& ! BIND_INPCON_RUN
      group_view,&   ! BIND_VIEW_INC_NCELL
      group_view,&   ! BIND_VIEW_DEC_NCELL
+     group_view,&   ! BIND_VIEW_ALIGN_A_AXIS
+     group_view,&   ! BIND_VIEW_ALIGN_B_AXIS
+     group_view,&   ! BIND_VIEW_ALIGN_C_AXIS
+     group_view,&   ! BIND_VIEW_ALIGN_X_AXIS
+     group_view,&   ! BIND_VIEW_ALIGN_Y_AXIS
+     group_view,&   ! BIND_VIEW_ALIGN_Z_AXIS
      group_view,&   ! BIND_NAV_ROTATE
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
@@ -190,18 +195,16 @@ contains
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,ImGuiKey_None)
     call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_A_AXIS,ImGuiKey_A,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_B_AXIS,ImGuiKey_B,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_C_AXIS,ImGuiKey_C,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_X_AXIS,ImGuiKey_X,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_Y_AXIS,ImGuiKey_Y,ImGuiKey_None)
+    call set_bind(BIND_VIEW_ALIGN_Z_AXIS,ImGuiKey_Z,ImGuiKey_None)
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,ImGuiKey_None)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,ImGuiKey_None)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,ImGuiKey_None)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,ImGuiKey_None)
-
-    !   set_bind(BIND_CLOSE_ALL_DIALOGS,GLFW_KEY_DELETE,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_A_AXIS,GLFW_KEY_A,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_B_AXIS,GLFW_KEY_B,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_C_AXIS,GLFW_KEY_C,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_X_AXIS,GLFW_KEY_X,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_Y_AXIS,GLFW_KEY_Y,NOMOD);
-    !   set_bind(BIND_VIEW_ALIGN_Z_AXIS,GLFW_KEY_Z,NOMOD);
 
   end subroutine set_default_keybindings
 

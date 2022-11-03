@@ -125,14 +125,6 @@ contains
     ! initialize
     isys = s%id
 
-    ! use xmin and xmax
-    ! ! draw all initialized and visible representations
-    ! do i = 1, s%nrep
-    !    if (s%rep(i)%isinit .and. s%rep(i)%shown) then
-    !       call s%rep(i)%draw()
-    !    end if
-    ! end do
-
     ! calculate the initial scene radius
     xmin = 0d0
     xmax = 0d0
@@ -175,8 +167,6 @@ contains
 
     ! camera distance and view matrix
     s%campos = s%scenecenter
-    ! s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad * &
-    !    sqrt(real(maxval(s%ncell),c_float)) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     call s%update_view_matrix()
 
@@ -446,6 +436,51 @@ contains
     s%view = lookat(s%campos,s%campos+front,up)
 
   end subroutine update_view_matrix
+
+  !> Align the view with a given scene axis. a,b,c = 1,2,3 and x,y,z =
+  !> -1,-2,-3.
+  module subroutine align_view_axis(s,iaxis)
+    use gui_main, only: sys
+    use tools_math, only: cross
+    use utils, only: rotate
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: iaxis
+
+    real*8 :: xaxis(3), oaxis(3), raxis(3)
+    real(c_float) :: raxis_c(3), angle
+
+    ! alignment axis
+    if (iaxis == 1) then
+       xaxis = sys(s%id)%c%m_x2c(:,1)
+    elseif (iaxis == 2) then
+       xaxis = sys(s%id)%c%m_x2c(:,2)
+    elseif (iaxis == 3) then
+       xaxis = sys(s%id)%c%m_x2c(:,3)
+    elseif (iaxis == -1) then
+       xaxis = (/1d0,0d0,0d0/)
+    elseif (iaxis == -2) then
+       xaxis = (/0d0,1d0,0d0/)
+    elseif (iaxis == -3) then
+       xaxis = (/0d0,0d0,1d0/)
+    else
+       return
+    end if
+    xaxis = xaxis / norm2(xaxis)
+
+    oaxis = (/0d0,0d0,1d0/)
+    raxis = cross(oaxis,xaxis)
+    angle = real(asin(norm2(raxis)),c_float)
+
+    ! reset the camera position
+    call s%reset()
+
+    ! set the world matrix
+    if (angle > 1e-10_c_float) then
+       raxis_c = real(raxis / norm2(raxis),c_float)
+       s%world = rotate(s%world,-angle,raxis_c)
+    end if
+
+  end subroutine align_view_axis
 
   !xx! representation
 
