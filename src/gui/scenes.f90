@@ -62,7 +62,7 @@ module scenes
      integer(c_int) :: atom_res = 3 ! ball resolution for atoms
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! bonds
-     real*8 :: bond_scale = 1d0 ! bond scaling factor
+     integer :: bond_filter_type = 0 ! 0=bond center, 1=either end, 2=both ends
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end

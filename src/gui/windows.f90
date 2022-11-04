@@ -170,6 +170,7 @@ module windows
      procedure :: update_editrep
      procedure :: draw_editrep
      procedure :: draw_editrep_atoms
+     procedure :: draw_editrep_bonds
   end type window
   public :: window
 
@@ -353,6 +354,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical(c_bool) :: changed
      end function draw_editrep_atoms
+     module function draw_editrep_bonds(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical(c_bool) :: changed
+     end function draw_editrep_bonds
   end interface
 
 end module windows

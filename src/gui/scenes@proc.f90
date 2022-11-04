@@ -515,7 +515,7 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%atom_res = 3
-    r%bond_scale = 1d0
+    r%bond_filter_type = 0
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
@@ -545,7 +545,6 @@ contains
              r%onemotif = sys(isys)%c%ismol3d
              r%ncell = 1
           end if
-          r%bond_scale = 1d0
        elseif (itype == reptype_unitcell) then
           r%isinit = .true.
           r%shown = .true.
