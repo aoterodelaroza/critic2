@@ -103,14 +103,17 @@ contains
 
   end function iw_calcwidth
 
-  !> Simple combo with title str. stropt contains the options separated
-  !> by \0 and terminated by \0\0.
-  module subroutine iw_combo_simple(str,stropt,ival,sameline)
+  !> Simple combo with title str. stropt contains the options
+  !> separated by \0 and terminated by \0\0. ival is the current value
+  !> of the combo.  sameline = place it in the same line as the last
+  !> item. changed = returns true if the combo option changed.
+  module subroutine iw_combo_simple(str,stropt,ival,sameline,changed)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     character(len=*,kind=c_char), intent(in) :: stropt
     integer, intent(inout) :: ival
     logical, intent(in), optional :: sameline
+    logical(c_bool), intent(out), optional :: changed
 
     character(len=:,kind=c_char), allocatable, target :: str1
     character(len=:,kind=c_char), allocatable, target :: stropt1
@@ -137,6 +140,7 @@ contains
     call igSetNextItemWidth(iw_calcwidth(maxlen+4,0))
 
     ldum = igCombo_Str(c_loc(str1), ival, c_loc(stropt1), -1_c_int)
+    if (present(changed)) changed = ldum
 
   end subroutine iw_combo_simple
 

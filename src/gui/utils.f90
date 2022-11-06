@@ -63,11 +63,12 @@ module utils
        logical, intent(in), optional :: from_end
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
-     module subroutine iw_combo_simple(str,stropt,ival,sameline)
+     module subroutine iw_combo_simple(str,stropt,ival,sameline,changed)
        character(len=*,kind=c_char), intent(in) :: str
        character(len=*,kind=c_char), intent(in) :: stropt
        integer, intent(inout) :: ival
        logical, intent(in), optional :: sameline
+       logical(c_bool), intent(out), optional :: changed
      end subroutine iw_combo_simple
      module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str

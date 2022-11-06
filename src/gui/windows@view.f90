@@ -956,17 +956,14 @@ contains
     ! selector and reset
     ch = .false.
     call iw_text("Styles",highlight=.true.)
-    ch = ch .or. iw_radiobutton("Species",int=w%rep%atom_style_type,intval=0_c_int)
-    call iw_tooltip("Set atom styles per chemical species",ttshown)
     if (.not.sys(isys)%c%ismolecule) then
-       ch = ch .or. iw_radiobutton("Symmetry-unique",int=w%rep%atom_style_type,intval=1_c_int,sameline=.true.)
-       call iw_tooltip("Set atom styles per non-equivalent atom in the cell",ttshown)
-       ch = ch .or. iw_radiobutton("Cell",int=w%rep%atom_style_type,intval=2_c_int,sameline=.true.)
-       call iw_tooltip("Set atom styles per atom in the unit cell",ttshown)
+       call iw_combo_simple("##styles","Species" //c_null_char// "Symmetry-unique" //c_null_char//&
+          "Cell"//c_null_char,w%rep%atom_style_type,changed=ch)
     else
-       ch = ch .or. iw_radiobutton("Atoms",int=w%rep%atom_style_type,intval=1_c_int,sameline=.true.)
-       call iw_tooltip("Set atom styles per atom in the molecule",ttshown)
+       call iw_combo_simple("##styles","Species" //c_null_char// "Atoms" //c_null_char,&
+          w%rep%atom_style_type,changed=ch)
     end if
+    call iw_tooltip("Classify atom representation details by these types",ttshown)
     if (ch) then
        call w%rep%reset_atom_style()
        changed = .true.
