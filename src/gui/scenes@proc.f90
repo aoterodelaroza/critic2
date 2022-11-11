@@ -78,10 +78,6 @@ contains
     s%nrep = s%nrep + 1
     call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms)
 
-    ! bonds
-    s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_bonds)
-
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
@@ -515,27 +511,12 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%atom_res = 3
-    r%bond_filter_type = 0
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
           r%shown = .true.
           r%type = reptype_atoms
           r%name = "Atoms"
-          if (sys(isys)%c%ismolecule) then
-             r%ncell = 0
-             r%border = .false.
-             r%onemotif = .false.
-          else
-             r%border = .true.
-             r%onemotif = sys(isys)%c%ismol3d
-             r%ncell = 1
-          end if
-       elseif (itype == reptype_bonds) then
-          r%isinit = .true.
-          r%shown = .true.
-          r%type = reptype_bonds
-          r%name = "Bonds"
           if (sys(isys)%c%ismolecule) then
              r%ncell = 0
              r%border = .false.
@@ -665,12 +646,8 @@ contains
     ! draw the objects
     if (r%type == reptype_atoms) then
        call r%draw_atoms(nc,xmin,xmax)
-    elseif (r%type == reptype_bonds) then
-       call r%draw_bonds(xmin,xmax)
     elseif (r%type == reptype_unitcell) then
        call r%draw_unitcell(xmin,xmax)
-    elseif (r%type == reptype_labels) then
-       call r%draw_labels(xmin,xmax)
     end if
 
   end subroutine representation_draw
@@ -777,16 +754,6 @@ contains
 
   end subroutine draw_atoms
 
-  !> Draw a bonds representation. If xmin and xmax are present,
-  !> calculate the bounding box instead of drawing.
-  module subroutine draw_bonds(r,xmin,xmax)
-    class(representation), intent(inout), target :: r
-    real*8, optional, intent(inout) :: xmin(3)
-    real*8, optional, intent(inout) :: xmax(3)
-
-
-  end subroutine draw_bonds
-
   !> Draw a unit cell representation. If xmin and xmax are present,
   !> calculate the bounding box instead of drawing.
   module subroutine draw_unitcell(r,xmin,xmax)
@@ -824,16 +791,6 @@ contains
     ! ! end if
 
   end subroutine draw_unitcell
-
-  !> Draw a labels representation. If xmin and xmax are present,
-  !> calculate the bounding box instead of drawing.
-  module subroutine draw_labels(r,xmin,xmax)
-    class(representation), intent(inout), target :: r
-    real*8, optional, intent(inout) :: xmin(3)
-    real*8, optional, intent(inout) :: xmax(3)
-
-
-  end subroutine draw_labels
 
   !xx! private procedures: low-level draws
 

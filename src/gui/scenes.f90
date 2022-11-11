@@ -31,16 +31,14 @@ module scenes
 
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
-  integer, parameter, public :: reptype_bonds = 2
-  integer, parameter, public :: reptype_unitcell = 3
-  integer, parameter, public :: reptype_labels = 4
-  integer, parameter, public :: reptype_NUM = 4
+  integer, parameter, public :: reptype_unitcell = 2
+  integer, parameter, public :: reptype_NUM = 2
 
   !> Representation: objects to draw on the scene
   type representation
      logical :: isinit = .false. ! true if the representation has been initialized
      logical(c_bool) :: shown = .false. ! true if the representation is currently shown
-     integer :: type = reptype_none ! type of representation (atoms, bonds,...)
+     integer :: type = reptype_none ! type of representation (atoms, cell,...)
      integer :: id ! system ID
      integer :: idrep ! representation ID
      integer :: idwin = 0 ! edit representation window ID
@@ -61,17 +59,13 @@ module scenes
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
      integer(c_int) :: atom_res = 3 ! ball resolution for atoms
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
-     ! bonds
-     integer :: bond_filter_type = 0 ! 0=bond center, 1=either end, 2=both ends
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
      procedure :: reset_atom_style
      procedure :: draw => representation_draw
      procedure :: draw_atoms
-     procedure :: draw_bonds
      procedure :: draw_unitcell
-     procedure :: draw_labels
   end type representation
   public :: representation
 
@@ -177,21 +171,11 @@ module scenes
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_atoms
-     module subroutine draw_bonds(r,xmin,xmax)
-       class(representation), intent(inout), target :: r
-       real*8, optional, intent(inout) :: xmin(3)
-       real*8, optional, intent(inout) :: xmax(3)
-     end subroutine draw_bonds
      module subroutine draw_unitcell(r,xmin,xmax)
        class(representation), intent(inout), target :: r
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
-     module subroutine draw_labels(r,xmin,xmax)
-       class(representation), intent(inout), target :: r
-       real*8, optional, intent(inout) :: xmin(3)
-       real*8, optional, intent(inout) :: xmax(3)
-     end subroutine draw_labels
   end interface
 
 end module scenes
