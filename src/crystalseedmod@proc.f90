@@ -4632,24 +4632,7 @@ contains
     elseif (isformat == isformat_struct) then
        call seed(1)%read_wien(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_vasp) then
-       ! try to read the types from the file directly
-       call seed(1)%read_vasp(file,mol,hastypes,errmsg,ti=ti)
-
-       if (len_trim(errmsg) == 0 .and. .not.hastypes) then
-          ! see if we can locate a POTCAR in the same path
-          path = file(1:index(file,dirsep,.true.))
-          if (len_trim(path) < 1) &
-             path = "."
-          ofile = trim(path) // "/POTCAR"
-          call seed(1)%read_potcar(ofile,errmsg,ti=ti)
-          if (len_trim(errmsg) == 0) then
-             if (seed(1)%nspc > 0) then
-                call seed(1)%read_vasp(file,mol,hastypes,errmsg,ti=ti)
-             else
-                errmsg = "No atoms found in POTCAR."
-             end if
-          end if
-       end if
+       call read_all_vasp(nseed,seed,file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_abinit) then
        call seed(1)%read_abinit(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_elk) then
@@ -4785,6 +4768,235 @@ contains
   end subroutine assign_crystalseed
 
   !xx! private subroutines
+
+  !> Read one or all structures from a VASP POSCAR-style file
+  !> (filename file) and return the corresponding crystal seeds in
+  !> seed. If mol=.true., interpret the structure as a molecule
+  !> (currently, this only sets the %ismolecule field). If an error
+  !> condition is found, return the error message in errmsg
+  !> (zero-length string if no error).
+  subroutine read_all_vasp(nseed,seed,file,mol,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, isreal, getword, zatguess,&
+       isinteger
+    use types, only: realloc
+    use tools_math, only: det3sym, matinv
+    use param, only: bohrtoa, dirsep
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, lp, ier, nn
+    integer :: i, j
+    character(len=:), allocatable :: line, word, ofile, path
+    logical :: ok, iscar
+    real*8 :: scalex, scaley, scalez, scale
+    real*8 :: rprim(3,3), gprim(3,3)
+    real*8 :: omegaa
+
+    ! open
+    errmsg = "Error reading file."
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+
+    ! initialize the seeds
+    nseed = 0
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(10))
+
+    do while (.true.)
+       ! new seed
+       nseed = nseed + 1
+       if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
+
+       ! generic error message
+       errmsg = "Error reading file"
+
+       ! read the title and the scale line
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+       lp = 1
+       word = getword(line,lp)
+       if (len_trim(word) > 0) then
+          seed(nseed)%name = trim(file) // "|" // trim(word)
+       else
+          seed(nseed)%name = trim(file)
+       end if
+
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+       lp = 1
+       ok = isreal(scalex,line,lp)
+       if (.not.ok) exit
+       ok = ok .and. isreal(scaley,line,lp)
+       if (.not.ok) then
+          scale = scalex
+          scalex = 1d0
+          scaley = 1d0
+          scalez = 1d0
+       else
+          ok = isreal(scalez,line,lp)
+          if (.not.ok) exit
+          scale = 1d0
+       end if
+
+       ! read the cell vectors and calculate the metric tensor
+       do i = 1, 3
+          read (lu,*) rprim(1,i), rprim(2,i), rprim(3,i)
+       end do
+
+       if (scale < 0d0) then
+          gprim = matmul(transpose(rprim),rprim)
+          omegaa = sqrt(det3sym(gprim))
+          ! adjust the lengths to give the volume
+          scale = (abs(scale) / abs(omegaa))**(1d0/3d0)
+       end if
+       rprim(1,:) = rprim(1,:) * scalex * scale
+       rprim(2,:) = rprim(2,:) * scaley * scale
+       rprim(3,:) = rprim(3,:) * scalez * scale
+       rprim = rprim / bohrtoa
+       gprim = matmul(transpose(rprim),rprim)
+       omegaa = sqrt(det3sym(gprim))
+       if (omegaa < 0d0) then
+          errmsg = "Negative cell volume."
+          exit
+       end if
+       seed(nseed)%m_x2c = rprim
+       call matinv(rprim,3,ier)
+       if (ier /= 0) then
+          errmsg = "Error inverting matrix"
+          exit
+       end if
+       seed(nseed)%useabr = 2
+
+       ! For versions >= 5.2, a line indicating the atom types appears here
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+       lp = 1
+       word = getword(line,lp)
+       if (zatguess(word) >= 0) then
+          ! An atom name has been read -> read the rest of the line
+          seed(nseed)%nspc = 0
+          if (allocated(seed(nseed)%spc)) deallocate(seed(nseed)%spc)
+          allocate(seed(nseed)%spc(2))
+          do while (zatguess(word) >= 0)
+             seed(nseed)%nspc = seed(nseed)%nspc + 1
+             if (seed(nseed)%nspc > size(seed(nseed)%spc,1)) &
+                call realloc(seed(nseed)%spc,2*seed(nseed)%nspc)
+             seed(nseed)%spc(seed(nseed)%nspc)%name = word
+             seed(nseed)%spc(seed(nseed)%nspc)%z = zatguess(word)
+             word = getword(line,lp)
+          end do
+          call realloc(seed(nseed)%spc,seed(nseed)%nspc)
+          ok = getline_raw(lu,line)
+          if (.not.ok) exit
+       else
+          ! see if we can locate a POTCAR in the same path
+          path = file(1:index(file,dirsep,.true.))
+          if (len_trim(path) < 1) &
+             path = "."
+          ofile = trim(path) // "/POTCAR"
+          inquire(file=ofile,exist=ok)
+          if (.not.ok) then
+             errmsg = "Atom types not found in POSCAR and no POTCAR in the same directory"
+             exit
+          end if
+
+          call seed(nseed)%read_potcar(ofile,errmsg,ti=ti)
+          if (len_trim(errmsg) > 0) exit
+          if (seed(nseed)%nspc <= 0) then
+             errmsg = "No atoms found in POTCAR."
+             exit
+          end if
+       end if
+
+       ! read number of atoms of each type
+       lp = 1
+       seed(nseed)%nat = 0
+       allocate(seed(nseed)%is(10))
+       do i = 1, seed(nseed)%nspc
+          ok = isinteger(nn,line,lp)
+          if (.not.ok) then
+             errmsg = "Too many atom types"
+             exit
+          end if
+          do j = seed(nseed)%nat+1, seed(nseed)%nat+nn
+             if (j > size(seed(nseed)%is)) &
+                call realloc(seed(nseed)%is,2*(seed(nseed)%nat+nn))
+             seed(nseed)%is(j) = i
+          end do
+          seed(nseed)%nat = seed(nseed)%nat + nn
+       end do
+       allocate(seed(nseed)%x(3,seed(nseed)%nat))
+       call realloc(seed(nseed)%is,seed(nseed)%nat)
+
+       ! check there are no more atoms in this line
+       nn = -1
+       ok = isinteger(nn,line,lp)
+       if (ok .and. nn /= -1) then
+          errmsg = "Too few atom types"
+          exit
+       end if
+
+       ! Read atomic positions (cryst. coords.)
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+       line = adjustl(line)
+       if (line(1:1) == 's' .or. line(1:1) == 'S') then
+          ok = getline_raw(lu,line)
+          if (.not.ok) exit
+          line = adjustl(line)
+       endif
+       iscar = .false.
+       if (line(1:1) == 'd' .or. line(1:1) == 'D') then
+          iscar = .false.
+       elseif (line(1:1) == 'c' .or. line(1:1) == 'C' .or. line(1:1) == 'k' .or. line(1:1) == 'K') then
+          iscar = .true.
+       endif
+       do i = 1, seed(nseed)%nat
+          read(lu,*,err=998) seed(nseed)%x(:,i)
+          if (iscar) &
+             seed(nseed)%x(:,i) = matmul(rprim,seed(nseed)%x(:,i) / bohrtoa)
+       enddo
+    end do
+998 continue
+
+    ! last seed is not valid, make sure we have at least one
+    nseed = nseed - 1
+    if (nseed == 0) then
+       call fclose(lu)
+       return
+    else
+       errmsg = ""
+    end if
+    call realloc_crystalseed(seed,nseed)
+
+999 continue
+    call fclose(lu)
+
+    ! fill the rest of the information
+    do i = 1, nseed
+       ! symmetry
+       seed(i)%havesym = 0
+       seed(i)%findsym = -1
+       seed(i)%checkrepeats = .false.
+
+       ! rest of the seed information
+       seed(i)%isused = .true.
+       seed(i)%ismolecule = mol
+       seed(i)%cubic = .false.
+       seed(i)%border = 0d0
+       seed(i)%havex0 = .false.
+       seed(i)%molx0 = 0d0
+       seed(i)%file = file
+    end do
+
+  end subroutine read_all_vasp
 
   !> Read multiple structure seeds from a CIF file. If mol, force a
   !> molecule/crystal system.  If error, return non-empty errmsg.
