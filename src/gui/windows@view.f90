@@ -896,7 +896,7 @@ contains
        call iw_text("Periodicity",highlight=.true.)
 
        ! radio buttons for the periodicity type
-       changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int)
+       changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
        call iw_tooltip("Cell not repeated for this representation",ttshown)
        changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
        call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
@@ -945,11 +945,17 @@ contains
        call iw_tooltip("Display atoms near the unit cell edges",ttshown)
     end if
 
-    ! atom styles
+    ! global display control
+    call iw_text("Global Display",highlight=.true.)
+    call iw_combo_simple("##globaldisplay","Atoms and bonds"//c_null_char//"Atoms Only"//c_null_char//&
+       "Bonds Only"//c_null_char//"None"//c_null_char,w%rep%global_display,changed=ch,sameline=.true.)
+    call iw_tooltip("Selects if atoms and/or bonds are displayed by this representation.",ttshown)
+    changed = changed .or. ch
 
+    ! atom styles
     ! selector and reset
     ch = .false.
-    call iw_text("Styles",highlight=.true.)
+    call iw_text("Atom Selection and Styles",highlight=.true.)
     if (.not.sys(isys)%c%ismolecule) then
        call iw_combo_simple("##styles","Species" //c_null_char// "Symmetry-unique" //c_null_char//&
           "Cell"//c_null_char,w%rep%atom_style_type,changed=ch)
@@ -1109,7 +1115,18 @@ contains
     call iw_tooltip("Toggle the show/hide status for all atoms",ttshown)
 
     ! style buttons: set radii
-    if (iw_button("Set radii")) then
+    call iw_combo_simple("Radii ","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+       w%rep%atom_radii_reset_type,changed=ch)
+    call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
+    call igSameLine(0._c_float,-1._c_float)
+    call igPushItemWidth(iw_calcwidth(5,1))
+    str2 = "Radii Scale" // c_null_char
+    str3 = "%.3f" // c_null_char
+    ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
+       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_None,ImGuiInputTextFlags_AutoSelectAll))
+    call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+    call igPopItemWidth()
+    if (ch) then
        do i = 1, w%rep%natom_style
           if (w%rep%atom_style_type == 0) then
              ! species
@@ -1131,21 +1148,12 @@ contains
        end do
        changed = .true.
     end if
-    call iw_tooltip("Set the radii of all atoms to the selected values",ttshown)
-    call iw_combo_simple("##radiustype","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
-       w%rep%atom_radii_reset_type,sameline=.true.)
-    call iw_tooltip("Type of atomic radii",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    call igPushItemWidth(iw_calcwidth(5,1))
-    str2 = "Scale" // c_null_char
-    str3 = "%.3f" // c_null_char
-    ldum = igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
-       0._c_float,c_loc(str3),ImGuiInputTextFlags_None)
-    call iw_tooltip("Scale for the atomic radii",ttshown)
-    call igPopItemWidth()
 
     ! style buttons: set color
-    if (iw_button("Set color")) then
+    call iw_combo_simple("Colors ","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+       w%rep%atom_color_reset_type,changed=ch)
+    call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
+    if (ch) then
        do i = 1, w%rep%natom_style
           if (w%rep%atom_style_type == 0) then
              ! species
@@ -1167,16 +1175,12 @@ contains
        end do
        changed = .true.
     end if
-    call iw_tooltip("Set the color of all atoms to the selected values",ttshown)
-    call iw_combo_simple("##colortype","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
-       w%rep%atom_color_reset_type,sameline=.true.)
-    call iw_tooltip("Style of atomic colors to set",ttshown)
 
     ! atom resolution
-    call iw_text("Atom Resolution",highlight=.true.)
     ires = w%rep%atom_res - 1
-    call iw_combo_simple("##atomresolution","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
-       "3: Normal" // c_null_char // "4: Good" // c_null_char,ires)
+    call iw_combo_simple("Resolution ","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
+       "3: Normal" // c_null_char // "4: Good" // c_null_char,ires,sameline=.true.)
+    call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
     if (ires + 1 /= w%rep%atom_res) then
        w%rep%atom_res = ires + 1
        changed = .true.

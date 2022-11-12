@@ -49,9 +49,10 @@ module scenes
      logical :: goodfilter ! true if the filter is not in error
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
+     ! atoms & bonds
+     integer(c_int) :: global_display = 0 ! 0=atoms&bonds, 1=atoms, 2=bonds, 3=none
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
-     ! atoms
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell
      integer :: natom_style = 0 ! number of atom styles
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw

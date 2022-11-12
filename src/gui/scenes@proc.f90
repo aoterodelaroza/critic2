@@ -505,6 +505,7 @@ contains
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
+    r%global_display = 0
     r%atom_style_type = 0
     r%natom_style = 0
     r%atom_radii_reset_type = 0
