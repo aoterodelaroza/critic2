@@ -513,7 +513,7 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%atom_res = 3
-    r%bond_res = 3
+    r%bond_res = 1
     r%bond_color_style = 0
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
@@ -778,8 +778,8 @@ contains
                       if (ineigh < i .or. ineigh == i .and. (ixn(1) < 0 .or. ixn(1) == 0 .and.&
                          (ixn(2) < 0 .or. ixn(2) == 0 .and. (ixn(3) < 0)))) cycle
 
-                      ! hide bonds if end atoms not drawn
-                      if (.not.showatom(ineigh)) cycle
+                      ! ! hide bonds if end atoms not drawn
+                      ! if (.not.showatom(ineigh)) cycle
 
                       ! ! do not draw if outside the drawing box
                       ! if (any(ix + ixn < n0save(:,ineigh)) .or. any(ix + ixn > n1save(:,ineigh))) cycle

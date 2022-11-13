@@ -1209,13 +1209,22 @@ contains
        end if
     end if
     !! radius
-    str2 = "Radius##bondradius" // c_null_char
+    str2 = "Radius ##bondradius" // c_null_char
     str3 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
     changed = changed .or. igInputFloat(c_loc(str2),w%rep%bond_rad,0._c_float,&
        0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_None,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
+    !! bond resolution
+    ires = w%rep%bond_res - 1
+    call iw_combo_simple("Resolution ##bondresselect","1: Rough" // c_null_char // "2: Normal" // c_null_char //&
+       "3: Good" // c_null_char,ires,sameline=.true.)
+    call iw_tooltip("Set the resolution of the cylinders representing the bonds",ttshown)
+    if (ires + 1 /= w%rep%bond_res) then
+       w%rep%bond_res = ires + 1
+       changed = .true.
+    end if
 
   end function draw_editrep_atoms
 
