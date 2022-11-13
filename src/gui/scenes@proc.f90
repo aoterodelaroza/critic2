@@ -513,6 +513,7 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%atom_res = 3
+    r%bond_color_style = 0
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.

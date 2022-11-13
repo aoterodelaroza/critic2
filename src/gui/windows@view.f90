@@ -756,7 +756,7 @@ contains
        call iw_tooltip("Type of representation",ttshown)
 
        ! name text input
-       str1 = "##name"
+       str1 = "##nametextinput"
        txtinp = trim(adjustl(w%rep%name)) // c_null_char
        call igSameLine(0._c_float,-1._c_float)
        if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
@@ -854,7 +854,7 @@ contains
        "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&
        "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
        "Click on the Help button for more info.")
-    if (iw_button("Help",sameline=.true.)) then
+    if (iw_button("Help##helpfilter",sameline=.true.)) then
        str3 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
        call openLink(c_loc(str3))
     end if
@@ -862,7 +862,7 @@ contains
        &"The 'basic usage' and 'structural variables' sections are relevant.")
 
     ! filter text input
-    str1 = "##filter"
+    str1 = "##filtertext"
     txtinp = trim(adjustl(w%rep%filter)) // c_null_char
     if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
        c_null_ptr,c_null_ptr)) then
@@ -947,11 +947,11 @@ contains
 
     ! global display control
     call iw_text("Display",highlight=.true.)
-    str2 = "Atoms " // c_null_char
+    str2 = "Atoms##atomsglobaldisplay " // c_null_char
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
     call iw_tooltip("Draw the atoms",ttshown)
     call igSameLine(0._c_float,0._c_float)
-    str2 = "Bonds" // c_null_char
+    str2 = "Bonds##bondsglobaldisplay" // c_null_char
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
     call iw_tooltip("Draw the bonds",ttshown)
 
@@ -960,10 +960,10 @@ contains
     ch = .false.
     call iw_text("Atom Selection and Styles",highlight=.true.)
     if (.not.sys(isys)%c%ismolecule) then
-       call iw_combo_simple("##styles","Species" //c_null_char// "Symmetry-unique" //c_null_char//&
+       call iw_combo_simple("Atom types##atomtypeselection","Species" //c_null_char// "Symmetry-unique" //c_null_char//&
           "Cell"//c_null_char,w%rep%atom_style_type,changed=ch)
     else
-       call iw_combo_simple("##styles","Species" //c_null_char// "Atoms" //c_null_char,&
+       call iw_combo_simple("Atom types##atomtypeselection","Species" //c_null_char// "Atoms" //c_null_char,&
           w%rep%atom_style_type,changed=ch)
     end if
     call iw_tooltip("Classify atom representation details by these types",ttshown)
@@ -1048,13 +1048,13 @@ contains
 
           ! shown
           if (igTableSetColumnIndex(ic_shown)) then
-             str2 = "##shown" // string(i) // c_null_char
+             str2 = "##tableshown" // string(i) // c_null_char
              changed = changed .or. igCheckbox(c_loc(str2),w%rep%atom_style(i)%shown)
           end if
 
           ! color
           if (igTableSetColumnIndex(ic_color)) then
-             str2 = "##color" // string(i) // c_null_char
+             str2 = "##tablecolor" // string(i) // c_null_char
              flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
              ch = igColorEdit4(c_loc(str2),w%rep%atom_style(i)%rgba,flags)
              if (ch) then
@@ -1066,7 +1066,7 @@ contains
 
           ! radius
           if (igTableSetColumnIndex(ic_radius)) then
-             str2 = "##radius" // string(i) // c_null_char
+             str2 = "##tableradius" // string(i) // c_null_char
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
              ch = igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
@@ -1099,17 +1099,17 @@ contains
     end if
 
     ! style buttons: show/hide
-    if (iw_button("Show All")) then
+    if (iw_button("Show All##showallatoms")) then
        w%rep%atom_style(1:w%rep%natom_style)%shown = .true.
        changed = .true.
     end if
     call iw_tooltip("Show all atoms in the system",ttshown)
-    if (iw_button("Hide All",sameline=.true.)) then
+    if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
        w%rep%atom_style(1:w%rep%natom_style)%shown = .false.
        changed = .true.
     end if
     call iw_tooltip("Hide all atoms in the system",ttshown)
-    if (iw_button("Toggle Show/Hide",sameline=.true.)) then
+    if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
        do i = 1, w%rep%natom_style
           w%rep%atom_style(i)%shown = .not.w%rep%atom_style(i)%shown
        end do
@@ -1118,12 +1118,12 @@ contains
     call iw_tooltip("Toggle the show/hide status for all atoms",ttshown)
 
     ! style buttons: set radii
-    call iw_combo_simple("Radii ","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+    call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
        w%rep%atom_radii_reset_type,changed=ch)
     call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
     call igSameLine(0._c_float,-1._c_float)
     call igPushItemWidth(iw_calcwidth(5,1))
-    str2 = "Radii Scale" // c_null_char
+    str2 = "Radii Scale##atomradiiscale" // c_null_char
     str3 = "%.3f" // c_null_char
     ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
        0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_None,ImGuiInputTextFlags_AutoSelectAll))
@@ -1153,7 +1153,7 @@ contains
     end if
 
     ! style buttons: set color
-    call iw_combo_simple("Colors ","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+    call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
        w%rep%atom_color_reset_type,changed=ch)
     call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
     if (ch) then
@@ -1181,13 +1181,20 @@ contains
 
     ! atom resolution
     ires = w%rep%atom_res - 1
-    call iw_combo_simple("Resolution ","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
+    call iw_combo_simple("Resolution ##atomresselect","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
        "3: Normal" // c_null_char // "4: Good" // c_null_char,ires,sameline=.true.)
     call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
     if (ires + 1 /= w%rep%atom_res) then
        w%rep%atom_res = ires + 1
        changed = .true.
     end if
+
+    ! bond styles
+    call iw_text("Bond Styles",highlight=.true.)
+    call iw_combo_simple("Color style ##bondcolorsel","Single color"//c_null_char//"Two colors (atoms)"//c_null_char,&
+       w%rep%bond_color_style)
+    call iw_tooltip("Style for the bond colors",ttshown)
+
 
   end function draw_editrep_atoms
 
