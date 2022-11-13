@@ -50,7 +50,8 @@ module scenes
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      ! atoms & bonds
-     integer(c_int) :: global_display = 0 ! 0=atoms&bonds, 1=atoms, 2=bonds, 3=none
+     logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
+     logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell

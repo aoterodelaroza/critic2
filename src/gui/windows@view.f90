@@ -946,11 +946,14 @@ contains
     end if
 
     ! global display control
-    call iw_text("Global Display",highlight=.true.)
-    call iw_combo_simple("##globaldisplay","Atoms and bonds"//c_null_char//"Atoms Only"//c_null_char//&
-       "Bonds Only"//c_null_char//"None"//c_null_char,w%rep%global_display,changed=ch,sameline=.true.)
-    call iw_tooltip("Selects if atoms and/or bonds are displayed by this representation.",ttshown)
-    changed = changed .or. ch
+    call iw_text("Display",highlight=.true.)
+    str2 = "Atoms " // c_null_char
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
+    call iw_tooltip("Draw the atoms",ttshown)
+    call igSameLine(0._c_float,0._c_float)
+    str2 = "Bonds" // c_null_char
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
+    call iw_tooltip("Draw the bonds",ttshown)
 
     ! atom styles
     ! selector and reset
