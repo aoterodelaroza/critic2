@@ -1070,7 +1070,7 @@ contains
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
              ch = igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
-                0._c_float,c_loc(str3),ImGuiInputTextFlags_EnterReturnsTrue)
+                0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
              if (ch) then
                 w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
                 changed = .true.
@@ -1126,7 +1126,7 @@ contains
     str2 = "Radii Scale##atomradiiscale" // c_null_char
     str3 = "%.3f" // c_null_char
     ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_None,ImGuiInputTextFlags_AutoSelectAll))
+       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
     call igPopItemWidth()
     if (ch) then
@@ -1213,7 +1213,7 @@ contains
     str3 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
     changed = changed .or. igInputFloat(c_loc(str2),w%rep%bond_rad,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_None,ImGuiInputTextFlags_AutoSelectAll))
+       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
     !! bond resolution

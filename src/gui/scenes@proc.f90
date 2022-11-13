@@ -670,7 +670,7 @@ contains
     real*8, optional, intent(inout) :: xmax(3)
 
     real(c_float) :: rgba(4), x0(3), rad, x1(3), x2(3)
-    integer :: i, j, k, id, imol, n(3), i1, i2, i3, ib
+    integer :: i, j, k, id, imol, n(3), i1, i2, i3, ib, idaux
     integer :: n0(3), n1(3), lvec(3), ineigh, ixn(3), ix(3)
     logical :: havefilter, ok, step
     real*8 :: res, xx(3)
@@ -793,9 +793,21 @@ contains
                       xx = sys(r%id)%c%x2c(xx)
                       x2 = real(xx,c_float)
                       call glBindVertexArray(cylVAO(r%bond_res))
-                      call draw_cylinder(x1,x2,r%bond_rad,r%bond_rgba)
 
-                      ! w%rep%bond_color_style = 0 (single), 1 = (halfandhalf)
+                      if (r%bond_color_style == 0) then
+                         call draw_cylinder(x1,x2,r%bond_rad,r%bond_rgba)
+                      else
+                         x0 = 0.5_c_float * (x1 + x2)
+                         call draw_cylinder(x1,x0,r%bond_rad,r%atom_style(id)%rgba)
+                         if (r%atom_style_type == 0) then
+                            idaux = sys(r%id)%c%atcel(ineigh)%is
+                         elseif (r%atom_style_type == 1) then
+                            idaux = sys(r%id)%c%atcel(ineigh)%idx
+                         else
+                            idaux = i
+                         end if
+                         call draw_cylinder(x0,x2,r%bond_rad,r%atom_style(idaux)%rgba)
+                      end if
                    end do
                 end if
              end do
