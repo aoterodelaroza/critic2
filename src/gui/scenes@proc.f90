@@ -724,14 +724,6 @@ contains
        end if
        if (.not.r%atom_style(id)%shown) cycle
 
-       ! apply the filter
-       if (havefilter) then
-          res = sys(r%id)%eval(r%filter,.false.,ok,sys(r%id)%c%atcel(i)%r)
-          if (ok) then
-             if (res == 0d0) cycle
-          end if
-       end if
-
        ! this atom will be drawn
        showatom(i) = .true.
 
@@ -762,6 +754,16 @@ contains
                 ix = (/i1,i2,i3/)
                 xx = sys(r%id)%c%atcel(i)%x + ix + lvec
                 xx = sys(r%id)%c%x2c(xx)
+
+                ! apply the filter
+                if (havefilter) then
+                   res = sys(r%id)%eval(r%filter,.false.,ok,xx)
+                   if (ok) then
+                      if (res == 0d0) cycle
+                   end if
+                end if
+
+                ! draw the atom
                 x0 = real(xx,c_float)
                 if (r%atoms_display) then
                    call glBindVertexArray(sphVAO(r%atom_res))
