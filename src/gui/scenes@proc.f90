@@ -513,6 +513,7 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%atom_res = 3
+    r%bond_res = 3
     r%bond_color_style = 0
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
@@ -662,20 +663,26 @@ contains
   module subroutine draw_atoms(r,nc,xmin,xmax)
     use interfaces_opengl3
     use gui_main, only: sys
-    use shapes, only: sphVAO
+    use shapes, only: sphVAO, cylVAO
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     real*8, optional, intent(inout) :: xmin(3)
     real*8, optional, intent(inout) :: xmax(3)
 
-    real(c_float) :: rgba(4), x0(3), rad
-    integer :: i, j, k, id, imol, n(3), i1, i2, i3
-    integer :: n0(3), n1(3), lvec(3)
+    real(c_float) :: rgba(4), x0(3), rad, x1(3), x2(3)
+    integer :: i, j, k, id, imol, n(3), i1, i2, i3, ib
+    integer :: n0(3), n1(3), lvec(3), ineigh, ixn(3), ix(3)
     logical :: havefilter, ok, step
     real*8 :: res, xx(3)
+    logical, allocatable :: showatom(:)
+    integer, allocatable :: n0save(:,:), n1save(:,:)
 
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
+
+    ! initialize
+    allocate(showatom(sys(r%id)%c%ncel),n0save(3,sys(r%id)%c%ncel),n1save(3,sys(r%id)%c%ncel))
+    showatom = .false.
 
     ! do we have a filter?
     havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
@@ -688,7 +695,6 @@ contains
        n = r%ncell
     end if
 
-    call glBindVertexArray(sphVAO(r%atom_res))
     i = 0
     imol = 0
     do while(i < sys(r%id)%c%ncel)
@@ -726,31 +732,70 @@ contains
           end if
        end if
 
+       ! this atom will be drawn
+       showatom(i) = .true.
+
        ! calculate the border
-       n0 = 1
-       n1 = n
+       n0 = 0
+       n1 = n-1
        if (r%border.and..not.r%onemotif) then
           xx = sys(r%id)%c%atcel(i)%x
           xx = xx - floor(xx)
           do j = 1, 3
              if (xx(j) < rthr) then
-                n1(j) = n(j) + 1
+                n1(j) = n(j)
              elseif (xx(j) > rthr1) then
-                n0(j) = 0
+                n0(j) = -1
              end if
           end do
        end if
+       n0save(:,i) = n0
+       n1save(:,i) = n1
 
-       ! draw the spheres
+       ! draw the spheres and cylinders
        rgba = r%atom_style(id)%rgba
        rad = r%atom_style(id)%rad
        do i1 = n0(1), n1(1)
           do i2 = n0(2), n1(2)
              do i3 = n0(3), n1(3)
-                xx = sys(r%id)%c%atcel(i)%x + (/i1,i2,i3/) + lvec - 1
+                ! atoms
+                ix = (/i1,i2,i3/)
+                xx = sys(r%id)%c%atcel(i)%x + ix + lvec
                 xx = sys(r%id)%c%x2c(xx)
                 x0 = real(xx,c_float)
-                call draw_sphere(x0,rad,rgba,r%atom_res)
+                if (r%atoms_display) then
+                   call glBindVertexArray(sphVAO(r%atom_res))
+                   call draw_sphere(x0,rad,rgba,r%atom_res)
+                end if
+
+                ! bonds
+                if (r%bonds_display) then
+                   do ib = 1, sys(r%id)%c%nstar(i)%ncon
+                      ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
+                      ixn = sys(r%id)%c%nstar(i)%lcon(:,ib)
+
+                      ! only unique pairs
+                      if (ineigh < i .or. ineigh == i .and. (ixn(1) < 0 .or. ixn(1) == 0 .and.&
+                         (ixn(2) < 0 .or. ixn(2) == 0 .and. (ixn(3) < 0)))) cycle
+
+                      ! hide bonds if end atoms not drawn
+                      if (.not.showatom(ineigh)) cycle
+
+                      ! ! do not draw if outside the drawing box
+                      ! if (any(ix + ixn < n0save(:,ineigh)) .or. any(ix + ixn > n1save(:,ineigh))) cycle
+
+                      xx = sys(r%id)%c%atcel(i)%x + ix + lvec
+                      xx = sys(r%id)%c%x2c(xx)
+                      x1 = real(xx,c_float)
+                      xx = sys(r%id)%c%atcel(ineigh)%x + ix + ixn + lvec
+                      xx = sys(r%id)%c%x2c(xx)
+                      x2 = real(xx,c_float)
+                      call glBindVertexArray(cylVAO(r%bond_res))
+                      call draw_cylinder(x1,x2,r%bond_rad,r%bond_rgba)
+
+                      ! w%rep%bond_color_style = 0 (single), 1 = (halfandhalf)
+                   end do
+                end if
              end do
           end do
        end do

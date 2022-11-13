@@ -1201,7 +1201,7 @@ contains
        str2 = "##bondcolor" // c_null_char
        ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,flags)
        call iw_tooltip("Color for the representation bonds",ttshown)
-       call iw_text("Bond Color",sameline=.true.)
+       call iw_text("Color",sameline=.true.)
        if (ch) then
           w%rep%bond_rgba = min(w%rep%bond_rgba,1._c_float)
           w%rep%bond_rgba = max(w%rep%bond_rgba,0._c_float)

@@ -63,6 +63,7 @@ module scenes
      integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
      real(c_float) :: bond_rgba(4) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
+     integer(c_int) :: bond_res = 3 ! cylinder resolution for bonds
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
    contains
      procedure :: init => representation_init
