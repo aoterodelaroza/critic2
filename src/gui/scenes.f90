@@ -61,6 +61,8 @@ module scenes
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
      integer(c_int) :: atom_res = 3 ! ball resolution for atoms
      integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
+     real(c_float) :: bond_rgba(4) ! bond color (single color style)
+     real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
    contains
      procedure :: init => representation_init

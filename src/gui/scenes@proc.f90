@@ -514,6 +514,8 @@ contains
     r%atom_color_reset_type = 0
     r%atom_res = 3
     r%bond_color_style = 0
+    r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+    r%bond_rad = 0.2_c_float
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
