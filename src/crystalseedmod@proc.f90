@@ -4847,7 +4847,7 @@ contains
 
        ! read the cell vectors and calculate the metric tensor
        do i = 1, 3
-          read (lu,*) rprim(1,i), rprim(2,i), rprim(3,i)
+          read (lu,*,err=998,end=998) rprim(1,i), rprim(2,i), rprim(3,i)
        end do
 
        if (scale < 0d0) then
@@ -4959,7 +4959,7 @@ contains
           iscar = .true.
        endif
        do i = 1, seed(nseed)%nat
-          read(lu,*,err=998) seed(nseed)%x(:,i)
+          read(lu,*,err=998,end=998) seed(nseed)%x(:,i)
           if (iscar) &
              seed(nseed)%x(:,i) = matmul(rprim,seed(nseed)%x(:,i) / bohrtoa)
        enddo
