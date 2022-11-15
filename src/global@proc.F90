@@ -42,7 +42,8 @@ contains
     use fieldmod, only: type_grid
     use struct_drivers, only: struct_crystal_input, struct_molcell,&
        struct_atomlabel, struct_sym, struct_sym, struct_charges, struct_write,&
-       struct_powder, struct_rdf, struct_compare, struct_environ, struct_econ,&
+       struct_powder, struct_rdf, struct_compare, struct_comparevc, struct_environ,&
+       struct_econ,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
        struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
        struct_kpoints, struct_bz, struct_newcell, struct_amd
@@ -201,6 +202,10 @@ contains
           ! compare
        elseif (equal(word,'compare')) then
           call struct_compare(sy,line(lp:))
+
+          ! comparevc
+       elseif (equal(word,'comparevc')) then
+          call struct_comparevc(sy,line(lp:))
 
           ! setfield
        elseif (equal(word,'setfield')) then

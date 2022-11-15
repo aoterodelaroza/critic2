@@ -2182,7 +2182,7 @@ contains
   ! to a file. If NOH, strip the hydrogens from the structure before comparing.
   ! Allow cell length elongations up to a factor me.r and angle
   ! deformation up to ma.r angle.
-  subroutine trick_compare_deformed(line0)
+  subroutine trick_compare_deformed(line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit, fileroot
@@ -2193,7 +2193,7 @@ contains
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
        isreal, equal, lgetword
     use param, only: pi, icrd_crys, eye, bohrtoa
-    character*(*), intent(in) :: line0
+    character*(*), intent(in) :: line
 
     type(crystalseed) :: seed, c2seed
     type(environ) :: e
@@ -2240,19 +2240,19 @@ contains
 
     ! read the input files
     lp = 1
-    file1 = getword(line0,lp)
+    file1 = getword(line,lp)
     if (len_trim(file1) == 0) &
        call ferror('trick_compare_deformed','Missing first structure file',faterr)
-    file2 = getword(line0,lp)
+    file2 = getword(line,lp)
     if (len_trim(file2) == 0) &
        call ferror('trick_compare_deformed','Missing second structure file',faterr)
     lp2 = lp
-    ok = isreal(cellaa(1),line0,lp)
-    ok = ok .and. isreal(cellaa(2),line0,lp)
-    ok = ok .and. isreal(cellaa(3),line0,lp)
-    ok = ok .and. isreal(cellbb(1),line0,lp)
-    ok = ok .and. isreal(cellbb(2),line0,lp)
-    ok = ok .and. isreal(cellbb(3),line0,lp)
+    ok = isreal(cellaa(1),line,lp)
+    ok = ok .and. isreal(cellaa(2),line,lp)
+    ok = ok .and. isreal(cellaa(3),line,lp)
+    ok = ok .and. isreal(cellbb(1),line,lp)
+    ok = ok .and. isreal(cellbb(2),line,lp)
+    ok = ok .and. isreal(cellbb(3),line,lp)
     usexy = ok
     if (ok) then
        cellaa = cellaa / bohrtoa
@@ -2267,15 +2267,15 @@ contains
     noh = .false.
     useamd = .false.
     do while (.true.)
-       word = lgetword(line0,lp)
+       word = lgetword(line,lp)
        if (equal(word,'thr')) then
-          ok = isreal(powdiff_thr,line0,lp)
+          ok = isreal(powdiff_thr,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong THR',faterr)
        elseif (equal(word,'maxelong')) then
-          ok = isreal(max_elong,line0,lp)
+          ok = isreal(max_elong,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXELONG',faterr)
        elseif (equal(word,'maxang')) then
-          ok = isreal(max_ang,line0,lp)
+          ok = isreal(max_ang,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXANG',faterr)
        elseif (equal(word,'write')) then
           dowrite = .true.
@@ -2373,6 +2373,7 @@ contains
              (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(c1%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
        end do
+       write (uout,'("  Lengths (ang): ",3(A," "))') (string(c1%aa(i)*bohrtoa,'f',length=8,decimal=5),i=1,3)
        write (uout,'("  Angles (deg): ",3(A," "))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
     end if
     write (uout,'("# Structure 2 (",A,"):")') trim(c2%file)
@@ -2382,6 +2383,7 @@ contains
           (string(c2%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
           string(c2%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
     end do
+    write (uout,'("  Lengths (ang): ",3(A," "))') (string(c2%aa(i)*bohrtoa,'f',length=8,decimal=5),i=1,3)
     write (uout,'("  Angles (deg): ",3(A," "))') (string(c2%bb(i),'f',length=8,decimal=3),i=1,3)
     write (uout,*)
 

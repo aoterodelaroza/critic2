@@ -34,6 +34,7 @@ module struct_drivers
   public :: struct_rdf
   public :: struct_amd
   public :: struct_compare
+  public :: struct_comparevc
   public :: struct_environ
   public :: struct_econ
   public :: struct_coord
@@ -94,6 +95,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_compare
+     module subroutine struct_comparevc(s,line)
+       type(system), intent(in) :: s
+       character*(*), intent(in) :: line
+     end subroutine struct_comparevc
      module subroutine struct_environ(s,line)
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
