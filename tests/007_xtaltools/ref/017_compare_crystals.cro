@@ -18,9 +18,9 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-    Crystal        <derived>    017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif 
+    Crystal     uracil (library) 017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif 
      DIFF              1               2               3        
-  <derived>        0.0000000       0.0000000       0.0000000      
+  uracil (library)  0.0000000       0.0000000       0.0000000      
   017_compare_crystals_gen.scf.in  0.0000000       0.0000000       0.0000000      
   017_compare_crystals_gen.cif  0.0000000       0.0000000       0.0000000      
 
