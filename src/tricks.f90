@@ -2362,11 +2362,12 @@ contains
 
     ! some output for the structures
     write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
-    write (uout,'("# Structure 1: ")')
     if (usexy) then
+       write (uout,'("# Structure 1 (input diffraction pattern):")')
        write (uout,'("  Using cell lengths (ang) and angles: ",6(A,X))') &
           (string(cellaa(j)*bohrtoa,'f',decimal=4),j=1,3), (string(cellbb(j),'f',decimal=2),j=1,3)
     else
+       write (uout,'("# Structure 1 (",A,"):")') trim(c1%file)
        do i = 1, 3
           write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&
              (string(c1%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
@@ -2374,7 +2375,7 @@ contains
        end do
        write (uout,'("  Angles (deg): ",3(A," "))') (string(c1%bb(i),'f',length=8,decimal=3),i=1,3)
     end if
-    write (uout,'("# Structure 2: ")')
+    write (uout,'("# Structure 2 (",A,"):")') trim(c2%file)
     do i = 1, 3
        c2%aa(i) = norm2(c2%m_x2c(:,i))
        write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&

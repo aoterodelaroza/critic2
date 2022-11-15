@@ -186,7 +186,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border, xx(3)
-    logical :: good, clearsym
+    logical :: good, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:)
     integer, allocatable :: irotm(:), icenv(:)
@@ -508,33 +508,36 @@ contains
        call c%clearsym(neq2cel=.true.)
     end if
 
+    doenv = .true.
     if (present(noenv)) then
-       if (noenv) return
+       if (noenv) doenv = .false.
     end if
 
-    ! load the atomic density grids
-    do i = 1, c%nspc
-       call grid1_register_ae(c%spc(i)%z)
-    end do
-
-    if (haveatoms) then
-       ! Build the atomic environments
-       call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c)
-
-       ! Find the atomic connectivity and the molecular fragments
-       call c%env%find_asterisms_covalent(c%nstar)
-       call c%fill_molecular_fragments()
-       call c%calculate_molecular_equivalence()
-
-       ! Write the half nearest-neighbor distance
-       do i = 1, c%nneq
-          if (.not.c%ismolecule .or. c%ncel > 1) then
-             call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
-             c%at(i)%rnn2 = 0.5d0 * dist
-          else
-             c%at(i)%rnn2 = 0d0
-          end if
+    if (doenv) then
+       ! load the atomic density grids
+       do i = 1, c%nspc
+          call grid1_register_ae(c%spc(i)%z)
        end do
+
+       if (haveatoms) then
+          ! Build the atomic environments
+          call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c)
+
+          ! Find the atomic connectivity and the molecular fragments
+          call c%env%find_asterisms_covalent(c%nstar)
+          call c%fill_molecular_fragments()
+          call c%calculate_molecular_equivalence()
+
+          ! Write the half nearest-neighbor distance
+          do i = 1, c%nneq
+             if (.not.c%ismolecule .or. c%ncel > 1) then
+                call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
+                c%at(i)%rnn2 = 0.5d0 * dist
+             else
+                c%at(i)%rnn2 = 0d0
+             end if
+          end do
+       end if
     end if
 
     ! the initialization is done - this crystal is ready to use
@@ -2816,7 +2819,7 @@ contains
 
     ! rest of the seed information
     ncseed%isused = .true.
-    ncseed%file = "<derived>"
+    ncseed%file = c%file
     ncseed%havesym = 0
     ncseed%findsym = -1
     ncseed%ismolecule = .false.
