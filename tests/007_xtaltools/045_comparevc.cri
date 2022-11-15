@@ -1,0 +1,5 @@
+## check: 045_comparevc.cro -a1e-10
+## labels: regression
+
+crystal library mgo
+comparevc . ../zz_source/qe-6.5/mgo/mgo.pwc

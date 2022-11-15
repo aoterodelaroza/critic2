@@ -43,6 +43,7 @@ set(TESTS
   042_bz                     ## bz keyword
   043_molmove                ## molmove keyword
   044_amd_basic              ## amd keyword
+  045_comparevc              ## comparevc keyword
   )
 
 runtests(${TESTS})
