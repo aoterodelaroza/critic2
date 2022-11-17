@@ -6328,7 +6328,7 @@ contains
     write (lu,'(A,"          ")') string(c%ncel)
 
     ! line 2: cell parameters (the spaces at the end are there for the USPEX reader)
-    write (lu,'(6(A," "),"      ")') (string(c%aa(i)*bohrtoa,'f',decimal=8),i=1,3), &
+    write (lu,'(6(A," "),"          ")') (string(c%aa(i)*bohrtoa,'f',decimal=8),i=1,3), &
        (string(c%bb(i),'f',decimal=8),i=1,3)
 
     ! merge all molecules into the onemotif
