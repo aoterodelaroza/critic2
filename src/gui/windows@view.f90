@@ -89,6 +89,7 @@ contains
                 sysc(w%view_selected)%sc%nc = 1
                 chbuild = .true.
              end if
+             call iw_tooltip("Reset the number of cells to one",ttshown)
 
              ! calculate widths
              ipad = ceiling(log10(max(maxval(sysc(w%view_selected)%sc%nc),1) + 0.1))
@@ -148,27 +149,33 @@ contains
                 call sysc(w%view_selected)%sc%align_view_axis(1)
                 chrender = .true.
              end if
+             call iw_tooltip("Align the camera along the crystallographic a axis",ttshown)
              if (iw_button("b",sameline=.true.)) then
                 call sysc(w%view_selected)%sc%align_view_axis(2)
                 chrender = .true.
              end if
+             call iw_tooltip("Align the camera along the crystallographic b axis",ttshown)
              if (iw_button("c",sameline=.true.)) then
                 call sysc(w%view_selected)%sc%align_view_axis(3)
                 chrender = .true.
              end if
+             call iw_tooltip("Align the camera along the crystallographic c axis",ttshown)
           end if
           if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
              call sysc(w%view_selected)%sc%align_view_axis(-1)
              chrender = .true.
           end if
+          call iw_tooltip("Align the camera along the Cartesian x axis",ttshown)
           if (iw_button("y",sameline=.true.)) then
              call sysc(w%view_selected)%sc%align_view_axis(-2)
              chrender = .true.
           end if
+          call iw_tooltip("Align the camera along the Cartesian y axis",ttshown)
           if (iw_button("z",sameline=.true.)) then
              call sysc(w%view_selected)%sc%align_view_axis(-3)
              chrender = .true.
           end if
+          call iw_tooltip("Align the camera along the Cartesian z axis",ttshown)
 
           ! object resolution
           call iw_text("Object Resolution",highlight=.true.)
@@ -196,6 +203,7 @@ contains
           str3 = "%.1f" // c_null_char
           chrender = chrender .or. igDragFloat3(c_loc(str2),sysc(w%view_selected)%sc%lightpos,&
              0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
+          call iw_tooltip("Change the position of the light",ttshown)
           call igPopItemWidth()
 
           call igPushItemWidth(iw_calcwidth(5,1))
@@ -203,20 +211,24 @@ contains
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
              0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          call iw_tooltip("Change the ambient light intensity",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Diffuse" // c_null_char
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
              0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          call iw_tooltip("Change the diffuse light intensity",ttshown)
           str2 = "Specular" // c_null_char
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
              0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          call iw_tooltip("Change the specular light intensity",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Shininess" // c_null_char
           str3 = "%.0f" // c_null_char
           chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
              1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_None)
+          call iw_tooltip("Change the shininess of the light",ttshown)
           call igPopItemWidth()
 
           ! color settings
@@ -224,10 +236,12 @@ contains
           str2 = "Light" // c_null_char
           chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
              ImGuiColorEditFlags_NoInputs)
+          call iw_tooltip("Change the color of the light",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Background" // c_null_char
           chrender = chrender .or. igColorEdit4(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
              ImGuiColorEditFlags_NoInputs)
+          call iw_tooltip("Change the scene background color",ttshown)
 
           call igEndPopup()
        end if
