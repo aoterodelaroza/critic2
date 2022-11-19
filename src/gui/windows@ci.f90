@@ -156,7 +156,9 @@ contains
 
   !> Run the commands from the console input
   module subroutine run_commands_ci(w)
-    use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running
+    use systemmod, only: sy
+    use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
+       sysc, sys_init, nsys, sys
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
     use iso_fortran_env, only: input_unit
@@ -164,11 +166,18 @@ contains
 
     integer :: idx
     integer :: ios
-    logical :: reinit, ldum
+    logical :: reinit, ldum, ok
+
+    ! if no system selected, return
+    if (w%inpcon_selected < 1 .or. w%inpcon_selected > nsys) return
+    if (sysc(w%inpcon_selected)%status /= sys_init) return
 
     ! check we have some input
     idx = index(inputb,c_null_char)
     if (idx <= 1) return
+
+    ! connect the system
+    sy => sys(w%inpcon_selected)
 
     ! if the initialization is happening, stop it
     reinit = are_threads_running()
