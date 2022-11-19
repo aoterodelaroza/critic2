@@ -40,7 +40,7 @@ contains
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
-    use scenes, only: reptype_atoms
+    use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth
     use gui_main, only: sysc, sys, sys_init, nsys, g, io
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
@@ -52,7 +52,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
-    logical :: hover, ch, chbuild, chrender, goodsys, ldum
+    logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
     integer(c_int) :: amax, flags, nc(3), ires
     real(c_float) :: scal, width, sqw
 
@@ -246,25 +246,47 @@ contains
           call igEndPopup()
        end if
     end if
-    call iw_tooltip("Change the view options")
+    call iw_tooltip("Change the view options",ttshown)
 
     ! gear menu
     str1="##viewgear" // c_null_char
-    if (iw_button("Representations",sameline=.true.)) then
+    if (iw_button("Reps",sameline=.true.)) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (goodsys) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! representations table
           call iw_text("Representations",highlight=.true.)
-          str2 = "Representations##0,0" // c_null_char
 
+          ! add button
+          ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+          if (ok) then
+             str2 = "Atoms" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = sysc(w%view_selected)%sc%get_new_representation_id()
+                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Represent atoms and bonds in the scene",ttshown)
+
+             if (.not.sys(w%view_selected)%c%ismolecule) then
+                str2 = "Unit Cell" // c_null_char
+                if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                   id = sysc(w%view_selected)%sc%get_new_representation_id()
+                   call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_unitcell)
+                   chbuild = .true.
+                end if
+                call iw_tooltip("Represent the unit cell",ttshown)
+             end if
+             call igEndPopup()
+          end if
+          call iw_tooltip("Add a representation to the view",ttshown)
+
+          ! rest of the table
+          str2 = "Representations##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
-          flags = ior(flags,ImGuiTableFlags_BordersOuter)
-          flags = ior(flags,ImGuiTableFlags_BordersH)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
           sz0%x = 0
           nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
           nrep = min(nrep,10)
@@ -277,8 +299,7 @@ contains
 
              str3 = "[view button]##1viewbutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
-             width = max(4._c_float, g%FontSize + 2._c_float)
-             call igTableSetupColumn(c_loc(str3),flags,width,ic_viewbutton)
+             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_viewbutton)
 
              str3 = "[name]##1name" // c_null_char
              flags = ImGuiTableColumnFlags_WidthStretch
@@ -286,34 +307,19 @@ contains
 
              str3 = "[edit button]##1editbutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
-             width = max(4._c_float, g%FontSize + 2._c_float)
+             width = iw_calcwidth(4,1)
              call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
-             if (sysc(w%view_selected)%sc%representation_menu(w%id)) &
-                chbuild = .true.
+             if (sysc(w%view_selected)%sc%representation_menu(w%id)) chbuild = .true.
+
              call igEndTable()
           end if
-
-          ! new representation selectable
-          str2 = "Add Representation" // c_null_char
-          if (igBeginMenu(c_loc(str2),.true._c_bool)) then
-             str3 = "Atoms" // c_null_char
-             if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                id = sysc(w%view_selected)%sc%get_new_representation_id()
-                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Add a representation for the atoms",ttshown)
-
-             call igEndMenu()
-          end if
-          call iw_tooltip("Add a representation to the view",ttshown)
 
           call igEndPopup()
        end if
 
     end if
-    call iw_tooltip("Add, remove, and modify representations")
+    call iw_tooltip("Add, remove, and modify representations",ttshown)
 
     ! update the draw lists and render
     if (chbuild) w%forcebuildlists = .true.
@@ -984,7 +990,7 @@ contains
        call openLink(c_loc(str3))
     end if
     call iw_tooltip("Open the manual page about arithmetic expressions."&
-       &"The 'basic usage' and 'structural variables' sections are relevant.")
+       &"The 'basic usage' and 'structural variables' sections are relevant.",ttshown)
 
     ! filter text input
     str1 = "##filtertext"

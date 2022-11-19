@@ -375,7 +375,7 @@ contains
              end if
              call iw_tooltip("Toggle hide/show this representation",ttshown)
 
-             ! show/hide
+             ! rename
              str2 = "Rename" // c_null_char
              if (igBeginMenu(c_loc(str2),.true._c_bool)) then
                 str3 = "##inputrenamerep" // c_null_char
@@ -403,7 +403,7 @@ contains
 
        ! edit button
        if (igTableSetColumnIndex(ic_editbutton)) then
-          str1 = "E##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
+          str1 = "Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
           if (igSmallButton(c_loc(str1))) then
              if (s%rep(i)%idwin == 0) then
                 s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
