@@ -975,7 +975,7 @@ contains
                          elseif (r%atom_style_type == 1) then
                             idaux = sys(r%id)%c%atcel(ineigh)%idx
                          else
-                            idaux = i
+                            idaux = ineigh
                          end if
                          drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                          drawlist_cyl(ncyl)%x2 = real(x2,c_float)
