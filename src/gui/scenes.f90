@@ -84,9 +84,6 @@ module scenes
      procedure :: init => representation_init
      procedure :: end => representation_end
      procedure :: reset_atom_style
-     procedure :: draw => representation_draw
-     procedure :: draw_atoms
-     procedure :: draw_unitcell
      procedure :: add_draw_elements
   end type representation
   public :: representation
