@@ -156,6 +156,7 @@ contains
 
   !> Run the commands from the console input
   module subroutine run_commands_ci(w)
+    use windows, only: iwin_view, win
     use systemmod, only: sy
     use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
        sysc, sys_init, nsys, sys
@@ -197,6 +198,9 @@ contains
 
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
+
+    if (win(iwin_view)%view_selected == w%inpcon_selected) &
+       win(iwin_view)%forcebuildlists = .true.
 
     ! clean up
     call fclose(uin)
