@@ -557,7 +557,7 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%bond_color_style = 0
+    r%bond_color_style = 1
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
     r%uc_radius = 0.15_c_float
