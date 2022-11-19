@@ -79,13 +79,13 @@ module scenes
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! unit cell
-     logical :: uc_inner ! unit cell, display inner cylinders
-     logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
+     logical(c_bool) :: uc_inner ! unit cell, display inner cylinders
+     logical(c_bool) :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
      real(c_float) :: uc_radius ! unit cell cylinder radius
      real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
      real(c_float) :: uc_rgba(4) ! unit cell cylinder colors
-     real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
-     logical :: uc_innerstipple ! stippled lines for the inner lines
+     real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
+     logical(c_bool) :: uc_innerstipple ! stippled lines for the inner lines
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end

@@ -903,7 +903,7 @@ contains
        if (w%rep%type == reptype_atoms) then
           changed = changed .or. w%draw_editrep_atoms(ttshown)
        elseif (w%rep%type == reptype_unitcell) then
-          ! xxxx !
+          changed = changed .or. w%draw_editrep_unitcell(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1321,7 +1321,7 @@ contains
     if (w%rep%bond_color_style == 0) then
        call igSameLine(0._c_float,-1._c_float)
        str2 = "##bondcolor" // c_null_char
-       ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,flags)
+       ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,ImGuiColorEditFlags_NoInputs)
        call iw_tooltip("Color for the representation bonds",ttshown)
        call iw_text("Color",sameline=.true.)
        if (ch) then
@@ -1340,5 +1340,74 @@ contains
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
 
   end function draw_editrep_atoms
+
+  !> Draw the editrep window, unit cell class. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_unitcell(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical(c_bool) :: changed
+
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    logical :: ch
+
+    !! styles
+    call iw_text("Style",highlight=.true.)
+    str1 = "Color crystallographic axes" // c_null_char
+    changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_coloraxes)
+    call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
+
+    str1 = "Radius##outer" // c_null_char
+    str2 = "%.3f" // c_null_char
+    call igPushItemWidth(iw_calcwidth(5,1))
+    changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radius,0._c_float,&
+       0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    w%rep%uc_radius = max(w%rep%uc_radius,0._c_float)
+    call igPopItemWidth()
+    call iw_tooltip("Radii of the unit cell edges",ttshown)
+
+    call igSameLine(0._c_float,-1._c_float)
+    str1 = "Color" // c_null_char
+    ch = igColorEdit4(c_loc(str1),w%rep%uc_rgba,ImGuiColorEditFlags_NoInputs)
+    call iw_tooltip("Color of the unit cell edges",ttshown)
+    if (ch) then
+       w%rep%uc_rgba = min(w%rep%uc_rgba,1._c_float)
+       w%rep%uc_rgba = max(w%rep%uc_rgba,0._c_float)
+       changed = .true.
+    end if
+
+    !! inner divisions
+    call iw_text("Inner Divisions",highlight=.true.)
+    str1 = "Display inner divisions" // c_null_char
+    changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_inner)
+    call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
+    if (w%rep%uc_inner) then
+       str1 = "Radius##inner" // c_null_char
+       str2 = "%.3f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(5,1))
+       changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radiusinner,0._c_float,&
+          0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       w%rep%uc_radiusinner = max(w%rep%uc_radiusinner,0._c_float)
+       call igPopItemWidth()
+       call iw_tooltip("Radii of the inner unit cell edges",ttshown)
+
+       str1 = "Use dashed lines" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_innerstipple)
+       call iw_tooltip("Use dashed lines for the inner cell divisions",ttshown)
+
+       if (w%rep%uc_innerstipple) then
+          str1 = "Dash length (Å)" // c_null_char
+          str2 = "%.1f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_innersteplen,0._c_float,&
+             0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          w%rep%uc_innersteplen = max(w%rep%uc_innersteplen,0._c_float)
+          call igPopItemWidth()
+          call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
+       end if
+    end if
+
+  end function draw_editrep_unitcell
 
 end submodule view
