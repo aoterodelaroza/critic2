@@ -162,6 +162,7 @@ contains
     w%view_selected = 1
     w%view_mousebehavior = MB_navigation
     w%forcerender = .true.
+    w%forcebuildlists = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1

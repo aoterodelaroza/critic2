@@ -21,9 +21,6 @@ submodule (scenes) proc
 
   real(c_float) :: min_scenerad = 10._c_float
 
-  ! object resolution
-  integer, parameter :: icylres = 3 ! cylinder
-
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -35,7 +32,7 @@ submodule (scenes) proc
 
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,rgba,ires)
-  ! subroutine draw_cylinder(x1,x2,rad,rgba)
+  ! subroutine draw_cylinder(x1,x2,rad,rgba,ires)
 
 contains
 
@@ -54,6 +51,10 @@ contains
     s%id = isys
     s%isinit = .true.
     s%nc = 1
+
+    ! resolutions
+    s%atom_res = 3
+    s%bond_res = 1
 
     ! phong default settings
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
@@ -173,9 +174,31 @@ contains
 
   end subroutine scene_reset
 
+  !> Build the draw lists for the current scene.
+  module subroutine scene_build_lists(s)
+    class(scene), intent(inout), target :: s
+
+    integer :: i
+
+    ! initialize
+    s%nsph = 0
+    if (allocated(s%drawlist_sph)) deallocate(s%drawlist_sph)
+    allocate(s%drawlist_sph(100))
+    s%ncyl = 0
+    if (allocated(s%drawlist_cyl)) deallocate(s%drawlist_cyl)
+    allocate(s%drawlist_cyl(100))
+
+    ! add the items by representation
+    do i = 1, s%nrep
+       call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl)
+    end do
+
+  end subroutine scene_build_lists
+
   !> Draw the scene
   module subroutine scene_render(s)
     use interfaces_opengl3
+    use shapes, only: sphVAO, cylVAO
     use gui_main, only: sysc, sys_init
     use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
@@ -187,6 +210,9 @@ contains
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
     if (.not.sysc(s%id)%status == sys_init) return
+
+    ! build draw lists if not done already
+    if (.not.allocated(s%drawlist_sph)) call s%build_lists()
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)
@@ -201,12 +227,19 @@ contains
     call setuniform_mat4("view",s%view)
     call setuniform_mat4("projection",s%projection)
 
-    ! draw all initialized and visible representations
-    do i = 1, s%nrep
-       if (s%rep(i)%isinit .and. s%rep(i)%shown) then
-          call s%rep(i)%draw(s%nc)
-       end if
+    ! draw the atoms
+    call glBindVertexArray(sphVAO(s%atom_res))
+    do i = 1, s%nsph
+       call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgba,s%atom_res)
     end do
+
+    ! draw the bonds
+    call glBindVertexArray(cylVAO(s%bond_res))
+    do i = 1, s%ncyl
+       call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
+          s%drawlist_cyl(i)%rgba,s%bond_res)
+    end do
+    call glBindVertexArray(0)
 
   end subroutine scene_render
 
@@ -512,8 +545,6 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%atom_res = 3
-    r%bond_res = 1
     r%bond_color_style = 0
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
@@ -766,8 +797,8 @@ contains
                 ! draw the atom
                 x0 = real(xx,c_float)
                 if (r%atoms_display) then
-                   call glBindVertexArray(sphVAO(r%atom_res))
-                   call draw_sphere(x0,rad,rgba,r%atom_res)
+                   call glBindVertexArray(sphVAO(3))
+                   call draw_sphere(x0,rad,rgba,3)
                 end if
 
                 ! bonds
@@ -792,13 +823,13 @@ contains
                       xx = sys(r%id)%c%atcel(ineigh)%x + ix + ixn + lvec
                       xx = sys(r%id)%c%x2c(xx)
                       x2 = real(xx,c_float)
-                      call glBindVertexArray(cylVAO(r%bond_res))
+                      call glBindVertexArray(cylVAO(1))
 
                       if (r%bond_color_style == 0) then
-                         call draw_cylinder(x1,x2,r%bond_rad,r%bond_rgba)
+                         call draw_cylinder(x1,x2,r%bond_rad,r%bond_rgba,1)
                       else
                          x0 = 0.5_c_float * (x1 + x2)
-                         call draw_cylinder(x1,x0,r%bond_rad,r%atom_style(id)%rgba)
+                         call draw_cylinder(x1,x0,r%bond_rad,r%atom_style(id)%rgba,1)
                          if (r%atom_style_type == 0) then
                             idaux = sys(r%id)%c%atcel(ineigh)%is
                          elseif (r%atom_style_type == 1) then
@@ -806,7 +837,7 @@ contains
                          else
                             idaux = i
                          end if
-                         call draw_cylinder(x0,x2,r%bond_rad,r%atom_style(idaux)%rgba)
+                         call draw_cylinder(x0,x2,r%bond_rad,r%atom_style(idaux)%rgba,1)
                       end if
                    end do
                 end if
@@ -887,7 +918,7 @@ contains
 
   !> Draw a cylinder from x1 to x2 with radius rad and color
   !> rgba. Requires having the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgba)
+  subroutine draw_cylinder(x1,x2,rad,rgba,ires)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4
@@ -896,6 +927,7 @@ contains
     real(c_float), intent(in) :: x2(3)
     real(c_float), intent(in) :: rad
     real(c_float), intent(in) :: rgba(4)
+    integer(c_int), intent(in) :: ires
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3)
@@ -938,8 +970,206 @@ contains
     ! draw the cylinder
     call setuniform_vec4("vColor",rgba)
     call setuniform_mat4("model",model)
-    call glDrawElements(GL_TRIANGLES, int(3*cylnel(icylres),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_cylinder
+
+  !> Add the spheres, cylinder, etc. to the draw lists.
+  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl)
+    use gui_main, only: sys
+    use tools_io, only: string
+    use hashmod, only: hash
+    class(representation), intent(inout), target :: r
+    integer, intent(in) :: nc(3)
+    integer, intent(inout) :: nsph
+    type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
+    integer, intent(inout) :: ncyl
+    type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
+
+    type(hash) :: shown_atoms
+    logical :: havefilter, step, ok
+    integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
+    integer :: ib, ineigh, ixn(3)
+    real(c_float) :: rgba(4), rad
+    real*8 :: xx(3), x0(3), x1(3), x2(3), res
+    type(dl_sphere), allocatable :: auxsph(:)
+    type(dl_cylinder), allocatable :: auxcyl(:)
+    character(len=:), allocatable :: atcode
+
+    real*8, parameter :: rthr = 0.01d0
+    real*8, parameter :: rthr1 = 1-rthr
+
+    ! return if not initialized
+    if (.not.r%isinit) return
+    if (.not.r%shown) return
+
+    ! initialize the drawlists if not done already
+    if (.not.allocated(drawlist_sph)) then
+       allocate(drawlist_sph(100))
+       nsph = 0
+    end if
+    if (.not.allocated(drawlist_cyl)) then
+       allocate(drawlist_cyl(100))
+       ncyl = 0
+    end if
+
+    if (r%type == reptype_atoms) then
+       !!! atoms and bonds representation !!!
+
+       !! first, the atoms
+       ! do we have a filter?
+       havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
+
+       ! calculate the periodicity
+       n = 1
+       if (r%pertype == 1) then
+          n = nc
+       elseif (r%pertype == 2) then
+          n = r%ncell
+       end if
+
+       ! run over atoms, either directly or per-molecule
+       i = 0
+       imol = 0
+       do while(i < sys(r%id)%c%ncel)
+          if (r%onemotif .and. sys(r%id)%c%ismol3d) then
+             step = (imol == 0)
+             if (.not.step) step = (k == sys(r%id)%c%mol(imol)%nat)
+             if (step) then
+                imol = imol + 1
+                k = 0
+             end if
+             if (imol > sys(r%id)%c%nmol) exit
+             k = k + 1
+             i = sys(r%id)%c%mol(imol)%at(k)%cidx
+             lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
+          else
+             i = i + 1
+             lvec = 0
+          end if
+
+          ! skip hidden atoms
+          if (r%atom_style_type == 0) then
+             id = sys(r%id)%c%atcel(i)%is
+          elseif (r%atom_style_type == 1) then
+             id = sys(r%id)%c%atcel(i)%idx
+          else
+             id = i
+          end if
+          if (.not.r%atom_style(id)%shown) cycle
+
+          ! calculate the border
+          n0 = 0
+          n1 = n-1
+          if (r%border.and..not.r%onemotif) then
+             xx = sys(r%id)%c%atcel(i)%x
+             xx = xx - floor(xx)
+             do j = 1, 3
+                if (xx(j) < rthr) then
+                   n1(j) = n(j)
+                elseif (xx(j) > rthr1) then
+                   n0(j) = -1
+                end if
+             end do
+          end if
+
+          ! draw the spheres and cylinders
+          rgba = r%atom_style(id)%rgba
+          rad = r%atom_style(id)%rad
+          do i1 = n0(1), n1(1)
+             do i2 = n0(2), n1(2)
+                do i3 = n0(3), n1(3)
+                   ! atoms
+                   ix = (/i1,i2,i3/) + lvec
+                   xx = sys(r%id)%c%atcel(i)%x + ix
+                   xx = sys(r%id)%c%x2c(xx)
+
+                   ! apply the filter
+                   if (havefilter) then
+                      res = sys(r%id)%eval(r%filter,.false.,ok,xx)
+                      if (ok) then
+                         if (res == 0d0) cycle
+                      end if
+                   end if
+
+                   ! draw the atom, reallocate if necessary
+                   if (r%atoms_display) then
+                      nsph = nsph + 1
+                      if (nsph > size(drawlist_sph,1)) then
+                         allocate(auxsph(2*nsph))
+                         auxsph(1:size(drawlist_sph,1)) = drawlist_sph
+                         call move_alloc(auxsph,drawlist_sph)
+                      end if
+
+                      ! write down the sphere
+                      drawlist_sph(nsph)%x = real(xx,c_float)
+                      drawlist_sph(nsph)%r = rad
+                      drawlist_sph(nsph)%rgba = rgba
+                   end if
+
+                   ! start with bonds
+                   if (.not.r%bonds_display) cycle
+
+                   ! add this atom to the hash
+                   atcode = string(i) // "_" // string(ix(1)) // "_" // string(ix(2)) // "_" // string(ix(3))
+                   call shown_atoms%put(atcode,1)
+
+                   ! bonds
+                   do ib = 1, sys(r%id)%c%nstar(i)%ncon
+                      ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
+                      ixn = ix + sys(r%id)%c%nstar(i)%lcon(:,ib)
+
+                      ! check if the atom has been represented already
+                      atcode = string(ineigh) // "_" // string(ixn(1)) // "_" // string(ixn(2)) // "_" // string(ixn(3))
+                      if (.not.shown_atoms%iskey(atcode)) cycle
+
+                      ! draw the bond, reallocate if necessary
+                      if (r%bond_color_style == 0) then
+                         ncyl = ncyl + 1
+                      else
+                         ncyl = ncyl + 2
+                      end if
+                      if (ncyl > size(drawlist_cyl,1)) then
+                         allocate(auxcyl(2*ncyl))
+                         auxcyl(1:size(drawlist_cyl,1)) = drawlist_cyl
+                         call move_alloc(auxcyl,drawlist_cyl)
+                      end if
+
+                      x1 = xx
+                      x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
+                      x2 = sys(r%id)%c%x2c(x2)
+                      if (r%bond_color_style == 0) then
+                         drawlist_cyl(ncyl)%x1 = real(x1,c_float)
+                         drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                         drawlist_cyl(ncyl)%r = r%bond_rad
+                         drawlist_cyl(ncyl)%rgba = r%bond_rgba
+                      else
+                         x0 = 0.5d0 * (x1 + x2)
+                         drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
+                         drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
+                         drawlist_cyl(ncyl-1)%r = r%bond_rad
+                         drawlist_cyl(ncyl-1)%rgba = r%atom_style(id)%rgba
+
+                         if (r%atom_style_type == 0) then
+                            idaux = sys(r%id)%c%atcel(ineigh)%is
+                         elseif (r%atom_style_type == 1) then
+                            idaux = sys(r%id)%c%atcel(ineigh)%idx
+                         else
+                            idaux = i
+                         end if
+                         drawlist_cyl(ncyl)%x1 = real(x0,c_float)
+                         drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                         drawlist_cyl(ncyl)%r = r%bond_rad
+                         drawlist_cyl(ncyl)%rgba = r%atom_style(idaux)%rgba
+                      end if
+                   end do ! ncon
+
+                end do ! i3
+             end do ! i2
+          end do ! i1
+       end do ! loop over complete atom list (i)
+    end if ! reptype
+
+  end subroutine add_draw_elements
 
 end submodule proc

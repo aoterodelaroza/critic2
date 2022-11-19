@@ -22,6 +22,21 @@ module scenes
 
   private
 
+  !> spheres for the draw list
+  type dl_sphere
+     real(c_float) :: x(3) ! position
+     real(c_float) :: r ! radius
+     real(c_float) :: rgba(4) ! color
+  end type dl_sphere
+
+  !> cylinders for the draw list
+  type dl_cylinder
+     real(c_float) :: x1(3) ! one end of the cylinder
+     real(c_float) :: x2(3) ! other end of the cylinder
+     real(c_float) :: r ! radius
+     real(c_float) :: rgba(4) ! color
+  end type dl_cylinder
+
   !> draw style for atoms
   type draw_style_atom
      logical(c_bool) :: shown
@@ -72,6 +87,7 @@ module scenes
      procedure :: draw => representation_draw
      procedure :: draw_atoms
      procedure :: draw_unitcell
+     procedure :: add_draw_elements
   end type representation
   public :: representation
 
@@ -84,6 +100,9 @@ module scenes
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
+     ! object resolutions
+     integer(c_int) :: atom_res ! atom resolution
+     integer(c_int) :: bond_res ! bond resolution
      ! phong shader settings
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color
@@ -104,10 +123,16 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
+     ! draw lists
+     integer :: nsph ! number of spheres
+     type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
+     integer :: ncyl ! number of cylinders
+     type(dl_cylinder), allocatable :: drawlist_cyl(:) ! cylinder draw list
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
      procedure :: reset => scene_reset
+     procedure :: build_lists => scene_build_lists
      procedure :: render => scene_render
      procedure :: representation_menu
      procedure :: get_new_representation_id
@@ -130,6 +155,9 @@ module scenes
      module subroutine scene_reset(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reset
+     module subroutine scene_build_lists(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_build_lists
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
@@ -182,6 +210,14 @@ module scenes
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
+     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl)
+       class(representation), intent(inout), target :: r
+       integer, intent(in) :: nc(3)
+       integer, intent(inout) :: nsph
+       type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
+       integer, intent(inout) :: ncyl
+       type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
+     end subroutine add_draw_elements
   end interface
 
 end module scenes

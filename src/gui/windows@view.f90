@@ -52,7 +52,7 @@ contains
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
-    logical :: hover, ch, goodsys
+    logical :: hover, ch, chbuild, chrender, goodsys
     integer(c_int) :: amax, flags
     real(c_float) :: scal, width
 
@@ -78,6 +78,8 @@ contains
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (goodsys) then
+       chrender = .false.
+       chbuild = .false.
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! number of cells selector
           if (.not.sys(w%view_selected)%c%ismolecule) then
@@ -86,29 +88,27 @@ contains
              call iw_text("a: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##aaxis" // c_null_char
-             ch = igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
+             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
                 ImGuiInputTextFlags_EnterReturnsTrue)
              call igSameLine(0._c_float,g%FontSize)
              call iw_text("b: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##baxis" // c_null_char
-             ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
+             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
                 ImGuiInputTextFlags_EnterReturnsTrue)
              call igSameLine(0._c_float,g%FontSize)
              call iw_text("c: ")
              call igSameLine(0._c_float,0._c_float)
              str2 = "##caxis" // c_null_char
-             ch = ch .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
+             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
                 ImGuiInputTextFlags_EnterReturnsTrue)
 
              sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
              if (iw_button("Reset",sameline=.true.)) then
                 sysc(w%view_selected)%sc%nc = 1
-                ch = .true.
+                chbuild = .true.
              end if
              call igPopItemWidth()
-
-             if(ch) w%forcerender = .true.
           end if
 
           ! align view axis
@@ -116,28 +116,28 @@ contains
           if (.not.sys(w%view_selected)%c%ismolecule) then
              if (iw_button("a")) then
                 call sysc(w%view_selected)%sc%align_view_axis(1)
-                w%forcerender = .true.
+                chrender = .true.
              end if
              if (iw_button("b",sameline=.true.)) then
                 call sysc(w%view_selected)%sc%align_view_axis(2)
-                w%forcerender = .true.
+                chrender = .true.
              end if
              if (iw_button("c",sameline=.true.)) then
                 call sysc(w%view_selected)%sc%align_view_axis(3)
-                w%forcerender = .true.
+                chrender = .true.
              end if
           end if
           if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
              call sysc(w%view_selected)%sc%align_view_axis(-1)
-             w%forcerender = .true.
+             chrender = .true.
           end if
           if (iw_button("y",sameline=.true.)) then
              call sysc(w%view_selected)%sc%align_view_axis(-2)
-             w%forcerender = .true.
+             chrender = .true.
           end if
           if (iw_button("z",sameline=.true.)) then
              call sysc(w%view_selected)%sc%align_view_axis(-3)
-             w%forcerender = .true.
+             chrender = .true.
           end if
 
           ! representations table
@@ -175,7 +175,7 @@ contains
              call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
              if (sysc(w%view_selected)%sc%representation_menu(w%id)) &
-                w%forcerender = .true.
+                chbuild = .true.
              call igEndTable()
           end if
 
@@ -186,7 +186,7 @@ contains
              if (igMenuItem_Bool(c_loc(str3),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = sysc(w%view_selected)%sc%get_new_representation_id()
                 call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
-                w%forcerender = .true.
+                chbuild = .true.
              end if
              call iw_tooltip("Add a representation for the atoms",ttshown)
 
@@ -196,6 +196,10 @@ contains
 
           call igEndPopup()
        end if
+
+       ! update the draw lists and render
+       if (chbuild) w%forcebuildlists = .true.
+       if (chrender .or. chbuild) w%forcerender = .true.
     end if
     call iw_tooltip("Change the view options")
 
@@ -233,6 +237,13 @@ contains
        amax = max(ceiling(1.5 * ceiling(max(szavail%x,szavail%y))),1)
        call w%delete_texture_view()
        call w%create_texture_view(amax)
+       w%forcerender = .true.
+    end if
+
+    ! rebuild the draw lists, if requested
+    if (w%forcebuildlists .and. goodsys) then
+       call sysc(w%view_selected)%sc%build_lists()
+       w%forcebuildlists = .false.
        w%forcerender = .true.
     end if
 
@@ -281,10 +292,10 @@ contains
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
              sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
-             w%forcerender = .true.
+             w%forcebuildlists = .true.
           elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
              sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc - 1,1)
-             w%forcerender = .true.
+             w%forcebuildlists = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
              call sysc(w%view_selected)%sc%align_view_axis(1)
@@ -772,8 +783,8 @@ contains
           ! xxxx !
        end if
 
-       ! render if necessary
-       if (changed) win(w%editrep_iview)%forcerender = .true.
+       ! rebuild draw lists if necessary
+       if (changed) win(w%editrep_iview)%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
@@ -788,24 +799,20 @@ contains
           call w%rep%init(w%rep%id,w%rep%idrep,itype)
           w%rep%name = str2
           w%rep%shown = lshown
-          win(w%editrep_iview)%forcerender = .true.
+          win(w%editrep_iview)%forcebuildlists = .true.
        end if
 
        ! close button
        ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
        ok = ok .or. iw_button("OK",sameline=.true.)
-       if (ok) then
-          win(w%editrep_iview)%forcerender = .true.
-          doquit = .true.
-       end if
+       if (ok) doquit = .true.
     end if
 
     ! exit if focused and received the close keybinding
     if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
 
-    if (doquit) then
-       call w%end()
-    end if
+    ! quit = close the window
+    if (doquit) call w%end()
 
   end subroutine draw_editrep
 
@@ -1179,16 +1186,6 @@ contains
        changed = .true.
     end if
 
-    ! atom resolution
-    ires = w%rep%atom_res - 1
-    call iw_combo_simple("Resolution ##atomresselect","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
-       "3: Normal" // c_null_char // "4: Good" // c_null_char,ires,sameline=.true.)
-    call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
-    if (ires + 1 /= w%rep%atom_res) then
-       w%rep%atom_res = ires + 1
-       changed = .true.
-    end if
-
     ! bond styles
     call iw_text("Bond Styles",highlight=.true.)
     !! colors
@@ -1216,15 +1213,6 @@ contains
        0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
-    !! bond resolution
-    ires = w%rep%bond_res - 1
-    call iw_combo_simple("Resolution ##bondresselect","1: Rough" // c_null_char // "2: Normal" // c_null_char //&
-       "3: Good" // c_null_char,ires,sameline=.true.)
-    call iw_tooltip("Set the resolution of the cylinders representing the bonds",ttshown)
-    if (ires + 1 /= w%rep%bond_res) then
-       w%rep%bond_res = ires + 1
-       changed = .true.
-    end if
 
   end function draw_editrep_atoms
 
