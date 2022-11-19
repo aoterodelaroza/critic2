@@ -60,11 +60,11 @@ module scenes
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters
-     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
-     logical :: goodfilter ! true if the filter is not in error
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      ! atoms & bonds
+     logical :: goodfilter ! true if the filter is not in error
+     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
      logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
@@ -74,12 +74,20 @@ module scenes
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
-     integer(c_int) :: atom_res = 3 ! ball resolution for atoms
+     integer(c_int) :: atom_res ! ball resolution for atoms
      integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
      real(c_float) :: bond_rgba(4) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
-     integer(c_int) :: bond_res = 3 ! cylinder resolution for bonds
+     integer(c_int) :: bond_res ! cylinder resolution for bonds
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
+     ! unit cell
+     logical :: uc_inner ! unit cell, display inner cylinders
+     logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
+     real(c_float) :: uc_radius ! unit cell cylinder radius
+     real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
+     real(c_float) :: uc_rgba(4) ! unit cell cylinder colors
+     real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
+     logical :: uc_innerstipple ! stippled lines for the inner lines
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
@@ -100,6 +108,7 @@ module scenes
      ! object resolutions
      integer(c_int) :: atom_res ! atom resolution
      integer(c_int) :: bond_res ! bond resolution
+     integer(c_int) :: uc_res ! unit cell resolution
      ! phong shader settings
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color
@@ -125,6 +134,8 @@ module scenes
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
      integer :: ncyl ! number of cylinders
      type(dl_cylinder), allocatable :: drawlist_cyl(:) ! cylinder draw list
+     integer :: ncylflat ! number of flat cylinders
+     type(dl_cylinder), allocatable :: drawlist_cylflat(:) ! flat cylinder draw list
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -207,13 +218,16 @@ module scenes
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
-     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl)
+     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,ncylflat,drawlist_cylflat)
+
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        integer, intent(inout) :: nsph
        type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
        integer, intent(inout) :: ncyl
        type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
+       integer, intent(inout) :: ncylflat
+       type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
      end subroutine add_draw_elements
   end interface
 

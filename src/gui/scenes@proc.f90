@@ -55,6 +55,7 @@ contains
     ! resolutions
     s%atom_res = 3
     s%bond_res = 1
+    s%uc_res = 1
 
     ! phong default settings
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
@@ -187,10 +188,14 @@ contains
     s%ncyl = 0
     if (allocated(s%drawlist_cyl)) deallocate(s%drawlist_cyl)
     allocate(s%drawlist_cyl(100))
+    s%ncylflat = 0
+    if (allocated(s%drawlist_cylflat)) deallocate(s%drawlist_cylflat)
+    allocate(s%drawlist_cylflat(10))
 
     ! add the items by representation
     do i = 1, s%nrep
-       call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl)
+       call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
+          s%ncylflat,s%drawlist_cylflat)
     end do
 
   end subroutine scene_build_lists
@@ -238,6 +243,13 @@ contains
     do i = 1, s%ncyl
        call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
           s%drawlist_cyl(i)%rgba,s%bond_res)
+    end do
+
+    ! draw the flat cylinders (unit cell)
+    call setuniform_int("uselighting",0_c_int)
+    do i = 1, s%ncylflat
+       call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+          s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
     end do
     call glBindVertexArray(0)
 
@@ -548,6 +560,13 @@ contains
     r%bond_color_style = 0
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
+    r%uc_radius = 0.15_c_float
+    r%uc_radiusinner = 0.15_c_float
+    r%uc_innersteplen = 2d0
+    r%uc_innerstipple = .true.
+    r%uc_rgba = (/1._c_float,1._c_float,1._c_float,1._c_float/)
+    r%uc_inner = .true.
+    r%uc_coloraxes = .true.
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
@@ -756,7 +775,7 @@ contains
   end subroutine draw_cylinder
 
   !> Add the spheres, cylinder, etc. to the draw lists.
-  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl)
+  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,ncylflat,drawlist_cylflat)
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
@@ -766,11 +785,13 @@ contains
     type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
     integer, intent(inout) :: ncyl
     type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
+    integer, intent(inout) :: ncylflat
+    type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
 
     type(hash) :: shown_atoms
-    logical :: havefilter, step, ok
+    logical :: havefilter, step, ok, isedge(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
-    integer :: ib, ineigh, ixn(3)
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
     real(c_float) :: rgba(4), rad
     real*8 :: xx(3), x0(3), x1(3), x2(3), res
     type(dl_sphere), allocatable :: auxsph(:)
@@ -779,6 +800,20 @@ contains
 
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
+    integer, parameter :: uc(3,2,12) = reshape((/&
+       0,0,0,  1,0,0,&
+       0,0,0,  0,1,0,&
+       0,0,0,  0,0,1,&
+       1,1,0,  1,1,1,&
+       1,0,1,  1,1,1,&
+       0,1,1,  1,1,1,&
+       1,0,0,  1,1,0,&
+       0,1,0,  1,1,0,&
+       0,1,0,  0,1,1,&
+       0,0,1,  0,1,1,&
+       0,0,1,  1,0,1,&
+       1,0,0,  1,0,1/),shape(uc))
+    integer, parameter :: ucdir(12) = (/1, 2, 3, 3, 2, 1, 2, 1, 3, 2, 1, 3/)
 
     ! return if not initialized
     if (.not.r%isinit) return
@@ -792,6 +827,10 @@ contains
     if (.not.allocated(drawlist_cyl)) then
        allocate(drawlist_cyl(100))
        ncyl = 0
+    end if
+    if (.not.allocated(drawlist_cylflat)) then
+       allocate(drawlist_cylflat(100))
+       ncylflat = 0
     end if
 
     if (r%type == reptype_atoms) then
@@ -949,8 +988,92 @@ contains
              end do ! i2
           end do ! i1
        end do ! loop over complete atom list (i)
-    end if ! reptype
+    elseif (r%type == reptype_unitcell) then
+       !!! unit cell representation !!!
 
+       ! number of cells
+       n = 1
+       if (r%pertype == 1) then
+          n = nc
+       elseif (r%pertype == 2) then
+          n = r%ncell
+       end if
+
+       ! external cell
+       do i = 1, 12
+          x1 = real(uc(:,1,i) * n,8)
+          x1 = sys(r%id)%c%x2c(x1)
+          x2 = real(uc(:,2,i) * n,8)
+          x2 = sys(r%id)%c%x2c(x2)
+
+          call increase_ncylflat()
+          drawlist_cylflat(ncylflat)%x1 = real(x1,c_float)
+          drawlist_cylflat(ncylflat)%x2 = real(x2,c_float)
+          drawlist_cylflat(ncylflat)%r = r%uc_radius
+          if (r%uc_coloraxes.and.i==1) then
+             drawlist_cylflat(ncylflat)%rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+          elseif (r%uc_coloraxes.and.i==2) then
+             drawlist_cylflat(ncylflat)%rgba = (/0._c_float,1._c_float,0._c_float,1._c_float/)
+          elseif (r%uc_coloraxes.and.i==3) then
+             drawlist_cylflat(ncylflat)%rgba = (/0._c_float,0._c_float,1._c_float,1._c_float/)
+          else
+             drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+          end if
+       end do
+
+       ! draw inner cylinders
+       if (r%uc_inner) then
+          do i1 = 0, n(1)-1
+             do i2 = 0, n(2)-1
+                do i3 = 0, n(3)-1
+                   do i = 1, 12
+                      ix1 = (/i1,i2,i3/) + uc(:,1,i)
+                      ix2 = (/i1,i2,i3/) + uc(:,2,i)
+
+                      ! skip outer cylinders
+                      isedge = (ix1 == 0 .and. ix2 == 0) .or. (ix1 == n .and. ix2 == n)
+                      isedge(ucdir(i)) = .true.
+                      if (all(isedge)) cycle
+
+                      x1 = real(ix1,8)
+                      x1 = sys(r%id)%c%x2c(x1)
+                      x2 = real(ix2,8)
+                      x2 = sys(r%id)%c%x2c(x2)
+
+                      ! logical :: uc_innerstipple ! stippled lines for the inner lines
+                      if (r%uc_innerstipple) then
+                         nstep = ceiling(norm2(x2 - x1) / r%uc_innersteplen)
+                         do j = 1, nstep
+                            call increase_ncylflat()
+                            drawlist_cylflat(ncylflat)%x1 = real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            drawlist_cylflat(ncylflat)%x2 = real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
+                            drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+                         end do
+                      else
+                         call increase_ncylflat()
+                         drawlist_cylflat(ncylflat)%x1 = real(x1 ,c_float)
+                         drawlist_cylflat(ncylflat)%x2 = real(x2 ,c_float)
+                         drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
+                         drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+                      end if
+                   end do
+                end do
+             end do
+          end do
+       end if
+    end if ! reptype
+  contains
+    subroutine increase_ncylflat()
+
+      ncylflat = ncylflat + 1
+      if (ncylflat > size(drawlist_cylflat,1)) then
+         allocate(auxcyl(2*ncylflat))
+         auxcyl(1:size(drawlist_cylflat,1)) = drawlist_cylflat
+         call move_alloc(auxcyl,drawlist_cylflat)
+      end if
+
+    end subroutine increase_ncylflat
   end subroutine add_draw_elements
 
 end submodule proc
