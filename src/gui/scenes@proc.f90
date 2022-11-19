@@ -883,7 +883,6 @@ contains
           n1 = n-1
           if (r%border.and..not.r%onemotif) then
              xx = sys(r%id)%c%atcel(i)%x
-             xx = xx - floor(xx)
              do j = 1, 3
                 if (xx(j) < rthr) then
                    n1(j) = n(j)
