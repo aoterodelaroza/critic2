@@ -9,6 +9,8 @@
   !! parameter are incompatible, it is not possible to use the
   !! "const_" trick below to do this. Hence, copied here.
   !! Note to self: remember to copy them over if imgui/cimgui is updated.
+  ! C constants
+  real(c_float), parameter :: FLT_MAX = huge(1._c_float)
   ! enum ImGuiKey_
   integer(c_int), parameter :: ImGuiKey_COUNT = 645
   integer(c_int), parameter :: ImGuiKey_NamedKey_COUNT = 133

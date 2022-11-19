@@ -74,11 +74,9 @@ module scenes
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
-     integer(c_int) :: atom_res ! ball resolution for atoms
      integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
      real(c_float) :: bond_rgba(4) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
-     integer(c_int) :: bond_res ! cylinder resolution for bonds
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      ! unit cell
      logical :: uc_inner ! unit cell, display inner cylinders
@@ -109,7 +107,8 @@ module scenes
      integer(c_int) :: atom_res ! atom resolution
      integer(c_int) :: bond_res ! bond resolution
      integer(c_int) :: uc_res ! unit cell resolution
-     ! phong shader settings
+     ! scene/shader settings
+     real(c_float) :: bgcolor(4) ! background color
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color
      real(c_float) :: ambient ! ambient light coefficent

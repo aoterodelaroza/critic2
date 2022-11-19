@@ -58,6 +58,7 @@ contains
     s%uc_res = 1
 
     ! phong default settings
+    s%bgcolor = (/0._c_float,0._c_float,0._c_float,1._c_float/)
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
     s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
     s%ambient = 0.2_c_float
@@ -247,6 +248,7 @@ contains
 
     ! draw the flat cylinders (unit cell)
     call setuniform_int("uselighting",0_c_int)
+    call glBindVertexArray(cylVAO(s%uc_res))
     do i = 1, s%ncylflat
        call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
           s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)

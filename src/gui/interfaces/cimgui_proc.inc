@@ -522,12 +522,45 @@ function igCombo_Str(label,current_item,items_separated_by_zeros,popup_max_heigh
   logical(c_bool) :: igCombo_Str
 end function igCombo_Str
 !x! bool igCombo_FnBoolPtr(const char* label,int* current_item,bool(*items_getter)(void* data,int idx,const char** out_text),void* data,int items_count,int popup_max_height_in_items);
-!x! bool igDragFloat(const char* label,float* v,float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+! bool igDragFloat(const char* label,float* v,float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+function igDragFloat(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="igDragFloat")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v
+  real(c_float), value :: v_speed
+  real(c_float), value :: v_min
+  real(c_float), value :: v_max
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igDragFloat
+end function igDragFloat
 !x! bool igDragFloat2(const char* label,float v[2],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
-!x! bool igDragFloat3(const char* label,float v[3],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+! bool igDragFloat3(const char* label,float v[3],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+function igDragFloat3(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="igDragFloat3")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v(3)
+  real(c_float), value :: v_speed
+  real(c_float), value :: v_min
+  real(c_float), value :: v_max
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igDragFloat3
+end function igDragFloat3
 !x! bool igDragFloat4(const char* label,float v[4],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igDragFloatRange2(const char* label,float* v_current_min,float* v_current_max,float v_speed,float v_min,float v_max,const char* format,const char* format_max,ImGuiSliderFlags flags);
-!x! bool igDragInt(const char* label,int* v,float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
+! bool igDragInt(const char* label,int* v,float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
+function igDragInt(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="igDragInt")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  integer(c_int) :: v
+  real(c_float), value :: v_speed
+  integer(c_int), value :: v_min
+  integer(c_int), value :: v_max
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igDragInt
+end function igDragInt
 !x! bool igDragInt2(const char* label,int v[2],float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igDragInt3(const char* label,int v[3],float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igDragInt4(const char* label,int v[4],float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
@@ -618,7 +651,14 @@ end function igInputInt3
 !x! bool igInputDouble(const char* label,double* v,double step,double step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputScalar(const char* label,ImGuiDataType data_type,void* p_data,const void* p_step,const void* p_step_fast,const char* format,ImGuiInputTextFlags flags);
 !x! bool igInputScalarN(const char* label,ImGuiDataType data_type,void* p_data,int components,const void* p_step,const void* p_step_fast,const char* format,ImGuiInputTextFlags flags);
-!x! bool igColorEdit3(const char* label,float col[3],ImGuiColorEditFlags flags);
+! bool igColorEdit3(const char* label,float col[3],ImGuiColorEditFlags flags);
+function igColorEdit3(label,col,flags) bind(c,name="igColorEdit3")
+  import c_ptr, c_int, c_float, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: col(3)
+  integer(c_int), value :: flags
+  logical(c_bool) :: igColorEdit3
+end function igColorEdit3
 ! bool igColorEdit4(const char* label,float col[4],ImGuiColorEditFlags flags);
 function igColorEdit4(label,col,flags) bind(c,name="igColorEdit4")
   import c_ptr, c_int, c_float, c_bool

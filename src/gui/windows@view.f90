@@ -41,20 +41,20 @@ contains
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms
-    use utils, only: iw_calcheight
+    use utils, only: iw_calcheight, iw_calcwidth
     use gui_main, only: sysc, sys, sys_init, nsys, g, io
-    use utils, only: iw_text, iw_button, iw_tooltip
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, nrep, id
+    integer :: i, nrep, id, ipad
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: tint_col, border_col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
-    logical :: hover, ch, chbuild, chrender, goodsys
-    integer(c_int) :: amax, flags
-    real(c_float) :: scal, width
+    logical :: hover, ch, chbuild, chrender, goodsys, ldum
+    integer(c_int) :: amax, flags, nc(3), ires
+    real(c_float) :: scal, width, sqw
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -67,47 +67,77 @@ contains
     ! initialize
     szero%x = 0
     szero%y = 0
+    chrender = .false.
+    chbuild = .false.
 
     ! whether the selected view system is a good system
     goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
     if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
 
-    ! gear menu
-    str1="##viewgear" // c_null_char
-    if (iw_button("⚙")) then
+    ! scene menu
+    str1="##viewscenebutton" // c_null_char
+    if (iw_button("Scene")) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (goodsys) then
-       chrender = .false.
-       chbuild = .false.
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! number of cells selector
           if (.not.sys(w%view_selected)%c%ismolecule) then
+             call igAlignTextToFramePadding()
              call iw_text("Periodicity",highlight=.true.)
-             call igPushItemWidth(5._c_float * g%FontSize)
-             call iw_text("a: ")
-             call igSameLine(0._c_float,0._c_float)
-             str2 = "##aaxis" // c_null_char
-             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(1),1_c_int,100_c_int,&
-                ImGuiInputTextFlags_EnterReturnsTrue)
-             call igSameLine(0._c_float,g%FontSize)
-             call iw_text("b: ")
-             call igSameLine(0._c_float,0._c_float)
-             str2 = "##baxis" // c_null_char
-             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(2),1_c_int,100_c_int,&
-                ImGuiInputTextFlags_EnterReturnsTrue)
-             call igSameLine(0._c_float,g%FontSize)
-             call iw_text("c: ")
-             call igSameLine(0._c_float,0._c_float)
-             str2 = "##caxis" // c_null_char
-             chbuild = chbuild .or. igInputInt(c_loc(str2),sysc(w%view_selected)%sc%nc(3),1_c_int,100_c_int,&
-                ImGuiInputTextFlags_EnterReturnsTrue)
-
-             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
-             if (iw_button("Reset",sameline=.true.)) then
+             if (iw_button("Reset##periodicity",sameline=.true.)) then
                 sysc(w%view_selected)%sc%nc = 1
                 chbuild = .true.
              end if
+
+             ! calculate widths
+             ipad = ceiling(log10(max(maxval(sysc(w%view_selected)%sc%nc),1) + 0.1))
+             sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
+             call igPushItemWidth(sqw)
+
+             nc = sysc(w%view_selected)%sc%nc
+             call igAlignTextToFramePadding()
+             call iw_text("a:")
+             call igSameLine(0._c_float,0._c_float)
+             if (iw_button("-##aaxis")) nc(1) = max(nc(1)-1,1)
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             str2 = "##aaxis" // c_null_char
+             call igPushItemWidth(iw_calcwidth(ipad,1))
+             ldum = igInputInt(c_loc(str2),nc(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             call igPopItemWidth()
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             if (iw_button("+##aaxis")) nc(1) = nc(1)+1
+
+             call igSameLine(0._c_float,-1._c_float)
+             call iw_text("b:")
+             call igSameLine(0._c_float,0._c_float)
+             if (iw_button("-##baxis")) nc(2) = max(nc(2)-1,1)
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             str2 = "##baxis" // c_null_char
+             call igPushItemWidth(iw_calcwidth(ipad,1))
+             ldum = igInputInt(c_loc(str2),nc(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             call igPopItemWidth()
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             if (iw_button("+##baxis")) nc(2) = nc(2)+1
+
+             call igSameLine(0._c_float,-1._c_float)
+             call iw_text("c:")
+             call igSameLine(0._c_float,0._c_float)
+             if (iw_button("-##caxis")) nc(3) = max(nc(3)-1,1)
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             str2 = "##caxis" // c_null_char
+             call igPushItemWidth(iw_calcwidth(ipad,1))
+             ldum = igInputInt(c_loc(str2),nc(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+             call igPopItemWidth()
+             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+             if (iw_button("+##caxis")) nc(3) = nc(3)+1
+
+             nc = max(nc,1)
+             if (any(nc /= sysc(w%view_selected)%sc%nc)) then
+                sysc(w%view_selected)%sc%nc = nc
+                chbuild = .true.
+             end if
+
              call igPopItemWidth()
           end if
 
@@ -140,6 +170,77 @@ contains
              chrender = .true.
           end if
 
+          ! object resolution
+          call iw_text("Object Resolution",highlight=.true.)
+          ires = sysc(w%view_selected)%sc%atom_res - 1
+          call iw_combo_simple("Atoms##atomresselect","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
+             "3: Normal" // c_null_char // "4: Good" // c_null_char,ires)
+          call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
+          if (ires + 1 /= sysc(w%view_selected)%sc%atom_res) then
+             sysc(w%view_selected)%sc%atom_res = ires + 1
+             chrender = .true.
+          end if
+          ires = sysc(w%view_selected)%sc%bond_res - 1
+          call iw_combo_simple("Bonds##bondresselect","1: Rough" // c_null_char // "2: Normal" // c_null_char //&
+             "3: Good" // c_null_char,ires,sameline=.true.)
+          call iw_tooltip("Set the resolution of the cylinders representing the bonds",ttshown)
+          if (ires + 1 /= sysc(w%view_selected)%sc%bond_res) then
+             sysc(w%view_selected)%sc%bond_res = ires + 1
+             chrender = .true.
+          end if
+
+          ! scene settings
+          call iw_text("Light Settings",highlight=.true.)
+          call igPushItemWidth(iw_calcwidth(15,3))
+          str2 = "Light Position" // c_null_char
+          str3 = "%.1f" // c_null_char
+          chrender = chrender .or. igDragFloat3(c_loc(str2),sysc(w%view_selected)%sc%lightpos,&
+             0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
+          call igPopItemWidth()
+
+          call igPushItemWidth(iw_calcwidth(5,1))
+          str2 = "Ambient " // c_null_char
+          str3 = "%.3f" // c_null_char
+          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          call igSameLine(0._c_float,-1._c_float)
+          str2 = "Diffuse" // c_null_char
+          str3 = "%.3f" // c_null_char
+          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          str2 = "Specular" // c_null_char
+          str3 = "%.3f" // c_null_char
+          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+          call igSameLine(0._c_float,-1._c_float)
+          str2 = "Shininess" // c_null_char
+          str3 = "%.0f" // c_null_char
+          chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
+             1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_None)
+          call igPopItemWidth()
+
+          ! color settings
+          call iw_text("Color Settings",highlight=.true.)
+          str2 = "Light" // c_null_char
+          chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
+             ImGuiColorEditFlags_NoInputs)
+          call igSameLine(0._c_float,-1._c_float)
+          str2 = "Background" // c_null_char
+          chrender = chrender .or. igColorEdit4(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
+             ImGuiColorEditFlags_NoInputs)
+
+          call igEndPopup()
+       end if
+    end if
+    call iw_tooltip("Change the view options")
+
+    ! gear menu
+    str1="##viewgear" // c_null_char
+    if (iw_button("Representations",sameline=.true.)) then
+       call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
+    end if
+    if (goodsys) then
+       if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! representations table
           call iw_text("Representations",highlight=.true.)
           str2 = "Representations##0,0" // c_null_char
@@ -197,11 +298,12 @@ contains
           call igEndPopup()
        end if
 
-       ! update the draw lists and render
-       if (chbuild) w%forcebuildlists = .true.
-       if (chrender .or. chbuild) w%forcerender = .true.
     end if
-    call iw_tooltip("Change the view options")
+    call iw_tooltip("Add, remove, and modify representations")
+
+    ! update the draw lists and render
+    if (chbuild) w%forcebuildlists = .true.
+    if (chrender .or. chbuild) w%forcerender = .true.
 
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
@@ -251,7 +353,8 @@ contains
     if (w%forcerender) then
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(0.,0.,0.,0.)
+       call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
+          sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
        if (goodsys) &
@@ -853,6 +956,7 @@ contains
     isys = w%editrep_isys
 
     ! filter
+    call igAlignTextToFramePadding()
     call iw_text("Filter",highlight=.true.)
     call iw_text("(?)",sameline=.true.)
     call iw_tooltip("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. "&
@@ -900,6 +1004,7 @@ contains
 
     ! periodicity
     if (.not.sys(isys)%c%ismolecule) then
+       call igAlignTextToFramePadding()
        call iw_text("Periodicity",highlight=.true.)
 
        ! radio buttons for the periodicity type
