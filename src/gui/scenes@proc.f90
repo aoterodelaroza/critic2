@@ -90,7 +90,7 @@ contains
     end if
 
     ! reset the camera later
-    s%camratio = 2._c_float
+    s%camratio = 2.5_c_float
     s%forceresetcam = .true.
 
     ! sort the representations next pass
@@ -133,7 +133,6 @@ contains
 
     ! camera distance and view matrix
     hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-    write (*,*) "camratio = ", s%camratio
     hside = hside * s%camratio
     hside = max(hside,3._c_float)
     s%campos = s%scenecenter

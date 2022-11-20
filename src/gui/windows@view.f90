@@ -435,7 +435,7 @@ contains
     else
        ratio = szavail%y / max(szavail%x,1._c_float)
     end if
-    sysc(w%view_selected)%sc%camratio = min(ratio,2._c_float)
+    sysc(w%view_selected)%sc%camratio = min(ratio,2.5_c_float)
 
     ! rebuild the draw lists, if requested
     if (w%forcebuildlists .and. goodsys) then
