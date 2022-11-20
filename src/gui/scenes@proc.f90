@@ -19,8 +19,6 @@
 submodule (scenes) proc
   implicit none
 
-  real(c_float) :: min_scenerad = 10._c_float
-
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -51,6 +49,10 @@ contains
     s%id = isys
     s%isinit = .true.
     s%nc = 1
+    s%scenerad = 10d0
+    s%scenecenter = 0d0
+    s%scenexmin = 0d0
+    s%scenexmax = 1d0
 
     ! resolutions
     s%atom_res = 3
@@ -87,8 +89,9 @@ contains
        call s%rep(s%nrep)%init(s%id,s%nrep,reptype_unitcell)
     end if
 
-    ! reset the camera
-    call s%reset()
+    ! reset the camera later
+    s%camratio = 2._c_float
+    s%forceresetcam = .true.
 
     ! sort the representations next pass
     s%forcesort = .true.
@@ -117,44 +120,8 @@ contains
     class(scene), intent(inout), target :: s
 
     real(c_float) :: pic
-    real*8 :: xmin(3), xmax(3), x(3)
-    integer :: isys
+    real*8 :: xmin(3), xmax(3), x(3), hside
     integer :: i, i1, i2, i3
-
-    ! initialize
-    isys = s%id
-
-    ! calculate the initial scene radius
-    xmin = 0d0
-    xmax = 0d0
-    if (sys(isys)%c%ncel > 0) then
-       xmin = sys(isys)%c%atcel(1)%r
-       xmax = sys(isys)%c%atcel(1)%r
-       do i = 2, sys(isys)%c%ncel
-          xmax = max(sys(isys)%c%atcel(i)%r,xmax)
-          xmin = min(sys(isys)%c%atcel(i)%r,xmin)
-       end do
-
-       if (.not.sys(isys)%c%ismolecule) then
-          do i1 = 0, 1
-             do i2 = 0, 1
-                do i3 = 0, 1
-                   x = real((/i1,i2,i3/),8)
-                   x = sys(isys)%c%x2c(x)
-                   xmax = max(x,xmax)
-                   xmin = min(x,xmin)
-                end do
-             end do
-          end do
-       end if
-    end if
-    s%scenerad = real(norm2(xmax-xmin),c_float)
-    s%scenerad = max(s%scenerad,min_scenerad)
-
-    ! calculate the scene center
-    x = (/0.5d0,0.5d0,0.5d0/)
-    x = sys(isys)%c%x2c(x)
-    s%scenecenter = real(x,c_float)
 
     ! default transformation matrices
     pic = real(pi,c_float)
@@ -165,8 +132,12 @@ contains
     s%world = eye4
 
     ! camera distance and view matrix
+    hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+    write (*,*) "camratio = ", s%camratio
+    hside = hside * s%camratio
+    hside = max(hside,3._c_float)
     s%campos = s%scenecenter
-    s%campos(3) = s%campos(3) + 1.1_c_float * s%scenerad / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    s%campos(3) = s%campos(3) + hside / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     call s%update_view_matrix()
 
     ! projection matrix
@@ -181,6 +152,7 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i
+    real(c_float) :: xmin(3), xmax(3), maxrad
 
     ! initialize
     s%nsph = 0
@@ -198,6 +170,36 @@ contains
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
           s%ncylflat,s%drawlist_cylflat)
     end do
+
+    ! recalculate scene center and radius
+    maxrad = 0._c_float
+    do i = 1, s%nrep
+       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
+          maxrad = max(maxrad,maxval(s%rep(i)%atom_style(1:s%rep(i)%natom_style)%rad))
+       end if
+    end do
+    do i = 1, 3
+       xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
+       xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
+       xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
+       xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
+       xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+       xmax(i) = maxval(s%drawlist_sph(1:s%nsph)%x(i)) + maxrad
+       xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
+       xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
+       xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
+       xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+    end do
+    s%scenecenter = 0.5_c_float * (xmin + xmax)
+    s%scenerad = 0.5_c_float * norm2(xmax - xmin)
+    s%scenexmin = xmin
+    s%scenexmax = xmax
+
+    ! reset the camera if requested
+    if (s%forceresetcam) then
+       call s%reset()
+       s%forceresetcam = .false.
+    end if
 
   end subroutine scene_build_lists
 
@@ -461,7 +463,7 @@ contains
     real(c_float) :: pic, hw2
 
     pic = real(pi,c_float)
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * s%campos(3)
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * (s%campos(3) - s%scenecenter(3))
     s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
 
   end subroutine update_projection_matrix

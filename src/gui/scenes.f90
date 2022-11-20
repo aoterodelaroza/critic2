@@ -100,8 +100,11 @@ module scenes
      integer :: id ! system ID
      integer, allocatable :: iord(:) ! the representation order
      logical :: forcesort = .false. ! force sort the representations
+     logical :: forceresetcam = .false. ! force reset of the camera
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center
+     real(c_float) :: scenexmin(3) ! scene xmin
+     real(c_float) :: scenexmax(3) ! scene xmax
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
      ! object resolutions
      integer(c_int) :: atom_res ! atom resolution
@@ -116,6 +119,7 @@ module scenes
      real(c_float) :: specular ! specular light coefficent
      integer(c_int) :: shininess ! shininess parameter
      ! scene transformation matrices
+     real(c_float) :: camratio ! window ratio for the camera
      real(c_float) :: ortho_fov ! orthographic field of view
      real(c_float) :: persp_fov ! perspective field of view
      real(c_float) :: znear ! position of the near plane

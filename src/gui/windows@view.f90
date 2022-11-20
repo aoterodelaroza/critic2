@@ -55,7 +55,7 @@ contains
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
     logical(c_bool) :: isatom, isbond, isuc
     integer(c_int) :: amax, flags, nc(3), ires
-    real(c_float) :: scal, width, sqw
+    real(c_float) :: scal, width, sqw, ratio
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -423,6 +423,20 @@ contains
        w%forcerender = .true.
     end if
 
+    ! draw the texture, largest region with the same shape as the available region
+    ! that fits into the texture square
+    scal = real(w%FBOside,c_float) / max(max(szavail%x,szavail%y),1._c_float)
+    sz0%x = 0.5 * (real(w%FBOside,c_float) - szavail%x * scal) / real(w%FBOside,c_float)
+    sz0%y = 0.5 * (real(w%FBOside,c_float) - szavail%y * scal) / real(w%FBOside,c_float)
+    sz1%x = 1._c_float - sz0%x
+    sz1%y = 1._c_float - sz0%y
+    if (szavail%x > szavail%y) then
+       ratio = szavail%x / max(szavail%y,1._c_float)
+    else
+       ratio = szavail%y / max(szavail%x,1._c_float)
+    end if
+    sysc(w%view_selected)%sc%camratio = min(ratio,2._c_float)
+
     ! rebuild the draw lists, if requested
     if (w%forcebuildlists .and. goodsys) then
        call sysc(w%view_selected)%sc%build_lists()
@@ -444,14 +458,6 @@ contains
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
        w%forcerender = .false.
     end if
-
-    ! draw the texture, largest region with the same shape as the available region
-    ! that fits into the texture square
-    scal = real(w%FBOside,c_float) / max(max(szavail%x,szavail%y),1._c_float)
-    sz0%x = 0.5 * (real(w%FBOside,c_float) - szavail%x * scal) / real(w%FBOside,c_float)
-    sz0%y = 0.5 * (real(w%FBOside,c_float) - szavail%y * scal) / real(w%FBOside,c_float)
-    sz1%x = 1._c_float - sz0%x
-    sz1%y = 1._c_float - sz0%y
 
     ! border and tint for the image, draw the image, update the rectangle
     tint_col%x = 1._c_float
