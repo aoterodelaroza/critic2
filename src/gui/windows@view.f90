@@ -53,6 +53,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
+    logical(c_bool) :: isatom, isbond, isuc
     integer(c_int) :: amax, flags, nc(3), ires
     real(c_float) :: scal, width, sqw
 
@@ -70,6 +71,21 @@ contains
     chrender = .false.
     chbuild = .false.
 
+    ! flags for shortcuts
+    isatom = .false.
+    isbond = .false.
+    isuc = .false.
+    do i = 1, sysc(w%view_selected)%sc%nrep
+       if (sysc(w%view_selected)%sc%rep(i)%isinit) then
+          if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
+             isatom = isatom .or. sysc(w%view_selected)%sc%rep(i)%atoms_display
+             isbond = isbond .or. sysc(w%view_selected)%sc%rep(i)%bonds_display
+          elseif (sysc(w%view_selected)%sc%rep(i)%type == reptype_unitcell) then
+             isuc = isuc .or. sysc(w%view_selected)%sc%rep(i)%shown
+          end if
+       end if
+    end do
+
     ! whether the selected view system is a good system
     goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
     if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
@@ -81,6 +97,51 @@ contains
     end if
     if (goodsys) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
+          ! display shortcuts
+          call iw_text("Display Shortcuts",highlight=.true.)
+          str2 = "Atoms##atomsshortcut" // c_null_char
+          if (igCheckbox(c_loc(str2),isatom)) then
+             do i = 1, sysc(w%view_selected)%sc%nrep
+                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
+                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
+                      sysc(w%view_selected)%sc%rep(i)%atoms_display = isatom
+                   end if
+                end if
+             end do
+             chbuild = .true.
+          end if
+          call iw_tooltip("Toggle display atoms in all representations",ttshown)
+
+          str2 = "Bonds##bondsshortcut" // c_null_char
+          call igSameLine(0._c_float,-1._c_float)
+          if (igCheckbox(c_loc(str2),isbond)) then
+             do i = 1, sysc(w%view_selected)%sc%nrep
+                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
+                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
+                      sysc(w%view_selected)%sc%rep(i)%bonds_display = isbond
+                   end if
+                end if
+             end do
+             chbuild = .true.
+          end if
+          call iw_tooltip("Toggle display bonds in all representations",ttshown)
+
+          if (.not.sys(w%view_selected)%c%ismolecule) then
+             str2 = "Unit Cell##ucshortcut" // c_null_char
+             call igSameLine(0._c_float,-1._c_float)
+             if (igCheckbox(c_loc(str2),isuc)) then
+                do i = 1, sysc(w%view_selected)%sc%nrep
+                   if (sysc(w%view_selected)%sc%rep(i)%isinit) then
+                      if (sysc(w%view_selected)%sc%rep(i)%type == reptype_unitcell) then
+                         sysc(w%view_selected)%sc%rep(i)%shown = isuc
+                      end if
+                   end if
+                end do
+                chbuild = .true.
+             end if
+             call iw_tooltip("Toggle display of unit cell representations",ttshown)
+          end if
+
           ! number of cells selector
           if (.not.sys(w%view_selected)%c%ismolecule) then
              call igAlignTextToFramePadding()
