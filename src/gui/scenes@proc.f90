@@ -140,7 +140,7 @@ contains
     call s%update_view_matrix()
 
     ! projection matrix
-    s%znear = 0.1_c_float
+    s%znear = 0._c_float
     s%zfar = 100000._c_float
     call s%update_projection_matrix()
 
