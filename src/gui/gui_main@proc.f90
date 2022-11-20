@@ -109,7 +109,7 @@ contains
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
-    ! call glfwWindowHint(GLFW_SAMPLES, 4) ! activate multisampling
+    ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
     ! set up window
     strc = gui_title
@@ -141,6 +141,7 @@ contains
     ! set opengl options
     call glEnable(GL_DEPTH_TEST)
     call glEnable(GL_CULL_FACE)
+    ! call glEnable(GL_MULTISAMPLE)
 
     ! set up backend and renderer
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)

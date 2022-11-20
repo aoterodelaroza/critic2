@@ -29,6 +29,21 @@ subroutine glBindFramebuffer(target_,framebuffer) bind(c,name="glBindFramebuffer
   integer(c_int), value :: target_
   integer(c_int), value :: framebuffer
 end subroutine glBindFramebuffer
+! void glBlitFramebuffer(GLint srcX0,GLint srcY0,GLint srcX1,GLint srcY1,GLint dstX0,GLint dstY0,
+!                        GLint dstX1,GLint dstY1,GLbitfield mask,GLenum filter);
+subroutine glBlitFramebuffer(srcX0,srcY0,srcX1,srcY1,dstX0,dstY0,dstX1,dstY1,mask,filter) bind(c,name="glBlitFramebuffer")
+  import c_int
+  integer(c_int), value :: srcX0
+  integer(c_int), value :: srcY0
+  integer(c_int), value :: srcX1
+  integer(c_int), value :: srcY1
+  integer(c_int), value :: dstX0
+  integer(c_int), value :: dstY0
+  integer(c_int), value :: dstX1
+  integer(c_int), value :: dstY1
+  integer(c_int), value :: mask
+  integer(c_int), value :: filter
+end subroutine glBlitFramebuffer
 ! void glBindRenderbuffer(GLenum target, GLuint renderbuffer);
 subroutine glBindRenderbuffer(target_,renderbuffer) bind(c,name="glBindRenderbuffer")
   import c_int
@@ -270,6 +285,16 @@ subroutine glRenderbufferStorage(target_,internalformat,width,height) bind(c,nam
   integer(c_int), value :: width
   integer(c_int), value :: height
 end subroutine glRenderbufferStorage
+! void glRenderbufferStorageMultisample(GLenum target,GLsizei samples,GLenum internalformat,GLsizei width,GLsizei height);
+subroutine glRenderbufferStorageMultisample(target_,samples,internalformat,width,height) &
+   bind(c,name="glRenderbufferStorageMultisample")
+  import c_int
+  integer(c_int), value :: target_
+  integer(c_int), value :: samples
+  integer(c_int), value :: internalformat
+  integer(c_int), value :: width
+  integer(c_int), value :: height
+end subroutine glRenderbufferStorageMultisample
 ! void glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
 subroutine glShaderSource(shader,count,string,length) bind(c,name="glShaderSource")
   import c_int, c_ptr
@@ -292,6 +317,18 @@ subroutine glTexImage2D(target_,level,internalFormat,width,height,border,format_
   integer(c_int), value :: type
   type(c_ptr), intent(in), value :: data
 end subroutine glTexImage2D
+! void glTexImage2DMultisample(GLenum target,GLsizei samples,GLint internalformat,GLsizei width,
+!                              GLsizei height,GLboolean fixedsamplelocations);
+subroutine glTexImage2DMultisample(target_,samples,internalformat,width,height,fixedsamplelocations) &
+   bind(c,name="glTexImage2DMultisample")
+  import c_int, c_signed_char
+  integer(c_int), value :: target_
+  integer(c_int), value :: samples
+  integer(c_int), value :: internalformat
+  integer(c_int), value :: width
+  integer(c_int), value :: height
+  integer(c_signed_char), value :: fixedsamplelocations
+end subroutine glTexImage2DMultisample
 ! void glTexParameterf(GLenum target_, GLenum pname, GLfloat param);
 subroutine glTexParameterf(target_,pname,param) bind(c,name="glTexParameterf")
   import c_int, c_float
