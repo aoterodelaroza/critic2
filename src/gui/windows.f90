@@ -131,6 +131,9 @@ module windows
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      ! export image parameters
      integer :: idsave = 0 ! window ID for the save file dialog (export image)
+     integer(c_int) :: nsample ! number of samples for anti-aliasing
+     integer(c_int) :: jpgquality ! jpg quality
+     logical(c_bool) :: exportview ! export viewport or whole texture
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

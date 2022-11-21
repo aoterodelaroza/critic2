@@ -1502,21 +1502,26 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, goodsys, okvalid
-    integer :: oid, atex, isys
+    integer :: oid, atex, isys, width, height
     integer(c_int), target :: msFBO ! framebuffer
     integer(c_int), target :: msFBOdepth ! framebuffer, depth buffer
     integer(c_int), target :: msFBOtex ! framebuffer, texture
     integer(c_signed_char), allocatable, target :: data(:)
-    integer(c_int) :: idum
-    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idum, origin(2)
+    character(kind=c_char,len=:), allocatable, target :: str, str1, str2
+    type(ImVec2) :: x0, x1
+    logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    integer, parameter :: nsample = 16
-    integer, parameter :: jpg_quality = 90 ! between 1 and 100
-
-    ! remove state
-    if (w%firstpass) w%okfile = ""
+    ! initialize state
+    if (w%firstpass) then
+       w%okfile = ""
+       w%okfilter = "   "
+       w%nsample = 16
+       w%jpgquality = 90
+       w%exportview = .true.
+    end if
 
     ! initialize
     doquit = .false.
@@ -1533,12 +1538,38 @@ contains
        end if
     end if
 
-    ! first line: image file button
+    ! Image file button
     call iw_text("Image File",highlight=.true.)
     if (iw_button("File",disabled=(w%idsave > 0),danger=.true.)) &
        w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile)
     call iw_tooltip("Choose the file to save the image to",ttshown)
     call iw_text(w%okfile,sameline=.true.)
+
+    ! render settings
+    call iw_text("Render Settings",highlight=.true.)
+    str1 = "Number of samples" // c_null_char
+    str2 = "%d" // c_null_char
+    call igPushItemWidth(iw_calcwidth(2,1))
+    idum = igDragInt(c_loc(str1),w%nsample,1._c_float,1_c_int,32_c_int,c_loc(str2),&
+       ImGuiSliderFlags_AlwaysClamp)
+    call igPopItemWidth()
+    call iw_tooltip("Number of samples for the anti-aliasing render",ttshown)
+
+    str2 = "Export the viewport only" // c_null_char
+    ldum = igCheckbox(c_loc(str2),w%exportview)
+    call iw_tooltip("Export the viewport only or the whole rendered texture",ttshown)
+
+    ! image settings
+    if (w%okfilter(1:3) == "JPE") then
+       call iw_text("Image Settings",highlight=.true.)
+       str1 = "JPEG Quality" // c_null_char
+       str2 = "%d" // c_null_char
+       call igPushItemWidth(iw_calcwidth(3,1))
+       idum = igDragInt(c_loc(str1),w%jpgquality,1._c_float,1_c_int,100_c_int,c_loc(str2),&
+          ImGuiSliderFlags_AlwaysClamp)
+       call igPopItemWidth()
+       call iw_tooltip("Quality and weight of the JPEG file",ttshown)
+    end if
 
     ! right-align for the rest of the contents
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
@@ -1555,13 +1586,13 @@ contains
 
        ! texture
        call glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msFBOtex)
-       call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, atex, atex,&
+       call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, w%nsample, GL_RGBA, atex, atex,&
           int(GL_TRUE,c_signed_char))
        call glBindTexture(GL_TEXTURE_2D, 0)
 
        ! render buffer
        call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
-       call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, atex, atex)
+       call glRenderbufferStorageMultisample(GL_RENDERBUFFER, w%nsample, GL_DEPTH_COMPONENT, atex, atex)
        call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
        ! frame buffer
@@ -1595,22 +1626,42 @@ contains
        call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
 
        ! Read from the regular framebuffer into the data array
-       allocate(data(4 * atex * atex))
-       data = 0_c_signed_char
        call glBindFramebuffer(GL_FRAMEBUFFER, win(w%idparent)%FBO)
-       call glReadPixels(0, 0, atex, atex, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+       if (.not.w%exportview) then
+          ! whole texture
+          width = atex
+          height = atex
+          allocate(data(4 * width * height))
+          data = 0_c_signed_char
+          call glReadPixels(0, 0, atex, atex, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+       else
+          ! viewport only
+          x0%x = win(w%idparent)%v_rmin%x
+          x0%y = win(w%idparent)%v_rmin%y
+          x1%x = win(w%idparent)%v_rmax%x
+          x1%y = win(w%idparent)%v_rmax%y
+          call win(w%idparent)%mousepos_to_texpos(x0)
+          call win(w%idparent)%mousepos_to_texpos(x1)
+          width = min(nint(x1%x - x0%x),atex)
+          height = min(nint(x1%y - x0%y),atex)
+          origin(1) = max(nint(x0%x),0)
+          origin(2) = max(nint(x0%y),0)
+          allocate(data(4 * width * height))
+          data = 0_c_signed_char
+          call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+       end if
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
        ! write the file
        str = trim(w%okfile) // c_null_char
        if (w%okfilter(1:3) == "PNG") then
-          idum = stbi_write_png(c_loc(str), atex, atex, 4, c_loc(data), atex*4) ! 4*width
+          idum = stbi_write_png(c_loc(str), width, height, 4, c_loc(data), 4*width)
        elseif (w%okfilter(1:3) == "BMP") then
-          idum = stbi_write_bmp(c_loc(str), atex, atex, 4, c_loc(data))
+          idum = stbi_write_bmp(c_loc(str), width, height, 4, c_loc(data))
        elseif (w%okfilter(1:3) == "TGA") then
-          idum = stbi_write_tga(c_loc(str), atex, atex, 4, c_loc(data))
+          idum = stbi_write_tga(c_loc(str), width, height, 4, c_loc(data))
        elseif (w%okfilter(1:3) == "JPE") then
-          idum = stbi_write_jpg(c_loc(str), atex, atex, 4, c_loc(data), jpg_quality)
+          idum = stbi_write_jpg(c_loc(str), width, height, 4, c_loc(data), w%jpgquality)
        end if
        if (idum == 0) &
           write (uout,'("WARNING : could not save image to file: ",A/)') trim(w%okfile)
