@@ -71,6 +71,9 @@ contains
     chrender = .false.
     chbuild = .false.
 
+    ! update ID for the export window
+    call update_window_id(w%idexportwin)
+
     ! flags for shortcuts
     isatom = .false.
     isbond = .false.
@@ -413,7 +416,11 @@ contains
 
     ! save image
     if (iw_button("Export",sameline=.true.)) then
-       ! idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys)
+       if (w%idexportwin == 0) then
+          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
+       else
+          call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
+       end if
     end if
     call iw_tooltip("Export the current scene to an image file",ttshown)
 
@@ -908,9 +915,9 @@ contains
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
-    if (.not.doquit) doquit = .not.(w%editrep_iview > 0 .and. w%editrep_iview <= nwin)
-    if (.not.doquit) doquit = .not.(win(w%editrep_iview)%isinit)
-    if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
+    if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
+    if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
+    if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
 
     ! if they aren't, quit the window
     if (doquit) call w%end()
@@ -944,9 +951,9 @@ contains
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
-    if (.not.doquit) doquit = .not.(w%editrep_iview > 0 .and. w%editrep_iview <= nwin)
-    if (.not.doquit) doquit = .not.(win(w%editrep_iview)%isinit)
-    if (.not.doquit) doquit = win(w%editrep_iview)%type /= wintype_view
+    if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
+    if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
+    if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
 
     if (.not.doquit) then
        ! whether the rep has changed
@@ -980,7 +987,7 @@ contains
        end if
 
        ! rebuild draw lists if necessary
-       if (changed) win(w%editrep_iview)%forcebuildlists = .true.
+       if (changed) win(w%idparent)%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
@@ -995,7 +1002,7 @@ contains
           call w%rep%init(w%rep%id,w%rep%idrep,itype)
           w%rep%name = str2
           w%rep%shown = lshown
-          win(w%editrep_iview)%forcebuildlists = .true.
+          win(w%idparent)%forcebuildlists = .true.
        end if
 
        ! close button
@@ -1482,5 +1489,32 @@ contains
     end if
 
   end function draw_editrep_unitcell
+
+  !> Draw the export image window
+  module subroutine draw_exportimage(w)
+    use utils, only: iw_text
+    class(window), intent(inout), target :: w
+
+    call iw_text("Bleh",highlight=.true.)
+
+    ! GLuint textureObj = ...; // the texture object - glGenTextures
+
+    ! GLuint fbo;
+    ! glGenFramebuffers(1, &fbo);
+    ! glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    ! glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureObj, 0);
+
+    ! int data_size = mWidth * mHeight * 4;
+    ! GLubyte* pixels = new GLubyte[mWidth * mHeight * 4];
+    ! glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    ! glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    ! glDeleteFramebuffers(1, &fbo);
+
+    ! #define STB_IMAGE_WRITE_IMPLEMENTATION
+    ! #include <stb_image_write.h>
+    ! stbi_write_bmp( "myfile.bmp", width, height, 4, pixels );
+
+  end subroutine draw_exportimage
 
 end submodule view

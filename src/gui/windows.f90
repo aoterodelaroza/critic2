@@ -81,7 +81,8 @@ module windows
      logical :: firstpass = .true. ! true if this is the first draw() call
      logical(c_bool) :: isopen ! whether the window is open
      integer :: type ! the window type
-     integer(c_int) :: id ! internal ID for this window
+     integer(c_int) :: id ! internal ID for this window (index from win(:))
+     integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
@@ -107,6 +108,7 @@ module windows
      logical :: forcebuildlists = .true. ! force rebuild draw lists
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
+     integer :: idexportwin = 0 ! the ID for the export window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
@@ -125,7 +127,6 @@ module windows
      real(c_double), allocatable :: plotx(:), ploty(:) ! plot data
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
-     integer :: editrep_iview = 0 ! the window ID for the caller view
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
    contains
      procedure :: init => window_init ! initialize the window
@@ -173,6 +174,8 @@ module windows
      procedure :: draw_editrep
      procedure :: draw_editrep_atoms
      procedure :: draw_editrep_unitcell
+     ! export image
+     procedure :: draw_exportimage
   end type window
   public :: window
 
@@ -195,6 +198,7 @@ module windows
   integer, parameter, public :: wintype_load_field = 8
   integer, parameter, public :: wintype_scfplot = 9
   integer, parameter, public :: wintype_editrep = 10
+  integer, parameter, public :: wintype_exportimage = 11
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -229,10 +233,11 @@ module windows
        integer, intent(inout) :: id
        integer, intent(out), optional :: changed
      end subroutine update_window_id
-     module subroutine window_init(w,type,isopen,purpose,isys,irep,idcaller)
+     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
+       integer, intent(in) :: id
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
@@ -361,6 +366,9 @@ module windows
        logical, intent(inout) :: ttshown
        logical(c_bool) :: changed
      end function draw_editrep_unitcell
+     module subroutine draw_exportimage(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_exportimage
   end interface
 
 end module windows

@@ -20,9 +20,6 @@ submodule (windows) proc
   use interfaces_cimgui
   implicit none
 
-  ! Count unique IDs for keeping track of windows and widget
-  integer :: idcount = 0
-
   ! initial side for the view texture
   integer(c_int), parameter :: initial_texture_side = 1024_c_int
 
@@ -100,7 +97,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,purpose,isys,irep,idcaller)
+    call win(id)%init(type,isopen,id,purpose,isys,irep,idcaller)
     stack_create_window = id
 
   end function stack_create_window
@@ -126,7 +123,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,purpose,isys,irep,idcaller)
+  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile, sysc
     use tools_io, only: ferror, faterr
@@ -134,6 +131,7 @@ contains
     class(window), intent(inout), target :: w
     integer, intent(in) :: type
     logical, intent(in) :: isopen
+    integer, intent(in) :: id
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
@@ -146,7 +144,7 @@ contains
     w%firstpass = .true.
     w%isopen = isopen
     w%type = type
-    w%id = -1
+    w%id = -id
     w%name = "" // c_null_char
     w%table_selected = 1
     w%table_sortcid = 0
@@ -161,6 +159,7 @@ contains
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
     w%view_mousebehavior = MB_navigation
+    w%idexportwin = 0
     w%forcerender = .true.
     w%forcebuildlists = .true.
     if (allocated(w%iord)) deallocate(w%iord)
@@ -205,7 +204,12 @@ contains
           call ferror('window_init','editrep requires idcaller',faterr)
        w%editrep_isys = isys
        w%rep => sysc(isys)%sc%rep(irep)
-       w%editrep_iview = idcaller
+       w%idparent = idcaller
+    elseif (type == wintype_exportimage) then
+       ! export image window
+       if (.not.present(idcaller)) &
+          call ferror('window_init','exportimage requires idcaller',faterr)
+       w%idparent = idcaller
     elseif (type == wintype_view) then
        ! view window
        call w%create_texture_view(initial_texture_side)
@@ -274,8 +278,7 @@ contains
     ! First pass on creation: assign ID, name, and flags
     if (w%id < 0) then
        w%firstpass = .true.
-       idcount = idcount + 1
-       w%id = idcount
+       w%id = abs(w%id)
        if (w%type == wintype_tree) then
           w%name = "Tree" // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -401,6 +404,12 @@ contains
           inisize%x = 60 * fontsize%x
           inisize%y = 40 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_exportimage) then
+          w%name = "Export Image" // "##" // string(w%idparent) // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 60 * fontsize%x
+          inisize%y = 40 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -442,6 +451,8 @@ contains
                 call w%draw_scfplot()
              elseif (w%type == wintype_editrep) then
                 call w%draw_editrep()
+             elseif (w%type == wintype_exportimage) then
+                call w%draw_exportimage()
              end if
           end if
           call igEnd()
