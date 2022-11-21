@@ -411,6 +411,12 @@ contains
     end if
     call iw_tooltip("Choose the system displayed",ttshown)
 
+    ! save image
+    if (iw_button("Export",sameline=.true.)) then
+       ! idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys)
+    end if
+    call iw_tooltip("Export the current scene to an image file",ttshown)
+
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)
 

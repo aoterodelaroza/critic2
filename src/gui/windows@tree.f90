@@ -1979,8 +1979,6 @@ contains
     type(ImVec4) :: auto
     character(len=:,kind=c_char), allocatable, target :: str1, str2
 
-    real(c_double), save :: ymin, ymax
-
     isys = w%scfplot_isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
@@ -2003,8 +2001,8 @@ contains
           end do
           w%plotx(num) = num
           w%ploty(num) = sysc(isys)%seed%energy
-          ymax = maxval(w%ploty)
-          ymin = minval(w%ploty)
+          w%ymax = maxval(w%ploty)
+          w%ymin = minval(w%ploty)
        end if
 
        ! make the plot
@@ -2019,10 +2017,10 @@ contains
           call ipSetupAxisTicks(ImAxis_X1,w%plotx(1),w%plotx(size(w%plotx,1)),size(w%plotx,1))
           call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
 
-          dy = (ymax - ymin)
+          dy = (w%ymax - w%ymin)
           str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
           call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
-          call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) ! these need to be switched
+          call ipGetPlotCurrentLimits(xmin,xmax,w%ymin,w%ymax) ! these need to be switched
 
           str1 = "Energy" // c_null_char
           auto%x = 0._c_float

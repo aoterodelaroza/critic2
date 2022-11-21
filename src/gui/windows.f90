@@ -121,7 +121,8 @@ module windows
      integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
      ! scf plot parameters
      integer :: scfplot_isys = 0 ! the system on which the scf plot window operates
-     real(c_double), allocatable :: plotx(:), ploty(:)
+     real(c_double) :: ymin, ymax ! y-end of the plot
+     real(c_double), allocatable :: plotx(:), ploty(:) ! plot data
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
      integer :: editrep_iview = 0 ! the window ID for the caller view
