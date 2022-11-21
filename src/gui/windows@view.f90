@@ -1492,11 +1492,15 @@ contains
 
   !> Draw the export image window
   module subroutine draw_exportimage(w)
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_button, iw_calcwidth
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     class(window), intent(inout), target :: w
+
+    logical :: doquit, ok
 
     call iw_text("Bleh",highlight=.true.)
 
+    doquit = .false.
     ! GLuint textureObj = ...; // the texture object - glGenTextures
 
     ! GLuint fbo;
@@ -1514,6 +1518,25 @@ contains
     ! #define STB_IMAGE_WRITE_IMPLEMENTATION
     ! #include <stb_image_write.h>
     ! stbi_write_bmp( "myfile.bmp", width, height, 4, pixels );
+
+    ! right-align for the rest of the contents
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+
+    ! final buttons: OK
+    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
+    ok = ok .or. iw_button("OK")
+    if (ok) then
+       doquit = .true.
+    end if
+
+    ! final buttons: cancel
+    if (iw_button("Cancel",sameline=.true.)) doquit = .true.
+
+    ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+
+    ! quit = close the window
+    if (doquit) call w%end()
 
   end subroutine draw_exportimage
 
