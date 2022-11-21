@@ -115,8 +115,9 @@ module windows
      logical :: forcequitdialog = .false. ! for the dialog to quit
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
-     ! new structure from library parameters
+     ! new structure from library & save image
      character(kind=c_char,len=:), allocatable :: okfile ! ok file
+     character(kind=c_char,len=:), allocatable :: okfilter ! ok filter
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      ! load field parameters
@@ -128,6 +129,8 @@ module windows
      ! edit representation parameters
      integer :: editrep_isys = 0 ! the system on which the edit representation window operates
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
+     ! export image parameters
+     integer :: idsave = 0 ! window ID for the save file dialog (export image)
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -207,6 +210,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_openlibraryfile = 3
   integer, parameter, public :: wpurp_dialog_openfieldfile = 4
   integer, parameter, public :: wpurp_dialog_openonefilemodal = 5
+  integer, parameter, public :: wpurp_dialog_saveimagefile = 6
 
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe

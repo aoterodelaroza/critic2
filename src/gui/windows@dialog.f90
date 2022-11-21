@@ -102,6 +102,19 @@ contains
              w%okfile = trim(name)
              w%okfile_set = .true.
              w%okfile_read = .true.
+          elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
+             !! save image file dialog !!
+             w%okfile_set = .true.
+
+             cstr = IGFD_GetFilePathName(w%dptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             w%okfile = trim(name)
+
+             cstr = IGFD_GetCurrentFilter(w%dptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             w%okfilter = trim(name)
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
           end if

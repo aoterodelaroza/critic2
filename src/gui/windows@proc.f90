@@ -155,6 +155,7 @@ contains
     w%forceinit = .false.
     w%forceselect = 0
     w%inpcon_selected = 1
+    w%okfile = ""
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
@@ -172,6 +173,7 @@ contains
     w%dialog_data%molcubic = .false.
     w%dialog_data%rborder = rborder_def*bohrtoa
     w%forcequitdialog = .false.
+    w%idsave = 0
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -368,6 +370,11 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File..." // c_null_char
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
+             w%name = "Save Image File..." // c_null_char
+             str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else

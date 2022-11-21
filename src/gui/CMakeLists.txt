@@ -11,10 +11,12 @@ set(SOURCES
 
   tinycthread/tinycthread.c tinycthread/tinycwrapper.c
 
+  stb/stb.c
+
   filedialog/ImGuiFileDialog.cpp filedialog/filedialogwrapper.cpp
 
   interfaces_cimgui.f90 interfaces_glfw.f90
-  interfaces_opengl3.f90 interfaces_threads.f90
+  interfaces_opengl3.f90 interfaces_threads.f90 interfaces_stb.f90
 
   c_utils/utils.c
 

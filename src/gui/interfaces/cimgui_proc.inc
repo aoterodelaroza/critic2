@@ -2325,8 +2325,12 @@ function IGFD_GetCurrentPath(vContext) bind(c,name="IGFD_GetCurrentPath")
   type(c_ptr), value :: vContext
   type(c_ptr) :: IGFD_GetCurrentPath
 end function IGFD_GetCurrentPath
-!x! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFilter(
-!       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
+! IMGUIFILEDIALOG_API char* IGFD_GetCurrentFilter(ImGuiFileDialog* vContext);
+function IGFD_GetCurrentFilter(vContext) bind(c,name="IGFD_GetCurrentFilter")
+  import c_ptr
+  type(c_ptr), value :: vContext
+  type(c_ptr) :: IGFD_GetCurrentFilter
+end function IGFD_GETCURRENTFILTER
 !x! IMGUIFILEDIALOG_API void* IGFD_GetUserDatas(
 !       ImGuiFileDialog* vContext);                                                             // ImGuiFileDialog context
 ! IMGUIFILEDIALOG_API void IGFD_SetFileStyle(ImGuiFileDialog* vContext,IGFD_FileStyleFlags vFileStyleFlags,

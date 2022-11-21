@@ -389,6 +389,16 @@ contains
     if (chbuild) w%forcebuildlists = .true.
     if (chrender .or. chbuild) w%forcerender = .true.
 
+    ! save image
+    if (iw_button("Export",sameline=.true.)) then
+       if (w%idexportwin == 0) then
+          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
+       else
+          call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
+       end if
+    end if
+    call iw_tooltip("Export the current scene to an image file",ttshown)
+
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
     str2 = "" // c_null_char
@@ -413,16 +423,6 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Choose the system displayed",ttshown)
-
-    ! save image
-    if (iw_button("Export",sameline=.true.)) then
-       if (w%idexportwin == 0) then
-          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
-       else
-          call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
-       end if
-    end if
-    call iw_tooltip("Export the current scene to an image file",ttshown)
 
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)
@@ -1492,40 +1492,134 @@ contains
 
   !> Draw the export image window
   module subroutine draw_exportimage(w)
-    use utils, only: iw_text, iw_button, iw_calcwidth
+    use interfaces_opengl3
+    use interfaces_stb
+    use gui_main, only: sysc, sys_init, nsys
+    use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
+    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use tools_io, only: ferror, faterr, uout
     class(window), intent(inout), target :: w
 
-    logical :: doquit, ok
+    logical :: doquit, ok, goodsys, okvalid
+    integer :: oid, atex, isys
+    integer(c_int), target :: msFBO ! framebuffer
+    integer(c_int), target :: msFBOdepth ! framebuffer, depth buffer
+    integer(c_int), target :: msFBOtex ! framebuffer, texture
+    integer(c_signed_char), allocatable, target :: data(:)
+    integer(c_int) :: idum
+    character(kind=c_char,len=:), allocatable, target :: str
 
-    call iw_text("Bleh",highlight=.true.)
+    logical, save :: ttshown = .false. ! tooltip flag
 
+    integer, parameter :: nsample = 16
+    integer, parameter :: jpg_quality = 90 ! between 1 and 100
+
+    ! remove state
+    if (w%firstpass) w%okfile = ""
+
+    ! initialize
     doquit = .false.
-    ! GLuint textureObj = ...; // the texture object - glGenTextures
+    atex = win(w%idparent)%FBOside
+    isys = win(w%idparent)%view_selected
 
-    ! GLuint fbo;
-    ! glGenFramebuffers(1, &fbo);
-    ! glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    ! glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureObj, 0);
+    ! check if we have info from the save image file window when it
+    ! closes and recover it
+    call update_window_id(w%idsave,oid)
+    if (oid /= 0) then
+       if (win(oid)%okfile_set) then
+          w%okfile = win(oid)%okfile
+          w%okfilter = win(oid)%okfilter
+       end if
+    end if
 
-    ! int data_size = mWidth * mHeight * 4;
-    ! GLubyte* pixels = new GLubyte[mWidth * mHeight * 4];
-    ! glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-    ! glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    ! glDeleteFramebuffers(1, &fbo);
-
-    ! #define STB_IMAGE_WRITE_IMPLEMENTATION
-    ! #include <stb_image_write.h>
-    ! stbi_write_bmp( "myfile.bmp", width, height, 4, pixels );
+    ! first line: image file button
+    call iw_text("Image File",highlight=.true.)
+    if (iw_button("File",disabled=(w%idsave > 0),danger=.true.)) &
+       w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile)
+    call iw_tooltip("Choose the file to save the image to",ttshown)
+    call iw_text(w%okfile,sameline=.true.)
 
     ! right-align for the rest of the contents
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
 
     ! final buttons: OK
-    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
-    ok = ok .or. iw_button("OK")
+    okvalid = (len_trim(w%okfile) > 0)
+    ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) .and. okvalid
+    ok = ok .or. iw_button("OK",disabled=.not.okvalid)
     if (ok) then
+       ! render to multisampled texture
+       call glGenTextures(1, c_loc(msFBOtex))
+       call glGenRenderbuffers(1, c_loc(msFBOdepth))
+       call glGenFramebuffers(1, c_loc(msFBO))
+
+       ! texture
+       call glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msFBOtex)
+       call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, atex, atex,&
+          int(GL_TRUE,c_signed_char))
+       call glBindTexture(GL_TEXTURE_2D, 0)
+
+       ! render buffer
+       call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
+       call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, atex, atex)
+       call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+       ! frame buffer
+       call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
+       call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, msFBOtex, 0)
+       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, msFBOdepth)
+
+       ! check for errors
+       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+          call ferror('window_init','framebuffer is not complete',faterr)
+
+       ! finish and write the texture size
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+       ! render the scene to the multisampled framebuffer
+       call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
+       call glViewport(0_c_int,0_c_int,atex,atex)
+       call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),&
+          sysc(isys)%sc%bgcolor(4))
+       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+       goodsys = (isys >= 1 .and. isys <= nsys)
+       if (goodsys) goodsys = (sysc(isys)%status == sys_init)
+       if (goodsys) call sysc(isys)%sc%render()
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+       ! blit the multisampled buffer to the normal colorbuffer
+       call glBindFramebuffer(GL_READ_FRAMEBUFFER, msFBO)
+       call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, win(w%idparent)%FBO)
+       call glBlitFramebuffer(0, 0, atex, atex, 0, 0, atex, atex, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+       call glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
+       call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
+
+       ! Read from the regular framebuffer into the data array
+       allocate(data(4 * atex * atex))
+       data = 0_c_signed_char
+       call glBindFramebuffer(GL_FRAMEBUFFER, win(w%idparent)%FBO)
+       call glReadPixels(0, 0, atex, atex, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+       ! write the file
+       str = trim(w%okfile) // c_null_char
+       if (w%okfilter(1:3) == "PNG") then
+          idum = stbi_write_png(c_loc(str), atex, atex, 4, c_loc(data), atex*4) ! 4*width
+       elseif (w%okfilter(1:3) == "BMP") then
+          idum = stbi_write_bmp(c_loc(str), atex, atex, 4, c_loc(data))
+       elseif (w%okfilter(1:3) == "TGA") then
+          idum = stbi_write_tga(c_loc(str), atex, atex, 4, c_loc(data))
+       elseif (w%okfilter(1:3) == "JPE") then
+          idum = stbi_write_jpg(c_loc(str), atex, atex, 4, c_loc(data), jpg_quality)
+       end if
+       if (idum == 0) &
+          write (uout,'("WARNING : could not save image to file: ",A/)') trim(w%okfile)
+
+       ! delete the multisampled buffers
+       call glDeleteTextures(1, c_loc(msFBOtex))
+       call glDeleteRenderbuffers(1, c_loc(msFBOdepth))
+       call glDeleteFramebuffers(1, c_loc(msFBO))
+
        doquit = .true.
     end if
 
