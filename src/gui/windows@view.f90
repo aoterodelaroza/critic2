@@ -49,7 +49,7 @@ contains
 
     integer :: i, nrep, id, ipad
     type(ImVec2) :: szavail, sz0, sz1, szero
-    type(ImVec4) :: tint_col, border_col
+    type(ImVec4) :: col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
@@ -473,15 +473,11 @@ contains
     end if
 
     ! border and tint for the image, draw the image, update the rectangle
-    tint_col%x = 1._c_float
-    tint_col%y = 1._c_float
-    tint_col%z = 1._c_float
-    tint_col%w = 1._c_float
-    border_col%x = 0._c_float
-    border_col%y = 0._c_float
-    border_col%z = 0._c_float
-    border_col%w = 0._c_float
-    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, border_col, tint_col)
+    col%x = 1._c_float
+    col%y = 1._c_float
+    col%z = 1._c_float
+    col%w = 1._c_float
+    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, col, col)
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
