@@ -179,6 +179,8 @@ contains
     end do
     if (s%nsph + s%ncyl + s%ncylflat > 0) then
        do i = 1, 3
+          xmin(i) = huge(1._c_float)
+          xmax(i) = -huge(1._c_float)
           xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
           xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
