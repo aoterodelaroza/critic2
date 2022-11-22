@@ -1,0 +1,1 @@
+COMPAREVC {.|file1.s} {.|file2.s} [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r]
