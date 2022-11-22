@@ -181,11 +181,13 @@ contains
 
   !> Draw text. If highlight, use the highlight color. If disabled,
   !> use the disabled font. If sameline, draw it in the same line as
-  !> the previous widget. If noadvance, do not advance the cursor
-  !> after writing. If copy_to_output, write the text to uout as well
-  !> (without advancing to a new line and with a comma after the string).
+  !> the previous widget. If sameline_nospace, draw it in the same
+  !> line adjacent to the previous item. If noadvance, do not advance
+  !> the cursor after writing. If copy_to_output, write the text to
+  !> uout as well (without advancing to a new line and with a comma
+  !> after the string). If centered, center the text in the window.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output)
+     noadvance,copy_to_output,centered)
     use interfaces_cimgui
     use gui_main, only: ColorHighlightText, ColorDangerText
     use tools_io, only: uout
@@ -197,12 +199,14 @@ contains
     logical, intent(in), optional :: disabled
     logical, intent(in), optional :: noadvance
     logical, intent(in), optional :: copy_to_output
+    logical, intent(in), optional :: centered
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
-    logical :: noadvance_,copy_to_output_
-    real(c_float) :: pos
+    logical :: noadvance_,copy_to_output_, centered_
+    real(c_float) :: pos, wwidth, twidth
+    type(ImVec2) :: sz
 
     highlight_ = .false.
     danger_ = .false.
@@ -211,6 +215,7 @@ contains
     disabled_ = .false.
     noadvance_ = .false.
     copy_to_output_ = .false.
+    centered_ = .false.
     if (present(highlight)) highlight_ = highlight
     if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
@@ -218,11 +223,18 @@ contains
     if (present(disabled)) disabled_ = disabled
     if (present(noadvance)) noadvance_ = noadvance
     if (present(copy_to_output)) copy_to_output_ = copy_to_output
+    if (present(centered)) centered_ = centered
 
+    str1 = str // c_null_char
     if (noadvance_) pos = igGetCursorPosX()
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
-    str1 = str // c_null_char
+    if (centered_) then
+       wwidth = igGetWindowWidth()
+       call igCalcTextSize(sz,c_loc(str1),c_null_ptr,.false._c_bool,-1.0_c_float)
+       twidth = sz%x
+       call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
+    end if
     if (disabled_) then
        call igTextDisabled(c_loc(str1))
     elseif (highlight_) then

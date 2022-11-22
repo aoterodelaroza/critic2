@@ -52,8 +52,8 @@ contains
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
-       wintype_console_output, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, stack_create_window, stack_realloc_maybe
+       wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
+       iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe
     use keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
@@ -196,6 +196,7 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.)
     iwin_console_input = stack_create_window(wintype_console_input,.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.)
+    iwin_about = stack_create_window(wintype_about,.false.)
 
     ! main loop
     show_implot_demo_window = .false.
@@ -664,8 +665,9 @@ contains
   subroutine show_main_menu()
     use interfaces_cimgui
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, stack_create_window, wintype_dialog, wpurp_dialog_openfiles,&
-       wintype_new_struct, wintype_new_struct_library, update_window_id
+       iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
+       wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
+       update_window_id
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -738,29 +740,55 @@ contains
        ! Windows
        str1 = "Windows" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          ! File -> Tree
+          ! Windows -> Tree
           str1 = "Tree" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
           call iw_tooltip("Toggle the tree window",ttshown)
 
-          ! File -> View
+          ! Windows -> View
           str1 = "View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
           call iw_tooltip("Toggle the view window",ttshown)
 
-          ! File -> Input Console
+          ! Windows -> Input Console
           str1 = "Input Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
           call iw_tooltip("Toggle the input console window",ttshown)
 
-          ! File -> Output Console
+          ! Windows -> Output Console
           str1 = "Output Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the output console window",ttshown)
+          call igEndMenu()
+       else
+          ttshown = .false.
+       end if
+
+       ! Help
+       str1 = "Help" // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! Help -> Critic2 Manual
+          str1 = "Critic2 Manual..." // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             str2 = "https://aoterodelaroza.github.io/critic2/" // c_null_char
+             call openLink(c_loc(str2))
+          end if
+          call iw_tooltip("Visit the critic2 website for more information about the program",ttshown)
+
+          ! Help -> About
+          str1 = "About..." // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (win(iwin_about)%isopen) then
+                call igSetWindowFocus_Str(c_loc(win(iwin_about)%name))
+             else
+                win(iwin_about)%isopen = .true.
+             end if
+          end if
+
           call igEndMenu()
        else
           ttshown = .false.

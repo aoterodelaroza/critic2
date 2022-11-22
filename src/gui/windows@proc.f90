@@ -294,6 +294,12 @@ contains
        elseif (w%type == wintype_console_output) then
           w%name = "Output Console" // c_null_char
           w%flags = ImGuiWindowFlags_None
+       elseif (w%type == wintype_about) then
+          w%name = "About" // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 52 * fontsize%x
+          inisize%y = 17 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%dialog_purpose
@@ -449,6 +455,8 @@ contains
                 call w%draw_ci()
              elseif (w%type == wintype_console_output) then
                 call w%draw_co()
+             elseif (w%type == wintype_about) then
+                call w%draw_about()
              elseif (w%type == wintype_new_struct) then
                 call w%draw_new_struct()
              elseif (w%type == wintype_new_struct_library) then
@@ -471,6 +479,31 @@ contains
     end if
 
   end subroutine window_draw
+
+  !> Draw the about window
+  module subroutine draw_about(w)
+    use utils, only: iw_text, iw_button, iw_calcwidth
+    class(window), intent(inout), target :: w
+
+    real(c_float) :: wwidth, twidth
+
+    call iw_text("  ---- critic2 GUI ----",danger=.true.,centered=.true.)
+    call iw_text("[development version]",centered=.true.)
+    call igNewLine()
+    call iw_text("Critic2 is a program for visualization and analysis",centered=.true.)
+    call iw_text("of structures and data in computational chemistry",centered=.true.)
+    call igNewLine()
+    call iw_text("Copyright (c) 2022- Alberto Otero de la Roza",centered=.true.)
+    call iw_text("Distributed under GNU/GPL license, version 3",centered=.true.)
+    call iw_text("Contact: aoterodelaroza@gmail.com",highlight=.true.,centered=.true.)
+    call igNewLine()
+
+    wwidth = igGetWindowWidth()
+    twidth = iw_calcwidth(5,1)
+    call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
+    if (iw_button("Close")) w%isopen = .false.
+
+  end subroutine draw_about
 
   !xx! private procedures
 

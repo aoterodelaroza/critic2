@@ -168,6 +168,8 @@ module windows
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
      procedure :: draw_co ! draw the output console
+     ! about window
+     procedure :: draw_about ! draw the about window
      ! new structure procedures
      procedure :: draw_new_struct
      ! new structure from library procedures
@@ -194,6 +196,7 @@ module windows
   integer, public :: iwin_console_input
   integer, public :: iwin_console_output
   integer, public :: iwin_view
+  integer, public :: iwin_about
 
   ! window types
   integer, parameter, public :: wintype_tree = 1
@@ -207,6 +210,7 @@ module windows
   integer, parameter, public :: wintype_scfplot = 9
   integer, parameter, public :: wintype_editrep = 10
   integer, parameter, public :: wintype_exportimage = 11
+  integer, parameter, public :: wintype_about = 12
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -344,6 +348,9 @@ module windows
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co
+     module subroutine draw_about(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_about
      module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct
