@@ -415,8 +415,8 @@ contains
        elseif (w%type == wintype_exportimage) then
           w%name = "Export Image" // "##" // string(w%idparent) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 60 * fontsize%x
-          inisize%y = 40 * fontsize%y
+          inisize%x = 50 * fontsize%x
+          inisize%y = 17 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
