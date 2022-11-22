@@ -3900,7 +3900,9 @@ namespace IGFD
 				}
 				else
 				{
-					beg = ImGui::Begin(name.c_str(), (bool*)nullptr, flags | ImGuiWindowFlags_NoScrollbar);
+				  bool popen = true;
+				  beg = ImGui::Begin(name.c_str(), &popen, flags | ImGuiWindowFlags_NoScrollbar);
+				  prFileDialogInternal.forceExitDialog |= !popen;
 				}
 			}
 			if (beg)
