@@ -177,18 +177,23 @@ contains
           maxrad = max(maxrad,maxval(s%rep(i)%atom_style(1:s%rep(i)%natom_style)%rad))
        end if
     end do
-    do i = 1, 3
-       xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
-       xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
-       xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
-       xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
-       xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
-       xmax(i) = maxval(s%drawlist_sph(1:s%nsph)%x(i)) + maxrad
-       xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
-       xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
-       xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
-       xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
-    end do
+    if (s%nsph + s%ncyl + s%ncylflat > 0) then
+       do i = 1, 3
+          xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
+          xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
+          xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
+          xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
+          xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+          xmax(i) = maxval(s%drawlist_sph(1:s%nsph)%x(i)) + maxrad
+          xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
+          xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
+          xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
+          xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+       end do
+    else
+       xmin = 0._c_float
+       xmax = 1._c_float
+    end if
     s%scenecenter = 0.5_c_float * (xmin + xmax)
     s%scenerad = 0.5_c_float * norm2(xmax - xmin)
     s%scenexmin = xmin
