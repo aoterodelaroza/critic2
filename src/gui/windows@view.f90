@@ -1281,8 +1281,8 @@ contains
              str2 = "##tableradius" // string(i) // c_null_char
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
-             ch = igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
-                0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+             ch = igDragFloat(c_loc(str2),w%rep%atom_style(i)%rad,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
              if (ch) then
                 w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
                 changed = .true.
@@ -1337,8 +1337,8 @@ contains
     call igPushItemWidth(iw_calcwidth(5,1))
     str2 = "Radii Scale##atomradiiscale" // c_null_char
     str3 = "%.3f" // c_null_char
-    ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+       ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
     call igPopItemWidth()
     if (ch) then
@@ -1414,8 +1414,8 @@ contains
     str2 = "Radius ##bondradius" // c_null_char
     str3 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. igInputFloat(c_loc(str2),w%rep%bond_rad,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
+       c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
 
@@ -1441,8 +1441,8 @@ contains
     str1 = "Radius##outer" // c_null_char
     str2 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radius,0._c_float,&
-       0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radius,0.005_c_float,0._c_float,&
+       5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     w%rep%uc_radius = max(w%rep%uc_radius,0._c_float)
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
@@ -1466,8 +1466,8 @@ contains
        str1 = "Radius##inner" // c_null_char
        str2 = "%.3f" // c_null_char
        call igPushItemWidth(iw_calcwidth(5,1))
-       changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radiusinner,0._c_float,&
-          0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radiusinner,0.005_c_float,0._c_float,&
+          5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
        w%rep%uc_radiusinner = max(w%rep%uc_radiusinner,0._c_float)
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
@@ -1480,8 +1480,8 @@ contains
           str1 = "Dash length (Å)" // c_null_char
           str2 = "%.1f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
-          changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_innersteplen,0._c_float,&
-             0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_innersteplen,0.1_c_float,0._c_float,&
+             100._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
           w%rep%uc_innersteplen = max(w%rep%uc_innersteplen,0._c_float)
           call igPopItemWidth()
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
