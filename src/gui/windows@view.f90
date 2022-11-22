@@ -481,7 +481,7 @@ contains
     border_col%y = 0._c_float
     border_col%z = 0._c_float
     border_col%w = 0._c_float
-    call igImage(w%FBOtex, szavail, sz0, sz1, tint_col, border_col)
+    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, border_col, tint_col)
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
