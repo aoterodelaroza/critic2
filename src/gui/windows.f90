@@ -85,6 +85,7 @@ module windows
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
+     character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      ! tree table parameters
@@ -134,6 +135,7 @@ module windows
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
      logical(c_bool) :: exportview ! export viewport or whole texture
+     integer(c_int) :: npixel ! number of pixels in the export buffer
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
