@@ -381,7 +381,6 @@ contains
 
           call igEndPopup()
        end if
-
     end if
     call iw_tooltip("Add, remove, and modify representations",ttshown)
 
@@ -461,8 +460,12 @@ contains
     if (w%forcerender) then
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
-          sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
+       if (goodsys) then
+          call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
+             sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
+       else
+          call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+       end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
        if (goodsys) &
@@ -562,6 +565,13 @@ contains
     ! finish and write the texture size
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
     w%FBOside = atex
+
+    ! clear the texture initially
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+    call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+    call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
   end subroutine create_texture_view
 
