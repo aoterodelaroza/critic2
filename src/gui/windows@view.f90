@@ -987,8 +987,9 @@ contains
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
-       call igSetCursorPosX(iw_calcwidth(7,2,from_end=.true.))
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+       call igSetCursorPosX(iw_calcwidth(7,2,from_end=.true.) - g%Style%ScrollbarSize)
+       if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+          call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
@@ -1490,7 +1491,7 @@ contains
   module subroutine draw_exportimage(w)
     use interfaces_opengl3
     use interfaces_stb
-    use gui_main, only: sysc, sys_init, nsys
+    use gui_main, only: sysc, sys_init, nsys, g
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
@@ -1505,7 +1506,7 @@ contains
     integer(c_signed_char), allocatable, target :: data(:)
     integer(c_int) :: idum, origin(2)
     character(kind=c_char,len=:), allocatable, target :: str, str1, str2
-    type(ImVec2) :: x0, x1
+    type(ImVec2) :: x0, x1, szavail
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -1578,8 +1579,11 @@ contains
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
-    ! right-align for the rest of the contents
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! final buttons: OK
     okvalid = (len_trim(w%okfile) > 0)

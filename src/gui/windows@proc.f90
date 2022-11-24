@@ -486,10 +486,12 @@ contains
 
   !> Draw the about window
   module subroutine draw_about(w)
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_calcwidth
     class(window), intent(inout), target :: w
 
     real(c_float) :: wwidth, twidth
+    type(ImVec2) :: szavail
 
     call iw_text("  ---- critic2 GUI ----",danger=.true.,centered=.true.)
     call iw_text("[development version]",centered=.true.)
@@ -502,6 +504,10 @@ contains
     call iw_text("Contact: aoterodelaroza@gmail.com",highlight=.true.,centered=.true.)
     call igNewLine()
 
+    ! bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
     wwidth = igGetWindowWidth()
     twidth = iw_calcwidth(5,1)
     call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)

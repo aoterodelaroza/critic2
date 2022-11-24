@@ -222,8 +222,11 @@ contains
        call igUnindent(0._c_float)
     end if
 
-    ! right-align for the rest of the contents
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! final buttons: ok
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
@@ -383,7 +386,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, stropt
     logical(c_bool) :: ldum, doquit
     logical :: ok, saveismol, doubleclicked, isset
-    type(ImVec2) :: szero, sz
+    type(ImVec2) :: szero, sz, szavail
     integer :: i, nseed, oid
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
@@ -503,8 +506,11 @@ contains
        call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
     end if
 
-    ! right-align for the rest of the contents
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! final buttons: ok
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))

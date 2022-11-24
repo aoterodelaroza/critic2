@@ -1866,7 +1866,8 @@ contains
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
     call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
-    call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! calculated whether we have enough info to continue to ok
     disabled = (len(file1) == 0)
