@@ -614,9 +614,9 @@ contains
     real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3), world0(4,4)
+    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3)
     real(c_float), save :: oldview(4,4)
-    real(c_float), save :: world0inv(3,3), mpos0_s
+    real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
     ! first pass when opened, reset the state
@@ -762,8 +762,6 @@ contains
       mpos0_l = 0._c_float
       oldview = 0._c_float
       cpos0_l = 0._c_float
-      world0 = 0._c_float
-      world0inv = 0._c_float
       mpos0_s = 0._c_float
       ilock = ilock_no
     end subroutine init_state
