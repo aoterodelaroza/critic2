@@ -43,6 +43,8 @@ module utils
   public :: unproject
   public :: translate
   public :: rotate
+  public :: mult
+  public :: invmult
 
   ! module procedure interfaces
   interface
@@ -166,6 +168,16 @@ module utils
        real(c_float), intent(in) :: axis(3)
        real(c_float) :: rotate(4,4)
      end function rotate
+     module function mult(m,v)
+       real(c_float), intent(in) :: m(4,4)
+       real(c_float), intent(in) :: v(3)
+       real(c_float) :: mult(3)
+     end function mult
+     module function invmult(m,v)
+       real(c_float), intent(in) :: m(4,4)
+       real(c_float), intent(in) :: v(3)
+       real(c_float) :: invmult(3)
+     end function invmult
   end interface
 
 end module utils

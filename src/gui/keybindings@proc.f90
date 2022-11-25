@@ -88,12 +88,6 @@ submodule (keybindings) proc
      group_view,&   ! BIND_NAV_ZOOM
      group_view/)   ! BIND_NAV_RESET
   !   1, // close all dialogs
-  !   2, // align view with a axis
-  !   2, // align view with b axis
-  !   2, // align view with c axis
-  !   2, // align view with x axis
-  !   2, // align view with y axis
-  !   2, // align view with z axis
 
   integer, parameter :: ngroupbinds = 2
 

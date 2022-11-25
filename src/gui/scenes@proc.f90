@@ -137,6 +137,8 @@ contains
     hside = max(hside,3._c_float)
     s%campos = s%scenecenter
     s%campos(3) = s%campos(3) + hside / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    s%camfront = (/zero,zero,-one/)
+    s%camup = (/zero,one,zero/)
     call s%update_view_matrix()
 
     ! projection matrix
@@ -201,10 +203,12 @@ contains
     s%scenexmin = xmin
     s%scenexmax = xmax
 
-    ! reset the camera if requested
     if (s%forceresetcam) then
+       ! reset the camera if requested
        call s%reset()
        s%forceresetcam = .false.
+    else
+       ! translate camera according to new center
     end if
 
   end subroutine scene_build_lists
@@ -462,14 +466,19 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
-    use utils, only: ortho
+    use utils, only: ortho, mult
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, hw2
+    real(c_float) :: pic, hw2, sc(3)
 
     pic = real(pi,c_float)
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * (s%campos(3) - s%scenecenter(3))
+
+    ! scene center: world to tworld
+    sc = mult(s%world,s%scenecenter)
+
+    ! update the projection matrix
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
     s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
 
   end subroutine update_projection_matrix
@@ -481,9 +490,7 @@ contains
 
     real(c_float) :: front(3), up(3)
 
-    front = (/zero,zero,-one/)
-    up = (/zero,one,zero/)
-    s%view = lookat(s%campos,s%campos+front,up)
+    s%view = lookat(s%campos,s%campos+s%camfront,s%camup)
 
   end subroutine update_view_matrix
 

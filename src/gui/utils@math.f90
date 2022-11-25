@@ -188,4 +188,41 @@ contains
 
   end function rotate
 
+  ! Calculate m * v + t, where t is the translation in the 4x4 matrix.
+  ! Returns the resulting 3-vector.
+  module function mult(m,v)
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: v(3)
+    real(c_float) :: mult(3,3)
+
+    real(c_float) :: vx(4)
+
+    vx(1:3) = v
+    vx(4) = 1._c_float
+    vx = matmul(m,vx)
+    mult = vx(1:3) / vx(4)
+
+  end function mult
+
+  ! Calculate inv(m) * v + t, where t is the translation in the
+  ! 4x4 matrix. Returns the resulting 3-vector.
+  module function invmult(m,v)
+    use tools_math, only: matinv_cfloat
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: v(3)
+    real(c_float) :: invmult(3)
+
+    integer :: ier
+    real(c_float) :: vx(4), mx(4,4)
+
+    mx = m
+    call matinv_cfloat(mx,4,ier)
+
+    vx(1:3) = v
+    vx(4) = 1._c_float
+    vx = matmul(mx,vx)
+    invmult = vx(1:3) / vx(4)
+
+  end function invmult
+
 end submodule math

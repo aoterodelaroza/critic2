@@ -590,7 +590,7 @@ contains
   module subroutine process_events_view(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
-    use utils, only: translate, rotate
+    use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
@@ -600,7 +600,7 @@ contains
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3), axis(3), lax
-    real(c_float) :: mpos2(2), ang
+    real(c_float) :: mpos2(2), ang, xc(3)
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -614,7 +614,8 @@ contains
     real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_r(3), cpos0_l(3), world0(4,4)
+    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3), world0(4,4)
+    real(c_float), save :: oldview(4,4)
     real(c_float), save :: world0inv(3,3), mpos0_s
     integer, save :: ilock = ilock_no
 
@@ -659,13 +660,14 @@ contains
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          pos3 = sc%campos - sc%scenecenter
+          xc = mult(sc%world,sc%scenecenter)
+          pos3 = sc%campos - xc
           pos3 = pos3 - ratio * pos3
           if (norm2(pos3) < min_zoom) &
              pos3 = pos3 / norm2(pos3) * min_zoom
           if (norm2(pos3) > max_zoom * sc%scenerad) &
              pos3 = pos3 / norm2(pos3) * (max_zoom * sc%scenerad)
-          sc%campos = sc%scenecenter + pos3
+          sc%campos = xc + pos3
 
           call sc%update_view_matrix()
           call sc%update_projection_matrix()
@@ -682,7 +684,9 @@ contains
              call w%view_to_texpos(pos3)
              mpos0_r = (/texpos%x,texpos%y,pos3(3)/)
           end if
-          cpos0_r = (/sc%campos(1),sc%campos(2),zero/)
+
+          ! save the current view matrix
+          oldview = sc%view
 
           ilock = ilock_right
           mposlast = mousepos
@@ -695,11 +699,10 @@ contains
                 vold = mpos0_r
                 call w%texpos_to_view(vold)
 
-                sc%campos(1) = cpos0_r(1) - (vnew(1) - vold(1))
-                sc%campos(2) = cpos0_r(2) - (vnew(2) - vold(2))
+                xc = vold - vnew
+                xc = invmult(oldview,xc)
+                sc%campos = xc
                 call sc%update_view_matrix()
-
-                mposlast = mousepos
                 w%forcerender = .true.
              end if
           else
@@ -760,7 +763,7 @@ contains
       mposlast%y = 0._c_float
       mpos0_r = 0._c_float
       mpos0_l = 0._c_float
-      cpos0_r = 0._c_float
+      oldview = 0._c_float
       cpos0_l = 0._c_float
       world0 = 0._c_float
       world0inv = 0._c_float
