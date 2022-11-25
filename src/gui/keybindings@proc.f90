@@ -212,7 +212,7 @@ contains
     logical :: is_bind_event
 
     integer :: key, mod
-    logical :: held_
+    logical :: held_, noinput
 
     ! process options
     held_ = .false.
@@ -226,12 +226,12 @@ contains
     ! get current key and mod for this bind
     key = keybind(bind)
     mod = modbind(bind)
+    noinput = .not.io%WantTextInput .or. (mod==ImGuiKey_ModCtrl) .or. (mod==ImGuiKey_ModAlt) .or. (mod==ImGuiKey_ModSuper)
 
     if (key == ImGuiKey_None .or.(mod /= ImGuiKey_None.and..not.igIsKeyDown(mod))) then
        ! no key or the mod is not down
        return
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END) then
-       ! .and..not.io%WantCaptureKeyboard .and..not.io%WantTextInput ! this prevents using ESC with textinput
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.noinput) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)
