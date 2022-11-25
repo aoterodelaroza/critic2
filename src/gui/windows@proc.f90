@@ -488,7 +488,7 @@ contains
   module subroutine draw_about(w)
     use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_calcwidth
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
     class(window), intent(inout), target :: w
 
     real(c_float) :: wwidth, twidth
@@ -515,7 +515,7 @@ contains
     if (iw_button("Close")) w%isopen = .false.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    if (w%focused() .and. (is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or. is_bind_event(BIND_OK_FOCUSED_DIALOG)))&
        w%isopen = .false.
 
   end subroutine draw_about
