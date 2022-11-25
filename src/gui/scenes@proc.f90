@@ -150,10 +150,11 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
+    use utils, only: translate
     class(scene), intent(inout), target :: s
 
     integer :: i
-    real(c_float) :: xmin(3), xmax(3), maxrad
+    real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! initialize
     s%nsph = 0
@@ -198,7 +199,13 @@ contains
        xmin = 0._c_float
        xmax = 1._c_float
     end if
+
+    ! new scene center and center shift in xc
+    xc = s%scenecenter
     s%scenecenter = 0.5_c_float * (xmin + xmax)
+    xc = s%scenecenter - xc
+
+    ! radius and bounding box
     s%scenerad = 0.5_c_float * norm2(xmax - xmin)
     s%scenexmin = xmin
     s%scenexmax = xmax
@@ -208,7 +215,8 @@ contains
        call s%reset()
        s%forceresetcam = .false.
     else
-       ! translate camera according to new center
+       ! translate the scene so the center position remains unchanged
+       s%world = translate(s%world,-xc)
     end if
 
   end subroutine scene_build_lists
