@@ -727,13 +727,10 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
-                   world0inv = sc%world(1:3,1:3)
-                   call matinv_cfloat(world0inv,3)
-                   axis = matmul(world0inv,axis)
+                   axis = invmult(sc%world,axis,notrans=.true.)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-
                    sc%world = translate(sc%world,sc%scenecenter)
                    sc%world = rotate(sc%world,ang,axis)
                    sc%world = translate(sc%world,-sc%scenecenter)

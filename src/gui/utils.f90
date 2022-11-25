@@ -168,14 +168,16 @@ module utils
        real(c_float), intent(in) :: axis(3)
        real(c_float) :: rotate(4,4)
      end function rotate
-     module function mult(m,v)
+     module function mult(m,v,notrans)
        real(c_float), intent(in) :: m(4,4)
        real(c_float), intent(in) :: v(3)
+       logical, intent(in), optional :: notrans
        real(c_float) :: mult(3)
      end function mult
-     module function invmult(m,v)
+     module function invmult(m,v,notrans)
        real(c_float), intent(in) :: m(4,4)
        real(c_float), intent(in) :: v(3)
+       logical, intent(in), optional :: notrans
        real(c_float) :: invmult(3)
      end function invmult
   end interface
