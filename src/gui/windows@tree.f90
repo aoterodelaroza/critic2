@@ -1557,7 +1557,7 @@ contains
        ifformat_siestagrid, ifformat_dftb, ifformat_pwc, ifformat_wfn,&
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
@@ -1901,7 +1901,8 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
        doquit = .true.
 
     ! quit the window
@@ -1966,7 +1967,7 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init
     use utils, only: iw_text
     use tools_io, only: string
@@ -2036,7 +2037,8 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.is_bind_event(BIND_CLOSE_ALL_DIALOGS))&
+       doquit = .true.
 
     if (doquit) call w%end()
 

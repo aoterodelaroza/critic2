@@ -932,7 +932,8 @@ contains
   module subroutine draw_editrep(w)
     use scenes, only: representation, reptype_atoms, reptype_unitcell
     use windows, only: nwin, win, wintype_view
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
@@ -1017,7 +1018,8 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()
@@ -1502,7 +1504,8 @@ contains
     use gui_main, only: sysc, sys_init, nsys, g
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: ferror, faterr, uout, string
     class(window), intent(inout), target :: w
 
@@ -1723,7 +1726,8 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()

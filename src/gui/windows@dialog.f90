@@ -24,7 +24,8 @@ contains
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
@@ -126,7 +127,8 @@ contains
     end if
 
     ! exit if focused and received the close keybinding, or if forced by some other window
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. w%forcequitdialog) &
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. &
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS) .or. w%forcequitdialog) &
        call IGFD_ForceQuit(w%dptr)
 
     ! exit if focused and received the OK keybinding

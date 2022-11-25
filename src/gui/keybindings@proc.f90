@@ -40,6 +40,7 @@ submodule (keybindings) proc
      "Quit                           ",& ! BIND_QUIT
      "New                            ",& ! BIND_NEW
      "Open file(s)                   ",& ! BIND_OPEN
+     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
      "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
      "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
@@ -69,6 +70,7 @@ submodule (keybindings) proc
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
      group_global,& ! BIND_OPEN
+     group_global,& ! BIND_CLOSE_ALL_DIALOGS
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
@@ -87,7 +89,6 @@ submodule (keybindings) proc
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
      group_view/)   ! BIND_NAV_RESET
-  !   1, // close all dialogs
 
   integer, parameter :: ngroupbinds = 2
 
@@ -181,6 +182,7 @@ contains
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
+    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,ImGuiKey_None)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)

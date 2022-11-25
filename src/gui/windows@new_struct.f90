@@ -28,7 +28,8 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new_struct(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -313,7 +314,8 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
        doquit = .true.
 
     ! quit the window
@@ -370,7 +372,8 @@ contains
 
   !> Draw the contents of the new structure from library window.
   module subroutine draw_new_struct_from_library(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
@@ -550,7 +553,7 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) &
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
        doquit = .true.
 
     ! read the library file

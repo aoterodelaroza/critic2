@@ -33,25 +33,26 @@ module keybindings
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
   integer, parameter, public :: BIND_NEW = 2 ! create new systems
   integer, parameter, public :: BIND_OPEN = 3 ! open systems
-  integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 4 ! close focused dialog
-  integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 5 ! OK focused dialog
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 6 ! tree: remove system or field
-  integer, parameter, public :: BIND_TREE_MOVE_UP = 7 ! tree: move selection up
-  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 8 ! tree: move selection down
-  integer, parameter, public :: BIND_INPCON_RUN = 9 ! tree: remove system
-  integer, parameter, public :: BIND_VIEW_INC_NCELL = 10 ! view: increase number of cells
-  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 11 ! view: decrease number of cells
-  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 12 ! view: align view with a axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 13 ! view: align view with b axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 14 ! view: align view with c axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 15 ! view: align view with x axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 16 ! view: align view with y axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 17 ! view: align view with z axis
-  integer, parameter, public :: BIND_NAV_ROTATE = 18 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 19 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 20 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 21 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 21 ! total number of binds
+  integer, parameter, public :: BIND_CLOSE_ALL_DIALOGS = 4 ! close all open dialogs
+  integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 5 ! close focused dialog
+  integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 6 ! OK focused dialog
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 7 ! tree: remove system or field
+  integer, parameter, public :: BIND_TREE_MOVE_UP = 8 ! tree: move selection up
+  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 9 ! tree: move selection down
+  integer, parameter, public :: BIND_INPCON_RUN = 10 ! tree: remove system
+  integer, parameter, public :: BIND_VIEW_INC_NCELL = 11 ! view: increase number of cells
+  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 12 ! view: decrease number of cells
+  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 13 ! view: align view with a axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 14 ! view: align view with b axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 15 ! view: align view with c axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 16 ! view: align view with x axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 17 ! view: align view with y axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 18 ! view: align view with z axis
+  integer, parameter, public :: BIND_NAV_ROTATE = 19 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 20 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 21 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 22 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 22 ! total number of binds
 
   ! module procedure interfaces
   interface
