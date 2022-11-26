@@ -335,6 +335,7 @@ contains
                    sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
                    sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
                 end if
+                call sysc(i)%sc%build_lists()
              end do
           end if
           call iw_tooltip("Apply these settings to all loaded systems",ttshown)
@@ -448,7 +449,7 @@ contains
              is_selected = (w%view_selected == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                if (w%view_selected /= i) w%forcebuildlists = .true.
+                if (w%view_selected /= i) w%forcerender = .true.
                 w%view_selected = i
                 goodsys = .true.
              end if

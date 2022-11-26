@@ -232,7 +232,7 @@ contains
              win(iwin_console_input)%inpcon_selected = w%table_selected
           if (w%forceremove(k) == win(iwin_view)%view_selected) then
              win(iwin_view)%view_selected = w%table_selected
-             win(iwin_view)%forcebuildlists = .true.
+             win(iwin_view)%forcerender = .true.
           end if
        end do
        deallocate(w%forceremove)
@@ -519,7 +519,7 @@ contains
                          win(iwin_console_input)%inpcon_selected = i
                       if (tree_select_updates_view) then
                          if (win(iwin_view)%view_selected /= i) &
-                            win(iwin_view)%forcebuildlists = .true.
+                            win(iwin_view)%forcerender = .true.
                          win(iwin_view)%view_selected = i
                       end if
                       call sys(i)%set_reference(k,.false.)
@@ -863,7 +863,7 @@ contains
             win(iwin_console_input)%inpcon_selected = isys
          if (tree_select_updates_view) then
             if (win(iwin_view)%view_selected /= isys) &
-               win(iwin_view)%forcebuildlists = .true.
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = isys
          end if
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
@@ -905,7 +905,7 @@ contains
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             win(iwin_console_input)%inpcon_selected = isys
             if (win(iwin_view)%view_selected /= isys) &
-               win(iwin_view)%forcebuildlists = .true.
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = isys
             w%table_selected = isys
          end if
@@ -1043,7 +1043,7 @@ contains
       if (win(iwin_view)%view_selected >= 1 .and. win(iwin_view)%view_selected <= nsys) then
          if (sysc(win(iwin_view)%view_selected)%collapse == i) then
             if (win(iwin_view)%view_selected /= i) &
-               win(iwin_view)%forcebuildlists = .true.
+               win(iwin_view)%forcerender = .true.
             win(iwin_view)%view_selected = i
          end if
       end if
