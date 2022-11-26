@@ -38,12 +38,11 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sysc, sys_init, sys
+    use gui_main, only: nsys, sysc, sys
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
     if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status /= sys_init) return
 
     ! basic variables
     s%id = isys
@@ -225,7 +224,7 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO
-    use gui_main, only: sysc, sys_init
+    use gui_main, only: sysc
     use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
@@ -235,7 +234,6 @@ contains
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
-    if (.not.sysc(s%id)%status == sys_init) return
 
     ! build draw lists if not done already
     if (.not.allocated(s%drawlist_sph)) call s%build_lists()
@@ -652,7 +650,7 @@ contains
 
   !> Reset atom styles.
   module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sysc, sys, sys_init
+    use gui_main, only: nsys, sysc, sys
     use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
@@ -664,7 +662,6 @@ contains
 
     ! check the system is correct and initialized
     if (r%id < 1 .or. r%id > nsys) return
-    if (sysc(r%id)%status /= sys_init) return
 
     ! fill the styles
     if (r%atom_style_type == 0) then
