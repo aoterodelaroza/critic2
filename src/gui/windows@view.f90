@@ -1469,13 +1469,58 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth
+    use gui_main, only: g
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical :: ch
+
+    ! initialize
+    changed = .false.
+
+    ! periodicity
+    call igAlignTextToFramePadding()
+    call iw_text("Periodicity",highlight=.true.)
+
+    ! radio buttons for the periodicity type
+    changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
+    call iw_tooltip("Cell not repeated for this representation",ttshown)
+    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
+    call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
+    changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
+    call iw_tooltip("Manually set the number of periodic cells",ttshown)
+
+    ! number of periodic cells, if manual
+    if (w%rep%pertype == 2_c_int) then
+       call igPushItemWidth(5._c_float * g%FontSize)
+       call iw_text("  a: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##aaxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+       call igSameLine(0._c_float,g%FontSize)
+       call iw_text("b: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##baxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+       call igSameLine(0._c_float,g%FontSize)
+       call iw_text("c: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##caxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+
+       w%rep%ncell = max(w%rep%ncell,1)
+       if (iw_button("Reset",sameline=.true.)) then
+          w%rep%ncell = 1
+          changed = .true.
+       end if
+       call igPopItemWidth()
+    end if
 
     !! styles
     call iw_text("Style",highlight=.true.)
