@@ -47,7 +47,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, nrep, id, ipad
+    integer :: i, j, nrep, id, ipad
     type(ImVec2) :: szavail, sz0, sz1, szero
     type(ImVec4) :: col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -307,6 +307,43 @@ contains
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the scene background color",ttshown)
 
+          ! apply to all scenes
+          if (iw_button("Apply to All Systems",danger=.true.)) then
+             do i = 1, nsys
+                if (sysc(i)%status == sys_init .and. i /= w%view_selected) then
+                   ! atoms, bonds, unit cell
+                   do j = 1, sysc(i)%sc%nrep
+                      if (sysc(i)%sc%rep(j)%isinit) then
+                         if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
+                            sysc(i)%sc%rep(j)%atoms_display = isatom
+                            sysc(i)%sc%rep(j)%bonds_display = isbond
+                         elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell) then
+                            sysc(i)%sc%rep(j)%shown = isuc
+                         end if
+                      end if
+                   end do
+                   ! rest
+                   if (.not.sys(i)%c%ismolecule) &
+                      sysc(i)%sc%nc = sysc(w%view_selected)%sc%nc
+                   sysc(i)%sc%atom_res = sysc(w%view_selected)%sc%atom_res
+                   sysc(i)%sc%bond_res = sysc(w%view_selected)%sc%bond_res
+                   sysc(i)%sc%lightpos = sysc(w%view_selected)%sc%lightpos
+                   sysc(i)%sc%ambient = sysc(w%view_selected)%sc%ambient
+                   sysc(i)%sc%diffuse = sysc(w%view_selected)%sc%diffuse
+                   sysc(i)%sc%specular = sysc(w%view_selected)%sc%specular
+                   sysc(i)%sc%shininess = sysc(w%view_selected)%sc%shininess
+                   sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
+                   sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
+                end if
+             end do
+          end if
+          call iw_tooltip("Apply these settings to all loaded systems",ttshown)
+          if (iw_button("Reset",sameline=.true.,danger=.true.)) then
+             call sysc(w%view_selected)%sc%init(w%view_selected)
+             chbuild = .true.
+          end if
+          call iw_tooltip("Reset to the default settings",ttshown)
+
           call igEndPopup()
        end if
     end if
@@ -411,7 +448,7 @@ contains
              is_selected = (w%view_selected == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                if (w%view_selected /= i) w%forcerender = .true.
+                if (w%view_selected /= i) w%forcebuildlists = .true.
                 w%view_selected = i
                 goodsys = .true.
              end if

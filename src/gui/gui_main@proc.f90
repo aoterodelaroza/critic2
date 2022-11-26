@@ -875,7 +875,7 @@ contains
                 ! force render, if this system is selected
                 if (iwin_view > 0 .and. iwin_view <= nwin) then
                    if (win(iwin_view)%view_selected == i) then
-                      win(iwin_view)%forcerender = .true.
+                      win(iwin_view)%forcebuildlists = .true.
                    end if
                 end if
              end if
