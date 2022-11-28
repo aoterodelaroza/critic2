@@ -52,7 +52,7 @@ contains
     s%scenecenter = 0d0
     s%scenexmin = 0d0
     s%scenexmax = 1d0
-    s%forcebuildlists = .false.
+    s%forcebuildlists = .true.
 
     ! resolutions
     s%atom_res = 3
@@ -151,6 +151,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use utils, only: translate
+    use gui_main, only: time
     class(scene), intent(inout), target :: s
 
     integer :: i
@@ -221,6 +222,7 @@ contains
 
     ! rebuilding lists is done
     s%forcebuildlists = .false.
+    s%time_last_build = time
 
   end subroutine scene_build_lists
 
@@ -243,10 +245,7 @@ contains
     if (.not.allocated(s%drawlist_sph)) call s%build_lists()
 
     ! if necessary, rebuild draw lists
-    if (s%forcebuildlists) then
-       call s%build_lists()
-       s%forcebuildlists = .false.
-    end if
+    if (s%forcebuildlists) call s%build_lists()
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)

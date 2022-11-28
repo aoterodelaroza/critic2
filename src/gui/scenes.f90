@@ -107,6 +107,7 @@ module scenes
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
      real(c_float) :: scenexmax(3) ! scene xmax (world coords)
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
+     real*8 :: time_last_build ! time of the last build
      ! object resolutions
      integer(c_int) :: atom_res ! atom resolution
      integer(c_int) :: bond_res ! bond resolution
