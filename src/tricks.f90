@@ -2677,9 +2677,12 @@ contains
       end do
       call fclose(lu)
 
-      ! calculate the new powdiff parameters
+      ! reallocate and subtract the lowest intensity
       call realloc(ttxy,nxy)
       call realloc(intxy,nxy)
+      intxy = intxy - minval(intxy)
+
+      ! calculate the new powdiff parameters
       th2ini = ttxy(1)
       th2end = ttxy(nxy)
       npts = nxy
