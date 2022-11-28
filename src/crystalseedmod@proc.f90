@@ -924,7 +924,7 @@ contains
   !> Read the structure from a res or ins (shelx) file
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
-       lower, zatguess, fclose, ferror
+       lower, zatguess, fclose
     use param, only: eyet, eye, bohrtoa
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
@@ -934,13 +934,15 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp, ilat
-    logical :: ok, iscent, havecell
+    logical :: ok, iscent, havecell, found
     character(len=:), allocatable :: word, line, aux
     real*8 :: raux, rot0(3,4)
     integer :: i, j, n
     integer :: iz
     integer :: lncv
     real*8, allocatable :: lcen(:,:)
+
+    real*8, parameter :: eps = 1d-5
 
     ! file and seed name
     call seed%end()
@@ -1196,25 +1198,29 @@ contains
        seed%neqv = 2*n
     end if
 
-    ! replicate the atoms using the local centering vectors passed in
-    ! SYMM, if there are any
+    ! Replicate the atoms using the local centering vectors passed in
+    ! SYMM, if there are any. This is contrary to the SHELX res format
+    ! specs, but some programs do it anyway.
     if (lncv > 0) then
        do i = 1, lncv
-          n = seed%nat
-          do j = 1, n
-             seed%nat = seed%nat + 1
-             if (seed%nat > size(seed%is)) then
-                call realloc(seed%x,3,2*seed%nat)
-                call realloc(seed%is,2*seed%nat)
+          found = .false.
+          do j = 1, seed%ncv
+             if (all(lcen(:,i) - seed%cen(:,j) < eps)) then
+                found = .true.
+                exit
              end if
-             seed%is(seed%nat) = seed%is(j)
-             seed%x(:,seed%nat) = seed%x(:,j) + lcen(:,i)
-             seed%x(:,seed%nat) = seed%x(:,seed%nat) - floor(seed%x(:,seed%nat))
           end do
+          if (.not.found) then
+             seed%ncv = seed%ncv + 1
+             if (seed%ncv > size(seed%cen,2)) &
+                call realloc(seed%cen,3,2*seed%ncv)
+             seed%cen(:,seed%ncv) = lcen(:,i)
+          end if
        end do
     end if
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%cen,3,seed%ncv)
 
     ! use the symmetry in this file
     seed%havesym = 1
