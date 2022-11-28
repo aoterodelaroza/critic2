@@ -1,0 +1,5 @@
+## delete: 015_molecule-gjf.cro
+## check: 015_molecule-gjf_gen_01.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/g16A.03/benzene/benzene.gjf
+write 015_molecule-gjf_gen_01.cri

@@ -13,6 +13,7 @@ set(TESTS
   012_molecule-aimsin    ## read molecule structure from FHIamis input
   013_molecule-aimsout   ## read molecule structure from FHIamis output
   014_molecule-forceformat ## force a format when using molecule
+  015_molecule-gjf       ## read molecule structure from Gaussian input file
   )
 
 runtests(${TESTS})
