@@ -805,15 +805,11 @@ contains
     ! process the keybindings
     !! up and down the tree
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
-       if (iprev > 0) then
+       if (iprev > 0) &
           w%forceselect = iprev
-          call igSetWindowFocus_Str(c_loc(w%name))
-       end if
     elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-       if (inext > 0) then
+       if (inext > 0) &
           w%forceselect = inext
-          call igSetWindowFocus_Str(c_loc(w%name))
-       end if
     end if
 
     ! if exporting, read the export command
