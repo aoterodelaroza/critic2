@@ -40,6 +40,7 @@ submodule (keybindings) proc
      "Quit                           ",& ! BIND_QUIT
      "New                            ",& ! BIND_NEW
      "Open file(s)                   ",& ! BIND_OPEN
+     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
      "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
      "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
@@ -69,6 +70,7 @@ submodule (keybindings) proc
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
      group_global,& ! BIND_OPEN
+     group_global,& ! BIND_CLOSE_ALL_DIALOGS
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
      group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
@@ -87,13 +89,6 @@ submodule (keybindings) proc
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
      group_view/)   ! BIND_NAV_RESET
-  !   1, // close all dialogs
-  !   2, // align view with a axis
-  !   2, // align view with b axis
-  !   2, // align view with c axis
-  !   2, // align view with x axis
-  !   2, // align view with y axis
-  !   2, // align view with z axis
 
   integer, parameter :: ngroupbinds = 2
 
@@ -187,6 +182,7 @@ contains
     call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
     call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
+    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,ImGuiKey_None)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)
@@ -218,7 +214,7 @@ contains
     logical :: is_bind_event
 
     integer :: key, mod
-    logical :: held_
+    logical :: held_, noinput
 
     ! process options
     held_ = .false.
@@ -232,12 +228,12 @@ contains
     ! get current key and mod for this bind
     key = keybind(bind)
     mod = modbind(bind)
+    noinput = .not.io%WantTextInput .or. (mod==ImGuiKey_ModCtrl) .or. (mod==ImGuiKey_ModAlt) .or. (mod==ImGuiKey_ModSuper)
 
     if (key == ImGuiKey_None .or.(mod /= ImGuiKey_None.and..not.igIsKeyDown(mod))) then
        ! no key or the mod is not down
        return
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END) then
-       ! .and..not.io%WantCaptureKeyboard .and..not.io%WantTextInput ! this prevents using ESC with textinput
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.noinput) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)

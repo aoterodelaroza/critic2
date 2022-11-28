@@ -199,8 +199,11 @@ contains
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
 
+    ! rebuild lists and render if necessary
+    if (sysc(w%inpcon_selected)%sc%isinit) &
+       call sysc(w%inpcon_selected)%sc%build_lists()
     if (win(iwin_view)%view_selected == w%inpcon_selected) &
-       win(iwin_view)%forcebuildlists = .true.
+       win(iwin_view)%forcerender = .true.
 
     ! clean up
     call fclose(uin)

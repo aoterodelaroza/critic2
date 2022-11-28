@@ -300,7 +300,7 @@ contains
        do i = 1, seed%nat
           if (.not.useatom(i)) cycle
           do j = 1, seed%neqv
-             do  k = 1, seed%ncv
+             do k = 1, seed%ncv
                 xx = matmul(seed%rotm(1:3,1:3,j),seed%x(:,i)) + seed%rotm(:,4,j) + seed%cen(:,k)
                 do l = i+1, seed%nat
                    if (.not.useatom(l)) cycle
@@ -3735,6 +3735,7 @@ contains
           typ(i) = c%atcel(i)%is
        end do
     end if
+
     spg = spg_get_dataset(lattice,x,typ,nat,symprec)
     deallocate(x,typ)
 

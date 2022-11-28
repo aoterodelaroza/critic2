@@ -38,12 +38,11 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sysc, sys_init, sys
+    use gui_main, only: nsys, sysc, sys
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
     if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status /= sys_init) return
 
     ! basic variables
     s%id = isys
@@ -137,6 +136,8 @@ contains
     hside = max(hside,3._c_float)
     s%campos = s%scenecenter
     s%campos(3) = s%campos(3) + hside / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    s%camfront = (/zero,zero,-one/)
+    s%camup = (/zero,one,zero/)
     call s%update_view_matrix()
 
     ! projection matrix
@@ -148,10 +149,11 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
+    use utils, only: translate
     class(scene), intent(inout), target :: s
 
     integer :: i
-    real(c_float) :: xmin(3), xmax(3), maxrad
+    real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! initialize
     s%nsph = 0
@@ -196,15 +198,24 @@ contains
        xmin = 0._c_float
        xmax = 1._c_float
     end if
+
+    ! new scene center and center shift in xc
+    xc = s%scenecenter
     s%scenecenter = 0.5_c_float * (xmin + xmax)
+    xc = s%scenecenter - xc
+
+    ! radius and bounding box
     s%scenerad = 0.5_c_float * norm2(xmax - xmin)
     s%scenexmin = xmin
     s%scenexmax = xmax
 
-    ! reset the camera if requested
     if (s%forceresetcam) then
+       ! reset the camera if requested
        call s%reset()
        s%forceresetcam = .false.
+    else
+       ! translate the scene so the center position remains unchanged
+       s%world = translate(s%world,-xc)
     end if
 
   end subroutine scene_build_lists
@@ -213,7 +224,7 @@ contains
   module subroutine scene_render(s)
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO
-    use gui_main, only: sysc, sys_init
+    use gui_main, only: sysc
     use shaders, only: shader_phong, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
@@ -223,7 +234,6 @@ contains
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
-    if (.not.sysc(s%id)%status == sys_init) return
 
     ! build draw lists if not done already
     if (.not.allocated(s%drawlist_sph)) call s%build_lists()
@@ -462,14 +472,19 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
-    use utils, only: ortho
+    use utils, only: ortho, mult
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, hw2
+    real(c_float) :: pic, hw2, sc(3)
 
     pic = real(pi,c_float)
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * (s%campos(3) - s%scenecenter(3))
+
+    ! scene center: world to tworld
+    sc = mult(s%world,s%scenecenter)
+
+    ! update the projection matrix
+    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
     s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
 
   end subroutine update_projection_matrix
@@ -481,9 +496,7 @@ contains
 
     real(c_float) :: front(3), up(3)
 
-    front = (/zero,zero,-one/)
-    up = (/zero,one,zero/)
-    s%view = lookat(s%campos,s%campos+front,up)
+    s%view = lookat(s%campos,s%campos+s%camfront,s%camup)
 
   end subroutine update_view_matrix
 
@@ -637,7 +650,7 @@ contains
 
   !> Reset atom styles.
   module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sysc, sys, sys_init
+    use gui_main, only: nsys, sysc, sys
     use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
@@ -649,7 +662,6 @@ contains
 
     ! check the system is correct and initialized
     if (r%id < 1 .or. r%id > nsys) return
-    if (sysc(r%id)%status /= sys_init) return
 
     ! fill the styles
     if (r%atom_style_type == 0) then

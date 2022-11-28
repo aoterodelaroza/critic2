@@ -272,7 +272,7 @@ contains
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     type(ImVec2) :: inisize
 
     if (.not.w%isinit) return
@@ -346,7 +346,9 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File..." // c_null_char
-             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             str2 = "file.log" // c_null_char
+             str3 = "./" // c_null_char
+             call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File..." // c_null_char
@@ -382,7 +384,9 @@ contains
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File..." // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
-             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+             str2 = "file.png" // c_null_char
+             str3 = "./" // c_null_char
+             call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
              call ferror('window_draw','unknown dialog purpose',faterr)
@@ -482,10 +486,14 @@ contains
 
   !> Draw the about window
   module subroutine draw_about(w)
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_calcwidth
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     class(window), intent(inout), target :: w
 
     real(c_float) :: wwidth, twidth
+    type(ImVec2) :: szavail
 
     call iw_text("  ---- critic2 GUI ----",danger=.true.,centered=.true.)
     call iw_text("[development version]",centered=.true.)
@@ -498,10 +506,19 @@ contains
     call iw_text("Contact: aoterodelaroza@gmail.com",highlight=.true.,centered=.true.)
     call igNewLine()
 
+    ! bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
     wwidth = igGetWindowWidth()
     twidth = iw_calcwidth(5,1)
     call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
     if (iw_button("Close")) w%isopen = .false.
+
+    ! exit if focused and received the close keybinding
+    if ((w%focused() .and. (is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or. is_bind_event(BIND_OK_FOCUSED_DIALOG))) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS))&
+       w%isopen = .false.
 
   end subroutine draw_about
 

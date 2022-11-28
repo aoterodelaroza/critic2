@@ -4280,6 +4280,7 @@ namespace IGFD
 		ImGui::PushItemWidth(width);
 
 		ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue;
+		flags |= ImGuiInputTextFlags_AutoSelectAll;
 
 		if (prFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_ReadOnlyFileNameField)
 		{
@@ -4290,6 +4291,7 @@ namespace IGFD
 		{
 			prFileDialogInternal.puIsOk = true;
 		}
+		if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere(-1);
 
 		if (ImGui::GetItemID() == ImGui::GetActiveID())
 			prFileDialogInternal.puFileInputIsActive = true;

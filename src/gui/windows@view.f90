@@ -47,9 +47,9 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, nrep, id, ipad
+    integer :: i, j, nrep, id, ipad
     type(ImVec2) :: szavail, sz0, sz1, szero
-    type(ImVec4) :: tint_col, border_col
+    type(ImVec4) :: col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
@@ -307,6 +307,44 @@ contains
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the scene background color",ttshown)
 
+          ! apply to all scenes
+          if (iw_button("Apply to All Systems",danger=.true.)) then
+             do i = 1, nsys
+                if (sysc(i)%status == sys_init .and. i /= w%view_selected) then
+                   ! atoms, bonds, unit cell
+                   do j = 1, sysc(i)%sc%nrep
+                      if (sysc(i)%sc%rep(j)%isinit) then
+                         if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
+                            sysc(i)%sc%rep(j)%atoms_display = isatom
+                            sysc(i)%sc%rep(j)%bonds_display = isbond
+                         elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell) then
+                            sysc(i)%sc%rep(j)%shown = isuc
+                         end if
+                      end if
+                   end do
+                   ! rest
+                   if (.not.sys(i)%c%ismolecule) &
+                      sysc(i)%sc%nc = sysc(w%view_selected)%sc%nc
+                   sysc(i)%sc%atom_res = sysc(w%view_selected)%sc%atom_res
+                   sysc(i)%sc%bond_res = sysc(w%view_selected)%sc%bond_res
+                   sysc(i)%sc%lightpos = sysc(w%view_selected)%sc%lightpos
+                   sysc(i)%sc%ambient = sysc(w%view_selected)%sc%ambient
+                   sysc(i)%sc%diffuse = sysc(w%view_selected)%sc%diffuse
+                   sysc(i)%sc%specular = sysc(w%view_selected)%sc%specular
+                   sysc(i)%sc%shininess = sysc(w%view_selected)%sc%shininess
+                   sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
+                   sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
+                end if
+                call sysc(i)%sc%build_lists()
+             end do
+          end if
+          call iw_tooltip("Apply these settings to all loaded systems",ttshown)
+          if (iw_button("Reset",sameline=.true.,danger=.true.)) then
+             call sysc(w%view_selected)%sc%init(w%view_selected)
+             chbuild = .true.
+          end if
+          call iw_tooltip("Reset to the default settings",ttshown)
+
           call igEndPopup()
        end if
     end if
@@ -381,7 +419,6 @@ contains
 
           call igEndPopup()
        end if
-
     end if
     call iw_tooltip("Add, remove, and modify representations",ttshown)
 
@@ -461,8 +498,12 @@ contains
     if (w%forcerender) then
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
-          sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
+       if (goodsys) then
+          call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
+             sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
+       else
+          call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+       end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
        if (goodsys) &
@@ -473,15 +514,11 @@ contains
     end if
 
     ! border and tint for the image, draw the image, update the rectangle
-    tint_col%x = 1._c_float
-    tint_col%y = 1._c_float
-    tint_col%z = 1._c_float
-    tint_col%w = 1._c_float
-    border_col%x = 0._c_float
-    border_col%y = 0._c_float
-    border_col%z = 0._c_float
-    border_col%w = 0._c_float
-    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, border_col, tint_col)
+    col%x = 1._c_float
+    col%y = 1._c_float
+    col%z = 1._c_float
+    col%w = 1._c_float
+    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, col, col)
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
@@ -567,6 +604,13 @@ contains
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
     w%FBOside = atex
 
+    ! clear the texture initially
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
+    call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+    call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
   end subroutine create_texture_view
 
   !> Delete the texture for the view window
@@ -584,7 +628,7 @@ contains
   module subroutine process_events_view(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
-    use utils, only: translate, rotate
+    use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
@@ -594,7 +638,7 @@ contains
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3), axis(3), lax
-    real(c_float) :: mpos2(2), ang
+    real(c_float) :: mpos2(2), ang, xc(3)
     type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
@@ -608,8 +652,9 @@ contains
     real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_r(3), cpos0_l(3), world0(4,4)
-    real(c_float), save :: world0inv(3,3), mpos0_s
+    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3)
+    real(c_float), save :: oldview(4,4)
+    real(c_float), save :: mpos0_s
     integer, save :: ilock = ilock_no
 
     ! first pass when opened, reset the state
@@ -653,13 +698,14 @@ contains
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          pos3 = sc%campos - sc%scenecenter
+          xc = mult(sc%world,sc%scenecenter)
+          pos3 = sc%campos - xc
           pos3 = pos3 - ratio * pos3
           if (norm2(pos3) < min_zoom) &
              pos3 = pos3 / norm2(pos3) * min_zoom
           if (norm2(pos3) > max_zoom * sc%scenerad) &
              pos3 = pos3 / norm2(pos3) * (max_zoom * sc%scenerad)
-          sc%campos = sc%scenecenter + pos3
+          sc%campos = xc + pos3
 
           call sc%update_view_matrix()
           call sc%update_projection_matrix()
@@ -676,7 +722,9 @@ contains
              call w%view_to_texpos(pos3)
              mpos0_r = (/texpos%x,texpos%y,pos3(3)/)
           end if
-          cpos0_r = (/sc%campos(1),sc%campos(2),zero/)
+
+          ! save the current view matrix
+          oldview = sc%view
 
           ilock = ilock_right
           mposlast = mousepos
@@ -689,11 +737,10 @@ contains
                 vold = mpos0_r
                 call w%texpos_to_view(vold)
 
-                sc%campos(1) = cpos0_r(1) - (vnew(1) - vold(1))
-                sc%campos(2) = cpos0_r(2) - (vnew(2) - vold(2))
+                xc = vold - vnew
+                xc = invmult(oldview,xc)
+                sc%campos = xc
                 call sc%update_view_matrix()
-
-                mposlast = mousepos
                 w%forcerender = .true.
              end if
           else
@@ -718,13 +765,10 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
-                   world0inv = sc%world(1:3,1:3)
-                   call matinv_cfloat(world0inv,3)
-                   axis = matmul(world0inv,axis)
+                   axis = invmult(sc%world,axis,notrans=.true.)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-
                    sc%world = translate(sc%world,sc%scenecenter)
                    sc%world = rotate(sc%world,ang,axis)
                    sc%world = translate(sc%world,-sc%scenecenter)
@@ -754,10 +798,8 @@ contains
       mposlast%y = 0._c_float
       mpos0_r = 0._c_float
       mpos0_l = 0._c_float
-      cpos0_r = 0._c_float
+      oldview = 0._c_float
       cpos0_l = 0._c_float
-      world0 = 0._c_float
-      world0inv = 0._c_float
       mpos0_s = 0._c_float
       ilock = ilock_no
     end subroutine init_state
@@ -928,7 +970,8 @@ contains
   module subroutine draw_editrep(w)
     use scenes, only: representation, reptype_atoms, reptype_unitcell
     use windows, only: nwin, win, wintype_view
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
@@ -991,8 +1034,9 @@ contains
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
-       call igSetCursorPosX(iw_calcwidth(7,2,from_end=.true.))
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+       call igSetCursorPosX(iw_calcwidth(7,2,from_end=.true.) - g%Style%ScrollbarSize)
+       if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+          call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
@@ -1012,7 +1056,8 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()
@@ -1281,8 +1326,8 @@ contains
              str2 = "##tableradius" // string(i) // c_null_char
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
-             ch = igInputFloat(c_loc(str2),w%rep%atom_style(i)%rad,0._c_float,&
-                0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+             ch = igDragFloat(c_loc(str2),w%rep%atom_style(i)%rad,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
              if (ch) then
                 w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
                 changed = .true.
@@ -1337,8 +1382,8 @@ contains
     call igPushItemWidth(iw_calcwidth(5,1))
     str2 = "Radii Scale##atomradiiscale" // c_null_char
     str3 = "%.3f" // c_null_char
-    ch = ch .or. igInputFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+       ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
     call igPopItemWidth()
     if (ch) then
@@ -1414,8 +1459,8 @@ contains
     str2 = "Radius ##bondradius" // c_null_char
     str3 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. igInputFloat(c_loc(str2),w%rep%bond_rad,0._c_float,&
-       0._c_float,c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
+       c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
 
@@ -1424,13 +1469,58 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth
+    use gui_main, only: g
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical :: ch
+
+    ! initialize
+    changed = .false.
+
+    ! periodicity
+    call igAlignTextToFramePadding()
+    call iw_text("Periodicity",highlight=.true.)
+
+    ! radio buttons for the periodicity type
+    changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
+    call iw_tooltip("Cell not repeated for this representation",ttshown)
+    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
+    call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
+    changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
+    call iw_tooltip("Manually set the number of periodic cells",ttshown)
+
+    ! number of periodic cells, if manual
+    if (w%rep%pertype == 2_c_int) then
+       call igPushItemWidth(5._c_float * g%FontSize)
+       call iw_text("  a: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##aaxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+       call igSameLine(0._c_float,g%FontSize)
+       call iw_text("b: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##baxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+       call igSameLine(0._c_float,g%FontSize)
+       call iw_text("c: ")
+       call igSameLine(0._c_float,0._c_float)
+       str2 = "##caxis" // c_null_char
+       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,&
+          ImGuiInputTextFlags_EnterReturnsTrue)
+
+       w%rep%ncell = max(w%rep%ncell,1)
+       if (iw_button("Reset",sameline=.true.)) then
+          w%rep%ncell = 1
+          changed = .true.
+       end if
+       call igPopItemWidth()
+    end if
 
     !! styles
     call iw_text("Style",highlight=.true.)
@@ -1441,8 +1531,8 @@ contains
     str1 = "Radius##outer" // c_null_char
     str2 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radius,0._c_float,&
-       0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radius,0.005_c_float,0._c_float,&
+       5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     w%rep%uc_radius = max(w%rep%uc_radius,0._c_float)
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
@@ -1466,8 +1556,8 @@ contains
        str1 = "Radius##inner" // c_null_char
        str2 = "%.3f" // c_null_char
        call igPushItemWidth(iw_calcwidth(5,1))
-       changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_radiusinner,0._c_float,&
-          0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radiusinner,0.005_c_float,0._c_float,&
+          5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
        w%rep%uc_radiusinner = max(w%rep%uc_radiusinner,0._c_float)
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
@@ -1480,8 +1570,8 @@ contains
           str1 = "Dash length (Å)" // c_null_char
           str2 = "%.1f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
-          changed = changed .or. igInputFloat(c_loc(str1),w%rep%uc_innersteplen,0._c_float,&
-             0._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_innersteplen,0.1_c_float,0._c_float,&
+             100._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
           w%rep%uc_innersteplen = max(w%rep%uc_innersteplen,0._c_float)
           call igPopItemWidth()
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
@@ -1494,10 +1584,11 @@ contains
   module subroutine draw_exportimage(w)
     use interfaces_opengl3
     use interfaces_stb
-    use gui_main, only: sysc, sys_init, nsys
+    use gui_main, only: sysc, sys_init, nsys, g
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: ferror, faterr, uout, string
     class(window), intent(inout), target :: w
 
@@ -1509,7 +1600,7 @@ contains
     integer(c_signed_char), allocatable, target :: data(:)
     integer(c_int) :: idum, origin(2)
     character(kind=c_char,len=:), allocatable, target :: str, str1, str2
-    type(ImVec2) :: x0, x1
+    type(ImVec2) :: x0, x1, szavail
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -1582,8 +1673,11 @@ contains
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
-    ! right-align for the rest of the contents
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.))
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! final buttons: OK
     okvalid = (len_trim(w%okfile) > 0)
@@ -1715,7 +1809,8 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()

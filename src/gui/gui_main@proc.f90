@@ -199,6 +199,7 @@ contains
     iwin_about = stack_create_window(wintype_about,.false.)
 
     ! main loop
+    show_demo_window = .false.
     show_implot_demo_window = .false.
     firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)
@@ -859,6 +860,10 @@ contains
                    end if
                 end if
 
+                ! initialize the scene and build the initial draw list
+                call sysc(i)%sc%init(i)
+                call sysc(i)%sc%build_lists()
+
                 ! this system has been initialized
                 sysc(i)%status = sys_init
 
@@ -867,9 +872,6 @@ contains
                    win(iwin_tree)%forceresize = .true.
                    win(iwin_tree)%forcesort = .true.
                 end if
-
-                ! initialize the scene
-                call sysc(i)%sc%init(i)
 
                 ! force render, if this system is selected
                 if (iwin_view > 0 .and. iwin_view <= nwin) then

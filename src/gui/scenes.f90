@@ -102,9 +102,9 @@ module scenes
      logical :: forcesort = .false. ! force sort the representations
      logical :: forceresetcam = .false. ! force reset of the camera
      real(c_float) :: scenerad = 1d0 ! scene radius
-     real(c_float) :: scenecenter(3) ! scene center
-     real(c_float) :: scenexmin(3) ! scene xmin
-     real(c_float) :: scenexmax(3) ! scene xmax
+     real(c_float) :: scenecenter(3) ! scene center (world coords)
+     real(c_float) :: scenexmin(3) ! scene xmin (world coords)
+     real(c_float) :: scenexmax(3) ! scene xmax (world coords)
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
      ! object resolutions
      integer(c_int) :: atom_res ! atom resolution
@@ -124,7 +124,9 @@ module scenes
      real(c_float) :: persp_fov ! perspective field of view
      real(c_float) :: znear ! position of the near plane
      real(c_float) :: zfar  ! position of the far plane
-     real(c_float) :: campos(3) ! position of the camera
+     real(c_float) :: campos(3) ! position of the camera (tworld coords)
+     real(c_float) :: camfront(3) ! camera front vec (tworld coords)
+     real(c_float) :: camup(3) ! camera up vec (tworld coords)
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix

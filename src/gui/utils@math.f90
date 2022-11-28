@@ -188,4 +188,61 @@ contains
 
   end function rotate
 
+  ! Calculate m * v + t, where t is the translation in the 4x4 matrix.
+  ! Returns the resulting 3-vector.
+  module function mult(m,v,notrans)
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: v(3)
+    logical, intent(in), optional :: notrans
+    real(c_float) :: mult(3)
+
+    logical :: notrans_
+    real(c_float) :: vx(4), m3(3,3)
+
+    notrans_ = .false.
+    if (present(notrans)) notrans_ = notrans
+
+    if (notrans_) then
+       m3 = m(1:3,1:3)
+       mult = matmul(m3,v)
+    else
+       vx(1:3) = v
+       vx(4) = 1._c_float
+       vx = matmul(m,vx)
+       mult = vx(1:3) / vx(4)
+    end if
+
+  end function mult
+
+  ! Calculate inv(m) * v + t, where t is the translation in the
+  ! 4x4 matrix. Returns the resulting 3-vector.
+  module function invmult(m,v,notrans)
+    use tools_math, only: matinv_cfloat
+    real(c_float), intent(in) :: m(4,4)
+    real(c_float), intent(in) :: v(3)
+    logical, intent(in), optional :: notrans
+    real(c_float) :: invmult(3)
+
+    integer :: ier
+    logical :: notrans_
+    real(c_float) :: vx(4), mx(4,4), m3(3,3)
+
+    notrans_ = .false.
+    if (present(notrans)) notrans_ = notrans
+
+    mx = m
+    call matinv_cfloat(mx,4,ier)
+
+    if (notrans_) then
+       m3 = mx(1:3,1:3)
+       invmult = matmul(m3,v)
+    else
+       vx(1:3) = v
+       vx(4) = 1._c_float
+       vx = matmul(mx,vx)
+       invmult = vx(1:3) / vx(4)
+    end if
+
+  end function invmult
+
 end submodule math
