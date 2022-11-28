@@ -423,7 +423,7 @@ contains
     call iw_tooltip("Add, remove, and modify representations",ttshown)
 
     ! update the draw lists and render
-    if (chbuild) w%forcebuildlists = .true.
+    if (chbuild) sysc(w%view_selected)%sc%forcebuildlists = .true.
     if (chrender .or. chbuild) w%forcerender = .true.
 
     ! save image
@@ -487,13 +487,6 @@ contains
     end if
     sysc(w%view_selected)%sc%camratio = min(ratio,2.5_c_float)
 
-    ! rebuild the draw lists, if requested
-    if (w%forcebuildlists .and. goodsys) then
-       call sysc(w%view_selected)%sc%build_lists()
-       w%forcebuildlists = .false.
-       w%forcerender = .true.
-    end if
-
     ! render the image to the texture, if requested
     if (w%forcerender) then
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
@@ -532,10 +525,10 @@ contains
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
              sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
-             w%forcebuildlists = .true.
+             sysc(w%view_selected)%sc%forcebuildlists = .true.
           elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
              sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc - 1,1)
-             w%forcebuildlists = .true.
+             sysc(w%view_selected)%sc%forcebuildlists = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
              call sysc(w%view_selected)%sc%align_view_axis(1)
@@ -1030,7 +1023,7 @@ contains
        end if
 
        ! rebuild draw lists if necessary
-       if (changed) win(w%idparent)%forcebuildlists = .true.
+       if (changed) sysc(win(w%idparent)%view_selected)%sc%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
@@ -1046,7 +1039,7 @@ contains
           call w%rep%init(w%rep%id,w%rep%idrep,itype)
           w%rep%name = str2
           w%rep%shown = lshown
-          win(w%idparent)%forcebuildlists = .true.
+          sysc(win(w%idparent)%view_selected)%sc%forcebuildlists = .true.
        end if
 
        ! close button

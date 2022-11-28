@@ -106,7 +106,6 @@ module windows
      integer(c_int) :: FBOside ! side of the render texture (pixels)
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
      integer :: view_selected = 1 ! the system selected in the view window
-     logical :: forcebuildlists = .true. ! force rebuild draw lists
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window

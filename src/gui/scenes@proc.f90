@@ -52,6 +52,7 @@ contains
     s%scenecenter = 0d0
     s%scenexmin = 0d0
     s%scenexmax = 1d0
+    s%forcebuildlists = .false.
 
     ! resolutions
     s%atom_res = 3
@@ -218,6 +219,9 @@ contains
        s%world = translate(s%world,-xc)
     end if
 
+    ! rebuilding lists is done
+    s%forcebuildlists = .false.
+
   end subroutine scene_build_lists
 
   !> Draw the scene
@@ -237,6 +241,12 @@ contains
 
     ! build draw lists if not done already
     if (.not.allocated(s%drawlist_sph)) call s%build_lists()
+
+    ! if necessary, rebuild draw lists
+    if (s%forcebuildlists) then
+       call s%build_lists()
+       s%forcebuildlists = .false.
+    end if
 
     ! set up the shader and the uniforms
     call useshader(shader_phong)

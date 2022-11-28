@@ -101,6 +101,7 @@ module scenes
      integer, allocatable :: iord(:) ! the representation order
      logical :: forcesort = .false. ! force sort the representations
      logical :: forceresetcam = .false. ! force reset of the camera
+     logical :: forcebuildlists ! force rebuild of lists
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center (world coords)
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
