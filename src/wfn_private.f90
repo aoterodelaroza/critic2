@@ -141,6 +141,7 @@ module wfn_private
   public :: molwfn
 
   public :: wfn_read_xyz_geometry
+  public :: wfn_read_gjf_geometry
   public :: wfn_read_wfn_geometry
   public :: wfn_read_wfx_geometry
   public :: wfn_read_fchk_geometry
@@ -175,6 +176,15 @@ module wfn_private
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_xyz_geometry
+     module subroutine wfn_read_gjf_geometry(file,n,x,z,name,errmsg,ti)
+       character*(*), intent(in) :: file
+       integer, intent(out) :: n
+       real*8, allocatable, intent(inout) :: x(:,:)
+       integer, allocatable, intent(inout) :: z(:)
+       character*(10), allocatable, intent(inout) :: name(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine wfn_read_gjf_geometry
      module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n

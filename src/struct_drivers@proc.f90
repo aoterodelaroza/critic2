@@ -33,7 +33,7 @@ contains
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
        isformat_elk,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_gjf,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
@@ -93,6 +93,8 @@ contains
        isformat = isformat_crystal
     elseif (equal(lword,'xyz')) then
        isformat = isformat_xyz
+    elseif (equal(lword,'gjf').or.equal(lword,'com')) then
+       isformat = isformat_gjf
     elseif (equal(lword,'wfn')) then
        isformat = isformat_wfn
     elseif (equal(lword,'wfx')) then
@@ -241,7 +243,7 @@ contains
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca) then
+       isformat == isformat_orca.or.isformat == isformat_gjf) then
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_siesta) then

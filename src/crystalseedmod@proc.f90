@@ -789,7 +789,7 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac
+       isformat_aimsout, isformat_tinkerfrac, isformat_gjf
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -860,7 +860,7 @@ contains
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca) then
+       isformat == isformat_orca.or.isformat == isformat_gjf) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_siesta) then
@@ -2218,10 +2218,10 @@ contains
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
        wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry,&
-       wfn_read_orca_geometry
+       wfn_read_orca_geometry, wfn_read_gjf_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout, isformat_orca
+       isformat_pgout, isformat_orca, isformat_gjf
     use tools_io, only: equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2241,6 +2241,9 @@ contains
     if (fmt == isformat_xyz) then
        ! xyz
        call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+    elseif (fmt == isformat_gjf) then
+       ! xyz
+       call wfn_read_gjf_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_wfn) then
        ! wfn
        call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
@@ -4239,7 +4242,7 @@ contains
   !> contains a scalar field.
   module subroutine struct_detect_format(file,isformat,alsofield,ti)
     use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
-       isformat_f21, isformat_xyz,&
+       isformat_f21, isformat_xyz, isformat_gjf,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
@@ -4317,6 +4320,8 @@ contains
        if (isformat /= isformat_aimsin) goto 999
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
+    elseif (equal(wextdot,'gjf').or.equal(wextdot,'com')) then
+       isformat = isformat_gjf
     elseif (equal(wextdot,'pgout')) then
        isformat = isformat_pgout
     elseif (equal(wextdot,'wfn')) then
@@ -4398,7 +4403,7 @@ contains
        getline_raw, lgetword, equal, lower
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_wfn,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_gjf, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
@@ -4422,7 +4427,7 @@ contains
        isformat_crystal)
        ismol = .false.
 
-    case (isformat_xyz,isformat_pgout,isformat_wfn,isformat_wfx,&
+    case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
        isformat_orca)
        ismol = .true.
@@ -4561,7 +4566,7 @@ contains
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali, fopen_read, fclose
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
-       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian,&
+       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_gjf,&
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
@@ -4655,8 +4660,8 @@ contains
        call read_all_log(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
-       isformat == isformat_dat .or. isformat == isformat_pgout.or.&
-       isformat == isformat_orca) then
+       isformat == isformat_dat.or.isformat == isformat_pgout.or.&
+       isformat == isformat_orca.or.isformat == isformat_gjf) then
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)

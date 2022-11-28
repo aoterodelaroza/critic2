@@ -264,6 +264,81 @@ contains
 
   end subroutine wfn_read_xyz_geometry
 
+  !> Read the molecular geometry from a Gaussian input file
+  module subroutine wfn_read_gjf_geometry(file,n,x,z,name,errmsg,ti)
+    use tools_io, only: getline_raw, fopen_read, fclose, zatguess
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    integer, intent(out) :: n
+    real*8, allocatable, intent(inout) :: x(:,:)
+    integer, allocatable, intent(inout) :: z(:)
+    character*(10), allocatable, intent(inout) :: name(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line
+    character*10 :: atsym
+    integer :: lu, nblank
+    !     integer :: i, lp
+    logical :: ok, found0
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+
+    ! open the file
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    nblank = 0
+    found0 = .false.
+    do while (.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
+       if (len_trim(line) == 0 .and. found0) then
+          nblank = nblank + 1
+       else
+          found0 = .true.
+       end if
+       if (nblank == 2) exit
+    end do
+
+    n = 0
+    allocate(x(3,100),z(100),name(100))
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) goto 999
+    do while (.true.)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
+       if (len_trim(line) == 0) exit
+
+       n = n + 1
+       if (n > size(x,2)) then
+          call realloc(x,3,2*n)
+          call realloc(z,2*n)
+          call realloc(name,2*n)
+       end if
+       read (line,*,err=999) atsym, x(:,n)
+       name(n) = trim(adjustl(atsym))
+       z(n) = zatguess(atsym)
+       x(:,n) = x(:,n) / bohrtoa
+    end do
+    call realloc(x,3,n)
+    call realloc(z,n)
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end subroutine wfn_read_gjf_geometry
+
   !> Read the molecular geometry from a wfn file
   module subroutine wfn_read_wfn_geometry(file,n,x,z,name,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose
