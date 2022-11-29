@@ -21,7 +21,7 @@ submodule (environmod) proc
 
   integer, parameter :: menv0 = 10
 
-  real*8, parameter :: boxsize_default = 4.0 ! length of the region side (bohr)
+  real*8, parameter :: boxsize_default = 23d0 ! length of the region side (bohr)
 
   !xx! private procedures
   ! function packoffset(i1,i2,i3,nr,nr21) result(ip)
@@ -1562,9 +1562,9 @@ contains
   module subroutine find_asterisms_covalent(e,nstar)
     use global, only: bondfactor
     use tools_io, only: ferror, faterr, uout, string
-    use types, only: realloc
+    use types, only: realloc, celatom
     use param, only: atmcov
-    class(environ), intent(in) :: e
+    class(environ), intent(inout) :: e
     type(neighstar), allocatable, intent(inout) :: nstar(:)
 
     integer :: i, j
@@ -1572,6 +1572,7 @@ contains
     integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
+    type(celatom) :: at(1)
 
     ! return if there are no atoms
     if (e%n == 0 .or. e%nspc == 0) return

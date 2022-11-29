@@ -767,6 +767,7 @@ contains
     xmid = 0.5_c_float * (x1 + x2)
     xdif = x2 - x1
     blen = norm2(xdif)
+    if (blen < 1e-4_c_float) return
     xdif = xdif / blen
     up = (/0._c_float,0._c_float,1._c_float/)
     crs = cross_cfloat(up,xdif)

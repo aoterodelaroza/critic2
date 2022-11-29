@@ -336,7 +336,7 @@ module environmod
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
      module subroutine find_asterisms_covalent(e,nstar)
-       class(environ), intent(in) :: e
+       class(environ), intent(inout) :: e
        type(neighstar), allocatable, intent(inout) :: nstar(:)
      end subroutine find_asterisms_covalent
      module subroutine find_asterisms_listatoms(e,nstar,rtable,factor)

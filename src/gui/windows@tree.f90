@@ -2213,7 +2213,7 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              mrad = max(mrad,atmcov(iz))
              rad = atmcov(iz) * bohrtoa
-             ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,3._c_float,c_loc(str3),&
+             ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,2.65_c_float,c_loc(str3),&
                 ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
              if (ch) atmcov(iz) = rad / bohrtoa
              call igPopItemWidth()
@@ -2229,8 +2229,8 @@ contains
     call igPushItemWidth(iw_calcwidth(6,1))
     bf = bondfactor
     call igSameLine(0._c_float,-1._c_float)
-    bfmin = 0.7_c_float
-    bfmax = 1.8_c_float
+    bfmin = 0.5_c_float
+    bfmax = 2.0_c_float
     ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),&
        ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call iw_tooltip("Atoms i and j are bonded if their distance is lower than (bond factor)&
@@ -2265,7 +2265,11 @@ contains
     ok = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
     ok = ok .or. iw_button("Close",sameline=.true.)
-    if (ok) doquit = .true.
+    if (ok) then
+       atmcov = atmcov0
+       bondfactor = bondfactor_def
+       doquit = .true.
+    end if
 
     ! quit the window
     if (doquit) then
