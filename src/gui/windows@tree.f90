@@ -2061,7 +2061,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor, bondfactor_def
     use tools_io, only: string, nameguess
-    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, icrd_cart
+    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, icrd_cart,newline
     class(window), intent(inout), target :: w
 
     logical :: ok, doquit, oksys, ch
@@ -2229,14 +2229,19 @@ contains
     call igPushItemWidth(iw_calcwidth(6,1))
     bf = bondfactor
     call igSameLine(0._c_float,-1._c_float)
-    bfmin = 0.5_c_float
+    bfmin = 1.0_c_float
     bfmax = 2.0_c_float
     ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),&
        ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
-    call iw_tooltip("Atoms i and j are bonded if their distance is lower than (bond factor)&
-       & * (ri+rj), with ri and rj the atom radii",ttshown)
+    call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
     if (ch) bondfactor = bf
     call igPopItemWidth()
+
+    ! explanation message
+    call iw_text("Atoms i and j are bonded if:"//newline//&
+       "  (ri+rj)/(bond factor) < rij < (ri+rj)*(bond factor)"//newline//&
+       "where rij is the atomic distance, ri and rj are the radii")
+
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
