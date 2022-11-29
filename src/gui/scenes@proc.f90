@@ -599,7 +599,7 @@ contains
     r%uc_rgba = (/1._c_float,1._c_float,1._c_float,1._c_float/)
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
-    r%uc_origin = 0._c_float
+    r%origin = 0._c_float
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
@@ -811,6 +811,7 @@ contains
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
+    use param, only: bohrtoa
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     integer, intent(inout) :: nsph
@@ -825,7 +826,7 @@ contains
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
     real(c_float) :: rgba(4), rad
-    real*8 :: xx(3), x0(3), x1(3), x2(3), res
+    real*8 :: xx(3), x0(3), x1(3), x2(3), res, uoriginc(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     character(len=:), allocatable :: atcode
@@ -878,6 +879,13 @@ contains
           n = nc
        elseif (r%pertype == 2) then
           n = r%ncell
+       end if
+
+       ! origin shift
+       if (sys(r%id)%c%ismolecule) then
+          uoriginc = r%origin / bohrtoa
+       else
+          uoriginc = sys(r%id)%c%x2c(real(r%origin,8))
        end if
 
        ! run over atoms, either directly or per-molecule
@@ -953,7 +961,7 @@ contains
                       end if
 
                       ! write down the sphere
-                      drawlist_sph(nsph)%x = real(xx,c_float)
+                      drawlist_sph(nsph)%x = real(xx + uoriginc,c_float)
                       drawlist_sph(nsph)%r = rad
                       drawlist_sph(nsph)%rgba = rgba
                    end if
@@ -986,9 +994,9 @@ contains
                          call move_alloc(auxcyl,drawlist_cyl)
                       end if
 
-                      x1 = xx
+                      x1 = xx + uoriginc
                       x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
-                      x2 = sys(r%id)%c%x2c(x2)
+                      x2 = sys(r%id)%c%x2c(x2) + uoriginc
                       if (r%bond_color_style == 0) then
                          drawlist_cyl(ncyl)%x1 = real(x1,c_float)
                          drawlist_cyl(ncyl)%x2 = real(x2,c_float)
@@ -1032,9 +1040,9 @@ contains
 
        ! external cell
        do i = 1, 12
-          x1 = real(uc(:,1,i) * n,8) + r%uc_origin
+          x1 = real(uc(:,1,i) * n,8) + r%origin
           x1 = sys(r%id)%c%x2c(x1)
-          x2 = real(uc(:,2,i) * n,8) + r%uc_origin
+          x2 = real(uc(:,2,i) * n,8) + r%origin
           x2 = sys(r%id)%c%x2c(x2)
 
           call increase_ncylflat()
@@ -1066,9 +1074,9 @@ contains
                       isedge(ucdir(i)) = .true.
                       if (all(isedge)) cycle
 
-                      x1 = real(ix1,8) + r%uc_origin
+                      x1 = real(ix1,8) + r%origin
                       x1 = sys(r%id)%c%x2c(x1)
-                      x2 = real(ix2,8) + r%uc_origin
+                      x2 = real(ix2,8) + r%origin
                       x2 = sys(r%id)%c%x2c(x2)
 
                       ! logical :: uc_innerstipple ! stippled lines for the inner lines

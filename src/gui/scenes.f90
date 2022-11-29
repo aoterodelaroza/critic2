@@ -62,6 +62,7 @@ module scenes
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
+     real(c_float) :: origin(3) ! unit cell, origin shift
      ! atoms & bonds
      logical :: goodfilter ! true if the filter is not in error
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
@@ -86,7 +87,6 @@ module scenes
      real(c_float) :: uc_rgba(4) ! unit cell cylinder colors
      real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical(c_bool) :: uc_innerstipple ! stippled lines for the inner lines
-     real(c_float) :: uc_origin(3) ! unit cell, origin shift
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end

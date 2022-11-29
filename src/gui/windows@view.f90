@@ -1205,6 +1205,22 @@ contains
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
     call iw_tooltip("Draw the bonds",ttshown)
 
+    ! origin of the atoms
+    call igPushItemWidth(iw_calcwidth(21,3))
+    if (sys(isys)%c%ismolecule) then
+       str1 = "Origin shift (Å)##originatom" // c_null_char
+       str2 = "%.4f" // c_null_char
+       changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
+          0.01_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+    else
+       str1 = "Origin shift (fractional coord.)##originatom" // c_null_char
+       str2 = "%.5f" // c_null_char
+       changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
+          0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+    end if
+    call iw_tooltip("Coordinates for the origin shift of the atoms/bonds",ttshown)
+    call igPopItemWidth()
+
     ! atom styles
     ! selector and reset
     ch = .false.
@@ -1577,7 +1593,7 @@ contains
     str1 = "##originucx" // c_null_char
     str2 = "%.5f" // c_null_char
     call igPushItemWidth(iw_calcwidth(21,3))
-    changed = changed .or. igDragFloat3(c_loc(str1),w%rep%uc_origin,&
+    changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
        0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
     call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
     call igPopItemWidth()
