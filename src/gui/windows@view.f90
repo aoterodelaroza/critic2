@@ -944,7 +944,7 @@ contains
     logical :: doquit
 
     ! check the system and representation are still active
-    isys = w%editrep_isys
+    isys = w%isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
@@ -981,7 +981,7 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! check the system and representation are still active
-    isys = w%editrep_isys
+    isys = w%isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
@@ -1091,7 +1091,7 @@ contains
 
     ! initialize
     changed = .false.
-    isys = w%editrep_isys
+    isys = w%isys
 
     ! filter
     call igAlignTextToFramePadding()

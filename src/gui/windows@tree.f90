@@ -934,7 +934,7 @@ contains
          strpop = "Recalculate Bonds" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             if (idrebond > 0) then
-               win(idrebond)%rebond_isys = isys
+               win(idrebond)%isys = isys
             else
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys)
             end if
@@ -945,7 +945,7 @@ contains
          strpop = "Load Field" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             if (idloadfield > 0) then
-               win(idloadfield)%loadfield_isys = isys
+               win(idloadfield)%isys = isys
             else
                idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys)
             end if
@@ -1633,7 +1633,7 @@ contains
 
     !! make sure we get a system that exists
     ! check if the system still exists
-    isys = w%loadfield_isys
+    isys = w%isys
     oksys = system_ok(isys)
     if (.not.oksys) then
        ! reset to the table selected
@@ -1677,8 +1677,8 @@ contains
              is_selected = (isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                w%loadfield_isys = i
-                isys = w%loadfield_isys
+                w%isys = i
+                isys = w%isys
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
@@ -1966,7 +1966,7 @@ contains
     integer :: isys
     logical :: doquit
 
-    isys = w%scfplot_isys
+    isys = w%isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
@@ -1990,7 +1990,7 @@ contains
     type(ImVec4) :: auto
     character(len=:,kind=c_char), allocatable, target :: str1, str2
 
-    isys = w%scfplot_isys
+    isys = w%isys
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
@@ -2079,7 +2079,7 @@ contains
 
     !! make sure we get a system that exists
     ! check if the system still exists
-    isys = w%rebond_isys
+    isys = w%isys
     oksys = system_ok(isys)
     if (.not.oksys) then
        ! reset to the table selected
@@ -2122,8 +2122,8 @@ contains
              is_selected = (isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                w%rebond_isys = i
-                isys = w%rebond_isys
+                w%isys = i
+                isys = w%isys
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
@@ -2132,7 +2132,6 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
-
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)

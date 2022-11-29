@@ -88,6 +88,7 @@ module windows
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
+     integer :: isys = 1 ! the system on which the window operates
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
@@ -121,13 +122,10 @@ module windows
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      ! load field parameters
-     integer :: loadfield_isys = 1 ! the system on which the load field dialog operates
      ! scf plot parameters
-     integer :: scfplot_isys = 0 ! the system on which the scf plot window operates
      real(c_double) :: ymin, ymax ! y-end of the plot
      real(c_double), allocatable :: plotx(:), ploty(:) ! plot data
      ! edit representation parameters
-     integer :: editrep_isys = 0 ! the system on which the edit representation window operates
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      ! export image parameters
      integer :: idsave = 0 ! window ID for the save file dialog (export image)
@@ -136,7 +134,6 @@ module windows
      logical(c_bool) :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
      ! rebond parameters
-     integer :: rebond_isys = 1 ! the system on which the rebond dialog operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

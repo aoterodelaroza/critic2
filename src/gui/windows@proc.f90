@@ -190,12 +190,12 @@ contains
        ! dialog: load field window
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
-       w%loadfield_isys = isys
+       w%isys = isys
     elseif (type == wintype_scfplot) then
        ! SCF plot window
        if (.not.present(isys)) &
           call ferror('window_init','scfplot requires isys',faterr)
-       w%scfplot_isys = isys
+       w%isys = isys
     elseif (type == wintype_editrep) then
        ! edit representation window
        if (.not.present(isys)) &
@@ -204,7 +204,7 @@ contains
           call ferror('window_init','editrep requires irep',faterr)
        if (.not.present(idcaller)) &
           call ferror('window_init','editrep requires idcaller',faterr)
-       w%editrep_isys = isys
+       w%isys = isys
        w%rep => sysc(isys)%sc%rep(irep)
        w%idparent = idcaller
     elseif (type == wintype_exportimage) then
@@ -219,7 +219,7 @@ contains
        ! recalculate bonds window
        if (.not.present(isys)) &
           call ferror('window_init','rebond requires isys',faterr)
-       w%rebond_isys = isys
+       w%isys = isys
     end if
 
   end subroutine window_init
@@ -414,14 +414,14 @@ contains
           inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_scfplot) then
-          w%name = "SCF Iterations (" // string(w%scfplot_isys) // ")" // c_null_char
+          w%name = "SCF Iterations (" // string(w%isys) // ")" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 45 * fontsize%x
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_editrep) then
           w%name = "Representation [" // string(w%rep%name) // ", " // &
-             string(w%editrep_isys) // "]##" // string(w%rep%idrep) // c_null_char
+             string(w%isys) // "]##" // string(w%rep%idrep) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
           inisize%y = 40 * fontsize%y
