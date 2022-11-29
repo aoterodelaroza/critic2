@@ -435,8 +435,8 @@ contains
        elseif (w%type == wintype_rebond) then
           w%name = "Recalculate Bonds" // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 60 * fontsize%x
-          inisize%y = 15 * fontsize%y
+          inisize%x = 40 * fontsize%x
+          inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if

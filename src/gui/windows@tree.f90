@@ -1663,7 +1663,7 @@ contains
     end if
 
     ! system combo
-    call iw_text("System")
+    call iw_text("System",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
@@ -2058,16 +2058,26 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button
-    use tools_io, only: string
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
+    use global, only: bondfactor, bondfactor_def
+    use tools_io, only: string, nameguess
+    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, icrd_cart
     class(window), intent(inout), target :: w
 
-    logical :: ok, doquit, oksys
-    integer :: i, isys
-    type(ImVec2) :: szavail, sz, szero
-    real(c_float) :: combowidth
+    logical :: ok, doquit, oksys, ch
+    integer :: i, j, iz, isys, natused, iat
+    type(ImVec2) :: szavail, sz, szero, sz0
+    integer(c_int) :: flags
+    real(c_float) :: combowidth, rad, bf, bfmin, bfmax
     logical(c_bool) :: is_selected
-    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    character(len=:,kind=c_char), allocatable, target :: str1, str2, str3
+    integer, allocatable :: iat(:)
+    logical :: atused(maxzat0)
+    real*8 :: dist, mrad
+
+    integer, parameter :: ic_name = 0
+    integer, parameter :: ic_z = 1
+    integer, parameter :: ic_radius = 2
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
@@ -2108,7 +2118,7 @@ contains
     end if
 
     ! system combo
-    call iw_text("System")
+    call iw_text("System",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
@@ -2133,6 +2143,101 @@ contains
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
+    ! determine which atoms are to be used
+    atused = .false.
+    do i = 1, sys(isys)%c%nspc
+       atused(sys(isys)%c%spc(i)%z) = .true.
+    end do
+    allocate(iat(count(atused)))
+    natused = 0
+    do i = 1, maxzat0
+       if (atused(i)) then
+          natused = natused + 1
+          iat(natused) = i
+       end if
+    end do
+
+    ! the radii table
+    mrad = 0d0
+    call iw_text("Atomic Radii",highlight=.true.)
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_Resizable)
+    flags = ior(flags,ImGuiTableFlags_Reorderable)
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    str1="##tableatomrcov" // c_null_char
+    sz0%x = 0
+    sz0%y = iw_calcheight(min(5,natused)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+       ! header setup
+       str2 = "Atom" // c_null_char
+       flags = ImGuiTableColumnFlags_None
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_name)
+
+       str2 = "Z" // c_null_char
+       flags = ImGuiTableColumnFlags_None
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_z)
+
+       str2 = "Radius (Å)" // c_null_char
+       flags = ImGuiTableColumnFlags_WidthStretch
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+       ! draw the header
+       call igTableHeadersRow()
+       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+       ! draw the rows
+       do i = 1, natused
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+          iz = iat(i)
+
+          ! name
+          if (igTableSetColumnIndex(ic_name)) then
+             call igAlignTextToFramePadding()
+             call iw_text(string(nameguess(iz,.true.)))
+          end if
+
+          ! Z
+          if (igTableSetColumnIndex(ic_z)) then
+             call igAlignTextToFramePadding()
+             call iw_text(string(iz))
+          end if
+
+          ! radius
+          if (igTableSetColumnIndex(ic_radius)) then
+             str2 = "##tableradius" // string(i) // c_null_char
+             str3 = "%.3f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(5,1))
+             mrad = max(mrad,atmcov(iz))
+             rad = atmcov(iz) * bohrtoa
+             ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,3._c_float,c_loc(str3),&
+                ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+             if (ch) atmcov(iz) = rad / bohrtoa
+             call igPopItemWidth()
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    ! bond factor
+    call iw_text("Bond factor",highlight=.true.)
+    str2 = "##bondfactor" // c_null_char
+    str3 = "%.4f" // c_null_char
+    call igPushItemWidth(iw_calcwidth(6,1))
+    bf = bondfactor
+    call igSameLine(0._c_float,-1._c_float)
+    bfmin = 0.7_c_float
+    bfmax = 1.8_c_float
+    ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),&
+       ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+    call iw_tooltip("Atoms i and j are bonded if their distance is lower than (bond factor)&
+       & * (ri+rj), with ri and rj the atom radii",ttshown)
+    if (ch) bondfactor = bf
+    call igPopItemWidth()
+
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
     call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.) - g%Style%ScrollbarSize)
@@ -2141,11 +2246,18 @@ contains
 
     ! reset to the default bonds
     if (iw_button("Reset",danger=.true.)) then
+       atmcov = atmcov0
+       bondfactor = bondfactor_def
     end if
     call iw_tooltip("Reset the default bonding parameters and recalculate the system bonds",ttshown)
 
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
+       ! find the atomic connectivity and the molecular fragments
+       call sys(isys)%c%env%find_asterisms_covalent(sys(isys)%c%nstar)
+       call sys(isys)%c%fill_molecular_fragments()
+       call sys(isys)%c%calculate_molecular_equivalence()
+       sysc(isys)%sc%forcebuildlists = .true.
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 

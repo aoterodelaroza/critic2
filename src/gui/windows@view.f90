@@ -1288,7 +1288,7 @@ contains
        call igTableHeadersRow()
        call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-       ! draw the raws
+       ! draw the rows
        do i = 1, w%rep%natom_style
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
           if (w%rep%atom_style_type == 0) then

@@ -741,7 +741,7 @@ contains
     precisecube = .true.
 
     ! bond factor
-    bondfactor = 1.4d0
+    bondfactor = bondfactor_def
 
     ! symmetry
     doguess = -1

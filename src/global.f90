@@ -106,6 +106,7 @@ module global
 
   ! covalent bond factor
   real*8 :: bondfactor
+  real*8, parameter :: bondfactor_def = 1.4d0
 
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
