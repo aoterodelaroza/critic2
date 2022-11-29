@@ -424,7 +424,7 @@ contains
 
     ! update the draw lists and render
     if (chbuild) sysc(w%view_selected)%sc%forcebuildlists = .true.
-    if (chrender .or. chbuild) w%forcerender = .true.
+    if (chrender .or. sysc(w%view_selected)%sc%forcebuildlists) w%forcerender = .true.
 
     ! save image
     if (iw_button("Export",sameline=.true.)) then
@@ -1470,6 +1470,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical :: ch
+    logical(c_bool) :: ldum
 
     ! initialize
     changed = .false.
@@ -1570,6 +1571,16 @@ contains
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
        end if
     end if
+
+    ! origin of the unit cell
+    call iw_text("Origin Shift",highlight=.true.)
+    str1 = "##originucx" // c_null_char
+    str2 = "%.5f" // c_null_char
+    call igPushItemWidth(iw_calcwidth(21,3))
+    changed = changed .or. igDragFloat3(c_loc(str1),w%rep%uc_origin,&
+       0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+    call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
+    call igPopItemWidth()
 
   end function draw_editrep_unitcell
 

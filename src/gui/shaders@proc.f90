@@ -37,7 +37,7 @@ contains
   module subroutine shaders_init()
     use interfaces_opengl3
     use global, only: critic_home
-    use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr
+    use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr, uout
     use param, only: dirsep, newline
 
     integer :: i, j, lu
@@ -74,7 +74,7 @@ contains
           call glGetShaderiv(shad(j), GL_COMPILE_STATUS, success)
           if (success == GL_FALSE) then
              call glGetShaderInfoLog(shad(j), 1023, length, c_loc(infolog))
-             write (*,'("Error: ", A)') trim(infolog)
+             write (uout,'("Error: ", A)') trim(infolog)
              call ferror('shaders_init','error compiling shader',faterr)
           end if
        end do
@@ -87,7 +87,7 @@ contains
        call glGetProgramiv(ishad_prog(i), GL_LINK_STATUS, success)
        if (success == GL_FALSE) then
           call glGetProgramInfoLog(ishad_prog(i), 1023, length, c_loc(infolog))
-          write (*,'("Error: ", A)') trim(infolog)
+          write (uout,'("Error: ", A)') trim(infolog)
           call ferror('shaders_init','error linking shader',faterr)
        end if
 

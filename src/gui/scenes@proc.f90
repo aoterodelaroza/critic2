@@ -599,6 +599,7 @@ contains
     r%uc_rgba = (/1._c_float,1._c_float,1._c_float,1._c_float/)
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
+    r%uc_origin = 0._c_float
     if (present(itype)) then
        if (itype == reptype_atoms) then
           r%isinit = .true.
@@ -1031,9 +1032,9 @@ contains
 
        ! external cell
        do i = 1, 12
-          x1 = real(uc(:,1,i) * n,8)
+          x1 = real(uc(:,1,i) * n,8) + r%uc_origin
           x1 = sys(r%id)%c%x2c(x1)
-          x2 = real(uc(:,2,i) * n,8)
+          x2 = real(uc(:,2,i) * n,8) + r%uc_origin
           x2 = sys(r%id)%c%x2c(x2)
 
           call increase_ncylflat()
@@ -1065,9 +1066,9 @@ contains
                       isedge(ucdir(i)) = .true.
                       if (all(isedge)) cycle
 
-                      x1 = real(ix1,8)
+                      x1 = real(ix1,8) + r%uc_origin
                       x1 = sys(r%id)%c%x2c(x1)
-                      x2 = real(ix2,8)
+                      x2 = real(ix2,8) + r%uc_origin
                       x2 = sys(r%id)%c%x2c(x2)
 
                       ! logical :: uc_innerstipple ! stippled lines for the inner lines

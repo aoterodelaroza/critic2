@@ -86,6 +86,7 @@ module scenes
      real(c_float) :: uc_rgba(4) ! unit cell cylinder colors
      real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical(c_bool) :: uc_innerstipple ! stippled lines for the inner lines
+     real(c_float) :: uc_origin(3) ! unit cell, origin shift
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
