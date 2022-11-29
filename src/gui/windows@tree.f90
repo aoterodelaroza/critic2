@@ -86,6 +86,7 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
+    integer(c_int), save :: idrebond = 0 ! ID of the window used rebond the sytsem
 
     ! initialize
     hadenabledcolumn = .false.
@@ -101,6 +102,7 @@ contains
 
     ! update the window ID for the load field dialog
     call update_window_id(idloadfield)
+    call update_window_id(idrebond)
 
     ! text filter
     if (.not.c_associated(cfilter)) &
@@ -928,6 +930,17 @@ contains
             call iw_tooltip("Plot the energy and other properties as a function of SCF cycle iterations",ttshown)
          end if
 
+         ! rebond
+         strpop = "Recalculate Bonds" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            if (idrebond > 0) then
+               win(idrebond)%rebond_isys = isys
+            else
+               idrebond = stack_create_window(wintype_rebond,.true.,isys=isys)
+            end if
+         end if
+         call iw_tooltip("Recalculate the atomic bonds in this system",ttshown)
+
          ! load field
          strpop = "Load Field" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
@@ -1562,7 +1575,7 @@ contains
 
     logical :: oksys, ok, doquit, disabled
     integer :: isys, i, j, oid, ll, idx, iff
-    type(ImVec2) :: szavail, sz, szero
+    type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
     character(len=:,kind=c_char), allocatable, target :: str1, str2, loadstr, errmsg
@@ -1653,7 +1666,7 @@ contains
     call iw_text("System")
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
-    combowidth = max(szavail%x - sz%x - g%Style%ItemSpacing%x,0._c_float)
+    combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
     str1 = "##systemcombo" // c_null_char
     call igSetNextItemWidth(combowidth)
     if (oksys) &
@@ -2039,5 +2052,125 @@ contains
     if (doquit) call w%end()
 
   end subroutine draw_scfplot
+
+  !> Draw the contents of the load field window.
+  module subroutine draw_rebond(w)
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use gui_main, only: nsys, sysc, sys, sys_init, g
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    logical :: ok, doquit, oksys
+    integer :: i, isys
+    type(ImVec2) :: szavail, sz, szero
+    real(c_float) :: combowidth
+    logical(c_bool) :: is_selected
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
+
+    ! window state
+    logical, save :: ttshown = .false. ! tooltip flag
+
+    ! initialize
+    szero%x = 0
+    szero%y = 0
+    doquit = .false.
+
+    !! make sure we get a system that exists
+    ! check if the system still exists
+    isys = w%rebond_isys
+    oksys = system_ok(isys)
+    if (.not.oksys) then
+       ! reset to the table selected
+       isys = win(iwin_tree)%table_selected
+       oksys = system_ok(isys)
+    end if
+    if (.not.oksys) then
+       ! reset to the input console selected
+       isys = win(iwin_tree)%inpcon_selected
+       oksys = system_ok(isys)
+    end if
+    if (.not.oksys) then
+       ! check all systems and try to find one that is OK
+       do i = 1, nsys
+          oksys = system_ok(isys)
+          if (oksys) then
+             isys = i
+             exit
+          end if
+       end do
+    end if
+    if (.not.oksys) then
+       ! this dialog does not make sense anymore, close it and exit
+       call w%end()
+       return
+    end if
+
+    ! system combo
+    call iw_text("System")
+    call igSameLine(0._c_float,-1._c_float)
+    call igGetContentRegionAvail(szavail)
+    combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
+    str1 = "##systemcombo" // c_null_char
+    call igSetNextItemWidth(combowidth)
+    if (oksys) &
+       str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init) then
+             is_selected = (isys == i)
+             str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+                w%rebond_isys = i
+                isys = w%rebond_isys
+             end if
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end if
+       end do
+       call igEndCombo()
+    end if
+    call iw_tooltip("Recalculate the bonds in this system",ttshown)
+
+
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+
+    ! reset to the default bonds
+    if (iw_button("Reset",danger=.true.)) then
+    end if
+    call iw_tooltip("Reset the default bonding parameters and recalculate the system bonds",ttshown)
+
+    ! apply the changes
+    if (iw_button("Apply",sameline=.true.)) then
+    end if
+    call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
+
+    ! close button
+    ok = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
+    ok = ok .or. iw_button("Close",sameline=.true.)
+    if (ok) doquit = .true.
+
+    ! quit the window
+    if (doquit) then
+       call w%end()
+    end if
+
+  contains
+    ! returns OK if system isys is initialized
+    function system_ok(isys)
+      integer, intent(in) :: isys
+      logical :: system_ok
+
+      system_ok = (isys > 0 .and. isys <= nsys)
+      if (system_ok) system_ok = (sysc(isys)%status == sys_init)
+
+    end function system_ok
+  end subroutine draw_rebond
 
 end submodule tree

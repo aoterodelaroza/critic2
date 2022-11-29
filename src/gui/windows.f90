@@ -135,6 +135,8 @@ module windows
      integer(c_int) :: jpgquality ! jpg quality
      logical(c_bool) :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
+     ! rebond parameters
+     integer :: rebond_isys = 1 ! the system on which the rebond dialog operates
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -185,6 +187,8 @@ module windows
      procedure :: draw_editrep_unitcell
      ! export image
      procedure :: draw_exportimage
+     ! rebond
+     procedure :: draw_rebond
   end type window
   public :: window
 
@@ -210,6 +214,7 @@ module windows
   integer, parameter, public :: wintype_editrep = 10
   integer, parameter, public :: wintype_exportimage = 11
   integer, parameter, public :: wintype_about = 12
+  integer, parameter, public :: wintype_rebond = 13
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -384,6 +389,9 @@ module windows
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w
      end subroutine draw_exportimage
+     module subroutine draw_rebond(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_rebond
   end interface
 
 end module windows

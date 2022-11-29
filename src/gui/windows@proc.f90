@@ -215,6 +215,11 @@ contains
     elseif (type == wintype_view) then
        ! view window
        call w%create_texture_view(initial_texture_side)
+    elseif (type == wintype_rebond) then
+       ! recalculate bonds window
+       if (.not.present(isys)) &
+          call ferror('window_init','rebond requires isys',faterr)
+       w%rebond_isys = isys
     end if
 
   end subroutine window_init
@@ -315,7 +320,7 @@ contains
           str1 = "All files (*.*){*.*}" // c_null_char
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              ! open dialog
-             w%name = "Open File(s)..." // c_null_char
+             w%name = "Open File(s)" // c_null_char
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -344,17 +349,17 @@ contains
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
-             w%name = "Save Log File..." // c_null_char
+             w%name = "Save Log File" // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
-             w%name = "Open Library File..." // c_null_char
+             w%name = "Open Library File" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
-             w%name = "Open Field File(s)..." // c_null_char
+             w%name = "Open Field File(s)" // c_null_char
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -377,11 +382,11 @@ contains
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
-             w%name = "Open File..." // c_null_char
+             w%name = "Open File" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
-             w%name = "Save Image File..." // c_null_char
+             w%name = "Save Image File" // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              str2 = "file.png" // c_null_char
              str3 = "./" // c_null_char
@@ -391,19 +396,19 @@ contains
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
        elseif (w%type == wintype_new_struct) then
-          w%name = "New Structure..." // c_null_char
+          w%name = "New Structure" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 40 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_new_struct_library) then
-          w%name = "New Structure from Library..." // c_null_char
+          w%name = "New Structure from Library" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_load_field) then
-          w%name = "Load Field..." // c_null_char
+          w%name = "Load Field" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
           inisize%y = 15 * fontsize%y
@@ -426,6 +431,12 @@ contains
           w%flags = ImGuiWindowFlags_None
           inisize%x = 50 * fontsize%x
           inisize%y = 17 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_rebond) then
+          w%name = "Recalculate Bonds" // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 60 * fontsize%x
+          inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
@@ -472,6 +483,8 @@ contains
                 call w%draw_editrep()
              elseif (w%type == wintype_exportimage) then
                 call w%draw_exportimage()
+             elseif (w%type == wintype_rebond) then
+                call w%draw_rebond()
              end if
           end if
           call igEnd()
