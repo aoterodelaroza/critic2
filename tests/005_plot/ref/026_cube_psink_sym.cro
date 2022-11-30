@@ -1263,11 +1263,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 3.928527308001E-28  -1.308665903508E-19  5.421010862428E-20  
   Last elements... 2.329340604949E-19  -2.117582368136E-20  1.060908766436E-19  
-  Sum of elements... 5.341086997530E-14
-  Sum of squares of elements... 3.444359389701E-30
+  Sum of elements... 5.340997275565E-14
+  Sum of squares of elements... 3.444359506177E-30
   Cell integral (grid SUM) = 0.00000000
   Min: -1.06360233E-16
-  Average: 1.62997040E-18
+  Average: 1.62994302E-18
   Max: 1.65882932E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
@@ -1307,11 +1307,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.133176554193E-35  2.035526051370E-20  -5.241016361136E-20  
   Last elements... -1.154082390634E-19  3.388131789017E-21  -1.214962883718E-20  
-  Sum of elements... 1.643431655723E-15
-  Sum of squares of elements... 3.533345120247E-30
+  Sum of elements... 1.643503074497E-15
+  Sum of squares of elements... 3.533345114383E-30
   Cell integral (grid SUM) = 0.00000000
   Min: -2.21827764E-16
-  Average: 5.01535539E-20
+  Average: 5.01557335E-20
   Max: 2.21177243E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
