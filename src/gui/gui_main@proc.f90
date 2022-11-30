@@ -141,7 +141,9 @@ contains
     ! set opengl options
     call glEnable(GL_DEPTH_TEST)
     call glEnable(GL_CULL_FACE)
-    ! call glEnable(GL_MULTISAMPLE)
+    call glEnable(GL_BLEND)
+    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    call glEnable(GL_MULTISAMPLE)
 
     ! set up backend and renderer
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
