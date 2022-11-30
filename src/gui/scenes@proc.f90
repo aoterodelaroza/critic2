@@ -892,7 +892,7 @@ contains
        ! run over atoms, either directly or per-molecule
        i = 0
        imol = 0
-       do while(i < sys(r%id)%c%ncel)
+       do while(.true.)
           if (r%onemotif .and. sys(r%id)%c%ismol3d) then
              step = (imol == 0)
              if (.not.step) step = (k == sys(r%id)%c%mol(imol)%nat)
@@ -906,6 +906,7 @@ contains
              lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
           else
              i = i + 1
+             if (i > sys(r%id)%c%ncel) exit
              lvec = 0
           end if
 
