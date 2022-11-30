@@ -229,14 +229,19 @@ contains
   !> Draw the scene
   module subroutine scene_render(s)
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO
-    use gui_main, only: sysc
-    use shaders, only: shader_phong, useshader, setuniform_int,&
+    use windows, only: win, iwin_view
+    use shapes, only: sphVAO, cylVAO, textVAO, textVBO
+    use gui_main, only: sysc, fonts
+    use utils, only: ortho
+    use shaders, only: shader_phong, shader_text, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
     class(scene), intent(inout), target :: s
 
     integer :: i
+    real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h
+    integer(c_int) :: texid
+    real(c_float), target :: quad(4,6)
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -273,14 +278,43 @@ contains
           s%drawlist_cyl(i)%rgba,s%bond_res)
     end do
 
-    ! draw the flat cylinders (unit cell)
-    call setuniform_int("uselighting",0_c_int)
-    call glBindVertexArray(cylVAO(s%uc_res))
-    do i = 1, s%ncylflat
-       call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-          s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
-    end do
-    call glBindVertexArray(0)
+    ! ! draw the flat cylinders (unit cell)
+    ! call setuniform_int("uselighting",0_c_int)
+    ! call glBindVertexArray(cylVAO(s%uc_res))
+    ! do i = 1, s%ncylflat
+    !    call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+    !       s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
+    ! end do
+    ! call glBindVertexArray(0)
+
+    ! call useshader(shader_text)
+    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+    !    -1._c_float,1._c_float)
+    ! call setuniform_mat4("projection",proj)
+    ! color = 1._c_float
+    ! call setuniform_vec3("textColor",color)
+    ! call glActiveTexture(GL_TEXTURE0)
+    ! call glBindVertexArray(textVAO)
+
+    ! xpos = 500._c_float
+    ! ypos = 500._c_float
+    ! w = 100._c_float
+    ! h = 100._c_float
+    ! quad(:,1) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
+    ! quad(:,2) = (/xpos,   ypos,   0._c_float, 1._c_float/)
+    ! quad(:,3) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
+    ! quad(:,4) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
+    ! quad(:,5) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
+    ! quad(:,6) = (/xpos+w, ypos+h, 1._c_float, 0._c_float/)
+
+    ! texid = transfer(fonts%TexID,texid)
+    ! call glBindTexture(GL_TEXTURE_2D, texid)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    ! call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
+    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    ! call glDrawArrays(GL_TRIANGLES, 0, 6)
+    ! call glBindVertexArray(0)
+    ! call glBindTexture(GL_TEXTURE_2D, 0)
 
   end subroutine scene_render
 

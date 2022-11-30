@@ -48,6 +48,10 @@ module shapes
   integer(c_int), parameter, public :: cylnel(nmaxcyl) = (/24,48,72/)
   integer(c_int), parameter, public :: cylneladd(0:nmaxcyl) = (/0,24,72,144/)
 
+  ! text objects
+  integer(c_int), target, public :: textVAO
+  integer(c_int), target, public :: textVBO
+
   ! module procedure interfaces
   interface
      module subroutine shapes_init()

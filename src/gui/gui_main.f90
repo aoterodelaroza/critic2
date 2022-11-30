@@ -20,7 +20,8 @@
 ! Structure class and routines for basic crystallography computations
 module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr
-  use interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport
+  use interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport,&
+     ImFontAtlas
   use windows, only: window
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -32,6 +33,7 @@ module gui_main
   ! variables to GUI's structures & data
   real*8, public :: time ! the time
   type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
+  type(ImFontAtlas), pointer, public :: fonts ! pointer to IO%Fonts
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)

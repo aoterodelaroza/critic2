@@ -10,7 +10,13 @@
 ! GLdouble = GLclampd = c_double
 ! GLsizeiptr = ptrdiff_t
 ! GLvoid = void
+! GLintptr = c_intptr_t
 
+! void glActiveTexture(GLenum texture);
+subroutine glActiveTexture(texture) bind(c,name="glActiveTexture")
+  import c_int
+  integer(c_int), value :: texture
+end subroutine glActiveTexture
 ! void glAttachShader(GLuint program, GLuint shader);
 subroutine glAttachShader(prog,shader) bind(c,name="glAttachShader")
   import c_int
@@ -70,6 +76,14 @@ subroutine glBufferData(target_,size,data,usage) bind(c,name="glBufferData")
   type(c_ptr), intent(in), value :: data
   integer(c_int), value :: usage
 end subroutine glBufferData
+! void glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid *data);
+subroutine glBufferSubData(target_,offset,size,data) bind(c,name="glBufferSubData")
+  import c_int, c_intptr_t, c_ptrdiff_t, c_ptr
+  integer(c_int), value :: target_
+  integer(c_intptr_t), value :: offset
+  integer(c_ptrdiff_t), value :: size
+  type(c_ptr), intent(in), value :: data
+end subroutine glBufferSubData
 ! void glBindVertexArray(GLuint array);
 subroutine glBindVertexArray(array) bind(c,name="glBindVertexArray")
   import c_int

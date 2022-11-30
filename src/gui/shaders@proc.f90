@@ -22,7 +22,8 @@ submodule (shaders) proc
 
   character*(*), parameter :: shader_file(shader_NUM) = (/&
      "test ",& ! shader_test
-     "phong"& ! shader_phong
+     "phong",& ! shader_phong
+     "text "&   ! shader_text
      /)
 
   ! shader programs

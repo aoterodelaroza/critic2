@@ -245,7 +245,7 @@ contains
        end do
     end do
 
-    ! build the buffers for the spheres
+    ! build the buffers for the cylinder
     call glGenVertexArrays(nmaxcyl, c_loc(cylVAO))
     call glGenBuffers(nmaxcyl, c_loc(cylVBO))
     call glGenBuffers(nmaxcyl, c_loc(cylEBO))
@@ -268,6 +268,18 @@ contains
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+    ! build the buffers for the text
+    call glGenVertexArrays(1, c_loc(textVAO))
+    call glGenBuffers(1, c_loc(textVBO))
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    call glBindVertexArray(textVAO)
+    call glBufferData(GL_ARRAY_BUFFER, 6*4*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
+    call glEnableVertexAttribArray(0)
+    call glVertexAttribPointer(0, 4, GL_FLOAT, int(GL_FALSE,c_signed_char), &
+       int(4*c_sizeof(c_float_),c_int),c_null_ptr)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
   contains
     subroutine ipack(i,j)

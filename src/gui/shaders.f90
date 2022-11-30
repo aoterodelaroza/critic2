@@ -24,7 +24,8 @@ module shaders
 
   integer, parameter, public :: shader_test = 1
   integer, parameter, public :: shader_phong = 2
-  integer, parameter, public :: shader_NUM = 2
+  integer, parameter, public :: shader_text = 3
+  integer, parameter, public :: shader_NUM = 3
 
   public :: shaders_init
   public :: shaders_end
