@@ -42,7 +42,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fonts
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -512,6 +512,15 @@ contains
     col%z = 1._c_float
     col%w = 1._c_float
     ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, col, col)
+
+    ! sz0%x = 0._c_float
+    ! sz0%y = 0._c_float
+    ! sz1%x = 1._c_float
+    ! sz1%y = 1._c_float
+    ! szavail%x = 512._c_float
+    ! szavail%x = 1024._c_float
+    ! call igImage(transfer(fonts%TexID,c_int), szavail, sz0, sz1, col, col)
+
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
