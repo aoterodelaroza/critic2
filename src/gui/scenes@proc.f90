@@ -278,14 +278,14 @@ contains
           s%drawlist_cyl(i)%rgba,s%bond_res)
     end do
 
-    ! ! draw the flat cylinders (unit cell)
-    ! call setuniform_int("uselighting",0_c_int)
-    ! call glBindVertexArray(cylVAO(s%uc_res))
-    ! do i = 1, s%ncylflat
-    !    call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-    !       s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
-    ! end do
-    ! call glBindVertexArray(0)
+    ! draw the flat cylinders (unit cell)
+    call setuniform_int("uselighting",0_c_int)
+    call glBindVertexArray(cylVAO(s%uc_res))
+    do i = 1, s%ncylflat
+       call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+          s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
+    end do
+    call glBindVertexArray(0)
 
     ! call useshader(shader_text)
     ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
