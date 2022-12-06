@@ -228,24 +228,22 @@ contains
 
   !> Draw the scene
   module subroutine scene_render(s)
-    use interfaces_cimgui
     use interfaces_opengl3
     use windows, only: win, iwin_view
     use shapes, only: sphVAO, cylVAO, textVAO, textVBO
-    use gui_main, only: sysc, fonts, g
+    use gui_main, only: sysc, fonts
     use utils, only: ortho
     use shaders, only: shader_phong, shader_text, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
+    use param, only: newline
     class(scene), intent(inout), target :: s
 
     integer :: i
     real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h
-    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2, scale
-    integer(c_int) :: texid
+    integer(c_int) :: texid, nvert
     real(c_float), target :: quad(4,6)
-    type(c_ptr) :: cptr
-    type(ImFontGlyph), pointer :: glyph
+    real(c_float), allocatable, target :: vert(:,:)
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -298,41 +296,16 @@ contains
     color = 1._c_float
     call setuniform_vec3("textColor",color)
 
-    ! cptr = ImFont_FindGlyph(g%Font,int(ichar('R'),c_int16_t))
-    ! call c_f_pointer(cptr,glyph)
-    ! write (*,*) ibits(glyph%colored_visible_codepoint,0,1) ! colored
-    ! write (*,*) ibits(glyph%colored_visible_codepoint,1,1) ! visible
-    ! write (*,*) ibits(glyph%colored_visible_codepoint,2,30), ichar('R') ! codepoint
-    ! write (*,*) glyph%AdvanceX
-    ! write (*,*) glyph%X0, glyph%Y0, glyph%X1, glyph%Y1
-    ! write (*,*) glyph%U0, glyph%V0, glyph%U1, glyph%V1
-
-    ! xpos = 100._c_float
-    ! ypos = 300._c_float
-    ! scale = 8._c_float
-    ! x1 = xpos + glyph%X0 * scale
-    ! x2 = xpos + glyph%X1 * scale
-    ! y1 = ypos + glyph%Y0 * scale
-    ! y2 = ypos + glyph%Y1 * scale
-    ! u1 = glyph%U0
-    ! v1 = glyph%V1
-    ! u2 = glyph%U1
-    ! v2 = glyph%V0
-    ! quad(:,1) = (/x1, y2, u1, v1/)
-    ! quad(:,2) = (/x1, y1, u1, v2/)
-    ! quad(:,3) = (/x2, y1, u2, v2/)
-    ! quad(:,4) = (/x1, y2, u1, v1/)
-    ! quad(:,5) = (/x2, y1, u2, v2/)
-    ! quad(:,6) = (/x2, y2, u2, v1/)
-
+    ! ! render some text (note: max 256 vertices in buffer!!)
+    ! call calc_text_vertices("Hola, perola!"//newline//"bleh!",100._c_float,300._c_float,32._c_float,nvert,vert)
     ! call glActiveTexture(GL_TEXTURE0)
     ! call glBindVertexArray(textVAO)
     ! texid = transfer(fonts%TexID,texid)
     ! call glBindTexture(GL_TEXTURE_2D, texid)
     ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
-    ! call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
+    ! call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
     ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    ! call glDrawArrays(GL_TRIANGLES, 0, 6)
+    ! call glDrawArrays(GL_TRIANGLES, 0, nvert)
     ! call glBindVertexArray(0)
     ! call glBindTexture(GL_TEXTURE_2D, 0)
 
@@ -773,94 +746,6 @@ contains
 
   end subroutine reset_atom_style
 
-  !xx! private procedures: low-level draws
-
-  !> Draw a sphere with center x0, radius rad and color rgba. Requires
-  !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,rgba,ires)
-    use interfaces_opengl3
-    use shaders, only: setuniform_vec4, setuniform_mat4
-    use shapes, only: sphnel
-    real(c_float), intent(in) :: x0(3)
-    real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgba(4)
-    integer(c_int), intent(in) :: ires
-
-    real(c_float) :: model(4,4)
-
-    ! the model matrix: scale and translate
-    model = eye4
-    model(1:3,4) = x0
-    model(1,1) = rad
-    model(2,2) = rad
-    model(3,3) = rad
-
-    ! draw the sphere
-    call setuniform_vec4("vColor",rgba)
-    call setuniform_mat4("model",model)
-    call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
-
-  end subroutine draw_sphere
-
-  !> Draw a cylinder from x1 to x2 with radius rad and color
-  !> rgba. Requires having the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgba,ires)
-    use interfaces_opengl3
-    use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4
-    use shapes, only: cylnel
-    real(c_float), intent(in) :: x1(3)
-    real(c_float), intent(in) :: x2(3)
-    real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgba(4)
-    integer(c_int), intent(in) :: ires
-
-    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
-    real(c_float) :: a, ca, sa, axis(3), temp(3)
-
-    xmid = 0.5_c_float * (x1 + x2)
-    xdif = x2 - x1
-    blen = norm2(xdif)
-    if (blen < 1e-4_c_float) return
-    xdif = xdif / blen
-    up = (/0._c_float,0._c_float,1._c_float/)
-    crs = cross_cfloat(up,xdif)
-
-    ! the model matrix
-    model = eye4
-    model(1:3,4) = xmid ! translate(m_model,xmid);
-    if (dot_product(crs,crs) > 1e-14_c_float) then
-       ! m_model = m_model * rotate(acos(dot(xdif,up)),crs);
-       a = acos(dot_product(xdif,up))
-       ca = cos(a)
-       sa = sin(a)
-       axis = crs / norm2(crs)
-       temp = (1._c_float - ca) * axis
-
-       model(1,1) = ca + temp(1) * axis(1)
-       model(2,1) = temp(1) * axis(2) + sa * axis(3)
-       model(3,1) = temp(1) * axis(3) - sa * axis(2)
-
-       model(1,2) = temp(2) * axis(1) - sa * axis(3)
-       model(2,2) = ca + temp(2) * axis(2)
-       model(3,2) = temp(2) * axis(3) + sa * axis(1)
-
-       model(1,3) = temp(3) * axis(1) + sa * axis(2)
-       model(2,3) = temp(3) * axis(2) - sa * axis(1)
-       model(3,3) = ca + temp(3) * axis(3)
-    end if
-    ! m_model = scale(m_model,glm::vec3(rad,rad,blen));
-    model(:,1) = model(:,1) * rad
-    model(:,2) = model(:,2) * rad
-    model(:,3) = model(:,3) * blen
-
-    ! draw the cylinder
-    call setuniform_vec4("vColor",rgba)
-    call setuniform_mat4("model",model)
-    call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
-
-  end subroutine draw_cylinder
-
   !> Add the spheres, cylinder, etc. to the draw lists.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,ncylflat,drawlist_cylflat)
     use gui_main, only: sys
@@ -1170,5 +1055,169 @@ contains
 
     end subroutine increase_ncylflat
   end subroutine add_draw_elements
+
+  !xx! private procedures: low-level draws
+
+  !> Draw a sphere with center x0, radius rad and color rgba. Requires
+  !> having the sphere VAO bound.
+  subroutine draw_sphere(x0,rad,rgba,ires)
+    use interfaces_opengl3
+    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shapes, only: sphnel
+    real(c_float), intent(in) :: x0(3)
+    real(c_float), intent(in) :: rad
+    real(c_float), intent(in) :: rgba(4)
+    integer(c_int), intent(in) :: ires
+
+    real(c_float) :: model(4,4)
+
+    ! the model matrix: scale and translate
+    model = eye4
+    model(1:3,4) = x0
+    model(1,1) = rad
+    model(2,2) = rad
+    model(3,3) = rad
+
+    ! draw the sphere
+    call setuniform_vec4("vColor",rgba)
+    call setuniform_mat4("model",model)
+    call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+
+  end subroutine draw_sphere
+
+  !> Draw a cylinder from x1 to x2 with radius rad and color
+  !> rgba. Requires having the cylinder VAO bound.
+  subroutine draw_cylinder(x1,x2,rad,rgba,ires)
+    use interfaces_opengl3
+    use tools_math, only: cross_cfloat
+    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shapes, only: cylnel
+    real(c_float), intent(in) :: x1(3)
+    real(c_float), intent(in) :: x2(3)
+    real(c_float), intent(in) :: rad
+    real(c_float), intent(in) :: rgba(4)
+    integer(c_int), intent(in) :: ires
+
+    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
+    real(c_float) :: a, ca, sa, axis(3), temp(3)
+
+    xmid = 0.5_c_float * (x1 + x2)
+    xdif = x2 - x1
+    blen = norm2(xdif)
+    if (blen < 1e-4_c_float) return
+    xdif = xdif / blen
+    up = (/0._c_float,0._c_float,1._c_float/)
+    crs = cross_cfloat(up,xdif)
+
+    ! the model matrix
+    model = eye4
+    model(1:3,4) = xmid ! translate(m_model,xmid);
+    if (dot_product(crs,crs) > 1e-14_c_float) then
+       ! m_model = m_model * rotate(acos(dot(xdif,up)),crs);
+       a = acos(dot_product(xdif,up))
+       ca = cos(a)
+       sa = sin(a)
+       axis = crs / norm2(crs)
+       temp = (1._c_float - ca) * axis
+
+       model(1,1) = ca + temp(1) * axis(1)
+       model(2,1) = temp(1) * axis(2) + sa * axis(3)
+       model(3,1) = temp(1) * axis(3) - sa * axis(2)
+
+       model(1,2) = temp(2) * axis(1) - sa * axis(3)
+       model(2,2) = ca + temp(2) * axis(2)
+       model(3,2) = temp(2) * axis(3) + sa * axis(1)
+
+       model(1,3) = temp(3) * axis(1) + sa * axis(2)
+       model(2,3) = temp(3) * axis(2) - sa * axis(1)
+       model(3,3) = ca + temp(3) * axis(3)
+    end if
+    ! m_model = scale(m_model,glm::vec3(rad,rad,blen));
+    model(:,1) = model(:,1) * rad
+    model(:,2) = model(:,2) * rad
+    model(:,3) = model(:,3) * blen
+
+    ! draw the cylinder
+    call setuniform_vec4("vColor",rgba)
+    call setuniform_mat4("model",model)
+    call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+
+  end subroutine draw_cylinder
+
+  !> Calculate the vertices for the given text. (x0,y0) = position of
+  !> top-left corner, siz = size in pixels. nvert/vert output
+  !> vertices. If centered, center the text.
+  subroutine calc_text_vertices(text,x0,y0,siz,nvert,vert,centered)
+    use interfaces_cimgui
+    use gui_main, only: g
+    use param, only: newline
+    character(len=*), intent(in) :: text
+    real(c_float), intent(in) :: x0, y0
+    real(c_float), intent(in) :: siz
+    integer(c_int), intent(out) :: nvert
+    real(c_float), allocatable, intent(inout) :: vert(:,:)
+    logical, intent(in), optional :: centered
+
+    integer :: i
+    type(c_ptr) :: cptr
+    type(ImFontGlyph), pointer :: glyph
+    real(c_float) :: xpos, ypos, scale, lheight, fs
+    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
+    real(c_float), allocatable :: aux(:,:)
+
+    ! ibits(glyph%colored_visible_codepoint,0,1) ! colored
+    ! ibits(glyph%colored_visible_codepoint,1,1) ! visible
+    ! ibits(glyph%colored_visible_codepoint,2,30), ichar('R') ! codepoint
+    ! glyph%AdvanceX
+    ! glyph%X0, glyph%Y0, glyph%X1, glyph%Y1
+    ! glyph%U0, glyph%V0, glyph%U1, glyph%V1
+
+    nvert = 0
+    allocate(vert(4,100))
+    xpos = floor(x0)
+    ypos = floor(y0)
+    fs = igGetFontSize()
+    scale = siz / fs
+    lheight = scale * fs
+    i = 0
+    do while (i < len_trim(text))
+       i = i + 1
+       if (text(i:i) == newline) then
+          xpos = floor(x0)
+          ypos = ypos + lheight
+          i = i + 1
+          continue
+       end if
+
+       cptr = ImFont_FindGlyph(g%Font,int(ichar(text(i:i)),c_int16_t))
+       call c_f_pointer(cptr,glyph)
+
+       x1 = xpos + glyph%X0 * scale
+       x2 = xpos + glyph%X1 * scale
+       y1 = ypos + glyph%Y0 * scale
+       y2 = ypos + glyph%Y1 * scale
+       u1 = glyph%U0
+       v1 = glyph%V1
+       u2 = glyph%U1
+       v2 = glyph%V0
+
+       if (nvert+6 > size(vert,2)) then
+          allocate(aux(4,2*(nvert+6)))
+          aux(:,1:size(vert,2)) = vert
+          call move_alloc(aux,vert)
+       end if
+
+       vert(:,nvert+1) = (/x1, y2, u1, v1/)
+       vert(:,nvert+2) = (/x1, y1, u1, v2/)
+       vert(:,nvert+3) = (/x2, y1, u2, v2/)
+       vert(:,nvert+4) = (/x1, y2, u1, v1/)
+       vert(:,nvert+5) = (/x2, y1, u2, v2/)
+       vert(:,nvert+6) = (/x2, y2, u2, v1/)
+       nvert = nvert + 6
+
+       xpos = xpos + glyph%AdvanceX * scale
+    end do
+
+  end subroutine calc_text_vertices
 
 end submodule proc

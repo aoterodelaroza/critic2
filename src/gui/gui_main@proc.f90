@@ -203,7 +203,7 @@ contains
     iwin_about = stack_create_window(wintype_about,.false.)
 
     ! main loop
-    show_demo_window = .true.
+    show_demo_window = .false.
     show_implot_demo_window = .false.
     firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)

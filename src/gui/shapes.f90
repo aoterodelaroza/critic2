@@ -51,6 +51,7 @@ module shapes
   ! text objects
   integer(c_int), target, public :: textVAO
   integer(c_int), target, public :: textVBO
+  integer(c_int), parameter, public :: text_maxvert = 256
 
   ! module procedure interfaces
   interface

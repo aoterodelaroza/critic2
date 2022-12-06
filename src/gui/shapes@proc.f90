@@ -274,7 +274,7 @@ contains
     call glGenBuffers(1, c_loc(textVBO))
     call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
     call glBindVertexArray(textVAO)
-    call glBufferData(GL_ARRAY_BUFFER, 6*4*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
+    call glBufferData(GL_ARRAY_BUFFER, text_maxvert*4*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
     call glEnableVertexAttribArray(0)
     call glVertexAttribPointer(0, 4, GL_FLOAT, int(GL_FALSE,c_signed_char), &
        int(4*c_sizeof(c_float_),c_int),c_null_ptr)
