@@ -49,7 +49,7 @@ contains
 
     integer :: i, j, nrep, id, ipad
     type(ImVec2) :: szavail, sz0, sz1, szero
-    type(ImVec4) :: col
+    type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
@@ -507,19 +507,19 @@ contains
     end if
 
     ! border and tint for the image, draw the image, update the rectangle
-    col%x = 1._c_float
-    col%y = 1._c_float
-    col%z = 1._c_float
-    col%w = 1._c_float
-    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, col, col)
-
-    ! sz0%x = 0._c_float
-    ! sz0%y = 0._c_float
-    ! sz1%x = 1._c_float
-    ! sz1%y = 1._c_float
-    ! szavail%x = 512._c_float
-    ! szavail%x = 1024._c_float
-    ! call igImage(transfer(fonts%TexID,c_int), szavail, sz0, sz1, col, col)
+    tintcol%x = 1._c_float
+    tintcol%y = 1._c_float
+    tintcol%z = 1._c_float
+    tintcol%w = 1._c_float
+    bgcol%x = 0._c_float
+    bgcol%y = 0._c_float
+    bgcol%z = 0._c_float
+    bgcol%w = 0._c_float
+    call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
+    call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
+    call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
+    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
+    call igPopStyleColor(3)
 
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)

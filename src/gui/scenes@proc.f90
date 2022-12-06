@@ -293,13 +293,11 @@ contains
     ! call setuniform_mat4("projection",proj)
     ! color = 1._c_float
     ! call setuniform_vec3("textColor",color)
-    ! call glActiveTexture(GL_TEXTURE0)
-    ! call glBindVertexArray(textVAO)
 
-    ! xpos = 500._c_float
-    ! ypos = 500._c_float
-    ! w = 100._c_float
-    ! h = 100._c_float
+    ! xpos = 100._c_float
+    ! ypos = 100._c_float
+    ! w = 1000._c_float
+    ! h = 1000._c_float
     ! quad(:,1) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
     ! quad(:,2) = (/xpos,   ypos,   0._c_float, 1._c_float/)
     ! quad(:,3) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
@@ -307,6 +305,8 @@ contains
     ! quad(:,5) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
     ! quad(:,6) = (/xpos+w, ypos+h, 1._c_float, 0._c_float/)
 
+    ! call glActiveTexture(GL_TEXTURE0)
+    ! call glBindVertexArray(textVAO)
     ! texid = transfer(fonts%TexID,texid)
     ! call glBindTexture(GL_TEXTURE_2D, texid)
     ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
