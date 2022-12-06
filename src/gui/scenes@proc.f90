@@ -287,34 +287,34 @@ contains
     end do
     call glBindVertexArray(0)
 
-    ! call useshader(shader_text)
-    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-    !    -1._c_float,1._c_float)
-    ! call setuniform_mat4("projection",proj)
-    ! color = 1._c_float
-    ! call setuniform_vec3("textColor",color)
+    call useshader(shader_text)
+    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+       -1._c_float,1._c_float)
+    call setuniform_mat4("projection",proj)
+    color = 1._c_float
+    call setuniform_vec3("textColor",color)
 
-    ! xpos = 100._c_float
-    ! ypos = 100._c_float
-    ! w = 1000._c_float
-    ! h = 1000._c_float
-    ! quad(:,1) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
-    ! quad(:,2) = (/xpos,   ypos,   0._c_float, 1._c_float/)
-    ! quad(:,3) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
-    ! quad(:,4) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
-    ! quad(:,5) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
-    ! quad(:,6) = (/xpos+w, ypos+h, 1._c_float, 0._c_float/)
+    xpos = 100._c_float
+    ypos = 100._c_float
+    w = 1000._c_float
+    h = 1000._c_float
+    quad(:,1) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
+    quad(:,2) = (/xpos,   ypos,   0._c_float, 1._c_float/)
+    quad(:,3) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
+    quad(:,4) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
+    quad(:,5) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
+    quad(:,6) = (/xpos+w, ypos+h, 1._c_float, 0._c_float/)
 
-    ! call glActiveTexture(GL_TEXTURE0)
-    ! call glBindVertexArray(textVAO)
-    ! texid = transfer(fonts%TexID,texid)
-    ! call glBindTexture(GL_TEXTURE_2D, texid)
-    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
-    ! call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
-    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    ! call glDrawArrays(GL_TRIANGLES, 0, 6)
-    ! call glBindVertexArray(0)
-    ! call glBindTexture(GL_TEXTURE_2D, 0)
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAO)
+    texid = transfer(fonts%TexID,texid)
+    call glBindTexture(GL_TEXTURE_2D, texid)
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glDrawArrays(GL_TRIANGLES, 0, 6)
+    call glBindVertexArray(0)
+    call glBindTexture(GL_TEXTURE_2D, 0)
 
   end subroutine scene_render
 
