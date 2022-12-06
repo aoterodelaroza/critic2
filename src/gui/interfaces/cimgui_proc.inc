@@ -1476,7 +1476,13 @@ end function ImFontAtlas_Build
 !x! bool ImFontAtlas_GetMouseCursorTexData(ImFontAtlas* self,ImGuiMouseCursor cursor,ImVec2* out_offset,ImVec2* out_size,ImVec2 out_uv_border[2],ImVec2 out_uv_fill[2]);
 !x! ImFont* ImFont_ImFont(void);
 !x! void ImFont_destroy(ImFont* self);
-!x! const ImFontGlyph* ImFont_FindGlyph(ImFont* self,ImWchar c);
+! const ImFontGlyph* ImFont_FindGlyph(ImFont* self,ImWchar c);
+function ImFont_FindGlyph(self,c) bind(c,name="ImFont_FindGlyph")
+  import c_ptr, c_int16_t
+  type(c_ptr), value :: self
+  integer(c_int16_t), value :: c
+  type(c_ptr) :: ImFont_FindGlyph
+end function ImFont_FindGlyph
 !x! const ImFontGlyph* ImFont_FindGlyphNoFallback(ImFont* self,ImWchar c);
 !x! float ImFont_GetCharAdvance(ImFont* self,ImWchar c);
 !x! bool ImFont_IsLoaded(ImFont* self);

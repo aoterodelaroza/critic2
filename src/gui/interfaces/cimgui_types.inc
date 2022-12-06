@@ -1,5 +1,5 @@
   ! -*-F90-*-
-  
+
   !xx! cimgui user-defined types
   type, bind(c) :: ImVector_const_charPtr
      integer(c_int) :: Size
@@ -415,15 +415,14 @@
      character(c_char) :: Name(40)
      type(c_ptr) :: DstFont
   end type ImFontConfig
-  ! struct ImFontGlyph
-  ! {
-  !     integer(c_int) :: Colored : 1
-  !     integer(c_int) :: Visible : 1
-  !     integer(c_int) :: Codepoint : 30
-  !     real(c_float) :: AdvanceX
-  !     real(c_float) :: X0, Y0, X1, Y1
-  !     real(c_float) :: U0, V0, U1, V1
-  ! }
+
+  type, bind(c) :: ImFontGlyph
+     integer(c_int32_t) :: colored_visible_codepoint
+     real(c_float) :: AdvanceX
+     real(c_float) :: X0, Y0, X1, Y1
+     real(c_float) :: U0, V0, U1, V1
+  end type ImFontGlyph
+
   ! typedef struct ImVector_ImU32 {int Size;int Capacity;ImU32* Data;} ImVector_ImU32;
 
   ! struct ImFontGlyphRangesBuilder

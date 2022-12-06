@@ -228,10 +228,11 @@ contains
 
   !> Draw the scene
   module subroutine scene_render(s)
+    use interfaces_cimgui
     use interfaces_opengl3
     use windows, only: win, iwin_view
     use shapes, only: sphVAO, cylVAO, textVAO, textVBO
-    use gui_main, only: sysc, fonts
+    use gui_main, only: sysc, fonts, g
     use utils, only: ortho
     use shaders, only: shader_phong, shader_text, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
@@ -240,8 +241,11 @@ contains
 
     integer :: i
     real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h
+    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2, scale
     integer(c_int) :: texid
     real(c_float), target :: quad(4,6)
+    type(c_ptr) :: cptr
+    type(ImFontGlyph), pointer :: glyph
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -294,27 +298,43 @@ contains
     color = 1._c_float
     call setuniform_vec3("textColor",color)
 
-    xpos = 100._c_float
-    ypos = 100._c_float
-    w = 1000._c_float
-    h = 1000._c_float
-    quad(:,1) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
-    quad(:,2) = (/xpos,   ypos,   0._c_float, 1._c_float/)
-    quad(:,3) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
-    quad(:,4) = (/xpos,   ypos+h, 0._c_float, 0._c_float/)
-    quad(:,5) = (/xpos+w, ypos,   1._c_float, 1._c_float/)
-    quad(:,6) = (/xpos+w, ypos+h, 1._c_float, 0._c_float/)
+    ! cptr = ImFont_FindGlyph(g%Font,int(ichar('R'),c_int16_t))
+    ! call c_f_pointer(cptr,glyph)
+    ! write (*,*) ibits(glyph%colored_visible_codepoint,0,1) ! colored
+    ! write (*,*) ibits(glyph%colored_visible_codepoint,1,1) ! visible
+    ! write (*,*) ibits(glyph%colored_visible_codepoint,2,30), ichar('R') ! codepoint
+    ! write (*,*) glyph%AdvanceX
+    ! write (*,*) glyph%X0, glyph%Y0, glyph%X1, glyph%Y1
+    ! write (*,*) glyph%U0, glyph%V0, glyph%U1, glyph%V1
 
-    call glActiveTexture(GL_TEXTURE0)
-    call glBindVertexArray(textVAO)
-    texid = transfer(fonts%TexID,texid)
-    call glBindTexture(GL_TEXTURE_2D, texid)
-    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
-    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glDrawArrays(GL_TRIANGLES, 0, 6)
-    call glBindVertexArray(0)
-    call glBindTexture(GL_TEXTURE_2D, 0)
+    ! xpos = 100._c_float
+    ! ypos = 300._c_float
+    ! scale = 8._c_float
+    ! x1 = xpos + glyph%X0 * scale
+    ! x2 = xpos + glyph%X1 * scale
+    ! y1 = ypos + glyph%Y0 * scale
+    ! y2 = ypos + glyph%Y1 * scale
+    ! u1 = glyph%U0
+    ! v1 = glyph%V1
+    ! u2 = glyph%U1
+    ! v2 = glyph%V0
+    ! quad(:,1) = (/x1, y2, u1, v1/)
+    ! quad(:,2) = (/x1, y1, u1, v2/)
+    ! quad(:,3) = (/x2, y1, u2, v2/)
+    ! quad(:,4) = (/x1, y2, u1, v1/)
+    ! quad(:,5) = (/x2, y1, u2, v2/)
+    ! quad(:,6) = (/x2, y2, u2, v1/)
+
+    ! call glActiveTexture(GL_TEXTURE0)
+    ! call glBindVertexArray(textVAO)
+    ! texid = transfer(fonts%TexID,texid)
+    ! call glBindTexture(GL_TEXTURE_2D, texid)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    ! call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, 24*c_sizeof(c_float), c_loc(quad))
+    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    ! call glDrawArrays(GL_TRIANGLES, 0, 6)
+    ! call glBindVertexArray(0)
+    ! call glBindTexture(GL_TEXTURE_2D, 0)
 
   end subroutine scene_render
 
