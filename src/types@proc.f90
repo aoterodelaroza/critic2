@@ -445,6 +445,51 @@ contains
 
   end subroutine realloc5r
 
+  !> Adapt the size of an allocatable 1D real*4 array
+  module subroutine realloc1r4(a,nnew)
+    real*4, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
+    integer, intent(in) :: nnew !< new dimension
+
+    real*4, allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp = 0.0
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc1r4
+
+  !> Adapt the size of an allocatable 2D real*4 array
+  module subroutine realloc2r4(a,n1,n2)
+    real*4, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
+    integer, intent(in) :: n1, n2 !< new dimension
+
+    real*4, allocatable :: temp(:,:)
+    integer :: nold(2)
+
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
+    allocate(temp(n1,n2))
+
+    temp = 0.0
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2))) = a(1:min(n1,nold(1)),1:min(n2,nold(2)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc2r4
+
   !> Adapt the size of an allocatable 1D integer array
   module subroutine realloc1i(a,nnew)
     integer, intent(inout), allocatable :: a(:) !< Input array, integer, 1D

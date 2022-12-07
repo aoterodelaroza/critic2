@@ -57,6 +57,8 @@ module types
      module procedure realloc3r
      module procedure realloc4r
      module procedure realloc5r
+     module procedure realloc1r4
+     module procedure realloc2r4
      module procedure realloc1i
      module procedure realloc2i
      module procedure realloc1c
@@ -370,6 +372,14 @@ module types
        real*8, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5r
+     module subroutine realloc1r4(a,nnew)
+       real*4, intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc1r4
+     module subroutine realloc2r4(a,n1,n2)
+       real*4, intent(inout), allocatable :: a(:,:)
+       integer, intent(in) :: n1, n2
+     end subroutine realloc2r4
      module subroutine realloc1i(a,nnew)
        integer, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

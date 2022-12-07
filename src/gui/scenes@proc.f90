@@ -1162,6 +1162,7 @@ contains
   subroutine calc_text_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
     use gui_main, only: g
+    use types, only: realloc
     use param, only: newline
     character(len=*), intent(in) :: text
     real(c_float), intent(in) :: x0, y0
@@ -1175,7 +1176,7 @@ contains
     type(ImFontGlyph), pointer :: glyph
     real(c_float) :: xpos, ypos, scale, lheight, fs
     real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
-    real(c_float), allocatable :: aux(:,:)
+    logical :: centered_
 
     ! ibits(glyph%colored_visible_codepoint,0,1) ! colored
     ! ibits(glyph%colored_visible_codepoint,1,1) ! visible
@@ -1184,6 +1185,9 @@ contains
     ! glyph%X0, glyph%Y0, glyph%X1, glyph%Y1
     ! glyph%U0, glyph%V0, glyph%U1, glyph%V1
 
+    ! initialize
+    centered_ = .false.
+    if (present(centered)) centered_ = centered
     nvert = 0
     allocate(vert(4,100))
     xpos = floor(x0)
@@ -1191,9 +1195,12 @@ contains
     fs = igGetFontSize()
     scale = siz / fs
     lheight = scale * fs
+
+    ! loop over characters
     i = 0
     do while (i < len_trim(text))
        i = i + 1
+       ! newline, skip line and advance one (linux)
        if (text(i:i) == newline) then
           xpos = floor(x0)
           ypos = ypos + lheight
@@ -1201,9 +1208,11 @@ contains
           continue
        end if
 
+       ! get the glyph
        cptr = ImFont_FindGlyph(g%Font,int(ichar(text(i:i)),c_int16_t))
        call c_f_pointer(cptr,glyph)
 
+       ! calculate quad and texture coordinates
        x1 = xpos + glyph%X0 * scale
        x2 = xpos + glyph%X1 * scale
        y1 = ypos + glyph%Y0 * scale
@@ -1213,12 +1222,8 @@ contains
        u2 = glyph%U1
        v2 = glyph%V0
 
-       if (nvert+6 > size(vert,2)) then
-          allocate(aux(4,2*(nvert+6)))
-          aux(:,1:size(vert,2)) = vert
-          call move_alloc(aux,vert)
-       end if
-
+       ! add to the vertices
+       if (nvert+6 > size(vert,2)) call realloc(vert,4,2*(nvert+6))
        vert(:,nvert+1) = (/x1, y2, u1, v1/)
        vert(:,nvert+2) = (/x1, y1, u1, v2/)
        vert(:,nvert+3) = (/x2, y1, u2, v2/)
@@ -1227,6 +1232,7 @@ contains
        vert(:,nvert+6) = (/x2, y2, u2, v1/)
        nvert = nvert + 6
 
+       ! advance xpos
        xpos = xpos + glyph%AdvanceX * scale
     end do
 
