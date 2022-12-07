@@ -296,7 +296,7 @@ contains
     color = 1._c_float
     call setuniform_vec3("textColor",color)
 
-    ! render some text (note: max 256 vertices in buffer!!)
+    ! render some text (note: max 1024 vertices in buffer!!)
     call glDisable(GL_CULL_FACE)
     call glDisable(GL_DEPTH_TEST)
     call glDisable(GL_MULTISAMPLE)
@@ -304,7 +304,9 @@ contains
     call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
     w = 0.5_c_float * real(win(iwin_view)%FBOside,c_float)
-    call calc_text_vertices("Hola, perola!"//newline//"bleh!",w,w,32._c_float,nvert,vert)
+    nvert = 0
+    call calc_text_vertices("Hola, perola!"//newline//"bleh!"//newline//"blahblih",&
+       w,w,32._c_float,nvert,vert,centered=.true.)
     call glActiveTexture(GL_TEXTURE0)
     call glBindVertexArray(textVAO)
     texid = transfer(fonts%TexID,texid)
@@ -1156,9 +1158,10 @@ contains
 
   end subroutine draw_cylinder
 
-  !> Calculate the vertices for the given text. (x0,y0) = position of
-  !> top-left corner, siz = size in pixels. nvert/vert output
-  !> vertices. If centered, center the text.
+  !> Calculate the vertices for the given text and adds them to
+  !> nvert/vert. (x0,y0) = position of top-left corner, siz = size in
+  !> pixels. nvert/vert output vertices. If centered, center the text
+  !> in x and y.
   subroutine calc_text_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
     use gui_main, only: g
@@ -1167,16 +1170,18 @@ contains
     character(len=*), intent(in) :: text
     real(c_float), intent(in) :: x0, y0
     real(c_float), intent(in) :: siz
-    integer(c_int), intent(out) :: nvert
+    integer(c_int), intent(inout) :: nvert
     real(c_float), allocatable, intent(inout) :: vert(:,:)
     logical, intent(in), optional :: centered
 
-    integer :: i
+    integer :: i, nline
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, scale, lheight, fs
+    real(c_float) :: xpos, ypos, scale, lheight, fs, xmax
     real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
     logical :: centered_
+    real(c_float), allocatable :: xlen(:)
+    integer, allocatable :: jlen(:)
 
     ! ibits(glyph%colored_visible_codepoint,0,1) ! colored
     ! ibits(glyph%colored_visible_codepoint,1,1) ! visible
@@ -1188,13 +1193,23 @@ contains
     ! initialize
     centered_ = .false.
     if (present(centered)) centered_ = centered
-    nvert = 0
-    allocate(vert(4,100))
+    if (.not.allocated(vert)) then
+       allocate(vert(4,100))
+       nvert = 0
+    end if
+
+    ! initial variables
     xpos = floor(x0)
     ypos = floor(y0)
     fs = igGetFontSize()
     scale = siz / fs
     lheight = scale * fs
+    if (centered_) then
+       nline = 1
+       allocate(xlen(10),jlen(10))
+       jlen(1) = nvert+1
+       xlen(1) = 0._c_float
+    end if
 
     ! loop over characters
     i = 0
@@ -1205,6 +1220,15 @@ contains
           xpos = floor(x0)
           ypos = ypos + lheight
           i = i + 1
+          if (centered_) then
+             nline = nline + 1
+             if (nline+1 > size(xlen,1)) then
+                call realloc(xlen,2*nline)
+                call realloc(jlen,2*nline)
+             end if
+             xlen(nline) = 0._c_float
+             jlen(nline) = nvert+1
+          end if
           continue
        end if
 
@@ -1234,7 +1258,21 @@ contains
 
        ! advance xpos
        xpos = xpos + glyph%AdvanceX * scale
+
+       ! update
+       if (centered_) then
+          xlen(nline) = max(xlen(nline),xpos)
+       end if
     end do
+    if (centered_) then
+       jlen(nline+1) = nvert+1
+
+       xmax = maxval(xlen(1:nline))
+       do i = 1, nline
+          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) + 0.5_c_float * (xmax - xlen(i))
+       end do
+       vert(2,jlen(1):nvert) = vert(2,jlen(1):nvert) - 0.5_c_float * nline * lheight
+    end if
 
   end subroutine calc_text_vertices
 
