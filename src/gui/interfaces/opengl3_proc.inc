@@ -35,12 +35,25 @@ subroutine glBindFramebuffer(target_,framebuffer) bind(c,name="glBindFramebuffer
   integer(c_int), value :: target_
   integer(c_int), value :: framebuffer
 end subroutine glBindFramebuffer
+! void glBlendEquation(GLenum mode);
+subroutine glBlendEquation(mode) bind(c,name="glBlendEquation")
+  import c_int
+  integer(c_int), value :: mode
+end subroutine glBlendEquation
 ! void glBlendFunc(GLenum sfactor, GLenum dfactor);
 subroutine glBlendFunc(sfactor,dfactor) bind(c,name="glBlendFunc")
   import c_int
   integer(c_int), value :: sfactor
   integer(c_int), value :: dfactor
 end subroutine glBlendFunc
+! void glBlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
+subroutine glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha) bind(c,name="glBlendFuncSeparate")
+  import c_int
+  integer(c_int), value :: srcRGB
+  integer(c_int), value :: dstRGB
+  integer(c_int), value :: srcAlpha
+  integer(c_int), value :: dstAlpha
+end subroutine glBlendFuncSeparate
 ! void glBlitFramebuffer(GLint srcX0,GLint srcY0,GLint srcX1,GLint srcY1,GLint dstX0,GLint dstY0,
 !                        GLint dstX1,GLint dstY1,GLbitfield mask,GLenum filter);
 subroutine glBlitFramebuffer(srcX0,srcY0,srcX1,srcY1,dstX0,dstY0,dstX1,dstY1,mask,filter) bind(c,name="glBlitFramebuffer")
@@ -167,6 +180,11 @@ subroutine glDetachShader(prog,shader) bind(c,name="glDetachShader")
   integer(c_int), value :: prog
   integer(c_int), value :: shader
 end subroutine glDetachShader
+! void glDisable(GLenum cap)
+subroutine glDisable(cap) bind(c,name="glDisable")
+  import c_int
+  integer(c_int), value :: cap
+end subroutine glDisable
 ! void glDrawArrays(GLenum mode, GLint first, GLsizei count);
 subroutine glDrawArrays(mode,first,count) bind(c,name="glDrawArrays")
   import c_int
