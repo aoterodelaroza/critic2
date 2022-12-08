@@ -31,6 +31,7 @@ submodule (scenes) proc
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,rgba,ires)
   ! subroutine draw_cylinder(x1,x2,rad,rgba,ires)
+  ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
 
 contains
 
@@ -234,7 +235,7 @@ contains
     use gui_main, only: sysc, fonts
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
-    use shaders, only: shader_phong, shader_text, useshader, setuniform_int,&
+    use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
     use param, only: newline, pi
@@ -294,7 +295,7 @@ contains
 
     ! ! render some text (note: max 1024 vertices in buffer!!)
     ! ! hw2 = 1/s%projection(1,1)
-    ! call useshader(shader_text)
+    ! call useshader(shader_text_onscene)
     ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
     !    -1._c_float,1._c_float)
     ! call setuniform_mat4("projection",proj)
@@ -316,9 +317,9 @@ contains
     ! scale = 0.6_c_float
     ! do i = 1, s%nsph
     !    x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
-    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1) ! 0.6 is the scale ratio
+    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
     !    nvert = 0
-    !    call calc_text_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
+    !    call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
     !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
     !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
     ! end do
@@ -1167,11 +1168,65 @@ contains
 
   end subroutine draw_cylinder
 
+  !> Draw text directly to the texture. str = text message, x0 =
+  !> position in texture coordinates. siz = font size in pixels. color
+  !> = text color.  centered = true if centers the message.
+  subroutine draw_text_direct(str,x0,siz,color,centered)
+    use interfaces_opengl3
+    use gui_main, only: fonts
+    use shapes, only: textVAO, textVBO
+    use windows, only: win, iwin_view
+    use shaders, only: useshader, shader_text_direct, setuniform_mat4, setuniform_vec3
+    use utils, only: ortho, project
+    character(len=*), intent(in) :: str
+    real(c_float), intent(in) :: x0(2)
+    real(c_float), intent(in) :: siz
+    real(c_float), intent(in) :: color(3)
+    logical, intent(in), optional :: centered
+
+    real(c_float) :: proj(4,4), scale
+    integer(c_int) :: texid, nvert
+    real(c_float), allocatable, target :: vert(:,:)
+
+    call useshader(shader_text_direct)
+    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+       -1._c_float,1._c_float)
+    call setuniform_mat4("projection",proj)
+    call setuniform_vec3("textColor",color)
+
+    call glDisable(GL_CULL_FACE)
+    call glDisable(GL_DEPTH_TEST)
+    call glDisable(GL_MULTISAMPLE)
+    call glBlendEquation(GL_FUNC_ADD)
+    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAO)
+    texid = transfer(fonts%TexID,texid)
+    call glBindTexture(GL_TEXTURE_2D, texid)
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+
+    nvert = 0
+    call calc_text_direct_vertices(str,x0(1),x0(2),siz,nvert,vert,centered=centered)
+    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
+    call glDrawArrays(GL_TRIANGLES, 0, nvert)
+
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindTexture(GL_TEXTURE_2D, 0)
+
+    call glEnable(GL_CULL_FACE)
+    call glEnable(GL_DEPTH_TEST)
+    call glEnable(GL_MULTISAMPLE)
+    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+  end subroutine draw_text_direct
+
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert. (x0,y0) = position of top-left corner, siz = size in
   !> pixels. nvert/vert output vertices. If centered, center the text
   !> in x and y.
-  subroutine calc_text_vertices(text,x0,y0,siz,nvert,vert,centered)
+  subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
     use gui_main, only: g
     use types, only: realloc
@@ -1283,6 +1338,6 @@ contains
        vert(2,jlen(1):nvert) = vert(2,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
 
-  end subroutine calc_text_vertices
+  end subroutine calc_text_direct_vertices
 
 end submodule proc

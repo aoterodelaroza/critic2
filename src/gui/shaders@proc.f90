@@ -21,9 +21,10 @@ submodule (shaders) proc
   implicit none
 
   character*(*), parameter :: shader_file(shader_NUM) = (/&
-     "test ",& ! shader_test
-     "phong",& ! shader_phong
-     "text "&   ! shader_text
+     "test        ",& ! shader_test
+     "phong       ",& ! shader_phong
+     "text_direct ",&  ! shader_text_direct
+     "text_onscene"&   ! shader_text_onscene
      /)
 
   ! shader programs
