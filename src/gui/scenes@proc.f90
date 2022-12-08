@@ -272,26 +272,31 @@ contains
     call setuniform_mat4("projection",s%projection)
 
     ! draw the atoms
-    call glBindVertexArray(sphVAO(s%atom_res))
-    do i = 1, s%nsph
-       call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgba,s%atom_res)
-    end do
+    if (s%nsph > 0) then
+       call glBindVertexArray(sphVAO(s%atom_res))
+       do i = 1, s%nsph
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgba,s%atom_res)
+       end do
+    end if
 
     ! draw the bonds
-    call glBindVertexArray(cylVAO(s%bond_res))
-    do i = 1, s%ncyl
-       call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
-          s%drawlist_cyl(i)%rgba,s%bond_res)
-    end do
+    if (s%ncyl > 0) then
+       call glBindVertexArray(cylVAO(s%bond_res))
+       do i = 1, s%ncyl
+          call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
+             s%drawlist_cyl(i)%rgba,s%bond_res)
+       end do
+    end if
 
     ! draw the flat cylinders (unit cell)
-    call setuniform_int("uselighting",0_c_int)
-    call glBindVertexArray(cylVAO(s%uc_res))
-    do i = 1, s%ncylflat
-       call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-          s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
-    end do
-    call glBindVertexArray(0)
+    if (s%ncylflat > 0) then
+       call setuniform_int("uselighting",0_c_int)
+       call glBindVertexArray(cylVAO(s%uc_res))
+       do i = 1, s%ncylflat
+          call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+             s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
+       end do
+    end if
 
     ! ! render some text (note: max 1024 vertices in buffer!!)
     ! ! hw2 = 1/s%projection(1,1)
