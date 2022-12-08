@@ -1459,12 +1459,12 @@ contains
           vert(4,j) = r + rshift
        end do
 
-       vert(5:6,nvert+1) = (/glyph%X0, glyph%Y1/)
-       vert(5:6,nvert+2) = (/glyph%X0, glyph%Y0/)
-       vert(5:6,nvert+3) = (/glyph%X1, glyph%Y0/)
-       vert(5:6,nvert+4) = (/glyph%X0, glyph%Y1/)
-       vert(5:6,nvert+5) = (/glyph%X1, glyph%Y0/)
-       vert(5:6,nvert+6) = (/glyph%X1, glyph%Y1/)
+       vert(5:6,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)
+       vert(5:6,nvert+2) = (/xpos + glyph%X0, ypos + glyph%Y0/)
+       vert(5:6,nvert+3) = (/xpos + glyph%X1, ypos + glyph%Y0/)
+       vert(5:6,nvert+4) = (/xpos + glyph%X0, ypos + glyph%Y1/)
+       vert(5:6,nvert+5) = (/xpos + glyph%X1, ypos + glyph%Y0/)
+       vert(5:6,nvert+6) = (/xpos + glyph%X1, ypos + glyph%Y1/)
 
        vert(7:8,nvert+1) = (/glyph%U0, glyph%V1/)
        vert(7:8,nvert+2) = (/glyph%U0, glyph%V0/)
