@@ -41,6 +41,15 @@ module scenes
      real(c_float) :: rgba(4) ! color
   end type dl_cylinder
 
+  !> strings for the draw list
+  type dl_string
+     real(c_float) :: x(3) ! position
+     real(c_float) :: r ! radius
+     real(c_float) :: rgb(3) ! color
+     real(c_float) :: scale ! scale (1.0 = radius)
+     character*10 :: str ! string
+  end type dl_string
+
   !> draw style for atoms
   type draw_style_atom
      logical(c_bool) :: shown
@@ -147,6 +156,8 @@ module scenes
      type(dl_cylinder), allocatable :: drawlist_cyl(:) ! cylinder draw list
      integer :: ncylflat ! number of flat cylinders
      type(dl_cylinder), allocatable :: drawlist_cylflat(:) ! flat cylinder draw list
+     integer :: nstring ! number of strings
+     type(dl_string), allocatable :: drawlist_string(:) ! flat cylinder draw list
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -229,8 +240,8 @@ module scenes
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
-     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,ncylflat,drawlist_cylflat)
-
+     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
+        ncylflat,drawlist_cylflat,nstring,drawlist_string)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        integer, intent(inout) :: nsph
@@ -239,6 +250,8 @@ module scenes
        type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
        integer, intent(inout) :: ncylflat
        type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
+       integer, intent(inout) :: nstring
+       type(dl_string), intent(inout), allocatable :: drawlist_string(:)
      end subroutine add_draw_elements
   end interface
 

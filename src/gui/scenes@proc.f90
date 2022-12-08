@@ -168,11 +168,14 @@ contains
     s%ncylflat = 0
     if (allocated(s%drawlist_cylflat)) deallocate(s%drawlist_cylflat)
     allocate(s%drawlist_cylflat(10))
+    s%nstring = 0
+    if (allocated(s%drawlist_string)) deallocate(s%drawlist_string)
+    allocate(s%drawlist_string(10))
 
     ! add the items by representation
     do i = 1, s%nrep
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
-          s%ncylflat,s%drawlist_cylflat)
+          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string)
     end do
 
     ! recalculate scene center and radius
@@ -182,20 +185,24 @@ contains
           maxrad = max(maxrad,maxval(s%rep(i)%atom_style(1:s%rep(i)%natom_style)%rad))
        end if
     end do
-    if (s%nsph + s%ncyl + s%ncylflat > 0) then
+    if (s%nsph + s%ncyl + s%ncylflat + s%nstring > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
+
           xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
           xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+          xmin(i) = min(xmin(i),minval(s%drawlist_string(1:s%nstring)%x(i)))
+
           xmax(i) = maxval(s%drawlist_sph(1:s%nsph)%x(i)) + maxrad
           xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
+          xmax(i) = max(xmax(i),maxval(s%drawlist_string(1:s%nstring)%x(i)))
        end do
     else
        xmin = 0._c_float
@@ -301,40 +308,37 @@ contains
        end do
     end if
 
-    ! ! render some text
-    ! call useshader(shader_text_onscene)
-    ! call setuniform_mat4("world",s%world)
-    ! call setuniform_mat4("view",s%view)
-    ! call setuniform_mat4("projection",s%projection)
-    ! call setuniform_vec3("campos",s%campos)
-    ! color = 1._c_float
-    ! call setuniform_vec3("textColor",color)
+    ! render some text
+    call useshader(shader_text_onscene)
+    call setuniform_mat4("world",s%world)
+    call setuniform_mat4("view",s%view)
+    call setuniform_mat4("projection",s%projection)
+    call setuniform_vec3("campos",s%campos)
 
-    ! call glDisable(GL_MULTISAMPLE)
-    ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    call glDisable(GL_MULTISAMPLE)
+    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-    ! call glActiveTexture(GL_TEXTURE0)
-    ! call glBindVertexArray(textVAOos)
-    ! call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAOos)
+    call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
-    ! allocate(vert(8,6))
-    ! scale = 0.6_c_float
-    ! siz = 2 * scale * s%projection(1,1) / igGetFontSize()
-    ! do i = 1, s%nsph
-    !    nvert = 0
-    !    call calc_text_onscene_vertices("X",s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,&
-    !       siz,nvert,vert,centered=.true.)
-    !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-    !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
-    ! end do
+    do i = 1, s%nstring
+       call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
+       nvert = 0
+       siz = 2 * s%drawlist_string(i)%scale * s%projection(1,1) / igGetFontSize()
+       call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
+          siz,nvert,vert,centered=.true.)
+       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+       call glDrawArrays(GL_TRIANGLES, 0, nvert)
+    end do
 
-    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    ! call glBindVertexArray(0)
-    ! call glBindTexture(GL_TEXTURE_2D, 0)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindTexture(GL_TEXTURE_2D, 0)
 
-    ! call glEnable(GL_MULTISAMPLE)
-    ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    call glEnable(GL_MULTISAMPLE)
+    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
   end subroutine scene_render
 
@@ -779,7 +783,8 @@ contains
   end subroutine reset_atom_style
 
   !> Add the spheres, cylinder, etc. to the draw lists.
-  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,ncylflat,drawlist_cylflat)
+  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
+     ncylflat,drawlist_cylflat,nstring,drawlist_string)
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
@@ -792,6 +797,8 @@ contains
     type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
     integer, intent(inout) :: ncylflat
     type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
+    integer, intent(inout) :: nstring
+    type(dl_string), intent(inout), allocatable :: drawlist_string(:)
 
     type(hash) :: shown_atoms
     logical :: havefilter, step, ok, isedge(3)
@@ -801,6 +808,7 @@ contains
     real*8 :: xx(3), x0(3), x1(3), x2(3), res, uoriginc(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
+    type(dl_string), allocatable :: auxstr(:)
     character(len=:), allocatable :: atcode
 
     real*8, parameter :: rthr = 0.01d0
@@ -836,6 +844,10 @@ contains
     if (.not.allocated(drawlist_cylflat)) then
        allocate(drawlist_cylflat(100))
        ncylflat = 0
+    end if
+    if (.not.allocated(drawlist_string)) then
+       allocate(drawlist_string(100))
+       nstring = 0
     end if
 
     if (r%type == reptype_atoms) then
@@ -998,6 +1010,18 @@ contains
 
                    ! labels
                    if (r%labels_display) then
+                      nstring = nstring + 1
+                      if (nstring > size(drawlist_string,1)) then
+                         allocate(auxstr(2*nstring))
+                         auxstr(1:size(drawlist_string,1)) = drawlist_string
+                         call move_alloc(auxstr,drawlist_string)
+                      end if
+
+                      drawlist_string(nstring)%x = real(xx + uoriginc,c_float)
+                      drawlist_string(nstring)%r = rad
+                      drawlist_string(nstring)%rgb = 1._c_float
+                      drawlist_string(nstring)%scale = 0.6_c_float
+                      drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
                    end if
                 end do ! i3
              end do ! i2
@@ -1442,12 +1466,12 @@ contains
        vert(5:6,nvert+5) = (/glyph%X1, glyph%Y0/)
        vert(5:6,nvert+6) = (/glyph%X1, glyph%Y1/)
 
-       vert(7:8,nvert+1) = (/glyph%U0, glyph%V0/)
-       vert(7:8,nvert+2) = (/glyph%U0, glyph%V1/)
-       vert(7:8,nvert+3) = (/glyph%U1, glyph%V1/)
-       vert(7:8,nvert+4) = (/glyph%U0, glyph%V0/)
-       vert(7:8,nvert+5) = (/glyph%U1, glyph%V1/)
-       vert(7:8,nvert+6) = (/glyph%U1, glyph%V0/)
+       vert(7:8,nvert+1) = (/glyph%U0, glyph%V1/)
+       vert(7:8,nvert+2) = (/glyph%U0, glyph%V0/)
+       vert(7:8,nvert+3) = (/glyph%U1, glyph%V0/)
+       vert(7:8,nvert+4) = (/glyph%U0, glyph%V1/)
+       vert(7:8,nvert+5) = (/glyph%U1, glyph%V0/)
+       vert(7:8,nvert+6) = (/glyph%U1, glyph%V1/)
        nvert = nvert + 6
 
        ! advance xpos
