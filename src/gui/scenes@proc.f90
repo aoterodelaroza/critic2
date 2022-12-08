@@ -31,6 +31,7 @@ submodule (scenes) proc
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,rgba,ires)
   ! subroutine draw_cylinder(x1,x2,rad,rgba,ires)
+  ! subroutine draw_text_direct(str,x0,siz,color,centered)
   ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
 
 contains
@@ -296,55 +297,54 @@ contains
        end do
     end if
 
-    ! render some text (note: max 1024 vertices in buffer!!)
-    ! hw2 = 1/s%projection(1,1)
-    call useshader(shader_text_onscene)
-    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-       -1._c_float,1._c_float)
-    call setuniform_mat4("projection",proj)
-    color = 1._c_float
-    call setuniform_vec3("textColor",color)
+    ! ! render some text (note: max 1024 vertices in buffer!!)
+    ! ! hw2 = 1/s%projection(1,1)
+    ! call useshader(shader_text_onscene)
+    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+    !    -1._c_float,1._c_float)
+    ! call setuniform_mat4("projection",proj)
+    ! color = 1._c_float
+    ! call setuniform_vec3("textColor",color)
 
-    call glDisable(GL_CULL_FACE)
-    call glDisable(GL_MULTISAMPLE)
-    call glBlendEquation(GL_FUNC_ADD)
-    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    ! call glDisable(GL_CULL_FACE)
+    ! call glDisable(GL_MULTISAMPLE)
+    ! call glBlendEquation(GL_FUNC_ADD)
+    ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-    call glActiveTexture(GL_TEXTURE0)
-    call glBindVertexArray(textVAO)
-    texid = transfer(fonts%TexID,texid)
-    call glBindTexture(GL_TEXTURE_2D, texid)
-    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    ! call glActiveTexture(GL_TEXTURE0)
+    ! call glBindVertexArray(textVAO)
+    ! texid = transfer(fonts%TexID,texid)
+    ! call glBindTexture(GL_TEXTURE_2D, texid)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
 
-    scale = 0.6_c_float
-    do i = 1, s%nsph
-       x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
-       siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
-       nvert = 0
-       call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
-       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
+    ! scale = 0.6_c_float
+    ! do i = 1, s%nsph
+    !    x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
+    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
+    !    nvert = 0
+    !    call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
+    !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
 
-       xx(1:3) = s%drawlist_sph(i)%x
-       xx(4) = 1._c_float
-       xx = matmul(s%world,xx)
-       xx = xx / xx(4)
-       xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
-       xx = matmul(s%view,xx)
-       xx = matmul(s%projection,xx)
-       xx = xx / xx(4)
-       call setuniform_float("depth",xx(3))
-       write (*,*) "depth = ", xx(3)
+    !    xx(1:3) = s%drawlist_sph(i)%x
+    !    xx(4) = 1._c_float
+    !    xx = matmul(s%world,xx)
+    !    xx = xx / xx(4)
+    !    xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
+    !    xx = matmul(s%view,xx)
+    !    xx = matmul(s%projection,xx)
+    !    xx = xx / xx(4)
+    !    call setuniform_float("depth",xx(3))
 
-       call glDrawArrays(GL_TRIANGLES, 0, nvert)
-    end do
+    !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
+    ! end do
 
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-    call glBindTexture(GL_TEXTURE_2D, 0)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    ! call glBindVertexArray(0)
+    ! call glBindTexture(GL_TEXTURE_2D, 0)
 
-    call glEnable(GL_CULL_FACE)
-    call glEnable(GL_MULTISAMPLE)
-    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    ! call glEnable(GL_CULL_FACE)
+    ! call glEnable(GL_MULTISAMPLE)
+    ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
   end subroutine scene_render
 
@@ -1191,7 +1191,7 @@ contains
   subroutine draw_text_direct(str,x0,siz,color,centered)
     use interfaces_opengl3
     use gui_main, only: fonts
-    use shapes, only: textVAO, textVBO
+    use shapes, only: textVAO, textVBO, text_maxvert
     use windows, only: win, iwin_view
     use shaders, only: useshader, shader_text_direct, setuniform_mat4, setuniform_vec3
     use utils, only: ortho, project
@@ -1202,8 +1202,9 @@ contains
     logical, intent(in), optional :: centered
 
     real(c_float) :: proj(4,4), scale
-    integer(c_int) :: texid, nvert
+    integer(c_int) :: texid, nvert, nchunk
     real(c_float), allocatable, target :: vert(:,:)
+    integer :: i
 
     call useshader(shader_text_direct)
     proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
@@ -1225,8 +1226,11 @@ contains
 
     nvert = 0
     call calc_text_direct_vertices(str,x0(1),x0(2),siz,nvert,vert,centered=centered)
-    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
-    call glDrawArrays(GL_TRIANGLES, 0, nvert)
+    do i = 1, nvert, text_maxvert
+       nchunk = min(text_maxvert,nvert-i+1)
+       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nchunk*4*c_sizeof(c_float), c_loc(vert(1,i)))
+       call glDrawArrays(GL_TRIANGLES, 0, nchunk)
+    end do
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
