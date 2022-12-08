@@ -228,10 +228,11 @@ contains
 
   !> Draw the scene
   module subroutine scene_render(s)
+    use interfaces_cimgui
     use interfaces_opengl3
     use windows, only: win, iwin_view
-    use shapes, only: sphVAO, cylVAO, textVAO, textVBO
-    use gui_main, only: sysc, fonts
+    use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
+    use gui_main, only: sysc, fonts, g
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
@@ -240,13 +241,15 @@ contains
     use param, only: newline, pi
     class(scene), intent(inout), target :: s
 
-    integer :: i, ier
+    integer :: i, j, ier
     real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h, x0(3), xx(4)
-    real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy, scale
+    real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy, scale, fs
     real*8 :: q8(4,4), eval(4)
-    integer(c_int) :: texid, nvert
+    integer(c_int) :: nvert
     real(c_float), target :: quad(4,6)
     real(c_float), allocatable, target :: vert(:,:)
+    type(c_ptr) :: cptr
+    type(ImFontGlyph), pointer :: glyph
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -300,41 +303,51 @@ contains
     ! ! render some text (note: max 1024 vertices in buffer!!)
     ! ! hw2 = 1/s%projection(1,1)
     ! call useshader(shader_text_onscene)
-    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-    !    -1._c_float,1._c_float)
-    ! call setuniform_mat4("projection",proj)
+    ! call setuniform_mat4("world",s%world)
+    ! call setuniform_mat4("view",s%view)
+    ! call setuniform_mat4("projection",s%projection)
+    ! call setuniform_vec3("campos",s%campos)
     ! color = 1._c_float
     ! call setuniform_vec3("textColor",color)
 
-    ! call glDisable(GL_CULL_FACE)
     ! call glDisable(GL_MULTISAMPLE)
     ! call glBlendEquation(GL_FUNC_ADD)
     ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
     ! call glActiveTexture(GL_TEXTURE0)
-    ! call glBindVertexArray(textVAO)
-    ! texid = transfer(fonts%TexID,texid)
-    ! call glBindTexture(GL_TEXTURE_2D, texid)
-    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    ! call glBindVertexArray(textVAOos)
+    ! call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
+    ! allocate(vert(8,6))
     ! scale = 0.6_c_float
     ! do i = 1, s%nsph
-    !    x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
-    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
-    !    nvert = 0
-    !    call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
-    !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
+    !    nvert = 6
+    !    siz = 2 * scale * s%projection(1,1) / igGetFontSize()
+    !    fs = igGetFontSize()
+    !    cptr = ImFont_FindGlyph(g%Font,int(ichar("X"),c_int16_t))
+    !    call c_f_pointer(cptr,glyph)
 
-    !    xx(1:3) = s%drawlist_sph(i)%x
-    !    xx(4) = 1._c_float
-    !    xx = matmul(s%world,xx)
-    !    xx = xx / xx(4)
-    !    xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
-    !    xx = matmul(s%view,xx)
-    !    xx = matmul(s%projection,xx)
-    !    xx = xx / xx(4)
-    !    call setuniform_float("depth",xx(3))
+    !    do j = 1, nvert
+    !       vert(1:3,j) = s%drawlist_sph(i)%x
+    !    end do
+    !    vert(4,:) = s%drawlist_sph(i)%r+0.1_c_float
 
+    !    vert(5:6,1) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
+    !    vert(5:6,2) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
+    !    vert(5:6,3) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
+    !    vert(5:6,4) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
+    !    vert(5:6,5) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
+    !    vert(5:6,6) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
+
+    !    vert(7:8,1) = (/glyph%U0, glyph%V0/)
+    !    vert(7:8,2) = (/glyph%U0, glyph%V1/)
+    !    vert(7:8,3) = (/glyph%U1, glyph%V1/)
+    !    vert(7:8,4) = (/glyph%U0, glyph%V0/)
+    !    vert(7:8,5) = (/glyph%U1, glyph%V1/)
+    !    vert(7:8,6) = (/glyph%U1, glyph%V0/)
+
+    !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
     !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
     ! end do
 
@@ -342,7 +355,6 @@ contains
     ! call glBindVertexArray(0)
     ! call glBindTexture(GL_TEXTURE_2D, 0)
 
-    ! call glEnable(GL_CULL_FACE)
     ! call glEnable(GL_MULTISAMPLE)
     ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
