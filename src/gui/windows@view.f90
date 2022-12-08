@@ -629,7 +629,7 @@ contains
   !> Process the mouse events in the view window
   module subroutine process_events_view(w,hover)
     use interfaces_cimgui
-    use scenes, only: scene
+    use scenes, only: scene, min_zoom, max_zoom
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
@@ -650,8 +650,6 @@ contains
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
-    real(c_float), parameter :: min_zoom = 1._c_float
-    real(c_float), parameter :: max_zoom = 100._c_float
 
     type(ImVec2), save :: mposlast
     real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3)

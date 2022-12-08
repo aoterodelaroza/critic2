@@ -143,8 +143,6 @@ contains
     call s%update_view_matrix()
 
     ! projection matrix
-    s%znear = 0._c_float
-    s%zfar = 10000._c_float
     call s%update_projection_matrix()
 
   end subroutine scene_reset
@@ -298,55 +296,55 @@ contains
        end do
     end if
 
-    ! ! render some text (note: max 1024 vertices in buffer!!)
-    ! ! hw2 = 1/s%projection(1,1)
-    ! call useshader(shader_text_onscene)
-    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-    !    -1._c_float,1._c_float)
-    ! call setuniform_mat4("projection",proj)
-    ! color = 1._c_float
-    ! call setuniform_vec3("textColor",color)
+    ! render some text (note: max 1024 vertices in buffer!!)
+    ! hw2 = 1/s%projection(1,1)
+    call useshader(shader_text_onscene)
+    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+       -1._c_float,1._c_float)
+    call setuniform_mat4("projection",proj)
+    color = 1._c_float
+    call setuniform_vec3("textColor",color)
 
-    ! call glDisable(GL_CULL_FACE)
-    ! call glDisable(GL_MULTISAMPLE)
-    ! call glBlendEquation(GL_FUNC_ADD)
-    ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    call glDisable(GL_CULL_FACE)
+    call glDisable(GL_MULTISAMPLE)
+    call glBlendEquation(GL_FUNC_ADD)
+    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-    ! call glActiveTexture(GL_TEXTURE0)
-    ! call glBindVertexArray(textVAO)
-    ! texid = transfer(fonts%TexID,texid)
-    ! call glBindTexture(GL_TEXTURE_2D, texid)
-    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAO)
+    texid = transfer(fonts%TexID,texid)
+    call glBindTexture(GL_TEXTURE_2D, texid)
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
 
-    ! scale = 0.6_c_float
-    ! do i = 1, s%nsph
-    !    x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
-    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
-    !    nvert = 0
-    !    call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
-    !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
+    scale = 0.6_c_float
+    do i = 1, s%nsph
+       x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
+       siz = scale * win(iwin_view)%FBOside * s%projection(1,1)
+       nvert = 0
+       call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
+       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
 
-    !    xx(1:3) = s%drawlist_sph(i)%x
-    !    xx(4) = 1._c_float
-    !    xx = matmul(s%world,xx)
-    !    xx = xx / xx(4)
-    !    xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
-    !    xx = matmul(s%view,xx)
-    !    xx = matmul(s%projection,xx)
-    !    xx = xx / xx(4)
-    !    call setuniform_float("depth",xx(3))
-    !    ! write (*,*) "depth = ", xx(3)
+       xx(1:3) = s%drawlist_sph(i)%x
+       xx(4) = 1._c_float
+       xx = matmul(s%world,xx)
+       xx = xx / xx(4)
+       xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
+       xx = matmul(s%view,xx)
+       xx = matmul(s%projection,xx)
+       xx = xx / xx(4)
+       call setuniform_float("depth",xx(3))
+       write (*,*) "depth = ", xx(3)
 
-    !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
-    ! end do
+       call glDrawArrays(GL_TRIANGLES, 0, nvert)
+    end do
 
-    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    ! call glBindVertexArray(0)
-    ! call glBindTexture(GL_TEXTURE_2D, 0)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindTexture(GL_TEXTURE_2D, 0)
 
-    ! call glEnable(GL_CULL_FACE)
-    ! call glEnable(GL_MULTISAMPLE)
-    ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    call glEnable(GL_CULL_FACE)
+    call glEnable(GL_MULTISAMPLE)
+    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
   end subroutine scene_render
 
@@ -551,16 +549,20 @@ contains
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, hw2, sc(3)
+    real(c_float) :: pic, hw2, sc(3), znear, zfar
 
     pic = real(pi,c_float)
 
     ! scene center: world to tworld
     sc = mult(s%world,s%scenecenter)
 
+    ! near and far planes
+    znear = 0._c_float
+    zfar = (1.1_c_float * max_zoom) * s%scenerad
+
     ! update the projection matrix
     hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
-    s%projection = ortho(-hw2,hw2,-hw2,hw2,s%znear,s%zfar)
+    s%projection = ortho(-hw2,hw2,-hw2,hw2,znear,zfar)
 
   end subroutine update_projection_matrix
 

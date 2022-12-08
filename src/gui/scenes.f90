@@ -22,6 +22,10 @@ module scenes
 
   private
 
+  !> Zoom minimum and maximum
+  real(c_float), parameter, public :: min_zoom = 1._c_float
+  real(c_float), parameter, public :: max_zoom = 100._c_float
+
   !> spheres for the draw list
   type dl_sphere
      real(c_float) :: x(3) ! position
@@ -125,8 +129,6 @@ module scenes
      real(c_float) :: camratio ! window ratio for the camera
      real(c_float) :: ortho_fov ! orthographic field of view
      real(c_float) :: persp_fov ! perspective field of view
-     real(c_float) :: znear ! position of the near plane
-     real(c_float) :: zfar  ! position of the far plane
      real(c_float) :: campos(3) ! position of the camera (tworld coords)
      real(c_float) :: camfront(3) ! camera front vec (tworld coords)
      real(c_float) :: camup(3) ! camera up vec (tworld coords)
