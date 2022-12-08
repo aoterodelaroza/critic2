@@ -300,8 +300,7 @@ contains
        end do
     end if
 
-    ! ! render some text (note: max 1024 vertices in buffer!!)
-    ! ! hw2 = 1/s%projection(1,1)
+    ! ! render some text
     ! call useshader(shader_text_onscene)
     ! call setuniform_mat4("world",s%world)
     ! call setuniform_mat4("view",s%view)
@@ -311,7 +310,6 @@ contains
     ! call setuniform_vec3("textColor",color)
 
     ! call glDisable(GL_MULTISAMPLE)
-    ! call glBlendEquation(GL_FUNC_ADD)
     ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
     ! call glActiveTexture(GL_TEXTURE0)
@@ -321,32 +319,11 @@ contains
 
     ! allocate(vert(8,6))
     ! scale = 0.6_c_float
+    ! siz = 2 * scale * s%projection(1,1) / igGetFontSize()
     ! do i = 1, s%nsph
-    !    nvert = 6
-    !    siz = 2 * scale * s%projection(1,1) / igGetFontSize()
-    !    fs = igGetFontSize()
-    !    cptr = ImFont_FindGlyph(g%Font,int(ichar("X"),c_int16_t))
-    !    call c_f_pointer(cptr,glyph)
-
-    !    do j = 1, nvert
-    !       vert(1:3,j) = s%drawlist_sph(i)%x
-    !    end do
-    !    vert(4,:) = s%drawlist_sph(i)%r+0.1_c_float
-
-    !    vert(5:6,1) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
-    !    vert(5:6,2) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
-    !    vert(5:6,3) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
-    !    vert(5:6,4) = (/glyph%X0 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
-    !    vert(5:6,5) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y0 - 0.5 * fs/) * siz
-    !    vert(5:6,6) = (/glyph%X1 - 0.5 * glyph%AdvanceX, glyph%Y1 - 0.5 * fs/) * siz
-
-    !    vert(7:8,1) = (/glyph%U0, glyph%V0/)
-    !    vert(7:8,2) = (/glyph%U0, glyph%V1/)
-    !    vert(7:8,3) = (/glyph%U1, glyph%V1/)
-    !    vert(7:8,4) = (/glyph%U0, glyph%V0/)
-    !    vert(7:8,5) = (/glyph%U1, glyph%V1/)
-    !    vert(7:8,6) = (/glyph%U1, glyph%V0/)
-
+    !    nvert = 0
+    !    call calc_text_onscene_vertices("X",s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,&
+    !       siz,nvert,vert,centered=.true.)
     !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
     !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
     ! end do
@@ -1256,9 +1233,9 @@ contains
   end subroutine draw_text_direct
 
   !> Calculate the vertices for the given text and adds them to
-  !> nvert/vert. (x0,y0) = position of top-left corner, siz = size in
-  !> pixels. nvert/vert output vertices. If centered, center the text
-  !> in x and y.
+  !> nvert/vert, direct version. (x0,y0) = position of top-left corner
+  !> (pixels), siz = size in pixels. nvert/vert output vertices. If
+  !> centered, center the text in x and y.
   subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
     use gui_main, only: g
@@ -1373,5 +1350,121 @@ contains
     end if
 
   end subroutine calc_text_direct_vertices
+
+  !> Calculate the vertices for the given text and adds them to
+  !> nvert/vert, on-scene version. x0 = world position of the label.
+  !> r = radius of the associated atom.
+  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
+    use interfaces_cimgui
+    use gui_main, only: g
+    use types, only: realloc
+    use param, only: newline
+    character(len=*), intent(in) :: text
+    real(c_float), intent(in) :: x0(3)
+    real(c_float), intent(in) :: r
+    real(c_float), intent(in) :: siz
+    integer(c_int), intent(inout) :: nvert
+    real(c_float), allocatable, intent(inout) :: vert(:,:)
+    logical, intent(in), optional :: centered
+
+    integer :: i, j, nline, nvert0
+    type(c_ptr) :: cptr
+    type(ImFontGlyph), pointer :: glyph
+    real(c_float) :: xpos, ypos, scale, lheight, fs, xmax
+    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
+    logical :: centered_
+    real(c_float), allocatable :: xlen(:)
+    integer, allocatable :: jlen(:)
+
+    real(c_float), parameter :: rshift = 0.1_c_float
+
+    ! initialize
+    centered_ = .false.
+    if (present(centered)) centered_ = centered
+    if (.not.allocated(vert)) then
+       allocate(vert(8,100))
+       nvert = 0
+    end if
+    nvert0 = nvert
+
+    ! initial variables
+    xpos = 0._c_float
+    ypos = 0._c_float
+    lheight = igGetFontSize()
+    if (centered_) then
+       nline = 1
+       allocate(xlen(10),jlen(10))
+       jlen(1) = nvert+1
+       xlen(1) = 0._c_float
+    end if
+
+    ! loop over characters
+    i = 0
+    do while (i < len_trim(text))
+       i = i + 1
+       ! newline, skip line and advance one (linux)
+       if (text(i:i) == newline) then
+          xpos = 0._c_float
+          ypos = ypos + lheight
+          i = i + 1
+          if (centered_) then
+             nline = nline + 1
+             if (nline+1 > size(xlen,1)) then
+                call realloc(xlen,2*nline)
+                call realloc(jlen,2*nline)
+             end if
+             xlen(nline) = 0._c_float
+             jlen(nline) = nvert+1
+          end if
+          continue
+       end if
+
+       ! get the glyph
+       cptr = ImFont_FindGlyph(g%Font,int(ichar(text(i:i)),c_int16_t))
+       call c_f_pointer(cptr,glyph)
+
+       ! add to the vertices
+       if (nvert+6 > size(vert,2)) call realloc(vert,8,2*(nvert+6))
+       do j = nvert+1, nvert+6
+          vert(1:3,j) = x0
+          vert(4,j) = r + rshift
+       end do
+
+       vert(5:6,nvert+1) = (/glyph%X0, glyph%Y1/)
+       vert(5:6,nvert+2) = (/glyph%X0, glyph%Y0/)
+       vert(5:6,nvert+3) = (/glyph%X1, glyph%Y0/)
+       vert(5:6,nvert+4) = (/glyph%X0, glyph%Y1/)
+       vert(5:6,nvert+5) = (/glyph%X1, glyph%Y0/)
+       vert(5:6,nvert+6) = (/glyph%X1, glyph%Y1/)
+
+       vert(7:8,nvert+1) = (/glyph%U0, glyph%V0/)
+       vert(7:8,nvert+2) = (/glyph%U0, glyph%V1/)
+       vert(7:8,nvert+3) = (/glyph%U1, glyph%V1/)
+       vert(7:8,nvert+4) = (/glyph%U0, glyph%V0/)
+       vert(7:8,nvert+5) = (/glyph%U1, glyph%V1/)
+       vert(7:8,nvert+6) = (/glyph%U1, glyph%V0/)
+       nvert = nvert + 6
+
+       ! advance xpos
+       xpos = xpos + glyph%AdvanceX
+
+       ! update
+       if (centered_) then
+          xlen(nline) = max(xlen(nline),xpos)
+       end if
+    end do
+    if (centered_) then
+       jlen(nline+1) = nvert+1
+
+       xmax = maxval(xlen(1:nline))
+       do i = 1, nline
+          vert(5,jlen(i):jlen(i+1)-1) = vert(5,jlen(i):jlen(i+1)-1) + &
+             0.5_c_float * (xmax - glyph%AdvanceX - xlen(i))
+       end do
+       vert(6,jlen(1):nvert) = vert(6,jlen(1):nvert) - 0.5_c_float * nline * lheight
+    end if
+    vert(5:6,nvert0+1:nvert) = vert(5:6,nvert0+1:nvert) * siz
+
+  end subroutine calc_text_onscene_vertices
 
 end submodule proc
