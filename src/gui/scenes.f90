@@ -72,6 +72,7 @@ module scenes
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
      logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
+     logical(c_bool) :: labels_display = .true. ! whether to draw the labels
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell

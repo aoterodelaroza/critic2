@@ -33,6 +33,7 @@ submodule (scenes) proc
   ! subroutine draw_cylinder(x1,x2,rad,rgba,ires)
   ! subroutine draw_text_direct(str,x0,siz,color,centered)
   ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
+  ! subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
 
 contains
 
@@ -641,6 +642,7 @@ contains
     r%onemotif = .false.
     r%atoms_display = .true.
     r%bonds_display = .true.
+    r%labels_display = .false.
     r%atom_style_type = 0
     r%natom_style = 0
     r%atom_radii_reset_type = 0
@@ -937,63 +939,66 @@ contains
                       drawlist_sph(nsph)%rgba = rgba
                    end if
 
-                   ! start with bonds
-                   if (.not.r%bonds_display) cycle
-
-                   ! add this atom to the hash
-                   atcode = string(i) // "_" // string(ix(1)) // "_" // string(ix(2)) // "_" // string(ix(3))
-                   call shown_atoms%put(atcode,1)
-
                    ! bonds
-                   do ib = 1, sys(r%id)%c%nstar(i)%ncon
-                      ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
-                      ixn = ix + sys(r%id)%c%nstar(i)%lcon(:,ib)
+                   if (r%bonds_display) then
+                      ! add this atom to the hash
+                      atcode = string(i) // "_" // string(ix(1)) // "_" // string(ix(2)) // "_" // string(ix(3))
+                      call shown_atoms%put(atcode,1)
 
-                      ! check if the atom has been represented already
-                      atcode = string(ineigh) // "_" // string(ixn(1)) // "_" // string(ixn(2)) // "_" // string(ixn(3))
-                      if (.not.shown_atoms%iskey(atcode)) cycle
+                      ! bonds
+                      do ib = 1, sys(r%id)%c%nstar(i)%ncon
+                         ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
+                         ixn = ix + sys(r%id)%c%nstar(i)%lcon(:,ib)
 
-                      ! draw the bond, reallocate if necessary
-                      if (r%bond_color_style == 0) then
-                         ncyl = ncyl + 1
-                      else
-                         ncyl = ncyl + 2
-                      end if
-                      if (ncyl > size(drawlist_cyl,1)) then
-                         allocate(auxcyl(2*ncyl))
-                         auxcyl(1:size(drawlist_cyl,1)) = drawlist_cyl
-                         call move_alloc(auxcyl,drawlist_cyl)
-                      end if
+                         ! check if the atom has been represented already
+                         atcode = string(ineigh) // "_" // string(ixn(1)) // "_" // string(ixn(2)) // "_" // string(ixn(3))
+                         if (.not.shown_atoms%iskey(atcode)) cycle
 
-                      x1 = xx + uoriginc
-                      x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
-                      x2 = sys(r%id)%c%x2c(x2) + uoriginc
-                      if (r%bond_color_style == 0) then
-                         drawlist_cyl(ncyl)%x1 = real(x1,c_float)
-                         drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                         drawlist_cyl(ncyl)%r = r%bond_rad
-                         drawlist_cyl(ncyl)%rgba = r%bond_rgba
-                      else
-                         x0 = 0.5d0 * (x1 + x2)
-                         drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
-                         drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
-                         drawlist_cyl(ncyl-1)%r = r%bond_rad
-                         drawlist_cyl(ncyl-1)%rgba = r%atom_style(id)%rgba
-
-                         if (r%atom_style_type == 0) then
-                            idaux = sys(r%id)%c%atcel(ineigh)%is
-                         elseif (r%atom_style_type == 1) then
-                            idaux = sys(r%id)%c%atcel(ineigh)%idx
+                         ! draw the bond, reallocate if necessary
+                         if (r%bond_color_style == 0) then
+                            ncyl = ncyl + 1
                          else
-                            idaux = ineigh
+                            ncyl = ncyl + 2
                          end if
-                         drawlist_cyl(ncyl)%x1 = real(x0,c_float)
-                         drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                         drawlist_cyl(ncyl)%r = r%bond_rad
-                         drawlist_cyl(ncyl)%rgba = r%atom_style(idaux)%rgba
-                      end if
-                   end do ! ncon
+                         if (ncyl > size(drawlist_cyl,1)) then
+                            allocate(auxcyl(2*ncyl))
+                            auxcyl(1:size(drawlist_cyl,1)) = drawlist_cyl
+                            call move_alloc(auxcyl,drawlist_cyl)
+                         end if
 
+                         x1 = xx + uoriginc
+                         x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
+                         x2 = sys(r%id)%c%x2c(x2) + uoriginc
+                         if (r%bond_color_style == 0) then
+                            drawlist_cyl(ncyl)%x1 = real(x1,c_float)
+                            drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                            drawlist_cyl(ncyl)%r = r%bond_rad
+                            drawlist_cyl(ncyl)%rgba = r%bond_rgba
+                         else
+                            x0 = 0.5d0 * (x1 + x2)
+                            drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
+                            drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
+                            drawlist_cyl(ncyl-1)%r = r%bond_rad
+                            drawlist_cyl(ncyl-1)%rgba = r%atom_style(id)%rgba
+
+                            if (r%atom_style_type == 0) then
+                               idaux = sys(r%id)%c%atcel(ineigh)%is
+                            elseif (r%atom_style_type == 1) then
+                               idaux = sys(r%id)%c%atcel(ineigh)%idx
+                            else
+                               idaux = ineigh
+                            end if
+                            drawlist_cyl(ncyl)%x1 = real(x0,c_float)
+                            drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                            drawlist_cyl(ncyl)%r = r%bond_rad
+                            drawlist_cyl(ncyl)%rgba = r%atom_style(idaux)%rgba
+                         end if
+                      end do ! ncon
+                   end if
+
+                   ! labels
+                   if (r%labels_display) then
+                   end if
                 end do ! i3
              end do ! i2
           end do ! i1

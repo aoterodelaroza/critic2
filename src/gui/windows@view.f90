@@ -53,7 +53,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
-    logical(c_bool) :: isatom, isbond, isuc
+    logical(c_bool) :: isatom, isbond, islabels, isuc
     integer(c_int) :: amax, flags, nc(3), ires
     real(c_float) :: scal, width, sqw, ratio
 
@@ -77,12 +77,14 @@ contains
     ! flags for shortcuts
     isatom = .false.
     isbond = .false.
+    islabels = .false.
     isuc = .false.
     do i = 1, sysc(w%view_selected)%sc%nrep
        if (sysc(w%view_selected)%sc%rep(i)%isinit) then
           if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
              isatom = isatom .or. sysc(w%view_selected)%sc%rep(i)%atoms_display
              isbond = isbond .or. sysc(w%view_selected)%sc%rep(i)%bonds_display
+             islabels = islabels .or. sysc(w%view_selected)%sc%rep(i)%labels_display
           elseif (sysc(w%view_selected)%sc%rep(i)%type == reptype_unitcell) then
              isuc = isuc .or. sysc(w%view_selected)%sc%rep(i)%shown
           end if
@@ -128,6 +130,20 @@ contains
              chbuild = .true.
           end if
           call iw_tooltip("Toggle display bonds in all representations",ttshown)
+
+          str2 = "Labels##labelshortcut" // c_null_char
+          call igSameLine(0._c_float,-1._c_float)
+          if (igCheckbox(c_loc(str2),islabels)) then
+             do i = 1, sysc(w%view_selected)%sc%nrep
+                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
+                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
+                      sysc(w%view_selected)%sc%rep(i)%labels_display = islabels
+                   end if
+                end if
+             end do
+             chbuild = .true.
+          end if
+          call iw_tooltip("Toggle display labels in all representations",ttshown)
 
           if (.not.sys(w%view_selected)%c%ismolecule) then
              str2 = "Unit Cell##ucshortcut" // c_null_char
@@ -317,6 +333,7 @@ contains
                          if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
                             sysc(i)%sc%rep(j)%atoms_display = isatom
                             sysc(i)%sc%rep(j)%bonds_display = isbond
+                            sysc(i)%sc%rep(j)%labels_display = islabels
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell) then
                             sysc(i)%sc%rep(j)%shown = isuc
                          end if
@@ -369,7 +386,7 @@ contains
                 call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
                 chbuild = .true.
              end if
-             call iw_tooltip("Represent atoms and bonds in the scene",ttshown)
+             call iw_tooltip("Represent atoms, bonds, and labels in the scene",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 str2 = "Unit Cell" // c_null_char
@@ -1207,10 +1224,14 @@ contains
     str2 = "Atoms##atomsglobaldisplay " // c_null_char
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
     call iw_tooltip("Draw the atoms",ttshown)
-    call igSameLine(0._c_float,0._c_float)
+    call igSameLine(0._c_float,-1._c_float)
     str2 = "Bonds##bondsglobaldisplay" // c_null_char
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
     call iw_tooltip("Draw the bonds",ttshown)
+    call igSameLine(0._c_float,-1._c_float)
+    str2 = "Labels##labelsglobaldisplay" // c_null_char
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%labels_display)
+    call iw_tooltip("Draw the atomic labels",ttshown)
 
     ! origin of the atoms
     call igPushItemWidth(iw_calcwidth(21,3))
@@ -1225,7 +1246,7 @@ contains
        changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
           0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
     end if
-    call iw_tooltip("Coordinates for the origin shift of the atoms/bonds",ttshown)
+    call iw_tooltip("Coordinates for the origin shift of the atoms/bonds/labels",ttshown)
     call igPopItemWidth()
 
     ! atom styles
@@ -1479,6 +1500,9 @@ contains
        c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
     call igPopItemWidth()
     call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
+
+    ! label styles
+    call iw_text("Label Styles",highlight=.true.)
 
   end function draw_editrep_atoms
 
