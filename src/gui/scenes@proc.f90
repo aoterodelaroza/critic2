@@ -242,7 +242,7 @@ contains
 
     integer :: i, ier
     real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h, x0(3)
-    real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy
+    real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy, scale
     real*8 :: q8(4,4), eval(4)
     integer(c_int) :: texid, nvert
     real(c_float), target :: quad(4,6)
@@ -294,50 +294,43 @@ contains
 
     ! ! render some text (note: max 1024 vertices in buffer!!)
     ! ! hw2 = 1/s%projection(1,1)
-    ! x0 = project(s%drawlist_sph(1)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
-    ! siz = 0.6_c_float * s%drawlist_sph(1)%r * win(iwin_view)%FBOside * s%projection(1,1) ! 0.6 is the scale ratio
+    ! call useshader(shader_text)
+    ! proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+    !    -1._c_float,1._c_float)
+    ! call setuniform_mat4("projection",proj)
+    ! color = 1._c_float
+    ! call setuniform_vec3("textColor",color)
 
-    ! dx = max(win(iwin_view)%v_rmax%x - win(iwin_view)%v_rmin%x,1._c_float)
-    ! dy = max(win(iwin_view)%v_rmax%y - win(iwin_view)%v_rmin%y,1._c_float)
+    ! call glDisable(GL_CULL_FACE)
+    ! call glDisable(GL_DEPTH_TEST)
+    ! call glDisable(GL_MULTISAMPLE)
+    ! call glBlendEquation(GL_FUNC_ADD)
+    ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
-    ! smin = 12._c_float / max(dx,dy) * win(iwin_view)%FBOside
-    ! smax = 32._c_float / max(dx,dy) * win(iwin_view)%FBOside
-    ! siz = min(smax,siz)
-    ! write (*,*) siz
+    ! call glActiveTexture(GL_TEXTURE0)
+    ! call glBindVertexArray(textVAO)
+    ! texid = transfer(fonts%TexID,texid)
+    ! call glBindTexture(GL_TEXTURE_2D, texid)
+    ! call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
 
-    ! if (siz > smin) then
-    !    call useshader(shader_text)
-    !    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-    !       -1._c_float,1._c_float)
-    !    call setuniform_mat4("projection",proj)
-    !    color = 1._c_float
-    !    call setuniform_vec3("textColor",color)
-
-    !    call glDisable(GL_CULL_FACE)
-    !    call glDisable(GL_DEPTH_TEST)
-    !    call glDisable(GL_MULTISAMPLE)
-    !    call glBlendEquation(GL_FUNC_ADD)
-    !    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
-    !    w = 0.5_c_float * real(win(iwin_view)%FBOside,c_float)
+    ! scale = 0.6_c_float
+    ! do i = 1, s%nsph
+    !    x0 = project(s%drawlist_sph(i)%x,matmul(s%view,s%world),s%projection,win(iwin_view)%FBOside)
+    !    siz = scale * win(iwin_view)%FBOside * s%projection(1,1) ! 0.6 is the scale ratio
     !    nvert = 0
-    !    call calc_text_vertices("O",x0(1),x0(2),siz,nvert,vert,centered=.true.)
-    !    call glActiveTexture(GL_TEXTURE0)
-    !    call glBindVertexArray(textVAO)
-    !    texid = transfer(fonts%TexID,texid)
-    !    call glBindTexture(GL_TEXTURE_2D, texid)
-    !    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+    !    call calc_text_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
     !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
-    !    call glBindBuffer(GL_ARRAY_BUFFER, 0)
     !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
-    !    call glBindVertexArray(0)
-    !    call glBindTexture(GL_TEXTURE_2D, 0)
+    ! end do
 
-    !    call glEnable(GL_CULL_FACE)
-    !    call glEnable(GL_DEPTH_TEST)
-    !    call glEnable(GL_MULTISAMPLE)
-    !    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    ! end if
+    ! call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    ! call glBindVertexArray(0)
+    ! call glBindTexture(GL_TEXTURE_2D, 0)
+
+    ! call glEnable(GL_CULL_FACE)
+    ! call glEnable(GL_DEPTH_TEST)
+    ! call glEnable(GL_MULTISAMPLE)
+    ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
   end subroutine scene_render
 
