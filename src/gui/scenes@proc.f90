@@ -1333,7 +1333,8 @@ contains
 
        xmax = maxval(xlen(1:nline))
        do i = 1, nline
-          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) + 0.5_c_float * (xmax - xlen(i))
+          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) + &
+             0.5_c_float * (xmax - glyph%AdvanceX * scale - xlen(i))
        end do
        vert(2,jlen(1):nvert) = vert(2,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
