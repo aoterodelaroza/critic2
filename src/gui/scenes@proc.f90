@@ -144,7 +144,7 @@ contains
 
     ! projection matrix
     s%znear = 0._c_float
-    s%zfar = 100000._c_float
+    s%zfar = 10000._c_float
     call s%update_projection_matrix()
 
   end subroutine scene_reset
@@ -242,7 +242,7 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i, ier
-    real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h, x0(3)
+    real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h, x0(3), xx(4)
     real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy, scale
     real*8 :: q8(4,4), eval(4)
     integer(c_int) :: texid, nvert
@@ -303,7 +303,6 @@ contains
     ! call setuniform_vec3("textColor",color)
 
     ! call glDisable(GL_CULL_FACE)
-    ! call glDisable(GL_DEPTH_TEST)
     ! call glDisable(GL_MULTISAMPLE)
     ! call glBlendEquation(GL_FUNC_ADD)
     ! call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
@@ -321,6 +320,18 @@ contains
     !    nvert = 0
     !    call calc_text_direct_vertices("X",x0(1),x0(2),siz,nvert,vert,centered=.true.)
     !    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*4*c_sizeof(c_float), c_loc(vert))
+
+    !    xx(1:3) = s%drawlist_sph(i)%x
+    !    xx(4) = 1._c_float
+    !    xx = matmul(s%world,xx)
+    !    xx = xx / xx(4)
+    !    xx(1:3) = xx(1:3) + (s%campos - xx(1:3)) / norm2(s%campos-xx(1:3)) * (s%drawlist_sph(i)%r+0.1_c_float)
+    !    xx = matmul(s%view,xx)
+    !    xx = matmul(s%projection,xx)
+    !    xx = xx / xx(4)
+    !    call setuniform_float("depth",xx(3))
+    !    ! write (*,*) "depth = ", xx(3)
+
     !    call glDrawArrays(GL_TRIANGLES, 0, nvert)
     ! end do
 
@@ -329,7 +340,6 @@ contains
     ! call glBindTexture(GL_TEXTURE_2D, 0)
 
     ! call glEnable(GL_CULL_FACE)
-    ! call glEnable(GL_DEPTH_TEST)
     ! call glEnable(GL_MULTISAMPLE)
     ! call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
