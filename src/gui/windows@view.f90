@@ -1086,7 +1086,7 @@ contains
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use global, only: dunit0, iunit_ang
     use scenes, only: representation
-    use gui_main, only: sys, g
+    use gui_main, only: sys, g, ColorHighlightText
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight
     use tools_io, only: string, ioj_right
@@ -1220,18 +1220,7 @@ contains
     end if
 
     ! global display control
-    call iw_text("Display",highlight=.true.)
-    str2 = "Atoms##atomsglobaldisplay " // c_null_char
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
-    call iw_tooltip("Draw the atoms",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    str2 = "Bonds##bondsglobaldisplay" // c_null_char
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
-    call iw_tooltip("Draw the bonds",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    str2 = "Labels##labelsglobaldisplay" // c_null_char
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%labels_display)
-    call iw_tooltip("Draw the atomic labels",ttshown)
+    call iw_text("Display and Atom Selection",highlight=.true.)
 
     ! origin of the atoms
     call igPushItemWidth(iw_calcwidth(21,3))
@@ -1249,18 +1238,16 @@ contains
     call iw_tooltip("Coordinates for the origin shift of the atoms/bonds/labels",ttshown)
     call igPopItemWidth()
 
-    ! atom styles
     ! selector and reset
     ch = .false.
-    call iw_text("Atom Selection and Styles",highlight=.true.)
     if (.not.sys(isys)%c%ismolecule) then
-       call iw_combo_simple("Atom types##atomtypeselection","Species" //c_null_char// "Symmetry-unique" //c_null_char//&
-          "Cell"//c_null_char,w%rep%atom_style_type,changed=ch)
+       call iw_combo_simple("Atom types##atomtypeselection","Species" //c_null_char//&
+          "Symmetry-unique" //c_null_char//"Cell"//c_null_char,w%rep%atom_style_type,changed=ch)
     else
        call iw_combo_simple("Atom types##atomtypeselection","Species" //c_null_char// "Atoms" //c_null_char,&
           w%rep%atom_style_type,changed=ch)
     end if
-    call iw_tooltip("Classify atom representation details by these types",ttshown)
+    call iw_tooltip("Group atoms in the representation by these categories",ttshown)
     if (ch) then
        call w%rep%reset_atom_style()
        changed = .true.
@@ -1344,6 +1331,7 @@ contains
           if (igTableSetColumnIndex(ic_shown)) then
              str2 = "##tableshown" // string(i) // c_null_char
              changed = changed .or. igCheckbox(c_loc(str2),w%rep%atom_style(i)%shown)
+             call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
           end if
 
           ! color
@@ -1351,6 +1339,7 @@ contains
              str2 = "##tablecolor" // string(i) // c_null_char
              flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
              ch = igColorEdit4(c_loc(str2),w%rep%atom_style(i)%rgba,flags)
+             call iw_tooltip("Atom color",ttshown)
              if (ch) then
                 w%rep%atom_style(i)%rgba = min(w%rep%atom_style(i)%rgba,1._c_float)
                 w%rep%atom_style(i)%rgba = max(w%rep%atom_style(i)%rgba,0._c_float)
@@ -1365,6 +1354,7 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              ch = igDragFloat(c_loc(str2),w%rep%atom_style(i)%rad,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
                 ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+             call iw_tooltip("Radius of the sphere representing the atom",ttshown)
              if (ch) then
                 w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
                 changed = .true.
@@ -1397,112 +1387,141 @@ contains
        w%rep%atom_style(1:w%rep%natom_style)%shown = .true.
        changed = .true.
     end if
-    call iw_tooltip("Show all atoms in the system",ttshown)
+    call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
     if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
        w%rep%atom_style(1:w%rep%natom_style)%shown = .false.
        changed = .true.
     end if
-    call iw_tooltip("Hide all atoms in the system",ttshown)
+    call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
     if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
        do i = 1, w%rep%natom_style
           w%rep%atom_style(i)%shown = .not.w%rep%atom_style(i)%shown
        end do
        changed = .true.
     end if
-    call iw_tooltip("Toggle the show/hide status for all atoms",ttshown)
+    call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
 
-    ! style buttons: set radii
-    call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
-       w%rep%atom_radii_reset_type,changed=ch)
-    call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
-    call igSameLine(0._c_float,-1._c_float)
-    call igPushItemWidth(iw_calcwidth(5,1))
-    str2 = "Radii Scale##atomradiiscale" // c_null_char
-    str3 = "%.3f" // c_null_char
-    ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-       ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
-    call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
-    call igPopItemWidth()
-    if (ch) then
-       do i = 1, w%rep%natom_style
-          if (w%rep%atom_style_type == 0) then
-             ! species
-             ispc = i
-          elseif (w%rep%atom_style_type == 1) then
-             ! nneq
-             ispc = sys(isys)%c%at(i)%is
-          elseif (w%rep%atom_style_type == 2) then
-             ! ncel
-             ispc = sys(isys)%c%atcel(i)%is
-          end if
-          iz = sys(isys)%c%spc(ispc)%z
-          if (w%rep%atom_radii_reset_type == 0) then
-             w%rep%atom_style(i)%rad = real(atmcov(iz),c_float)
-          else
-             w%rep%atom_style(i)%rad = real(atmvdw(iz),c_float)
-          end if
-          w%rep%atom_style(i)%rad = w%rep%atom_style(i)%rad * w%rep%atom_radii_reset_scale
-       end do
-       changed = .true.
-    end if
+    !!! atoms !!!
 
-    ! style buttons: set color
-    call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
-       w%rep%atom_color_reset_type,changed=ch)
-    call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
-    if (ch) then
-       do i = 1, w%rep%natom_style
-          if (w%rep%atom_style_type == 0) then
-             ! species
-             ispc = i
-          elseif (w%rep%atom_style_type == 1) then
-             ! nneq
-             ispc = sys(isys)%c%at(i)%is
-          elseif (w%rep%atom_style_type == 2) then
-             ! ncel
-             ispc = sys(isys)%c%atcel(i)%is
-          end if
-          iz = sys(isys)%c%spc(ispc)%z
-          if (w%rep%atom_color_reset_type == 0) then
-             w%rep%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
-          else
-             w%rep%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
-          end if
-          w%rep%atom_style(i)%rgba(4) = 1._c_float
-       end do
-       changed = .true.
-    end if
+    str2 = "Atoms##atomsglobaldisplay " // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
+    call igPopStyleColor(1)
+    call iw_tooltip("Draw the atoms in the scene",ttshown)
 
-    ! bond styles
-    call iw_text("Bond Styles",highlight=.true.)
-    !! colors
-    call iw_combo_simple("Style ##bondcolorsel","Single color"//c_null_char//"Two colors (atoms)"//c_null_char,&
-       w%rep%bond_color_style,changed=ch)
-    call iw_tooltip("Style for the bond colors",ttshown)
-    if (ch) changed = .true.
-    if (w%rep%bond_color_style == 0) then
+    if (w%rep%atoms_display) then
+       ! style buttons: set radii
+       call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+          w%rep%atom_radii_reset_type,changed=ch)
+       call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
        call igSameLine(0._c_float,-1._c_float)
-       str2 = "##bondcolor" // c_null_char
-       ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,ImGuiColorEditFlags_NoInputs)
-       call iw_tooltip("Color for the representation bonds",ttshown)
-       call iw_text("Color",sameline=.true.)
+       call igPushItemWidth(iw_calcwidth(5,1))
+       str2 = "Radii Scale##atomradiiscale" // c_null_char
+       str3 = "%.3f" // c_null_char
+       ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+          ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+       call igPopItemWidth()
        if (ch) then
-          w%rep%bond_rgba = min(w%rep%bond_rgba,1._c_float)
-          w%rep%bond_rgba = max(w%rep%bond_rgba,0._c_float)
+          do i = 1, w%rep%natom_style
+             if (w%rep%atom_style_type == 0) then
+                ! species
+                ispc = i
+             elseif (w%rep%atom_style_type == 1) then
+                ! nneq
+                ispc = sys(isys)%c%at(i)%is
+             elseif (w%rep%atom_style_type == 2) then
+                ! ncel
+                ispc = sys(isys)%c%atcel(i)%is
+             end if
+             iz = sys(isys)%c%spc(ispc)%z
+             if (w%rep%atom_radii_reset_type == 0) then
+                w%rep%atom_style(i)%rad = real(atmcov(iz),c_float)
+             else
+                w%rep%atom_style(i)%rad = real(atmvdw(iz),c_float)
+             end if
+             w%rep%atom_style(i)%rad = w%rep%atom_style(i)%rad * w%rep%atom_radii_reset_scale
+          end do
+          changed = .true.
+       end if
+
+       ! style buttons: set color
+       call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+          w%rep%atom_color_reset_type,changed=ch)
+       call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
+       if (ch) then
+          do i = 1, w%rep%natom_style
+             if (w%rep%atom_style_type == 0) then
+                ! species
+                ispc = i
+             elseif (w%rep%atom_style_type == 1) then
+                ! nneq
+                ispc = sys(isys)%c%at(i)%is
+             elseif (w%rep%atom_style_type == 2) then
+                ! ncel
+                ispc = sys(isys)%c%atcel(i)%is
+             end if
+             iz = sys(isys)%c%spc(ispc)%z
+             if (w%rep%atom_color_reset_type == 0) then
+                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
+             else
+                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+             end if
+             w%rep%atom_style(i)%rgba(4) = 1._c_float
+          end do
           changed = .true.
        end if
     end if
-    !! radius
-    str2 = "Radius ##bondradius" // c_null_char
-    str3 = "%.3f" // c_null_char
-    call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
-       c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
-    call igPopItemWidth()
-    call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
 
-    ! label styles
-    call iw_text("Label Styles",highlight=.true.)
+    !!! bonds !!!
+
+    str2 = "Bonds##bondsglobaldisplay" // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
+    call igPopStyleColor(1)
+    call iw_tooltip("Draw the bonds in the scene",ttshown)
+
+    if (w%rep%bonds_display) then
+       ! bond styles
+       !! colors
+       call iw_combo_simple("Style ##bondcolorsel","Single color"//c_null_char//"Two colors (atoms)"//c_null_char,&
+          w%rep%bond_color_style,changed=ch)
+       call iw_tooltip("Style for the bond colors",ttshown)
+       if (ch) changed = .true.
+       if (w%rep%bond_color_style == 0) then
+          call igSameLine(0._c_float,-1._c_float)
+          str2 = "##bondcolor" // c_null_char
+          ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,ImGuiColorEditFlags_NoInputs)
+          call iw_tooltip("Color for the representation bonds",ttshown)
+          call iw_text("Color",sameline=.true.)
+          if (ch) then
+             w%rep%bond_rgba = min(w%rep%bond_rgba,1._c_float)
+             w%rep%bond_rgba = max(w%rep%bond_rgba,0._c_float)
+             changed = .true.
+          end if
+       end if
+       !! radius
+       str2 = "Radius ##bondradius" // c_null_char
+       str3 = "%.3f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(5,1))
+       changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
+          c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       call igPopItemWidth()
+       call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
+    end if
+
+    !!! labels !!!
+
+    str2 = "Labels##labelsglobaldisplay" // c_null_char
+    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
+    changed = changed .or. igCheckbox(c_loc(str2),w%rep%labels_display)
+    call igPopStyleColor(1)
+    call iw_tooltip("Draw the atom labels in the scene",ttshown)
+
+    if (w%rep%labels_display) then
+       ! label styles
+       ! call iw_text("Label Styles",highlight=.true.)
+    end if
 
   end function draw_editrep_atoms
 

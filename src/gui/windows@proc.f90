@@ -424,7 +424,7 @@ contains
              string(w%isys) // "]##" // string(w%rep%idrep) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
-          inisize%y = 40 * fontsize%y
+          inisize%y = 41 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_exportimage) then
           w%name = "Export Image" // "##" // string(w%idparent) // c_null_char
