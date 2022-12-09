@@ -4572,8 +4572,7 @@ contains
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
        isformat_xsf, &
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       dirsep
+       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -4585,9 +4584,8 @@ contains
     integer, intent(out), optional :: iafield
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: path, ofile
     integer :: isformat, is, mol0_, i, lu
-    logical :: mol, hastypes, alsofield, ok
+    logical :: mol, alsofield, ok
 
     errmsg = ""
     alsofield = .false.

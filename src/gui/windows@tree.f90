@@ -2061,19 +2061,19 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor, bondfactor_def
     use tools_io, only: string, nameguess
-    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, icrd_cart,newline
+    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
     logical :: ok, doquit, oksys, ch
-    integer :: i, j, iz, isys, natused, iat
-    type(ImVec2) :: szavail, sz, szero, sz0
+    integer :: i, iz, isys, natused, iat
+    type(ImVec2) :: szavail, szero, sz0
     integer(c_int) :: flags
     real(c_float) :: combowidth, rad, bf, bfmin, bfmax
     logical(c_bool) :: is_selected
     character(len=:,kind=c_char), allocatable, target :: str1, str2, str3
     integer, allocatable :: iat(:)
     logical :: atused(maxzat0)
-    real*8 :: dist, mrad
+    real*8 :: mrad
 
     integer, parameter :: ic_name = 0
     integer, parameter :: ic_z = 1
@@ -2212,7 +2212,7 @@ contains
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
              mrad = max(mrad,atmcov(iz))
-             rad = atmcov(iz) * bohrtoa
+             rad = real(atmcov(iz) * bohrtoa,c_float)
              ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,2.65_c_float,c_loc(str3),&
                 ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
              if (ch) atmcov(iz) = rad / bohrtoa
@@ -2227,7 +2227,7 @@ contains
     str2 = "##bondfactor" // c_null_char
     str3 = "%.4f" // c_null_char
     call igPushItemWidth(iw_calcwidth(6,1))
-    bf = bondfactor
+    bf = real(bondfactor,c_float)
     call igSameLine(0._c_float,-1._c_float)
     bfmin = 1.0_c_float
     bfmax = 2.0_c_float

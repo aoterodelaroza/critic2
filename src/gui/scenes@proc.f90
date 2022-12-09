@@ -41,7 +41,7 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sysc, sys
+    use gui_main, only: nsys, sys
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -118,13 +118,11 @@ contains
   !> scenecenter, ortho_fov, persp_fov, v_center, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
-    use gui_main, only: sys
     use param, only: pi
     class(scene), intent(inout), target :: s
 
     real(c_float) :: pic
-    real*8 :: xmin(3), xmax(3), x(3), hside
-    integer :: i, i1, i2, i3
+    real*8 :: hside
 
     ! default transformation matrices
     pic = real(pi,c_float)
@@ -139,7 +137,7 @@ contains
     hside = hside * s%camratio
     hside = max(hside,3._c_float)
     s%campos = s%scenecenter
-    s%campos(3) = s%campos(3) + hside / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
+    s%campos(3) = s%campos(3) + real(hside,c_float) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%camfront = (/zero,zero,-one/)
     s%camup = (/zero,one,zero/)
     call s%update_view_matrix()
@@ -238,26 +236,19 @@ contains
   module subroutine scene_render(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use windows, only: win, iwin_view
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: sysc, fonts, g
+    use gui_main, only: fonts
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
-    use param, only: newline, pi
     class(scene), intent(inout), target :: s
 
-    integer :: i, j, ier
-    real(c_float) :: proj(4,4), color(3), xpos, ypos, w, h, x0(3), xx(4)
-    real(c_float) :: q(4,4), mm(4,4), hw2, siz, smin, smax, dx, dy, scale, fs
-    real*8 :: q8(4,4), eval(4)
+    integer :: i
+    real(c_float) :: siz
     integer(c_int) :: nvert
-    real(c_float), target :: quad(4,6)
     real(c_float), allocatable, target :: vert(:,:)
-    type(c_ptr) :: cptr
-    type(ImFontGlyph), pointer :: glyph
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -565,8 +556,6 @@ contains
     use utils, only: lookat
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: front(3), up(3)
-
     s%view = lookat(s%campos,s%campos+s%camfront,s%camup)
 
   end subroutine update_view_matrix
@@ -723,7 +712,7 @@ contains
 
   !> Reset atom styles.
   module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sysc, sys
+    use gui_main, only: nsys, sys
     use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
@@ -1219,7 +1208,7 @@ contains
     real(c_float), intent(in) :: color(3)
     logical, intent(in), optional :: centered
 
-    real(c_float) :: proj(4,4), scale
+    real(c_float) :: proj(4,4)
     integer(c_int) :: texid, nvert, nchunk
     real(c_float), allocatable, target :: vert(:,:)
     integer :: i
@@ -1399,8 +1388,7 @@ contains
     integer :: i, j, nline, nvert0
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, scale, lheight, fs, xmax
-    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
+    real(c_float) :: xpos, ypos, lheight, xmax
     logical :: centered_
     real(c_float), allocatable :: xlen(:)
     integer, allocatable :: jlen(:)

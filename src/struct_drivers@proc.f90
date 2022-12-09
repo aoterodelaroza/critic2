@@ -1777,7 +1777,6 @@ contains
   !> without a phase change. Variable-cell version of the POWDIFF
   !> comparison method in struct_compare.
   module subroutine struct_comparevc(s,line)
-    use systemmod, only: sy
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit, fileroot
@@ -1791,9 +1790,9 @@ contains
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    type(crystalseed) :: seed, c2seed
+    type(crystalseed) :: seed
     type(environ) :: e
-    integer :: lp, lp2, ierr, i, j
+    integer :: lp, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
@@ -1810,10 +1809,6 @@ contains
     real*8 :: powdiff_thr, max_elong, max_ang
     real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
     integer :: npts
-    ! for mode2: use an xy file
-    real*8 :: cellaa(3), cellbb(3)
-    integer :: nxy
-    real*8, allocatable :: intxy(:)
 
     real*8, parameter :: th2ini_def = 5d0
     real*8, parameter :: th2end_def = 50d0
@@ -1821,7 +1816,6 @@ contains
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
-    integer, parameter :: imax_amd = 100 ! the maximum nn in AMD
 
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
@@ -1871,9 +1865,9 @@ contains
 
     ! read the structures, force symmetry recalculation
     if (equal(file1,".")) then
-       write (uout,'("+ Structure from currently loaded file: ",A)') trim(sy%c%file)
-       c1 = sy%c
-       file1 = sy%c%file
+       write (uout,'("+ Structure from currently loaded file: ",A)') trim(s%c%file)
+       c1 = s%c
+       file1 = s%c%file
     else
        write (uout,'("+ Reading the structure from: ",A)') trim(file1)
        call seed%read_any_file(file1,-1,errmsg)
@@ -1888,9 +1882,9 @@ contains
 
     ! read the second structure, force symmetry recalculation
     if (equal(file2,".")) then
-       write (uout,'("+ Structure from currently loaded file: ",A)') trim(sy%c%file)
-       c2 = sy%c
-       file2 = sy%c%file
+       write (uout,'("+ Structure from currently loaded file: ",A)') trim(s%c%file)
+       c2 = s%c
+       file2 = s%c%file
     else
        write (uout,'("+ Reading the structure from: ",A)') trim(file2)
        call seed%read_any_file(file2,-1,errmsg)
@@ -2145,59 +2139,6 @@ contains
        write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
        call c2del%write_res(file2,-1)
     end if
-
-  contains
-
-    !> Read the xy file and set the th2ini, th2end, and npts.
-    subroutine readxy()
-      use tools_io, only: fopen_read, fclose, getline, isreal, ferror, faterr,&
-         string
-      use types, only: realloc
-
-      integer :: lu, lp
-      character(len=:), allocatable :: line
-      logical :: ok
-      real*8 :: xtt, xint, hxy
-      real*8, allocatable :: ttxy(:)
-
-      nxy = 0
-      if (allocated(intxy)) deallocate(intxy)
-      allocate(ttxy(1000),intxy(1000))
-
-      lu = fopen_read(file2)
-      do while (getline(lu,line))
-         lp = 1
-         ok = isreal(xtt,line,lp)
-         ok = ok .and. isreal(xint,line,lp)
-         if (.not.ok) call ferror('trick_compare_deformed','error reading xy file in line: ' // trim(line),faterr)
-
-         nxy = nxy + 1
-         if (nxy > size(ttxy,1)) then
-            call realloc(ttxy,2*nxy)
-            call realloc(intxy,2*nxy)
-         end if
-         ttxy(nxy) = xtt
-         intxy(nxy) = xint
-
-         if (nxy == 2) then
-            hxy = ttxy(2) - ttxy(1)
-         elseif (nxy > 2) then
-            if (abs(ttxy(nxy) - ttxy(nxy-1) - hxy) > 1d-5) &
-               call ferror('trick_compare_deformed','data in xy file (at ' // string(ttxy(nxy),'f',decimal=4) // &
-               ') not uniformly spaced',faterr)
-         end if
-      end do
-      call fclose(lu)
-
-      ! calculate the new powdiff parameters
-      call realloc(ttxy,nxy)
-      call realloc(intxy,nxy)
-      th2ini = ttxy(1)
-      th2end = ttxy(nxy)
-      npts = nxy
-      deallocate(ttxy)
-
-    end subroutine readxy
 
   end subroutine struct_comparevc
 

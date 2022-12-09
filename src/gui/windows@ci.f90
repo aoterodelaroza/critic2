@@ -167,7 +167,7 @@ contains
 
     integer :: idx
     integer :: ios
-    logical :: reinit, ldum, ok
+    logical :: reinit, ldum
 
     ! if no system selected, return
     if (w%inpcon_selected < 1 .or. w%inpcon_selected > nsys) return

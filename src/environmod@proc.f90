@@ -1572,7 +1572,6 @@ contains
     integer :: p0(3), p1(3), idx1
     integer :: j1, j2, j3, ki, kj, is, js
     real*8, allocatable :: rij2(:,:,:)
-    type(celatom) :: at(1)
 
     ! return if there are no atoms
     if (e%n == 0 .or. e%nspc == 0) return

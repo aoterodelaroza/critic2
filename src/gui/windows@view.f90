@@ -42,7 +42,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fonts
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -52,7 +52,7 @@ contains
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
-    logical :: hover, ch, chbuild, chrender, goodsys, ldum, ok
+    logical :: hover, chbuild, chrender, goodsys, ldum, ok
     logical(c_bool) :: isatom, isbond, islabels, isuc
     integer(c_int) :: amax, flags, nc(3), ires
     real(c_float) :: scal, width, sqw, ratio
@@ -1101,8 +1101,8 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     type(ImVec2) :: sz0
     real*8 :: x0(3), res
-    logical(c_bool) :: ch, ldum
-    integer(c_int) :: flags, ires
+    logical(c_bool) :: ch
+    integer(c_int) :: flags
     integer :: i
 
     integer, parameter :: ic_id = 0
@@ -1517,7 +1517,6 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical :: ch
-    logical(c_bool) :: ldum
 
     ! initialize
     changed = .false.
@@ -1640,11 +1639,11 @@ contains
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
-    use tools_io, only: ferror, faterr, uout, string
+    use tools_io, only: ferror, string
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, goodsys, okvalid
-    integer :: oid, atex, isys, width, height
+    integer :: oid, isys, width, height
     integer(c_int), target :: msFBO, endFBO ! framebuffer
     integer(c_int), target :: msFBOdepth, endFBOdepth ! framebuffer, depth buffer
     integer(c_int), target :: msFBOtex, endFBOtex ! framebuffer, texture
