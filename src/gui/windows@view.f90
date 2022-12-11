@@ -334,13 +334,14 @@ contains
                             sysc(i)%sc%rep(j)%atoms_display = isatom
                             sysc(i)%sc%rep(j)%bonds_display = isbond
                             sysc(i)%sc%rep(j)%labels_display = islabels
-                         elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell) then
+                         elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
+                            .not.sys(w%view_selected)%c%ismolecule) then
                             sysc(i)%sc%rep(j)%shown = isuc
                          end if
                       end if
                    end do
                    ! rest
-                   if (.not.sys(i)%c%ismolecule) &
+                   if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
                       sysc(i)%sc%nc = sysc(w%view_selected)%sc%nc
                    sysc(i)%sc%atom_res = sysc(w%view_selected)%sc%atom_res
                    sysc(i)%sc%bond_res = sysc(w%view_selected)%sc%bond_res
