@@ -243,10 +243,11 @@ contains
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
+    use param, only: pi
     class(scene), intent(inout), target :: s
 
     integer :: i
-    real(c_float) :: siz
+    real(c_float) :: siz, hside
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
 
@@ -317,7 +318,14 @@ contains
     do i = 1, s%nstring
        call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
        nvert = 0
-       siz = 2 * s%drawlist_string(i)%scale * s%projection(1,1) / igGetFontSize()
+       if (s%drawlist_string(i)%scale > 0._c_float) then
+          hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+          hside = hside * s%camratio
+          hside = max(hside,3._c_float)
+          siz = 2 * s%drawlist_string(i)%scale / igGetFontSize() / hside
+       else
+          siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / igGetFontSize()
+       end if
        call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
           siz,nvert,vert,centered=.true.)
        call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
@@ -644,7 +652,7 @@ contains
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
     r%label_style = 0
-    r%label_scale = 0.6_c_float
+    r%label_scale = 0.5_c_float
     r%label_rgb = 1._c_float
     r%label_const_size = .false._c_bool
     r%uc_radius = 0.15_c_float
@@ -780,7 +788,7 @@ contains
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
-    use param, only: bohrtoa
+    use param, only: bohrtoa, newline
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     integer, intent(inout) :: nsph
@@ -1011,9 +1019,32 @@ contains
 
                       drawlist_string(nstring)%x = real(xx + uoriginc,c_float)
                       drawlist_string(nstring)%r = rad
-                      drawlist_string(nstring)%rgb = 1._c_float
-                      drawlist_string(nstring)%scale = 0.6_c_float
-                      drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
+                      drawlist_string(nstring)%rgb = r%label_rgb
+                      if (r%label_const_size) then
+                         drawlist_string(nstring)%scale = r%label_scale
+                      else
+                         drawlist_string(nstring)%scale = -r%label_scale
+                      end if
+                      if (r%label_style == 0) then ! 0 = atom name
+                         drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
+                      elseif (r%label_style == 1) then ! 1 = cel-atom
+                         drawlist_string(nstring)%str = string(i)
+                      elseif (r%label_style == 2) then ! 2 = cel-atom + lvec
+                         drawlist_string(nstring)%str = string(i) // newline // "(" // string(ix(1)) // "," //&
+                            string(ix(2)) // "," // string(ix(3)) // ")"
+                      elseif (r%label_style == 3) then ! 3 = neq atom
+                         drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%idx)
+                      elseif (r%label_style == 4) then ! 4 = spc
+                         drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%is)
+                      elseif (r%label_style == 5) then ! 5 = Z
+                         drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
+                      elseif (r%label_style == 6) then ! 6 = mol
+                         if (sys(r%id)%c%ismol3d) then
+                            drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
+                         else
+                            drawlist_string(nstring)%str = "1"
+                         end if
+                      end if
                    end if
                 end do ! i3
              end do ! i2
