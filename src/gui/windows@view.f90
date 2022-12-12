@@ -1535,7 +1535,9 @@ contains
              changed = .true.
           end if
        end if
+
        !! radius
+       call igSameLine(0._c_float,-1._c_float)
        str2 = "Radius ##bondradius" // c_null_char
        str3 = "%.3f" // c_null_char
        call igPushItemWidth(iw_calcwidth(5,1))
@@ -1555,7 +1557,32 @@ contains
 
     if (w%rep%labels_display) then
        ! label styles
-       ! call iw_text("Label Styles",highlight=.true.)
+       call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Cell atom ID"// c_null_char//&
+          "Cell atom ID + lattice vector"// c_null_char// "Symmetry-unique atom ID"// c_null_char//&
+          "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char//&
+          "Molecule ID + lattice vector"// c_null_char,w%rep%label_style,changed=ch)
+       call iw_tooltip("Text to display in the atom labels",ttshown)
+       changed = changed .or. ch
+
+       ! scale and constant size
+       str2 = "Scale##labelscale" // c_null_char
+       str3 = "%.2f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(4,1))
+       changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_scale,0.01_c_float,0._c_float,10._c_float,c_loc(str3),&
+          ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       call igPopItemWidth()
+       call iw_tooltip("Scale factor for the atom labels",ttshown)
+
+       call igSameLine(0._c_float,-1._c_float)
+       str2 = "Constant size##labelconstsize" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_const_size)
+       call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
+
+       ! color
+       call igSameLine(0._c_float,-1._c_float)
+       str2 = "Color##labelcolor" // c_null_char
+       changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_rgb,ImGuiColorEditFlags_NoInputs)
+       call iw_tooltip("Color of the atom labels",ttshown)
     end if
 
   end function draw_editrep_atoms

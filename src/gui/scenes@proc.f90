@@ -299,7 +299,7 @@ contains
        end do
     end if
 
-    ! render some text
+    ! render the on-scene text
     call useshader(shader_text_onscene)
     call setuniform_mat4("world",s%world)
     call setuniform_mat4("view",s%view)
@@ -643,6 +643,10 @@ contains
     r%bond_color_style = 1
     r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
     r%bond_rad = 0.2_c_float
+    r%label_style = 0
+    r%label_scale = 0.6_c_float
+    r%label_rgb = 1._c_float
+    r%label_const_size = .false._c_bool
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
     r%uc_innersteplen = 2d0
