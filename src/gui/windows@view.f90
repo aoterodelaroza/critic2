@@ -1034,11 +1034,19 @@ contains
        str1 = "##nametextinput"
        txtinp = trim(adjustl(w%rep%name)) // c_null_char
        call igSameLine(0._c_float,-1._c_float)
+       call igPushItemWidth(iw_calcwidth(30,1))
        if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
           ll = index(txtinp,c_null_char)
           w%rep%name = txtinp(1:ll-1)
        end if
+       call igPopItemWidth()
        call iw_tooltip("Name of this representation",ttshown)
+
+       ! shown checkbox
+       call igSameLine(0._c_float,-1._c_float)
+       str2 = "Show" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str2),w%rep%shown)
+       call iw_tooltip("Toggle show/hide this representation",ttshown)
 
        ! type-dependent items
        if (w%rep%type == reptype_atoms) then
