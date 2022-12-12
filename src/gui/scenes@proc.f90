@@ -1269,7 +1269,7 @@ contains
     integer :: i, nline
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, scale, lheight, fs, xmax
+    real(c_float) :: xpos, ypos, scale, lheight, fs
     real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
     logical :: centered_
     real(c_float), allocatable :: xlen(:)
@@ -1359,10 +1359,8 @@ contains
     if (centered_) then
        jlen(nline+1) = nvert+1
 
-       xmax = maxval(xlen(1:nline))
        do i = 1, nline
-          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) + &
-             0.5_c_float * (xmax - glyph%AdvanceX * scale - xlen(i))
+          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) - 0.5_c_float * xlen(i)
        end do
        vert(2,jlen(1):nvert) = vert(2,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
@@ -1388,7 +1386,7 @@ contains
     integer :: i, j, nline, nvert0
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, lheight, xmax
+    real(c_float) :: xpos, ypos, lheight
     logical :: centered_
     real(c_float), allocatable :: xlen(:)
     integer, allocatable :: jlen(:)
@@ -1473,10 +1471,8 @@ contains
     if (centered_) then
        jlen(nline+1) = nvert+1
 
-       xmax = maxval(xlen(1:nline))
        do i = 1, nline
-          vert(5,jlen(i):jlen(i+1)-1) = vert(5,jlen(i):jlen(i+1)-1) + &
-             0.5_c_float * (xmax - glyph%AdvanceX - xlen(i))
+          vert(5,jlen(i):jlen(i+1)-1) = vert(5,jlen(i):jlen(i+1)-1) - 0.5_c_float * xlen(i)
        end do
        vert(6,jlen(1):nvert) = vert(6,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
