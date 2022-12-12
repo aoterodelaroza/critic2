@@ -2214,7 +2214,7 @@ contains
              mrad = max(mrad,atmcov(iz))
              rad = real(atmcov(iz) * bohrtoa,c_float)
              ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,2.65_c_float,c_loc(str3),&
-                ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+                ImGuiSliderFlags_AlwaysClamp)
              if (ch) atmcov(iz) = rad / bohrtoa
              call igPopItemWidth()
           end if
@@ -2231,8 +2231,8 @@ contains
     call igSameLine(0._c_float,-1._c_float)
     bfmin = 1.0_c_float
     bfmax = 2.0_c_float
-    ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),&
-       ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+
+    ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
     if (ch) bondfactor = bf
     call igPopItemWidth()
