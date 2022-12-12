@@ -1096,14 +1096,15 @@ contains
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
-    integer :: ispc, isys, iz, ll
+    integer :: ispc, isys, iz, ll, ipad
     character(kind=c_char,len=1024), target :: txtinp
     character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     type(ImVec2) :: sz0
     real*8 :: x0(3), res
-    logical(c_bool) :: ch
-    integer(c_int) :: flags
+    logical(c_bool) :: ch, ldum
+    integer(c_int) :: flags, nc(3)
+    real(c_float) :: sqw
     integer :: i
 
     integer, parameter :: ic_id = 0
@@ -1180,31 +1181,55 @@ contains
 
        ! number of periodic cells, if manual
        if (w%rep%pertype == 2_c_int) then
-          call igPushItemWidth(5._c_float * g%FontSize)
-          call iw_text("  a: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##aaxis" // c_null_char
-          changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
-          call igSameLine(0._c_float,g%FontSize)
-          call iw_text("b: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##baxis" // c_null_char
-          changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
-          call igSameLine(0._c_float,g%FontSize)
-          call iw_text("c: ")
-          call igSameLine(0._c_float,0._c_float)
-          str2 = "##caxis" // c_null_char
-          changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,&
-             ImGuiInputTextFlags_EnterReturnsTrue)
+          ! calculate widths
+          ipad = ceiling(log10(max(maxval(w%rep%ncell),1) + 0.1))
+          sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
+          call igPushItemWidth(sqw)
 
+          nc = w%rep%ncell
+          call igAlignTextToFramePadding()
+          call iw_text("a:")
+          call igSameLine(0._c_float,0._c_float)
+          if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          str2 = "##aaxis" // c_null_char
+          call igPushItemWidth(iw_calcwidth(ipad,1))
+          ldum = igInputInt(c_loc(str2),w%rep%ncell(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+          call igPopItemWidth()
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
+
+          call igSameLine(0._c_float,-1._c_float)
+          call iw_text("b:")
+          call igSameLine(0._c_float,0._c_float)
+          if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          str2 = "##baxis" // c_null_char
+          call igPushItemWidth(iw_calcwidth(ipad,1))
+          ldum = igInputInt(c_loc(str2),w%rep%ncell(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+          call igPopItemWidth()
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
+
+          call igSameLine(0._c_float,-1._c_float)
+          call iw_text("c:")
+          call igSameLine(0._c_float,0._c_float)
+          if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          str2 = "##caxis" // c_null_char
+          call igPushItemWidth(iw_calcwidth(ipad,1))
+          ldum = igInputInt(c_loc(str2),w%rep%ncell(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+          call igPopItemWidth()
+          call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+          if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
           w%rep%ncell = max(w%rep%ncell,1)
+          if (any(nc /= w%rep%ncell)) changed = .true.
+          call igPopItemWidth()
+
           if (iw_button("Reset",sameline=.true.)) then
              w%rep%ncell = 1
              changed = .true.
           end if
-          call igPopItemWidth()
        end if
 
        ! checkbox for molecular motif
