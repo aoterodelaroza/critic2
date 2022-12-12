@@ -438,6 +438,12 @@ contains
           inisize%x = 55 * fontsize%x
           inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_preferences) then
+          w%name = "Preferences..." // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
+          inisize%y = 19 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -485,6 +491,8 @@ contains
                 call w%draw_exportimage()
              elseif (w%type == wintype_rebond) then
                 call w%draw_rebond()
+             elseif (w%type == wintype_preferences) then
+                call w%draw_preferences()
              end if
           end if
           call igEnd()
@@ -533,6 +541,15 @@ contains
        w%isopen = .false.
 
   end subroutine draw_about
+
+  !> Draw the preferences window
+  module subroutine draw_preferences(w)
+    use utils, only: iw_text
+    class(window), intent(inout), target :: w
+
+    call iw_text("bleh!")
+
+  end subroutine draw_preferences
 
   !xx! private procedures
 

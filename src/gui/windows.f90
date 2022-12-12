@@ -186,6 +186,8 @@ module windows
      procedure :: draw_exportimage
      ! rebond
      procedure :: draw_rebond
+     ! preferences
+     procedure :: draw_preferences
   end type window
   public :: window
 
@@ -212,6 +214,7 @@ module windows
   integer, parameter, public :: wintype_exportimage = 11
   integer, parameter, public :: wintype_about = 12
   integer, parameter, public :: wintype_rebond = 13
+  integer, parameter, public :: wintype_preferences = 14
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -352,6 +355,9 @@ module windows
      module subroutine draw_about(w)
        class(window), intent(inout), target :: w
      end subroutine draw_about
+     module subroutine draw_preferences(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_preferences
      module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct
