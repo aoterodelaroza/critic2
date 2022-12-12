@@ -2981,7 +2981,7 @@ contains
                 n = nint(dd)
                 if (n > inice) cycle
 
-                x2c = matmul(s%c%m_xr2c,mm)
+                x2c = matmul(s%c%m_x2c,mm)
 
                 r = 0.5d0 * n * s%c%omega / max(norm2(cross(x2c(:,1),x2c(:,2))),&
                    norm2(cross(x2c(:,1),x2c(:,3))),norm2(cross(x2c(:,2),x2c(:,3))))
