@@ -375,6 +375,7 @@ contains
     end if
     if (goodsys) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
+          call igAlignTextToFramePadding()
           ! representations table
           call iw_text("Representations",highlight=.true.)
 

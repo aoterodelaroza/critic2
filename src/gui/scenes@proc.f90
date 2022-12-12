@@ -337,7 +337,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idcaller) result(changed)
     use interfaces_cimgui
-    use utils, only: iw_text, iw_tooltip
+    use utils, only: iw_text, iw_tooltip, iw_button
     use windows, only: win, stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g, sysc
     use tools_io, only: string
@@ -479,8 +479,7 @@ contains
 
        ! edit button
        if (igTableSetColumnIndex(ic_editbutton)) then
-          str1 = "Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i) // c_null_char
-          if (igSmallButton(c_loc(str1))) then
+          if (iw_button("Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i))) then
              if (s%rep(i)%idwin == 0) then
                 s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
              else
