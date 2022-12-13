@@ -76,7 +76,7 @@ module scenes
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      real(c_float) :: origin(3) ! unit cell, origin shift
-     ! atoms & bonds
+     ! atoms, bonds, labels
      logical :: goodfilter ! true if the filter is not in error
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
@@ -93,6 +93,10 @@ module scenes
      real(c_float) :: bond_rgba(4) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
+     integer(c_int) :: label_style ! 0 = atom name, 1 = cel-atom, 2 = cel-atom + lvec, 3 = neq atom, 4 = spc, 5 = Z, 6 = mol
+     real(c_int) :: label_scale ! scale for the labels
+     real(c_int) :: label_rgb(3) ! color of the labels
+     logical(c_bool) :: label_const_size ! whether labels scale with objects or are constant size
      ! unit cell
      logical(c_bool) :: uc_inner ! unit cell, display inner cylinders
      logical(c_bool) :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)

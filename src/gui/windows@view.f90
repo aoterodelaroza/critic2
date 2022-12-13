@@ -290,24 +290,24 @@ contains
           str2 = "Ambient " // c_null_char
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Change the ambient light intensity",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Diffuse" // c_null_char
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Change the diffuse light intensity",ttshown)
           str2 = "Specular" // c_null_char
           str3 = "%.3f" // c_null_char
           chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_None)
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Change the specular light intensity",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Shininess" // c_null_char
           str3 = "%.0f" // c_null_char
           chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
-             1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_None)
+             1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Change the shininess of the light",ttshown)
           call igPopItemWidth()
 
@@ -1388,7 +1388,7 @@ contains
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
              ch = igDragFloat(c_loc(str2),w%rep%atom_style(i)%rad,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-                ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+                ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Radius of the sphere representing the atom",ttshown)
              if (ch) then
                 w%rep%atom_style(i)%rad = max(w%rep%atom_style(i)%rad,0._c_float)
@@ -1454,7 +1454,7 @@ contains
        str2 = "Radii Scale##atomradiiscale" // c_null_char
        str3 = "%.3f" // c_null_char
        ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-          ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
        call igPopItemWidth()
        if (ch) then
@@ -1535,12 +1535,14 @@ contains
              changed = .true.
           end if
        end if
+
        !! radius
+       call igSameLine(0._c_float,-1._c_float)
        str2 = "Radius ##bondradius" // c_null_char
        str3 = "%.3f" // c_null_char
        call igPushItemWidth(iw_calcwidth(5,1))
        changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
-          c_loc(str3),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
        call igPopItemWidth()
        call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
     end if
@@ -1555,7 +1557,32 @@ contains
 
     if (w%rep%labels_display) then
        ! label styles
-       ! call iw_text("Label Styles",highlight=.true.)
+       call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Cell atom ID"// c_null_char//&
+          "Cell atom ID + lattice vector"// c_null_char// "Symmetry-unique atom ID"// c_null_char//&
+          "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+          w%rep%label_style,changed=ch)
+       call iw_tooltip("Text to display in the atom labels",ttshown)
+       changed = changed .or. ch
+
+       ! scale and constant size
+       str2 = "Scale##labelscale" // c_null_char
+       str3 = "%.2f" // c_null_char
+       call igPushItemWidth(iw_calcwidth(4,1))
+       changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_scale,0.01_c_float,0._c_float,10._c_float,c_loc(str3),&
+          ImGuiSliderFlags_AlwaysClamp)
+       call igPopItemWidth()
+       call iw_tooltip("Scale factor for the atom labels",ttshown)
+
+       call igSameLine(0._c_float,-1._c_float)
+       str2 = "Constant size##labelconstsize" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_const_size)
+       call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
+
+       ! color
+       call igSameLine(0._c_float,-1._c_float)
+       str2 = "Color##labelcolor" // c_null_char
+       changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_rgb,ImGuiColorEditFlags_NoInputs)
+       call iw_tooltip("Color of the atom labels",ttshown)
     end if
 
   end function draw_editrep_atoms
@@ -1626,7 +1653,7 @@ contains
     str2 = "%.3f" // c_null_char
     call igPushItemWidth(iw_calcwidth(5,1))
     changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radius,0.005_c_float,0._c_float,&
-       5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+       5._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
     w%rep%uc_radius = max(w%rep%uc_radius,0._c_float)
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
@@ -1651,7 +1678,7 @@ contains
        str2 = "%.3f" // c_null_char
        call igPushItemWidth(iw_calcwidth(5,1))
        changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_radiusinner,0.005_c_float,0._c_float,&
-          5._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+          5._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
        w%rep%uc_radiusinner = max(w%rep%uc_radiusinner,0._c_float)
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
@@ -1665,7 +1692,7 @@ contains
           str2 = "%.1f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
           changed = changed .or. igDragFloat(c_loc(str1),w%rep%uc_innersteplen,0.1_c_float,0._c_float,&
-             100._c_float,c_loc(str2),ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))
+             100._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           w%rep%uc_innersteplen = max(w%rep%uc_innersteplen,0._c_float)
           call igPopItemWidth()
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)

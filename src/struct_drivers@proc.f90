@@ -2882,18 +2882,29 @@ contains
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
-    use global, only: eval_next
-    use tools_math, only: matinv
-    use tools_io, only: uout, ferror, faterr, lgetword, equal, string
+    use environmod, only: environ
+    use tools_math, only: matinv, cross, det3
+    use global, only: iunitname0, dunit0, iunit, eval_next
+    use tools_io, only: uout, ferror, faterr, lgetword, equal, string, isinteger, ioj_left,&
+       ioj_right
+    use tools, only: delaunay_reduction
+    use param, only: icrd_crys
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word
-    logical :: ok, doprim, doforce, changed
-    integer :: lp, lp2, dotyp, i
-    real*8 :: x0(3,3), t0(3), rdum(4)
+    logical :: ok, doprim, doforce, donice, changed
+    integer :: lp, lp2, dotyp, i, j, k, n, inice
+    real*8 :: x0(3,3), t0(3), rdum(4), x2c(3,3), dd
+    real*8 :: r, mm(3,3), dmax0
     logical :: doinv, dorefine
+    integer :: nat, ierr
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:), rmax(:), mmax(:,:,:)
+    type(environ) :: e
+
+    integer, parameter :: inice_def = 64
 
     if (s%c%ismolecule) then
        call ferror("struct_newcell","NEWCELL cannot be used with molecules",faterr,syntax=.true.)
@@ -2908,6 +2919,8 @@ contains
     doprim = .false.
     doforce = .false.
     dorefine = .false.
+    donice = .false.
+    inice = inice_def
     dotyp = 0
     do while (.true.)
        word = lgetword(line,lp)
@@ -2928,12 +2941,75 @@ contains
           dotyp = 3
        elseif (equal(word,"refine")) then
           dorefine = .true.
+       elseif (equal(word,"nice")) then
+          donice = .true.
+          lp2 = lp
+          ok = isinteger(inice,line,lp)
+          if (.not.ok) then
+             lp = lp2
+             inice = inice_def
+          end if
+          inice = max(inice,1)
        else
           lp = 1
           exit
        end if
     end do
 
+    ! search for a nice cell
+    if (donice) then
+       allocate(rmax(inice),mmax(3,3,inice))
+
+       dmax0 = 1.2d0 * real(inice,8)**(1d0/3d0) * max(norm2(s%c%m_xr2c(:,1)),norm2(s%c%m_xr2c(:,2)),&
+          norm2(s%c%m_xr2c(:,3))) + 1d-1
+       call e%build_lattice(s%c%m_xr2c,dmax0)
+       call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0,nozero=.true.)
+
+       rmax = 0d0
+       mmax = 0d0
+       do i = 1, nat
+          mm(:,1) = e%xr2x(e%at(eid(i))%x)
+          do j = i+1, nat
+             mm(:,2) = e%xr2x(e%at(eid(j))%x)
+             do k = i+1, nat
+                mm(:,3) = e%xr2x(e%at(eid(k))%x)
+
+                dd = det3(mm)
+                if (dd < 0d0) mm = -mm
+                dd = abs(dd)
+                if (dd < 1d-2 .or. dd > (inice+0.5d0)) cycle
+                n = nint(dd)
+                if (n > inice) cycle
+
+                x2c = matmul(s%c%m_x2c,mm)
+
+                r = 0.5d0 * n * s%c%omega / max(norm2(cross(x2c(:,1),x2c(:,2))),&
+                   norm2(cross(x2c(:,1),x2c(:,3))),norm2(cross(x2c(:,2),x2c(:,3))))
+                if (r > rmax(n)) then
+                   rmax(n) = r
+                   mmax(:,:,n) = mm
+                end if
+             end do
+          end do
+       end do
+
+       write (uout,'("+ List of nice cells with increasing size")')
+       write (uout,'("# n = size of the supercell is n times the input cell.")')
+       write (uout,'("# rmax = radius of the largest sphere that fits in the supercell (",A,").")') &
+          string(iunitname0(iunit))
+       write (uout,'("# niceness = inverse of the cell skewness, higher is nicer, cubic cell = 1")')
+       write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
+       write (uout,'("#n   rmax   niceness  -- NEWCELL transformation --")')
+       do i = 1, inice
+          write (uout,'(3(A,X),X,3(3(A,X),X))') string(i,3,ioj_left),&
+             string(rmax(i)*dunit0(iunit),'f',7,3), string(8d0 * rmax(i)**3 / (i*s%c%omega),'f',7,5),&
+             ((string(nint(mmax(j,k,i)),length=2,justify=ioj_right),j=1,3),k=1,3)
+       end do
+       write (uout,*)
+       return
+    end if
+
+    ! process the cell transformation
     t0 = 0d0
     x0 = 0d0
     if (dotyp == 1) then

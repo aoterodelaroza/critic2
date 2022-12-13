@@ -672,7 +672,7 @@ contains
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
-       update_window_id
+       wintype_preferences, update_window_id
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -682,22 +682,23 @@ contains
     integer, parameter :: d_open = 1
     integer, parameter :: d_new = 2
     integer, parameter :: d_newlib = 3
+    integer, parameter :: d_preferences = 4
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    logical(c_bool) :: enabled(3)
-    logical :: launchquit, launch(3)
+    logical(c_bool) :: enabled(4)
+    logical :: launchquit, launch(4)
     integer :: i
 
     logical, save :: ttshown = .false. ! tooltip flag
-    integer, save :: id(3) = (/0,0,0/) ! the ID for the dialogs
+    integer, save :: id(4) = (/0,0,0,0/) ! the ID for the dialogs
 
     ! check if the open and new dialogs are still open
-    do i = 1, 3
+    do i = 1, 4
        call update_window_id(id(i))
     end do
 
     ! calculate enabled and launches from keybindings
-    do i = 1, 3
+    do i = 1, 4
        enabled(i) = (id(i) == 0)
     end do
 
@@ -706,6 +707,7 @@ contains
     launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
     launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
     launch(d_newlib) = .false.
+    launch(d_preferences) = .false.
     launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
@@ -736,6 +738,25 @@ contains
           str2 = get_bind_keyname(BIND_QUIT) // c_null_char
           launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
           call iw_tooltip("Quit the program",ttshown)
+
+          call igEndMenu()
+       else
+          ttshown = .false.
+       end if
+
+       ! Edit
+       str1 = "Edit" // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! Edit -> Preferences...
+          str1 = "Preferences..." // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (id(d_preferences) == 0) then
+                id(d_preferences) = stack_create_window(wintype_preferences,.true.)
+             else
+                call igSetWindowFocus_Str(c_loc(win(id(d_preferences))%name))
+             end if
+          end if
+          call iw_tooltip("Change the global UI settings and key bindings",ttshown)
 
           call igEndMenu()
        else
