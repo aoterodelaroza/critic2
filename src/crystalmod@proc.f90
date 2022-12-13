@@ -5389,7 +5389,7 @@ contains
   module subroutine write_cif(c,file,usesym0,ti)
     use global, only: fileroot, testing
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
-       ferror, faterr
+       ferror, faterr, ioj_left
     use param, only: bohrtoa, maxzat
     use tools_math, only: gcd
     class(crystal), intent(in) :: c
@@ -5405,7 +5405,7 @@ contains
     integer :: holo, laue, natmol
     logical :: usesym, doz
     integer :: datvalues(8)
-    integer, allocatable :: atc(:,:)
+    integer, allocatable :: atc(:,:), addlabel(:), spcuse(:)
 
     ! Hill order for chemical formula. First C, then H, then all the other
     ! elements in alphabetical order.
@@ -5541,6 +5541,24 @@ contains
     end if
     if (allocated(strfin)) deallocate(strfin)
 
+    ! calculate additional label for atom_site_label
+    allocate(spcuse(c%nspc))
+    spcuse = 0
+    if (usesym) then
+       allocate(addlabel(c%nneq))
+       do i = 1, c%nneq
+          spcuse(c%at(i)%is) = spcuse(c%at(i)%is) + 1
+          addlabel(i) = spcuse(c%at(i)%is)
+       end do
+    else
+       allocate(addlabel(c%ncel))
+       do i = 1, c%ncel
+          spcuse(c%atcel(i)%is) = spcuse(c%atcel(i)%is) + 1
+          addlabel(i) = spcuse(c%atcel(i)%is)
+       end do
+    end if
+    deallocate(spcuse)
+
     write (lu,'("loop_")')
     write (lu,'("_atom_site_label")')
     write (lu,'("_atom_site_type_symbol")')
@@ -5550,14 +5568,21 @@ contains
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
-          write (lu,'(A5," ",A3," ",3(F20.14," "))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%at(i)%x
+          str = trim(c%spc(iz)%name) // string(addlabel(i))
+          write (lu,'(5(A,X))') string(str,5,ioj_left),&
+             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+             (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
        end do
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
-          write (lu,'(A5," ",A3," ",3(F20.14," "))') c%spc(iz)%name, nameguess(c%spc(iz)%z,.true.), c%atcel(i)%x
+          str = trim(c%spc(iz)%name) // string(addlabel(i))
+          write (lu,'(5(A,X))') string(str,5,ioj_left),&
+             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
        end do
     end if
+    deallocate(addlabel)
     call fclose(lu)
 
   end subroutine write_cif
