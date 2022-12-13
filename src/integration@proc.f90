@@ -1875,7 +1875,7 @@ contains
 
   end subroutine write_sijchk
 
-  !> Write the Fa checkpoint file DI integration).
+  !> Write the Fa checkpoint file (DI integration).
   subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
     use tools_io, only: fopen_write, fclose
     character(len=*), intent(in) :: fafname
@@ -3131,7 +3131,7 @@ contains
   end subroutine int_output_json
 
   !> Assign strings for attractor i. icp is the CP identifier for the
-  !> attractor. usesym controls whether the multiplicit will be
+  !> attractor. usesym controls whether the multiplicity will be
   !> written to the output. The output strings are scp (the cell CP
   !> identifier, or -- if not a CP attractor), sncp (the
   !> non-equivalent CP identifier, or -- if not a CP attractor), sname
