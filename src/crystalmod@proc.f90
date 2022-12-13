@@ -2652,10 +2652,12 @@ contains
   !> and true, do not load the atomic grids or the environments in
   !> the new cell.
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
+    use environmod, only: environ
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout
     use types, only: realloc
+    use param, only: icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x00(3,3)
     real*8, intent(in), optional :: t0(3)
@@ -2667,12 +2669,14 @@ contains
 
     type(crystalseed) :: ncseed
     logical :: ok, found, atgiven
-    real*8 :: x0(3,3), x0inv(3,3), fvol
+    real*8 :: x0(3,3), x0inv(3,3), fvol, dmax0
     real*8 :: x(3), dx(3), dd, t(3)
-    integer :: i, j, k, l, m
+    integer :: i, j, m
     integer :: nn
-    integer :: nlat
-    real*8, allocatable :: xlat(:,:)
+    integer :: nlat, nlat2, ierr, nlatnew
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: xlat(:,:), dist(:)
+    type(environ) :: e
 
     real*8, parameter :: eps = 1d-2
 
@@ -2744,37 +2748,45 @@ contains
        end do
 
        ! inverse matrix
-       x0inv = x0
+       x0inv = transpose(x0)
        call matinv(x0inv,3)
 
-       ! find a star of lattice vectors and supercell centering vectors, if any
-       ! first lattice vector is (0 0 0)
-       allocate(xlat(3,10))
-       xlat = 0d0
+       ! calculate maximum distance
+       dmax0 = 0d0
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,0/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,0/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,0,1/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,0/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,1/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,1/),transpose(x0)))))
+       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,1/),transpose(x0)))))
+       call e%build_lattice(c%m_x2c,dmax0*2.0d0)
+       call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,ierr,eid=eid,dist=dist,&
+          up2d=dmax0*2.0d0,nozero=.true.)
+
+       ! make lattice vector list
+       nlatnew = max(nint(dd),1)
+       allocate(xlat(3,nlatnew))
        nlat = 1
-       do i = minval(floor(x0(1,:))),maxval(ceiling(x0(1,:)))
-          do j = minval(floor(x0(2,:))),maxval(ceiling(x0(2,:)))
-             do k = minval(floor(x0(3,:))),maxval(ceiling(x0(3,:)))
-                x = matmul((/i, j, k/),transpose(x0inv))
-                if (any(abs(x-nint(x)) > eps)) then
-                   ! this is a new candidate for supercell centering vector
-                   ! check if we have it already
-                   x = x - floor(x)
-                   found = .false.
-                   do l = 1, nlat
-                      if (all(abs(xlat(:,l) - x) < eps)) then
-                         found = .true.
-                         exit
-                      end if
-                   end do
-                   if (.not.found) then
-                      nlat = nlat + 1
-                      if (nlat > size(xlat,2)) call realloc(xlat,3,2*nlat)
-                      xlat(:,nlat) = x
-                   end if
-                endif
-             end do
+       xlat(:,1) = 0d0
+       do i = 1, nlat2
+          if (nlat == nlatnew) exit
+          x = matmul(e%xr2x(e%at(eid(i))%x),x0inv)
+          x = x - floor(x)
+
+          found = .false.
+          do j = 1, nlat
+             dx = xlat(:,j) - x
+             dx = dx - nint(dx)
+             if (all(abs(dx) < eps)) then
+                found = .true.
+                exit
+             end if
           end do
+          if (.not.found) then
+             nlat = nlat + 1
+             xlat(:,nlat) = x
+          end if
        end do
 
        ! build the new atom list
@@ -2787,7 +2799,7 @@ contains
        do i = 1, nlat
           do j = 1, c%ncel
              ! candidate atom
-             x = matmul(c%atcel(j)%x-t,transpose(x0inv)) + xlat(:,i)
+             x = matmul(c%atcel(j)%x-t,x0inv) + xlat(:,i)
              x = x - floor(x)
 
              ! check if we have it already

@@ -3404,7 +3404,7 @@ contains
 
   end subroutine unpackidx
 
-  !> Unpacking routine for use in delocalization index calculations.
+  !> Packing routine for use in delocalization index calculations.
   subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nlat)
     integer, intent(in) :: io, jo, ko, bo, nmo, nbnd, nlat(3)
     integer, intent(out) :: idx
