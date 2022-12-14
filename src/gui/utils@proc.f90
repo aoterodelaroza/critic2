@@ -306,13 +306,14 @@ contains
   !> activates the delay, and is the show flag for the delayed tooltip.
   module subroutine iw_tooltip(str,ttshown)
     use interfaces_cimgui
-    use gui_main, only: tooltip_wrap_factor, tooltip_delay
+    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
 
     character(len=:,kind=c_char), allocatable, target :: strloc
     integer :: flags
 
+    if (.not.tooltip_enabled) return
     flags = ImGuiHoveredFlags_AllowWhenBlockedByPopup
     if (present(ttshown)) then
        if (igIsItemHovered_delayed(flags,tooltip_delay,ttshown)) call show_tooltip()

@@ -544,14 +544,14 @@ contains
 
   !> Draw the preferences window
   module subroutine draw_preferences(w)
-    use gui_main, only: g
+    use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor
     use interfaces_cimgui
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, zeroc
+    character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
     logical(c_bool) :: ldum
     logical :: doquit
     type(ImVec2) :: sz, szero
@@ -610,154 +610,34 @@ contains
     sz%y = -igGetFrameHeightWithSpacing() - g%Style%ItemSpacing%y
     if (igBeginChild_Str(c_loc(str),sz,.true._c_bool,ImGuiWindowFlags_None)) then
 
-  ! ImGuiContext *g = GetCurrentContext();
-  ! ImGuiIO& io = GetIO();
-  ! ImGuiStyle& style = GetStyle();
-  ! float itemwidth = 4.f * g->FontSize;
+       call igPushItemWidth(4._c_float * g%FontSize)
+       if (catid == 0) then
+          !! Interface
+          str = "Enable tooltips" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igCheckbox(c_loc(str), tooltip_enabled)
+             call iw_tooltip("Show/hide the tooltips in the user interface elements",ttshown)
+          end if
 
-  !   static bool first = true;
-  !   SetNextWindowSize(ImVec2(0.5f*io.DisplaySize.x,0.5f*io.DisplaySize.y), ImGuiSetCond_FirstUseEver);
+          str = "Tooltip delay (s)" // c_null_char
+          str2 = "%.1f" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igDragFloat(c_loc(str),tooltip_delay,0.1_c_float,0._c_float,5._c_float,c_loc(str2),&
+                ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Delay for showing the tooltips",ttshown)
+          end if
 
-  !     bool updateviews = false;
-  !     bool setexpcol = false, expcol = false;
-  !     AlignTextToFramePadding();
-  !     Text(catname[catid]);
-  !     if (catid == 0 || catid == 1){
-  !       SameLine();
-  !       VerticalSeparator();
-  !       SameLine();
-  !       if (Button("Expand")){
-  !         setexpcol = true;
-  !         expcol = true;
-  !       }
-  !       SameLine();
-  !       if (Button("Collapse")){
-  !         setexpcol = true;
-  !         expcol = false;
-  !       }
-  !     }
-  !     Separator();
-  !     PushItemWidth(itemwidth);
-  !     if (catid == 0){
-  !       // Interface
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("High DPI")){
-  !         float oscale = ImGuiStyleUI.UIScaleFactor;
-  !         if (filter.PassFilter("Global UI scale factor"))
-  !           updateviews |= DragFloat("Global UI scale factor", &ImGuiStyleUI.UIScaleFactor, 0.01f, 0.25f, 5.0f, "%.1f", 1.0f);
-  !         if (ImGuiStyleUI.UIScaleFactor != oscale){
-  !           ScaleUI(ImGuiStyleUI.UIScaleFactor / oscale);
-  !           oscale = ImGuiStyleUI.UIScaleFactor;
-  !         }
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Tooltips")){
-  !         if (filter.PassFilter("Enable tooltips"))
-  !           Checkbox("Enable tooltips", &ImGuiStyleUI.TooltipEnabled);
-  !         if (filter.PassFilter("Tooltip delay (s)"))
-  !           DragFloat("Tooltip delay (s)", &ImGuiStyleUI.TooltipDelay, 0.1f, 0.0f, FLT_MAX, "%.1f", 1.0f);
-  !         if (filter.PassFilter("Tooltip maximum width (pixel)"))
-  !           DragFloat("Tooltip maximum width (pixel)", &ImGuiStyleUI.TooltipMaxwidth, 5.0f, 0.0f, FLT_MAX, "%.1f", 1.0f);
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Drop targets")){
-  !         if (filter.PassFilter("Drop target looseness"))
-  !           SliderFloat("Drop target looseness", &ImGuiStyleWidgets.DropTargetLooseness, 0.0f, 48.0f, "%.0f");
-  !         if (filter.PassFilter("Drop target minimum size"))
-  !           SliderFloat("Drop target minimum size", &ImGuiStyleWidgets.DropTargetMinsizeEdge, 0.0f, 150.0f, "%.0f");
-  !         if (filter.PassFilter("Drop target maximum size"))
-  !           SliderFloat("Drop target maximum size", &ImGuiStyleWidgets.DropTargetMaxsizeEdge, 0.0f, 150.0f, "%.0f");
-  !         if (filter.PassFilter("Drop target edge fraction"))
-  !           SliderFloat("Drop target edge fraction", &ImGuiStyleWidgets.DropTargetEdgeFraction, 0.0f, 0.5f, "%.2f");
-  !         if (filter.PassFilter("Drop target body fraction"))
-  !           SliderFloat("Drop target body fraction", &ImGuiStyleWidgets.DropTargetFullFraction, 0.0f, 0.5f, "%.2f");
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Messages")){
-  !         if (filter.PassFilter("Message width"))
-  !           DragFloat("Message width", &ImGuiStyleUI.MessageWidth, 1.f, 1.0, FLT_MAX, "%.0f", 1.0f);
-  !         if (filter.PassFilter("Message expiration time (s)"))
-  !           DragFloat("Message expiration time (s)", &ImGuiStyleUI.MessageExpire, 0.2f, 0.0, 60.0, "%.1f", 1.0f);
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Borders")){
-  !         // Interface -> Settings
-  !         bool border = (style.WindowBorderSize > 0.0f);
-  !         if (filter.PassFilter("Window borders") && Checkbox("Window borders", &border))
-  !           style.WindowBorderSize = border ? 1.0f : 0.0f;
-  !         border = (style.FrameBorderSize > 0.0f);
-  !         if (filter.PassFilter("Frame borders") && Checkbox("Frame borders", &border))
-  !           style.FrameBorderSize = border ? 1.0f : 0.0f;
-  !         border = (ImGuiStyleWidgets.TabBorderSize > 0.0f);
-  !         if (filter.PassFilter("Tab borders") && Checkbox("Tab borders", &border))
-  !           ImGuiStyleWidgets.TabBorderSize = border ? 1.0f : 0.0f;
-  !         border = (style.PopupBorderSize > 0.0f);
-  !         if (filter.PassFilter("Popup borders") && Checkbox("Popup borders", &border))
-  !           style.PopupBorderSize = border ? 1.0f : 0.0f;
-  !         border = (style.ChildBorderSize > 0.0f);
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Element size and positioning")){
-  !         PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
-  !         if (filter.PassFilter("Window padding"))
-  !           SliderFloat2("Window padding", (float*)&style.WindowPadding, 0.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Frame padding"))
-  !           SliderFloat2("Frame padding", (float*)&style.FramePadding, 0.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Item spacing"))
-  !           SliderFloat2("Item spacing", (float*)&style.ItemSpacing, 0.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Item inner spacing"))
-  !           SliderFloat2("Item inner spacing", (float*)&style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Touch extra padding"))
-  !           SliderFloat2("Touch extra padding", (float*)&style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
-  !         PopItemWidth();
-  !         if (filter.PassFilter("Indent spacing"))
-  !           SliderFloat("Indent spacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
-  !         if (filter.PassFilter("Scroll bar width"))
-  !           SliderFloat("Scroll bar width", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Sliding bar width"))
-  !           SliderFloat("Sliding bar width", &ImGuiStyleWidgets.SlidingBarWidth, 1.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Grab size"))
-  !           SliderFloat("Grab size", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
-  !         if (filter.PassFilter("Tab height"))
-  !           SliderFloat("Tab height", &ImGuiStyleWidgets.TabHeight, 6.0f, 42.0f, "%.0f");
-  !         if (filter.PassFilter("Tab maximum width"))
-  !           SliderFloat("Tab maximum width", &ImGuiStyleWidgets.TabMaxWidth, 25.0f, 200.0f, "%.0f");
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Rounding")){
-  !         if (filter.PassFilter("Window rounding"))
-  !           SliderFloat("Window rounding", &style.WindowRounding, 0.0f, 14.0f, "%.0f");
-  !         if (filter.PassFilter("Child window rounding"))
-  !           SliderFloat("Child window rounding", &style.ChildRounding, 0.0f, 16.0f, "%.0f");
-  !         if (filter.PassFilter("Frame rounding") && SliderFloat("Frame rounding", &style.FrameRounding, 0.0f, 12.0f, "%.0f"))
-  !           style.GrabRounding = style.FrameRounding;
-  !         if (filter.PassFilter("Scroll bar rounding"))
-  !           SliderFloat("Scroll bar rounding", &style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
-  !         if (filter.PassFilter("Grab rounding"))
-  !           SliderFloat("Grab rounding", &style.GrabRounding, 0.0f, 12.0f, "%.0f");
-  !         if (filter.PassFilter("Tab rounding"))
-  !           SliderFloat("Tab rounding", &ImGuiStyleWidgets.TabRounding, 0.0f, 14.0f, "%.0f");
-  !         if (filter.PassFilter("Popup rounding"))
-  !           SliderFloat("Popup rounding", &style.PopupRounding, 0.0f, 16.0f, "%.0f");
-  !         TreePop();
-  !       }
-  !       if (setexpcol) SetNextTreeNodeOpen(expcol);
-  !       if (TreeNode("Alignment")){
-  !         PushItemWidth(2 * itemwidth + 1.f * g->Style.ItemInnerSpacing.x);
-  !         if (filter.PassFilter("Window title alignment"))
-  !           SliderFloat2("Window title alignment", (float*)&style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
-  !         if (filter.PassFilter("Button text alignment"))
-  !           SliderFloat2("Button text alignment", (float*)&style.ButtonTextAlign, 0.0f, 1.0f, "%.2f");
-  !         PopItemWidth();
-  !         TreePop();
-  !       }
-  !     } else if (catid == 2){
+          str = "Tooltip maximum width (pixels)" // c_null_char
+          str2 = "%.1f" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igDragFloat(c_loc(str),tooltip_wrap_factor,1._c_float,0._c_float,1000._c_float,&
+                c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Width of the interface tooltips",ttshown)
+          end if
+
+       elseif (catid == 1) then
+          !! key bindings
+
   !       static int getbind = -1;
   !       TextDisabled("(Right-click on the button to toggle double-click)");
 
@@ -829,12 +709,15 @@ contains
   !         }
   !       }
   !     }
-  !     PopItemWidth();
+       end if
+       call igPopItemWidth()
 
   !     if (updateviews)
   !       ForceUpdateAllViews();
   !   } // BeginDock()
 
+       !! copy tooltips from the previous UI
+       !! copy UI options from gui_main and other modules
        !! segfault if the group is too small??
        !! -- implement reset --
 
