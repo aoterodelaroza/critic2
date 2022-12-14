@@ -1,0 +1,7 @@
+## check: 046_newcell_nice.cro -a1e-10
+## labels: quick regression nodata
+
+crystal library mgo
+newcell nice 10
+
+

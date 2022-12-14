@@ -44,6 +44,7 @@ set(TESTS
   043_molmove                ## molmove keyword
   044_amd_basic              ## amd keyword
   045_comparevc              ## comparevc keyword
+  046_newcell_nice           ## newcell nice keyword
   )
 
 runtests(${TESTS})
