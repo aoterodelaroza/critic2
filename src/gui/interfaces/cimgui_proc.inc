@@ -378,7 +378,11 @@ function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSp
   real(c_float) :: igGetTextLineHeightWithSpacing
 end function igGetTextLineHeightWithSpacing
 !x! float igGetFrameHeight(void);
-!x! float igGetFrameHeightWithSpacing(void);
+! float igGetFrameHeightWithSpacing(void);
+function igGetFrameHeightWithSpacing() bind(c,name="igGetFrameHeightWithSpacing")
+  import c_float
+  real(c_float) :: igGetFrameHeightWithSpacing
+end function igGetFrameHeightWithSpacing
 ! void igPushID_Str(const char* str_id);
 subroutine igPushID_Str(str_id) bind(c,name="igPushID_Str")
   import c_ptr
