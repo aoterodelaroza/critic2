@@ -2971,7 +2971,7 @@ contains
           mm(:,1) = e%xr2x(e%at(eid(i))%x)
           do j = i+1, nat
              mm(:,2) = e%xr2x(e%at(eid(j))%x)
-             do k = i+1, nat
+             do k = j+1, nat
                 mm(:,3) = e%xr2x(e%at(eid(k))%x)
 
                 dd = det3(mm)
