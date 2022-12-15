@@ -126,6 +126,84 @@ contains
 
   end subroutine set_bind
 
+  ! Read user input and set key binding bind.
+  module function set_bind_from_user_input(bind)
+    use interfaces_cimgui
+    use gui_main, only: io
+    integer, intent(in) :: bind
+    logical :: set_bind_from_user_input
+
+    integer :: i, key
+
+    key = -1
+    do i = 1, ImGuiKey_COUNT
+       if (io%KeysDown(ImGuiKey_LeftCtrl)) then
+       elseif (io%KeysDown(ImGuiKey_LeftShift)) then
+       elseif (io%KeysDown(ImGuiKey_LeftAlt)) then
+       elseif (io%KeysDown(ImGuiKey_LeftSuper)) then
+       elseif (io%KeysDown(ImGuiKey_RightCtrl)) then
+       elseif (io%KeysDown(ImGuiKey_RightShift)) then
+       elseif (io%KeysDown(ImGuiKey_RightAlt)) then
+       elseif (io%KeysDown(ImGuiKey_RightSuper)) then
+       end if
+       ! write (*,*) io%KeysDown(ImGuiKey_ModCtrl)
+       ! write (*,*) io%KeysDown(ImGuiKey_ModShift)
+       ! write (*,*) io%KeysDown(ImGuiKey_ModAlt)
+       ! write (*,*) io%KeysDown(ImGuiKey_ModSuper)
+
+       if (io%KeysDown(i)) then
+          key = i
+          write (*,*) key
+          exit
+       end if
+    end do
+
+    ! int mouse, key, newkey;
+    ! float scroll;
+    ! bool changed = true;
+
+    ! ImGui_ImplGlfwGL3_GetKeyMouseEvents(&mouse, &key, &scroll);
+
+    ! ImGuiIO& io = GetIO();
+    ! int mod = (io.KeyCtrl?GLFW_MOD_CONTROL:0x0000) | (io.KeyShift?GLFW_MOD_SHIFT:0x0000) |
+    !   (io.KeyAlt?GLFW_MOD_ALT:0x0000) | (io.KeySuper?GLFW_MOD_SUPER:0x0000);
+
+    ! if (scroll != 0.f){
+    !   newkey = GLFW_MOUSE_SCROLL;
+    ! } else if (mouse >= 0) {
+    !   switch (mouse){
+    !   case GLFW_MOUSE_BUTTON_LEFT:
+    !     newkey = GLFW_MOUSE_LEFT; break;
+    !   case GLFW_MOUSE_BUTTON_RIGHT:
+    !     newkey = GLFW_MOUSE_RIGHT; break;
+    !   case GLFW_MOUSE_BUTTON_MIDDLE:
+    !     newkey = GLFW_MOUSE_MIDDLE; break;
+    !   case GLFW_MOUSE_BUTTON_4:
+    !     newkey = GLFW_MOUSE_BUTTON3; break;
+    !   case GLFW_MOUSE_BUTTON_5:
+    !     newkey = GLFW_MOUSE_BUTTON4; break;
+    !   default:
+    !     changed = false;
+    !   }
+    ! } else if (key != NOKEY &&
+    !            key != GLFW_KEY_LEFT_SHIFT && key != GLFW_KEY_RIGHT_SHIFT &&
+    !            key != GLFW_KEY_LEFT_CONTROL && key != GLFW_KEY_RIGHT_CONTROL &&
+    !            key != GLFW_KEY_LEFT_ALT && key != GLFW_KEY_RIGHT_ALT &&
+    !            key != GLFW_KEY_LEFT_SUPER && key != GLFW_KEY_RIGHT_SUPER){
+    !   newkey = key;
+    ! } else {
+    !   changed = false;
+    ! }
+
+    ! if (changed)
+    !   SetBind(bind,newkey,mod);
+
+    ! return changed;
+
+    set_bind_from_user_input = (key >= 0)
+
+  end function set_bind_from_user_input
+
   module subroutine set_default_keybindings()
     use interfaces_cimgui
     integer :: i

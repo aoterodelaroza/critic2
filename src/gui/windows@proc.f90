@@ -695,10 +695,10 @@ contains
                 call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
                 if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
                    call iw_text("Please press a key or mouse button.")
-                   ! if (SetBindFromUserInput(getbind)){
-                   !             getbind = -1;
-                   !             CloseCurrentPopup();
-                   ! }
+                   if (set_bind_from_user_input(getbind)) then
+                      getbind = -1
+                      call igCloseCurrentPopup()
+                   end if
                    call igEndPopup()
                 end if
              end if
