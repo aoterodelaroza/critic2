@@ -390,7 +390,11 @@ subroutine igPushID_Str(str_id) bind(c,name="igPushID_Str")
 end subroutine igPushID_Str
 !x! void igPushID_StrStr(const char* str_id_begin,const char* str_id_end);
 !x! void igPushID_Ptr(const void* ptr_id);
-!x! void igPushID_Int(int int_id);
+! void igPushID_Int(int int_id);
+subroutine igPushID_Int(int_id) bind(c,name="igPushID_Int")
+  import c_int
+  integer(c_int), value :: int_id
+end subroutine igPushID_Int
 ! void igPopID(void);
 subroutine igPopID() bind(c,name="igPopID")
 end subroutine igPopID
@@ -918,8 +922,16 @@ subroutine igTableSetBgColor(target_, color, column_n) bind(c,name="igTableSetBg
   integer(c_int), value :: color
   integer(c_int), value :: column_n
 end subroutine igTableSetBgColor
-!x! void igColumns(int count,const char* id,bool border);
-!x! void igNextColumn(void);
+! void igColumns(int count,const char* id,bool border);
+subroutine igColumns(count,id,border) bind(c,name="igColumns")
+  import c_int, c_ptr, c_bool
+  integer(c_int), value :: count
+  type(c_ptr), intent(in), value :: id
+  logical(c_bool), value :: border
+end subroutine igColumns
+! void igNextColumn(void);
+subroutine igNextColumn() bind(c,name="igNextColumn")
+end subroutine igNextColumn
 !x! int igGetColumnIndex(void);
 !x! float igGetColumnWidth(int column_index);
 !x! void igSetColumnWidth(int column_index,float width);

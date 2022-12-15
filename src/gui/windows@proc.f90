@@ -546,22 +546,25 @@ contains
   module subroutine draw_preferences(w)
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor
     use interfaces_cimgui
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
+    character(len=:), allocatable, target :: strf
     logical(c_bool) :: ldum
     logical :: doquit
     type(ImVec2) :: sz, szero
+    integer :: i, newkey
+    integer(c_int) :: flags
 
     logical, save :: ttshown = .false. ! tooltip flag
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     integer(c_int), save :: catid = 0 ! category ID (from left panel)
+    integer(c_int), save :: getbind = -1 ! get binding flag
 
-    real(c_float), parameter :: wleft = 150._c_float
-    real(c_float), parameter :: wright = 400._c_float
+    real(c_float), parameter :: wleft = 120._c_float
+    real(c_float), parameter :: wright = 600._c_float
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
@@ -599,8 +602,8 @@ contains
        str = "Key bindings" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 1,c_bool),ImGuiSelectableFlags_None,szero)) catid = 1
        call iw_tooltip("User interface key bindings",ttshown)
-       call igEndChild()
     end if
+    call igEndChild()
     call igSameLine(0._c_float,-1._c_float)
 
     ! right panel
@@ -608,7 +611,7 @@ contains
     str = "rightpanel" // c_null_char
     sz%x = 0._c_float
     sz%y = -igGetFrameHeightWithSpacing() - g%Style%ItemSpacing%y
-    if (igBeginChild_Str(c_loc(str),sz,.true._c_bool,ImGuiWindowFlags_None)) then
+    if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
 
        call igPushItemWidth(4._c_float * g%FontSize)
        if (catid == 0) then
@@ -637,78 +640,71 @@ contains
 
        elseif (catid == 1) then
           !! key bindings
+          call iw_text("(Right-click to toggle double click)",disabled=.true.)
 
-  !       static int getbind = -1;
-  !       TextDisabled("(Right-click on the button to toggle double-click)");
+          str = "keybindselector" // c_null_char
+          sz%x = wright
+          sz%y = 0._c_float
+          if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
+             str = "keybindingcolumns" // c_null_char
+             call igColumns(2_c_int,c_loc(str),.false._c_bool)
+             do i = 1, BIND_NUM
+                str2 = trim(bindnames(i)) // c_null_char
+                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str2),c_null_ptr)) cycle
+                call iw_text(str2)
+                call igNextColumn()
 
-  !       // Key bindings
-  !       BeginChild("keybindselector",ImVec2(wright,0.f),false);
-  !       Columns(2,"keybindingcolumns",false);
-  !       for (int i = 0; i < BIND_MAX; i++){
-  !         if (!filter.PassFilter(BindNames[i]))
-  !           continue;
-  !         string result = BindKeyName(i);
-  !         if (result.length() == 0)
-  !           result = "<not bound>";
-  !         Text(BindNames[i]);
-  !         NextColumn();
+                strf = trim(get_bind_keyname(i))
+                if (len_trim(strf) == 0) strf = "<not bound>"
 
-  !         PushID(i);
-  !         if (Button(result.c_str())){
-  !           getbind = i;
-  !         }
-  !         PopID();
+                call igPushID_Int(int(i,c_int))
+                if (iw_button(strf)) getbind = i
+                call igPopID()
 
-  !         if (IsMouseClicked(1) && IsItemHovered()){
-  !           int newkey;
-  !           switch (keybind[i]){
-  !           case GLFW_MOUSE_LEFT:
-  !             newkey = GLFW_MOUSE_LEFT_DOUBLE; break;
-  !           case GLFW_MOUSE_LEFT_DOUBLE:
-  !             newkey = GLFW_MOUSE_LEFT; break;
-  !           case GLFW_MOUSE_RIGHT:
-  !             newkey = GLFW_MOUSE_RIGHT_DOUBLE; break;
-  !           case GLFW_MOUSE_RIGHT_DOUBLE:
-  !             newkey = GLFW_MOUSE_RIGHT; break;
-  !           case GLFW_MOUSE_MIDDLE:
-  !             newkey = GLFW_MOUSE_MIDDLE_DOUBLE; break;
-  !           case GLFW_MOUSE_MIDDLE_DOUBLE:
-  !             newkey = GLFW_MOUSE_MIDDLE; break;
-  !           case GLFW_MOUSE_BUTTON3:
-  !             newkey = GLFW_MOUSE_BUTTON3_DOUBLE; break;
-  !           case GLFW_MOUSE_BUTTON3_DOUBLE:
-  !             newkey = GLFW_MOUSE_BUTTON3; break;
-  !           case GLFW_MOUSE_BUTTON4:
-  !             newkey = GLFW_MOUSE_BUTTON4_DOUBLE; break;
-  !           case GLFW_MOUSE_BUTTON4_DOUBLE:
-  !             newkey = GLFW_MOUSE_BUTTON4; break;
-  !           default:
-  !             newkey = NOKEY;
-  !           }
-  !           if (newkey)
-  !             SetBind(i,newkey,modbind[i]);
-  !         }
-  !         NextColumn();
-  !       }
-  !       Columns(1);
-  !       EndChild();
+                ! right click to toggle
+                if (igIsMouseClicked(ImGuiPopupFlags_MouseButtonRight,.false._c_bool).and.&
+                   igIsItemHovered(ImGuiHoveredFlags_None)) then
+                   newkey = ImGuiKey_None
+                   if (keybind(i) == ImGuiKey_MouseLeft) then
+                      newkey = ImGuiKey_MouseLeftDouble
+                   elseif (keybind(i) == ImGuiKey_MouseLeftDouble) then
+                      newkey = ImGuiKey_MouseLeft
+                   elseif (keybind(i) == ImGuiKey_MouseRight) then
+                      newkey = ImGuiKey_MouseRightDouble
+                   elseif (keybind(i) == ImGuiKey_MouseRightDouble) then
+                      newkey = ImGuiKey_MouseRight
+                   elseif (keybind(i) == ImGuiKey_MouseMiddle) then
+                      newkey = ImGuiKey_MouseMiddleDouble
+                   elseif (keybind(i) == ImGuiKey_MouseMiddleDouble) then
+                      newkey = ImGuiKey_MouseMiddle
+                   end if
+                   if (newkey /= ImGuiKey_None) then
+                      call set_bind(i,newkey,modbind(i))
+                   end if
+                end if
+                call igNextColumn()
+             end do
+             call igColumns(1_c_int,c_null_ptr,.true._c_bool)
 
-  !       // popup to read a key
-  !       if (getbind != -1){
-  !         SetBindEventLevel(1);
-  !         OpenPopup("Choosekey");
-  !         if (BeginPopupModal("Choosekey", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar |
-  !                           ImGuiWindowFlags_NoMove)){
-  !           Text("Please press a key or mouse button.");
-  !           if (SetBindFromUserInput(getbind)){
-  !             getbind = -1;
-  !             SetBindEventLevel();
-  !             CloseCurrentPopup();
-  !           }
-  !           EndPopup();
-  !         }
-  !       }
-  !     }
+             ! popup to read a key
+             if (getbind /= -1) then
+                str2 = "Choosekey" // c_null_char
+                flags = ImGuiWindowFlags_AlwaysAutoResize
+                flags = ior(flags,ImGuiWindowFlags_NoTitleBar)
+                flags = ior(flags,ImGuiWindowFlags_NoMove)
+                call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
+                if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
+                   call iw_text("Please press a key or mouse button.")
+                   ! if (SetBindFromUserInput(getbind)){
+                   !             getbind = -1;
+                   !             CloseCurrentPopup();
+                   ! }
+                   call igEndPopup()
+                end if
+             end if
+
+          end if
+          call igEndChild()
        end if
        call igPopItemWidth()
 
@@ -720,9 +716,8 @@ contains
        !! copy UI options from gui_main and other modules
        !! segfault if the group is too small??
        !! -- implement reset --
-
-       call igEndChild()
     end if
+    call igEndChild()
 
     ! child for final buttons
     str = "finalbuttons" // c_null_char
@@ -736,8 +731,8 @@ contains
        call iw_tooltip("Reset to the default UI preferences",ttshown)
        if (iw_button("Close",sameline=.true.)) doquit = .true.
        call iw_tooltip("Close this window",ttshown)
-       call igEndChild()
     end if
+    call igEndChild()
     call igEndGroup()
 
     ! exit if focused and received the close keybinding
@@ -755,7 +750,8 @@ contains
     ! initialize the state for this window
     subroutine init_state()
        if (c_associated(cfilter)) call ImGuiTextFilter_Clear(cfilter)
-       catid = 0
+       catid = 0_c_int
+       getbind = -1_c_int
     end subroutine init_state
 
     ! terminate the state for this window

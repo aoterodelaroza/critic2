@@ -17,48 +17,13 @@
 
 ! This module handles the key-bindings for the critic2 GUI.
 submodule (keybindings) proc
-  use interfaces_cimgui, only: ImGuiKey_COUNT
   use iso_c_binding
   use hashmod, only: hash
   implicit none
 
-  ! mouse keybindings
-  integer, parameter :: ImGuiKey_MouseLeft = ImGuiKey_COUNT + 1
-  integer, parameter :: ImGuiKey_MouseLeftDouble = ImGuiKey_COUNT + 2
-  integer, parameter :: ImGuiKey_MouseRight = ImGuiKey_COUNT + 3
-  integer, parameter :: ImGuiKey_MouseRightDouble = ImGuiKey_COUNT + 4
-  integer, parameter :: ImGuiKey_MouseMiddle = ImGuiKey_COUNT + 5
-  integer, parameter :: ImGuiKey_MouseMiddleDouble = ImGuiKey_COUNT + 6
-  integer, parameter :: ImGuiKey_MouseScroll = ImGuiKey_COUNT + 11
-
   ! Processing level for bind events. Right now 0 = all and 1 = none.
   ! Perhaps more will be added in the future.
   integer, parameter :: bindevent_level = 0
-
-  ! Bind names
-  character(len=31), parameter :: bindnames(BIND_NUM) = (/&
-     "Quit                           ",& ! BIND_QUIT
-     "New                            ",& ! BIND_NEW
-     "Open file(s)                   ",& ! BIND_OPEN
-     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
-     "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
-     "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
-     "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
-     "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
-     "Run the commands               ",& ! BIND_INPCON_RUN
-     "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
-     "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
-     "Align with a axis              ",& ! BIND_VIEW_ALIGN_A_AXIS
-     "Align with b axis              ",& ! BIND_VIEW_ALIGN_B_AXIS
-     "Align with c axis              ",& ! BIND_VIEW_ALIGN_C_AXIS
-     "Align with x axis              ",& ! BIND_VIEW_ALIGN_X_AXIS
-     "Align with y axis              ",& ! BIND_VIEW_ALIGN_Y_AXIS
-     "Align with z axis              ",& ! BIND_VIEW_ALIGN_Z_AXIS
-     "Rotate the camera              ",& ! BIND_NAV_ROTATE
-     "Translate the camera           ",& ! BIND_NAV_TRANSLATE
-     "Camera zoom                    ",& ! BIND_NAV_ZOOM
-     "Reset the camera               "/) ! BIND_NAV_RESET
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
@@ -91,12 +56,6 @@ submodule (keybindings) proc
      group_view/)   ! BIND_NAV_RESET
 
   integer, parameter :: ngroupbinds = 2
-
-  ! The key associated with each bind, bind -> key
-  integer(c_int) :: keybind(BIND_NUM)
-
-  ! The modifiers associated with each bind, bind -> mod
-  integer(c_int) :: modbind(BIND_NUM)
 
   ! Bind for a key, mod, and group combination
   type(hash) :: keymap
@@ -293,9 +252,26 @@ contains
        elseif (mod == ImGuiKey_ModSuper) then
           get_bind_keyname = "Super+"
        end if
-       name = igGetKeyName(key)
-       call C_F_string_ptr_alloc(name,aux)
-       get_bind_keyname = get_bind_keyname // lower(trim(aux))
+
+       if (key == ImGuiKey_MouseLeft) then
+          get_bind_keyname = "Left Mouse"
+       elseif (key == ImGuiKey_MouseLeftDouble) then
+          get_bind_keyname = "Double Left Mouse"
+       elseif (key == ImGuiKey_MouseRight) then
+          get_bind_keyname = "Right Mouse"
+       elseif (key == ImGuiKey_MouseRightDouble) then
+          get_bind_keyname = "Double Right Mouse"
+       elseif (key == ImGuiKey_MouseMiddle) then
+          get_bind_keyname = "Middle Mouse"
+       elseif (key == ImGuiKey_MouseMiddleDouble) then
+          get_bind_keyname = "Double Middle Mouse"
+       elseif (key == ImGuiKey_MouseScroll) then
+          get_bind_keyname = "Mouse Wheel"
+       else
+          name = igGetKeyName(key)
+          call C_F_string_ptr_alloc(name,aux)
+          get_bind_keyname = get_bind_keyname // lower(trim(aux))
+       end if
     end if
 
   end function get_bind_keyname
