@@ -31,6 +31,9 @@ module keybindings
   public :: get_bind_keyname
   public :: is_bind_mousescroll
 
+  ! global flag for keybinding use
+  logical, public :: use_keybindings = .true.
+
   ! mouse keybindings
   integer, parameter, public :: ImGuiKey_MouseLeft = ImGuiKey_COUNT + 1
   integer, parameter, public :: ImGuiKey_MouseLeftDouble = ImGuiKey_COUNT + 2

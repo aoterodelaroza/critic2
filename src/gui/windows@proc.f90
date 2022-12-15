@@ -441,7 +441,7 @@ contains
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences..." // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
+          inisize%x = 62 * fontsize%x
           inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
@@ -688,6 +688,7 @@ contains
 
              ! popup to read a key
              if (getbind /= -1) then
+                use_keybindings = .false.
                 str2 = "Choosekey" // c_null_char
                 flags = ImGuiWindowFlags_AlwaysAutoResize
                 flags = ior(flags,ImGuiWindowFlags_NoTitleBar)
@@ -697,6 +698,7 @@ contains
                    call iw_text("Please press a key or mouse button.")
                    if (set_bind_from_user_input(getbind)) then
                       getbind = -1
+                      use_keybindings = .true.
                       call igCloseCurrentPopup()
                    end if
                    call igEndPopup()
@@ -708,13 +710,11 @@ contains
        end if
        call igPopItemWidth()
 
-  !     if (updateviews)
-  !       ForceUpdateAllViews();
-  !   } // BeginDock()
-
+       !! Key names, scroll bar, border?
+       !! update view if required
+       !! middle click deletes a keybinding?
        !! copy tooltips from the previous UI
        !! copy UI options from gui_main and other modules
-       !! segfault if the group is too small??
        !! -- implement reset --
     end if
     call igEndChild()

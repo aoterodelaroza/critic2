@@ -138,19 +138,19 @@ contains
 
     ! get the mod
     mod = 0
-    if (io%KeysDown(ImGuiKey_LeftCtrl).or.io%KeysDown(ImGuiKey_RightCtrl)) mod = mod + mod_ctrl
-    if (io%KeysDown(ImGuiKey_LeftAlt).or.io%KeysDown(ImGuiKey_RightAlt)) mod = mod + mod_alt
-    if (io%KeysDown(ImGuiKey_LeftShift).or.io%KeysDown(ImGuiKey_RightShift)) mod = mod + mod_shift
-    if (io%KeysDown(ImGuiKey_LeftSuper).or.io%KeysDown(ImGuiKey_RightSuper)) mod = mod + mod_super
+    if (igIsKeyDown(ImGuiKey_LeftCtrl).or.igIsKeyDown(ImGuiKey_RightCtrl)) mod = mod + mod_ctrl
+    if (igIsKeyDown(ImGuiKey_LeftAlt).or.igIsKeyDown(ImGuiKey_RightAlt)) mod = mod + mod_alt
+    if (igIsKeyDown(ImGuiKey_LeftShift).or.igIsKeyDown(ImGuiKey_RightShift)) mod = mod + mod_shift
+    if (igIsKeyDown(ImGuiKey_LeftSuper).or.igIsKeyDown(ImGuiKey_RightSuper)) mod = mod + mod_super
 
     ! get the key
     key = -1
-    do i = 1, ImGuiKey_COUNT
+    do i = ImGuiKey_NamedKey_BEGIN, ImGuiKey_NamedKey_END-1
        if ((i==ImGuiKey_ModCtrl).or.(i==ImGuiKey_ModShift).or.(i==ImGuiKey_ModAlt).or.&
           (i==ImGuiKey_ModSuper).or.(i==ImGuiKey_LeftCtrl).or.(i==ImGuiKey_LeftShift).or.&
           (i==ImGuiKey_LeftAlt).or.(i==ImGuiKey_LeftSuper).or.(i==ImGuiKey_RightCtrl).or.&
           (i==ImGuiKey_RightShift).or.(i==ImGuiKey_RightAlt).or.(i==ImGuiKey_RightSuper)) cycle
-       if (io%KeysDown(i)) then
+       if (igIsKeyDown(i)) then
           key = i
           exit
        end if
@@ -225,6 +225,7 @@ contains
     is_bind_event = .false.
     if (bindevent_level > 0) return
     if (bind < 1 .or. bind > BIND_NUM) return
+    if (.not.use_keybindings) return
 
     ! get current key and mod for this bind
     key = keybind(bind)
