@@ -126,81 +126,45 @@ contains
 
   end subroutine set_bind
 
-  ! Read user input and set key binding bind.
+  ! Read user input and set key binding bind. Returns true if a key
+  ! binding has been set.
   module function set_bind_from_user_input(bind)
     use interfaces_cimgui
     use gui_main, only: io
     integer, intent(in) :: bind
     logical :: set_bind_from_user_input
 
-    integer :: i, key
+    integer :: i, key, mod
 
+    ! get the mod
+    mod = 0
+    if (io%KeysDown(ImGuiKey_LeftCtrl).or.io%KeysDown(ImGuiKey_RightCtrl)) mod = mod + mod_ctrl
+    if (io%KeysDown(ImGuiKey_LeftAlt).or.io%KeysDown(ImGuiKey_RightAlt)) mod = mod + mod_alt
+    if (io%KeysDown(ImGuiKey_LeftShift).or.io%KeysDown(ImGuiKey_RightShift)) mod = mod + mod_shift
+    if (io%KeysDown(ImGuiKey_LeftSuper).or.io%KeysDown(ImGuiKey_RightSuper)) mod = mod + mod_super
+
+    ! get the key
     key = -1
     do i = 1, ImGuiKey_COUNT
-       if (io%KeysDown(ImGuiKey_LeftCtrl)) then
-       elseif (io%KeysDown(ImGuiKey_LeftShift)) then
-       elseif (io%KeysDown(ImGuiKey_LeftAlt)) then
-       elseif (io%KeysDown(ImGuiKey_LeftSuper)) then
-       elseif (io%KeysDown(ImGuiKey_RightCtrl)) then
-       elseif (io%KeysDown(ImGuiKey_RightShift)) then
-       elseif (io%KeysDown(ImGuiKey_RightAlt)) then
-       elseif (io%KeysDown(ImGuiKey_RightSuper)) then
-       end if
-       ! write (*,*) io%KeysDown(ImGuiKey_ModCtrl)
-       ! write (*,*) io%KeysDown(ImGuiKey_ModShift)
-       ! write (*,*) io%KeysDown(ImGuiKey_ModAlt)
-       ! write (*,*) io%KeysDown(ImGuiKey_ModSuper)
-
+       if ((i==ImGuiKey_ModCtrl).or.(i==ImGuiKey_ModShift).or.(i==ImGuiKey_ModAlt).or.&
+          (i==ImGuiKey_ModSuper).or.(i==ImGuiKey_LeftCtrl).or.(i==ImGuiKey_LeftShift).or.&
+          (i==ImGuiKey_LeftAlt).or.(i==ImGuiKey_LeftSuper).or.(i==ImGuiKey_RightCtrl).or.&
+          (i==ImGuiKey_RightShift).or.(i==ImGuiKey_RightAlt).or.(i==ImGuiKey_RightSuper)) cycle
        if (io%KeysDown(i)) then
           key = i
-          write (*,*) key
           exit
        end if
     end do
-
-    ! int mouse, key, newkey;
-    ! float scroll;
-    ! bool changed = true;
-
-    ! ImGui_ImplGlfwGL3_GetKeyMouseEvents(&mouse, &key, &scroll);
-
-    ! ImGuiIO& io = GetIO();
-    ! int mod = (io.KeyCtrl?GLFW_MOD_CONTROL:0x0000) | (io.KeyShift?GLFW_MOD_SHIFT:0x0000) |
-    !   (io.KeyAlt?GLFW_MOD_ALT:0x0000) | (io.KeySuper?GLFW_MOD_SUPER:0x0000);
-
-    ! if (scroll != 0.f){
-    !   newkey = GLFW_MOUSE_SCROLL;
-    ! } else if (mouse >= 0) {
-    !   switch (mouse){
-    !   case GLFW_MOUSE_BUTTON_LEFT:
-    !     newkey = GLFW_MOUSE_LEFT; break;
-    !   case GLFW_MOUSE_BUTTON_RIGHT:
-    !     newkey = GLFW_MOUSE_RIGHT; break;
-    !   case GLFW_MOUSE_BUTTON_MIDDLE:
-    !     newkey = GLFW_MOUSE_MIDDLE; break;
-    !   case GLFW_MOUSE_BUTTON_4:
-    !     newkey = GLFW_MOUSE_BUTTON3; break;
-    !   case GLFW_MOUSE_BUTTON_5:
-    !     newkey = GLFW_MOUSE_BUTTON4; break;
-    !   default:
-    !     changed = false;
-    !   }
-    ! } else if (key != NOKEY &&
-    !            key != GLFW_KEY_LEFT_SHIFT && key != GLFW_KEY_RIGHT_SHIFT &&
-    !            key != GLFW_KEY_LEFT_CONTROL && key != GLFW_KEY_RIGHT_CONTROL &&
-    !            key != GLFW_KEY_LEFT_ALT && key != GLFW_KEY_RIGHT_ALT &&
-    !            key != GLFW_KEY_LEFT_SUPER && key != GLFW_KEY_RIGHT_SUPER){
-    !   newkey = key;
-    ! } else {
-    !   changed = false;
-    ! }
-
-    ! if (changed)
-    !   SetBind(bind,newkey,mod);
-
-    ! return changed;
-
-    set_bind_from_user_input = (key >= 0)
+    if (igIsMouseDown(ImGuiMouseButton_Left)) key = ImGuiKey_MouseLeft
+    if (igIsMouseDown(ImGuiMouseButton_Right)) key = ImGuiKey_MouseRight
+    if (igIsMouseDown(ImGuiMouseButton_Middle)) key = ImGuiKey_MouseMiddle
+    if (abs(io%MouseWheel) > 1e-8_c_float) key = ImGuiKey_MouseScroll
+    if (key /= -1) then
+       set_bind_from_user_input = .true.
+       call set_bind(bind,key,mod)
+    else
+       set_bind_from_user_input = .false.
+    end if
 
   end function set_bind_from_user_input
 
