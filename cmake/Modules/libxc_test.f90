@@ -1,7 +1,5 @@
 program libxc_test
-  use xc_f90_types_m
   use xc_f90_lib_m
-  use libxc_funcs_m
   implicit none
 
   integer :: iver(3)

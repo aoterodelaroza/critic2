@@ -1,7 +1,7 @@
 ## check: 001_utils.cro -a1e-10
 ## labels: regression quick nodata
 
-libxc
+libxc name
 libxc ref name flags
 libxc all
 

@@ -12,18 +12,18 @@ if (DEFINED ENV{LIBXC_DIR})
 endif()
 
 find_library(LIBXC_xc_LIBRARY
-  NAMES xc 
+  NAMES xc
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
   )
 find_library(LIBXC_xcf90_LIBRARY
-  NAMES xcf90 
+  NAMES xcf90
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
   )
 
 find_path(LIBXC_INCLUDE_DIRS
-  NAMES xc_f90_lib_m.mod 
+  NAMES xc_f90_lib_m.mod
   PATH_SUFFIXES include
   HINTS ${LIBXC_DIR}
   )
@@ -39,8 +39,8 @@ endif()
 
 ## check whether we can compile against it
 if (LIBXC_FOUND)
-  try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90" 
-    LINK_LIBRARIES ${LIBXC_xc_LIBRARY}  ${LIBXC_xcf90_LIBRARY} 
+  try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90"
+    LINK_LIBRARIES ${LIBXC_xc_LIBRARY}  ${LIBXC_xcf90_LIBRARY}
     CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${LIBXC_INCLUDE_DIRS}")
   if (NOT LIBXC_FOUND)
     message(STATUS "Found libxc (lib=${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")
