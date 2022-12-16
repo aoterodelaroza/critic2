@@ -724,8 +724,6 @@ contains
        end if
        call igPopItemWidth()
 
-       !! fix ctrl+ shift+... prefixes and binding
-       !! Key names
        !! update view if required
        !! copy tooltips from the previous UI
        !! copy UI options from gui_main and other modules

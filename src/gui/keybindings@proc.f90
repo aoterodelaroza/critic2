@@ -60,6 +60,35 @@ submodule (keybindings) proc
   ! Bind for a key, mod, and group combination
   type(hash) :: keymap
 
+  character*18, parameter :: keynames(133) = (/&
+     "Tab               ","Left Arrow        ","Right Arrow       ","Up Arrow          ","Down Arrow        ",&
+     "Page Up           ","Page Down         ","Home              ","End               ","Insert            ",&
+     "Delete            ","Backspace         ","Space             ","Enter             ","Escape            ",&
+     "Left Ctrl         ","Left Shift        ","Left Alt          ","Left Super        ","Right Ctrl        ",&
+     "Right Shift       ","Right Alt         ","Right Super       ","Menu              ","0                 ",&
+     "1                 ","2                 ","3                 ","4                 ","5                 ",&
+     "6                 ","7                 ","8                 ","9                 ","A                 ",&
+     "B                 ","C                 ","D                 ","E                 ","F                 ",&
+     "G                 ","H                 ","I                 ","J                 ","K                 ",&
+     "L                 ","M                 ","N                 ","O                 ","P                 ",&
+     "Q                 ","R                 ","S                 ","T                 ","U                 ",&
+     "V                 ","W                 ","X                 ","Y                 ","Z                 ",&
+     "F1                ","F2                ","F3                ","F4                ","F5                ",&
+     "F6                ","F7                ","F8                ","F9                ","F10               ",&
+     "F11               ","F12               ","'                 ",",                 ","-                 ",&
+     ".                 ","/                 ",";                 ","=                 ","[                 ",&
+     "\                 ","]                 ","`                 ","Caps Lock         ","Scroll Lock       ",&
+     "Num Lock          ","Print Screen      ","Pause             ","Keypad 0          ","Keypad 1          ",&
+     "Keypad 2          ","Keypad 3          ","Keypad 4          ","Keypad 5          ","Keypad 6          ",&
+     "Keypad 7          ","Keypad 8          ","Keypad 9          ","Keypad .          ","Keypad /          ",&
+     "Keypad *          ","Keypad -          ","Keypad +          ","Keypad Enter      ","Keypad =          ",&
+     "GamepadStart      ","GamepadBack       ","GamepadFaceUp     ","GamepadFaceDown   ","GamepadFaceLeft   ",&
+     "GamepadFaceRight  ","GamepadDpadUp     ","GamepadDpadDown   ","GamepadDpadLeft   ","GamepadDpadRight  ",&
+     "GamepadL1         ","GamepadR1         ","GamepadL2         ","GamepadR2         ","GamepadL3         ",&
+     "GamepadR3         ","GamepadLStickUp   ","GamepadLStickDown ","GamepadLStickLeft ","GamepadLStickRight",&
+     "GamepadRStickUp   ","GamepadRStickDown ","GamepadRStickLeft ","GamepadRStickRight","Mod Ctrl          ",&
+     "Mod Shift         ","Mod Alt           ","Mod Super         "/)
+
   !xx! private procedures
   ! function hkey(key,mod,group)
 
@@ -274,7 +303,7 @@ contains
 
   ! Return the key+mod combination for a given bind
   module function get_bind_keyname(bind)
-    use interfaces_cimgui, only: ImGuiKey_None, igGetKeyName
+    use interfaces_cimgui, only: ImGuiKey_None, ImGuiKey_NamedKey_BEGIN
     use c_interface_module, only: C_F_string_ptr_alloc
     use tools_io, only: lower
     integer, intent(in) :: bind
@@ -282,8 +311,6 @@ contains
 
     integer :: group
     integer(c_int) :: key, mod
-    type(c_ptr) :: name
-    character(len=:), allocatable :: aux
 
     get_bind_keyname = ""
     group = groupbind(bind)
@@ -312,9 +339,7 @@ contains
        elseif (key == ImGuiKey_MouseScroll) then
           get_bind_keyname = "Mouse Wheel"
        else
-          name = igGetKeyName(key)
-          call C_F_string_ptr_alloc(name,aux)
-          get_bind_keyname = get_bind_keyname // lower(trim(aux))
+          get_bind_keyname = get_bind_keyname // trim(keynames(key - ImGuiKey_NamedKey_BEGIN + 1))
        end if
     end if
 
