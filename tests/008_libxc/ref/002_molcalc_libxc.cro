@@ -1,4 +1,5 @@
 + Field number 1
+  Name: h2o_hf.wfx
   Source: ../zz_source/g16A.03/h2o/h2o_hf.wfx
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -53,5 +54,5 @@
   Mesh size      52246
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)) = -9.68733485   
++ Integral(xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)) = -9.45451749   
 
