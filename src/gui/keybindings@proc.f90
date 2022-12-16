@@ -232,15 +232,11 @@ contains
     mod = modbind(bind)
 
     ! is the mod down?
-    if (mod == mod_none) then
-       moddown = .true.
-    else
-       moddown = .false.
-       if (iand(mod,mod_ctrl) /= 0)  moddown = moddown .or. igIsKeyDown(ImGuiKey_ModCtrl)
-       if (iand(mod,mod_alt) /= 0)   moddown = moddown .or. igIsKeyDown(ImGuiKey_ModAlt)
-       if (iand(mod,mod_shift) /= 0) moddown = moddown .or. igIsKeyDown(ImGuiKey_ModShift)
-       if (iand(mod,mod_super) /= 0) moddown = moddown .or. igIsKeyDown(ImGuiKey_ModSuper)
-    end if
+    moddown = .true.
+    if (iand(mod,mod_ctrl) /= 0)  moddown = moddown .and. igIsKeyDown(ImGuiKey_ModCtrl)
+    if (iand(mod,mod_alt) /= 0)   moddown = moddown .and. igIsKeyDown(ImGuiKey_ModAlt)
+    if (iand(mod,mod_shift) /= 0) moddown = moddown .and. igIsKeyDown(ImGuiKey_ModShift)
+    if (iand(mod,mod_super) /= 0) moddown = moddown .and. igIsKeyDown(ImGuiKey_ModSuper)
 
     if (key == ImGuiKey_None .or..not.moddown) then
        ! no key or the mod is not down
