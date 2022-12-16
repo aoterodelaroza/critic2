@@ -616,6 +616,9 @@ contains
        call igPushItemWidth(4._c_float * g%FontSize)
        if (catid == 0) then
           !! Interface
+          call iw_text("Interface",highlight=.true.)
+          call igSeparator()
+
           str = "Enable tooltips" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = igCheckbox(c_loc(str), tooltip_enabled)
@@ -640,79 +643,90 @@ contains
 
        elseif (catid == 1) then
           !! key bindings
-          call iw_text("(Right-click to toggle double click)",disabled=.true.)
+          call iw_text("Key bindings",highlight=.true.)
+          call iw_text("(?)",sameline=.true.)
+          call iw_tooltip("Left click to assign a new binding. Right-click to toggle double click behavior&
+             & (only for mouse input). Middle click to erase the binding.")
+          call igSeparator()
 
-          str = "keybindselector" // c_null_char
-          sz%x = wright
-          sz%y = 0._c_float
-          if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
-             str = "keybindingcolumns" // c_null_char
-             call igColumns(2_c_int,c_loc(str),.false._c_bool)
+          str = "##keybindtable" // c_null_char
+          flags = ImGuiTableFlags_NoSavedSettings
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
+          sz%x = 0
+          sz%y = 0
+          if (igBeginTable(c_loc(str),2,flags,sz,0._c_float)) then
              do i = 1, BIND_NUM
                 str2 = trim(bindnames(i)) // c_null_char
                 if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str2),c_null_ptr)) cycle
-                call iw_text(str2)
-                call igNextColumn()
 
-                strf = trim(get_bind_keyname(i))
-                if (len_trim(strf) == 0) strf = "<not bound>"
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                if (igTableSetColumnIndex(0)) then
+                   call iw_text(str2)
+                end if
+                if (igTableSetColumnIndex(1)) then
+                   strf = trim(get_bind_keyname(i))
+                   if (len_trim(strf) == 0) strf = "<not bound>"
 
-                call igPushID_Int(int(i,c_int))
-                if (iw_button(strf)) getbind = i
-                call igPopID()
+                   call igPushID_Int(int(i,c_int))
+                   if (iw_button(strf)) getbind = i
+                   call igPopID()
 
-                ! right click to toggle
-                if (igIsMouseClicked(ImGuiPopupFlags_MouseButtonRight,.false._c_bool).and.&
-                   igIsItemHovered(ImGuiHoveredFlags_None)) then
-                   newkey = ImGuiKey_None
-                   if (keybind(i) == ImGuiKey_MouseLeft) then
-                      newkey = ImGuiKey_MouseLeftDouble
-                   elseif (keybind(i) == ImGuiKey_MouseLeftDouble) then
-                      newkey = ImGuiKey_MouseLeft
-                   elseif (keybind(i) == ImGuiKey_MouseRight) then
-                      newkey = ImGuiKey_MouseRightDouble
-                   elseif (keybind(i) == ImGuiKey_MouseRightDouble) then
-                      newkey = ImGuiKey_MouseRight
-                   elseif (keybind(i) == ImGuiKey_MouseMiddle) then
-                      newkey = ImGuiKey_MouseMiddleDouble
-                   elseif (keybind(i) == ImGuiKey_MouseMiddleDouble) then
-                      newkey = ImGuiKey_MouseMiddle
-                   end if
-                   if (newkey /= ImGuiKey_None) then
-                      call set_bind(i,newkey,modbind(i))
+                   if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+                      ! right click to toggle
+                      if (igIsMouseClicked(ImGuiPopupFlags_MouseButtonRight,.false._c_bool)) then
+                         newkey = ImGuiKey_None
+                         if (keybind(i) == ImGuiKey_MouseLeft) then
+                            newkey = ImGuiKey_MouseLeftDouble
+                         elseif (keybind(i) == ImGuiKey_MouseLeftDouble) then
+                            newkey = ImGuiKey_MouseLeft
+                         elseif (keybind(i) == ImGuiKey_MouseRight) then
+                            newkey = ImGuiKey_MouseRightDouble
+                         elseif (keybind(i) == ImGuiKey_MouseRightDouble) then
+                            newkey = ImGuiKey_MouseRight
+                         elseif (keybind(i) == ImGuiKey_MouseMiddle) then
+                            newkey = ImGuiKey_MouseMiddleDouble
+                         elseif (keybind(i) == ImGuiKey_MouseMiddleDouble) then
+                            newkey = ImGuiKey_MouseMiddle
+                         end if
+                         if (newkey /= ImGuiKey_None) then
+                            call set_bind(i,newkey,modbind(i))
+                         end if
+                      end if
+
+                      ! middle click to erase
+                      if (igIsMouseClicked(ImGuiPopupFlags_MouseButtonMiddle,.false._c_bool)) &
+                         call set_bind(i,ImGuiKey_None,modbind(i))
                    end if
                 end if
-                call igNextColumn()
              end do
-             call igColumns(1_c_int,c_null_ptr,.true._c_bool)
-
-             ! popup to read a key
-             if (getbind /= -1) then
-                use_keybindings = .false.
-                str2 = "Choosekey" // c_null_char
-                flags = ImGuiWindowFlags_AlwaysAutoResize
-                flags = ior(flags,ImGuiWindowFlags_NoTitleBar)
-                flags = ior(flags,ImGuiWindowFlags_NoMove)
-                call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
-                if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
-                   call iw_text("Please press a key or mouse button.")
-                   if (set_bind_from_user_input(getbind)) then
-                      getbind = -1
-                      use_keybindings = .true.
-                      call igCloseCurrentPopup()
-                   end if
-                   call igEndPopup()
-                end if
-             end if
-
+             call igEndTable()
           end if
-          call igEndChild()
+
+          ! popup to read a key
+          if (getbind /= -1) then
+             use_keybindings = .false.
+             str2 = "Choosekey" // c_null_char
+             flags = ImGuiWindowFlags_AlwaysAutoResize
+             flags = ior(flags,ImGuiWindowFlags_NoTitleBar)
+             flags = ior(flags,ImGuiWindowFlags_NoMove)
+             call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
+             if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
+                call iw_text("Please press a key or mouse button.")
+                if (set_bind_from_user_input(getbind)) then
+                   getbind = -1
+                   use_keybindings = .true.
+                   call igCloseCurrentPopup()
+                end if
+                call igEndPopup()
+             end if
+          end if
        end if
        call igPopItemWidth()
 
-       !! Key names, scroll bar, border?
+       !! fix ctrl+ shift+... prefixes and binding
+       !! Key names
        !! update view if required
-       !! middle click deletes a keybinding?
        !! copy tooltips from the previous UI
        !! copy UI options from gui_main and other modules
        !! -- implement reset --
