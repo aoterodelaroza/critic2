@@ -17,48 +17,13 @@
 
 ! This module handles the key-bindings for the critic2 GUI.
 submodule (keybindings) proc
-  use interfaces_cimgui, only: ImGuiKey_COUNT
   use iso_c_binding
   use hashmod, only: hash
   implicit none
 
-  ! mouse keybindings
-  integer, parameter :: ImGuiKey_MouseLeft = ImGuiKey_COUNT + 1
-  integer, parameter :: ImGuiKey_MouseLeftDouble = ImGuiKey_COUNT + 2
-  integer, parameter :: ImGuiKey_MouseRight = ImGuiKey_COUNT + 3
-  integer, parameter :: ImGuiKey_MouseRightDouble = ImGuiKey_COUNT + 4
-  integer, parameter :: ImGuiKey_MouseMiddle = ImGuiKey_COUNT + 5
-  integer, parameter :: ImGuiKey_MouseMiddleDouble = ImGuiKey_COUNT + 6
-  integer, parameter :: ImGuiKey_MouseScroll = ImGuiKey_COUNT + 11
-
   ! Processing level for bind events. Right now 0 = all and 1 = none.
   ! Perhaps more will be added in the future.
   integer, parameter :: bindevent_level = 0
-
-  ! Bind names
-  character(len=31), parameter :: bindnames(BIND_NUM) = (/&
-     "Quit                           ",& ! BIND_QUIT
-     "New                            ",& ! BIND_NEW
-     "Open file(s)                   ",& ! BIND_OPEN
-     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
-     "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
-     "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
-     "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
-     "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
-     "Run the commands               ",& ! BIND_INPCON_RUN
-     "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
-     "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
-     "Align with a axis              ",& ! BIND_VIEW_ALIGN_A_AXIS
-     "Align with b axis              ",& ! BIND_VIEW_ALIGN_B_AXIS
-     "Align with c axis              ",& ! BIND_VIEW_ALIGN_C_AXIS
-     "Align with x axis              ",& ! BIND_VIEW_ALIGN_X_AXIS
-     "Align with y axis              ",& ! BIND_VIEW_ALIGN_Y_AXIS
-     "Align with z axis              ",& ! BIND_VIEW_ALIGN_Z_AXIS
-     "Rotate the camera              ",& ! BIND_NAV_ROTATE
-     "Translate the camera           ",& ! BIND_NAV_TRANSLATE
-     "Camera zoom                    ",& ! BIND_NAV_ZOOM
-     "Reset the camera               "/) ! BIND_NAV_RESET
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
@@ -92,12 +57,6 @@ submodule (keybindings) proc
 
   integer, parameter :: ngroupbinds = 2
 
-  ! The key associated with each bind, bind -> key
-  integer(c_int) :: keybind(BIND_NUM)
-
-  ! The modifiers associated with each bind, bind -> mod
-  integer(c_int) :: modbind(BIND_NUM)
-
   ! Bind for a key, mod, and group combination
   type(hash) :: keymap
 
@@ -118,7 +77,7 @@ contains
     hk = hkey(key,mod,group)
     if (keymap%iskey(hk)) then
        oldbind = keymap%get(hk,oldbind)
-       modbind(oldbind) = ImGuiKey_None
+       modbind(oldbind) = mod_none
        keybind(oldbind) = ImGuiKey_None
        call keymap%delkey(hk)
     end if
@@ -167,6 +126,48 @@ contains
 
   end subroutine set_bind
 
+  ! Read user input and set key binding bind. Returns true if a key
+  ! binding has been set.
+  module function set_bind_from_user_input(bind)
+    use interfaces_cimgui
+    use gui_main, only: io
+    integer, intent(in) :: bind
+    logical :: set_bind_from_user_input
+
+    integer :: i, key, mod
+
+    ! get the mod
+    mod = 0
+    if (igIsKeyDown(ImGuiKey_LeftCtrl).or.igIsKeyDown(ImGuiKey_RightCtrl)) mod = mod + mod_ctrl
+    if (igIsKeyDown(ImGuiKey_LeftAlt).or.igIsKeyDown(ImGuiKey_RightAlt)) mod = mod + mod_alt
+    if (igIsKeyDown(ImGuiKey_LeftShift).or.igIsKeyDown(ImGuiKey_RightShift)) mod = mod + mod_shift
+    if (igIsKeyDown(ImGuiKey_LeftSuper).or.igIsKeyDown(ImGuiKey_RightSuper)) mod = mod + mod_super
+
+    ! get the key
+    key = -1
+    do i = ImGuiKey_NamedKey_BEGIN, ImGuiKey_NamedKey_END-1
+       if ((i==ImGuiKey_ModCtrl).or.(i==ImGuiKey_ModShift).or.(i==ImGuiKey_ModAlt).or.&
+          (i==ImGuiKey_ModSuper).or.(i==ImGuiKey_LeftCtrl).or.(i==ImGuiKey_LeftShift).or.&
+          (i==ImGuiKey_LeftAlt).or.(i==ImGuiKey_LeftSuper).or.(i==ImGuiKey_RightCtrl).or.&
+          (i==ImGuiKey_RightShift).or.(i==ImGuiKey_RightAlt).or.(i==ImGuiKey_RightSuper)) cycle
+       if (igIsKeyDown(i)) then
+          key = i
+          exit
+       end if
+    end do
+    if (igIsMouseDown(ImGuiMouseButton_Left)) key = ImGuiKey_MouseLeft
+    if (igIsMouseDown(ImGuiMouseButton_Right)) key = ImGuiKey_MouseRight
+    if (igIsMouseDown(ImGuiMouseButton_Middle)) key = ImGuiKey_MouseMiddle
+    if (abs(io%MouseWheel) > 1e-8_c_float) key = ImGuiKey_MouseScroll
+    if (key /= -1) then
+       set_bind_from_user_input = .true.
+       call set_bind(bind,key,mod)
+    else
+       set_bind_from_user_input = .false.
+    end if
+
+  end function set_bind_from_user_input
+
   module subroutine set_default_keybindings()
     use interfaces_cimgui
     integer :: i
@@ -174,33 +175,33 @@ contains
     ! initialize to no keys and modifiers
     do i = 1, BIND_NUM
        keybind(i) = ImGuiKey_None
-       modbind(i) = ImGuiKey_None
+       modbind(i) = mod_none
     end do
     call keymap%init()
 
     ! Default keybindings
-    call set_bind(BIND_QUIT,ImGuiKey_Q,ImGuiKey_ModCtrl)
-    call set_bind(BIND_NEW,ImGuiKey_N,ImGuiKey_ModCtrl)
-    call set_bind(BIND_OPEN,ImGuiKey_O,ImGuiKey_ModCtrl)
-    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,ImGuiKey_None)
-    call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,ImGuiKey_None)
-    call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,ImGuiKey_ModCtrl)
-    call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,ImGuiKey_None)
-    call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_K,ImGuiKey_None)
-    call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,ImGuiKey_None)
-    call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,ImGuiKey_ModCtrl)
-    call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,ImGuiKey_None)
-    call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_A_AXIS,ImGuiKey_A,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_B_AXIS,ImGuiKey_B,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_C_AXIS,ImGuiKey_C,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_X_AXIS,ImGuiKey_X,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_Y_AXIS,ImGuiKey_Y,ImGuiKey_None)
-    call set_bind(BIND_VIEW_ALIGN_Z_AXIS,ImGuiKey_Z,ImGuiKey_None)
-    call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,ImGuiKey_None)
-    call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,ImGuiKey_None)
-    call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,ImGuiKey_None)
-    call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,ImGuiKey_None)
+    call set_bind(BIND_QUIT,ImGuiKey_Q,mod_ctrl)
+    call set_bind(BIND_NEW,ImGuiKey_N,mod_ctrl)
+    call set_bind(BIND_OPEN,ImGuiKey_O,mod_ctrl)
+    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
+    call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)
+    call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)
+    call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,mod_none)
+    call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_K,mod_none)
+    call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,mod_none)
+    call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,mod_ctrl)
+    call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,mod_none)
+    call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_A_AXIS,ImGuiKey_A,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_B_AXIS,ImGuiKey_B,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_C_AXIS,ImGuiKey_C,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_X_AXIS,ImGuiKey_X,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_Y_AXIS,ImGuiKey_Y,mod_none)
+    call set_bind(BIND_VIEW_ALIGN_Z_AXIS,ImGuiKey_Z,mod_none)
+    call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
+    call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,mod_none)
 
   end subroutine set_default_keybindings
 
@@ -214,7 +215,7 @@ contains
     logical :: is_bind_event
 
     integer :: key, mod
-    logical :: held_, noinput
+    logical :: held_, moddown
 
     ! process options
     held_ = .false.
@@ -224,16 +225,27 @@ contains
     is_bind_event = .false.
     if (bindevent_level > 0) return
     if (bind < 1 .or. bind > BIND_NUM) return
+    if (.not.use_keybindings) return
 
     ! get current key and mod for this bind
     key = keybind(bind)
     mod = modbind(bind)
-    noinput = .not.io%WantTextInput .or. (mod==ImGuiKey_ModCtrl) .or. (mod==ImGuiKey_ModAlt) .or. (mod==ImGuiKey_ModSuper)
 
-    if (key == ImGuiKey_None .or.(mod /= ImGuiKey_None.and..not.igIsKeyDown(mod))) then
+    ! is the mod down?
+    if (mod == mod_none) then
+       moddown = .true.
+    else
+       moddown = .false.
+       if (iand(mod,mod_ctrl) /= 0)  moddown = moddown .or. igIsKeyDown(ImGuiKey_ModCtrl)
+       if (iand(mod,mod_alt) /= 0)   moddown = moddown .or. igIsKeyDown(ImGuiKey_ModAlt)
+       if (iand(mod,mod_shift) /= 0) moddown = moddown .or. igIsKeyDown(ImGuiKey_ModShift)
+       if (iand(mod,mod_super) /= 0) moddown = moddown .or. igIsKeyDown(ImGuiKey_ModSuper)
+    end if
+
+    if (key == ImGuiKey_None .or..not.moddown) then
        ! no key or the mod is not down
        return
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.noinput) then
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and..not.io%WantTextInput) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)
@@ -266,8 +278,7 @@ contains
 
   ! Return the key+mod combination for a given bind
   module function get_bind_keyname(bind)
-    use interfaces_cimgui, only: ImGuiKey_None, igGetKeyName, &
-       ImGuiKey_ModCtrl, ImGuiKey_ModShift, ImGuiKey_ModAlt, ImGuiKey_ModSuper
+    use interfaces_cimgui, only: ImGuiKey_None, igGetKeyName
     use c_interface_module, only: C_F_string_ptr_alloc
     use tools_io, only: lower
     integer, intent(in) :: bind
@@ -284,18 +295,31 @@ contains
     mod = modbind(bind)
 
     if (key /= ImGuiKey_None) then
-       if (mod == ImGuiKey_ModCtrl) then
-          get_bind_keyname = "Ctrl+"
-       elseif (mod == ImGuiKey_ModShift) then
-          get_bind_keyname = "Shift+"
-       elseif (mod == ImGuiKey_ModAlt) then
-          get_bind_keyname = "Alt+"
-       elseif (mod == ImGuiKey_ModSuper) then
-          get_bind_keyname = "Super+"
+       get_bind_keyname = ""
+       if (iand(mod,mod_ctrl)/=0)  get_bind_keyname = get_bind_keyname // "Ctrl+"
+       if (iand(mod,mod_alt)/=0)   get_bind_keyname = get_bind_keyname // "Alt+"
+       if (iand(mod,mod_shift)/=0) get_bind_keyname = get_bind_keyname // "Shift+"
+       if (iand(mod,mod_super)/=0) get_bind_keyname = get_bind_keyname // "Super+"
+
+       if (key == ImGuiKey_MouseLeft) then
+          get_bind_keyname = "Left Mouse"
+       elseif (key == ImGuiKey_MouseLeftDouble) then
+          get_bind_keyname = "Double Left Mouse"
+       elseif (key == ImGuiKey_MouseRight) then
+          get_bind_keyname = "Right Mouse"
+       elseif (key == ImGuiKey_MouseRightDouble) then
+          get_bind_keyname = "Double Right Mouse"
+       elseif (key == ImGuiKey_MouseMiddle) then
+          get_bind_keyname = "Middle Mouse"
+       elseif (key == ImGuiKey_MouseMiddleDouble) then
+          get_bind_keyname = "Double Middle Mouse"
+       elseif (key == ImGuiKey_MouseScroll) then
+          get_bind_keyname = "Mouse Wheel"
+       else
+          name = igGetKeyName(key)
+          call C_F_string_ptr_alloc(name,aux)
+          get_bind_keyname = get_bind_keyname // lower(trim(aux))
        end if
-       name = igGetKeyName(key)
-       call C_F_string_ptr_alloc(name,aux)
-       get_bind_keyname = get_bind_keyname // lower(trim(aux))
     end if
 
   end function get_bind_keyname

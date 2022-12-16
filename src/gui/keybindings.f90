@@ -17,6 +17,7 @@
 
 ! This module handles the key-bindings for the critic2 GUI.
 module keybindings
+  use interfaces_cimgui, only: ImGuiKey_COUNT
   use iso_c_binding, only: c_int
   implicit none
 
@@ -24,10 +25,23 @@ module keybindings
 
   public :: erase_bind
   public :: set_bind
+  public :: set_bind_from_user_input
   public :: set_default_keybindings
   public :: is_bind_event
   public :: get_bind_keyname
   public :: is_bind_mousescroll
+
+  ! global flag for keybinding use
+  logical, public :: use_keybindings = .true.
+
+  ! mouse keybindings
+  integer, parameter, public :: ImGuiKey_MouseLeft = ImGuiKey_COUNT + 1
+  integer, parameter, public :: ImGuiKey_MouseLeftDouble = ImGuiKey_COUNT + 2
+  integer, parameter, public :: ImGuiKey_MouseRight = ImGuiKey_COUNT + 3
+  integer, parameter, public :: ImGuiKey_MouseRightDouble = ImGuiKey_COUNT + 4
+  integer, parameter, public :: ImGuiKey_MouseMiddle = ImGuiKey_COUNT + 5
+  integer, parameter, public :: ImGuiKey_MouseMiddleDouble = ImGuiKey_COUNT + 6
+  integer, parameter, public :: ImGuiKey_MouseScroll = ImGuiKey_COUNT + 11
 
   ! Public list of binds
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
@@ -54,6 +68,42 @@ module keybindings
   integer, parameter, public :: BIND_NAV_RESET = 22 ! view: reset the view
   integer, parameter, public :: BIND_NUM = 22 ! total number of binds
 
+  ! Bind names
+  character(len=31), parameter, public :: bindnames(BIND_NUM) = (/&
+     "Quit                           ",& ! BIND_QUIT
+     "New                            ",& ! BIND_NEW
+     "Open file(s)                   ",& ! BIND_OPEN
+     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
+     "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
+     "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
+     "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
+     "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
+     "Run the commands               ",& ! BIND_INPCON_RUN
+     "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
+     "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
+     "Align with a axis              ",& ! BIND_VIEW_ALIGN_A_AXIS
+     "Align with b axis              ",& ! BIND_VIEW_ALIGN_B_AXIS
+     "Align with c axis              ",& ! BIND_VIEW_ALIGN_C_AXIS
+     "Align with x axis              ",& ! BIND_VIEW_ALIGN_X_AXIS
+     "Align with y axis              ",& ! BIND_VIEW_ALIGN_Y_AXIS
+     "Align with z axis              ",& ! BIND_VIEW_ALIGN_Z_AXIS
+     "Rotate the camera              ",& ! BIND_NAV_ROTATE
+     "Translate the camera           ",& ! BIND_NAV_TRANSLATE
+     "Camera zoom                    ",& ! BIND_NAV_ZOOM
+     "Reset the camera               "/) ! BIND_NAV_RESET
+
+  ! The key associated with each bind, bind -> key
+  integer(c_int), public :: keybind(BIND_NUM)
+
+  ! The modifiers associated with each bind, bind -> mod
+  integer(c_int), parameter :: mod_none = 0
+  integer(c_int), parameter :: mod_ctrl = 1
+  integer(c_int), parameter :: mod_alt = 2
+  integer(c_int), parameter :: mod_shift = 4
+  integer(c_int), parameter :: mod_super = 8
+  integer(c_int), public :: modbind(BIND_NUM)
+
   ! module procedure interfaces
   interface
      module subroutine erase_bind(key, mod, group)
@@ -61,10 +111,13 @@ module keybindings
        integer, intent(in) :: group
      end subroutine erase_bind
      module subroutine set_bind(bind, key, mod)
-       use tools_io, only: ferror, faterr
        integer, intent(in) :: bind
        integer(c_int), intent(in) :: key, mod
      end subroutine set_bind
+     module function set_bind_from_user_input(bind)
+       integer, intent(in) :: bind
+       logical :: set_bind_from_user_input
+     end function set_bind_from_user_input
      module subroutine set_default_keybindings()
      end subroutine set_default_keybindings
      module function is_bind_event(bind,held)
