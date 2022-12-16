@@ -724,9 +724,20 @@ contains
        end if
        call igPopItemWidth()
 
+       ! gui_main:
+       ! logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
+       ! logical, parameter, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
+       ! logical, parameter, public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
+       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
+
+       ! font size
+
        !! update view if required
-       !! copy tooltips from the previous UI
-       !! copy UI options from gui_main and other modules
        !! -- implement reset --
     end if
     call igEndChild()
