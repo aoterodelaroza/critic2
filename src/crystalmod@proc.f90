@@ -858,14 +858,15 @@ contains
   !> Identify a fragment in the unit cell from an external xyz
   !> file. An instance of a fragment object is returned. If any of the
   !> atoms is not correctly identified, return 0.
-  module function identify_fragment_from_xyz(c,file,ti) result(fr)
-    use tools_io, only: fopen_read, string, ferror, faterr, fclose
+  module function identify_fragment_from_xyz(c,file,errmsg,ti) result(fr)
+    use tools_io, only: fopen_read, string, fclose
     use param, only: bohrtoa, icrd_cart, mlen
     use types, only: realloc
 
     class(crystal), intent(in) :: c
     character*(*) :: file
     type(thread_info), intent(in), optional :: ti
+    character(len=:), allocatable, intent(out) :: errmsg
     type(fragment) :: fr
 
     integer :: lu, nat
@@ -873,7 +874,9 @@ contains
     real*8 :: x0(3)
     character(len=mlen) :: word
 
+    errmsg = "Error reading xyz file"
     lu = fopen_read(file,ti=ti)
+    if (lu < 0) goto 999
     read(lu,*,err=999) nat
     read(lu,*,err=999)
 
@@ -903,9 +906,10 @@ contains
     call fclose(lu)
     call realloc(fr%at,fr%nat)
 
+    errmsg = ""
     return
 999 continue
-    call ferror('identify_fragment_from_xyz','error reading xyz file: '//string(file),faterr)
+    if (lu > 0) call fclose(lu)
 
   end function identify_fragment_from_xyz
 

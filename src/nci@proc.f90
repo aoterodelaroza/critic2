@@ -45,7 +45,7 @@ contains
        ifformat_as_hxx2, ifformat_as_hxx3
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
-    character(len=:), allocatable :: line, word, oname, file
+    character(len=:), allocatable :: line, word, oname, file, errmsg
     logical :: ok, ok2, nstep_from_grid
     integer :: lp, istat
     integer :: i, j, k, iat, ifr, l, nmol
@@ -303,7 +303,8 @@ contains
                 inquire(file=word,exist=ok2)
                 if (.not.ok2) exit
                 ok = .true.
-                fr0 = sy%c%identify_fragment_from_xyz(word)
+                fr0 = sy%c%identify_fragment_from_xyz(word,errmsg)
+                if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
                 do j = 1, fr0%nat
                    do k = 1, 3
                       x0(k) = min(x0(k),fr0%at(j)%r(k))
@@ -326,7 +327,8 @@ contains
           if (equal(word,'')) then
              fr(nfrag) = read_fragment(uin)
           else
-             fr(nfrag) = sy%c%identify_fragment_from_xyz(word)
+             fr(nfrag) = sy%c%identify_fragment_from_xyz(word,errmsg)
+             if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
           endif
 
        elseif (equal(word,'endnciplot').or.equal(word,'end')) then

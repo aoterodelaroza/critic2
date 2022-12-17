@@ -378,9 +378,10 @@ module crystalmod
        real*8, intent(in) :: x0(3,nat)
        type(fragment) :: fr
      end function identify_fragment
-     module function identify_fragment_from_xyz(c,file,ti) result(fr)
+     module function identify_fragment_from_xyz(c,file,errmsg,ti) result(fr)
        class(crystal), intent(in) :: c
        character*(*) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        type(fragment) :: fr
      end function identify_fragment_from_xyz

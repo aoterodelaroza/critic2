@@ -421,25 +421,27 @@ contains
        f%name = "<promolecular>"
 
     elseif (seed%iff == ifformat_promolecular_fragment) then
-       fr = f%c%identify_fragment_from_xyz(seed%file(1),ti=ti)
-       if (fr%nat == 0) then
-          errmsg = "fragment contains unknown atoms"
-          call f%end()
-          return
+       fr = f%c%identify_fragment_from_xyz(seed%file(1),errmsg,ti=ti)
+       if (len_trim(errmsg) == 0) then
+          if (fr%nat > 0) then
+             call f%load_promolecular(f%c,id,trim(seed%file(1)),fr)
+          else
+             errmsg = "fragment contains unknown atoms"
+          end if
        end if
-       call f%load_promolecular(f%c,id,trim(seed%file(1)),fr)
        f%name = "<promolecular using fragment>"
 
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
        if (seed%iff == ifformat_as_promolecular) then
           if (seed%nfile > 0) then
-             fr = c%identify_fragment_from_xyz(seed%file(1),ti=ti)
-             if (fr%nat == 0) then
-                errmsg = "zero atoms in the fragment"
-                call f%end()
-                return
+             fr = c%identify_fragment_from_xyz(seed%file(1),errmsg,ti=ti)
+             if (len_trim(errmsg) == 0) then
+                if (fr%nat > 0) then
+                   call c%promolecular_grid(f%grid,seed%n,fr=fr)
+                else
+                   errmsg = "zero atoms in the fragment"
+                end if
              end if
-             call c%promolecular_grid(f%grid,seed%n,fr=fr)
              f%name = "<generated>, promolecular grid using fragment"
           else
              call c%promolecular_grid(f%grid,seed%n)
