@@ -145,58 +145,65 @@ module grid3mod
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
      end subroutine from_array3
-     module subroutine read_cube(f,file,x2c,env,ti)
+     module subroutine read_cube(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_cube
-     module subroutine read_bincube(f,file,x2c,env,ti)
+     module subroutine read_bincube(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_bincube
-     module subroutine read_siesta(f,file,x2c,env,ti)
+     module subroutine read_siesta(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_siesta
-     module subroutine read_abinit(f,file,x2c,env,ti)
+     module subroutine read_abinit(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_abinit
-     module subroutine read_vasp(f,file,x2c,vscal,ibl,env,ti)
+     module subroutine read_vasp(f,file,x2c,vscal,ibl,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        logical, intent(in) :: vscal
        integer, intent(in), optional :: ibl
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_vasp
-     module subroutine read_qub(f,file,x2c,env,ti)
+     module subroutine read_qub(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_qub
-     module subroutine read_xsf(f,file,x2c,env,ti)
+     module subroutine read_xsf(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_xsf
-     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,ti)
+     module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc
        integer, intent(in) :: ispin
@@ -205,6 +212,7 @@ module grid3mod
        real*8, intent(in) :: emin, emax
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_pwc
      module subroutine read_elk(f,file,x2c,env,errmsg,ti)
@@ -215,10 +223,11 @@ module grid3mod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_elk
-     module subroutine read_wannier_chk(f,fileup,filedn,ti)
+     module subroutine read_wannier_chk(f,fileup,filedn,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fileup
        character*(*), intent(in), optional :: filedn
+       character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wannier_chk
      module subroutine interp(f,xi,y,yp,ypp)

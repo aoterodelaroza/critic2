@@ -257,31 +257,35 @@ module wfn_private
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_orca_geometry
-     module subroutine read_wfn(f,file,env,ti)
+     module subroutine read_wfn(f,file,env,errmsg,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wfn
-     module subroutine read_wfx(f,file,env,ti)
+     module subroutine read_wfx(f,file,env,errmsg,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wfx
-     module subroutine read_fchk(f,file,readvirtual,env,ti)
+     module subroutine read_fchk(f,file,readvirtual,env,errmsg,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_fchk
-     module subroutine read_molden(f,file,molden_type,readvirtual,env,ti)
+     module subroutine read_molden(f,file,molden_type,readvirtual,env,errmsg,ti)
        class(molwfn), intent(inout) :: f
        character*(*), intent(in) :: file
        integer, intent(in) :: molden_type
        logical, intent(in) :: readvirtual
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_molden
      module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)

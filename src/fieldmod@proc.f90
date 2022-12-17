@@ -321,46 +321,43 @@ contains
 
     elseif (seed%iff == ifformat_pi) then
        call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg,ti=ti)
-       if (len_trim(errmsg) > 0) then
-          call f%end()
-          return
-       end if
        f%type = type_pi
        f%file = "<pi ion files>"
 
     elseif (seed%iff == ifformat_cube) then
        call f%grid%end()
-       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_cube(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        call f%grid%end()
-       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        call f%grid%end()
-       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        call f%grid%end()
-       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,ti=ti)
+       call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,&
+          errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
        call f%grid%end()
-       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_qub(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        call f%grid%end()
-       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -372,13 +369,13 @@ contains
 
     elseif (seed%iff == ifformat_siestagrid) then
        call f%grid%end()
-       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env,ti=ti)
+       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env,errmsg,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
@@ -388,34 +385,34 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env,ti=ti)
+          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env,errmsg,ti=ti)
        if (seed%nfile == 2) then
-          call f%grid%read_wannier_chk(seed%file(2),ti=ti)
+          call f%grid%read_wannier_chk(seed%file(2),errmsg=errmsg,ti=ti)
        elseif (seed%nfile == 3) then
-          call f%grid%read_wannier_chk(seed%file(2),seed%file(3),ti=ti)
+          call f%grid%read_wannier_chk(seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
        end if
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1),f%c%env,ti=ti)
+       call f%wfn%read_wfn(seed%file(1),f%c%env,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1),f%c%env,ti=ti)
+       call f%wfn%read_wfx(seed%file(1),f%c%env,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env,ti=ti)
+       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env,ti=ti)
+       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
@@ -511,7 +508,6 @@ contains
 
     return
 999 continue ! error termination with non-zero errmsg
-
     call f%end()
 
   end subroutine field_new

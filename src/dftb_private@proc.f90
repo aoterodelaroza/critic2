@@ -57,57 +57,75 @@ contains
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,filexml,filebin,filehsd,env,ti)
+  module subroutine dftb_read(f,filexml,filebin,filehsd,env,errmsg,ti)
     use types, only: anyatom, species
-    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, string, fclose
+    use tools_io, only: fopen_read, getline_raw, lower, string, fclose
     use param, only: tpi
     class(dftbwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
     type(environ), intent(in), target :: env !< environment of the cell
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, k, idum, n, id
     character(len=:), allocatable :: line
-    logical :: ok, iread(5)
+    logical :: ok, iread(5), iserr
     type(dftbbasis) :: at
     real*8, allocatable :: dw(:)
 
+    errmsg = "Error reading file"
+
     ! detailed.xml, first pass
     lu = fopen_read(filexml,ti=ti)
+    if (lu < 0) goto 999
     iread = .false.
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) exit
        line = adjustl(lower(line))
        if (index(line,"<real>") > 0) then
-          f%isreal = next_logical(lu,line,"real")
+          f%isreal = next_logical(lu,line,"real",iserr)
           iread(1) = .true.
        elseif (index(line,"<nrofkpoints>") > 0) then
-          f%nkpt = next_integer(lu,line,"nrofkpoints")
+          f%nkpt = next_integer(lu,line,"nrofkpoints",iserr)
           iread(2) = .true.
        elseif (index(line,"<nrofspins>") > 0) then
-          f%nspin = next_integer(lu,line,"nrofspins")
+          f%nspin = next_integer(lu,line,"nrofspins",iserr)
           iread(3) = .true.
        elseif (index(line,"<nrofstates>") > 0) then
-          f%nstates = next_integer(lu,line,"nrofstates")
+          f%nstates = next_integer(lu,line,"nrofstates",iserr)
           iread(4) = .true.
        elseif (index(line,"<nroforbitals>") > 0) then
-          f%norb = next_integer(lu,line,"nroforbitals")
+          f%norb = next_integer(lu,line,"nroforbitals",iserr)
           iread(5) = .true.
        end if
     end do
-    if (.not.all(iread)) &
-       call ferror('dftb_read','missing information in xml',faterr)
+    if (iserr) then
+       errmsg = "could not parse xml"
+       goto 999
+    end if
+    if (.not.all(iread)) then
+       errmsg = "missing information in xml"
+       goto 999
+    end if
 
     ! detailed.xml, second pass
     if (allocated(f%dkpt)) deallocate(f%dkpt)
     if (allocated(f%docc)) deallocate(f%docc)
     allocate(f%dkpt(3,f%nkpt),dw(f%nkpt),f%docc(f%nstates,f%nkpt,f%nspin))
     rewind(lu)
-    call read_kpointsandweights(lu,f%dkpt,dw)
-    call read_occupations(lu,f%docc)
+    call read_kpointsandweights(lu,f%dkpt,dw,iserr)
+    if (iserr) then
+       errmsg ="error reading kpoints and weights"
+       goto 999
+    end if
+    call read_occupations(lu,f%docc,iserr)
+    if (iserr) then
+       errmsg ="error reading occupations"
+       goto 999
+    end if
     call fclose(lu)
 
     ! use occupations times weights; scale the kpts by 2pi
@@ -119,7 +137,8 @@ contains
 
     ! eigenvec.bin
     lu = fopen_read(filebin,"unformatted",ti=ti)
-    read (lu) idum ! this is the identity number
+    if (lu < 0) goto 999
+    read (lu,err=999) idum ! this is the identity number
 
     ! read the eigenvectors
     if (f%isreal) then
@@ -127,7 +146,7 @@ contains
        allocate(f%evecr(f%norb,f%nstates,f%nspin))
        do i = 1, f%nspin
           do k = 1, f%nstates
-             read (lu) f%evecr(:,k,i)
+             read (lu,err=999) f%evecr(:,k,i)
           end do
        end do
     else
@@ -136,7 +155,7 @@ contains
        do i = 1, f%nspin
           do j = 1, f%nkpt
              do k = 1, f%nstates
-                read (lu) f%evecc(:,k,j,i)
+                read (lu,err=999) f%evecc(:,k,j,i)
              end do
           end do
        end do
@@ -145,15 +164,20 @@ contains
 
     ! open the hsd file with the basis definition
     lu = fopen_read(filehsd,ti=ti)
+    if (lu < 0) goto 999
     if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(10))
     n = 0
-    do while(next_hsd_atom(lu,at))
+    do while(next_hsd_atom(lu,at,iserr))
        if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
        n = n + 1
        if (n > size(f%bas)) call realloc_dftbbasis(f%bas,2*n)
        f%bas(n) = at
     end do
+    if (iserr) then
+       errmsg = "error reading hsd atoms"
+       goto 999
+    end if
     call realloc_dftbbasis(f%bas,n)
     call fclose(lu)
 
@@ -178,7 +202,11 @@ contains
     f%maxlm = 0
     do i = 1, env%ncell
        id = f%ispec(env%at(i)%is)
-       if (id == 0) call ferror('dftb_read','basis missing for atomic number ' // string(env%spc(env%at(i)%is)%z),faterr)
+       if (id == 0) then
+          lu = -1
+          errmsg = "basis missing for atomic number"
+          goto 999
+       end if
 
        f%maxnorb = max(f%maxnorb,f%bas(id)%norb)
        f%idxorb(i) = n + 1
@@ -190,7 +218,11 @@ contains
     f%midxorb = n
     f%maxlm = (f%maxlm+3)*(f%maxlm+3)
 
-    call build_interpolation_grid1(f)
+    call build_interpolation_grid1(f,errmsg)
+    if (len_trim(errmsg) > 0) then
+       lu = -1
+       goto 999
+    end if
 
     ! find the individual species cutoffs and maximum cutoff
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
@@ -221,6 +253,11 @@ contains
        f%isealloc = .false.
        f%e => env
     end if
+
+    errmsg = ""
+    return
+999 continue
+    if (lu > 0) call fclose(lu)
 
   end subroutine dftb_read
 
@@ -536,10 +573,11 @@ contains
   !xx! private procedures
 
   !> Read the next logical value in xml format.
-  function next_logical(lu,line0,key0) result(next)
-    use tools_io, only: ferror, faterr, lower, getline_raw
+  function next_logical(lu,line0,key0,iserr) result(next)
+    use tools_io, only: lower, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
+    logical, intent(out) :: iserr
     logical :: next
 
     character(len=:), allocatable :: line, key, aux
@@ -548,6 +586,7 @@ contains
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
+    iserr = .false.
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
     line = lower(line0)
@@ -597,16 +636,16 @@ contains
        end if
     end do
 
-    if (.not.found) &
-       call ferror("next_logical","could not parse xml file",faterr)
+    if (.not.found) iserr = .true.
 
   end function next_logical
 
   !> Read the next integer value in xml format.
-  function next_integer(lu,line0,key0) result(next)
-    use tools_io, only: ferror, faterr, lower, isinteger, getline_raw
+  function next_integer(lu,line0,key0,iserr) result(next)
+    use tools_io, only: lower, isinteger, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
+    logical, intent(out) :: iserr
     integer :: next
 
     character(len=:), allocatable :: line, key, aux
@@ -614,6 +653,7 @@ contains
     logical :: found, ok, lastpass
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
+    iserr = .false.
 
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
@@ -654,17 +694,17 @@ contains
        end if
     end do
 
-    if (.not.found) &
-       call ferror("next_integer","could not parse xml file",faterr)
+    if (.not.found) iserr = .true.
 
   end function next_integer
 
   !> Read the kpointsandweights entry from the xml.
-  subroutine read_kpointsandweights(lu,kpts,w)
-    use tools_io, only: ferror, faterr, getline_raw, lower
+  subroutine read_kpointsandweights(lu,kpts,w,iserr)
+    use tools_io, only: getline_raw, lower
     integer, intent(in) :: lu
     real*8, intent(out) :: kpts(:,:)
     real*8, intent(out) :: w(:)
+    logical, intent(out) :: iserr
 
     logical :: ok, found
     character(len=:), allocatable :: line, key
@@ -672,6 +712,7 @@ contains
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
+    iserr = .false.
     key = "<kpointsandweights>"
     found = .false.
     do while (.true.)
@@ -687,16 +728,16 @@ contains
        end if
     end do
 
-    if (.not.found) &
-       call ferror("read_kpointsandweights","could not parse xml file",faterr)
+    if (.not.found) iserr = .true.
 
   end subroutine read_kpointsandweights
 
   !> Read the occupations from the xml.
-  subroutine read_occupations(lu,occ)
-    use tools_io, only: ferror, faterr, getline_raw, lower, string
+  subroutine read_occupations(lu,occ,iserr)
+    use tools_io, only: getline_raw, lower, string
     integer, intent(in) :: lu
     real*8, intent(out) :: occ(:,:,:)
+    logical, intent(out) :: iserr
 
     logical :: ok, found
     character(len=:), allocatable :: line, key, aux
@@ -704,6 +745,7 @@ contains
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
+    iserr = .true.
     key = "<occupations>"
     found = .false.
     do while (.true.)
@@ -723,7 +765,8 @@ contains
                    if (index(line,key) > 0) exit
                 end do
                 ! read nstate real numbers
-                occ(:,ik,is) = dftb_read_reals1(lu,size(occ,1))
+                occ(:,ik,is) = dftb_read_reals1(lu,size(occ,1),iserr)
+                if (iserr) return
              end do
           end do
           exit
@@ -731,15 +774,15 @@ contains
        end if
     end do
 
-    if (.not.found) &
-       call ferror("read_occupations","could not parse xml file",faterr)
+    if (.not.found) iserr = .true.
 
   end subroutine read_occupations
 
   !> Read a list of n reals from a logical unit.
-  function dftb_read_reals1(lu,n) result(x)
-    use tools_io, only: getline_raw, isreal, ferror, faterr
+  function dftb_read_reals1(lu,n,iserr) result(x)
+    use tools_io, only: getline_raw, isreal
     integer, intent(in) :: lu, n
+    logical, intent(out) :: iserr
     real*8 :: x(n)
 
     integer :: kk, lp
@@ -749,6 +792,7 @@ contains
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
+    iserr = .false.
     kk = 0
     lp = 1
     ok = getline_raw(lu,aux,.true.)
@@ -761,7 +805,10 @@ contains
           if (.not.ok .or. line(1:1) == "<") exit
        else
           kk = kk + 1
-          if (kk > n) call ferror("dftb_read_reals1","exceeded size of the array",faterr)
+          if (kk > n) then
+             iserr = .true.
+             return
+          end if
           x(kk) = rdum
        endif
     enddo
@@ -769,20 +816,22 @@ contains
   endfunction dftb_read_reals1
 
   !> Read the next atom from the hsd wfc file.
-  function next_hsd_atom(lu,at) result(ok)
+  function next_hsd_atom(lu,at,iserr) result(ok)
     use types, only: realloc
-    use tools_io, only: ferror, faterr, lgetword, equal, getline, isreal, string
+    use tools_io, only: lgetword, equal, getline, isreal, string
     integer, intent(in) :: lu
     type(dftbbasis), intent(out) :: at
+    logical, intent(out) :: iserr
     logical :: ok
-
-    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
     character(len=:), allocatable :: line, word, aux
     integer :: idx, nb, lp, i, j, k, n
     real*8 :: rdum
     real*8, allocatable :: caux(:)
 
+    ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
+
+    iserr = .false.
     ok = .false.
     at%norb = 0
     at%nexp = 0
@@ -852,8 +901,10 @@ contains
                          if (.not.ok) exit
                       end do
                    elseif (equal(word,"coefficients")) then
-                      if (at%nexp(at%norb) == 0) &
-                         call ferror('next_hsd_atom','coefficients must come after exponents',faterr)
+                      if (at%nexp(at%norb) == 0) then
+                         iserr = .true.
+                         return
+                      end if
                       idx = index(line,"{")
                       aux = line(idx+1:)
                       line = aux
@@ -871,8 +922,10 @@ contains
                          ok = getline(lu,line,.true.)
                          if (.not.ok) exit
                       end do
-                      if (mod(n,at%nexp(at%norb)) /= 0) &
-                         call ferror('next_hsd_atom','inconsistent number of coefficients',faterr)
+                      if (mod(n,at%nexp(at%norb)) /= 0) then
+                         iserr = .true.
+                         return
+                      end if
 
                       k = 0
                       do i = 1, at%nexp(at%norb)
@@ -887,7 +940,8 @@ contains
                       nb = nb - 1
                       if (nb == 1) exit
                    else
-                      call ferror("next_hsd_atom","unknown keyword (2): " // string(word),faterr)
+                      iserr = .true.
+                      return
                    end if
                 end do
              elseif (equal(word,"}")) then
@@ -895,7 +949,8 @@ contains
                 if (nb == 0) exit
                 exit
              else
-                call ferror("next_hsd_atom","unknown keyword (1): " // string(word),faterr)
+                iserr = .true.
+                return
              end if
           end do
 
@@ -908,19 +963,22 @@ contains
   end function next_hsd_atom
 
   !> Build the interpolation grids for the radial parts of the orbitals.
-  subroutine build_interpolation_grid1(ff)
-    use tools_io, only: ferror, faterr
+  subroutine build_interpolation_grid1(ff,errmsg)
     class(dftbwfn), intent(inout) :: ff
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: it, iorb, istat, ipt
 
     integer, parameter :: npt = 2001
 
+    errmsg = ""
     do it = 1, size(ff%bas)
        if (allocated(ff%bas(it)%orb)) deallocate(ff%bas(it)%orb)
        allocate(ff%bas(it)%orb(ff%bas(it)%norb),stat=istat)
-       if (istat /= 0) call ferror('build_interpolation_grid1',&
-          'could not allocate memory for orbitals',faterr)
+       if (istat /= 0) then
+          errmsg = "could not allocate memory for orbitals"
+          return
+       end if
        do iorb = 1, ff%bas(it)%norb
           ff%bas(it)%orb(iorb)%isinit = .true.
           ff%bas(it)%orb(iorb)%a = mindist
@@ -933,8 +991,10 @@ contains
 
           allocate(ff%bas(it)%orb(iorb)%r(npt),ff%bas(it)%orb(iorb)%f(npt),&
                    ff%bas(it)%orb(iorb)%fp(npt),ff%bas(it)%orb(iorb)%fpp(npt),stat=istat)
-          if (istat /= 0) call ferror('build_interpolation_grid1',&
-             'could not allocate memory for orbital radial grids',faterr)
+          if (istat /= 0) then
+             errmsg = "could not allocate memory for orbital radial grids"
+             return
+          end if
           do ipt = 1, npt
              ff%bas(it)%orb(iorb)%r(ipt) = ff%bas(it)%orb(iorb)%a * exp(ff%bas(it)%orb(iorb)%b * real(ipt-1,8))
              call calculate_rl(ff,it,iorb,ff%bas(it)%orb(iorb)%r(ipt),ff%bas(it)%orb(iorb)%f(ipt),&
@@ -942,6 +1002,7 @@ contains
           end do
        end do
     end do
+
   end subroutine build_interpolation_grid1
 
   !> Calculate the radial part of an orbital and its first and second
@@ -992,15 +1053,12 @@ contains
 
   !> Adapt the size of an allocatable 1D type(atom) array
   subroutine realloc_dftbbasis(a,nnew)
-    use tools_io, only: ferror, faterr
     type(dftbbasis), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
     type(dftbbasis), allocatable :: temp(:)
     integer :: nold
 
-    if (.not.allocated(a)) &
-       call ferror('realloc_dftbbasis','array not allocated',faterr)
     nold = size(a)
     if (nold == nnew) return
     allocate(temp(nnew))

@@ -71,13 +71,14 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,env,ti)
+     module subroutine dftb_read(f,filexml,filebin,filehsd,env,errmsg,ti)
        use types, only: anyatom, species
        class(dftbwfn), intent(inout) :: f
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine dftb_read
      module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)

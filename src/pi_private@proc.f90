@@ -81,19 +81,20 @@ contains
        found = .false.
        do j = 1, env%nspc
           if (equali(piat(i),env%spc(j)%name)) then
-             call read_ion(f,file(i),j,ti=ti)
+             call read_ion(f,file(i),j,errmsg,ti=ti)
+             if (len_trim(errmsg) > 0) goto 999
              found = .true.
           else if (iok) then
              if (ithis == j) then
-                call read_ion(f,file(i),j,ti=ti)
+                call read_ion(f,file(i),j,errmsg,ti=ti)
+                if (len_trim(errmsg) > 0) goto 999
                 found = .true.
              end if
           end if
        end do
        if (.not.found) then
           errmsg = "unknown species for pi ion file: " // trim(file(i))
-          call f%end()
-          return
+          goto 999
        end if
     end do
 
@@ -154,6 +155,10 @@ contains
           call rhoex1(f,i,f%bas(i)%pgrid%r(j),f%bas(i)%pgrid%f(j),f%bas(i)%pgrid%fp(j),f%bas(i)%pgrid%fpp(j))
        end do
     end do
+
+    return
+999 continue ! error condition
+    call f%end()
 
   end subroutine pi_read
 
@@ -306,12 +311,13 @@ contains
   !xx! private procedures
 
   !> Read a PI ion description file from file fichero and species ni.
-  subroutine read_ion(f,fichero,ni,ti)
-    use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
+  subroutine read_ion(f,fichero,ni,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, fclose
     use param, only: fact, zero
     type(piwfn), intent(inout) :: f
     character*(*) :: fichero
     integer :: ni
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     ! parameters
@@ -335,6 +341,7 @@ contains
     integer :: nref, nxef, nyef, nzef
 
     ! allocate
+    errmsg = "error reading files"
     f%bas(ni)%pi_used = .true.
     f%bas(ni)%piname = trim(fichero)
     if (allocated(f%bas(ni)%naos)) deallocate(f%bas(ni)%naos)
@@ -358,6 +365,7 @@ contains
 
     !.....abrir el fichero:
     lui=fopen_read(fichero,ti=ti)
+    if (lui < 0) goto 999
 
     !.....Determinar la version de pi a que corresponde el fichero:
     ok = getline_raw(lui,linea,.true.)
@@ -376,7 +384,7 @@ contains
     else if (linea(1:4).eq.'CGTO') then
        stop 'pi(leerion): sto/gto mixing!'
     else
-       call ferror('pi_read_ion','sto/gto incompatible with the global type!',faterr)
+       errmsg = 'sto/gto incompatible with the global type!'
        goto 999
     endif
 
@@ -486,11 +494,13 @@ contains
 
     !.....cerrar el fichero de datos:
     call fclose (lui)
+    errmsg = ""
 
     return
+
     !.....error de lectura:
-999 close (lui)
-    stop 'pi(leerion): read error !'
+999 continue
+    if (lui > 0) close (lui)
 
   end subroutine read_ion
 

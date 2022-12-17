@@ -490,12 +490,13 @@ contains
   end subroutine from_array3
 
   !> Read a grid in Gaussian CUBE format
-  module subroutine read_cube(f,file,x2c,env,ti)
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+  module subroutine read_cube(f,file,x2c,env,errmsg,ti)
+    use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
@@ -503,27 +504,24 @@ contains
     integer :: istat, n(3), i, j, k
     logical :: ismo
 
+    errmsg = "Error reading file"
     call f%end()
     luc = fopen_read(file,ti=ti)
 
-    read (luc,*)
-    read (luc,*)
-    read (luc,*,iostat=istat) nat
+    read (luc,*,err=999)
+    read (luc,*,err=999)
+    read (luc,*,err=999) nat
     ismo = (nat < 0)
     nat = abs(nat)
 
-    if (istat /= 0) &
-       call ferror('read_cube','Error reading nat',faterr,file)
     do i = 1, 3
-       read (luc,*,iostat=istat) n(i)
-       if (istat /= 0) &
-          call ferror('read_cube','Error reading nx, ny, nz',faterr,file)
+       read (luc,*,err=999) n(i)
     end do
     do i = 1, nat
-       read (luc,*)
+       read (luc,*,err=999)
     end do
     if (ismo) &
-       read (luc,*)
+       read (luc,*,err=999)
 
     f%isinit = .true.
     f%isqe = .false.
@@ -531,24 +529,29 @@ contains
     f%mode = mode_default
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_cube','Error allocating grid',faterr,file)
-    read(luc,*,iostat=istat) (((f%f(i,j,k),k=1,n(3)),j=1,n(2)),i=1,n(1))
-    if (istat /= 0) &
-       call ferror('read_cube','Error reading grid',faterr,file)
-
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+    read(luc,*,err=999) (((f%f(i,j,k),k=1,n(3)),j=1,n(2)),i=1,n(1))
     call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_cube
 
   !> Read a grid in binary CUBE format
-  module subroutine read_bincube(f,file,x2c,env,ti)
+  module subroutine read_bincube(f,file,x2c,env,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
@@ -557,20 +560,18 @@ contains
     logical :: ismo
     real*8 :: x0(3), xd(3,3), rdum
 
+    errmsg = "Error reading file"
     call f%end()
     luc = fopen_read(file,form="unformatted",ti=ti)
+    if (luc < 0) goto 999
 
-    read (luc,iostat=istat) nat, x0
+    read (luc,err=999) nat, x0
     ismo = (nat < 0)
     nat = abs(nat)
 
-    if (istat /= 0) &
-       call ferror('read_cube','Error reading nat',faterr,file)
-    read (luc,iostat=istat) n, xd
-    if (istat /= 0) &
-       call ferror('read_cube','Error reading nx, ny, nz',faterr,file)
+    read (luc,err=999) n, xd
     do i = 1, nat
-       read (luc) iz, rdum, x0
+       read (luc,err=999) iz, rdum, x0
     end do
 
     f%isinit = .true.
@@ -579,30 +580,37 @@ contains
     f%mode = mode_default
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_cube','Error allocating grid',faterr,file)
-    read(luc,iostat=istat) f%f
-    if (istat /= 0) &
-       call ferror('read_cube','Error reading grid',faterr,file)
-
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+    read(luc,err=999) f%f
     call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_bincube
 
   !> Read a grid in siesta RHO format
-  module subroutine read_siesta(f,file,x2c,env,ti)
+  module subroutine read_siesta(f,file,x2c,env,errmsg,ti)
     use tools_io, only: fopen_read, faterr, ferror, fclose
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc, nspin, istat
     integer :: i, iy, iz, n(3)
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
+
+    errmsg = "Error reading file"
 
     ! initialize
     call f%end()
@@ -613,23 +621,28 @@ contains
 
     ! open file
     luc = fopen_read(file,'unformatted',ti=ti)
+    if (luc < 0) goto 999
 
     ! assume unformatted
-    read (luc) r
-    read (luc) n, nspin
+    read (luc,err=999) r
+    read (luc,err=999) n, nspin
     call init_geometry(f,x2c,n,env)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_siesta','Error allocating grid',faterr,file)
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
     allocate(g(n(1)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_siesta','Error allocating auxiliary grid',faterr,file)
+    if (istat /= 0) then
+       errmsg = "Error allocating auxiliary grid"
+       goto 999
+    end if
     f%f = 0d0
     do i = 1, nspin
        do iz = 1, n(3)
           do iy = 1, n(2)
-             read (luc) g
+             read (luc,err=999) g
              f%f(:,iy,iz) = f%f(:,iy,iz) + g
           end do
        end do
@@ -638,20 +651,25 @@ contains
 
     call fclose(luc)
 
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
+
   end subroutine read_siesta
 
   !> Read a grid in abinit format
-  module subroutine read_abinit(f,file,x2c,env,ti)
+  module subroutine read_abinit(f,file,x2c,env,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use tools_io, only: fopen_read, fclose
     use abinit_private, only: hdr_type, hdr_io
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: errmsg
     integer :: luc
     integer :: fform0, istat, n(3)
     type(hdr_type) :: hdr
@@ -659,12 +677,16 @@ contains
 
     call f%end()
     luc = fopen_read(file,'unformatted',ti=ti)
+    if (luc < 0) then
+       errmsg = "Error opening file"
+       goto 999
+    end if
 
     ! read the header
     call hdr_io(fform0,hdr,1,luc,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('read_abinit',errmsg,faterr,file)
+    if (len_trim(errmsg) > 0) goto 999
 
+    errmsg = "Error reading file"
     f%isinit = .true.
     f%isqe = .false.
     f%iswan = .false.
@@ -672,16 +694,18 @@ contains
     n = hdr%ngfft(:)
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_abinit','Error allocating grid',faterr,file)
+    if (istat /= 0) goto 999
     allocate(g(n(1),n(2),n(3)))
-    read(luc,iostat=istat) g
+    read(luc,err=999) g
     f%f = g
     deallocate(g)
-    if (istat /= 0) &
-       call ferror('read_abinit','Error reading grid',faterr,file)
 
     call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue ! error condition
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_abinit
 
@@ -690,7 +714,7 @@ contains
   !> density * omega). In CHGCAR containing more than one grid block,
   !> ibl can be used to choose which block to read (density, spin
   !> density, etc.). If vscal, scale by volume.
-  module subroutine read_vasp(f,file,x2c,vscal,ibl,env,ti)
+  module subroutine read_vasp(f,file,x2c,vscal,ibl,env,errmsg,ti)
     use tools_math, only: det3, matinv
     use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
        isinteger
@@ -700,6 +724,7 @@ contains
     logical, intent(in) :: vscal
     integer, intent(in), optional :: ibl
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
@@ -707,17 +732,18 @@ contains
     character(len=:), allocatable :: line
     logical :: ok
 
+    errmsg = "Error reading file"
     call f%end()
     luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
 
     do while(.true.)
        ok = getline_raw(luc,line,.true.)
+       if (.not.ok) goto 999
        if (len(trim(line)) == 0) exit
     end do
 
-    read (luc,*,iostat=istat) n
-    if (istat /= 0) &
-       call ferror('read_vasp','Error reading nx, ny, nz',faterr,file)
+    read (luc,*,err=999) n
 
     f%isinit = .true.
     f%isqe = .false.
@@ -725,28 +751,29 @@ contains
     f%mode = mode_default
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_vasp','Error allocating grid',faterr,file)
-    read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
-    if (istat /= 0) &
-       call ferror('read_vasp','Error reading grid',faterr,file)
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
 
+    read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (present(ibl)) then
        ibcur = 1
        do while (ibcur < ibl)
           nnew = 0
           do while (all(nnew /= n))
              ok = getline_raw(luc,line,.false.)
-             if (.not.ok) &
-                call ferror('read_vasp','Error reading grid block '//string(ibcur)//' < requested '//string(ibl),faterr,file)
+             if (.not.ok) then
+                errmsg = "Error reading grid block " //string(ibcur)// " < requested " // string(ibl)
+                goto 999
+             end if
              ok = isinteger(nnew(1),line)
              ok = ok .and. isinteger(nnew(2),line)
              ok = ok .and. isinteger(nnew(3),line)
+             if (.not.ok) nnew = 0
           end do
 
-          read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
-          if (istat /= 0) &
-             call ferror('read_vasp','Error reading grid in block '//string(ibcur),faterr,file)
+          read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
           ibcur = ibcur + 1
        end do
     end if
@@ -754,27 +781,33 @@ contains
        f%f(:,:,:) = f%f(:,:,:) / det3(x2c)
     call fclose(luc)
 
+    errmsg = ""
+    return
+999 continue
+    if (luc < 0) call fclose(luc)
+
   end subroutine read_vasp
 
   !> Read a grid in aimpac qub format
-  module subroutine read_qub(f,file,x2c,env,ti)
+  module subroutine read_qub(f,file,x2c,env,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
     integer :: istat, n(3), i, j, k
 
+    errmsg = "Error reading file"
     call f%end()
     luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
 
-    read (luc,*,iostat=istat) n
-    if (istat /= 0) &
-       call ferror('read_qub','Error reading n1, n2, n3',faterr,file)
+    read (luc,*,err=999) n
 
     f%isinit = .true.
     f%isqe = .false.
@@ -782,26 +815,30 @@ contains
     f%mode = mode_default
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_qub','Error allocating grid',faterr,file)
-    read(luc,*,iostat=istat) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
-    if (istat /= 0) &
-       call ferror('read_qub','Error reading grid',faterr,file)
-
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+    read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_qub
 
   !> Read a grid in xcrysden xsf format -- only first 3d grid in first 3d block
-  module subroutine read_xsf(f,file,x2c,env,ti)
+  module subroutine read_xsf(f,file,x2c,env,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, getline_raw, lgetword, equal, ferror, faterr, &
-       fclose
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, fclose
     use types, only: realloc
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
@@ -812,10 +849,12 @@ contains
     real*8 :: pmat(3,3)
     real*8, allocatable :: ggloc(:,:,:)
 
+    errmsg = "Error reading file"
     call f%end()
 
     ! open file for reading
     luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
 
     ! position at the beginning of the first grid, ignore the rest
     found = .false.
@@ -825,16 +864,20 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'primvec'))then
           ok = .true.
-          read(luc,*,iostat=istat) pmat
-          if (istat /= 0) &
-             call ferror('read_xsf','Error PRIMVEC',faterr,file)
+          read(luc,*,err=999) pmat
        else if (equal(word,'begin_block_datagrid_3d').or.equal(word,'begin_block_datagrid3d'))then
           found = .true.
           exit
        end if
     end do
-    if (.not.found) call ferror('read_xsf','BEGIN_BLOCK_DATAGRID_3D not found',faterr,file)
-    if (.not.ok) call ferror('read_xsf','PRIMVEC not found',faterr,file)
+    if (.not.found) then
+       errmsg = "BEGIN_BLOCK_DATAGRID_3D not found"
+       goto 999
+    end if
+    if (.not.ok) then
+       errmsg = "PRIMVEC not found"
+       goto 999
+    end if
 
     found = .false.
     do while (getline_raw(luc,line))
@@ -846,35 +889,39 @@ contains
           exit
        end if
     end do
-    if (.not.found) call ferror('read_xsf','BEGIN_DATAGRID_3D... not found',faterr,file)
+    if (.not.found) then
+       errmsg = "BEGIN_DATAGRID_3D... not found"
+       goto 999
+    end if
 
     ! grid dimension
-    read (luc,*,iostat=istat) n
-    if (istat /= 0) &
-       call ferror('read_xsf','Error reading n1, n2, n3',faterr,file)
+    read (luc,*,err=999) n
     call init_geometry(f,x2c,n-1,env)
 
     ! origin and edge vectors
-    read (luc,*,iostat=istat) x0, x1, x2, x3
+    read (luc,*,err=999) x0, x1, x2, x3
 
     f%isinit = .true.
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
     allocate(ggloc(n(1),n(2),n(3)),stat=istat)
-    if (istat /= 0) &
-       call ferror('read_xsf','Error allocating grid',faterr,file)
-    if (istat /= 0) &
-       call ferror('read_xsf','Error allocating grid',faterr,file)
-    read(luc,*,iostat=istat) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
-    if (istat /= 0) &
-       call ferror('read_xsf','Error reading grid',faterr,file)
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+    read(luc,*,err=999) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
 
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
     f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
     deallocate(ggloc)
 
     call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_xsf
 
@@ -884,9 +931,9 @@ contains
   !> ispin = 0 (all-electron density), 1 (spin-up), 2 (spin-down).
   !> ikpt = use only the indicated k-points. ibnd = use only the
   !> indicated bands. emin,emax: only the bands in the energy range.
-  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,ti)
+  module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,errmsg,ti)
     use tools_math, only: det3, matinv
-    use tools_io, only: fopen_read, fclose, ferror, faterr
+    use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fpwc
     integer, intent(in) :: ispin
@@ -895,6 +942,7 @@ contains
     real*8, intent(in) :: emin, emax
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: i, is, ik, ib, iver, n(3)
@@ -907,6 +955,7 @@ contains
     real*8, parameter :: epsocc = 1d-6
 
     ! initialize
+    errmsg = "Error reading file"
     call f%end()
     f%qe%fpwc = fpwc
     f%isqe = .true.
@@ -914,29 +963,32 @@ contains
 
     ! open file
     luc = fopen_read(fpwc,form="unformatted",ti=ti)
+    if (luc < 0) goto 999
 
     ! header and lattice vectors
-    read (luc) iver ! version
-    if (iver < 2) &
-       call ferror('read_pwc','This pwc file is too old. Please update your QE and regenerate it.',faterr)
+    read (luc,err=999) iver ! version
+    if (iver < 2) then
+       errmsg = "This pwc file is too old. Please update your QE and regenerate it."
+       goto 999
+    end if
 
-    read (luc) nsp, nat, alat ! nsp, nat, alat
-    read (luc) ! atm
-    read (luc) ! ityp
-    read (luc) ! tau
-    read (luc) at
+    read (luc,err=999) nsp, nat, alat ! nsp, nat, alat
+    read (luc,err=999) ! atm
+    read (luc,err=999) ! ityp
+    read (luc,err=999) ! tau
+    read (luc,err=999) at
     at = at * alat
 
     ! read the dimensions for the arrays
-    read (luc) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
+    read (luc,err=999) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
     if (f%qe%nspin == 1) then
        fspin = 2d0
     else
        fspin = 1d0
     end if
-    read (luc) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
-    read (luc) n
-    read (luc) npwx, ngms
+    read (luc,err=999) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
+    read (luc,err=999) n
+    read (luc,err=999) npwx, ngms
     nkstot = f%qe%nspin * f%qe%nks
     call init_geometry(f,x2c,n,env)
 
@@ -949,10 +1001,10 @@ contains
     allocate(f%qe%ek(f%qe%nbnd,f%qe%nks,f%qe%nspin))
     if (allocated(f%qe%occ)) deallocate(f%qe%occ)
     allocate(f%qe%occ(f%qe%nbnd,f%qe%nks,f%qe%nspin))
-    read (luc) f%qe%kpt
-    read (luc) f%qe%wk
-    read (luc) f%qe%ek
-    read (luc) f%qe%occ
+    read (luc,err=999) f%qe%kpt
+    read (luc,err=999) f%qe%wk
+    read (luc,err=999) f%qe%ek
+    read (luc,err=999) f%qe%occ
 
     ! read k-point mapping
     if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
@@ -961,13 +1013,13 @@ contains
     allocate(f%qe%igk_k(npwx,f%qe%nks))
     if (allocated(f%qe%nl)) deallocate(f%qe%nl)
     allocate(f%qe%nl(ngms))
-    read (luc) f%qe%ngk
-    read (luc) f%qe%igk_k
-    read (luc) f%qe%nl
+    read (luc,err=999) f%qe%ngk
+    read (luc,err=999) f%qe%igk_k
+    read (luc,err=999) f%qe%nl
     if (f%qe%gamma_only) then
        if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
        allocate(f%qe%nlm(ngms))
-       read (luc) f%qe%nlm
+       read (luc,err=999) f%qe%nlm
     end if
 
     ! convert k-point coordinates to reciprocal crystallographic and
@@ -988,7 +1040,7 @@ contains
        do ik = 1, f%qe%nks
           do ib = 1, f%qe%nbnd
              rseq = 0d0
-             read (luc) evc(1:f%qe%ngk(ik))
+             read (luc,err=999) evc(1:f%qe%ngk(ik))
 
              ! range checks
              if (is /= ispin .and. ispin /= 0) cycle
@@ -1040,6 +1092,11 @@ contains
     if (allocated(f%qe%center)) deallocate(f%qe%center)
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc < 0) call fclose(luc)
 
   end subroutine read_pwc
 
@@ -1094,13 +1151,14 @@ contains
   !> Reads information from a wannier90 checkpoint file (.chk). Sets
   !> the wannier information in the qe field only (center, spread, u).
   !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
-  module subroutine read_wannier_chk(f,fileup,filedn,ti)
+  module subroutine read_wannier_chk(f,fileup,filedn,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: faterr, ferror, uout, fopen_read, fclose
     use param, only: bohrtoa
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fileup
     character*(*), intent(in), optional :: filedn
+    character(len=:), allocatable, intent(out), optional :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu(2)
@@ -1113,72 +1171,87 @@ contains
     real*8, allocatable :: kpt(:,:)
 
     ! check qe is available
+    errmsg = "Error reading file"
+    lu = -1
     if (.not.f%isinit) then
-       call ferror("read_wannier_chk","cannot read wannier data with non-initialized grid",faterr)
+       errmsg = "cannot read wannier data with non-initialized grid"
+       goto 999
     end if
     if (.not.f%isqe) then
-       call ferror("read_wannier_chk","cannot read wannier data without qe data",faterr)
+       errmsg = "cannot read wannier data without qe data"
+       goto 999
     end if
 
     ! check nspin consistency
     if (present(filedn)) then
-       if (f%qe%nspin /= 2) &
-          call ferror("read_wannier_chk","two chk files but nspin = 1",faterr)
+       if (f%qe%nspin /= 2) then
+          errmsg = "two chk files but nspin = 1"
+          goto 999
+       end if
     else
-       if (f%qe%nspin /= 1) &
-          call ferror("read_wannier_chk","one chk file but nspin = 2",faterr)
+       if (f%qe%nspin /= 1) then
+          errmsg = "one chk file but nspin = 2"
+          goto 999
+       end if
     end if
     nspin = f%qe%nspin
 
     ! open files and initialize
     lu(1) = fopen_read(fileup,form="unformatted",ti=ti)
-    if (nspin == 2) &
+    if (lu(1) < 0) goto 999
+    if (nspin == 2) then
        lu(2) = fopen_read(filedn,form="unformatted",ti=ti)
+       if (lu(2) < 0) goto 999
+    end if
 
     ! header and number of bands
     do is = nspin, 1, -1
-       read(lu(is)) header
-       read(lu(is)) nbnd
-       read(lu(is)) jbnd
-       if (jbnd > 0) &
-          call ferror("read_wannier_chk","number of excluded bands must be 0",faterr)
-       if (nbnd /= f%qe%nbnd .and. nspin == 1) &
-          call ferror("read_wannier_chk","number of bands different in wannier and qe",faterr)
-       read(lu(is)) (idum,i=1,jbnd)
+       read(lu(is),err=999) header
+       read(lu(is),err=999) nbnd
+       read(lu(is),err=999) jbnd
+       if (jbnd > 0) then
+          errmsg = "number of excluded bands must be 0"
+          goto 999
+       end if
+       if (nbnd /= f%qe%nbnd .and. nspin == 1) then
+          errmsg = "number of bands different in wannier and qe"
+          goto 999
+       end if
+       read(lu(is),err=999) (idum,i=1,jbnd)
 
        ! real and reciprocal lattice
-       read(lu(is)) ((rlatt(i,j),i=1,3),j=1,3)
-       read(lu(is)) ((rclatt(i,j),i=1,3),j=1,3)
+       read(lu(is),err=999) ((rlatt(i,j),i=1,3),j=1,3)
+       read(lu(is),err=999) ((rclatt(i,j),i=1,3),j=1,3)
 
        ! number of k-points
-       read(lu(is)) nks
-       read(lu(is)) nk
-       if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) &
-          call ferror("read_wannier_chk","error in number of k-points (wannier)",faterr)
-       if (nks /= f%qe%nks) &
-          call ferror("read_wannier_chk","number of k-points from wannier different than qe",faterr)
+       read(lu(is),err=999) nks
+       read(lu(is),err=999) nk
+       if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) then
+          errmsg = "error in number of k-points (wannier)"
+          goto 999
+       end if
+       if (nks /= f%qe%nks) then
+          errmsg = "number of k-points from wannier different than qe"
+          goto 999
+       end if
     end do
 
     ! k-points
     allocate(kpt(3,nks))
     do is = nspin, 1, -1
-       read(lu(is)) ((kpt(i,j),i=1,3),j=1,nks)
+       read(lu(is),err=999) ((kpt(i,j),i=1,3),j=1,nks)
        do i = 1, nks
           ik1 = nint(kpt(1,i) * nk(1))
           ik2 = nint(kpt(2,i) * nk(2))
           ik3 = nint(kpt(3,i) * nk(3))
           if (abs(kpt(1,i) * nk(1) - ik1) > 1d-5 .or.abs(kpt(2,i) * nk(2) - ik2) > 1d-5 .or.&
              abs(kpt(3,i) * nk(3) - ik3) > 1d-5) then
-             write (uout,*) kpt(:,i)
-             write (uout,*) kpt(1,i)*nk(1),kpt(1,i)*nk(2),kpt(1,i)*nk(3)
-             write (uout,*) ik1, ik2, ik3
-             call ferror("read_wannier_chk","not a (uniform) monkhorst-pack grid or shifted grid",faterr)
+             errmsg = "not a (uniform) monkhorst-pack grid or shifted grid"
+             goto 999
           end if
           if (any(abs(kpt(:,i) - f%qe%kpt(:,i)) > 1d-5)) then
-             write (uout,*) i
-             write (uout,*) kpt(:,i)
-             write (uout,*) f%qe%kpt(:,i)
-             call ferror("read_wannier_chk","inconsistent wannier/qe k-point coordinates",faterr)
+             errmsg = "inconsistent wannier/qe k-point coordinates"
+             goto 999
           end if
        end do
     end do
@@ -1189,15 +1262,17 @@ contains
     f%qe%nbndw = 0
 
     do is = nspin, 1, -1
-       read(lu(is)) idum ! number of nearest k-point neighbours
-       read(lu(is)) jbnd ! number of wannier functions
+       read(lu(is),err=999) idum ! number of nearest k-point neighbours
+       read(lu(is),err=999) jbnd ! number of wannier functions
        f%qe%nbndw(is) = jbnd
 
        ! checkpoint position and disentanglement
-       read(lu(is)) chkpt1
-       read(lu(is)) have_disentangled
-       if (have_disentangled) &
-          call ferror("read_wannier_chk","cannot handle disentangled wannier functions",faterr)
+       read(lu(is),err=999) chkpt1
+       read(lu(is),err=999) have_disentangled
+       if (have_disentangled) then
+          errmsg = "cannot handle disentangled wannier functions"
+          goto 999
+       end if
     end do
 
     ! rest of the file: u and m matrices, wannier centers and spreads
@@ -1210,11 +1285,12 @@ contains
     f%qe%center = 0d0
     f%qe%spread = 0d0
     do is = nspin, 1, -1
-       read(lu(is)) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
-       read(lu(is)) ! m matrix
-       read(lu(is)) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
-       read(lu(is)) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
+       read(lu(is),err=999) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
+       read(lu(is),err=999) ! m matrix
+       read(lu(is),err=999) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
+       read(lu(is),err=999) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
        call fclose(lu(is))
+       lu(is) = -1
     end do
 
     ! convert centers to crystallographic and spread to bohr
@@ -1239,6 +1315,12 @@ contains
 
     ! clean up
     f%iswan = .true.
+
+    errmsg = ""
+    return
+999 continue
+    if (lu(1) > 0) call fclose(lu(1))
+    if (lu(2) > 0) call fclose(lu(2))
 
   end subroutine read_wannier_chk
 

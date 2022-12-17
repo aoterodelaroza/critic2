@@ -288,38 +288,47 @@ contains
     logical :: ok
     real*8 :: x(3)
 
-    errmsg = ""
+    errmsg = "Error reading file"
     lu = fopen_read(filename,ti=ti)
+    if (lu < 0) goto 999
     ! ignore the 'scale' stuff
     do i = 1, 14
-       read(lu,*)
+       read(lu,*,err=999)
     end do
 
-    read(lu,'(3G18.10)') f%x2c(:,1)
-    read(lu,'(3G18.10)') f%x2c(:,2)
-    read(lu,'(3G18.10)') f%x2c(:,3)
+    read(lu,'(3G18.10)',err=999) f%x2c(:,1)
+    read(lu,'(3G18.10)',err=999) f%x2c(:,2)
+    read(lu,'(3G18.10)',err=999) f%x2c(:,3)
 
     ok = getline_raw(lu,line,.true.)
+    if (.not.ok) goto 999
     ok = getline_raw(lu,line,.true.)
+    if (.not.ok) goto 999
     if (equal(line,'molecule')) then
        errmsg = "Isolated molecules not supported"
-       return
+       goto 999
     end if
 
-    read(lu,'(I4)') nspecies
+    read(lu,'(I4)',err=999) nspecies
     do i = 1, nspecies
        ok = getline_raw(lu,line,.true.)
+       if (.not.ok) goto 999
        lp = 1
        atname = getword(line,lp)
        do j = 1, len(atname)
           if (atname(j:j) == "'") atname(j:j) = " "
           if (atname(j:j) == '"') atname(j:j) = " "
        end do
-       read(lu,*) natoms
+       read(lu,*,err=999) natoms
        do j = 1, natoms
-          read(lu,*) x
+          read(lu,*,err=999) x
        end do
     end do
+    call fclose(lu)
+    errmsg = ""
+
+    return
+999 continue ! error condition
     call fclose(lu)
 
   end subroutine elk_geometry
@@ -360,6 +369,7 @@ contains
     isnewer(i,j,k) = (vdum(1)>i).or.(vdum(1)==i.and.vdum(2)>j).or.(vdum(1)==i.and.vdum(2)==j.and.vdum(3)>=k)
 
     ! open the file
+    errmsg = "Error reading file"
     lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
@@ -531,9 +541,10 @@ contains
     deallocate(idx,iar,rar,gc,ivg)
     if (allocated(rcmt)) deallocate(rcmt)
 
+    errmsg = ""
     return
 999 continue ! error condition
-    errmsg = "error reading state file"
+    if (lu > 0) call fclose(lu)
 
   end subroutine read_elk_state
 
@@ -552,33 +563,19 @@ contains
     real*8, allocatable :: rhoktmp(:), rhotmp(:,:)
 
     ! open the file
-    errmsg = ""
+    errmsg = "Error reading file"
     lu = fopen_read(filename,"unformatted",ti=ti)
+    if (lu < 0) goto 999
 
     ! read header
     read(lu,err=999) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
 
     ! dimension checks
-    if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) then
-       errmsg = "field not allocated"
-       return
-    end if
-    if (size(f%rhomt,1) /= nrmtmax) then
-       errmsg = "wrong nrmtmax in field"
-       return
-    end if
-    if (size(f%rhomt,2) /= lmmaxo) then
-       errmsg = "wrong lmmaxo in field"
-       return
-    end if
-    if (size(f%rhomt,3) /= natmtot) then
-       errmsg = "wrong natmtot in field"
-       return
-    end if
-    if (size(f%rhok) /= ngtot) then
-       errmsg = "wrong ngtot in field"
-       return
-    end if
+    if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) goto 999
+    if (size(f%rhomt,1) /= nrmtmax) goto 999
+    if (size(f%rhomt,2) /= lmmaxo) goto 999
+    if (size(f%rhomt,3) /= natmtot) goto 999
+    if (size(f%rhok) /= ngtot) goto 999
 
     ! read the number of rmt points (internal)
     allocate(nrmti(maxspecies),nrmt(maxspecies))
@@ -610,9 +607,10 @@ contains
     call cfftnd(3,f%n,-1,f%rhok)
     deallocate(rhoktmp)
 
+    errmsg = ""
     return
 999 continue ! error condition
-    errmsg = "error reading file"
+    if (lu > 0) call fclose(lu)
 
   end subroutine read_elk_myout
 

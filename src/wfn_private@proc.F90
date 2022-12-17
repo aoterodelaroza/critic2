@@ -953,11 +953,12 @@ contains
   end subroutine wfn_read_orca_geometry
 
   !> Read the wavefunction from a wfn file
-  module subroutine read_wfn(f,file,env,ti)
-    use tools_io, only: fopen_read, zatguess, ferror, faterr, fclose
+  module subroutine read_wfn(f,file,env,errmsg,ti)
+    use tools_io, only: fopen_read, zatguess, fclose
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luwfn, nat, iz, istat, i, j, num1, num2
@@ -968,6 +969,7 @@ contains
     logical :: isfrac, found
     character*8 :: dum1
 
+    errmsg = "Error reading file"
     f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
@@ -976,14 +978,15 @@ contains
 
     ! read number of atoms, primitives, orbitals
     luwfn = fopen_read(file,ti=ti)
-    read (luwfn,*)
-    read (luwfn,101) orbtyp, f%nmoocc, f%npri, nat
+    if (luwfn < 0) goto 999
+    read (luwfn,*,err=999)
+    read (luwfn,101,err=999) orbtyp, f%nmoocc, f%npri, nat
     f%nmoall = f%nmoocc
     f%nalpha_virt = 0
 
     ! atomic positions and numbers
     do i = 1, nat
-       read(luwfn,106) elem, x, zreal
+       read(luwfn,106,err=999) elem, x, zreal
        iz = zatguess(elem)
        if (iz /= nint(zreal)) f%useecp = .true.
     end do
@@ -991,36 +994,37 @@ contains
     ! center assignments, types of primitives
     if (allocated(f%icenter)) deallocate(f%icenter)
     allocate(f%icenter(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfn','could not allocate memory for icenter',faterr)
+    if (istat /= 0) goto 999
     if (allocated(f%itype)) deallocate(f%itype)
     allocate(f%itype(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfn','could not allocate memory for itype',faterr)
-    read(luwfn,102) (f%icenter(i),i=1,f%npri)
-    read(luwfn,102) (f%itype(i),i=1,f%npri)
+    if (istat /= 0) goto 999
+    read(luwfn,102,err=999) (f%icenter(i),i=1,f%npri)
+    read(luwfn,102,err=999) (f%itype(i),i=1,f%npri)
     if (any(f%itype(1:f%npri) > 56)) then
-       call ferror("read_wfn","primitive type not supported",faterr)
+       errmsg = "primitive type not supported"
+       goto 999
     endif
 
     ! primitive exponents
     if (allocated(f%e)) deallocate(f%e)
     allocate(f%e(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfn','could not allocate memory for exponents',faterr)
-    read(luwfn,103) (f%e(i),i=1,f%npri)
+    if (istat /= 0) goto 999
+    read(luwfn,103,err=999) (f%e(i),i=1,f%npri)
 
     ! deal with ecps
     dums=""
     do while (dums.ne."MO")
-       read (luwfn,'(A2)') dums
+       read (luwfn,'(A2)',err=999) dums
     enddo
     backspace(luwfn)
 
     ! occupations and orbital coefficients
     if (allocated(f%occ)) deallocate(f%occ)
     allocate(f%occ(f%nmoocc),stat=istat)
-    if (istat /= 0) call ferror('read_wfn','could not allocate memory for occupations',faterr)
+    if (istat /= 0) goto 999
     if (allocated(f%cmo)) deallocate(f%cmo)
     allocate(f%cmo(f%nmoocc,f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfn','could not allocate memory for orbital coefficients',faterr)
+    if (istat /= 0) goto 999
     isfrac = .false.
     num1 = 0
     num2 = 0
@@ -1028,8 +1032,8 @@ contains
     nalpha = -1
     found = .false.
     do i = 1, f%nmoocc
-       read(luwfn,104) f%occ(i), ene
-       read(luwfn,105) (f%cmo(i,j),j=1,f%npri)
+       read(luwfn,104,err=999) f%occ(i), ene
+       read(luwfn,105,err=999) (f%cmo(i,j),j=1,f%npri)
        ioc = nint(f%occ(i))
        if (abs(ioc-f%occ(i)) > 1d-10) then
           isfrac = .true.
@@ -1044,7 +1048,7 @@ contains
        end if
        ene0 = ene
     end do
-    read(luwfn,*) dum1
+    read(luwfn,*,err=999) dum1
 
     ! determine the type of wavefunction
     ! 0 - restricted, 1 - unrestricted, 2 - fractional
@@ -1081,22 +1085,29 @@ contains
 105  format(5(E16.8))
 106  format(2X,A2,20X,3F12.8,10X,F5.1)
 
+    errmsg = ""
+    return
+999 continue
+    if (luwfn > 0) call fclose(luwfn)
+
   end subroutine read_wfn
 
   !> Read the wavefunction from a wfx file
-  module subroutine read_wfx(f,file,env,ti)
-    use tools_io, only: fopen_read, getline_raw, ferror, faterr, fclose
+  module subroutine read_wfx(f,file,env,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, fclose
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, errmsg2
     character(len=mlen) :: mline
     logical :: isfrac
 
+    errmsg = "Error reading file"
     f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
@@ -1105,6 +1116,7 @@ contains
 
     ! first pass
     luwfn = fopen_read(file,ti=ti)
+    if (luwfn < 0) goto 999
     f%nmoocc = 0
     ncore = 0
     f%npri = 0
@@ -1114,82 +1126,87 @@ contains
        line = adjustl(line)
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
-             read (luwfn,*) f%nmoocc
+             read (luwfn,*,err=999) f%nmoocc
              f%nmoall = f%nmoocc
           elseif (trim(line) == "<Number of Alpha Electrons>") then
-             read (luwfn,*) nalpha
+             read (luwfn,*,err=999) nalpha
           elseif (trim(line) == "<Number of Core Electrons>") then
-             read (luwfn,*) ncore
+             read (luwfn,*,err=999) ncore
           elseif (trim(line) == "<Number of Primitives>") then
-             read(luwfn,*) f%npri
+             read(luwfn,*,err=999) f%npri
           elseif (trim(line) == "<Number of EDF Primitives>") then
-             read(luwfn,*) f%nedf
+             read(luwfn,*,err=999) f%nedf
           endif
        endif
     enddo
 
-    if (f%nmoocc == 0) call ferror("read_wfx","Number of Occupied Molecular Orbitals tag not found",faterr)
-    if (f%npri == 0) call ferror("read_wfx","Number of Primitives tag not found",faterr)
+    if (f%nmoocc == 0) then
+       errmsg = "Number of Occupied Molecular Orbitals tag not found"
+       goto 999
+    end if
+    if (f%npri == 0) then
+       errmsg = "Number of Primitives tag not found"
+       goto 999
+    end if
     if (ncore > 0) f%useecp = .true.
 
     ! allocate memory
-    allocate(f%icenter(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfx','could not allocate memory for icenter',faterr)
-    allocate(f%itype(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfx','could not allocate memory for itype',faterr)
-    allocate(f%e(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfx','could not allocate memory for exponents',faterr)
-    allocate(f%occ(f%nmoocc),stat=istat)
-    if (istat /= 0) call ferror('read_wfx','could not allocate memory for occupations',faterr)
-    allocate(f%cmo(f%nmoocc,f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_wfx','could not allocate memory for orbital coefficients',faterr)
+    allocate(f%icenter(f%npri))
+    allocate(f%itype(f%npri))
+    allocate(f%e(f%npri))
+    allocate(f%occ(f%nmoocc))
+    allocate(f%cmo(f%nmoocc,f%npri))
     if (f%nedf > 0) then
-       allocate(f%icenter_edf(f%nedf),stat=istat)
-       if (istat /= 0) call ferror('read_wfx','could not allocate memory for icenter',faterr)
-       allocate(f%itype_edf(f%nedf),stat=istat)
-       if (istat /= 0) call ferror('read_wfx','could not allocate memory for itype',faterr)
-       allocate(f%e_edf(f%nedf),stat=istat)
-       if (istat /= 0) call ferror('read_wfx','could not allocate memory for exponents',faterr)
-       allocate(f%c_edf(f%nedf),stat=istat)
-       if (istat /= 0) call ferror('read_wfx','could not allocate memory for orbital coefficients',faterr)
+       allocate(f%icenter_edf(f%nedf))
+       allocate(f%itype_edf(f%nedf))
+       allocate(f%e_edf(f%nedf))
+       allocate(f%c_edf(f%nedf))
     endif
 
     ! second pass
     rewind(luwfn)
     do while (.true.)
-       read(luwfn,'(A)',end=20) mline
+       read(luwfn,'(A)',end=20,err=999) mline
        line = adjustl(mline)
        if (len_trim(line) < 2) then
           cycle
        else if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Primitive Centers>") then
-             f%icenter = wfx_read_integers(luwfn,f%npri)
+             f%icenter = wfx_read_integers(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Primitive Types>") then
-             f%itype = wfx_read_integers(luwfn,f%npri)
-             if (any(f%itype(1:f%npri) > 56)) &
-                call ferror("read_wfx","primitive type not supported",faterr)
+             f%itype = wfx_read_integers(luwfn,f%npri,errmsg2)
+             if (any(f%itype(1:f%npri) > 56)) then
+                errmsg = "primitive type not supported"
+                goto 999
+             end if
           elseif (trim(line) == "<Primitive Exponents>") then
-             f%e = wfx_read_reals1(luwfn,f%npri)
+             f%e = wfx_read_reals1(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Molecular Orbital Occupation Numbers>") then
-             f%occ = wfx_read_reals1(luwfn,f%nmoocc)
+             f%occ = wfx_read_reals1(luwfn,f%nmoocc,errmsg2)
           elseif (trim(line) == "<Molecular Orbital Primitive Coefficients>") then
-             read(luwfn,*)
+             read(luwfn,*,err=999)
              do i = 1, f%nmoocc
-                read(luwfn,*)
-                read(luwfn,*)
-                f%cmo(i,:) = wfx_read_reals1(luwfn,f%npri)
+                read(luwfn,*,err=999)
+                read(luwfn,*,err=999)
+                f%cmo(i,:) = wfx_read_reals1(luwfn,f%npri,errmsg2)
              enddo
           elseif (trim(line) == "<EDF Primitive Centers>") then
-             f%icenter_edf = wfx_read_integers(luwfn,f%nedf)
+             f%icenter_edf = wfx_read_integers(luwfn,f%nedf,errmsg2)
           elseif (trim(line) == "<EDF Primitive Types>") then
-             f%itype_edf = wfx_read_integers(luwfn,f%nedf)
-             if (any(f%itype_edf(1:f%nedf) > 56)) &
-                call ferror("read_wfx","primitive type not supported",faterr)
+             f%itype_edf = wfx_read_integers(luwfn,f%nedf,errmsg2)
+             if (any(f%itype_edf(1:f%nedf) > 56)) then
+                errmsg = "primitive type not supported"
+                goto 999
+             end if
           elseif (trim(line) == "<EDF Primitive Exponents>") then
-             f%e_edf = wfx_read_reals1(luwfn,f%nedf)
+             f%e_edf = wfx_read_reals1(luwfn,f%nedf,errmsg2)
           elseif (trim(line) == "<EDF Primitive Coefficients>") then
-             f%c_edf = wfx_read_reals1(luwfn,f%nedf)
+             f%c_edf = wfx_read_reals1(luwfn,f%nedf,errmsg2)
           endif
+          if (len_trim(errmsg2) > 0) then
+             errmsg = errmsg2
+             goto 999
+          end if
        endif
     enddo
 20  continue
@@ -1233,11 +1250,16 @@ contains
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
 
+    errmsg = ""
+    return
+999 continue
+    if (luwfn > 0) call fclose(luwfn)
+
   end subroutine read_wfx
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
-  module subroutine read_fchk(f,file,readvirtual,env,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, faterr, warning, ferror, fclose
+  module subroutine read_fchk(f,file,readvirtual,env,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, warning, fclose
 #ifdef HAVE_CINT
     use param, only: sqpi
 #endif
@@ -1245,13 +1267,14 @@ contains
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, nn, nm, nl, nc, ns, ncar, nsph
     integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
     integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
-    logical :: ok
+    logical :: ok, doexit
     real*8 :: norm
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:), mosph(:,:)
@@ -1307,6 +1330,7 @@ contains
     !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
 #endif
 
+    errmsg = "Error reading file"
     ! no ecps for now
     f%molden_type = molden_type_unknown
     f%useecp = .false.
@@ -1350,8 +1374,14 @@ contains
     enddo
 
     ! ECPs not implemented yet
-    if (nelec == 0) call ferror("read_fchk","nelec = 0",faterr)
-    if (nmoalla == 0) call ferror("read_fchk","nmoall = 0",faterr)
+    if (nelec == 0) then
+       errmsg = "nelec = 0 reading fchk file"
+       goto 999
+    end if
+    if (nmoalla == 0) then
+       errmsg = "nmoall = 0 reading fchk file"
+       goto 999
+    end if
 
     ! Count the number of MOs
     if (f%wfntyp == wfn_uhf) then
@@ -1390,12 +1420,9 @@ contains
     end if
 
     ! allocate sutff
-    allocate(f%occ(f%nmoocc),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for occ',faterr)
-    allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for shell data',faterr)
-    allocate(exppri(nshel),ccontr(nshel),pccontr(nshel),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for primitive data',faterr)
+    allocate(f%occ(f%nmoocc))
+    allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel))
+    allocate(exppri(nshel),ccontr(nshel),pccontr(nshel))
 
     ! type of wavefunction -> occupations
     if (f%wfntyp == wfn_uhf) then
@@ -1411,43 +1438,43 @@ contains
     rewind(luwfn)
 
     ! second pass
-    allocate(motemp(nbassph*nmoread),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for MO coefs',faterr)
+    allocate(motemp(nbassph*nmoread))
     do while (getline_raw(luwfn,line,.false.))
        lp = 45
        if (line(1:11) == "Shell types") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)') (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999) (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:30) == "Number of primitives per shell") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)') (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999) (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:30) == "Shell to atom map") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)') (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999) (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:19) == "Primitive exponents") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)') (exppri(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999) (exppri(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:24) == "Contraction coefficients") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)') (ccontr(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999) (ccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:31) == "P(S=P) Contraction coefficients") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)') (pccontr(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:21) == "Alpha MO coefficients") then
-          read(luwfn,'(5E16.8)') (motemp(i),i=1,namoread*nbassph)
+          read(luwfn,'(5E16.8)',err=999) (motemp(i),i=1,namoread*nbassph)
        elseif (line(1:21) == "Beta MO coefficients") then
-          read(luwfn,'(5E16.8)') (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
+          read(luwfn,'(5E16.8)',err=999) (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
        endif
     enddo
 
     ! we are done with the file
     call fclose(luwfn)
+    luwfn = -1
 
     ! unfold sp shells next
     allocate(icdup(ncshel))
@@ -1511,7 +1538,8 @@ contains
 
     ! h primitives not supported, for now
     if (any(abs(ishlt) > 4)) then
-       call ferror('read_fchk','h primitives not suppported in fchk (fixme)',faterr)
+       errmsg = 'h primitives not suppported in fchk (fix me!)'
+       goto 999
     end if
 
     ! count the number of primitives and basis functions
@@ -1551,7 +1579,8 @@ contains
              mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),gsphcar_fchk)
           end do
        else
-          call ferror('read_fchk','h and higher primitives not supported yet',faterr)
+          errmsg = 'h and higher primitives not supported yet'
+          goto 999
        endif
        do i = 1, nmoread
           mosph(i,ns+1:ns+nsph) = motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph)
@@ -1562,14 +1591,10 @@ contains
     deallocate(motemp)
 
     ! Assign primitive center and type, exponents, etc.
-    allocate(f%icenter(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for icenter',faterr)
-    allocate(f%itype(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for itype',faterr)
-    allocate(f%e(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for exponents',faterr)
-    allocate(f%cmo(nmoread,f%npri),cpri(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_fchk','could not allocate memory for coeffs',faterr)
+    allocate(f%icenter(f%npri))
+    allocate(f%itype(f%npri))
+    allocate(f%e(f%npri))
+    allocate(f%cmo(nmoread,f%npri),cpri(f%npri))
 
     ! normalize the primitive coefficients without the angular part
     allocate(cnorm(maxval(ishlpri)))
@@ -1599,6 +1624,7 @@ contains
 
     ! Build the information for the libCINT interface - calculation of
     ! molecular integrals.
+    doexit = .false.
 #ifdef HAVE_CINT
     ! For now, only for restricted wavefunctions, although the
     ! following code also works for unrestricted.
@@ -1666,8 +1692,7 @@ contains
        end do
 
        ! molecular orbital coefficients
-       allocate(f%cint%moc(f%nmoocc,nbassph),stat=istat)
-       if (istat /= 0) call ferror('read_fchk','could not allocate memory for moc',faterr)
+       allocate(f%cint%moc(f%nmoocc,nbassph))
        nc = 0
        do i = 1, ncshel
           do j = jshl0(ishlt(i)), jshl1(ishlt(i))
@@ -1699,7 +1724,9 @@ contains
                 elseif (ityp >= 33 .and. ityp <= 35) then ! g (xxyz xyyz xyzz)
                    norm = sqrt(315d0) / (2d0 * sqpi)
                 else
-                   if (istat /= 0) call ferror('read_fchk','libcint: h primitives not suppported (fixme)',faterr)
+                   errmsg = 'libcint: h primitives not suppported (fixme)'
+                   doexit = .true.
+                   goto 99
                 end if
                 f%cint%moc(:,nc+icintcar(j)) = mosph(1:f%nmoocc,nc) * norm
              else
@@ -1712,6 +1739,7 @@ contains
 99  continue
 #endif
     deallocate(mosph)
+    if (doexit) goto 999
 
     ! Build the wavefunction coefficients for the primitives
     nn = 0
@@ -1743,6 +1771,11 @@ contains
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
 
+    errmsg = ""
+    return
+999 continue
+    if (luwfn > 0) call fclose(luwfn)
+
   end subroutine read_fchk
 
   !> Read the wavefunction into f from a molden file (file). If
@@ -1750,8 +1783,8 @@ contains
   !> of molden file (orca, psi4).  Uses the environment env for
   !> calculating the range of each primitive. See the manual for the
   !> list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,molden_type,readvirtual,env,ti)
-    use tools_io, only: fopen_read, getline_raw, lower, ferror, faterr, warning, lgetword, &
+  module subroutine read_molden(f,file,molden_type,readvirtual,env,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, lower, ferror, warning, lgetword, &
        isinteger, isreal, fclose, uout
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
@@ -1759,6 +1792,7 @@ contains
     integer, intent(in) :: molden_type !< Type of molden file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, keyword, word, word1
@@ -1824,6 +1858,7 @@ contains
        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35&
        /)
 
+    errmsg = "Error reading file"
     ! initialize
     f%molden_type = molden_type_unknown
     f%useecp = .false.
@@ -1831,7 +1866,6 @@ contains
     is5d = .false.
     is7f = .false.
     is9g = .false.
-    luwfn = fopen_read(file,ti=ti)
     nat = 0
     f%wfntyp = -1
     line = ""
@@ -1840,6 +1874,10 @@ contains
     isorca = .false.
     f%nedf = 0
     nmf = 0
+
+    ! open file
+    luwfn = fopen_read(file,ti=ti)
+    if (luwfn < 0) goto 999
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
     do while(next_keyword())
@@ -1866,12 +1904,15 @@ contains
           isgto = .true.
           ncshel = 0
           nshel = 0
-          if (nat == 0) call ferror("read_molden","gto found but no atoms",faterr)
+          if (nat == 0) then
+             errmsg = "gto found but no atoms"
+             goto 999
+          end if
           do i = 1, nat
              ok = getline_raw(luwfn,line,.true.)
              ok = getline_raw(luwfn,line,.true.)
              do while (index(line,".") /= 0)
-                read (line,*) mword, idum, rdum
+                read (line,*,err=999) mword, idum, rdum
                 ncshel = ncshel + 1
                 nshel = nshel + idum
                 do j = 1, idum
@@ -1886,7 +1927,10 @@ contains
           ! read the number of shells and primitives
           issto = .true.
           f%npri = 0
-          if (nat == 0) call ferror("read_molden","sto found but no atoms",faterr)
+          if (nat == 0) then
+             errmsg = "sto found but no atoms"
+             goto 999
+          end if
           do while (.true.)
              ok = getline_raw(luwfn,line,.true.)
              if (.not.ok) exit
@@ -1915,12 +1959,11 @@ contains
 
                 ! occupation
                 ok = getline_raw(luwfn,line,.true.)
-                read (line,*) mword, rdum
+                read (line,*,err=999) mword, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) then
-                   write (uout,'("Fractional occupations are not supported yet for molden files.")')
-                   write (uout,'("If you need this, please e-mail the critic2 developer.")')
-                   call ferror('read_molden','Can not do fractional occupations with molden',faterr)
+                   errmsg = "Fractional occupations are not supported yet for molden files."
+                   goto 999
                 end if
                 if (idum == 1 .or. idum == 2) then
                    nelec = nelec + idum
@@ -1932,7 +1975,8 @@ contains
                 elseif (idum == 0) then
                    continue
                 else
-                   call ferror('read_molden','wrong integer occupation',faterr)
+                   errmsg = "wrong integer occupation"
+                   goto 999
                 endif
              end if
           end do
@@ -1966,9 +2010,11 @@ contains
     end if
 
     if (isgto.and.issto) then
-       call ferror('read_molden','Both [GTO] and [STO] blocks are present',faterr)
+       errmsg = "Both [GTO] and [STO] blocks are present"
+       goto 999
     else if (.not.isgto.and..not.issto) then
-       call ferror('read_molden','No [GTO] or [STO] blocks present',faterr)
+       errmsg = "No [GTO] or [STO] blocks present"
+       goto 999
     else if (isgto) then
        f%issto = .false.
     else
@@ -1990,7 +2036,10 @@ contains
     if (f%wfntyp == wfn_uhf) then
        f%nmoocc = nelec
     else
-       if (mod(nelec,2) == 1) call ferror("read_molden","fixme: odd nelec but closed-shell wavefunction",faterr)
+       if (mod(nelec,2) == 1) then
+          errmsg = "fixme: odd nelec but closed-shell wavefunction"
+          goto 999
+       end if
        f%nmoocc = nelec / 2
     end if
     f%nalpha = nalpha
@@ -2005,8 +2054,7 @@ contains
     end if
 
     ! allocate stuff
-    allocate(f%occ(f%nmoall),stat=istat)
-    if (istat /= 0) call ferror('read_molden','alloc. memory for occ',faterr)
+    allocate(f%occ(f%nmoall))
     f%occ = 0d0
 
     ! type of wavefunction -> occupations
@@ -2021,10 +2069,8 @@ contains
 
     if (isgto) then
        !! GTO wavefunction !!
-       allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel),stat=istat)
-       if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
-       allocate(exppri(nshel),ccontr(nshel),stat=istat)
-       if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
+       allocate(ishlt(ncshel),ishlpri(ncshel),ishlat(ncshel))
+       allocate(exppri(nshel),ccontr(nshel))
 
        ! Basis set specification
        do while(getline_raw(luwfn,line,.true.))
@@ -2043,14 +2089,15 @@ contains
              lp = 1
              word = lgetword(line,lp)
              ok = ok .and. isinteger(idum,line,lp)
-             if (.not.ok) &
-                call ferror("read_molden","error reading gto block",faterr)
-
+             if (.not.ok) then
+                errmsg = "error reading gto block"
+                goto 999
+             end if
              ! read exponents and coefficients
              do j = 1, idum
                 nj = nj + 1
                 ok = getline_raw(luwfn,line,.true.)
-                read(line,*) exppri(nj), ccontr(nj)
+                read(line,*,err=999) exppri(nj), ccontr(nj)
              end do
 
              ! assign atomic centers, number of primitives, and shell types.
@@ -2061,9 +2108,8 @@ contains
              else if (lower(trim(word)) == "p") then
                 ishlt(ni) = 1
              else if (lower(trim(word)) == "sp") then
-                write (uout,'("SP shells are not supported yet for molden files.")')
-                write (uout,'("If you need this, e-mail the critic2 developer.")')
-                call ferror("read_molden","can't handle SP in molden format",faterr)
+                errmsg = "SP shells are not supported yet for molden files."
+                goto 999
              else if (lower(trim(word)) == "d") then
                 if (is5d) then
                    ishlt(ni) = -2
@@ -2083,9 +2129,8 @@ contains
                    ishlt(ni) = 4
                 end if
              else
-                write (uout,'("Shells with angular momentum higher than g are not supported yet for molden files.")')
-                write (uout,'("If you need this, e-mail the critic2 developer.")')
-                call ferror("read_molden","basis set type >g not supported in molden files",faterr)
+                errmsg = "Shells with angular momentum higher than g are not supported yet for molden files."
+                goto 999
              endif
              ok = getline_raw(luwfn,line,.false.)
              if (.not.ok) exit
@@ -2104,10 +2149,8 @@ contains
        enddo
     else
        !! STO wavefunction !!
-       allocate(f%itype(f%npri),f%icenter(f%npri),stat=istat)
-       if (istat /= 0) call ferror('read_molden','alloc. memory for shell types',faterr)
-       allocate(f%e(f%npri),ccontr(f%npri),stat=istat)
-       if (istat /= 0) call ferror('read_molden','alloc. memory for prim. shells',faterr)
+       allocate(f%itype(f%npri),f%icenter(f%npri))
+       allocate(f%e(f%npri),ccontr(f%npri))
 
        do while(getline_raw(luwfn,line,.true.))
           if (trim(lower(line)) == "[sto]") exit
@@ -2117,7 +2160,7 @@ contains
        f%ixmaxsto = 0
        do i = 1, f%npri
           ok = getline_raw(luwfn,line,.true.)
-          read(line,*) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
+          read(line,*,err=999) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
           f%itype(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
           f%ixmaxsto(1) = max(f%ixmaxsto(1),ix)
           f%ixmaxsto(2) = max(f%ixmaxsto(2),iy)
@@ -2128,8 +2171,7 @@ contains
     end if
 
     ! Allocate space to read the the molecular orbital information
-    allocate(motemp(nbassph*f%nmoall),stat=istat)
-    if (istat /= 0) call ferror('read_molden','alloc. memory for MO coefs',faterr)
+    allocate(motemp(nbassph*f%nmoall))
     motemp = 0d0
 
     ! advance to the MO coefficients
@@ -2159,8 +2201,10 @@ contains
           lp = 1
           word1 = lgetword(line,lp)
           ok = isreal(rdum,line,lp)
-          if (.not.ok) &
-             call ferror("read_molden","error reading mo block",faterr)
+          if (.not.ok) then
+             errmsg = "error reading mo block"
+             goto 999
+          end if
           idum = nint(rdum)
           isocc = (idum > 0)
           if (isocc .or. readvirtual) then
@@ -2184,7 +2228,7 @@ contains
                 lp2 = 1
                 ok = isinteger(idum,line,lp2)
                 if (.not.ok) exit
-                read(line,*,end=99) idum, rdum
+                read(line,*,end=999) idum, rdum
                 motemp((lnmo-1)*nbassph+idum) = rdum
              end do
           end if
@@ -2193,21 +2237,29 @@ contains
 
     ! we are done with the file
     call fclose(luwfn)
+    luwfn = -1
 
     ! check we read the correct number of MOs
-    if (lnmoa /= nalpha) &
-       call ferror('read_molden','inconsistent number of MOs (lnmoa) in the second pass',faterr)
-    if (lnmob /= f%nmoocc) &
-       call ferror('read_molden','inconsistent number of MOs (lnmob) in the second pass',faterr)
-    if (lnmoav /= f%nmoocc+f%nalpha_virt) &
-       call ferror('read_molden','inconsistent number of MOs (lnmoav) in the second pass',faterr)
-    if (lnmobv /= f%nmoall) &
-       call ferror('read_molden','inconsistent number of MOs (lnmobv) in the second pass',faterr)
+    if (lnmoa /= nalpha) then
+       errmsg = 'inconsistent number of MOs (lnmoa) in the second pass'
+       goto 999
+    end if
+    if (lnmob /= f%nmoocc) then
+       errmsg = 'inconsistent number of MOs (lnmob) in the second pass'
+       goto 999
+    end if
+    if (lnmoav /= f%nmoocc+f%nalpha_virt) then
+       errmsg = 'inconsistent number of MOs (lnmoav) in the second pass'
+       goto 999
+    end if
+    if (lnmobv /= f%nmoall) then
+       errmsg = 'inconsistent number of MOs (lnmobv) in the second pass'
+       goto 999
+    end if
 
     ! STOs: build the MO coefficients and exit
     if (issto) then
-       allocate(f%cmo(f%nmoall,f%npri),stat=istat)
-       if (istat /= 0) call ferror('read_molden','could not allocate memory for coeffs',faterr)
+       allocate(f%cmo(f%nmoall,f%npri))
 
        ! STOs: just copy the molecular orbital coefficients
        do j = 1, f%npri
@@ -2249,8 +2301,7 @@ contains
     !! From this point onward, only GTO wavefunctions !!
     ! convert spherical basis functions to Cartesian and build the mocoef
     ! deallocate the temporary motemp
-    allocate(mocoef(f%nmoall,nbascar),stat=istat)
-    if (istat /= 0) call ferror('read_molden','alloc. memory for mocoef',faterr)
+    allocate(mocoef(f%nmoall,nbascar))
     nc = 0
     ns = 0
     do j = 1, ncshel
@@ -2273,7 +2324,8 @@ contains
              mocoef(i,nc+1:nc+ncar) = matmul(motemp((i-1)*nbassph+ns+1:(i-1)*nbassph+ns+nsph),gsphcar)
           end do
        else
-          call ferror('read_molden','h and higher primitives not supported in molden format',faterr)
+          errmsg = 'h and higher primitives not supported in molden format'
+          goto 999
        endif
        ns = ns + nsph
        nc = nc + ncar
@@ -2284,14 +2336,10 @@ contains
     ishlt = abs(ishlt)
 
     ! Allocate molecule arrays for primitive center, type, exponents, etc.
-    allocate(f%icenter(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_molden','could not allocate memory for icenter',faterr)
-    allocate(f%itype(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_molden','could not allocate memory for itype',faterr)
-    allocate(f%e(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_molden','could not allocate memory for exponents',faterr)
-    allocate(f%cmo(f%nmoall,f%npri),cpri(f%npri),stat=istat)
-    if (istat /= 0) call ferror('read_molden','could not allocate memory for coeffs',faterr)
+    allocate(f%icenter(f%npri))
+    allocate(f%itype(f%npri))
+    allocate(f%e(f%npri))
+    allocate(f%cmo(f%nmoall,f%npri),cpri(f%npri))
 
     ! normalize the primitive coefficients without the angular part
     allocate(cnorm(maxval(ishlpri)))
@@ -2354,9 +2402,11 @@ contains
     ! calculate the range of each primitive (in distance^2)
     call complete_struct(f,env)
 
+    errmsg = ""
     return
-99  continue
-    call ferror("read_molden","error reading molden file",faterr)
+999 continue
+    if (luwfn > 0) call fclose(luwfn)
+
   contains
 
     function next_keyword()
@@ -3574,11 +3624,10 @@ contains
   !> f%iprihi, f%dran_edf, f%icord_edf, f%iprilo_edf, f%irpihi_edf.
   subroutine complete_struct(f,env)
     use tools, only: qcksort
-    use tools_io, only: ferror, faterr
     type(molwfn), intent(inout) :: f
     type(environ), intent(in), target :: env
 
-    integer :: istat, i, iat
+    integer :: i, iat
     integer, parameter :: limax(56) = (/&
        0,1,1,1,2,2,2,1,1,1,3,3,3,2,2,2,2,2,2,1,4,4,4,3,3,3,3,3,&
        3,2,2,2,2,2,2,5,4,3,3,4,5,4,3,2,3,4,3,2,2,3,3,3,3,4,4,5/)
@@ -3591,11 +3640,10 @@ contains
 
     ! find the primitive ranges and the species and global cutoffs
     if (allocated(f%dran)) deallocate(f%dran)
-    allocate(f%dran(f%npri),stat=istat)
+    allocate(f%dran(f%npri))
     if (allocated(f%lmax)) deallocate(f%lmax)
     allocate(f%lmax(env%ncell))
     f%lmax = 0
-    if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran',faterr)
     do i = 1, f%npri
        f%dran(i) = -log(rprim_thres) / f%e(i)
        if (f%issto) then
@@ -3630,8 +3678,7 @@ contains
     ! core arrays
     if (f%nedf > 0) then
        if (allocated(f%dran_edf)) deallocate(f%dran_edf)
-       allocate(f%dran_edf(f%nedf),stat=istat)
-       if (istat /= 0) call ferror('complete_struct','could not allocate memory for dran_edf',faterr)
+       allocate(f%dran_edf(f%nedf))
        do i = 1, f%nedf
           f%dran_edf(i) = sqrt(-log(rprim_thres) / f%e_edf(i))
           f%spcutoff(env%at(f%icenter_edf(i))%cidx) = max(f%spcutoff(env%at(f%icenter_edf(i))%cidx),f%dran_edf(i))
