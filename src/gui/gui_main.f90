@@ -43,7 +43,7 @@ module gui_main
   ! GUI control parameters
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples
   logical(c_bool), public :: tooltip_enabled = .true. ! whether tooltips are enabled
-  real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
+  real(c_float), public :: tooltip_delay = 0.5_c_float ! tooltip delay, in seconds
   real(c_float), public :: tooltip_wrap_factor = 40._c_float ! tooltip wrap factor (fontsize)
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
   logical(c_bool), public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
@@ -101,6 +101,7 @@ module gui_main
   public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
+  public :: set_default_ui_settings
 
   interface
      module subroutine gui_start()
@@ -131,6 +132,8 @@ module gui_main
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx
      end subroutine remove_system
+     module subroutine set_default_ui_settings()
+     end subroutine set_default_ui_settings
   end interface
 
 end module gui_main

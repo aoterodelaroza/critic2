@@ -54,7 +54,6 @@ contains
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe
-    use keybindings, only: set_default_keybindings
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use omp_lib, only: omp_get_max_threads
@@ -188,8 +187,8 @@ contains
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
 
-    ! set default keybindings
-    call set_default_keybindings()
+    ! set default UI settings
+    call set_default_ui_settings()
 
     ! create buffers for objects and compile and link shaders
     call shapes_init()
@@ -645,6 +644,31 @@ contains
     end if
 
   end subroutine remove_system
+
+  !> Reset all user interface settings to their default values
+  module subroutine set_default_ui_settings()
+    use keybindings, only: set_default_keybindings
+
+    ! interface settings
+    io%FontGlobalScale = 1._c_float
+    tooltip_enabled = .true.
+    tooltip_delay = 0.5_c_float
+    tooltip_wrap_factor = 40._c_float
+    tree_select_updates_inpcon = .true.
+    tree_select_updates_view = .true.
+
+    ! key bindings
+    call set_default_keybindings()
+
+    ! tree colors
+    ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)
+    ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)
+    ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)
+    ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)
+    ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)
+    ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)
+
+  end subroutine set_default_ui_settings
 
   !xx! private procedures
 

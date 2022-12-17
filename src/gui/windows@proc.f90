@@ -547,7 +547,7 @@ contains
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io, fontsize, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
-       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d
+       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, set_default_ui_settings
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
@@ -811,10 +811,9 @@ contains
     sz%y = 0._c_float
     if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
        call igSetCursorPosX(iw_calcwidth(10,2,from_end=.true.) - g%Style%ScrollbarSize)
-       if (iw_button("Reset",danger=.true.)) then
-          write (*,*) "Bleh!"
-       end if
-       call iw_tooltip("Reset to the default UI preferences",ttshown)
+       if (iw_button("Reset",danger=.true.)) &
+          call set_default_ui_settings()
+       call iw_tooltip("Reset to the default settings",ttshown)
        if (iw_button("Close",sameline=.true.)) doquit = .true.
        call iw_tooltip("Close this window",ttshown)
     end if
