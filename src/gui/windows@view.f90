@@ -41,7 +41,7 @@ contains
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms, reptype_unitcell
-    use utils, only: iw_calcheight, iw_calcwidth
+    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3
     use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
@@ -317,11 +317,13 @@ contains
           chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the color of the light",ttshown)
+          call iw_clamp_color3(sysc(w%view_selected)%sc%lightcolor)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Background" // c_null_char
           chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the scene background color",ttshown)
+          call iw_clamp_color3(sysc(w%view_selected)%sc%bgcolor)
 
           ! apply to all scenes
           if (iw_button("Apply to All Systems",danger=.true.)) then
@@ -1133,7 +1135,7 @@ contains
     use scenes, only: representation
     use gui_main, only: sys, g, ColorHighlightText
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight
+       iw_radiobutton, iw_calcheight, iw_clamp_color3
     use tools_io, only: string, ioj_right, ioj_left
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
@@ -1411,6 +1413,7 @@ contains
              flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
              ch = igColorEdit3(c_loc(str2),w%rep%atom_style(i)%rgb,flags)
              call iw_tooltip("Atom color",ttshown)
+             call iw_clamp_color3(w%rep%atom_style(i)%rgb)
              if (ch) then
                 w%rep%atom_style(i)%rgb = min(w%rep%atom_style(i)%rgb,1._c_float)
                 w%rep%atom_style(i)%rgb = max(w%rep%atom_style(i)%rgb,0._c_float)
@@ -1566,6 +1569,7 @@ contains
           str2 = "##bondcolor" // c_null_char
           ch = igColorEdit3(c_loc(str2),w%rep%bond_rgb,ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Color for the representation bonds",ttshown)
+          call iw_clamp_color3(w%rep%bond_rgb)
           call iw_text("Color",sameline=.true.)
           if (ch) then
              w%rep%bond_rgb = min(w%rep%bond_rgb,1._c_float)
@@ -1621,6 +1625,7 @@ contains
        str2 = "Color##labelcolor" // c_null_char
        changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_rgb,ImGuiColorEditFlags_NoInputs)
        call iw_tooltip("Color of the atom labels",ttshown)
+       call iw_clamp_color3(w%rep%label_rgb)
     end if
 
   end function draw_editrep_atoms
@@ -1629,7 +1634,8 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
+       iw_clamp_color3
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -1727,6 +1733,7 @@ contains
     str1 = "Color" // c_null_char
     ch = igColorEdit3(c_loc(str1),w%rep%uc_rgb,ImGuiColorEditFlags_NoInputs)
     call iw_tooltip("Color of the unit cell edges",ttshown)
+    call iw_clamp_color3(w%rep%uc_rgb)
     if (ch) then
        w%rep%uc_rgb = min(w%rep%uc_rgb,1._c_float)
        w%rep%uc_rgb = max(w%rep%uc_rgb,0._c_float)
@@ -1809,6 +1816,7 @@ contains
        w%jpgquality = 90
        w%exportview = .true.
        w%npixel = win(w%idparent)%FBOside
+       w%transparentbg = .true.
        w%errmsg = ""
     end if
 
@@ -1853,6 +1861,10 @@ contains
     str2 = "Export the viewport only" // c_null_char
     ldum = igCheckbox(c_loc(str2),w%exportview)
     call iw_tooltip("Export the viewport only or the whole render buffer",ttshown)
+
+    str2 = "Transparent background" // c_null_char
+    ldum = igCheckbox(c_loc(str2),w%transparentbg)
+    call iw_tooltip("Make the background transparent in the exported image",ttshown)
 
     ! image settings
     if (w%okfilter(1:3) == "JPE") then
@@ -1930,7 +1942,11 @@ contains
        ! render the scene to the multisampled framebuffer
        call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
        call glViewport(0_c_int,0_c_int,w%npixel,w%npixel)
-       call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),1._c_float)
+       if (w%transparentbg) then
+          call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),0._c_float)
+       else
+          call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),1._c_float)
+       end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        goodsys = (isys >= 1 .and. isys <= nsys)
        if (goodsys) goodsys = (sysc(isys)%status == sys_init)

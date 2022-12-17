@@ -22,6 +22,24 @@ submodule (utils) proc
 
 contains
 
+  !> Clamp a 3-color to the 0->1 interval
+  module subroutine iw_clamp_color3(rgb)
+    real(c_float), intent(inout) :: rgb(3)
+
+    rgb = min(rgb,1._c_float)
+    rgb = max(rgb,0._c_float)
+
+  end subroutine iw_clamp_color3
+
+  !> Clamp a 4-color to the 0->1 interval
+  module subroutine iw_clamp_color4(rgba)
+    real(c_float), intent(inout) :: rgba(4)
+
+    rgba = min(rgba,1._c_float)
+    rgba = max(rgba,0._c_float)
+
+  end subroutine iw_clamp_color4
+
   !> Set the cursor X position a distance from the end of the content
   !> region corresponding to ntext characters and nbutton buttons.
   module subroutine iw_setposx_fromend(ntext,nbutton)

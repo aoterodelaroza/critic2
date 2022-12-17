@@ -24,6 +24,8 @@ module utils
   private
 
   !xx! proc submodule !xx!
+  public :: iw_clamp_color3
+  public :: iw_clamp_color4
   public :: iw_setposx_fromend
   public :: iw_calcheight
   public :: iw_calcwidth
@@ -49,6 +51,12 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
+     module subroutine iw_clamp_color3(rgb)
+       real(c_float), intent(inout) :: rgb(3)
+     end subroutine iw_clamp_color3
+     module subroutine iw_clamp_color4(rgba)
+       real(c_float), intent(inout) :: rgba(4)
+     end subroutine iw_clamp_color4
      module subroutine iw_setposx_fromend(ntext,nbutton)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton

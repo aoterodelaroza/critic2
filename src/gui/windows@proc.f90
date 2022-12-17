@@ -550,7 +550,7 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, set_default_ui_settings
     use interfaces_cimgui
     use keybindings
-    use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
+    use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
@@ -756,48 +756,54 @@ contains
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_Mol,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Mol)
              call iw_tooltip("A molecular system with a single molecule",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Mol)
           end if
 
           str = "Molecular cluster" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_MolClus,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_MolClus)
              call iw_tooltip("A molecular system with multiple molecules",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_MolClus)
           end if
 
           str = "Crystal" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_Crys3d,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys3d)
              call iw_tooltip("A crystal, with a three-dimensional periodic network of bonds",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys3d)
           end if
 
           str = "Crystal (layered)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_Crys2d,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys2d)
              call iw_tooltip("A layered crystal, with a two-dimensional periodic network of bonds",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys2d)
           end if
 
           str = "Crystal (chain)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_Crys1d,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys1d)
              call iw_tooltip("An atom-chain crystal, with a one-dimensional periodic network of bonds",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys1d)
           end if
 
           str = "Crystal (molecular)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              call imvec4_to_float4(ColorTableCellBg_MolCrys,rgba)
              ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call float4_to_imvec4(rgba,ColorTableCellBg_MolCrys)
              call iw_tooltip("A molecular crystal, comprising discrete molecules",ttshown)
+             call iw_clamp_color4(rgba)
+             call float4_to_imvec4(rgba,ColorTableCellBg_MolCrys)
           end if
        end if
        call igPopItemWidth()

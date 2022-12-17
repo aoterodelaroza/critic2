@@ -136,6 +136,7 @@ module windows
      integer(c_int) :: jpgquality ! jpg quality
      logical(c_bool) :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
+     logical(c_bool) :: transparentbg ! transparent background
      ! rebond parameters
    contains
      procedure :: init => window_init ! initialize the window
