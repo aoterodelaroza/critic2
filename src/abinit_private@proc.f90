@@ -344,13 +344,8 @@ contains
     headform_1 = 0
     ! Reading the first record of the file ------------------------------------
 
-    read(unitfi,iostat=ierr)codvsn,fform
-    if (ierr /=0) then
-       fform=0
-       headform = -1
-       errmsg = "Error reading file."
-       return   ! This is to allow treatment of old epsm1 format
-    end if
+    errmsg = "Error reading file."
+    read(unitfi,err=999,end=999) codvsn, fform
 
     if(fform==1   .or. &
        fform==2   .or. &
@@ -363,8 +358,8 @@ contains
     else
 
        !  Format beyond 22 have a different first line, so need reading again the first line
-       backspace (unitfi)
-       read (unitfi)   codvsn,headform,fform
+       backspace(unitfi,err=999)
+       read (unitfi,err=999,end=999) codvsn, headform, fform
 
        if(headform/=23 .and. &
           headform/=34 .and. &
@@ -406,7 +401,6 @@ contains
     hdr%tphysel=0d0
     hdr%tsmear=0d0
 
-    errmsg = "Error reading file."
     if(headform==22)then
 
        read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
