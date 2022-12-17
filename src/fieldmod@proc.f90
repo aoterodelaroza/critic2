@@ -294,29 +294,27 @@ contains
     ! interpret the seed and load the field
     if (seed%iff == ifformat_unknown) then
        errmsg = "unknown seed format"
-       call f%end()
-       return
 
     elseif (seed%iff == ifformat_wien) then
        call f%wien%end()
-       call f%wien%read_clmsum(seed%file(1),seed%file(2),ti=ti)
+       call f%wien%read_clmsum(seed%file(1),seed%file(2),errmsg,ti=ti)
        f%type = type_wien
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
           call f%grid%end()
-          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
+          call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),ti=ti)
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3),ti=ti)
+          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(3)
        endif
@@ -368,7 +366,7 @@ contains
 
     elseif (seed%iff == ifformat_elkgrid) then
        call f%grid%end()
-       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,ti=ti)
+       call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -499,23 +497,22 @@ contains
        seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub .or.&
        seed%iff == ifformat_as_resample) then
        errmsg = "error in file format for field_new"
-       call f%end()
-       return
     else
        errmsg = "unknown seed format"
-       call f%end()
-       return
     end if
+    if (len_trim(errmsg) > 0) goto 999
 
     ! set the rest of the variables passed with the field
     call f%set_options(seed%elseopt,errmsg)
-    if (len_trim(errmsg) > 0) then
-       call f%end()
-       return
-    end if
+    if (len_trim(errmsg) > 0) goto 999
 
     f%isinit = .true.
     call f%init_cplist()
+
+    return
+999 continue ! error termination with non-zero errmsg
+
+    call f%end()
 
   end subroutine field_new
 

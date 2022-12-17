@@ -207,11 +207,12 @@ module grid3mod
        type(environ), intent(in), target :: env
        type(thread_info), intent(in), optional :: ti
      end subroutine read_pwc
-     module subroutine read_elk(f,file,x2c,env,ti)
+     module subroutine read_elk(f,file,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: file
        real*8, intent(in) :: x2c(3,3)
        type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_elk
      module subroutine read_wannier_chk(f,fileup,filedn,ti)

@@ -1044,41 +1044,40 @@ contains
   end subroutine read_pwc
 
   !> Read a grid in elk format -- only first 3d grid in first 3d block
-  module subroutine read_elk(f,file,x2c,env,ti)
+  module subroutine read_elk(f,file,x2c,env,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+    use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
     real*8, intent(in) :: x2c(3,3)
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc, ios
     integer :: n(3), i, j, k
     real*8 :: dum(3)
 
+    errmsg = ""
     call f%end()
 
     ! open file for reading
     luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
 
     ! grid dimension
-    read (luc,*,iostat=ios) n
-    if (ios /= 0) &
-       call ferror('read_elk','Error reading n1, n2, n3',faterr,file)
+    read (luc,*,err=999) n
 
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
-    if (ios /= 0) &
-       call ferror('read_elk','Error allocating grid',faterr,file)
+    if (ios /= 0) goto 999
     do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
-             read (luc,*) dum, f%f(i,j,k)
+             read (luc,*,err=999) dum, f%f(i,j,k)
           end do
        end do
     end do
-
     call fclose(luc)
 
     n = f%n
@@ -1086,6 +1085,9 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
+    return
+999 continue ! error condition
+    errmsg = "error reading file " // trim(file)
 
   end subroutine read_elk
 

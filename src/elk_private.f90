@@ -58,11 +58,12 @@ module elk_private
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
      end subroutine elkwfn_end
-     module subroutine read_out(f,env,file,file2,file3,ti)
+     module subroutine read_out(f,env,file,file2,file3,errmsg,ti)
        class(elkwfn), intent(inout) :: f
        type(environ), intent(in), target :: env
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
+       character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_out
      module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)

@@ -20,12 +20,12 @@ submodule (wien_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine wien_read_struct(f,file,ti)
-  ! subroutine readslm(f,lu)
-  ! subroutine readk(f,lu)
+  ! subroutine wien_read_struct(f,file,errmsg,ti)
+  ! subroutine readslm(f,lu,errmsg)
+  ! subroutine readk(f,lu,errmsg)
   ! subroutine gbass(rbas,gbas)
   ! subroutine rotdef(f)
-  ! subroutine gener(f)
+  ! subroutine gener(f,errmsg)
   ! subroutine sternb(f)
   ! subroutine rotator(vt,iz,tau,a)
   ! subroutine rotato(vt,iz,tau)
@@ -136,22 +136,28 @@ contains
 
   ! Read a clmsum (file) and struct (file2) file and returns the
   ! wien2k field f.
-  module subroutine read_clmsum(f,file,file2,ti)
+  module subroutine read_clmsum(f,file,file2,errmsg,ti)
     use tools_io, only: fopen_read, fclose
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file, file2
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, ntot, i, j
 
+    errmsg = ""
+
     ! load field data from the struct file and save it in f
-    call wien_read_struct(f,file2,ti)
+    call wien_read_struct(f,file2,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
 
     ! read the clmsum
     lu = fopen_read(file,ti=ti)
 
-    call readslm(f,lu)
-    call readk(f,lu)
+    call readslm(f,lu,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call readk(f,lu,errmsg)
+    if (len_trim(errmsg) > 0) return
     call fclose(lu)
 
     ntot = 0
@@ -477,11 +483,12 @@ contains
 
   !> Read the crystal structure from a STRUCT file, with logical unit lut.
   !> Store WIEN2k variables (rmt, etc.) in the module.
-  subroutine wien_read_struct(f,file,ti)
-    use tools_io, only: fopen_read, ferror, faterr, fclose
+  subroutine wien_read_struct(f,file,errmsg,ti)
+    use tools_io, only: fopen_read, fclose
     use param, only: pi
     class(wienwfn), intent(inout) :: f
     character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lut
@@ -501,6 +508,7 @@ contains
     integer, dimension(:), allocatable :: temp_iatnr
     real*8, dimension(:,:), allocatable :: temp_pos
 
+    errmsg = ""
     lut = fopen_read(file,ti=ti)
     READ(lut,102) TITEL
     READ(lut,103) LATTIC,f%NAT,cform
@@ -681,7 +689,8 @@ contains
 
        READ(lut,113) ANAME,f%JRI(JATOM),f%RNOT(JATOM),f%RMT(JATOM),Znuc
        if (f%jri(jatom) > nrad) then
-          call ferror('wien_read_struct','Max. radial points (nrad) exceeded',faterr,file)
+          errmsg = "Max. radial points (nrad) exceeded"
+          return
        end if
        f%dx(jatom) = log(f%rmt(jatom)/f%rnot(jatom)) / (f%jri(jatom)-1)
        READ(lut,1051) ((f%ROTLOC(I1,J1,JATOM),I1=1,3),J1=1,3)
@@ -729,18 +738,18 @@ contains
     end DO
 
     !.generate origins of next unit cells (atp)
-    CALL GENER(f)
+    CALL GENER(f,errmsg)
 
     call fclose(lut)
 
   end subroutine wien_read_struct
 
   !> Read the atomic sphere part of a clmsum style file
-  subroutine readslm(f,lu)
-    use tools_io, only: ferror, faterr
+  subroutine readslm(f,lu,errmsg)
     use param, only: sqfp
     class(wienwfn), intent(inout) :: f
     integer, intent(in) :: lu !< Input logical unit
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: jatom, jrj, l, l1, l2, ll, i
     integer :: mlmmax, mjrj
@@ -748,6 +757,7 @@ contains
     integer, allocatable :: almmax(:)
     real*8, allocatable :: aslm(:,:,:)
 
+    errmsg = ""
     if (allocated(f%lm)) deallocate(f%lm)
     if (allocated(f%lmmax)) deallocate(f%lmmax)
     if (allocated(f%slm)) deallocate(f%slm)
@@ -765,14 +775,16 @@ contains
        mlmmax = max(mlmmax,LL)
        f%lmmax(jatom)=LL
        if (f%lmmax(jatom) > ncom) then
-          call ferror('readslm','Max. LM pairs (ncom) exceeded',faterr)
+          errmsg = "Max. LM pairs (ncom) exceeded"
+          return
        end if
        do l=1,ll
           READ(lu,2010) l1, l2
           f%lm(1,l,jatom) = l1
           f%lm(2,l,jatom) = l2
           if (f%lm(1,l,jatom) > lmax2) then
-             call ferror('readslm','Max. L in LM list (lmax2) exceeded',faterr)
+             errmsg = "Max. L in LM list (lmax2) exceeded"
+             return
           end if
           READ(lu,2021) (f%slm(I,l,jatom),I=1,JRJ)
           READ(lu,2031)
@@ -805,10 +817,10 @@ contains
   end subroutine readslm
 
   !> Read the plane wave part of a clmsum-style file
-  subroutine readk(f,lu)
-    use tools_io, only: faterr, ferror
+  subroutine readk(f,lu,errmsg)
     class(wienwfn), intent(inout) :: f
     integer, intent(in) :: lu !< Input logical unit
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: ind, i
     real*8 :: ttmpk, ttmpki
@@ -821,6 +833,7 @@ contains
     real*8, allocatable :: taupi(:)
 
     ! read number of pw and allocate space for kvectors
+    errmsg = ""
     IND=0
     READ(lu,117) f%nwav
     if (allocated(f%krec)) deallocate(f%krec)
@@ -877,7 +890,8 @@ contains
           f%tauk(ind) = taup(j)
           if (f%cmpl) f%tauki(IND)=taupi(J)
           IF(IND.GT.f%NWAV*NSYM) then
-             call ferror('readk',' ind > nwav*nsym',faterr)
+             errmsg = " ind > nwav*nsym"
+             return
           end IF
           DO JJ=1,3
              f%KREC(JJ,IND)=ISTG(JJ,J)
@@ -1059,33 +1073,35 @@ contains
        'ATOMS OF BASIS',/,20X,'NCOUNT=',I2)
    end subroutine rotdef
 
-   SUBROUTINE GENER(f)
-    use tools_io, only: ferror, faterr
+   SUBROUTINE GENER(f,errmsg)
     class(wienwfn), intent(inout) :: f
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer             :: ja, jb, jc
     integer             :: i
 
-      f%NPOS=0
-      JA=-NSA-1
-   10 JA=JA+1
-      IF(JA.GT.NSA) GOTO 1
-      JB=-NSB-1
-   11 JB=JB+1
-      IF(JB.GT.NSB) GOTO 10
-      JC=-NSC-1
-   12 JC=JC+1
-      IF(JC.GT.NSC) GOTO 11
-      f%NPOS=f%NPOS+1
-      if (f%npos > nnpos) then
-         call ferror('GENER','Max. cell origins (nnpos) exceeded',faterr)
-      end if
-      DO I=1,3
-         f%ATP(I,f%NPOS)=f%BR2(1,I)*JA+f%BR2(2,I)*JB+f%BR2(3,I)*JC
-      END DO
-      GOTO 12
-    1 CONTINUE
-      RETURN
+    errmsg = ""
+    f%NPOS=0
+    JA=-NSA-1
+ 10 JA=JA+1
+    IF(JA.GT.NSA) GOTO 1
+    JB=-NSB-1
+ 11 JB=JB+1
+    IF(JB.GT.NSB) GOTO 10
+    JC=-NSC-1
+ 12 JC=JC+1
+    IF(JC.GT.NSC) GOTO 11
+    f%NPOS=f%NPOS+1
+    if (f%npos > nnpos) then
+       errmsg = "Max. cell origins (nnpos) exceeded"
+       return
+    end if
+    DO I=1,3
+       f%ATP(I,f%NPOS)=f%BR2(1,I)*JA+f%BR2(2,I)*JB+f%BR2(3,I)*JC
+    END DO
+    GOTO 12
+  1 CONTINUE
+    RETURN
   END SUBROUTINE GENER
 
   SUBROUTINE STERNB(f,k1,nst,istg,taup,taupi)

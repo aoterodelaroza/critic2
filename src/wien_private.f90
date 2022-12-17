@@ -82,9 +82,10 @@ module wien_private
        real*8, intent(in) :: x(3)
        real*8 :: rmt_atom
      end function rmt_atom
-     module subroutine read_clmsum(f,file,file2,ti)
+     module subroutine read_clmsum(f,file,file2,errmsg,ti)
        class(wienwfn), intent(inout) :: f
        character*(*), intent(in) :: file, file2
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_clmsum
      module subroutine rho2(f,v0,nder,rho,grad,h)

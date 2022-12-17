@@ -27,9 +27,9 @@ submodule (elk_private) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine elk_geometry(f,filename,ti)
-  ! subroutine read_elk_state(f,filename,ti)
-  ! subroutine read_elk_myout(f,filename,ti)
+  ! subroutine elk_geometry(f,filename,errmsg,ti)
+  ! subroutine read_elk_state(f,filename,errmsg,ti)
+  ! subroutine read_elk_myout(f,filename,errmsg,ti)
   ! subroutine sortidx(n,a,idx)
 
   ! private to the module
@@ -53,26 +53,31 @@ contains
   end subroutine elkwfn_end
 
   !> Read a elkwfn scalar field from an OUT file
-  module subroutine read_out(f,env,file,file2,file3,ti)
+  module subroutine read_out(f,env,file,file2,file3,errmsg,ti)
     class(elkwfn), intent(inout) :: f
     type(environ), intent(in), target :: env
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
+    character(len=:), allocatable, intent(out), optional :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: maxrmt
 
+    errmsg = ""
     call f%end()
 
     ! geometry data
-    call elk_geometry(f,file2,ti=ti)
+    call elk_geometry(f,file2,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     ! state data
-    call read_elk_state(f,file,env,ti=ti)
+    call read_elk_state(f,file,env,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(f,file3,env,ti=ti)
+       call read_elk_myout(f,file3,env,errmsg,ti=ti)
+       if (len_trim(errmsg) > 0) return
     end if
 
     ! save pointer to the environment
@@ -86,7 +91,6 @@ contains
   !> cell vpl (crystallographic).  This routine is thread-safe.
   module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
     use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
-    use tools_io, only: ferror, faterr
     use param, only: icrd_crys
     class(elkwfn), intent(in) :: f
     real(8), intent(in) :: vpl(3)
@@ -133,8 +137,6 @@ contains
        v1 = vpl - (f%e%xr2x(f%e%at(nid)%x) - f%e%at(nid)%lvec + lvec)
        v1 = matmul(f%x2c,v1)
        call tosphere(v1,r,tp)
-       if (abs(r-dist) > 1d-12) &
-          call ferror("elk_rho2","invalid radius",faterr)
 
        allocate(ylm((f%lmaxvr+1+2)**2))
        call genylm(f%lmaxvr+2,tp,ylm)
@@ -272,11 +274,12 @@ contains
   ! version 1.3.2 Copyright (C) 2002-2005 J. K. Dewhurst, S. Sharma
   ! and C. Ambrosch-Draxl.  This file is distributed under the terms
   ! of the GNU General Public License.
-  subroutine elk_geometry(f,filename,ti)
-    use tools_io, only: fopen_read, getline_raw, equal, getword, ferror, faterr, fclose
+  subroutine elk_geometry(f,filename,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, equal, getword, fclose
     use tools_math, only: matinv
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, atname
@@ -285,6 +288,7 @@ contains
     logical :: ok
     real*8 :: x(3)
 
+    errmsg = ""
     lu = fopen_read(filename,ti=ti)
     ! ignore the 'scale' stuff
     do i = 1, 14
@@ -297,7 +301,10 @@ contains
 
     ok = getline_raw(lu,line,.true.)
     ok = getline_raw(lu,line,.true.)
-    if (equal(line,'molecule')) call ferror('read_elk_geometry','Isolated molecules not supported',faterr,line)
+    if (equal(line,'molecule')) then
+       errmsg = "Isolated molecules not supported"
+       return
+    end if
 
     read(lu,'(I4)') nspecies
     do i = 1, nspecies
@@ -317,7 +324,7 @@ contains
 
   end subroutine elk_geometry
 
-  subroutine read_elk_state(f,filename,env,ti)
+  subroutine read_elk_state(f,filename,env,errmsg,ti)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det3
@@ -325,6 +332,7 @@ contains
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, k, idum
@@ -355,14 +363,14 @@ contains
     lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
-    read(lu) vdum  ! version
-    read(lu) spin  ! spinpol
-    read(lu) nspecies  ! nspecies
-    read(lu) lmmaxvr  ! lmmaxvr/lmmaxo
+    read(lu,err=999) vdum  ! version
+    read(lu,err=999) spin  ! spinpol
+    read(lu,err=999) nspecies  ! nspecies
+    read(lu,err=999) lmmaxvr  ! lmmaxvr/lmmaxo
     f%lmaxvr = nint(sqrt(real(lmmaxvr,8))) - 1
 
     ! allocate radial grids
-    read(lu) nrmtmax ! nrmtmax
+    read(lu,err=999) nrmtmax ! nrmtmax
     if (allocated(f%spr)) deallocate(f%spr)
     if (allocated(f%spr_a)) deallocate(f%spr_a)
     if (allocated(f%spr_b)) deallocate(f%spr_b)
@@ -370,7 +378,7 @@ contains
 
     ! read elk-2.1.25
     if (isnewer(2,1,22)) then
-       read(lu) nrcmtmax ! nrcmtmax
+       read(lu,err=999) nrcmtmax ! nrcmtmax
        if (allocated(rcmt)) deallocate(rcmt)
        allocate(rcmt(nrmtmax,nspecies))
     endif
@@ -380,41 +388,41 @@ contains
     if (allocated(f%rmt)) deallocate(f%rmt)
     allocate(f%nrmt(nspecies),f%rmt(nspecies))
     do i = 1, nspecies
-       read(lu) idum  ! natoms(is)
-       read(lu) f%nrmt(i)  ! nrmt(is)
-       read(lu) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)/rsp
+       read(lu,err=999) idum  ! natoms(is)
+       read(lu,err=999) f%nrmt(i)  ! nrmt(is)
+       read(lu,err=999) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)/rsp
        f%rmt(i) = f%spr(f%nrmt(i),i)
        f%spr_a(i) = f%spr(1,i)
        f%spr_b(i) = log(f%spr(f%nrmt(i),i) / f%spr(1,i)) / real(f%nrmt(i)-1,8)
        if (isnewer(2,1,22)) then
-          read(lu) idum  ! nrcmt(is)
-          read(lu) rcmt(1:i,i)  ! rcmt(1:nrcmt(is),is)
+          read(lu,err=999) idum  ! nrcmt(is)
+          read(lu,err=999) rcmt(1:i,i)  ! rcmt(1:nrcmt(is),is)
        endif
     end do
 
     ! read interstitial data
-    read(lu) f%n  ! ngridg
+    read(lu,err=999) f%n  ! ngridg
     ngrid = f%n
-    read(lu) f%ngvec  ! ngvec
-    read(lu) idum  ! ndmag
-    read(lu) idum  ! nspinor
+    read(lu,err=999) f%ngvec  ! ngvec
+    read(lu,err=999) idum  ! ndmag
+    read(lu,err=999) idum  ! nspinor
     if (isnewer(2,1,22)) then
-       read(lu) idum  ! fixspin,fsmtype
+       read(lu,err=999) idum  ! fixspin,fsmtype
     end if
     if(isnewer(2,3,16)) then
-       read(lu) idum  ! ftmtype
+       read(lu,err=999) idum  ! ftmtype
     endif
-    read(lu) idum  ! ldapu,dftu
-    read(lu) idum  ! lmmaxdm,lmmaxlu
+    read(lu,err=999) idum  ! ldapu,dftu
+    read(lu,err=999) idum  ! lmmaxdm,lmmaxlu
     ngrtot = ngrid(1)*ngrid(2)*ngrid(3)
     allocate(rhotmp(lmmaxvr,nrmtmax,env%ncell))
     allocate(rhoktmp(ngrtot))
     if(isnewer(5,2,10)) then
-       read(lu) idum ! xcgrad
+       read(lu,err=999) idum ! xcgrad
     end if
 
     ! read the density itself and close (there is more after this, ignored)
-    read(lu) rhotmp, rhoktmp ! rhomt, rhoir
+    read(lu,err=999) rhotmp, rhoktmp ! rhomt, rhoir
     call fclose(lu)
 
     ! reorder the rhotmp to rhomt
@@ -523,13 +531,18 @@ contains
     deallocate(idx,iar,rar,gc,ivg)
     if (allocated(rcmt)) deallocate(rcmt)
 
+    return
+999 continue ! error condition
+    errmsg = "error reading state file"
+
   end subroutine read_elk_state
 
-  subroutine read_elk_myout(f,filename,env,ti)
-    use tools_io, only: ferror, faterr, fopen_read, fclose
+  subroutine read_elk_myout(f,filename,env,errmsg,ti)
+    use tools_io, only: fopen_read, fclose
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
     type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu
@@ -539,31 +552,42 @@ contains
     real*8, allocatable :: rhoktmp(:), rhotmp(:,:)
 
     ! open the file
+    errmsg = ""
     lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
-    read(lu) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
+    read(lu,err=999) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
 
     ! dimension checks
-    if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) &
-       call ferror("read_elk_myout","field not allocated",faterr)
-    if (size(f%rhomt,1) /= nrmtmax) &
-       call ferror("read_elk_myout","wrong nrmtmax in field",faterr)
-    if (size(f%rhomt,2) /= lmmaxo) &
-       call ferror("read_elk_myout","wrong lmmaxo in field",faterr)
-    if (size(f%rhomt,3) /= natmtot) &
-       call ferror("read_elk_myout","wrong natmtot in field",faterr)
-    if (size(f%rhok) /= ngtot) &
-       call ferror("read_elk_myout","wrong ngtot in field",faterr)
+    if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) then
+       errmsg = "field not allocated"
+       return
+    end if
+    if (size(f%rhomt,1) /= nrmtmax) then
+       errmsg = "wrong nrmtmax in field"
+       return
+    end if
+    if (size(f%rhomt,2) /= lmmaxo) then
+       errmsg = "wrong lmmaxo in field"
+       return
+    end if
+    if (size(f%rhomt,3) /= natmtot) then
+       errmsg = "wrong natmtot in field"
+       return
+    end if
+    if (size(f%rhok) /= ngtot) then
+       errmsg = "wrong ngtot in field"
+       return
+    end if
 
     ! read the number of rmt points (internal)
     allocate(nrmti(maxspecies),nrmt(maxspecies))
-    read(lu) nrmti, nrmt
+    read(lu,err=999) nrmti, nrmt
 
     ! read the field and close
     allocate(rhotmp(npmtmax,natmtot))
     allocate(rhoktmp(ngtot))
-    read(lu) rhotmp, rhoktmp
+    read(lu,err=999) rhotmp, rhoktmp
     call fclose(lu)
 
     ! unpack and reorder the rhotmp to rhomt
@@ -585,6 +609,10 @@ contains
     f%rhok = rhoktmp
     call cfftnd(3,f%n,-1,f%rhok)
     deallocate(rhoktmp)
+
+    return
+999 continue ! error condition
+    errmsg = "error reading file"
 
   end subroutine read_elk_myout
 
