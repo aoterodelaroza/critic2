@@ -1039,11 +1039,7 @@ contains
                       elseif (r%label_style == 5) then ! 5 = Z
                          drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
                       elseif (r%label_style == 6) then ! 6 = mol
-                         if (sys(r%id)%c%ismol3d) then
-                            drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
-                         else
-                            drawlist_string(nstring)%str = "1"
-                         end if
+                         drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
                       end if
                    end if
                 end do ! i3
