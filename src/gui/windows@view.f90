@@ -1594,7 +1594,7 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
-    use gui_main, only: g, fontsize
+    use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown

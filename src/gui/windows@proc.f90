@@ -568,7 +568,6 @@ contains
     integer(c_int), save :: getbind = -1 ! get binding flag
 
     real(c_float), parameter :: wleft = 120._c_float
-    real(c_float), parameter :: wright = 600._c_float
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()

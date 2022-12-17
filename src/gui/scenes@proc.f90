@@ -243,7 +243,6 @@ contains
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
-    use param, only: pi
     class(scene), intent(inout), target :: s
 
     integer :: i
