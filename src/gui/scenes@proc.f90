@@ -63,7 +63,7 @@ contains
     s%uc_res = 1
 
     ! phong default settings
-    s%bgcolor = (/0._c_float,0._c_float,0._c_float,1._c_float/)
+    s%bgcolor = (/0._c_float,0._c_float,0._c_float,0._c_float/)
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
     s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
     s%ambient = 0.2_c_float

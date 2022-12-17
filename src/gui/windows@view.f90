@@ -48,14 +48,14 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, j, nrep, id, ipad
-    type(ImVec2) :: szavail, sz0, sz1, szero
+    type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok
     logical(c_bool) :: isatom, isbond, islabels, isuc
     integer(c_int) :: amax, flags, nc(3), ires
-    real(c_float) :: scal, width, sqw, ratio
+    real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -514,7 +514,7 @@ contains
           call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
              sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
        else
-          call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+          call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
 
@@ -533,16 +533,28 @@ contains
     bgcol%x = 0._c_float
     bgcol%y = 0._c_float
     bgcol%z = 0._c_float
-    bgcol%w = 0._c_float
+    bgcol%w = 1._c_float
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
     ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
     call igPopStyleColor(3)
 
+    ! get hover and image rectangle coordinates
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
+
+    ! ! xxxx !
+    ! if (hover) then
+    !    call igGetMousePos(pos)
+    !    call w%mousepos_to_texpos(pos)
+    !    write (*,*) "pos = ", pos
+    !    call w%getpixel(w%FBO,pos,depth,rgba)
+    !    write (*,*) "depth = ", depth
+    !    write (*,*) "rgba = ", rgba
+    ! end if
+    ! ! xxxx !
 
     ! Process mouse events
     call w%process_events_view(hover)
@@ -597,6 +609,8 @@ contains
     ! FBO and buffers
     call glGenTextures(1, c_loc(w%FBOtex))
     call glGenRenderbuffers(1, c_loc(w%FBOdepth))
+    call glGenRenderbuffers(1, c_loc(w%FBOdepthp))
+    call glGenRenderbuffers(1, c_loc(w%FBOrgba))
     call glGenFramebuffers(1, c_loc(w%FBO))
 
     ! texture
@@ -607,28 +621,45 @@ contains
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
-    ! render buffer
+    ! render buffers
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
     call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+    call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepthp)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
+    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+    call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOrgba)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, atex, atex)
+    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
-    ! frame buffer
+    ! frame buffers
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
     call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
     call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
-
-    ! check for errors
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
-       call ferror('window_init','framebuffer is not complete',faterr)
-
-    ! finish and write the texture size
+       call ferror('window_init','framebuffer (draw) is not complete',faterr)
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, w%FBOrgba)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepthp)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+       call ferror('window_init','framebuffer (pick) is not complete',faterr)
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    ! write the texture side
     w%FBOside = atex
 
-    ! clear the texture initially
+    ! initial clear
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
     call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-    call glClearColor(0._c_float,0._c_float,0._c_float,1._c_float)
+    call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
+    call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+    call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
     call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
@@ -642,6 +673,9 @@ contains
     call glDeleteTextures(1, c_loc(w%FBOtex))
     call glDeleteRenderbuffers(1, c_loc(w%FBOdepth))
     call glDeleteFramebuffers(1, c_loc(w%FBO))
+    call glDeleteRenderbuffers(1, c_loc(w%FBOdepthp))
+    call glDeleteRenderbuffers(1, c_loc(w%FBOrgba))
+    call glDeleteFramebuffers(1, c_loc(w%FBOpick))
 
   end subroutine delete_texture_view
 
@@ -658,7 +692,7 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos
-    real(c_float) :: ratio, depth, pos3(3), vnew(3), vold(3), axis(3), lax
+    real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
     real(c_float) :: mpos2(2), ang, xc(3)
     type(scene), pointer :: sc
 
@@ -690,9 +724,8 @@ contains
        texpos = mousepos
 
        ! transform to the texture pos
-       if (abs(texpos%x) < 1e20 .and. abs(texpos%y) < 1e20) then
-          call w%mousepos_to_texpos(texpos)
-       end if
+       call w%mousepos_to_texpos(texpos)
+
        ! Zoom. There are two behaviors: mouse scroll and hold key and
        ! translate mouse
        ratio = 0._c_float
@@ -733,14 +766,7 @@ contains
 
        ! drag
        if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_right)) then
-          depth = w%texpos_viewdepth(texpos)
-          if (depth < 1._c_float) then
-             mpos0_r = (/texpos%x,texpos%y,depth/)
-          else
-             pos3 = 0._c_float
-             call w%view_to_texpos(pos3)
-             mpos0_r = (/texpos%x,texpos%y,pos3(3)/)
-          end if
+          mpos0_r = (/texpos%x,texpos%y,1._c_float/)
 
           ! save the current view matrix
           oldview = sc%view
@@ -832,6 +858,8 @@ contains
 
     real(c_float) :: dx, dy, xratio, yratio
 
+    if (abs(pos%x) > 1e20 .or. abs(pos%y) > 1e20) return
+
     dx = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
     dy = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
     xratio = 2._c_float * dx / max(dx,dy)
@@ -866,21 +894,28 @@ contains
   end subroutine texpos_to_mousepos
 
   !> Get the view depth from the texture position
-  module function texpos_viewdepth(w,pos)
+  module subroutine getpixel(w,fb,pos,depth,rgba)
     use interfaces_opengl3
     class(window), intent(inout), target :: w
+    integer(c_int), intent(in) :: fb
     type(ImVec2), intent(inout) :: pos
-    real(c_float) :: texpos_viewdepth
+    real(c_float), intent(out), optional :: depth
+    real(c_float), intent(out), optional :: rgba(4)
 
-    real(c_float), target :: depth
+    real(c_float), target :: depth_, rgba_(4)
 
-    ! pixels have the origin (0,0) at top left; the other end is bottom right, (FBOside-1,FBOside-1)
-    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
-    call glReadPixels(int(pos%x), int(w%FBOside - pos%y), 1_c_int, 1_c_int, GL_DEPTH_COMPONENT, GL_FLOAT, c_loc(depth))
+    call glBindFramebuffer(GL_FRAMEBUFFER, fb)
+    if (present(depth)) then
+       call glReadPixels(int(pos%x), int(pos%y), 1_c_int, 1_c_int, GL_DEPTH_COMPONENT, GL_FLOAT, c_loc(depth_))
+       depth = depth_
+    end if
+    if (present(rgba)) then
+       call glReadPixels(int(pos%x), int(pos%y), 1_c_int, 1_c_int, GL_RGBA, GL_FLOAT, c_loc(rgba_))
+       rgba = rgba_
+    end if
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
-    texpos_viewdepth = depth
 
-  end function texpos_viewdepth
+  end subroutine getpixel
 
   !> Transform from view coordinates to texture position (x,y)
   !> plus depth (z).

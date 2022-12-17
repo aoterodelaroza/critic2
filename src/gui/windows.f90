@@ -101,9 +101,12 @@ module windows
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      ! view parameters
-     integer(c_int) :: FBO ! framebuffer
-     integer(c_int) :: FBOtex ! framebuffer, texture
-     integer(c_int) :: FBOdepth ! framebuffer, depth buffer
+     integer(c_int) :: FBO ! draw framebuffer
+     integer(c_int) :: FBOtex ! draw framebuffer -> texture
+     integer(c_int) :: FBOdepth ! draw framebuffer -> depth buffer
+     integer(c_int) :: FBOpick ! object pick framebuffer
+     integer(c_int) :: FBOdepthp ! object pick framebuffer -> depth buffer
+     integer(c_int) :: FBOrgba ! object pick framebuffer -> rgba buffer
      integer(c_int) :: FBOside ! side of the render texture (pixels)
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
      integer :: view_selected = 1 ! the system selected in the view window
@@ -150,7 +153,7 @@ module windows
      procedure :: process_events_view ! process the mouse events in the view
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
-     procedure :: texpos_viewdepth ! get depth from texture position
+     procedure :: getpixel ! get depth or color from texture position
      procedure :: view_to_texpos ! view coordinates to texture position
      procedure :: texpos_to_view ! texture position to view coordinates
      procedure :: world_to_texpos ! world coordinates to texture position
@@ -302,11 +305,13 @@ module windows
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
      end subroutine texpos_to_mousepos
-     module function texpos_viewdepth(w,pos)
+     module subroutine getpixel(w,fb,pos,depth,rgba)
        class(window), intent(inout), target :: w
+       integer(c_int), intent(in) :: fb
        type(ImVec2), intent(inout) :: pos
-       real(c_float) :: texpos_viewdepth
-     end function texpos_viewdepth
+       real(c_float), intent(out), optional :: depth
+       real(c_float), intent(out), optional :: rgba(4)
+     end subroutine getpixel
      module subroutine view_to_texpos(w,pos)
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
