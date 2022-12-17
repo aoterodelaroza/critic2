@@ -306,7 +306,7 @@ contains
   !> activates the delay, and is the show flag for the delayed tooltip.
   module subroutine iw_tooltip(str,ttshown)
     use interfaces_cimgui
-    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled
+    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
 
@@ -325,7 +325,7 @@ contains
     subroutine show_tooltip()
       strloc = trim(str) // c_null_char
       call igBeginTooltip()
-      call igPushTextWrapPos(tooltip_wrap_factor * igGetFontSize())
+      call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
       call igTextWrapped(c_loc(strloc))
       call igPopTextWrapPos()
       call igEndTooltip()

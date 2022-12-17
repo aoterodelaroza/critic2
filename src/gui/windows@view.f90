@@ -42,7 +42,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -415,7 +415,7 @@ contains
           if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
              str3 = "[close button]##1closebutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
-             width = max(4._c_float, g%FontSize + 2._c_float)
+             width = max(4._c_float, fontsize%y + 2._c_float)
              call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
 
              str3 = "[view button]##1viewbutton" // c_null_char
@@ -1590,11 +1590,14 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
-    use gui_main, only: g
+    use gui_main, only: g, fontsize
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
-    logical(c_bool) :: changed
+    logical(c_bool) :: changed, ldum
+    integer :: ipad
+    real(c_float) :: sqw
+    integer(c_int) :: nc(3)
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical :: ch
@@ -1616,31 +1619,55 @@ contains
 
     ! number of periodic cells, if manual
     if (w%rep%pertype == 2_c_int) then
-       call igPushItemWidth(5._c_float * g%FontSize)
-       call iw_text("  a: ")
-       call igSameLine(0._c_float,0._c_float)
-       str2 = "##aaxis" // c_null_char
-       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(1),1_c_int,100_c_int,&
-          ImGuiInputTextFlags_EnterReturnsTrue)
-       call igSameLine(0._c_float,g%FontSize)
-       call iw_text("b: ")
-       call igSameLine(0._c_float,0._c_float)
-       str2 = "##baxis" // c_null_char
-       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(2),1_c_int,100_c_int,&
-          ImGuiInputTextFlags_EnterReturnsTrue)
-       call igSameLine(0._c_float,g%FontSize)
-       call iw_text("c: ")
-       call igSameLine(0._c_float,0._c_float)
-       str2 = "##caxis" // c_null_char
-       changed = changed .or. igInputInt(c_loc(str2),w%rep%ncell(3),1_c_int,100_c_int,&
-          ImGuiInputTextFlags_EnterReturnsTrue)
+       ! calculate widths
+       ipad = ceiling(log10(max(maxval(w%rep%ncell),1) + 0.1))
+       sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
+       call igPushItemWidth(sqw)
 
+       nc = w%rep%ncell
+       call igAlignTextToFramePadding()
+       call iw_text("a:")
+       call igSameLine(0._c_float,0._c_float)
+       if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       str2 = "##aaxis" // c_null_char
+       call igPushItemWidth(iw_calcwidth(ipad,1))
+       ldum = igInputInt(c_loc(str2),w%rep%ncell(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
+
+       call igSameLine(0._c_float,-1._c_float)
+       call iw_text("b:")
+       call igSameLine(0._c_float,0._c_float)
+       if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       str2 = "##baxis" // c_null_char
+       call igPushItemWidth(iw_calcwidth(ipad,1))
+       ldum = igInputInt(c_loc(str2),w%rep%ncell(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
+
+       call igSameLine(0._c_float,-1._c_float)
+       call iw_text("c:")
+       call igSameLine(0._c_float,0._c_float)
+       if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       str2 = "##caxis" // c_null_char
+       call igPushItemWidth(iw_calcwidth(ipad,1))
+       ldum = igInputInt(c_loc(str2),w%rep%ncell(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
+       call igPopItemWidth()
+       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+       if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
        w%rep%ncell = max(w%rep%ncell,1)
+       if (any(nc /= w%rep%ncell)) changed = .true.
+       call igPopItemWidth()
+
        if (iw_button("Reset",sameline=.true.)) then
           w%rep%ncell = 1
           changed = .true.
        end if
-       call igPopItemWidth()
     end if
 
     !! styles

@@ -544,7 +544,8 @@ contains
 
   !> Draw the preferences window
   module subroutine draw_preferences(w)
-    use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor
+    use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
+       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
@@ -613,11 +614,19 @@ contains
     sz%y = -igGetFrameHeightWithSpacing() - g%Style%ItemSpacing%y
     if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
 
-       call igPushItemWidth(4._c_float * g%FontSize)
+       call igPushItemWidth(6._c_float * fontsize%x)
        if (catid == 0) then
           !! Interface
           call iw_text("Interface",highlight=.true.)
           call igSeparator()
+
+          str = "Font scale" // c_null_char
+          str2 = "%.2f" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igDragFloat(c_loc(str),io%FontGlobalScale,0.005_c_float,0.3_c_float,3.0_c_float,c_loc(str2),&
+                ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Scale factor for the user interface font",ttshown)
+          end if
 
           str = "Enable tooltips" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
@@ -639,6 +648,18 @@ contains
              ldum = igDragFloat(c_loc(str),tooltip_wrap_factor,1._c_float,0._c_float,1000._c_float,&
                 c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Width of the interface tooltips",ttshown)
+          end if
+
+          str = "Tree selects input console system" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igCheckbox(c_loc(str),tree_select_updates_inpcon)
+             call iw_tooltip("Selecting a system on the tree changes the system in the input console",ttshown)
+          end if
+
+          str = "Tree selects view system" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = igCheckbox(c_loc(str),tree_select_updates_view)
+             call iw_tooltip("Selecting a system on the tree changes the system in the view window",ttshown)
           end if
 
        elseif (catid == 1) then
@@ -725,17 +746,12 @@ contains
        call igPopItemWidth()
 
        ! gui_main:
-       ! logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
-       ! logical, parameter, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
-       ! logical, parameter, public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
        ! type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
        ! type(ImVec4), parameter, public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
        ! type(ImVec4), parameter, public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
        ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
        ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
        ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
-
-       ! font size
 
        !! update view if required
        !! -- implement reset --

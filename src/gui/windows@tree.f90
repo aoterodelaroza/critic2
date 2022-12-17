@@ -60,7 +60,7 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view
+       tree_select_updates_view, fontsize
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -289,7 +289,7 @@ contains
        flags = ior(flags,ImGuiTableColumnFlags_NoSort)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
-       width = max(4._c_float, g%FontSize + 2._c_float)
+       width = max(4._c_float, fontsize%y + 2._c_float)
        call igTableSetupColumn(c_loc(str),flags,width,ic_closebutton)
 
        str = "(expand button)##0expandbutton" // c_null_char

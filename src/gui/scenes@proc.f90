@@ -237,7 +237,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts
+    use gui_main, only: fonts, fontbakesize
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
@@ -322,9 +322,9 @@ contains
           hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
           hside = hside * s%camratio
           hside = max(hside,3._c_float)
-          siz = 2 * s%drawlist_string(i)%scale / igGetFontSize() / hside
+          siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
        else
-          siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / igGetFontSize()
+          siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
        end if
        call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
           siz,nvert,vert,centered=.true.)
@@ -1290,7 +1290,7 @@ contains
   !> centered, center the text in x and y.
   subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
-    use gui_main, only: g
+    use gui_main, only: g, fontbakesize
     use types, only: realloc
     use param, only: newline
     character(len=*), intent(in) :: text
@@ -1327,7 +1327,7 @@ contains
     ! initial variables
     xpos = floor(x0)
     ypos = floor(y0)
-    fs = igGetFontSize()
+    fs = fontbakesize
     scale = siz / fs
     lheight = scale * fs
     if (centered_) then
@@ -1406,7 +1406,7 @@ contains
   !> r = radius of the associated atom.
   subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
     use interfaces_cimgui
-    use gui_main, only: g
+    use gui_main, only: g, fontbakesize
     use types, only: realloc
     use param, only: newline
     character(len=*), intent(in) :: text
@@ -1439,7 +1439,7 @@ contains
     ! initial variables
     xpos = 0._c_float
     ypos = 0._c_float
-    lheight = igGetFontSize()
+    lheight = fontbakesize
     if (centered_) then
        nline = 1
        allocate(xlen(10),jlen(10))
@@ -1479,6 +1479,9 @@ contains
           vert(4,j) = r + rshift
        end do
 
+       if (i == 1) then
+          write (*,*) glyph%X1 - glyph%X0, glyph%Y1 - glyph%Y0
+       end if
        vert(5:6,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)
        vert(5:6,nvert+2) = (/xpos + glyph%X0, ypos + glyph%Y0/)
        vert(5:6,nvert+3) = (/xpos + glyph%X1, ypos + glyph%Y0/)

@@ -37,7 +37,8 @@ module gui_main
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
-  type(ImVec2), public :: fontsize ! the default font size
+  type(ImVec2), public :: fontsize ! font size (sensitive to scaling)
+  real(c_float), parameter, public :: fontbakesize = 16._c_float ! font size (for baking the font)
 
   ! GUI control parameters
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples
@@ -45,8 +46,8 @@ module gui_main
   real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
   real(c_float), public :: tooltip_wrap_factor = 25._c_float ! tooltip wrap factor (fontsize)
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
-  logical, parameter, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
-  logical, parameter, public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
+  logical(c_bool), public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
+  logical(c_bool), public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
 
   ! GUI colors
   type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule

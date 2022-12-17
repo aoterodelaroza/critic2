@@ -165,7 +165,7 @@ contains
     io%configflags = ior(io%configflags,ImGuiConfigFlags_NavEnableKeyboard)
     io%inifilename = c_null_ptr ! do not save the ini file, for now
 
-    ! default font, 16 pt and with Greek letters and letter-like symbols
+    ! default font, with Greek letters and letter-like symbols
     range = (/32_c_short,   255_c_short,& ! default (basic latin + supplement)
              880_c_short,  1023_c_short,& ! Greek and Coptic
             8488_c_short,  8527_c_short,& ! letter-like symbols
@@ -176,7 +176,7 @@ contains
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
     ptrc = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       16._c_float,c_null_ptr,c_loc(range))
+       fontbakesize,c_null_ptr,c_loc(range))
 
     ! get the ImGui context pointer and the main viewport
     ptrc = igGetCurrentContext()
