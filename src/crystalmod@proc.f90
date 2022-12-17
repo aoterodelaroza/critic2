@@ -877,8 +877,8 @@ contains
     errmsg = "Error reading xyz file"
     lu = fopen_read(file,ti=ti)
     if (lu < 0) goto 999
-    read(lu,*,err=999) nat
-    read(lu,*,err=999)
+    read(lu,*,err=999,end=999) nat
+    read(lu,*,err=999,end=999)
 
     fr%nat = nat
     allocate(fr%at(nat))
@@ -886,7 +886,7 @@ contains
     allocate(fr%spc(fr%nspc))
     fr%spc = c%spc
     do i = 1, nat
-       read(lu,*,err=999) word, x0
+       read(lu,*,err=999,end=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,icrd_cart)
        if (id == 0) then

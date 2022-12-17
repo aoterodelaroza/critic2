@@ -1282,10 +1282,7 @@ contains
     call seed%end()
     errmsg = "Error reading file."
     lu = fopen_read(file,ti=ti)
-    if (lu < 0) then
-       errmsg = "Error opening file."
-       return
-    end if
+    if (lu < 0) goto 999
     seed%file = file
     seed%name = file
 
@@ -1301,7 +1298,7 @@ contains
     seed%rotm = 0d0
     do while(getline_raw(lu,line))
        if (index(line,"LATTICE CENTRING TYPE") > 0) then
-          read (line,*) dum, dum, dum, latt
+          read (line,*,err=999,end=999) dum, dum, dum, latt
           if (latt == "P") then
              seed%ncv=1
           elseif (latt == "I") then
@@ -1349,17 +1346,17 @@ contains
              if (len_trim(line) == 0) exit
 
              seed%neqv = seed%neqv + 1
-             read(line,*) (rdum,i=1,4), seed%rotm(1,:,seed%neqv)
+             read(line,*,err=999,end=999) (rdum,i=1,4), seed%rotm(1,:,seed%neqv)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read(line,*) (rdum,i=1,4), seed%rotm(2,:,seed%neqv)
+             read(line,*,err=999,end=999) (rdum,i=1,4), seed%rotm(2,:,seed%neqv)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read(line,*) (rdum,i=1,4), seed%rotm(3,:,seed%neqv)
+             read(line,*,err=999,end=999) (rdum,i=1,4), seed%rotm(3,:,seed%neqv)
           end do
        elseif (index(line,"LATTICE CONSTANTS") > 0) then
-          read (lu,*,err=999) dum, dum, seed%aa(1), dum, dum, seed%aa(2), dum, dum, seed%aa(3)
-          read (lu,*,err=999) dum, dum, seed%bb(1), dum, dum, seed%bb(2), dum, dum, seed%bb(3)
+          read (lu,*,err=999,end=999) dum, dum, seed%aa(1), dum, dum, seed%aa(2), dum, dum, seed%aa(3)
+          read (lu,*,err=999,end=999) dum, dum, seed%bb(1), dum, dum, seed%bb(2), dum, dum, seed%bb(3)
           seed%aa = seed%aa / bohrtoa
 
        elseif (index(line,"Inequivalent basis atoms") > 0) then
@@ -1374,7 +1371,7 @@ contains
              if (len_trim(line) == 0) exit
              ! a new atom
              seed%nat = seed%nat + 1
-             read (line,*,err=999) idum, iz, str
+             read (line,*,err=999,end=999) idum, iz, str
 
              ! assign atomic species by atomic number
              if (isused(iz) == 0) then
@@ -1401,17 +1398,15 @@ contains
              ok = getline_raw(lu,line)
              ok = ok.and.getline_raw(lu,line)
              if (.not.ok) goto 999
-             read (line,*,err=999) seed%x(:,i)
+             read (line,*,err=999,end=999) seed%x(:,i)
           end do
        end if
     end do
+    if (seed%nat == 0 .or. seed%nspc == 0 .or. seed%neqv == 0 .or. seed%ncv == 0) goto 999
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
-
-    errmsg = ""
-999 continue
 
     ! close the file and clean up
     call fclose(lu)
@@ -1430,6 +1425,10 @@ contains
     seed%isused = .true.
     seed%cubic = .false.
     seed%border = 0d0
+
+    errmsg = ""
+999 continue
+    if (lu > 0) call fclose(lu)
 
   end subroutine read_f21
 
@@ -1465,15 +1464,15 @@ contains
     seed%name = file
 
     ! ignore the title lines
-    read (lu,*,err=999)
+    read (lu,*,err=999,end=999)
 
     ! number of atoms and unit cell
-    read (lu,*,err=999) seed%nat, x0
+    read (lu,*,err=999,end=999) seed%nat, x0
     ismo = (seed%nat < 0)
     seed%nat = abs(seed%nat)
 
     do i = 1, 3
-       read (lu,*,err=999) nstep(i), rmat(:,i)
+       read (lu,*,err=999,end=999) nstep(i), rmat(:,i)
        rmat(:,i) = rmat(:,i) * nstep(i)
     end do
 
@@ -1493,7 +1492,7 @@ contains
     nn = seed%nat
     seed%nat = 0
     do i = 1, nn
-       read (lu,*,err=999) iz, rdum, rx
+       read (lu,*,err=999,end=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
           rx = matmul(rx - x0,rmat)
@@ -1567,9 +1566,9 @@ contains
     end if
 
     ! number of atoms and unit cell
-    read (lu,err=999) seed%nat, x0
+    read (lu,err=999,end=999) seed%nat, x0
 
-    read (lu,err=999) nstep, rmat
+    read (lu,err=999,end=999) nstep, rmat
     do i = 1, 3
        rmat(:,i) = rmat(:,i) * nstep(i)
     end do
@@ -1589,7 +1588,7 @@ contains
     nn = seed%nat
     seed%nat = 0
     do i = 1, nn
-       read (lu,err=999) iz, rdum, rx
+       read (lu,err=999,end=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
           rx = matmul(rx - x0,rmat)
@@ -1675,27 +1674,27 @@ contains
        return
     end if
 
-    READ(lut,102,err=999) TITEL
-    READ(lut,103,err=999) LATTIC, seed%nat, cform
-    READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
+    READ(lut,102,err=999,end=999) TITEL
+    READ(lut,103,err=999,end=999) LATTIC, seed%nat, cform
+    READ(lut,100,err=999,end=999) seed%aa(1:3), seed%bb(1:3)
     DO JATOM=1,seed%nat
-       READ(lut,1012,err=999) iatnr,pos,MULTW
+       READ(lut,1012,err=999,end=999) iatnr,pos,MULTW
        DO MU=1,MULTW-1
-          READ(lut,1013,err=999) iatnr, pos
+          READ(lut,1013,err=999,end=999) iatnr, pos
        end DO
-       READ(lut,113,err=999) ANAME,JRI,RNOT,RMT,Znuc
-       READ(lut,1051,err=999) ((mat(I1,J1),I1=1,3),J1=1,3)
+       READ(lut,113,err=999,end=999) ANAME,JRI,RNOT,RMT,Znuc
+       READ(lut,1051,err=999,end=999) ((mat(I1,J1),I1=1,3),J1=1,3)
     end DO
-    READ(lut,114,err=999) seed%neqv
+    READ(lut,114,err=999,end=999) seed%neqv
 
     readall = (seed%neqv <= 0)
 
     ! second pass -> actually process the information
     rewind(lut)
-    READ(lut,102,err=999) TITEL
+    READ(lut,102,err=999,end=999) TITEL
     seed%name = file
 
-    READ(lut,103,err=999) LATTIC, seed%nat, cform
+    READ(lut,103,err=999,end=999) LATTIC, seed%nat, cform
 102 FORMAT(A80)
 103 FORMAT(A4,23X,I3,1x,a4,/,4X,4X) ! new
 
@@ -1738,7 +1737,7 @@ contains
        goto 999
     END IF
 
-    READ(lut,100,err=999) seed%aa(1:3), seed%bb(1:3)
+    READ(lut,100,err=999,end=999) seed%aa(1:3), seed%bb(1:3)
 
     if (LATTIC(1:1) == 'R') then
        ahex = seed%aa(1)
@@ -1762,7 +1761,7 @@ contains
           call realloc(seed%x,3,2*iat)
           call realloc(seed%is,2*iat)
        end if
-       READ(lut,1012,err=999) iatnr,seed%x(:,iat),MULTW
+       READ(lut,1012,err=999,end=999) iatnr,seed%x(:,iat),MULTW
 
        istart = iat
        if (readall) then
@@ -1772,15 +1771,15 @@ contains
                 call realloc(seed%x,3,2*iat)
                 call realloc(seed%is,2*iat)
              end if
-             READ(lut,1013,err=999) iatnr, seed%x(:,iat)
+             READ(lut,1013,err=999,end=999) iatnr, seed%x(:,iat)
           end DO
        else
           DO MU=1,MULTW-1
-             READ(lut,1013,err=999) iatnr, pos
+             READ(lut,1013,err=999,end=999) iatnr, pos
           end DO
        end if
 
-       READ(lut,113,err=999) ANAME,JRI,RNOT,RMT,Znuc
+       READ(lut,113,err=999,end=999) ANAME,JRI,RNOT,RMT,Znuc
        aname = adjustl(aname)
        it = 0
        do i = 1, seed%nspc
@@ -1800,7 +1799,7 @@ contains
        do i = iat0+1, iat
           seed%is(i) = it
        end do
-       READ(lut,1051,err=999) ((mat(I1,J1),I1=1,3),J1=1,3)
+       READ(lut,1051,err=999,end=999) ((mat(I1,J1),I1=1,3),J1=1,3)
     end DO
 113 FORMAT(A10,5X,I5,5X,F10.5,5X,F10.5,5X,F5.2)
 1012 FORMAT(4X,I4,4X,F10.7,3X,F10.7,3X,F10.7,/15X,I2) ! new
@@ -1812,13 +1811,13 @@ contains
     call realloc(seed%spc,seed%nspc)
 
     !.read number of symmetry operations, sym. operations
-    READ(lut,114,err=999) seed%neqv
+    READ(lut,114,err=999,end=999) seed%neqv
 114 FORMAT(I4)
 
     if (seed%neqv > 0) then
        allocate(seed%rotm(3,4,seed%neqv))
        do i=1, seed%neqv
-          read(lut,115,err=999) ((iz(i1,i2),i1=1,3),tau(i2),i2=1,3)
+          read(lut,115,err=999,end=999) ((iz(i1,i2),i1=1,3),tau(i2),i2=1,3)
           do j=1,3
              seed%rotm(:,j,i)=dble(iz(j,:))
           enddo
@@ -1992,10 +1991,10 @@ contains
     end if
 
     ! Read atomic positions (cryst. coords.)
-    read(lu,*,err=999) line
+    read(lu,*,err=999,end=999) line
     line = adjustl(line)
     if (line(1:1) == 's' .or. line(1:1) == 'S') then
-       read(lu,*,err=999) line
+       read(lu,*,err=999,end=999) line
        line = adjustl(line)
     endif
     iscar = .false.
@@ -2005,7 +2004,7 @@ contains
        iscar = .true.
     endif
     do i = 1, seed%nat
-       read(lu,*,err=999) seed%x(:,i)
+       read(lu,*,err=999,end=999) seed%x(:,i)
        if (iscar) &
           seed%x(:,i) = matmul(rprim,seed%x(:,i) / bohrtoa)
     enddo
@@ -2134,12 +2133,12 @@ contains
 
     ! ignore the 'scale' stuff
     do i = 1, 14
-       read(lu,*,err=999)
+       read(lu,*,err=999,end=999)
     end do
 
-    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,1)
-    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,2)
-    read(lu,'(3G18.10)',err=999) seed%m_x2c(:,3)
+    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,1)
+    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,2)
+    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,3)
     seed%useabr = 2
 
     ok = getline_raw(lu,line,.false.)
@@ -2153,7 +2152,7 @@ contains
 
     seed%nat = 0
     allocate(seed%x(3,10),seed%is(10))
-    read(lu,'(I4)',err=999) seed%nspc
+    read(lu,'(I4)',err=999,end=999) seed%nspc
     allocate(seed%spc(seed%nspc))
     do i = 1, seed%nspc
        ok = getline_raw(lu,line,.false.)
@@ -2178,14 +2177,14 @@ contains
           seed%spc(i)%name = trim(atname)
        end if
 
-       read(lu,*,err=999) natoms
+       read(lu,*,err=999,end=999) natoms
        do j = 1, natoms
           seed%nat = seed%nat + 1
           if (seed%nat > size(seed%x,2)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
           end if
-          read(lu,*,err=999) seed%x(:,seed%nat)
+          read(lu,*,err=999,end=999) seed%x(:,seed%nat)
           seed%is(seed%nat) = i
        end do
     end do
@@ -2865,7 +2864,7 @@ contains
                 call realloc(seed%x,3,2*seed%nat)
                 call realloc(seed%is,2*seed%nat)
              end if
-             read (line,*,err=999) idum, iz, ats, x
+             read (line,*,err=999,end=999) idum, iz, ats, x
              seed%x(:,seed%nat) = x / bohrtoa
              seed%is(seed%nat) = 0
              do j = 1, seed%nspc
@@ -2963,16 +2962,16 @@ contains
 
     ! the lattice vectors
     do i = 1, 3
-       read (lu,*,err=999) r(i,:)
+       read (lu,*,err=999,end=999) r(i,:)
     end do
     r = r / bohrtoa
 
     ! the atoms
     seed%nspc = 0
-    read (lu,*,err=999) seed%nat
+    read (lu,*,err=999,end=999) seed%nat
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(2))
     do i = 1, seed%nat
-       read (lu,*,err=999) seed%is(i), idum, seed%x(:,i)
+       read (lu,*,err=999,end=999) seed%is(i), idum, seed%x(:,i)
        if (idum > size(seed%spc,1)) &
           call realloc(seed%spc,2*idum)
        seed%nspc = max(seed%nspc,seed%is(i))
@@ -3050,7 +3049,7 @@ contains
        ! read the lattice vectors
        if (word == "latt" .and..not.havelatt) then
           do i = 1, 3
-             read (lu,*,err=999) r(i,:)
+             read (lu,*,err=999,end=999) r(i,:)
           end do
           havelatt = .true.
        elseif (word == "cuto") then
@@ -3193,7 +3192,7 @@ contains
     ! number of atoms and type of coordinates
     ok = getline(lu,line)
     if (.not.ok) goto 999
-    read (line,*,err=999) seed%nat, isfrac
+    read (line,*,err=999,end=999) seed%nat, isfrac
     isfrac = lower(isfrac)
     if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) then
        errmsg = 'Wrong coordinate selector.'
@@ -3228,7 +3227,7 @@ contains
     do i = 1, seed%nat
        ok = getline(lu,line)
        if (.not.ok) goto 999
-       read (line,*,err=999) idum, seed%is(i), seed%x(:,i)
+       read (line,*,err=999,end=999) idum, seed%is(i), seed%x(:,i)
        if (isfrac /= "f") &
           seed%x(:,i) = seed%x(:,i) / bohrtoa
     end do
@@ -3333,12 +3332,12 @@ contains
        word = lgetword(line,lp)
        if (equal(word,"primvec")) then
           do i = 1, 3
-             read (lu,*,err=999) r(i,:)
+             read (lu,*,err=999,end=999) r(i,:)
           end do
           r = r / bohrtoa
           ismol = .false.
        elseif (equal(word,"primcoord").and..not.xread) then
-          read (lu,*,err=999) seed%nat
+          read (lu,*,err=999,end=999) seed%nat
           allocate(seed%x(3,seed%nat),seed%is(seed%nat))
           seed%nspc = 0
           allocate(seed%spc(2))
@@ -3392,7 +3391,7 @@ contains
           do while (getline_raw(lu,line))
              if (len_trim(line) == 0) exit
 
-             read (line,*,err=999) atn, x
+             read (line,*,err=999,end=999) atn, x
              seed%nat = seed%nat + 1
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
@@ -3505,17 +3504,17 @@ contains
     errmsg = "Error reading file."
 
     ! header
-    read (lu,err=999) version
+    read (lu,err=999,end=999) version
     if (version < 2) then
        errmsg = "This pwc file is too old. Please update your QE and regenerate it."
        goto 999
     end if
 
-    read (lu,err=999) seed%nspc, seed%nat, alat
+    read (lu,err=999,end=999) seed%nspc, seed%nat, alat
 
     ! species
     allocate(atm(seed%nspc),seed%spc(seed%nspc))
-    read (lu,err=999) atm
+    read (lu,err=999,end=999) atm
     do i = 1, seed%nspc
        seed%spc(i)%name = trim(atm(i))
        seed%spc(i)%z = zatguess(seed%spc(i)%name)
@@ -3524,9 +3523,9 @@ contains
 
     ! read the rest
     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
-    read (lu,err=999) seed%is
-    read (lu,err=999) seed%x
-    read (lu,err=999) seed%m_x2c
+    read (lu,err=999,end=999) seed%is
+    read (lu,err=999,end=999) seed%x
+    read (lu,err=999,end=999) seed%m_x2c
     seed%m_x2c = seed%m_x2c * alat
 
     ! convert to crystallographic
@@ -3607,7 +3606,7 @@ contains
        if (equal(word,"primvec")) then
           didreadr = .true.
           do i = 1, 3
-             read (lu,*,err=999) r(i,:)
+             read (lu,*,err=999,end=999) r(i,:)
           end do
           r = r / bohrtoa
           ismol = .false.
@@ -3615,7 +3614,7 @@ contains
           ok = isinteger(iprim,line,lp)
           if (iprim == nread0) then
              didreadx = .true.
-             read (lu,*,err=999) seed%nat
+             read (lu,*,err=999,end=999) seed%nat
              allocate(seed%x(3,seed%nat),seed%is(seed%nat))
              seed%nspc = 0
              allocate(seed%spc(2))
@@ -3943,7 +3942,7 @@ contains
        do i = 1, 3
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
-          read (line,*,err=999) cdum, (rlat(j,i),j=1,3)
+          read (line,*,err=999,end=999) cdum, (rlat(j,i),j=1,3)
        end do
        is_file_mol = .false.
     elseif (index(line,"No unit cell requested.") > 0) then
@@ -3966,7 +3965,7 @@ contains
           call realloc(seed%x,3,2*seed%nat)
           call realloc(seed%is,2*seed%nat)
        end if
-       read(line,*,err=999) cdum, dum1, dum2, splbl, (seed%x(j,seed%nat),j=1,3)
+       read(line,*,err=999,end=999) cdum, dum1, dum2, splbl, (seed%x(j,seed%nat),j=1,3)
        isfrac(seed%nat) = .false.
 
        word = trim(adjustl(splbl))
@@ -4162,7 +4161,7 @@ contains
     seed%name = seed%file
 
     ! line 2: cell parameters
-    read (lu,*,err=999) seed%aa, seed%bb
+    read (lu,*,err=999,end=999) seed%aa, seed%bb
     seed%aa = seed%aa / bohrtoa
     seed%useabr = 1
 
@@ -4172,7 +4171,7 @@ contains
     allocate(seed%spc(2),imap(maxzat))
     imap = 0
     do i = 1, seed%nat
-       read(lu,*,err=999) idum, atsym, seed%x(:,i)
+       read(lu,*,err=999,end=999) idum, atsym, seed%x(:,i)
        iz = zatguess(atsym)
        if (iz <= 0 .or. iz > maxzat) then
           errmsg = "Unknown atomic symbol."
@@ -5595,7 +5594,7 @@ contains
           do i = 1, nspc
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read (line,*,err=999) spc(i)%name, qaux
+             read (line,*,err=999,end=999) spc(i)%name, qaux
              spc(i)%z = zatguess(spc(i)%name)
              if (spc(i)%z < 0) then
                 errmsg = "Unknown atomic symbol: "//trim(spc(i)%name)//"."
@@ -5628,9 +5627,9 @@ contains
           do i = 1, nat
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read(line,*,err=999) idum, atn
+             read(line,*,err=999,end=999) idum, atn
              line = line(index(line,"(",.true.)+1:)
-             read(line,*,err=999) x(:,i)
+             read(line,*,err=999,end=999) x(:,i)
              do j = 1, nspc
                 if (equali(spc(j)%name,atn)) then
                    is(i) = j
@@ -5689,7 +5688,7 @@ contains
           do i = 1, nat
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read(line,*,err=999) atn, x(:,i)
+             read(line,*,err=999,end=999) atn, x(:,i)
              do j = 1, nspc
                 if (equali(spc(j)%name,atn)) then
                    is(i) = j
@@ -5768,8 +5767,8 @@ contains
              seed(iuse)%molx0 = 0d0
              seed(iuse)%file = file
 
-             read (line,*,err=999) sdum, sdum, sdum, sdum, sene
-             read (sene,*,err=999) rdum
+             read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
+             read (sene,*,err=999,end=999) rdum
              if (istruct < 0) then
                 if (is0 == nseed) then
                    seed(iuse)%name = trim(file) // "|(fin) (" //&
@@ -5841,7 +5840,7 @@ contains
     nseed = 0
     do while (getline_raw(lu,line))
        if (len_trim(line) == 0) cycle
-       read (line,*,err=999) nat
+       read (line,*,err=999,end=999) nat
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        do i = 1, nat
@@ -5859,7 +5858,7 @@ contains
        if (len_trim(line) == 0) cycle
        nseed = nseed + 1
        call usen%init()
-       read (line,*,err=999) nat
+       read (line,*,err=999,end=999) nat
        seed(nseed)%nat = nat
 
        ok = getline_raw(lu,line)
@@ -5870,7 +5869,7 @@ contains
        seed(nseed)%nspc = 0
        allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10))
        do i = 1, nat
-          read (lu,*,err=999) atn, seed(nseed)%x(:,i)
+          read (lu,*,err=999,end=999) atn, seed(nseed)%x(:,i)
 
           ok = isinteger(iz,atn)
           if (ok) then
@@ -5981,7 +5980,7 @@ contains
                 if (.not.ok) goto 999
                 if (index(line,"---------") > 0) exit
                 nat = nat + 1
-                read(line,*,err=999) idum, iz
+                read(line,*,err=999,end=999) idum, iz
                 usez(iz) = 1
              end do
           end if
@@ -6027,7 +6026,7 @@ contains
           if (.not.ok) goto 999
 
           do i = 1, nat
-             read (lu,*,err=999) idum, iz, idum, seed(in)%x(:,i)
+             read (lu,*,err=999,end=999) idum, iz, idum, seed(in)%x(:,i)
              seed(in)%is(i) = usez(iz)
           end do
 

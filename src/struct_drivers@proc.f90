@@ -3565,7 +3565,7 @@ contains
                 call realloc(iz,2*ncel)
                 call realloc(atlbl,2*ncel)
              end if
-             read(line,*,err=999) idum, iz(ncel), atlbl(ncel), cdum, idmol(ncel)
+             read(line,*,err=999,end=999) idum, iz(ncel), atlbl(ncel), cdum, idmol(ncel)
           end do
           if (ncel == 0) &
              call ferror("makemols_neighcrys","no atoms found in the fort.21 file",faterr)
@@ -3605,7 +3605,7 @@ contains
                 errmsg = "Too many atoms in coordinates block"
                 goto 999
              end if
-             read(line,*,err=999) idum, cdum, xx(:,ncel)
+             read(line,*,err=999,end=999) idum, cdum, xx(:,ncel)
           end do
 
           ! we are done with this file

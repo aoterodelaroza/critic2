@@ -238,12 +238,12 @@ contains
     end if
     errmsg = "Error reading file."
 
-    read (lu,*,err=999) n
-    read (lu,*,err=999)
+    read (lu,*,err=999,end=999) n
+    read (lu,*,err=999,end=999)
     allocate(x(3,n),z(n),name(n))
 
     do i = 1, n
-       read (lu,*,err=999) atsym, x(:,i)
+       read (lu,*,err=999,end=999) atsym, x(:,i)
        z(i) = zatguess(atsym)
        if (z(i) <= 0) then
           ! maybe it's a number
@@ -325,7 +325,7 @@ contains
           call realloc(z,2*n)
           call realloc(name,2*n)
        end if
-       read (line,*,err=999) atsym, x(:,n)
+       read (line,*,err=999,end=999) atsym, x(:,n)
        name(n) = trim(adjustl(atsym))
        z(n) = zatguess(atsym)
        x(:,n) = x(:,n) / bohrtoa
@@ -369,8 +369,8 @@ contains
     errmsg = "Error reading file."
 
     ! read the number of atoms
-    read (lu,*,err=999)
-    read (lu,101,err=999) orbtyp, i1, i2, n
+    read (lu,*,err=999,end=999)
+    read (lu,101,err=999,end=999) orbtyp, i1, i2, n
     if (n <= 0) then
        errmsg = "Wrong number of atoms"
        goto 999
@@ -379,7 +379,7 @@ contains
 
     ! read the geometry
     do i = 1, n
-       read(lu,106,err=999) atsym, x(:,i), zreal
+       read(lu,106,err=999,end=999) atsym, x(:,i), zreal
        z(i) = zatguess(atsym)
        if (z(i) < 0) then
           errmsg = "Unknown atom: "//trim(atsym)//"."
@@ -550,11 +550,11 @@ contains
        lp = 45
        if (line(1:29) == "Current cartesian coordinates") then
           do i = 0, (3*n-1)/5
-             read(lu,'(5E16.8)',err=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
+             read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
           enddo
        elseif (line(1:14) == "Atomic numbers") then
           do i = 0, (n-1)/6
-             read(lu,'(6I12)',err=999) (z(6*i+j),j=1,min(6,n-6*i))
+             read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
           enddo
        endif
     enddo
@@ -643,7 +643,7 @@ contains
     do i = 1, n
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
-       read(line,*,err=999) fixword, idum, z(i), x(:,i)
+       read(line,*,err=999,end=999) fixword, idum, z(i), x(:,i)
        if (isang) x(:,i) = x(:,i) / bohrtoa
        name(i) = nameguess(z(i))
     end do
@@ -727,7 +727,7 @@ contains
                 call realloc(z,2*n)
                 call realloc(name,2*n)
              end if
-             read (line,*,err=999) idum, z(n), idum, x(:,n)
+             read (line,*,err=999,end=999) idum, z(n), idum, x(:,n)
              name(n) = nameguess(z(n),.true.)
           end do
        end if
@@ -798,7 +798,7 @@ contains
                 call realloc(name,2*n)
                 reloc = .true.
              end if
-             read (line,*,err=999) name(n), x(:,n)
+             read (line,*,err=999,end=999) name(n), x(:,n)
              z(n) = zatguess(name(n))
           end do
           if (reloc) then
@@ -864,7 +864,7 @@ contains
                 call realloc(z,2*n)
                 call realloc(name,2*n)
              end if
-             read (line,*,err=999) idum, name(n), x(1,n), x(2,n), x(3,n)
+             read (line,*,err=999,end=999) idum, name(n), x(1,n), x(2,n), x(3,n)
              z(n) = zatguess(name(n))
           end do
           call realloc(x,3,n)
@@ -930,7 +930,7 @@ contains
                 call realloc(z,2*n)
                 call realloc(name,2*n)
              end if
-             read (line,*,err=999) name(n), x(1,n), x(2,n), x(3,n)
+             read (line,*,err=999,end=999) name(n), x(1,n), x(2,n), x(3,n)
              z(n) = zatguess(name(n))
           end do
        end if
@@ -979,14 +979,14 @@ contains
     ! read number of atoms, primitives, orbitals
     luwfn = fopen_read(file,ti=ti)
     if (luwfn < 0) goto 999
-    read (luwfn,*,err=999)
-    read (luwfn,101,err=999) orbtyp, f%nmoocc, f%npri, nat
+    read (luwfn,*,err=999,end=999)
+    read (luwfn,101,err=999,end=999) orbtyp, f%nmoocc, f%npri, nat
     f%nmoall = f%nmoocc
     f%nalpha_virt = 0
 
     ! atomic positions and numbers
     do i = 1, nat
-       read(luwfn,106,err=999) elem, x, zreal
+       read(luwfn,106,err=999,end=999) elem, x, zreal
        iz = zatguess(elem)
        if (iz /= nint(zreal)) f%useecp = .true.
     end do
@@ -998,8 +998,8 @@ contains
     if (allocated(f%itype)) deallocate(f%itype)
     allocate(f%itype(f%npri),stat=istat)
     if (istat /= 0) goto 999
-    read(luwfn,102,err=999) (f%icenter(i),i=1,f%npri)
-    read(luwfn,102,err=999) (f%itype(i),i=1,f%npri)
+    read(luwfn,102,err=999,end=999) (f%icenter(i),i=1,f%npri)
+    read(luwfn,102,err=999,end=999) (f%itype(i),i=1,f%npri)
     if (any(f%itype(1:f%npri) > 56)) then
        errmsg = "primitive type not supported"
        goto 999
@@ -1009,12 +1009,12 @@ contains
     if (allocated(f%e)) deallocate(f%e)
     allocate(f%e(f%npri),stat=istat)
     if (istat /= 0) goto 999
-    read(luwfn,103,err=999) (f%e(i),i=1,f%npri)
+    read(luwfn,103,err=999,end=999) (f%e(i),i=1,f%npri)
 
     ! deal with ecps
     dums=""
     do while (dums.ne."MO")
-       read (luwfn,'(A2)',err=999) dums
+       read (luwfn,'(A2)',err=999,end=999) dums
     enddo
     backspace(luwfn)
 
@@ -1032,8 +1032,8 @@ contains
     nalpha = -1
     found = .false.
     do i = 1, f%nmoocc
-       read(luwfn,104,err=999) f%occ(i), ene
-       read(luwfn,105,err=999) (f%cmo(i,j),j=1,f%npri)
+       read(luwfn,104,err=999,end=999) f%occ(i), ene
+       read(luwfn,105,err=999,end=999) (f%cmo(i,j),j=1,f%npri)
        ioc = nint(f%occ(i))
        if (abs(ioc-f%occ(i)) > 1d-10) then
           isfrac = .true.
@@ -1048,7 +1048,7 @@ contains
        end if
        ene0 = ene
     end do
-    read(luwfn,*,err=999) dum1
+    read(luwfn,*,err=999,end=999) dum1
 
     ! determine the type of wavefunction
     ! 0 - restricted, 1 - unrestricted, 2 - fractional
@@ -1126,16 +1126,16 @@ contains
        line = adjustl(line)
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
-             read (luwfn,*,err=999) f%nmoocc
+             read (luwfn,*,err=999,end=999) f%nmoocc
              f%nmoall = f%nmoocc
           elseif (trim(line) == "<Number of Alpha Electrons>") then
-             read (luwfn,*,err=999) nalpha
+             read (luwfn,*,err=999,end=999) nalpha
           elseif (trim(line) == "<Number of Core Electrons>") then
-             read (luwfn,*,err=999) ncore
+             read (luwfn,*,err=999,end=999) ncore
           elseif (trim(line) == "<Number of Primitives>") then
-             read(luwfn,*,err=999) f%npri
+             read(luwfn,*,err=999,end=999) f%npri
           elseif (trim(line) == "<Number of EDF Primitives>") then
-             read(luwfn,*,err=999) f%nedf
+             read(luwfn,*,err=999,end=999) f%nedf
           endif
        endif
     enddo
@@ -1184,10 +1184,10 @@ contains
           elseif (trim(line) == "<Molecular Orbital Occupation Numbers>") then
              f%occ = wfx_read_reals1(luwfn,f%nmoocc,errmsg2)
           elseif (trim(line) == "<Molecular Orbital Primitive Coefficients>") then
-             read(luwfn,*,err=999)
+             read(luwfn,*,err=999,end=999)
              do i = 1, f%nmoocc
-                read(luwfn,*,err=999)
-                read(luwfn,*,err=999)
+                read(luwfn,*,err=999,end=999)
+                read(luwfn,*,err=999,end=999)
                 f%cmo(i,:) = wfx_read_reals1(luwfn,f%npri,errmsg2)
              enddo
           elseif (trim(line) == "<EDF Primitive Centers>") then
@@ -1443,32 +1443,32 @@ contains
        lp = 45
        if (line(1:11) == "Shell types") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)',err=999) (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999,end=999) (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:30) == "Number of primitives per shell") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)',err=999) (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999,end=999) (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:30) == "Shell to atom map") then
           do i = 0, (ncshel-1)/6
-             read(luwfn,'(6I12)',err=999) (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
+             read(luwfn,'(6I12)',err=999,end=999) (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
        elseif (line(1:19) == "Primitive exponents") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)',err=999) (exppri(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999,end=999) (exppri(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:24) == "Contraction coefficients") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)',err=999) (ccontr(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999,end=999) (ccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:31) == "P(S=P) Contraction coefficients") then
           do i = 0, (nshel-1)/5
-             read(luwfn,'(5E16.8)',err=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
+             read(luwfn,'(5E16.8)',err=999,end=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
        elseif (line(1:21) == "Alpha MO coefficients") then
-          read(luwfn,'(5E16.8)',err=999) (motemp(i),i=1,namoread*nbassph)
+          read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=1,namoread*nbassph)
        elseif (line(1:21) == "Beta MO coefficients") then
-          read(luwfn,'(5E16.8)',err=999) (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
+          read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
        endif
     enddo
 
@@ -1912,7 +1912,7 @@ contains
              ok = getline_raw(luwfn,line,.true.)
              ok = getline_raw(luwfn,line,.true.)
              do while (index(line,".") /= 0)
-                read (line,*,err=999) mword, idum, rdum
+                read (line,*,err=999,end=999) mword, idum, rdum
                 ncshel = ncshel + 1
                 nshel = nshel + idum
                 do j = 1, idum
@@ -1959,7 +1959,7 @@ contains
 
                 ! occupation
                 ok = getline_raw(luwfn,line,.true.)
-                read (line,*,err=999) mword, rdum
+                read (line,*,err=999,end=999) mword, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) then
                    errmsg = "Fractional occupations are not supported yet for molden files."
@@ -2097,7 +2097,7 @@ contains
              do j = 1, idum
                 nj = nj + 1
                 ok = getline_raw(luwfn,line,.true.)
-                read(line,*,err=999) exppri(nj), ccontr(nj)
+                read(line,*,err=999,end=999) exppri(nj), ccontr(nj)
              end do
 
              ! assign atomic centers, number of primitives, and shell types.
@@ -2160,7 +2160,7 @@ contains
        f%ixmaxsto = 0
        do i = 1, f%npri
           ok = getline_raw(luwfn,line,.true.)
-          read(line,*,err=999) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
+          read(line,*,err=999,end=999) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
           f%itype(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
           f%ixmaxsto(1) = max(f%ixmaxsto(1),ix)
           f%ixmaxsto(2) = max(f%ixmaxsto(2),iy)

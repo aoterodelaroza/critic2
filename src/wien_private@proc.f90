@@ -515,8 +515,8 @@ contains
     errmsg = "Error reading file"
     lut = fopen_read(file,ti=ti)
     if (lut < 0) goto 999
-    READ(lut,102,err=999) TITEL
-    READ(lut,103,err=999) LATTIC,f%NAT,cform
+    READ(lut,102,err=999,end=999) TITEL
+    READ(lut,103,err=999,end=999) LATTIC,f%NAT,cform
     f%ishlat = (lattic.eq.'H   ')
 
 102 FORMAT(A80)
@@ -536,7 +536,7 @@ contains
     allocate (temp_iatnr(ndif))
     allocate (temp_pos(3,ndif))
 
-    READ(lut,100,err=999) f%a,alphatemp,betatemp,gammatemp
+    READ(lut,100,err=999,end=999) f%a,alphatemp,betatemp,gammatemp
 100 FORMAT(6F10.5)
     if(gammatemp == 0.d0) gammatemp=90.d0
 
@@ -684,21 +684,21 @@ contains
     INDEX=0
     DO JATOM=1,f%NAT
        INDEX=INDEX+1
-       READ(lut,1012,err=999) temp_IATNR(INDEX),&
+       READ(lut,1012,err=999,end=999) temp_IATNR(INDEX),&
           TEMP_POS(1,INDEX),TEMP_POS(2,INDEX),TEMP_POS(3,INDEX),f%MULTW(JATOM)
        DO MU=1,f%MULTW(JATOM)-1
           INDEX=INDEX+1
-          READ(lut,1013,err=999) temp_IATNR(INDEX),&
+          READ(lut,1013,err=999,end=999) temp_IATNR(INDEX),&
              TEMP_POS(1,INDEX),TEMP_POS(2,INDEX),TEMP_POS(3,INDEX)
        end DO
 
-       READ(lut,113,err=999) ANAME,f%JRI(JATOM),f%RNOT(JATOM),f%RMT(JATOM),Znuc
+       READ(lut,113,err=999,end=999) ANAME,f%JRI(JATOM),f%RNOT(JATOM),f%RMT(JATOM),Znuc
        if (f%jri(jatom) > nrad) then
           errmsg = "Max. radial points (nrad) exceeded"
           goto 999
        end if
        f%dx(jatom) = log(f%rmt(jatom)/f%rnot(jatom)) / (f%jri(jatom)-1)
-       READ(lut,1051,err=999) ((f%ROTLOC(I1,J1,JATOM),I1=1,3),J1=1,3)
+       READ(lut,1051,err=999,end=999) ((f%ROTLOC(I1,J1,JATOM),I1=1,3),J1=1,3)
     end DO
 113 FORMAT(A10,5X,I5,5X,F10.5,5X,F10.5,5X,F5.2)
 1012 FORMAT(4X,I4,4X,F10.7,3X,F10.7,3X,F10.7,/15X,I2) ! new
@@ -717,7 +717,7 @@ contains
     deallocate(temp_iatnr,temp_pos)
 
     !.read number of symmetry operations, sym. operations
-    READ(lut,114,err=999) f%nIORD
+    READ(lut,114,err=999,end=999) f%nIORD
 114 FORMAT(I4)
 
     if (allocated(f%iz)) deallocate(f%iz)
@@ -725,7 +725,7 @@ contains
     allocate(f%iz(3,3,nsym))
     allocate(f%tau(3,nsym))
     DO I=1,f%nIORD
-       READ(lut,115,err=999) ((f%IZ(I1,I2,I),I1=1,3),f%TAU(I2,I),I2=1,3)
+       READ(lut,115,err=999,end=999) ((f%IZ(I1,I2,I),I1=1,3),f%TAU(I2,I),I2=1,3)
     end DO
 115 FORMAT(3(3I2,F10.5,/))
 
@@ -773,7 +773,7 @@ contains
     if (allocated(f%slm)) deallocate(f%slm)
     allocate(f%lm(2,ncom,f%nat),f%lmmax(f%nat),f%slm(nrad,ncom,f%nat))
 
-    READ(lu,2032,err=999)
+    READ(lu,2032,err=999,end=999)
 
     mjrj = 0
     mlmmax = 0
@@ -781,7 +781,7 @@ contains
     DO JATOM=1,f%NAT
        JRJ=f%JRI(JATOM)
        mjrj = max(mjrj,jrj)
-       READ(lu,118,err=999) LL
+       READ(lu,118,err=999,end=999) LL
        mlmmax = max(mlmmax,LL)
        f%lmmax(jatom)=LL
        if (f%lmmax(jatom) > ncom) then
@@ -789,20 +789,20 @@ contains
           return
        end if
        do l=1,ll
-          READ(lu,2010,err=999) l1, l2
+          READ(lu,2010,err=999,end=999) l1, l2
           f%lm(1,l,jatom) = l1
           f%lm(2,l,jatom) = l2
           if (f%lm(1,l,jatom) > lmax2) then
              errmsg = "Max. L in LM list (lmax2) exceeded"
              return
           end if
-          READ(lu,2021,err=999) (f%slm(I,l,jatom),I=1,JRJ)
-          READ(lu,2031,err=999)
+          READ(lu,2021,err=999,end=999) (f%slm(I,l,jatom),I=1,JRJ)
+          READ(lu,2031,err=999,end=999)
           if (l == 1) then
              f%slm(1:jrj,l,jatom)=f%slm(1:jrj,l,jatom)/sqfp
           end if
        end do
-       READ(lu,2033,err=999)
+       READ(lu,2033,err=999,end=999)
     end DO
     f%cnorm = .true.  ! we have density normalization (/sqfp above)
 
@@ -847,7 +847,7 @@ contains
     ! read number of pw and allocate space for kvectors
     errmsg = ""
     IND=0
-    READ(lu,117,err=999) f%nwav
+    READ(lu,117,err=999,end=999) f%nwav
     if (allocated(f%krec)) deallocate(f%krec)
     if (allocated(f%inst)) deallocate(f%inst)
     if (allocated(k2)) deallocate(k2)

@@ -390,11 +390,11 @@ contains
 
     !.....Leer STOs:
     ok = getline_raw(lui,linea,.true.)
-    read (lui,'(a6,x,f10.0)',err=999) tition, zn
-    read (lui,*,err=999) f%bas(ni)%nsym
+    read (lui,'(a6,x,f10.0)',err=999,end=999) tition, zn
+    read (lui,*,err=999,end=999) f%bas(ni)%nsym
     if (f%bas(ni)%nsym.gt.msa) stop 'pi(leerion): nsym > msa !'
     if (f%bas(ni)%nsym.lt.0) stop 'pi(leerion): nsym < 0 !'
-    read (lui,*,err=999) (f%bas(ni)%nsto(i),i=1,f%bas(ni)%nsym)
+    read (lui,*,err=999,end=999) (f%bas(ni)%nsto(i),i=1,f%bas(ni)%nsym)
     f%bas(ni)%nasto(1)=0
     ntsto=0
     do i=1,f%bas(ni)%nsym
@@ -403,15 +403,15 @@ contains
        if (f%bas(ni)%nsto(i).gt.mstosym) stop 'pi(leerion): demasiados stos en una simetria !'
     end do
     if (ntsto.gt.msto) stop 'pi(leerion): demasiados stos !'
-    read (lui,*,err=999) (f%bas(ni)%nn(k),k=1,ntsto)
-    read (lui,*,err=999) (f%bas(ni)%z(k),k=1,ntsto)
+    read (lui,*,err=999,end=999) (f%bas(ni)%nn(k),k=1,ntsto)
+    read (lui,*,err=999,end=999) (f%bas(ni)%z(k),k=1,ntsto)
     do k=1,ntsto
        nk2=f%bas(ni)%nn(k)*2
        f%bas(ni)%xnsto(k)=dsqrt((2d0*f%bas(ni)%z(k))**(nk2+1)/fact(nk2))
     end do
 
     !.....Leer informacion orbital:
-    read (lui,*,err=999) (f%bas(ni)%naos(i),i=1,f%bas(ni)%nsym)
+    read (lui,*,err=999,end=999) (f%bas(ni)%naos(i),i=1,f%bas(ni)%nsym)
     f%bas(ni)%naaos(1)=0
     ntaos=0
     do i=1,f%bas(ni)%nsym
@@ -419,21 +419,22 @@ contains
        if (i.gt.1) f%bas(ni)%naaos(i)=f%bas(ni)%naaos(i-1)+f%bas(ni)%naos(i-1)
     end do
     if (ntaos.gt.maos) stop 'pi(leerion): demasiados aos !'
-    read (lui,*,err=999) (f%bas(ni)%nelec(k),k=1,ntaos)
-    read (lui,*,err=999) (eorb,k=1,ntaos)
-    read (lui,*,err=999) (((f%bas(ni)%c(k,j+f%bas(ni)%naaos(i)),k=1,f%bas(ni)%nsto(i)),j=1,f%bas(ni)%naos(i)),i=1,f%bas(ni)%nsym)
+    read (lui,*,err=999,end=999) (f%bas(ni)%nelec(k),k=1,ntaos)
+    read (lui,*,err=999,end=999) (eorb,k=1,ntaos)
+    read (lui,*,err=999,end=999) (((f%bas(ni)%c(k,j+f%bas(ni)%naaos(i)),k=1,f%bas(ni)%nsto(i)),&
+       j=1,f%bas(ni)%naos(i)),i=1,f%bas(ni)%nsym)
 
     !.....Este fragmento depende de la version de pi:
     if (style .lt. pi7_type) then
 
        !........versiones previas a la 7:
-       read (lui,*,err=999) (dumyj,i=1,10)
-       read (lui,*,err=999) (dumyk,i=1,10)
-       read (lui,*,err=999) eef,ead
-       read (lui,*,err=999) zef,ntef
+       read (lui,*,err=999,end=999) (dumyj,i=1,10)
+       read (lui,*,err=999,end=999) (dumyk,i=1,10)
+       read (lui,*,err=999,end=999) eef,ead
+       read (lui,*,err=999,end=999) zef,ntef
        if (ntef.gt.mtvef) stop 'pi(leerion): demasiados terminos vef'
        if (ntef.gt.0) then
-          read (lui,*,err=999) (aef,nref,nxef,nyef,nzef,alfaef,k=1,ntef)
+          read (lui,*,err=999,end=999) (aef,nref,nxef,nyef,nzef,alfaef,k=1,ntef)
        endif
     else
 
@@ -458,20 +459,20 @@ contains
           if (nosh .gt. 1) stop 'leerion: more than 1 open sh. per sym!'
        enddo
        if (openshell) then
-          read (lui,*,err=999) nj, nk
+          read (lui,*,err=999,end=999) nj, nk
           do jj = 1, nj
-             read (lui,*,err=999) ll,mm,nn,xnum,xden
+             read (lui,*,err=999,end=999) ll,mm,nn,xnum,xden
           enddo
           do kk = 1, nk
-             read (lui,*,err=999) ll,mm,nn,xnum,xden
+             read (lui,*,err=999,end=999) ll,mm,nn,xnum,xden
           enddo
        endif
-       read (lui,*,err=999) eef, ead, ecorr, ekin, epot
-       read (lui,*,err=999) qclas, zef, ntef
+       read (lui,*,err=999,end=999) eef, ead, ecorr, ekin, epot
+       read (lui,*,err=999,end=999) qclas, zef, ntef
        if (ntef.gt.mtvef) stop 'leerion: too many terms in Vef'
        if (ntef.gt.0) then
           do k=1,ntef
-             read (lui,*,err=999) aef,nref,alfaef
+             read (lui,*,err=999,end=999) aef,nref,alfaef
           enddo
        endif
     endif
@@ -480,7 +481,7 @@ contains
     if (style .eq. very_old) then
        ileeaexch=1
     else
-       read (lui,*,err=999) ileeaexch
+       read (lui,*,err=999,end=999) ileeaexch
     endif
     ndensi=0
     do i=1,f%bas(ni)%nsym
@@ -488,7 +489,7 @@ contains
     end do
     if (ndensi.gt.mdens) stop 'pi(leerion): too many charge densities!'
     if (ndensi.gt.0.and.ileeaexch.eq.1) then
-       read (lui,*,err=999) (aexch,i=1,ndensi)
+       read (lui,*,err=999,end=999) (aexch,i=1,ndensi)
     else
     endif
 

@@ -138,7 +138,7 @@ contains
     ! eigenvec.bin
     lu = fopen_read(filebin,"unformatted",ti=ti)
     if (lu < 0) goto 999
-    read (lu,err=999) idum ! this is the identity number
+    read (lu,err=999,end=999) idum ! this is the identity number
 
     ! read the eigenvectors
     if (f%isreal) then
@@ -146,7 +146,7 @@ contains
        allocate(f%evecr(f%norb,f%nstates,f%nspin))
        do i = 1, f%nspin
           do k = 1, f%nstates
-             read (lu,err=999) f%evecr(:,k,i)
+             read (lu,err=999,end=999) f%evecr(:,k,i)
           end do
        end do
     else
@@ -155,7 +155,7 @@ contains
        do i = 1, f%nspin
           do j = 1, f%nkpt
              do k = 1, f%nstates
-                read (lu,err=999) f%evecc(:,k,j,i)
+                read (lu,err=999,end=999) f%evecc(:,k,j,i)
              end do
           end do
        end do

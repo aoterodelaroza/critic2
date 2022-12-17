@@ -910,8 +910,8 @@ contains
     allocate(seed(nst))
     lu = fopen_read(fileposcar)
     do i = 1, nst
-       read (lu,*,err=999) sdum
-       read (lu,*,err=999) rdum
+       read (lu,*,err=999,end=999) sdum
+       read (lu,*,err=999,end=999) rdum
        if (abs(rdum - 1d0) > 1d-14) then
           errmsg = "scale in POSCAR file different from 1"
           goto 999
@@ -1002,7 +1002,7 @@ contains
        end if
 
        ! check the "direct" keyword
-       read(lu,*,err=999) let
+       read(lu,*,err=999,end=999) let
        if (let /= 'd' .and. let /= 'D') then
           errmsg = "Direct keyword expected but not found in POSCAR"
           goto 999
@@ -1011,7 +1011,7 @@ contains
        ! read atomic coordinates
        allocate(seed(i)%x(3,seed(i)%nat))
        do j = 1, seed(i)%nat
-          read(lu,*,err=999) seed(i)%x(:,iperm(j))
+          read(lu,*,err=999,end=999) seed(i)%x(:,iperm(j))
        enddo
 
        ! symmetry

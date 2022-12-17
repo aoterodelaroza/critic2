@@ -202,6 +202,7 @@ contains
     end if
 
     call hdr_io_1(fform,hdr_1,unitfi,headform_1,errmsg)
+    if (len_trim(errmsg) > 0) return
     if (headform_1 /= 0) then
        rewind(unitfi)
        call hdr_io_2(fform,hdr_2,unitfi,headform_2,errmsg)
@@ -212,6 +213,7 @@ contains
              &message and the version of abinit you are using."
           return
        end if
+       if (len_trim(errmsg) > 0) return
        if (allocated(hdr%xred)) deallocate(hdr%xred)
        if (allocated(hdr%znucltypat)) deallocate(hdr%znucltypat)
        if (allocated(hdr%typat)) deallocate(hdr%typat)
@@ -407,7 +409,7 @@ contains
     errmsg = "Error reading file."
     if(headform==22)then
 
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, nsppol, nsym, ntypat,&
           acell, hdr%ecut_eff, hdr%rprimd
        npsp=ntypat
@@ -415,7 +417,7 @@ contains
     else if(headform==23)then
 
        !   Compared to v2.2, add nspden, nspinor, occopt
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, ntypat, hdr%occopt,&
           acell, hdr%ecut_eff, hdr%rprimd
        npsp=ntypat
@@ -423,28 +425,28 @@ contains
     else if(headform==34)then
 
        !   Compared to v2.3, subtract acell, and add npsp
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt,&
           hdr%ecut_eff, hdr%rprimd
 
     else if(headform==40)then
 
        !   Compared to v3.4, add ecut, ecutsm, tphysel, tsmear
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%rprimd, hdr%tphysel, hdr%tsmear
 
     else if(headform==41)then
 
        !   Compared to v4.0, add pertcase and qptn(3)
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd, hdr%tphysel, hdr%tsmear
 
     else if(headform==42)then
 
        !   Compared to v4.1, add stmbias
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%ecut, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear
@@ -452,7 +454,7 @@ contains
     else if(headform>=44 .and. headform<57)then
 
        !   Compared to v4.2, add usepaw and ecutdg
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%usepaw, hdr%ecut, hdr%ecutdg, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear
@@ -460,7 +462,7 @@ contains
     else if(headform>=57)then
 
        !   Compared to v4.4, add usewvl
-       read(unitfi,err=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
+       read(unitfi,err=999,end=999) bantot, hdr%date, hdr%intxc, hdr%ixc, natom, hdr%ngfft(1:3),&
           nkpt, hdr%nspden, hdr%nspinor, nsppol, nsym, npsp, ntypat, hdr%occopt, hdr%pertcase,&
           hdr%usepaw, hdr%ecut, hdr%ecutdg, hdr%ecutsm, hdr%ecut_eff, hdr%qptn(1:3), hdr%rprimd,&
           hdr%stmbias, hdr%tphysel, hdr%tsmear, hdr%usewvl
@@ -524,14 +526,14 @@ contains
     if(headform==22 .and. (fform==1 .or. fform==51 .or. fform==101))then
 
        !   This is very old (pre-2.0) format !
-       read(unitfi,err=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
+       read(unitfi,err=999,end=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
 
     else if(headform==22 .or. headform==23 .or. headform==34)then
 
        !   Compared to pre v2.0, add istwfk
-       read(unitfi,err=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
+       read(unitfi,err=999,end=999) hdr%nband(:), hdr%npwarr(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%istwfk(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
 
@@ -539,7 +541,7 @@ contains
 
        !   Compared to pre v4.0, add so_psp and symafm, and switch istwfk
 
-       read(unitfi,err=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
+       read(unitfi,err=999,end=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
           hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:)
@@ -547,7 +549,7 @@ contains
     else if(headform>=50)then
 
        !   Compared to pre v5.0, add wtk
-       read(unitfi,err=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
+       read(unitfi,err=999,end=999)  hdr%istwfk(:), hdr%nband(:), hdr%npwarr(:), &
           hdr%so_psp(:), hdr%symafm(:), hdr%symrel(:,:,:), &
           hdr%typat(:), hdr%kptns(:,:), hdr%occ(:), &
           hdr%tnons(:,:), hdr%znucltypat(:), hdr%wtk(:)
@@ -563,7 +565,7 @@ contains
     if(headform==22)then
 
        do ipsp=1,npsp
-          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999,end=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspdat(ipsp), hdr%pspcod(ipsp), &
              hdr%pspxc(ipsp), lmax, lloc, mmax
        end do
@@ -572,7 +574,7 @@ contains
 
        !  Compared to 2.2, add pspso
        do ipsp=1,npsp
-          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999,end=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp), lmax, lloc, mmax
        end do
@@ -582,7 +584,7 @@ contains
 
        !  Compared to 2.3, suppress lmax, lloc, mmax
        do ipsp=1,npsp
-          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999,end=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp)
        end do
@@ -591,7 +593,7 @@ contains
 
        !  Compared to 4.2, add lmn_size
        do ipsp=1,npsp
-          read(unitfi,err=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
+          read(unitfi,err=999,end=999) hdr%title(ipsp), hdr%znuclpsp(ipsp), &
              hdr%zionpsp(ipsp), hdr%pspso(ipsp), hdr%pspdat(ipsp), &
              hdr%pspcod(ipsp), hdr%pspxc(ipsp), hdr%lmn_size(ipsp)
        end do
@@ -604,9 +606,9 @@ contains
     hdr%fermie=0d0
 
     if(headform==22)then
-       read(unitfi,err=999) hdr%residm, hdr%xred(:,:), hdr%etot
+       read(unitfi,err=999,end=999) hdr%residm, hdr%xred(:,:), hdr%etot
     else if(headform==23 .or. headform==34 .or. headform>=40)then
-       read(unitfi,err=999) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie
+       read(unitfi,err=999,end=999) hdr%residm, hdr%xred(:,:), hdr%etot, hdr%fermie
     end if
 
     !DEBUG
@@ -618,22 +620,22 @@ contains
     if (hdr%usepaw==1) then
        if ((headform>=44).and.(headform<56)) then
           allocate(nsel44(hdr%nspden,hdr%natom))
-          read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,hdr%nspden),iatom=1,hdr%natom)
+          read(unitfi,err=999,end=999) ((nsel44(ispden,iatom),ispden=1,hdr%nspden),iatom=1,hdr%natom)
           bsize=sum(nsel44)
           allocate(ibuffer(bsize),buffer(bsize));
-          read(unitfi,err=999) ibuffer(:),buffer(:)
+          read(unitfi,err=999,end=999) ibuffer(:),buffer(:)
           deallocate(ibuffer,buffer,nsel44)
        else if (headform>=56) then
           allocate(nsel56(hdr%natom))
           if (headform==56) then
-             read(unitfi,err=999) (nsel56(iatom),iatom=1,hdr%natom),cplex
+             read(unitfi,err=999,end=999) (nsel56(iatom),iatom=1,hdr%natom),cplex
              nspden=hdr%nspden
           else
-             read(unitfi,err=999) (nsel56(iatom),iatom=1,hdr%natom),cplex,nspden
+             read(unitfi,err=999,end=999) (nsel56(iatom),iatom=1,hdr%natom),cplex,nspden
           end if
           bsize=sum(nsel56)
           allocate(ibuffer(bsize),buffer(bsize*nspden*cplex))
-          read(unitfi,err=999) ibuffer(:),buffer(:)
+          read(unitfi,err=999,end=999) ibuffer(:),buffer(:)
           deallocate(ibuffer,buffer,nsel56)
        end if
     end if
@@ -790,21 +792,21 @@ contains
 
     if ((headform>=44).and.(headform<56)) then
        allocate(nsel44(nspden_in,natom))
-       read(unitfi,err=999) ((nsel44(ispden,iatom),ispden=1,nspden_in),iatom=1,natom)
+       read(unitfi,err=999,end=999) ((nsel44(ispden,iatom),ispden=1,nspden_in),iatom=1,natom)
        bsize=sum(nsel44)
        allocate(ibuffer(bsize),buffer(bsize))
-       read(unitfi,err=999) ibuffer(:),buffer(:)
+       read(unitfi,err=999,end=999) ibuffer(:),buffer(:)
        deallocate(ibuffer,buffer,nsel44)
     else if (headform>=56) then
        allocate(nsel56(natom))
        if (headform==56) then
-          read(unitfi,err=999) (nsel56(iatom),iatom=1,natom),my_cplex
+          read(unitfi,err=999,end=999) (nsel56(iatom),iatom=1,natom),my_cplex
        else
-          read(unitfi,err=999) (nsel56(iatom),iatom=1,natom),my_cplex,my_nspden
+          read(unitfi,err=999,end=999) (nsel56(iatom),iatom=1,natom),my_cplex,my_nspden
        end if
        bsize=sum(nsel56)
        allocate(ibuffer(bsize),buffer(bsize*my_nspden*my_cplex))
-       read(unitfi,err=999) ibuffer(:),buffer(:)
+       read(unitfi,err=999,end=999) ibuffer(:),buffer(:)
        deallocate(ibuffer,buffer,nsel56)
     end if
 

@@ -293,12 +293,12 @@ contains
     if (lu < 0) goto 999
     ! ignore the 'scale' stuff
     do i = 1, 14
-       read(lu,*,err=999)
+       read(lu,*,err=999,end=999)
     end do
 
-    read(lu,'(3G18.10)',err=999) f%x2c(:,1)
-    read(lu,'(3G18.10)',err=999) f%x2c(:,2)
-    read(lu,'(3G18.10)',err=999) f%x2c(:,3)
+    read(lu,'(3G18.10)',err=999,end=999) f%x2c(:,1)
+    read(lu,'(3G18.10)',err=999,end=999) f%x2c(:,2)
+    read(lu,'(3G18.10)',err=999,end=999) f%x2c(:,3)
 
     ok = getline_raw(lu,line,.true.)
     if (.not.ok) goto 999
@@ -309,7 +309,7 @@ contains
        goto 999
     end if
 
-    read(lu,'(I4)',err=999) nspecies
+    read(lu,'(I4)',err=999,end=999) nspecies
     do i = 1, nspecies
        ok = getline_raw(lu,line,.true.)
        if (.not.ok) goto 999
@@ -319,9 +319,9 @@ contains
           if (atname(j:j) == "'") atname(j:j) = " "
           if (atname(j:j) == '"') atname(j:j) = " "
        end do
-       read(lu,*,err=999) natoms
+       read(lu,*,err=999,end=999) natoms
        do j = 1, natoms
-          read(lu,*,err=999) x
+          read(lu,*,err=999,end=999) x
        end do
     end do
     call fclose(lu)
@@ -373,14 +373,14 @@ contains
     lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
-    read(lu,err=999) vdum  ! version
-    read(lu,err=999) spin  ! spinpol
-    read(lu,err=999) nspecies  ! nspecies
-    read(lu,err=999) lmmaxvr  ! lmmaxvr/lmmaxo
+    read(lu,err=999,end=999) vdum  ! version
+    read(lu,err=999,end=999) spin  ! spinpol
+    read(lu,err=999,end=999) nspecies  ! nspecies
+    read(lu,err=999,end=999) lmmaxvr  ! lmmaxvr/lmmaxo
     f%lmaxvr = nint(sqrt(real(lmmaxvr,8))) - 1
 
     ! allocate radial grids
-    read(lu,err=999) nrmtmax ! nrmtmax
+    read(lu,err=999,end=999) nrmtmax ! nrmtmax
     if (allocated(f%spr)) deallocate(f%spr)
     if (allocated(f%spr_a)) deallocate(f%spr_a)
     if (allocated(f%spr_b)) deallocate(f%spr_b)
@@ -388,7 +388,7 @@ contains
 
     ! read elk-2.1.25
     if (isnewer(2,1,22)) then
-       read(lu,err=999) nrcmtmax ! nrcmtmax
+       read(lu,err=999,end=999) nrcmtmax ! nrcmtmax
        if (allocated(rcmt)) deallocate(rcmt)
        allocate(rcmt(nrmtmax,nspecies))
     endif
@@ -398,41 +398,41 @@ contains
     if (allocated(f%rmt)) deallocate(f%rmt)
     allocate(f%nrmt(nspecies),f%rmt(nspecies))
     do i = 1, nspecies
-       read(lu,err=999) idum  ! natoms(is)
-       read(lu,err=999) f%nrmt(i)  ! nrmt(is)
-       read(lu,err=999) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)/rsp
+       read(lu,err=999,end=999) idum  ! natoms(is)
+       read(lu,err=999,end=999) f%nrmt(i)  ! nrmt(is)
+       read(lu,err=999,end=999) f%spr(1:f%nrmt(i),i)  ! spr(1:nrmt(is),is)/rsp
        f%rmt(i) = f%spr(f%nrmt(i),i)
        f%spr_a(i) = f%spr(1,i)
        f%spr_b(i) = log(f%spr(f%nrmt(i),i) / f%spr(1,i)) / real(f%nrmt(i)-1,8)
        if (isnewer(2,1,22)) then
-          read(lu,err=999) idum  ! nrcmt(is)
-          read(lu,err=999) rcmt(1:i,i)  ! rcmt(1:nrcmt(is),is)
+          read(lu,err=999,end=999) idum  ! nrcmt(is)
+          read(lu,err=999,end=999) rcmt(1:i,i)  ! rcmt(1:nrcmt(is),is)
        endif
     end do
 
     ! read interstitial data
-    read(lu,err=999) f%n  ! ngridg
+    read(lu,err=999,end=999) f%n  ! ngridg
     ngrid = f%n
-    read(lu,err=999) f%ngvec  ! ngvec
-    read(lu,err=999) idum  ! ndmag
-    read(lu,err=999) idum  ! nspinor
+    read(lu,err=999,end=999) f%ngvec  ! ngvec
+    read(lu,err=999,end=999) idum  ! ndmag
+    read(lu,err=999,end=999) idum  ! nspinor
     if (isnewer(2,1,22)) then
-       read(lu,err=999) idum  ! fixspin,fsmtype
+       read(lu,err=999,end=999) idum  ! fixspin,fsmtype
     end if
     if(isnewer(2,3,16)) then
-       read(lu,err=999) idum  ! ftmtype
+       read(lu,err=999,end=999) idum  ! ftmtype
     endif
-    read(lu,err=999) idum  ! ldapu,dftu
-    read(lu,err=999) idum  ! lmmaxdm,lmmaxlu
+    read(lu,err=999,end=999) idum  ! ldapu,dftu
+    read(lu,err=999,end=999) idum  ! lmmaxdm,lmmaxlu
     ngrtot = ngrid(1)*ngrid(2)*ngrid(3)
     allocate(rhotmp(lmmaxvr,nrmtmax,env%ncell))
     allocate(rhoktmp(ngrtot))
     if(isnewer(5,2,10)) then
-       read(lu,err=999) idum ! xcgrad
+       read(lu,err=999,end=999) idum ! xcgrad
     end if
 
     ! read the density itself and close (there is more after this, ignored)
-    read(lu,err=999) rhotmp, rhoktmp ! rhomt, rhoir
+    read(lu,err=999,end=999) rhotmp, rhoktmp ! rhomt, rhoir
     call fclose(lu)
 
     ! reorder the rhotmp to rhomt
@@ -568,7 +568,7 @@ contains
     if (lu < 0) goto 999
 
     ! read header
-    read(lu,err=999) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
+    read(lu,err=999,end=999) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies
 
     ! dimension checks
     if (.not.allocated(f%rhomt).or..not.allocated(f%rhok)) goto 999
@@ -579,12 +579,12 @@ contains
 
     ! read the number of rmt points (internal)
     allocate(nrmti(maxspecies),nrmt(maxspecies))
-    read(lu,err=999) nrmti, nrmt
+    read(lu,err=999,end=999) nrmti, nrmt
 
     ! read the field and close
     allocate(rhotmp(npmtmax,natmtot))
     allocate(rhoktmp(ngtot))
-    read(lu,err=999) rhotmp, rhoktmp
+    read(lu,err=999,end=999) rhotmp, rhoktmp
     call fclose(lu)
 
     ! unpack and reorder the rhotmp to rhomt

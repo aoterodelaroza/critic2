@@ -508,20 +508,20 @@ contains
     call f%end()
     luc = fopen_read(file,ti=ti)
 
-    read (luc,*,err=999)
-    read (luc,*,err=999)
-    read (luc,*,err=999) nat
+    read (luc,*,err=999,end=999)
+    read (luc,*,err=999,end=999)
+    read (luc,*,err=999,end=999) nat
     ismo = (nat < 0)
     nat = abs(nat)
 
     do i = 1, 3
-       read (luc,*,err=999) n(i)
+       read (luc,*,err=999,end=999) n(i)
     end do
     do i = 1, nat
-       read (luc,*,err=999)
+       read (luc,*,err=999,end=999)
     end do
     if (ismo) &
-       read (luc,*,err=999)
+       read (luc,*,err=999,end=999)
 
     f%isinit = .true.
     f%isqe = .false.
@@ -533,7 +533,7 @@ contains
        errmsg = "Error allocating grid"
        goto 999
     end if
-    read(luc,*,err=999) (((f%f(i,j,k),k=1,n(3)),j=1,n(2)),i=1,n(1))
+    read(luc,*,err=999,end=999) (((f%f(i,j,k),k=1,n(3)),j=1,n(2)),i=1,n(1))
     call fclose(luc)
 
     errmsg = ""
@@ -565,13 +565,13 @@ contains
     luc = fopen_read(file,form="unformatted",ti=ti)
     if (luc < 0) goto 999
 
-    read (luc,err=999) nat, x0
+    read (luc,err=999,end=999) nat, x0
     ismo = (nat < 0)
     nat = abs(nat)
 
-    read (luc,err=999) n, xd
+    read (luc,err=999,end=999) n, xd
     do i = 1, nat
-       read (luc,err=999) iz, rdum, x0
+       read (luc,err=999,end=999) iz, rdum, x0
     end do
 
     f%isinit = .true.
@@ -584,7 +584,7 @@ contains
        errmsg = "Error allocating grid"
        goto 999
     end if
-    read(luc,err=999) f%f
+    read(luc,err=999,end=999) f%f
     call fclose(luc)
 
     errmsg = ""
@@ -596,7 +596,7 @@ contains
 
   !> Read a grid in siesta RHO format
   module subroutine read_siesta(f,file,x2c,env,errmsg,ti)
-    use tools_io, only: fopen_read, faterr, ferror, fclose
+    use tools_io, only: fopen_read, fclose
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -624,8 +624,8 @@ contains
     if (luc < 0) goto 999
 
     ! assume unformatted
-    read (luc,err=999) r
-    read (luc,err=999) n, nspin
+    read (luc,err=999,end=999) r
+    read (luc,err=999,end=999) n, nspin
     call init_geometry(f,x2c,n,env)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -642,7 +642,7 @@ contains
     do i = 1, nspin
        do iz = 1, n(3)
           do iy = 1, n(2)
-             read (luc,err=999) g
+             read (luc,err=999,end=999) g
              f%f(:,iy,iz) = f%f(:,iy,iz) + g
           end do
        end do
@@ -696,7 +696,7 @@ contains
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) goto 999
     allocate(g(n(1),n(2),n(3)))
-    read(luc,err=999) g
+    read(luc,err=999,end=999) g
     f%f = g
     deallocate(g)
 
@@ -716,7 +716,7 @@ contains
   !> density, etc.). If vscal, scale by volume.
   module subroutine read_vasp(f,file,x2c,vscal,ibl,env,errmsg,ti)
     use tools_math, only: det3, matinv
-    use tools_io, only: fopen_read, getline_raw, faterr, ferror, fclose, string, &
+    use tools_io, only: fopen_read, getline_raw, fclose, string, &
        isinteger
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: file !< Input file
@@ -743,7 +743,7 @@ contains
        if (len(trim(line)) == 0) exit
     end do
 
-    read (luc,*,err=999) n
+    read (luc,*,err=999,end=999) n
 
     f%isinit = .true.
     f%isqe = .false.
@@ -756,7 +756,7 @@ contains
        goto 999
     end if
 
-    read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+    read(luc,*,err=999,end=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     if (present(ibl)) then
        ibcur = 1
        do while (ibcur < ibl)
@@ -773,7 +773,7 @@ contains
              if (.not.ok) nnew = 0
           end do
 
-          read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+          read(luc,*,err=999,end=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
           ibcur = ibcur + 1
        end do
     end if
@@ -807,7 +807,7 @@ contains
     luc = fopen_read(file,ti=ti)
     if (luc < 0) goto 999
 
-    read (luc,*,err=999) n
+    read (luc,*,err=999,end=999) n
 
     f%isinit = .true.
     f%isqe = .false.
@@ -819,7 +819,7 @@ contains
        errmsg = "Error allocating grid"
        goto 999
     end if
-    read(luc,*,err=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+    read(luc,*,err=999,end=999) (((f%f(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
     call fclose(luc)
 
     errmsg = ""
@@ -864,7 +864,7 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'primvec'))then
           ok = .true.
-          read(luc,*,err=999) pmat
+          read(luc,*,err=999,end=999) pmat
        else if (equal(word,'begin_block_datagrid_3d').or.equal(word,'begin_block_datagrid3d'))then
           found = .true.
           exit
@@ -895,11 +895,11 @@ contains
     end if
 
     ! grid dimension
-    read (luc,*,err=999) n
+    read (luc,*,err=999,end=999) n
     call init_geometry(f,x2c,n-1,env)
 
     ! origin and edge vectors
-    read (luc,*,err=999) x0, x1, x2, x3
+    read (luc,*,err=999,end=999) x0, x1, x2, x3
 
     f%isinit = .true.
     f%isqe = .false.
@@ -910,7 +910,7 @@ contains
        errmsg = "Error allocating grid"
        goto 999
     end if
-    read(luc,*,err=999) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+    read(luc,*,err=999,end=999) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
 
     allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
     f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
@@ -966,29 +966,29 @@ contains
     if (luc < 0) goto 999
 
     ! header and lattice vectors
-    read (luc,err=999) iver ! version
+    read (luc,err=999,end=999) iver ! version
     if (iver < 2) then
        errmsg = "This pwc file is too old. Please update your QE and regenerate it."
        goto 999
     end if
 
-    read (luc,err=999) nsp, nat, alat ! nsp, nat, alat
-    read (luc,err=999) ! atm
-    read (luc,err=999) ! ityp
-    read (luc,err=999) ! tau
-    read (luc,err=999) at
+    read (luc,err=999,end=999) nsp, nat, alat ! nsp, nat, alat
+    read (luc,err=999,end=999) ! atm
+    read (luc,err=999,end=999) ! ityp
+    read (luc,err=999,end=999) ! tau
+    read (luc,err=999,end=999) at
     at = at * alat
 
     ! read the dimensions for the arrays
-    read (luc,err=999) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
+    read (luc,err=999,end=999) f%qe%nks, f%qe%nbnd, f%qe%nspin, f%qe%gamma_only
     if (f%qe%nspin == 1) then
        fspin = 2d0
     else
        fspin = 1d0
     end if
-    read (luc,err=999) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
-    read (luc,err=999) n
-    read (luc,err=999) npwx, ngms
+    read (luc,err=999,end=999) f%qe%nk(1), f%qe%nk(2), f%qe%nk(3)
+    read (luc,err=999,end=999) n
+    read (luc,err=999,end=999) npwx, ngms
     nkstot = f%qe%nspin * f%qe%nks
     call init_geometry(f,x2c,n,env)
 
@@ -1001,10 +1001,10 @@ contains
     allocate(f%qe%ek(f%qe%nbnd,f%qe%nks,f%qe%nspin))
     if (allocated(f%qe%occ)) deallocate(f%qe%occ)
     allocate(f%qe%occ(f%qe%nbnd,f%qe%nks,f%qe%nspin))
-    read (luc,err=999) f%qe%kpt
-    read (luc,err=999) f%qe%wk
-    read (luc,err=999) f%qe%ek
-    read (luc,err=999) f%qe%occ
+    read (luc,err=999,end=999) f%qe%kpt
+    read (luc,err=999,end=999) f%qe%wk
+    read (luc,err=999,end=999) f%qe%ek
+    read (luc,err=999,end=999) f%qe%occ
 
     ! read k-point mapping
     if (allocated(f%qe%ngk)) deallocate(f%qe%ngk)
@@ -1013,13 +1013,13 @@ contains
     allocate(f%qe%igk_k(npwx,f%qe%nks))
     if (allocated(f%qe%nl)) deallocate(f%qe%nl)
     allocate(f%qe%nl(ngms))
-    read (luc,err=999) f%qe%ngk
-    read (luc,err=999) f%qe%igk_k
-    read (luc,err=999) f%qe%nl
+    read (luc,err=999,end=999) f%qe%ngk
+    read (luc,err=999,end=999) f%qe%igk_k
+    read (luc,err=999,end=999) f%qe%nl
     if (f%qe%gamma_only) then
        if (allocated(f%qe%nlm)) deallocate(f%qe%nlm)
        allocate(f%qe%nlm(ngms))
-       read (luc,err=999) f%qe%nlm
+       read (luc,err=999,end=999) f%qe%nlm
     end if
 
     ! convert k-point coordinates to reciprocal crystallographic and
@@ -1040,7 +1040,7 @@ contains
        do ik = 1, f%qe%nks
           do ib = 1, f%qe%nbnd
              rseq = 0d0
-             read (luc,err=999) evc(1:f%qe%ngk(ik))
+             read (luc,err=999,end=999) evc(1:f%qe%ngk(ik))
 
              ! range checks
              if (is /= ispin .and. ispin /= 0) cycle
@@ -1123,7 +1123,7 @@ contains
     if (luc < 0) goto 999
 
     ! grid dimension
-    read (luc,*,err=999) n
+    read (luc,*,err=999,end=999) n
 
     call init_geometry(f,x2c,n,env)
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
@@ -1131,7 +1131,7 @@ contains
     do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
-             read (luc,*,err=999) dum, f%f(i,j,k)
+             read (luc,*,err=999,end=999) dum, f%f(i,j,k)
           end do
        end do
     end do
@@ -1153,7 +1153,7 @@ contains
   !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
   module subroutine read_wannier_chk(f,fileup,filedn,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: faterr, ferror, uout, fopen_read, fclose
+    use tools_io, only: uout, fopen_read, fclose
     use param, only: bohrtoa
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fileup
@@ -1206,9 +1206,9 @@ contains
 
     ! header and number of bands
     do is = nspin, 1, -1
-       read(lu(is),err=999) header
-       read(lu(is),err=999) nbnd
-       read(lu(is),err=999) jbnd
+       read(lu(is),err=999,end=999) header
+       read(lu(is),err=999,end=999) nbnd
+       read(lu(is),err=999,end=999) jbnd
        if (jbnd > 0) then
           errmsg = "number of excluded bands must be 0"
           goto 999
@@ -1217,15 +1217,15 @@ contains
           errmsg = "number of bands different in wannier and qe"
           goto 999
        end if
-       read(lu(is),err=999) (idum,i=1,jbnd)
+       read(lu(is),err=999,end=999) (idum,i=1,jbnd)
 
        ! real and reciprocal lattice
-       read(lu(is),err=999) ((rlatt(i,j),i=1,3),j=1,3)
-       read(lu(is),err=999) ((rclatt(i,j),i=1,3),j=1,3)
+       read(lu(is),err=999,end=999) ((rlatt(i,j),i=1,3),j=1,3)
+       read(lu(is),err=999,end=999) ((rclatt(i,j),i=1,3),j=1,3)
 
        ! number of k-points
-       read(lu(is),err=999) nks
-       read(lu(is),err=999) nk
+       read(lu(is),err=999,end=999) nks
+       read(lu(is),err=999,end=999) nk
        if (nks == 0 .or.any(nk == 0) .or. nks/=(nk(1)*nk(2)*nk(3))) then
           errmsg = "error in number of k-points (wannier)"
           goto 999
@@ -1239,7 +1239,7 @@ contains
     ! k-points
     allocate(kpt(3,nks))
     do is = nspin, 1, -1
-       read(lu(is),err=999) ((kpt(i,j),i=1,3),j=1,nks)
+       read(lu(is),err=999,end=999) ((kpt(i,j),i=1,3),j=1,nks)
        do i = 1, nks
           ik1 = nint(kpt(1,i) * nk(1))
           ik2 = nint(kpt(2,i) * nk(2))
@@ -1262,13 +1262,13 @@ contains
     f%qe%nbndw = 0
 
     do is = nspin, 1, -1
-       read(lu(is),err=999) idum ! number of nearest k-point neighbours
-       read(lu(is),err=999) jbnd ! number of wannier functions
+       read(lu(is),err=999,end=999) idum ! number of nearest k-point neighbours
+       read(lu(is),err=999,end=999) jbnd ! number of wannier functions
        f%qe%nbndw(is) = jbnd
 
        ! checkpoint position and disentanglement
-       read(lu(is),err=999) chkpt1
-       read(lu(is),err=999) have_disentangled
+       read(lu(is),err=999,end=999) chkpt1
+       read(lu(is),err=999,end=999) have_disentangled
        if (have_disentangled) then
           errmsg = "cannot handle disentangled wannier functions"
           goto 999
@@ -1285,10 +1285,10 @@ contains
     f%qe%center = 0d0
     f%qe%spread = 0d0
     do is = nspin, 1, -1
-       read(lu(is),err=999) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
-       read(lu(is),err=999) ! m matrix
-       read(lu(is),err=999) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
-       read(lu(is),err=999) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
+       read(lu(is),err=999,end=999) (((f%qe%u(i,j,k,is),i=1,f%qe%nbndw(is)),j=1,f%qe%nbndw(is)),k=1,nks)
+       read(lu(is),err=999,end=999) ! m matrix
+       read(lu(is),err=999,end=999) ((f%qe%center(i,j,is),i=1,3),j=1,f%qe%nbndw(is))
+       read(lu(is),err=999,end=999) (f%qe%spread(i,is),i=1,f%qe%nbndw(is))
        call fclose(lu(is))
        lu(is) = -1
     end do
