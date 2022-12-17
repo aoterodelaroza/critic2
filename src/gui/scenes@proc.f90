@@ -29,8 +29,8 @@ submodule (scenes) proc
      zero,zero,zero,one/),shape(eye4))
 
   !xx! private procedures: low-level draws
-  ! subroutine draw_sphere(x0,rad,rgba,ires)
-  ! subroutine draw_cylinder(x1,x2,rad,rgba,ires)
+  ! subroutine draw_sphere(x0,rad,rgb,ires)
+  ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
   ! subroutine draw_text_direct(str,x0,siz,color,centered)
   ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
   ! subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
@@ -63,7 +63,7 @@ contains
     s%uc_res = 1
 
     ! phong default settings
-    s%bgcolor = (/0._c_float,0._c_float,0._c_float,0._c_float/)
+    s%bgcolor = (/0._c_float,0._c_float,0._c_float/)
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
     s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
     s%ambient = 0.2_c_float
@@ -276,7 +276,7 @@ contains
     if (s%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgba,s%atom_res)
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgb,s%atom_res)
        end do
     end if
 
@@ -285,7 +285,7 @@ contains
        call glBindVertexArray(cylVAO(s%bond_res))
        do i = 1, s%ncyl
           call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
-             s%drawlist_cyl(i)%rgba,s%bond_res)
+             s%drawlist_cyl(i)%rgb,s%bond_res)
        end do
     end if
 
@@ -295,7 +295,7 @@ contains
        call glBindVertexArray(cylVAO(s%uc_res))
        do i = 1, s%ncylflat
           call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-             s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgba,s%uc_res)
+             s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
        end do
     end if
 
@@ -307,6 +307,8 @@ contains
     call setuniform_vec3("campos",s%campos)
 
     call glDisable(GL_MULTISAMPLE)
+    call glEnable(GL_BLEND)
+    call glBlendEquation(GL_FUNC_ADD)
     call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
     call glActiveTexture(GL_TEXTURE0)
@@ -336,7 +338,7 @@ contains
     call glBindTexture(GL_TEXTURE_2D, 0)
 
     call glEnable(GL_MULTISAMPLE)
-    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    call glDisable(GL_BLEND)
 
   end subroutine scene_render
 
@@ -648,7 +650,7 @@ contains
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
     r%bond_color_style = 1
-    r%bond_rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+    r%bond_rgb = (/1._c_float,0._c_float,0._c_float/)
     r%bond_rad = 0.2_c_float
     r%label_style = 0
     r%label_scale = 0.5_c_float
@@ -658,7 +660,7 @@ contains
     r%uc_radiusinner = 0.15_c_float
     r%uc_innersteplen = 2d0
     r%uc_innerstipple = .true.
-    r%uc_rgba = (/1._c_float,1._c_float,1._c_float,1._c_float/)
+    r%uc_rgb = (/1._c_float,1._c_float,1._c_float/)
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
     r%origin = 0._c_float
@@ -744,8 +746,7 @@ contains
           r%atom_style(i)%shown = .true.
 
           iz = sys(r%id)%c%spc(i)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
-          r%atom_style(i)%rgba(4) = 1._c_float
+          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
        end do
@@ -758,8 +759,7 @@ contains
 
           ispc = sys(r%id)%c%at(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
-          r%atom_style(i)%rgba(4) = 1._c_float
+          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
        end do
@@ -772,8 +772,7 @@ contains
 
           ispc = sys(r%id)%c%atcel(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
-          r%atom_style(i)%rgba(4) = 1._c_float
+          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
 
           r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
        end do
@@ -803,7 +802,7 @@ contains
     logical :: havefilter, step, ok, isedge(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
-    real(c_float) :: rgba(4), rad
+    real(c_float) :: rgb(3), rad
     real*8 :: xx(3), x0(3), x1(3), x2(3), res, uoriginc(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
@@ -917,7 +916,7 @@ contains
           end if
 
           ! draw the spheres and cylinders
-          rgba = r%atom_style(id)%rgba
+          rgb = r%atom_style(id)%rgb
           rad = r%atom_style(id)%rad
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
@@ -947,7 +946,7 @@ contains
                       ! write down the sphere
                       drawlist_sph(nsph)%x = real(xx + uoriginc,c_float)
                       drawlist_sph(nsph)%r = rad
-                      drawlist_sph(nsph)%rgba = rgba
+                      drawlist_sph(nsph)%rgb = rgb
                    end if
 
                    ! bonds
@@ -984,13 +983,13 @@ contains
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%r = r%bond_rad
-                            drawlist_cyl(ncyl)%rgba = r%bond_rgba
+                            drawlist_cyl(ncyl)%rgb = r%bond_rgb
                          else
                             x0 = 0.5d0 * (x1 + x2)
                             drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
-                            drawlist_cyl(ncyl-1)%rgba = r%atom_style(id)%rgba
+                            drawlist_cyl(ncyl-1)%rgb = r%atom_style(id)%rgb
 
                             if (r%atom_style_type == 0) then
                                idaux = sys(r%id)%c%atcel(ineigh)%is
@@ -1002,7 +1001,7 @@ contains
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%r = r%bond_rad
-                            drawlist_cyl(ncyl)%rgba = r%atom_style(idaux)%rgba
+                            drawlist_cyl(ncyl)%rgb = r%atom_style(idaux)%rgb
                          end if
                       end do ! ncon
                    end if
@@ -1068,13 +1067,13 @@ contains
           drawlist_cylflat(ncylflat)%x2 = real(x2,c_float)
           drawlist_cylflat(ncylflat)%r = r%uc_radius
           if (r%uc_coloraxes.and.i==1) then
-             drawlist_cylflat(ncylflat)%rgba = (/1._c_float,0._c_float,0._c_float,1._c_float/)
+             drawlist_cylflat(ncylflat)%rgb = (/1._c_float,0._c_float,0._c_float/)
           elseif (r%uc_coloraxes.and.i==2) then
-             drawlist_cylflat(ncylflat)%rgba = (/0._c_float,1._c_float,0._c_float,1._c_float/)
+             drawlist_cylflat(ncylflat)%rgb = (/0._c_float,1._c_float,0._c_float/)
           elseif (r%uc_coloraxes.and.i==3) then
-             drawlist_cylflat(ncylflat)%rgba = (/0._c_float,0._c_float,1._c_float,1._c_float/)
+             drawlist_cylflat(ncylflat)%rgb = (/0._c_float,0._c_float,1._c_float/)
           else
-             drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+             drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
           end if
        end do
 
@@ -1105,14 +1104,14 @@ contains
                             drawlist_cylflat(ncylflat)%x1 = real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
                             drawlist_cylflat(ncylflat)%x2 = real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
                             drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
-                            drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+                            drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
                          end do
                       else
                          call increase_ncylflat()
                          drawlist_cylflat(ncylflat)%x1 = real(x1 ,c_float)
                          drawlist_cylflat(ncylflat)%x2 = real(x2 ,c_float)
                          drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
-                         drawlist_cylflat(ncylflat)%rgba = r%uc_rgba
+                         drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
                       end if
                    end do
                 end do
@@ -1135,15 +1134,15 @@ contains
 
   !xx! private procedures: low-level draws
 
-  !> Draw a sphere with center x0, radius rad and color rgba. Requires
+  !> Draw a sphere with center x0, radius rad and color rgb. Requires
   !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,rgba,ires)
+  subroutine draw_sphere(x0,rad,rgb,ires)
     use interfaces_opengl3
-    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shaders, only: setuniform_vec3, setuniform_mat4
     use shapes, only: sphnel
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgba(4)
+    real(c_float), intent(in) :: rgb(3)
     integer(c_int), intent(in) :: ires
 
     real(c_float) :: model(4,4)
@@ -1156,23 +1155,23 @@ contains
     model(3,3) = rad
 
     ! draw the sphere
-    call setuniform_vec4("vColor",rgba)
+    call setuniform_vec3("vColor",rgb)
     call setuniform_mat4("model",model)
     call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_sphere
 
   !> Draw a cylinder from x1 to x2 with radius rad and color
-  !> rgba. Requires having the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgba,ires)
+  !> rgb. Requires having the cylinder VAO bound.
+  subroutine draw_cylinder(x1,x2,rad,rgb,ires)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shaders, only: setuniform_vec3, setuniform_mat4
     use shapes, only: cylnel
     real(c_float), intent(in) :: x1(3)
     real(c_float), intent(in) :: x2(3)
     real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgba(4)
+    real(c_float), intent(in) :: rgb(3)
     integer(c_int), intent(in) :: ires
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
@@ -1215,7 +1214,7 @@ contains
     model(:,3) = model(:,3) * blen
 
     ! draw the cylinder
-    call setuniform_vec4("vColor",rgba)
+    call setuniform_vec3("vColor",rgb)
     call setuniform_mat4("model",model)
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
@@ -1251,6 +1250,7 @@ contains
     call glDisable(GL_CULL_FACE)
     call glDisable(GL_DEPTH_TEST)
     call glDisable(GL_MULTISAMPLE)
+    call glEnable(GL_BLEND)
     call glBlendEquation(GL_FUNC_ADD)
     call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -1275,7 +1275,7 @@ contains
     call glEnable(GL_CULL_FACE)
     call glEnable(GL_DEPTH_TEST)
     call glEnable(GL_MULTISAMPLE)
-    call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    call glDisable(GL_BLEND)
 
   end subroutine draw_text_direct
 

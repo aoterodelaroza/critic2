@@ -319,7 +319,7 @@ contains
           call iw_tooltip("Change the color of the light",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Background" // c_null_char
-          chrender = chrender .or. igColorEdit4(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
+          chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the scene background color",ttshown)
 
@@ -512,7 +512,7 @@ contains
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
        if (goodsys) then
           call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
-             sysc(w%view_selected)%sc%bgcolor(3),sysc(w%view_selected)%sc%bgcolor(4))
+             sysc(w%view_selected)%sc%bgcolor(3),1._c_float)
        else
           call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        end if
@@ -1409,11 +1409,11 @@ contains
           if (igTableSetColumnIndex(ic_color)) then
              str2 = "##tablecolor" // string(i) // c_null_char
              flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
-             ch = igColorEdit4(c_loc(str2),w%rep%atom_style(i)%rgba,flags)
+             ch = igColorEdit3(c_loc(str2),w%rep%atom_style(i)%rgb,flags)
              call iw_tooltip("Atom color",ttshown)
              if (ch) then
-                w%rep%atom_style(i)%rgba = min(w%rep%atom_style(i)%rgba,1._c_float)
-                w%rep%atom_style(i)%rgba = max(w%rep%atom_style(i)%rgba,0._c_float)
+                w%rep%atom_style(i)%rgb = min(w%rep%atom_style(i)%rgb,1._c_float)
+                w%rep%atom_style(i)%rgb = max(w%rep%atom_style(i)%rgb,0._c_float)
                 changed = .true.
              end if
           end if
@@ -1537,11 +1537,10 @@ contains
              end if
              iz = sys(isys)%c%spc(ispc)%z
              if (w%rep%atom_color_reset_type == 0) then
-                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol(:,iz),c_float) / 255._c_float
+                w%rep%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
              else
-                w%rep%atom_style(i)%rgba(1:3) = real(jmlcol2(:,iz),c_float) / 255._c_float
+                w%rep%atom_style(i)%rgb = real(jmlcol2(:,iz),c_float) / 255._c_float
              end if
-             w%rep%atom_style(i)%rgba(4) = 1._c_float
           end do
           changed = .true.
        end if
@@ -1565,12 +1564,12 @@ contains
        if (w%rep%bond_color_style == 0) then
           call igSameLine(0._c_float,-1._c_float)
           str2 = "##bondcolor" // c_null_char
-          ch = igColorEdit4(c_loc(str2),w%rep%bond_rgba,ImGuiColorEditFlags_NoInputs)
+          ch = igColorEdit3(c_loc(str2),w%rep%bond_rgb,ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Color for the representation bonds",ttshown)
           call iw_text("Color",sameline=.true.)
           if (ch) then
-             w%rep%bond_rgba = min(w%rep%bond_rgba,1._c_float)
-             w%rep%bond_rgba = max(w%rep%bond_rgba,0._c_float)
+             w%rep%bond_rgb = min(w%rep%bond_rgb,1._c_float)
+             w%rep%bond_rgb = max(w%rep%bond_rgb,0._c_float)
              changed = .true.
           end if
        end if
@@ -1726,11 +1725,11 @@ contains
 
     call igSameLine(0._c_float,-1._c_float)
     str1 = "Color" // c_null_char
-    ch = igColorEdit4(c_loc(str1),w%rep%uc_rgba,ImGuiColorEditFlags_NoInputs)
+    ch = igColorEdit3(c_loc(str1),w%rep%uc_rgb,ImGuiColorEditFlags_NoInputs)
     call iw_tooltip("Color of the unit cell edges",ttshown)
     if (ch) then
-       w%rep%uc_rgba = min(w%rep%uc_rgba,1._c_float)
-       w%rep%uc_rgba = max(w%rep%uc_rgba,0._c_float)
+       w%rep%uc_rgb = min(w%rep%uc_rgb,1._c_float)
+       w%rep%uc_rgb = max(w%rep%uc_rgb,0._c_float)
        changed = .true.
     end if
 
@@ -1931,8 +1930,7 @@ contains
        ! render the scene to the multisampled framebuffer
        call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
        call glViewport(0_c_int,0_c_int,w%npixel,w%npixel)
-       call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),&
-          sysc(isys)%sc%bgcolor(4))
+       call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),1._c_float)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        goodsys = (isys >= 1 .and. isys <= nsys)
        if (goodsys) goodsys = (sysc(isys)%status == sys_init)

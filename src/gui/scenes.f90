@@ -30,7 +30,7 @@ module scenes
   type dl_sphere
      real(c_float) :: x(3) ! position
      real(c_float) :: r ! radius
-     real(c_float) :: rgba(4) ! color
+     real(c_float) :: rgb(3) ! color
   end type dl_sphere
 
   !> cylinders for the draw list
@@ -38,7 +38,7 @@ module scenes
      real(c_float) :: x1(3) ! one end of the cylinder
      real(c_float) :: x2(3) ! other end of the cylinder
      real(c_float) :: r ! radius
-     real(c_float) :: rgba(4) ! color
+     real(c_float) :: rgb(3) ! color
   end type dl_cylinder
 
   !> strings for the draw list
@@ -53,7 +53,7 @@ module scenes
   !> draw style for atoms
   type draw_style_atom
      logical(c_bool) :: shown
-     real(c_float) :: rgba(4) ! color
+     real(c_float) :: rgb(3) ! color
      real(c_float) :: rad ! radius
   end type draw_style_atom
 
@@ -90,7 +90,7 @@ module scenes
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
      integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
-     real(c_float) :: bond_rgba(4) ! bond color (single color style)
+     real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
      integer(c_int) :: label_style ! 0 = atom name, 1 = cel-atom, 2 = cel-atom + lvec, 3 = neq atom, 4 = spc, 5 = Z, 6 = mol
@@ -102,7 +102,7 @@ module scenes
      logical(c_bool) :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
      real(c_float) :: uc_radius ! unit cell cylinder radius
      real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
-     real(c_float) :: uc_rgba(4) ! unit cell cylinder colors
+     real(c_float) :: uc_rgb(3) ! unit cell cylinder colors
      real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical(c_bool) :: uc_innerstipple ! stippled lines for the inner lines
    contains
@@ -132,7 +132,7 @@ module scenes
      integer(c_int) :: bond_res ! bond resolution
      integer(c_int) :: uc_res ! unit cell resolution
      ! scene/shader settings
-     real(c_float) :: bgcolor(4) ! background color
+     real(c_float) :: bgcolor(3) ! background color
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color
      real(c_float) :: ambient ! ambient light coefficent
