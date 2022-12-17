@@ -84,7 +84,7 @@ module scenes
      logical(c_bool) :: labels_display = .true. ! whether to draw the labels
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
-     integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species, 1=nneq, 2=cell
+     integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species,1=nneq,2=cell,3=idmol
      integer :: natom_style = 0 ! number of atom styles
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
