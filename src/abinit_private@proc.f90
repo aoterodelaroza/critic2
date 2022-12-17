@@ -371,6 +371,7 @@ contains
           headform/=56 .and. &
           headform/=57)then
           headform_1 = headform
+          errmsg = ""
           return
        end if
     end if
