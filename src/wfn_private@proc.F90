@@ -1102,7 +1102,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: luwfn, ncore, istat, i, num1, num2, ioc, nalpha
+    integer :: luwfn, ncore, i, num1, num2, ioc, nalpha
     character(len=:), allocatable :: line, errmsg2
     character(len=mlen) :: mline
     logical :: isfrac
@@ -1273,7 +1273,7 @@ contains
     character(len=:), allocatable :: line
     integer :: lp, i, j, k, nn, nm, nl, nc, ns, ncar, nsph
     integer :: luwfn, nelec, nalpha, nbassph, nbascar, nbeta, ncshel, nshel, lmax
-    integer :: istat, ityp, nmoread, namoread, nmoalla, nmoallb
+    integer :: ityp, nmoread, namoread, nmoalla, nmoallb
     logical :: ok, doexit
     real*8 :: norm
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
@@ -1785,7 +1785,7 @@ contains
   !> list of molden-generating programs that have been tested.
   module subroutine read_molden(f,file,molden_type,readvirtual,env,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, warning, lgetword, &
-       isinteger, isreal, fclose, uout
+       isinteger, isreal, fclose
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     character*(*), intent(in) :: file !< Input file
@@ -1798,7 +1798,7 @@ contains
     character(len=:), allocatable :: line, keyword, word, word1
     character(len=mlen) :: mword
     logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca
-    integer :: luwfn, istat, ityp
+    integer :: luwfn, ityp
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
     integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf

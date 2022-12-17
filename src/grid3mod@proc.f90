@@ -1153,7 +1153,7 @@ contains
   !> Specs from wannier90, 2.0.1 (works, too: 2.1.0)
   module subroutine read_wannier_chk(f,fileup,filedn,errmsg,ti)
     use tools_math, only: matinv
-    use tools_io, only: uout, fopen_read, fclose
+    use tools_io, only: fopen_read, fclose
     use param, only: bohrtoa
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: fileup

@@ -4984,7 +4984,6 @@ contains
     end if
     call realloc_crystalseed(seed,nseed)
 
-999 continue
     call fclose(lu)
 
     ! fill the rest of the information

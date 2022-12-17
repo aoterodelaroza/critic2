@@ -332,7 +332,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     !Local variables-------------------------------
-    integer :: bantot,bsize,cplex,headform,iatom,ierr,ipsp,ispden
+    integer :: bantot,bsize,cplex,headform,iatom,ipsp,ispden
     integer :: lloc,lmax,mmax,natom,nkpt,npsp,nspden,nsppol
     integer :: nsym,ntypat
     character(len=6) :: codvsn
