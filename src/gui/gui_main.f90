@@ -44,18 +44,18 @@ module gui_main
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples
   logical(c_bool), public :: tooltip_enabled = .true. ! whether tooltips are enabled
   real(c_float), public :: tooltip_delay = 0.5 ! tooltip delay, in seconds
-  real(c_float), public :: tooltip_wrap_factor = 25._c_float ! tooltip wrap factor (fontsize)
+  real(c_float), public :: tooltip_wrap_factor = 40._c_float ! tooltip wrap factor (fontsize)
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
   logical(c_bool), public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
   logical(c_bool), public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
 
   ! GUI colors
-  type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
-  type(ImVec4), parameter, public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
-  type(ImVec4), parameter, public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
-  type(ImVec4), parameter, public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
-  type(ImVec4), parameter, public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
-  type(ImVec4), parameter, public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
+  type(ImVec4), public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
+  type(ImVec4), public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
+  type(ImVec4), public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
+  type(ImVec4), public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
+  type(ImVec4), public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
+  type(ImVec4), public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
   type(ImVec4), parameter, public :: ColorDialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
   type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text

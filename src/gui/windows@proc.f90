@@ -545,7 +545,9 @@ contains
   !> Draw the preferences window
   module subroutine draw_preferences(w)
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
-       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize
+       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize, ColorTableCellBg_Mol,&
+       ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
+       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth
@@ -558,10 +560,11 @@ contains
     type(ImVec2) :: sz, szero
     integer :: i, newkey
     integer(c_int) :: flags
+    real(c_float) :: rgba(4)
 
     logical, save :: ttshown = .false. ! tooltip flag
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
-    integer(c_int), save :: catid = 0 ! category ID (from left panel)
+    integer(c_int), save :: catid = 0 ! category ID (from left panel) 0=interface,1=keybinding,2=colors
     integer(c_int), save :: getbind = -1 ! get binding flag
 
     real(c_float), parameter :: wleft = 120._c_float
@@ -603,6 +606,9 @@ contains
        str = "Key bindings" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 1,c_bool),ImGuiSelectableFlags_None,szero)) catid = 1
        call iw_tooltip("User interface key bindings",ttshown)
+       str = "Tree colors" // c_null_char
+       if (igSelectable_Bool(c_loc(str),logical(catid == 2,c_bool),ImGuiSelectableFlags_None,szero)) catid = 2
+       call iw_tooltip("User interface key bindings",ttshown)
     end if
     call igEndChild()
     call igSameLine(0._c_float,-1._c_float)
@@ -631,7 +637,7 @@ contains
           str = "Enable tooltips" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = igCheckbox(c_loc(str), tooltip_enabled)
-             call iw_tooltip("Show/hide the tooltips in the user interface elements",ttshown)
+             call iw_tooltip("Show/hide the tooltips when hovering interface elements with the mouse",ttshown)
           end if
 
           str = "Tooltip delay (s)" // c_null_char
@@ -742,19 +748,60 @@ contains
                 call igEndPopup()
              end if
           end if
+       elseif (catid == 2) then
+          !! tree colors
+          call iw_text("Tree colors",highlight=.true.)
+          call igSeparator()
+
+          str = "Molecule" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_Mol,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Mol)
+             call iw_tooltip("A molecular system with a single molecule",ttshown)
+          end if
+
+          str = "Molecular cluster" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_MolClus,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_MolClus)
+             call iw_tooltip("A molecular system with multiple molecules",ttshown)
+          end if
+
+          str = "Crystal" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_Crys3d,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys3d)
+             call iw_tooltip("A crystal, with a three-dimensional periodic network of bonds",ttshown)
+          end if
+
+          str = "Crystal (layered)" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_Crys2d,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys2d)
+             call iw_tooltip("A layered crystal, with a two-dimensional periodic network of bonds",ttshown)
+          end if
+
+          str = "Crystal (chain)" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_Crys1d,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_Crys1d)
+             call iw_tooltip("An atom-chain crystal, with a one-dimensional periodic network of bonds",ttshown)
+          end if
+
+          str = "Crystal (molecular)" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call imvec4_to_float4(ColorTableCellBg_MolCrys,rgba)
+             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
+             call float4_to_imvec4(rgba,ColorTableCellBg_MolCrys)
+             call iw_tooltip("A molecular crystal, comprising discrete molecules",ttshown)
+          end if
        end if
        call igPopItemWidth()
-
-       ! gui_main:
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
-       ! type(ImVec4), parameter, public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
-
-       !! update view if required
-       !! -- implement reset --
     end if
     call igEndChild()
 
@@ -797,6 +844,28 @@ contains
     subroutine end_state()
        if (c_associated(cfilter)) call ImGuiTextFilter_Clear(cfilter)
     end subroutine end_state
+
+    subroutine imvec4_to_float4(im,f)
+      type(ImVec4), intent(in) :: im
+      real(c_float), intent(out) :: f(4)
+
+      f(1) = im%x
+      f(2) = im%y
+      f(3) = im%z
+      f(4) = im%w
+
+    end subroutine imvec4_to_float4
+
+    subroutine float4_to_imvec4(f,im)
+      type(ImVec4), intent(out) :: im
+      real(c_float), intent(in) :: f(4)
+
+      im%x = f(1)
+      im%y = f(2)
+      im%z = f(3)
+      im%w = f(4)
+
+    end subroutine float4_to_imvec4
 
   end subroutine draw_preferences
 
