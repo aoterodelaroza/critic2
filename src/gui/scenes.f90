@@ -47,7 +47,7 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      real(c_float) :: scale ! scale (1.0 = radius)
-     character*10 :: str ! string
+     character(len=:), allocatable :: str ! string
   end type dl_string
 
   !> draw style for atoms

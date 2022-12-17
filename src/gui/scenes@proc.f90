@@ -1479,9 +1479,6 @@ contains
           vert(4,j) = r + rshift
        end do
 
-       if (i == 1) then
-          write (*,*) glyph%X1 - glyph%X0, glyph%Y1 - glyph%Y0
-       end if
        vert(5:6,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)
        vert(5:6,nvert+2) = (/xpos + glyph%X0, ypos + glyph%Y0/)
        vert(5:6,nvert+3) = (/xpos + glyph%X1, ypos + glyph%Y0/)
