@@ -29,7 +29,7 @@ submodule (scenes) proc
      zero,zero,zero,one/),shape(eye4))
 
   !xx! private procedures: low-level draws
-  ! subroutine draw_sphere(x0,rad,rgb,ires)
+  ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
   ! subroutine draw_text_direct(str,x0,siz,color,centered)
   ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
@@ -276,7 +276,7 @@ contains
     if (s%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%drawlist_sph(i)%rgb,s%atom_res)
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
        end do
     end if
 
@@ -341,6 +341,50 @@ contains
     call glDisable(GL_BLEND)
 
   end subroutine scene_render
+
+  !> Draw the scene (for object picking
+  module subroutine scene_render_pick(s)
+    use interfaces_cimgui
+    use interfaces_opengl3
+    use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
+    use gui_main, only: fonts, fontbakesize
+    use utils, only: ortho, project
+    use tools_math, only: eigsym, matinv_cfloat
+    use shaders, only: shader_pickindex, useshader, setuniform_int,&
+       setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
+       setuniform_mat4
+    class(scene), intent(inout), target :: s
+
+    integer :: i
+    real(c_float) :: siz, hside
+    integer(c_int) :: nvert
+    real(c_float), allocatable, target :: vert(:,:)
+
+    ! check that the scene and system are initialized
+    if (.not.s%isinit) return
+
+    ! build draw lists if not done already
+    if (.not.allocated(s%drawlist_sph)) call s%build_lists()
+
+    ! if necessary, rebuild draw lists
+    if (s%forcebuildlists) call s%build_lists()
+
+    ! set up the shader and the uniforms
+    call useshader(shader_pickindex)
+    call setuniform_mat4("world",s%world)
+    call setuniform_mat4("view",s%view)
+    call setuniform_mat4("projection",s%projection)
+
+    ! draw the atoms
+    if (s%nsph > 0) then
+       call glBindVertexArray(sphVAO(s%atom_res))
+       do i = 1, s%nsph
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,idx=s%drawlist_sph(i)%idx)
+       end do
+       call glBindVertexArray(0)
+    end if
+
+  end subroutine scene_render_pick
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.
@@ -947,6 +991,8 @@ contains
                       drawlist_sph(nsph)%x = real(xx + uoriginc,c_float)
                       drawlist_sph(nsph)%r = rad
                       drawlist_sph(nsph)%rgb = rgb
+                      drawlist_sph(nsph)%idx(1) = i
+                      drawlist_sph(nsph)%idx(2:4) = ix
                    end if
 
                    ! bonds
@@ -1136,16 +1182,18 @@ contains
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires
   !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,rgb,ires)
+  subroutine draw_sphere(x0,rad,ires,rgb,idx)
     use interfaces_opengl3
-    use shaders, only: setuniform_vec3, setuniform_mat4
+    use shaders, only: setuniform_vec3, setuniform_vec4, setuniform_mat4
     use shapes, only: sphnel
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgb(3)
     integer(c_int), intent(in) :: ires
+    real(c_float), intent(in), optional :: rgb(3)
+    integer(c_int), intent(in), optional :: idx(4)
 
     real(c_float) :: model(4,4)
+    real(c_float) :: ridx(4)
 
     ! the model matrix: scale and translate
     model = eye4
@@ -1155,7 +1203,12 @@ contains
     model(3,3) = rad
 
     ! draw the sphere
-    call setuniform_vec3("vColor",rgb)
+    if (present(rgb)) then
+       call setuniform_vec3("vColor",rgb)
+    elseif (present(idx)) then
+       ridx = transfer(idx,ridx)
+       call setuniform_vec4("idx",ridx)
+    end if
     call setuniform_mat4("model",model)
     call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 

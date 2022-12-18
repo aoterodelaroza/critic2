@@ -54,7 +54,7 @@ contains
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok
     logical(c_bool) :: isatom, isbond, islabels, isuc
-    integer(c_int) :: amax, flags, nc(3), ires
+    integer(c_int) :: amax, flags, nc(3), ires, idx(4)
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -510,6 +510,7 @@ contains
 
     ! render the image to the texture, if requested
     if (w%forcerender) then
+       ! render to the draw framebuffer
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
        if (goodsys) then
@@ -519,11 +520,18 @@ contains
           call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-
        if (goodsys) &
           call sysc(w%view_selected)%sc%render()
-
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+       ! render to the pick frame buffer
+       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
+       call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+       call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+       if (goodsys) call sysc(w%view_selected)%sc%renderpick()
+       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
        w%forcerender = .false.
     end if
 
@@ -539,7 +547,7 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
-    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
+    ldum = igImageButton(w%FBO, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
     call igPopStyleColor(3)
 
     ! get hover and image rectangle coordinates
@@ -552,9 +560,10 @@ contains
     !    call igGetMousePos(pos)
     !    call w%mousepos_to_texpos(pos)
     !    write (*,*) "pos = ", pos
-    !    call w%getpixel(w%FBO,pos,depth,rgba)
+    !    call w%getpixel(w%FBOpick,pos,depth,rgba)
+    !    idx = transfer(rgba,idx)
     !    write (*,*) "depth = ", depth
-    !    write (*,*) "rgba = ", rgba
+    !    write (*,*) "idx = ", idx
     ! end if
     ! ! xxxx !
 
@@ -610,17 +619,21 @@ contains
 
     ! FBO and buffers
     call glGenTextures(1, c_loc(w%FBOtex))
+    call glGenTextures(1, c_loc(w%FBOrgba))
     call glGenRenderbuffers(1, c_loc(w%FBOdepth))
     call glGenRenderbuffers(1, c_loc(w%FBOdepthp))
-    call glGenRenderbuffers(1, c_loc(w%FBOrgba))
     call glGenFramebuffers(1, c_loc(w%FBO))
+    call glGenFramebuffers(1, c_loc(w%FBOpick))
 
-    ! texture
+    ! textures
     call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
-    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex,&
-       0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    call glBindTexture(GL_TEXTURE_2D, 0)
+
+    call glBindTexture(GL_TEXTURE_2D, w%FBOrgba)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, atex, atex, 0, GL_RGBA, GL_FLOAT, c_null_ptr)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
     ! render buffers
@@ -629,9 +642,6 @@ contains
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepthp)
     call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
-    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
-    call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOrgba)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
     ! frame buffers
@@ -643,7 +653,7 @@ contains
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
-    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, w%FBOrgba)
+    call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOrgba, 0)
     call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepthp)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
        call ferror('window_init','framebuffer (pick) is not complete',faterr)
@@ -673,10 +683,10 @@ contains
     class(window), intent(inout), target :: w
 
     call glDeleteTextures(1, c_loc(w%FBOtex))
+    call glDeleteTextures(1, c_loc(w%FBOrgba))
     call glDeleteRenderbuffers(1, c_loc(w%FBOdepth))
-    call glDeleteFramebuffers(1, c_loc(w%FBO))
     call glDeleteRenderbuffers(1, c_loc(w%FBOdepthp))
-    call glDeleteRenderbuffers(1, c_loc(w%FBOrgba))
+    call glDeleteFramebuffers(1, c_loc(w%FBO))
     call glDeleteFramebuffers(1, c_loc(w%FBOpick))
 
   end subroutine delete_texture_view

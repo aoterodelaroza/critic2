@@ -23,8 +23,9 @@ submodule (shaders) proc
   character*(*), parameter :: shader_file(shader_NUM) = (/&
      "test        ",& ! shader_test
      "phong       ",& ! shader_phong
-     "text_direct ",&  ! shader_text_direct
-     "text_onscene"&   ! shader_text_onscene
+     "text_direct ",& ! shader_text_direct
+     "text_onscene",& ! shader_text_onscene
+     "pickindex   "&  ! shader_text_onscene
      /)
 
   ! shader programs

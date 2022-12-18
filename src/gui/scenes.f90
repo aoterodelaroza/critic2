@@ -31,6 +31,7 @@ module scenes
      real(c_float) :: x(3) ! position
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
+     integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
   end type dl_sphere
 
   !> cylinders for the draw list
@@ -168,6 +169,7 @@ module scenes
      procedure :: reset => scene_reset
      procedure :: build_lists => scene_build_lists
      procedure :: render => scene_render
+     procedure :: renderpick => scene_render_pick
      procedure :: representation_menu
      procedure :: get_new_representation_id
      procedure :: update_projection_matrix
@@ -195,6 +197,9 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
+     module subroutine scene_render_pick(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_render_pick
      module function representation_menu(s,idcaller) result(changed)
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in) :: idcaller
