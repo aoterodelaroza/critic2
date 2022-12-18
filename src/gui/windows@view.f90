@@ -39,13 +39,16 @@ contains
     use interfaces_cimgui
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
-       BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
+       BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
+       BIND_NAV_ROTATE, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
+       BIND_NAV_MEASURE, bindnames, get_bind_keyname
     use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string, ioj_right
+    use param, only: newline
     class(window), intent(inout), target :: w
 
     integer :: i, j, nrep, id, ipad, is, icel, ineq
@@ -56,7 +59,7 @@ contains
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
     logical(c_bool) :: isatom, isbond, islabels, isuc
-    integer(c_int) :: amax, flags, nc(3), ires, idx(4)
+    integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
 
@@ -559,6 +562,16 @@ contains
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
 
+    ! mode selection
+    viewtype = 0
+    call iw_combo_simple("##viewmode","Navigate" // c_null_char,viewtype)
+    msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_ZOOM)) // ": " // trim(bindnames(BIND_NAV_ZOOM)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_RESET)) // ": " // trim(bindnames(BIND_NAV_RESET)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_MEASURE)) // ": " // trim(bindnames(BIND_NAV_MEASURE)) // newline
+    call iw_tooltip(msg)
+
     ! atom hover message
     if (hover) then
        call igGetMousePos(pos)
@@ -566,6 +579,7 @@ contains
        call w%getpixel(w%FBOpick,pos,depth,rgba)
        idx = transfer(rgba,idx)
        if (idx(1) > 0) then
+          call igSameLine(0._c_float,-1._c_float)
           icel = idx(1)
           is = sys(w%view_selected)%c%atcel(icel)%is
           ineq = sys(w%view_selected)%c%atcel(icel)%is

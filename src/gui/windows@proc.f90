@@ -692,7 +692,6 @@ contains
                 end if
                 if (igTableSetColumnIndex(1)) then
                    strf = trim(get_bind_keyname(i))
-                   if (len_trim(strf) == 0) strf = "<not bound>"
 
                    call igPushID_Int(int(i,c_int))
                    if (iw_button(strf)) getbind = i

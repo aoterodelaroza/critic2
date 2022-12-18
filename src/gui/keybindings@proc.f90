@@ -53,7 +53,8 @@ submodule (keybindings) proc
      group_view,&   ! BIND_NAV_ROTATE
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
-     group_view/)   ! BIND_NAV_RESET
+     group_view,&   ! BIND_NAV_RESET
+     group_view/)   ! BIND_NAV_MEASURE
 
   integer, parameter :: ngroupbinds = 2
 
@@ -231,6 +232,7 @@ contains
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,mod_none)
+    call set_bind(BIND_NAV_MEASURE,ImGuiKey_Space,mod_none)
 
   end subroutine set_default_keybindings
 
@@ -341,6 +343,8 @@ contains
        else
           get_bind_keyname = get_bind_keyname // trim(keynames(key - ImGuiKey_NamedKey_BEGIN + 1))
        end if
+    else
+       get_bind_keyname = "<not bound>"
     end if
 
   end function get_bind_keyname

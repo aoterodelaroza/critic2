@@ -66,7 +66,8 @@ module keybindings
   integer, parameter, public :: BIND_NAV_TRANSLATE = 20 ! view: translate the view
   integer, parameter, public :: BIND_NAV_ZOOM = 21 ! view: zoom the view
   integer, parameter, public :: BIND_NAV_RESET = 22 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 22 ! total number of binds
+  integer, parameter, public :: BIND_NAV_MEASURE = 23 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 23 ! total number of binds
 
   ! Bind names
   character(len=31), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -91,7 +92,9 @@ module keybindings
      "Rotate the camera              ",& ! BIND_NAV_ROTATE
      "Translate the camera           ",& ! BIND_NAV_TRANSLATE
      "Camera zoom                    ",& ! BIND_NAV_ZOOM
-     "Reset the camera               "/) ! BIND_NAV_RESET
+     "Reset the camera               ",& ! BIND_NAV_RESET
+     "Measure distances and angles   "&  ! BIND_NAV_MEASURE
+     /)
 
   ! The key associated with each bind, bind -> key
   integer(c_int), public :: keybind(BIND_NUM)
