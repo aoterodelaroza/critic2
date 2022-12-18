@@ -32,6 +32,7 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
+     integer(c_int) :: isel ! 0 if not selected, 1 if first atom, etc.
   end type dl_sphere
 
   !> cylinders for the draw list
@@ -258,7 +259,7 @@ module scenes
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
      module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-        ncylflat,drawlist_cylflat,nstring,drawlist_string)
+        ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel,msel)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        integer, intent(inout) :: nsph
@@ -269,6 +270,8 @@ module scenes
        type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
        integer, intent(inout) :: nstring
        type(dl_string), intent(inout), allocatable :: drawlist_string(:)
+       integer, intent(in) :: nmsel
+       integer, intent(in) :: msel(4,4)
      end subroutine add_draw_elements
      module subroutine draw_text_direct(str,x0,siz,color,centered)
        character(len=*), intent(in) :: str

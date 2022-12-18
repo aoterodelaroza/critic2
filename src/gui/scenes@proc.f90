@@ -176,7 +176,7 @@ contains
     ! add the items by representation
     do i = 1, s%nrep
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
-          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string)
+          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%nmsel,s%msel)
     end do
 
     ! recalculate scene center and radius
@@ -253,6 +253,12 @@ contains
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
 
+    real(c_float), parameter :: rgbsel(4,4) = reshape((/&
+       1._c_float, 0._c_float, 0._c_float, 0.2_c_float,&
+       0._c_float, 1._c_float, 0._c_float, 0.2_c_float,&
+       0._c_float, 0._c_float, 1._c_float, 0.2_c_float,&
+       0.9_c_float,0.7_c_float,0.1_c_float,0.2_c_float/),shape(rgbsel))
+
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
 
@@ -280,6 +286,10 @@ contains
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
           call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+          if (s%drawlist_sph(i)%isel > 0) then
+             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + 0.1,s%atom_res,&
+                rgb=rgbsel(1:3,s%drawlist_sph(i)%isel))
+          end if
        end do
     end if
 
@@ -862,7 +872,7 @@ contains
 
   !> Add the spheres, cylinder, etc. to the draw lists.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-     ncylflat,drawlist_cylflat,nstring,drawlist_string)
+     ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel,msel)
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
@@ -877,9 +887,11 @@ contains
     type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
     integer, intent(inout) :: nstring
     type(dl_string), intent(inout), allocatable :: drawlist_string(:)
+    integer, intent(in) :: nmsel
+    integer, intent(in) :: msel(4,4)
 
     type(hash) :: shown_atoms
-    logical :: havefilter, step, ok, isedge(3)
+    logical :: havefilter, step, ok, isedge(3), foundsel(4)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
     real(c_float) :: rgb(3), rad
@@ -1029,6 +1041,14 @@ contains
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
+                      drawlist_sph(nsph)%isel = 0
+
+                      ! check if this atom is selected
+                      do j = 1, nmsel
+                         if (i == msel(1,j) .and. all(ix == msel(2:4,j))) then
+                            drawlist_sph(nsph)%isel = j
+                         end if
+                      end do
                    end if
 
                    ! bonds

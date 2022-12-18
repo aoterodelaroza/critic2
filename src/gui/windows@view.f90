@@ -895,7 +895,10 @@ contains
        end if
 
        ! atom selection
-       if (is_bind_event(BIND_NAV_MEASURE)) call sc%select_atom(idx)
+       if (is_bind_event(BIND_NAV_MEASURE)) then
+          call sc%select_atom(idx)
+          sc%forcebuildlists = .true.
+       end if
     end if
 
   contains
