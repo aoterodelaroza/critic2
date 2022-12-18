@@ -31,7 +31,6 @@ submodule (scenes) proc
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
-  ! subroutine draw_text_direct(str,x0,siz,color,centered)
   ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
   ! subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
 
@@ -1178,6 +1177,65 @@ contains
     end subroutine increase_ncylflat
   end subroutine add_draw_elements
 
+  !> Draw text directly to the texture. str = text message, x0 =
+  !> position in texture coordinates. siz = font size in pixels. color
+  !> = text color.  centered = true if centers the message.
+  module subroutine draw_text_direct(str,x0,siz,color,centered)
+    use interfaces_opengl3
+    use gui_main, only: fonts
+    use shapes, only: textVAO, textVBO, text_maxvert
+    use windows, only: win, iwin_view
+    use shaders, only: useshader, shader_text_direct, setuniform_mat4, setuniform_vec3
+    use utils, only: ortho, project
+    character(len=*), intent(in) :: str
+    real(c_float), intent(in) :: x0(2)
+    real(c_float), intent(in) :: siz
+    real(c_float), intent(in) :: color(3)
+    logical, intent(in), optional :: centered
+
+    real(c_float) :: proj(4,4)
+    integer(c_int) :: texid, nvert, nchunk
+    real(c_float), allocatable, target :: vert(:,:)
+    integer :: i
+
+    call useshader(shader_text_direct)
+    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
+       -1._c_float,1._c_float)
+    call setuniform_mat4("projection",proj)
+    call setuniform_vec3("textColor",color)
+
+    call glDisable(GL_CULL_FACE)
+    call glDisable(GL_DEPTH_TEST)
+    call glDisable(GL_MULTISAMPLE)
+    call glEnable(GL_BLEND)
+    call glBlendEquation(GL_FUNC_ADD)
+    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAO)
+    texid = transfer(fonts%TexID,texid)
+    call glBindTexture(GL_TEXTURE_2D, texid)
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
+
+    nvert = 0
+    call calc_text_direct_vertices(str,x0(1),x0(2),siz,nvert,vert,centered=centered)
+    do i = 1, nvert, text_maxvert
+       nchunk = min(text_maxvert,nvert-i+1)
+       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nchunk*4*c_sizeof(c_float), c_loc(vert(1,i)))
+       call glDrawArrays(GL_TRIANGLES, 0, nchunk)
+    end do
+
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindTexture(GL_TEXTURE_2D, 0)
+
+    call glEnable(GL_CULL_FACE)
+    call glEnable(GL_DEPTH_TEST)
+    call glEnable(GL_MULTISAMPLE)
+    call glDisable(GL_BLEND)
+
+  end subroutine draw_text_direct
+
   !xx! private procedures: low-level draws
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires
@@ -1272,65 +1330,6 @@ contains
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_cylinder
-
-  !> Draw text directly to the texture. str = text message, x0 =
-  !> position in texture coordinates. siz = font size in pixels. color
-  !> = text color.  centered = true if centers the message.
-  subroutine draw_text_direct(str,x0,siz,color,centered)
-    use interfaces_opengl3
-    use gui_main, only: fonts
-    use shapes, only: textVAO, textVBO, text_maxvert
-    use windows, only: win, iwin_view
-    use shaders, only: useshader, shader_text_direct, setuniform_mat4, setuniform_vec3
-    use utils, only: ortho, project
-    character(len=*), intent(in) :: str
-    real(c_float), intent(in) :: x0(2)
-    real(c_float), intent(in) :: siz
-    real(c_float), intent(in) :: color(3)
-    logical, intent(in), optional :: centered
-
-    real(c_float) :: proj(4,4)
-    integer(c_int) :: texid, nvert, nchunk
-    real(c_float), allocatable, target :: vert(:,:)
-    integer :: i
-
-    call useshader(shader_text_direct)
-    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-       -1._c_float,1._c_float)
-    call setuniform_mat4("projection",proj)
-    call setuniform_vec3("textColor",color)
-
-    call glDisable(GL_CULL_FACE)
-    call glDisable(GL_DEPTH_TEST)
-    call glDisable(GL_MULTISAMPLE)
-    call glEnable(GL_BLEND)
-    call glBlendEquation(GL_FUNC_ADD)
-    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
-    call glActiveTexture(GL_TEXTURE0)
-    call glBindVertexArray(textVAO)
-    texid = transfer(fonts%TexID,texid)
-    call glBindTexture(GL_TEXTURE_2D, texid)
-    call glBindBuffer(GL_ARRAY_BUFFER, textVBO)
-
-    nvert = 0
-    call calc_text_direct_vertices(str,x0(1),x0(2),siz,nvert,vert,centered=centered)
-    do i = 1, nvert, text_maxvert
-       nchunk = min(text_maxvert,nvert-i+1)
-       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nchunk*4*c_sizeof(c_float), c_loc(vert(1,i)))
-       call glDrawArrays(GL_TRIANGLES, 0, nchunk)
-    end do
-
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-    call glBindTexture(GL_TEXTURE_2D, 0)
-
-    call glEnable(GL_CULL_FACE)
-    call glEnable(GL_DEPTH_TEST)
-    call glEnable(GL_MULTISAMPLE)
-    call glDisable(GL_BLEND)
-
-  end subroutine draw_text_direct
 
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert, direct version. (x0,y0) = position of top-left corner

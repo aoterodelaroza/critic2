@@ -484,6 +484,7 @@ contains
 
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)
+    szavail%y = szavail%y - igGetTextLineHeightWithSpacing()
 
     ! resize the render texture if not large enough
     amax = max(ceiling(max(szavail%x,szavail%y)),1)
@@ -555,17 +556,17 @@ contains
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
 
-    ! ! xxxx !
-    ! if (hover) then
-    !    call igGetMousePos(pos)
-    !    call w%mousepos_to_texpos(pos)
-    !    write (*,*) "pos = ", pos
-    !    call w%getpixel(w%FBOpick,pos,depth,rgba)
-    !    idx = transfer(rgba,idx)
-    !    write (*,*) "depth = ", depth
-    !    write (*,*) "idx = ", idx
-    ! end if
-    ! ! xxxx !
+    ! atom hover message
+    if (hover) then
+       call igGetMousePos(pos)
+       call w%mousepos_to_texpos(pos)
+       call w%getpixel(w%FBOpick,pos,depth,rgba)
+       idx = transfer(rgba,idx)
+       if (idx(1) > 0) then
+          call iw_text("Atom " // string(idx(1)) // " + (" // string(idx(2)) // "," //&
+             string(idx(3)) // "," // string(idx(4)) // ")")
+       end if
+    end if
 
     ! Process mouse events
     call w%process_events_view(hover)

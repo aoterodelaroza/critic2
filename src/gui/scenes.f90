@@ -262,6 +262,13 @@ module scenes
        integer, intent(inout) :: nstring
        type(dl_string), intent(inout), allocatable :: drawlist_string(:)
      end subroutine add_draw_elements
+     module subroutine draw_text_direct(str,x0,siz,color,centered)
+       character(len=*), intent(in) :: str
+       real(c_float), intent(in) :: x0(2)
+       real(c_float), intent(in) :: siz
+       real(c_float), intent(in) :: color(3)
+       logical, intent(in), optional :: centered
+     end subroutine draw_text_direct
   end interface
 
 end module scenes
