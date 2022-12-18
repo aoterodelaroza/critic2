@@ -1189,9 +1189,12 @@ contains
     type(ImVec2) :: sz0
     real*8 :: x0(3), res
     logical(c_bool) :: ch, ldum
-    integer(c_int) :: flags, nc(3)
+    integer(c_int) :: flags, nc(3), lst
     real(c_float) :: sqw
     integer :: i
+
+    integer(c_int), parameter :: lsttrans(0:6) = (/0,1,1,1,2,3,4/)
+    integer(c_int), parameter :: lsttransi(0:4) = (/0,1,4,5,6/)
 
     integer, parameter :: ic_id = 0
     integer, parameter :: ic_name = 1
@@ -1639,10 +1642,18 @@ contains
 
     if (w%rep%labels_display) then
        ! label styles
-       call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Cell atom ID"// c_null_char//&
-          "Cell atom ID + lattice vector"// c_null_char// "Symmetry-unique atom ID"// c_null_char//&
-          "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
-          w%rep%label_style,changed=ch)
+       if (sys(isys)%c%ismolecule) then
+          lst = lsttrans(w%rep%label_style)
+          call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Atom ID"// c_null_char//&
+             "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+             lst,changed=ch)
+          w%rep%label_style = lsttransi(lst)
+       else
+          call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Cell atom ID"// c_null_char//&
+             "Cell atom ID + lattice vector"// c_null_char// "Symmetry-unique atom ID"// c_null_char//&
+             "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+             w%rep%label_style,changed=ch)
+       end if
        call iw_tooltip("Text to display in the atom labels",ttshown)
        changed = changed .or. ch
 
