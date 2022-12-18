@@ -557,10 +557,16 @@ contains
     ldum = igImageButton(w%FBO, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
     call igPopStyleColor(3)
 
-    ! get hover and image rectangle coordinates
+    ! get hover, image rectangle coordinates, and atom idx
     hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
+    if (hover) then
+       call igGetMousePos(pos)
+       call w%mousepos_to_texpos(pos)
+       call w%getpixel(w%FBOpick,pos,depth,rgba)
+       idx = transfer(rgba,idx)
+    end if
 
     ! mode selection
     viewtype = 0
@@ -574,10 +580,6 @@ contains
 
     ! atom hover message
     if (hover) then
-       call igGetMousePos(pos)
-       call w%mousepos_to_texpos(pos)
-       call w%getpixel(w%FBOpick,pos,depth,rgba)
-       idx = transfer(rgba,idx)
        if (idx(1) > 0) then
           call igSameLine(0._c_float,-1._c_float)
           icel = idx(1)
@@ -612,7 +614,7 @@ contains
     end if
 
     ! Process mouse events
-    call w%process_events_view(hover)
+    call w%process_events_view(hover,idx)
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
@@ -736,16 +738,17 @@ contains
   end subroutine delete_texture_view
 
   !> Process the mouse events in the view window
-  module subroutine process_events_view(w,hover)
+  module subroutine process_events_view(w,hover,idx)
     use interfaces_cimgui
     use scenes, only: scene, min_zoom, max_zoom
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
-       BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET
+       BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE
     use gui_main, only: io, nsys, sysc
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
+    integer(c_int), intent(in) :: idx(4)
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
@@ -890,6 +893,9 @@ contains
           call sc%reset()
           w%forcerender = .true.
        end if
+
+       ! atom selection
+       if (is_bind_event(BIND_NAV_MEASURE)) call sc%select_atom(idx)
     end if
 
   contains

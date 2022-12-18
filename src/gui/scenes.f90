@@ -154,6 +154,9 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
+     ! measure atom sets
+     integer :: nmsel
+     integer :: msel(4,4)
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
@@ -175,6 +178,7 @@ module scenes
      procedure :: update_projection_matrix
      procedure :: update_view_matrix
      procedure :: align_view_axis
+     procedure :: select_atom
   end type scene
   public :: scene
 
@@ -219,6 +223,10 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: iaxis
      end subroutine align_view_axis
+     module subroutine select_atom(s,idx)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: idx(4)
+     end subroutine select_atom
      ! representation
      module subroutine representation_init(r,isys,irep,itype)
        class(representation), intent(inout), target :: r

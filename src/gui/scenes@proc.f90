@@ -70,6 +70,10 @@ contains
     s%specular = 0.6_c_float
     s%shininess = 8_c_int
 
+    ! measure atom sets
+    s%nmsel = 0
+    s%msel = 0
+
     ! initialize representations
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
@@ -657,6 +661,39 @@ contains
     end if
 
   end subroutine align_view_axis
+
+  !> Add atom idx to the measure selection set. If idx(1) = 0,
+  !> clear the measure selection.
+  module subroutine select_atom(s,idx)
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: idx(4)
+
+    integer :: i, j
+
+    ! if no atom, clear
+    if (idx(1) == 0) then
+       s%nmsel = 0
+       return
+    end if
+
+    ! if the atom is already selected, deselect
+    do i = 1, s%nmsel
+       if (all(idx == s%msel(:,i))) then
+          do j = i+1, s%nmsel
+             s%msel(:,j-1) = s%msel(:,j)
+          end do
+          s%nmsel = s%nmsel - 1
+          return
+       end if
+    end do
+
+    ! if the atom is not known and we have space for it, add
+    if (s%nmsel < 4) then
+       s%nmsel = s%nmsel + 1
+       s%msel(:,s%nmsel) = idx
+    end if
+
+  end subroutine select_atom
 
   !xx! representation
 
