@@ -42,20 +42,23 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS
     use scenes, only: reptype_atoms, reptype_unitcell
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3
+    use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
-    use tools_io, only: string
+    use tools_io, only: string, ioj_right
     class(window), intent(inout), target :: w
 
-    integer :: i, j, nrep, id, ipad
+    integer :: i, j, nrep, id, ipad, is, icel, ineq
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
-    logical :: hover, chbuild, chrender, goodsys, ldum, ok
+    logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
     logical(c_bool) :: isatom, isbond, islabels, isuc
     integer(c_int) :: amax, flags, nc(3), ires, idx(4)
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
+    real*8 :: x0(3)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -563,8 +566,34 @@ contains
        call w%getpixel(w%FBOpick,pos,depth,rgba)
        idx = transfer(rgba,idx)
        if (idx(1) > 0) then
-          call iw_text("Atom " // string(idx(1)) // " + (" // string(idx(2)) // "," //&
-             string(idx(3)) // "," // string(idx(4)) // ")")
+          icel = idx(1)
+          is = sys(w%view_selected)%c%atcel(icel)%is
+          ineq = sys(w%view_selected)%c%atcel(icel)%is
+          ismol = sys(w%view_selected)%c%ismolecule
+
+          msg = trim(sys(w%view_selected)%c%spc(is)%name)
+          if (.not.ismol) then
+             x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
+
+             msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
+                "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
+                string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
+             if (sys(w%view_selected)%c%nmol > 1) &
+                msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+             msg = msg // "] " //&
+                string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
+                string(x0(3),'f',decimal=4) // " (frac)"
+          else
+             x0 = sys(w%view_selected)%c%atcel(icel)%x
+
+             msg = trim(msg) // " [id=" // string(icel)
+             if (sys(w%view_selected)%c%nmol > 1) &
+                msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+             msg = msg // "] " //&
+                string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
+                string(x0(3),'f',decimal=4) // " (Å)"
+          end if
+          call iw_text(msg)
        end if
     end if
 
