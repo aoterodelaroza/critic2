@@ -53,7 +53,7 @@ contains
 
     integer :: i, j, nrep, id, ipad, is, icel, ineq
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
-    type(ImVec4) :: tintcol, bgcol
+    type(ImVec4) :: tintcol, bgcol, col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
@@ -558,6 +558,7 @@ contains
     call igPopStyleColor(3)
 
     ! get hover, image rectangle coordinates, and atom idx
+    idx = 0
     hover = igIsItemHovered(ImGuiHoveredFlags_None) .and. goodsys
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
@@ -579,39 +580,41 @@ contains
     call iw_tooltip(msg)
 
     ! atom hover message
-    if (hover) then
-       if (idx(1) > 0) then
-          call igSameLine(0._c_float,-1._c_float)
-          icel = idx(1)
-          is = sys(w%view_selected)%c%atcel(icel)%is
-          ineq = sys(w%view_selected)%c%atcel(icel)%is
-          ismol = sys(w%view_selected)%c%ismolecule
+    if (hover .and. idx(1) > 0) then
+       call igSameLine(0._c_float,-1._c_float)
+       icel = idx(1)
+       is = sys(w%view_selected)%c%atcel(icel)%is
+       ineq = sys(w%view_selected)%c%atcel(icel)%is
+       ismol = sys(w%view_selected)%c%ismolecule
 
-          msg = trim(sys(w%view_selected)%c%spc(is)%name)
-          if (.not.ismol) then
-             x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
+       msg = trim(sys(w%view_selected)%c%spc(is)%name)
+       if (.not.ismol) then
+          x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
 
-             msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
-                "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
-                string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
-             if (sys(w%view_selected)%c%nmol > 1) &
-                msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
-             msg = msg // "] " //&
-                string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
-                string(x0(3),'f',decimal=4) // " (frac)"
-          else
-             x0 = sys(w%view_selected)%c%atcel(icel)%x
+          msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
+             "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
+             string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
+          if (sys(w%view_selected)%c%nmol > 1) &
+             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+          msg = msg // "] " //&
+             string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
+             string(x0(3),'f',decimal=4) // " (frac)"
+       else
+          x0 = sys(w%view_selected)%c%atcel(icel)%x
 
-             msg = trim(msg) // " [id=" // string(icel)
-             if (sys(w%view_selected)%c%nmol > 1) &
-                msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
-             msg = msg // "] " //&
-                string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
-                string(x0(3),'f',decimal=4) // " (Å)"
-          end if
-          call iw_text(msg)
+          msg = trim(msg) // " [id=" // string(icel)
+          if (sys(w%view_selected)%c%nmol > 1) &
+             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+          msg = msg // "] " //&
+             string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
+             string(x0(3),'f',decimal=4) // " (Å)"
        end if
+       call iw_text(msg)
     end if
+
+    ! tooltip for distance measurement
+    if (hover) &
+       call w%draw_selection_tooltip(idx)
 
     ! Process mouse events
     call w%process_events_view(hover,idx)
@@ -920,6 +923,158 @@ contains
     end subroutine init_state
 
   end subroutine process_events_view
+
+  module subroutine draw_selection_tooltip(w,idx)
+    use interfaces_cimgui
+    use gui_main, only: sys, sysc, fontsize
+    use tools_io, only: string
+    use tools_math, only: cross
+    use param, only: bohrtoa, pi
+    class(window), intent(inout), target :: w
+    integer(c_int), intent(in) :: idx(4)
+
+    character(kind=c_char,len=:), allocatable, target :: msg
+
+    integer :: nmsel, i
+    integer :: msel(4,4)
+    type(ImVec4) :: col
+    integer :: idx1(4), idx2(4), idx3(4), idx4(4)
+    real*8 :: x0(3), x1(3), x2(3), ang, n0(3), n1(3)
+
+    real(c_float), parameter :: rgbsel(3,4) = reshape((/&
+       1._c_float,  0.4_c_float, 0.4_c_float,&
+       0.4_c_float, 1._c_float,  0.4_c_float,&
+       0.4_c_float, 0.4_c_float, 1._c_float,&
+       0.9_c_float, 0.7_c_float, 0.4_c_float/),shape(rgbsel))
+
+    ! check if the tooltip is needed
+    nmsel = sysc(w%view_selected)%sc%nmsel
+    if (nmsel == 0) return
+    if (idx(1) == 0 .and. nmsel < 4) return
+    msel = sysc(w%view_selected)%sc%msel
+    if (nmsel < 4) then
+       do i = 1, nmsel
+          if (all(idx == msel(:,i))) return
+       end do
+    end if
+
+    ! initialize
+    col%w = 1._c_float
+
+    ! start tooltip and header
+    call igBeginTooltip()
+    call igPushTextWrapPos(40._c_float * fontsize%x)
+    msg = "Distance (d), angle (α), dihedral (φ)" // c_null_char
+    call igText(c_loc(msg))
+
+    ! distance
+    idx1 = msel(:,1)
+    if (nmsel == 1) then
+       idx2 = idx
+    else
+       idx2 = msel(:,2)
+    end if
+    x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
+    x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
+    x0 = sys(w%view_selected)%c%x2c(x0)
+    col%x = rgbsel(1,1)
+    col%y = rgbsel(2,1)
+    col%z = rgbsel(3,1)
+    msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
+    call igTextColored(col,c_loc(msg))
+
+    ! distance and angle
+    if (nmsel > 1) then
+       idx1 = msel(:,2)
+       if (nmsel == 2) then
+          idx2 = idx
+       else
+          idx2 = msel(:,3)
+       end if
+       x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
+       x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
+       x0 = sys(w%view_selected)%c%x2c(x0)
+       col%x = rgbsel(1,2)
+       col%y = rgbsel(2,2)
+       col%z = rgbsel(3,2)
+       msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
+       call igTextColored(col,c_loc(msg))
+
+       ! angle 3-1-2
+       idx3 = msel(:,1)
+       x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       x0 = sys(w%view_selected)%c%x2c(x0)
+       x1 = sys(w%view_selected)%c%x2c(x1)
+       ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
+       col%x = rgbsel(1,1)
+       col%y = rgbsel(2,1)
+       col%z = rgbsel(3,1)
+       msg = "α=" // string(ang,'f',decimal=2) // "°" // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igTextColored(col,c_loc(msg))
+    end if
+
+    ! distance, angle, dihedral
+    if (nmsel > 2) then
+       ! distance 1-2
+       idx1 = msel(:,3)
+       if (nmsel == 3) then
+          idx2 = idx
+       else
+          idx2 = msel(:,4)
+       end if
+       x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
+       x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
+       x0 = sys(w%view_selected)%c%x2c(x0)
+       col%x = rgbsel(1,3)
+       col%y = rgbsel(2,3)
+       col%z = rgbsel(3,3)
+       msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
+       call igTextColored(col,c_loc(msg))
+
+       ! angle 3-1-2
+       idx3 = msel(:,2)
+       x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       x0 = sys(w%view_selected)%c%x2c(x0)
+       x1 = sys(w%view_selected)%c%x2c(x1)
+       ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
+       col%x = rgbsel(1,2)
+       col%y = rgbsel(2,2)
+       col%z = rgbsel(3,2)
+       msg = "α=" // string(ang,'f',decimal=2) // "°" // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igTextColored(col,c_loc(msg))
+
+       ! dihedral 4-3-1-2
+       idx4 = msel(:,1)
+       x0 = sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4))
+       x1 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       x2 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4) -&
+          (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
+       n0 = cross(x0,x1)
+       n1 = cross(x1,x2)
+       ang = atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
+       col%x = rgbsel(1,1)
+       col%y = rgbsel(2,1)
+       col%z = rgbsel(3,1)
+       msg = "φ=" // string(ang,'f',decimal=2) // "°" // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igTextColored(col,c_loc(msg))
+    end if
+
+    ! finish tooltip
+    call igPopTextWrapPos()
+    call igEndTooltip()
+
+  end subroutine draw_selection_tooltip
 
   !> Mouse position to texture position (screen coordinates)
   module subroutine mousepos_to_texpos(w,pos)

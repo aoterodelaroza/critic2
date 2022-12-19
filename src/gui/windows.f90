@@ -152,6 +152,7 @@ module windows
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: process_events_view ! process the mouse events in the view
+     procedure :: draw_selection_tooltip ! draw the measure selection tooltip
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
      procedure :: getpixel ! get depth or color from texture position
@@ -299,6 +300,10 @@ module windows
        logical, intent(in) :: hover
        integer(c_int), intent(in) :: idx(4)
      end subroutine process_events_view
+     module subroutine draw_selection_tooltip(w,idx)
+       class(window), intent(inout), target :: w
+       integer(c_int), intent(in) :: idx(4)
+     end subroutine draw_selection_tooltip
      module subroutine mousepos_to_texpos(w,pos)
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
