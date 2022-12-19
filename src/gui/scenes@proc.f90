@@ -254,10 +254,11 @@ contains
     real(c_float), allocatable, target :: vert(:,:)
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
-       1._c_float, 0._c_float, 0._c_float, 0.2_c_float,&
-       0._c_float, 1._c_float, 0._c_float, 0.2_c_float,&
-       0._c_float, 0._c_float, 1._c_float, 0.2_c_float,&
-       0.9_c_float,0.7_c_float,0.1_c_float,0.2_c_float/),shape(rgbsel))
+       1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
+       0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
+       0.4_c_float, 0.4_c_float, 1._c_float,  0.5_c_float,&
+       0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbsel))
+    real(c_float), parameter :: msel_thickness = 0.3_c_float
 
     ! check that the scene and system are initialized
     if (.not.s%isinit) return
@@ -286,10 +287,6 @@ contains
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
           call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
-          if (s%drawlist_sph(i)%isel > 0) then
-             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + 0.1,s%atom_res,&
-                rgb=rgbsel(1:3,s%drawlist_sph(i)%isel))
-          end if
        end do
     end if
 
@@ -310,6 +307,20 @@ contains
           call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
              s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
        end do
+    end if
+
+    ! draw the selected atoms
+    if (s%nsph > 0) then
+       call setuniform_int("uselighting",0_c_int)
+       call glBindVertexArray(sphVAO(s%atom_res))
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       do i = 1, s%nsph
+          if (s%drawlist_sph(i)%isel == 0) cycle
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,&
+             rgba=rgbsel(:,s%drawlist_sph(i)%isel))
+       end do
+       call glDisable(GL_BLEND)
     end if
 
     ! render the on-scene text
@@ -1297,7 +1308,7 @@ contains
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires
   !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,ires,rgb,idx)
+  subroutine draw_sphere(x0,rad,ires,rgb,rgba,idx)
     use interfaces_opengl3
     use shaders, only: setuniform_vec3, setuniform_vec4, setuniform_mat4
     use shapes, only: sphnel
@@ -1305,10 +1316,11 @@ contains
     real(c_float), intent(in) :: rad
     integer(c_int), intent(in) :: ires
     real(c_float), intent(in), optional :: rgb(3)
+    real(c_float), intent(in), optional :: rgba(4)
     integer(c_int), intent(in), optional :: idx(4)
 
     real(c_float) :: model(4,4)
-    real(c_float) :: ridx(4)
+    real(c_float) :: ridx(4), rgb_(4)
 
     ! the model matrix: scale and translate
     model = eye4
@@ -1319,7 +1331,11 @@ contains
 
     ! draw the sphere
     if (present(rgb)) then
-       call setuniform_vec3("vColor",rgb)
+       rgb_(1:3) = rgb
+       rgb_(4) = 1._c_float
+       call setuniform_vec4("vColor",rgb_)
+    elseif (present(rgba)) then
+       call setuniform_vec4("vColor",rgba)
     elseif (present(idx)) then
        ridx = transfer(idx,ridx)
        call setuniform_vec4("idx",ridx)
@@ -1334,7 +1350,7 @@ contains
   subroutine draw_cylinder(x1,x2,rad,rgb,ires)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec3, setuniform_mat4
+    use shaders, only: setuniform_vec4, setuniform_mat4
     use shapes, only: cylnel
     real(c_float), intent(in) :: x1(3)
     real(c_float), intent(in) :: x2(3)
@@ -1343,7 +1359,7 @@ contains
     integer(c_int), intent(in) :: ires
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
-    real(c_float) :: a, ca, sa, axis(3), temp(3)
+    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
 
     xmid = 0.5_c_float * (x1 + x2)
     xdif = x2 - x1
@@ -1382,7 +1398,9 @@ contains
     model(:,3) = model(:,3) * blen
 
     ! draw the cylinder
-    call setuniform_vec3("vColor",rgb)
+    rgb_(1:3) = rgb
+    rgb_(4) = 1._c_float
+    call setuniform_vec4("vColor",rgb_)
     call setuniform_mat4("model",model)
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
