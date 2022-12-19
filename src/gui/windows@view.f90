@@ -490,7 +490,7 @@ contains
 
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)
-    szavail%y = szavail%y - igGetTextLineHeightWithSpacing()
+    szavail%y = szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y
 
     ! resize the render texture if not large enough
     amax = max(ceiling(max(szavail%x,szavail%y)),1)
