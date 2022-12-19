@@ -558,7 +558,7 @@ contains
     call igPopStyleColor(3)
 
     ! get hover, image rectangle coordinates, and atom idx
-    hover = igIsItemHovered(ImGuiHoveredFlags_None)
+    hover = igIsItemHovered(ImGuiHoveredFlags_None) .and. goodsys
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
     if (hover) then
@@ -618,7 +618,7 @@ contains
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
-    if (goodsys.and..not.io%WantTextInput) then
+    if (goodsys) then
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
              sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
@@ -744,7 +744,8 @@ contains
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
-       BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE
+       BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
+       BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: io, nsys, sysc
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
@@ -895,8 +896,12 @@ contains
        end if
 
        ! atom selection
-       if (is_bind_event(BIND_NAV_MEASURE)) then
+       if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
           call sc%select_atom(idx)
+          sc%forcebuildlists = .true.
+       end if
+       if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
+          call sc%select_atom((/0,0,0,0/))
           sc%forcebuildlists = .true.
        end if
     end if

@@ -231,8 +231,8 @@ contains
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
-    call set_bind(BIND_NAV_RESET,ImGuiKey_MouseLeftDouble,mod_none)
-    call set_bind(BIND_NAV_MEASURE,ImGuiKey_Space,mod_none)
+    call set_bind(BIND_NAV_RESET,ImGuiKey_MouseRightDouble,mod_none)
+    call set_bind(BIND_NAV_MEASURE,ImGuiKey_MouseLeftDouble,mod_none)
 
   end subroutine set_default_keybindings
 

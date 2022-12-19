@@ -441,7 +441,7 @@ contains
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences..." // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 62 * fontsize%x
+          inisize%x = 65 * fontsize%x
           inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
