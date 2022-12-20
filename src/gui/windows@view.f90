@@ -941,6 +941,7 @@ contains
     type(ImVec4) :: col
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
+    
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 1._c_float,&
@@ -974,7 +975,6 @@ contains
     if (abs(d) > 1d-14) then
        call iw_text("d(")
        call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
-       call iw_text("-",sameline_nospace=.true.)
        if (nmsel > 1) then
           call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
        else
@@ -990,6 +990,7 @@ contains
        if (nmsel == 2) then
           idx2 = idx
           if (idx(1) == 0) goto 999
+          if (all(idx == msel(:,2)) .or. all(idx == msel(:,1))) goto 999
        else
           idx2 = msel(:,3)
        end if
@@ -1000,7 +1001,6 @@ contains
        if (d > 1d-14) then
           call iw_text("d(")
           call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           if (nmsel > 2) then
              call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
           else
@@ -1023,9 +1023,7 @@ contains
           ang = acos(dot_product(x0,x1) / d1 / d2) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           if (nmsel > 2) then
              call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
           else
@@ -1042,6 +1040,7 @@ contains
        if (nmsel == 3) then
           idx2 = idx
           if (idx(1) == 0) goto 999
+          if (all(idx == msel(:,3)) .or. all(idx == msel(:,2)) .or. all(idx == msel(:,1))) goto 999
        else
           idx2 = msel(:,4)
        end if
@@ -1052,7 +1051,6 @@ contains
        if (d > 1d-14) then
           call iw_text("d(")
           call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           if (nmsel > 3) then
              call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
           else
@@ -1075,9 +1073,7 @@ contains
           ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
-          call iw_text("-",sameline_nospace=.true.)
           if (nmsel > 3) then
              call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
           else
@@ -1100,14 +1096,11 @@ contains
        n0 = cross(x0,x1)
        n1 = cross(x1,x2)
 
-       ang = atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
+       ang = -atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
        call iw_text(", φ(",sameline_nospace=.true.)
        call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
-       call iw_text("-",sameline_nospace=.true.)
        call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-       call iw_text("-",sameline_nospace=.true.)
        call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
-       call iw_text("-",sameline_nospace=.true.)
        if (nmsel > 3) then
           call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
        else
