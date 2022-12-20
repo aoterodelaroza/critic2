@@ -32,7 +32,6 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
-     integer(c_int) :: isel ! 0 if not selected, 1 if first atom, etc.
   end type dl_sphere
 
   !> cylinders for the draw list

@@ -248,7 +248,7 @@ contains
        setuniform_mat4
     class(scene), intent(inout), target :: s
 
-    integer :: i
+    integer :: i, j
     real(c_float) :: siz, hside
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
@@ -310,15 +310,16 @@ contains
     end if
 
     ! draw the selected atoms
-    if (s%nsph > 0) then
+    if (s%nmsel > 0) then
        call setuniform_int("uselighting",0_c_int)
        call glBindVertexArray(sphVAO(s%atom_res))
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        do i = 1, s%nsph
-          if (s%drawlist_sph(i)%isel == 0) cycle
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,&
-             rgba=rgbsel(:,s%drawlist_sph(i)%isel))
+          do j = 1, s%nmsel
+             if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) &
+                call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+          end do
        end do
        call glDisable(GL_BLEND)
     end if
@@ -1052,14 +1053,6 @@ contains
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
-                      drawlist_sph(nsph)%isel = 0
-
-                      ! check if this atom is selected
-                      do j = 1, nmsel
-                         if (i == msel(1,j) .and. all(ix == msel(2:4,j))) then
-                            drawlist_sph(nsph)%isel = j
-                         end if
-                      end do
                    end if
 
                    ! bonds

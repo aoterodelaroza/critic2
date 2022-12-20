@@ -901,11 +901,11 @@ contains
        ! atom selection
        if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
           call sc%select_atom(idx)
-          sc%forcebuildlists = .true.
+          w%forcerender = .true.
        end if
        if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
           call sc%select_atom((/0,0,0,0/))
-          sc%forcebuildlists = .true.
+          w%forcerender = .true.
        end if
     end if
 
