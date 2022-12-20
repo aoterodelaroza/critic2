@@ -926,6 +926,7 @@ contains
 
   module subroutine draw_selection_tooltip(w,idx)
     use interfaces_cimgui
+    use utils, only: iw_text
     use gui_main, only: sys, sysc, fontsize
     use tools_io, only: string
     use tools_math, only: cross
@@ -939,68 +940,76 @@ contains
     integer :: msel(4,4)
     type(ImVec4) :: col
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
-    real*8 :: x0(3), x1(3), x2(3), ang, n0(3), n1(3)
+    real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
 
-    real(c_float), parameter :: rgbsel(3,4) = reshape((/&
-       1._c_float,  0.4_c_float, 0.4_c_float,&
-       0.4_c_float, 1._c_float,  0.4_c_float,&
-       0.4_c_float, 0.4_c_float, 1._c_float,&
-       0.9_c_float, 0.7_c_float, 0.4_c_float/),shape(rgbsel))
+    real(c_float), parameter :: rgbsel(4,4) = reshape((/&
+       1._c_float,  0.4_c_float, 0.4_c_float, 1._c_float,&
+       0.4_c_float, 1._c_float,  0.4_c_float, 1._c_float,&
+       0.4_c_float, 0.4_c_float, 1._c_float, 1._c_float,&
+       0.9_c_float, 0.7_c_float, 0.4_c_float, 1._c_float/),shape(rgbsel))
 
     ! check if the tooltip is needed
     nmsel = sysc(w%view_selected)%sc%nmsel
     if (nmsel == 0) return
-    if (idx(1) == 0 .and. nmsel < 4) return
     msel = sysc(w%view_selected)%sc%msel
-    if (nmsel < 4) then
-       do i = 1, nmsel
-          if (all(idx == msel(:,i))) return
-       end do
-    end if
-
-    ! initialize
-    col%w = 1._c_float
+    if (nmsel == 1 .and. (idx(1) == 0 .or. all(idx == msel(:,1)))) return
 
     ! start tooltip and header
     call igBeginTooltip()
-    call igPushTextWrapPos(40._c_float * fontsize%x)
-    msg = "Distance (d), angle (α), dihedral (φ)" // c_null_char
-    call igText(c_loc(msg))
+    call igPushTextWrapPos(60._c_float * fontsize%x)
+    call iw_text("Distance (d), angle (α), dihedral (φ)")
 
-    ! distance
+    ! distance 1-2
     idx1 = msel(:,1)
     if (nmsel == 1) then
        idx2 = idx
+       if (idx(1) == 0) goto 999
     else
        idx2 = msel(:,2)
     end if
     x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
     x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
     x0 = sys(w%view_selected)%c%x2c(x0)
-    col%x = rgbsel(1,1)
-    col%y = rgbsel(2,1)
-    col%z = rgbsel(3,1)
-    msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
-    call igTextColored(col,c_loc(msg))
+    d = norm2(x0)*bohrtoa
+    if (abs(d) > 1d-14) then
+       call iw_text("d(")
+       call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
+       call iw_text("-",sameline_nospace=.true.)
+       if (nmsel > 1) then
+          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+       else
+          call iw_text("*",sameline_nospace=.true.)
+       end if
+       call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+    end if
 
-    ! distance and angle
+    ! distance and angle with atom 3
     if (nmsel > 1) then
+       ! distance 2-3
        idx1 = msel(:,2)
        if (nmsel == 2) then
           idx2 = idx
+          if (idx(1) == 0) goto 999
        else
           idx2 = msel(:,3)
        end if
        x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
        x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
        x0 = sys(w%view_selected)%c%x2c(x0)
-       col%x = rgbsel(1,2)
-       col%y = rgbsel(2,2)
-       col%z = rgbsel(3,2)
-       msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
-       call igTextColored(col,c_loc(msg))
+       d = norm2(x0)*bohrtoa
+       if (d > 1d-14) then
+          call iw_text("d(")
+          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          if (nmsel > 2) then
+             call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          else
+             call iw_text("*",sameline_nospace=.true.)
+          end if
+          call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+       end if
 
-       ! angle 3-1-2
+       ! angle 1-2-3
        idx3 = msel(:,1)
        x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
@@ -1008,34 +1017,51 @@ contains
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        x0 = sys(w%view_selected)%c%x2c(x0)
        x1 = sys(w%view_selected)%c%x2c(x1)
-       ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
-       col%x = rgbsel(1,1)
-       col%y = rgbsel(2,1)
-       col%z = rgbsel(3,1)
-       msg = "α=" // string(ang,'f',decimal=2) // "°" // c_null_char
-       call igSameLine(0._c_float,-1._c_float)
-       call igTextColored(col,c_loc(msg))
+       d1 = norm2(x0)
+       d2 = norm2(x1)
+       if (d1 > 1d-14 .and. d2 > 1d-14) then
+          ang = acos(dot_product(x0,x1) / d1 / d2) * 180d0 / pi
+          call iw_text(", α(",sameline_nospace=.true.)
+          call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          if (nmsel > 2) then
+             call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          else
+             call iw_text("*",sameline_nospace=.true.)
+          end if
+          call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
+       end if
     end if
 
     ! distance, angle, dihedral
     if (nmsel > 2) then
-       ! distance 1-2
+       ! distance 3-4
        idx1 = msel(:,3)
        if (nmsel == 3) then
           idx2 = idx
+          if (idx(1) == 0) goto 999
        else
           idx2 = msel(:,4)
        end if
        x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
        x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
        x0 = sys(w%view_selected)%c%x2c(x0)
-       col%x = rgbsel(1,3)
-       col%y = rgbsel(2,3)
-       col%z = rgbsel(3,3)
-       msg = "d=" // string(norm2(x0)*bohrtoa,'f',decimal=4) // " Å" // c_null_char
-       call igTextColored(col,c_loc(msg))
+       d = norm2(x0)*bohrtoa
+       if (d > 1d-14) then
+          call iw_text("d(")
+          call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          if (nmsel > 3) then
+             call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+          else
+             call iw_text("*",sameline_nospace=.true.)
+          end if
+          call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+       end if
 
-       ! angle 3-1-2
+       ! angle 2-3-4
        idx3 = msel(:,2)
        x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
@@ -1043,15 +1069,24 @@ contains
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        x0 = sys(w%view_selected)%c%x2c(x0)
        x1 = sys(w%view_selected)%c%x2c(x1)
-       ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
-       col%x = rgbsel(1,2)
-       col%y = rgbsel(2,2)
-       col%z = rgbsel(3,2)
-       msg = "α=" // string(ang,'f',decimal=2) // "°" // c_null_char
-       call igSameLine(0._c_float,-1._c_float)
-       call igTextColored(col,c_loc(msg))
+       d1 = norm2(x0)
+       d2 = norm2(x1)
+       if (d1 > 1d-14 .and. d2 > 1d-14) then
+          ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
+          call iw_text(", α(",sameline_nospace=.true.)
+          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          call iw_text("-",sameline_nospace=.true.)
+          if (nmsel > 3) then
+             call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+          else
+             call iw_text("*",sameline_nospace=.true.)
+          end if
+          call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
+       end if
 
-       ! dihedral 4-3-1-2
+       ! dihedral 1-2-3-4
        idx4 = msel(:,1)
        x0 = sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4) -&
           (sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4))
@@ -1059,16 +1094,29 @@ contains
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        x2 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4) -&
           (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
+       x0 = sys(w%view_selected)%c%x2c(x0)
+       x1 = sys(w%view_selected)%c%x2c(x1)
+       x2 = sys(w%view_selected)%c%x2c(x2)
        n0 = cross(x0,x1)
        n1 = cross(x1,x2)
+
        ang = atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
-       col%x = rgbsel(1,1)
-       col%y = rgbsel(2,1)
-       col%z = rgbsel(3,1)
-       msg = "φ=" // string(ang,'f',decimal=2) // "°" // c_null_char
-       call igSameLine(0._c_float,-1._c_float)
-       call igTextColored(col,c_loc(msg))
+       call iw_text(", φ(",sameline_nospace=.true.)
+       call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
+       call iw_text("-",sameline_nospace=.true.)
+       call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+       call iw_text("-",sameline_nospace=.true.)
+       call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+       call iw_text("-",sameline_nospace=.true.)
+       if (nmsel > 3) then
+          call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+       else
+          call iw_text("*",sameline_nospace=.true.)
+       end if
+       call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
     end if
+
+999 continue ! exit here
 
     ! finish tooltip
     call igPopTextWrapPos()

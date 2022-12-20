@@ -90,7 +90,7 @@ module utils
        logical :: iw_radiobutton
      end function iw_radiobutton
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,copy_to_output,centered)
+        noadvance,copy_to_output,centered,rgba)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -100,6 +100,7 @@ module utils
        logical, intent(in), optional :: noadvance
        logical, intent(in), optional :: copy_to_output
        logical, intent(in), optional :: centered
+       real(c_float), intent(in), optional :: rgba(4)
      end subroutine iw_text
      module function iw_button(str,danger,sameline,disabled,siz,&
         popupcontext,popupflags)

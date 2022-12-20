@@ -197,15 +197,16 @@ contains
 
   end function iw_radiobutton
 
-  !> Draw text. If highlight, use the highlight color. If disabled,
-  !> use the disabled font. If sameline, draw it in the same line as
-  !> the previous widget. If sameline_nospace, draw it in the same
-  !> line adjacent to the previous item. If noadvance, do not advance
-  !> the cursor after writing. If copy_to_output, write the text to
-  !> uout as well (without advancing to a new line and with a comma
-  !> after the string). If centered, center the text in the window.
+  !> Draw text. highlight = use the highlight color. danger = use the
+  !> danger color. disabled = use the disabled font. sameline = draw
+  !> it in the same line as the previous widget. sameline_nospace =
+  !> draw it in the same line adjacent to the previous item. noadvance
+  !> = do not advance the cursor after writing. copy_to_output = write
+  !> the text to uout as well (without advancing to a new line and with
+  !> a comma after the string). centered = center the text in the window.
+  !> rgba = use this color for the text.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output,centered)
+     noadvance,copy_to_output,centered,rgba)
     use interfaces_cimgui
     use gui_main, only: ColorHighlightText, ColorDangerText
     use tools_io, only: uout
@@ -218,6 +219,7 @@ contains
     logical, intent(in), optional :: noadvance
     logical, intent(in), optional :: copy_to_output
     logical, intent(in), optional :: centered
+    real(c_float), intent(in), optional :: rgba(4)
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
@@ -225,6 +227,7 @@ contains
     logical :: noadvance_,copy_to_output_, centered_
     real(c_float) :: pos, wwidth, twidth
     type(ImVec2) :: sz
+    type(ImVec4) :: col
 
     highlight_ = .false.
     danger_ = .false.
@@ -259,6 +262,12 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str1))
     elseif (danger_) then
        call igTextColored(ColorDangerText,c_loc(str1))
+    elseif (present(rgba)) then
+       col%x = rgba(1)
+       col%y = rgba(2)
+       col%z = rgba(3)
+       col%w = rgba(4)
+       call igTextColored(col,c_loc(str1))
     else
        call igText(c_loc(str1))
     end if
