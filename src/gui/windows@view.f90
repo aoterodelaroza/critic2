@@ -941,7 +941,7 @@ contains
     type(ImVec4) :: col
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
-    
+
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 1._c_float,&

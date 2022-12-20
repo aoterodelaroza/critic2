@@ -243,13 +243,14 @@ contains
     use gui_main, only: fonts, fontbakesize
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
+    use tools_io, only: string
     use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4
     class(scene), intent(inout), target :: s
 
     integer :: i, j
-    real(c_float) :: siz, hside
+    real(c_float) :: siz, hside, xsel(3,4), radsel(4)
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
 
@@ -317,14 +318,17 @@ contains
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        do i = 1, s%nsph
           do j = 1, s%nmsel
-             if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) &
+             if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
                 call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+                radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+                xsel(:,j) = s%drawlist_sph(i)%x
+             end if
           end do
        end do
        call glDisable(GL_BLEND)
     end if
 
-    ! render the on-scene text
+    ! render labels with on-scene text
     call useshader(shader_text_onscene)
     call setuniform_mat4("world",s%world)
     call setuniform_mat4("view",s%view)
@@ -357,6 +361,18 @@ contains
        call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
        call glDrawArrays(GL_TRIANGLES, 0, nvert)
     end do
+
+    ! render selected atom labels with on-scene text
+    if (s%nmsel > 0) then
+       do j = 1, s%nmsel
+          call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
+          siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+          nvert = 0
+          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
+          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+          call glDrawArrays(GL_TRIANGLES, 0, nvert)
+       end do
+    end if
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
