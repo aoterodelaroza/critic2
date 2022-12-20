@@ -37,7 +37,7 @@ set(SOURCES
 if (FREETYPE2_FOUND)
   set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
   add_definitions("-DIMGUI_ENABLE_FREETYPE")
-  set_property(SOURCE imgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
+  set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
 endif()
 
 add_library(fgui OBJECT ${SOURCES})
