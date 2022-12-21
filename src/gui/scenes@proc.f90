@@ -725,10 +725,14 @@ contains
        end if
     end do
 
-    ! if the atom is not known and we have space for it, add
     if (s%nmsel < 4) then
+       ! if the atom is not known and we have space for it, add it
        s%nmsel = s%nmsel + 1
        s%msel(:,s%nmsel) = idx
+    else
+       ! if we have 4 atoms selected and clicked a different atom, select only that one
+       s%nmsel = 1
+       s%msel(:,1) = idx
     end if
 
   end subroutine select_atom
