@@ -114,6 +114,9 @@ module scenes
   end type representation
   public :: representation
 
+  integer(c_int), parameter :: style_simple = 0
+  integer(c_int), parameter :: style_phong = 1
+
   !> Scene: objects from the system to be drawn and plot settings
   type scene
      logical :: isinit = .false. ! whether the scene has been initialized
@@ -133,6 +136,7 @@ module scenes
      integer(c_int) :: bond_res ! bond resolution
      integer(c_int) :: uc_res ! unit cell resolution
      ! scene/shader settings
+     integer(c_int) :: style ! scene style (0=simple,1=phong)
      real(c_float) :: bgcolor(3) ! background color
      real(c_float) :: lightpos(3) ! light position
      real(c_float) :: lightcolor(3) ! light color

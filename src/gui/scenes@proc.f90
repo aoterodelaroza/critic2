@@ -61,7 +61,8 @@ contains
     s%bond_res = 1
     s%uc_res = 1
 
-    ! phong default settings
+    ! shader default settings
+    s%style = style_simple
     s%bgcolor = (/0._c_float,0._c_float,0._c_float/)
     s%lightpos = (/20._c_float,20._c_float,0._c_float/)
     s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
@@ -244,9 +245,9 @@ contains
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
-    use shaders, only: shader_phong, shader_text_onscene, useshader, setuniform_int,&
-       setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
-       setuniform_mat4
+    use shaders, only: shader_phong, shader_simple, shader_text_onscene,&
+       useshader, setuniform_int, setuniform_float, setuniform_vec3,&
+       setuniform_vec4, setuniform_mat3, setuniform_mat4
     class(scene), intent(inout), target :: s
 
     integer :: i, j
@@ -270,116 +271,150 @@ contains
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
 
-    ! set up the shader and the uniforms
-    call useshader(shader_phong)
-    call setuniform_int("uselighting",1_c_int)
-    call setuniform_vec3("lightPos",s%lightpos)
-    call setuniform_vec3("lightColor",s%lightcolor)
-    call setuniform_float("ambient",s%ambient)
-    call setuniform_float("diffuse",s%diffuse)
-    call setuniform_float("specular",s%specular)
-    call setuniform_int("shininess",s%shininess)
-    call setuniform_mat4("world",s%world)
-    call setuniform_mat4("view",s%view)
-    call setuniform_mat4("projection",s%projection)
+    if (s%style == style_phong) then
+       !! phong !!
+       ! set up the shader and the uniforms
+       call useshader(shader_phong)
+       call setuniform_int("uselighting",1_c_int)
+       call setuniform_vec3("lightPos",s%lightpos)
+       call setuniform_vec3("lightColor",s%lightcolor)
+       call setuniform_float("ambient",s%ambient)
+       call setuniform_float("diffuse",s%diffuse)
+       call setuniform_float("specular",s%specular)
+       call setuniform_int("shininess",s%shininess)
+       call setuniform_mat4("world",s%world)
+       call setuniform_mat4("view",s%view)
+       call setuniform_mat4("projection",s%projection)
 
-    ! draw the atoms
-    if (s%nsph > 0) then
-       call glBindVertexArray(sphVAO(s%atom_res))
-       do i = 1, s%nsph
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
-       end do
-    end if
-
-    ! draw the bonds
-    if (s%ncyl > 0) then
-       call glBindVertexArray(cylVAO(s%bond_res))
-       do i = 1, s%ncyl
-          call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
-             s%drawlist_cyl(i)%rgb,s%bond_res)
-       end do
-    end if
-
-    ! draw the flat cylinders (unit cell)
-    if (s%ncylflat > 0) then
-       call setuniform_int("uselighting",0_c_int)
-       call glBindVertexArray(cylVAO(s%uc_res))
-       do i = 1, s%ncylflat
-          call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-             s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
-       end do
-    end if
-
-    ! draw the selected atoms
-    if (s%nmsel > 0) then
-       call setuniform_int("uselighting",0_c_int)
-       call glBindVertexArray(sphVAO(s%atom_res))
-       call glEnable(GL_BLEND)
-       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       do i = 1, s%nsph
-          do j = 1, s%nmsel
-             if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-                call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
-                radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-                xsel(:,j) = s%drawlist_sph(i)%x
-             end if
+       ! draw the atoms
+       if (s%nsph > 0) then
+          call glBindVertexArray(sphVAO(s%atom_res))
+          do i = 1, s%nsph
+             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
           end do
-       end do
-       call glDisable(GL_BLEND)
-    end if
-
-    ! render labels with on-scene text
-    call useshader(shader_text_onscene)
-    call setuniform_mat4("world",s%world)
-    call setuniform_mat4("view",s%view)
-    call setuniform_mat4("projection",s%projection)
-    call setuniform_vec3("campos",s%campos)
-
-    call glDisable(GL_MULTISAMPLE)
-    call glEnable(GL_BLEND)
-    call glBlendEquation(GL_FUNC_ADD)
-    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
-    call glActiveTexture(GL_TEXTURE0)
-    call glBindVertexArray(textVAOos)
-    call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-
-    do i = 1, s%nstring
-       call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
-       nvert = 0
-       if (s%drawlist_string(i)%scale > 0._c_float) then
-          hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-          hside = hside * s%camratio
-          hside = max(hside,3._c_float)
-          siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
-       else
-          siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
        end if
-       call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
-          siz,nvert,vert,centered=.true.)
-       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-       call glDrawArrays(GL_TRIANGLES, 0, nvert)
-    end do
 
-    ! render selected atom labels with on-scene text
-    if (s%nmsel > 0) then
-       do j = 1, s%nmsel
-          call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-          siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+       ! draw the bonds
+       if (s%ncyl > 0) then
+          call glBindVertexArray(cylVAO(s%bond_res))
+          do i = 1, s%ncyl
+             call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
+                s%drawlist_cyl(i)%rgb,s%bond_res)
+          end do
+       end if
+
+       ! draw the flat cylinders (unit cell)
+       if (s%ncylflat > 0) then
+          call setuniform_int("uselighting",0_c_int)
+          call glBindVertexArray(cylVAO(s%uc_res))
+          do i = 1, s%ncylflat
+             call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+                s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
+          end do
+       end if
+
+       ! draw the selected atoms
+       if (s%nmsel > 0) then
+          call setuniform_int("uselighting",0_c_int)
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          do i = 1, s%nsph
+             do j = 1, s%nmsel
+                if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
+                   call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+                   radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+                   xsel(:,j) = s%drawlist_sph(i)%x
+                end if
+             end do
+          end do
+          call glDisable(GL_BLEND)
+       end if
+
+       ! render labels with on-scene text
+       call useshader(shader_text_onscene)
+       call setuniform_mat4("world",s%world)
+       call setuniform_mat4("view",s%view)
+       call setuniform_mat4("projection",s%projection)
+       call setuniform_vec3("campos",s%campos)
+
+       call glDisable(GL_MULTISAMPLE)
+       call glEnable(GL_BLEND)
+       call glBlendEquation(GL_FUNC_ADD)
+       call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+       call glActiveTexture(GL_TEXTURE0)
+       call glBindVertexArray(textVAOos)
+       call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+       call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+
+       do i = 1, s%nstring
+          call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
           nvert = 0
-          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
+          if (s%drawlist_string(i)%scale > 0._c_float) then
+             hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+             hside = hside * s%camratio
+             hside = max(hside,3._c_float)
+             siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
+          else
+             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
+          end if
+          call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
+             siz,nvert,vert,centered=.true.)
           call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
           call glDrawArrays(GL_TRIANGLES, 0, nvert)
        end do
+
+       ! render selected atom labels with on-scene text
+       if (s%nmsel > 0) then
+          do j = 1, s%nmsel
+             call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
+             siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+             nvert = 0
+             call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
+             call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+             call glDrawArrays(GL_TRIANGLES, 0, nvert)
+          end do
+       end if
+       call glEnable(GL_MULTISAMPLE)
+       call glDisable(GL_BLEND)
+    else
+       !! simple !!
+       ! set up the shader and the uniforms
+       call useshader(shader_simple)
+       call setuniform_mat4("world",s%world)
+       call setuniform_mat4("view",s%view)
+       call setuniform_mat4("projection",s%projection)
+
+       ! prepare the stencil buffer
+       call glEnable(GL_STENCIL_TEST)
+       call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+       call glClearStencil(int(z'FF',c_int))
+       call glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+
+       ! draw the atoms
+       if (s%nsph > 0) then
+          call glBindVertexArray(sphVAO(s%atom_res))
+          do i = 1, s%nsph
+             call glStencilFunc(GL_ALWAYS, 1, int(z'FF',c_int))
+             call glStencilMask(int(z'FF',c_int))
+             call glClear(GL_STENCIL_BUFFER_BIT)
+             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+             call glStencilFunc(GL_NOTEQUAL, 1, int(z'FF',c_int))
+             call glStencilMask(0_c_int)
+             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + 0.25_c_float,s%atom_res,&
+                rgb=(/0._c_float,0._c_float,0._c_float/))
+          end do
+       end if
+
+       call glStencilMask(int(z'FF',c_int))
+       call glStencilFunc(GL_ALWAYS, 0, int(z'FF',c_int))
+       call glDisable(GL_STENCIL_TEST)
     end if
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
     call glBindTexture(GL_TEXTURE_2D, 0)
-
-    call glEnable(GL_MULTISAMPLE)
-    call glDisable(GL_BLEND)
 
   end subroutine scene_render
 

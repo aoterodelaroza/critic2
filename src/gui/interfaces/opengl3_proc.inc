@@ -118,6 +118,11 @@ subroutine glClearColor(red, green, blue, alpha) bind(c,name="glClearColor")
   import c_float
   real(c_float), value :: red, green, blue, alpha
 end subroutine glClearColor
+! void glClearStencil(GLint s)
+subroutine glClearStencil(s) bind(c,name="glClearStencil")
+  import c_int
+  integer(c_int), value :: s
+end subroutine glClearStencil
 ! void glCompileShader(GLuint shader)
 subroutine glCompileShader(shader) bind(c,name="glCompileShader")
   import c_int
@@ -341,6 +346,25 @@ subroutine glShaderSource(shader,count,string,length) bind(c,name="glShaderSourc
   type(c_ptr), intent(in) :: string
   type(c_ptr), intent(in), value :: length
 end subroutine glShaderSource
+! void glStencilFunc(GLenum func, GLint ref, GLuint mask);
+subroutine glStencilFunc(func, ref, mask) bind(c,name="glStencilFunc")
+  import c_int
+  integer(c_int), value :: func
+  integer(c_int), value :: ref
+  integer(c_int), value :: mask
+end subroutine glStencilFunc
+! void glStencilMask(GLuint mask);
+subroutine glStencilMask(mask) bind(c,name="glStencilMask")
+  import c_int
+  integer(c_int), value :: mask
+end subroutine glStencilMask
+! void glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass);
+subroutine glStencilOp(sfail, dpfail, dppass) bind(c,name="glStencilOp")
+  import c_int
+  integer(c_int), value :: sfail
+  integer(c_int), value :: dpfail
+  integer(c_int), value :: dppass
+end subroutine glStencilOp
 ! void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height,
 !                   GLint border, GLenum format, GLenum type, const GLvoid * data);
 subroutine glTexImage2D(target_,level,internalFormat,width,height,border,format_,type,data) bind(c,name="glTexImage2D")

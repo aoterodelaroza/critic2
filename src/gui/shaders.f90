@@ -23,11 +23,12 @@ module shaders
   private
 
   integer, parameter, public :: shader_test = 1
-  integer, parameter, public :: shader_phong = 2
-  integer, parameter, public :: shader_text_direct = 3
-  integer, parameter, public :: shader_text_onscene = 4
-  integer, parameter, public :: shader_pickindex = 5
-  integer, parameter, public :: shader_NUM = 5
+  integer, parameter, public :: shader_simple = 2
+  integer, parameter, public :: shader_phong = 3
+  integer, parameter, public :: shader_text_direct = 4
+  integer, parameter, public :: shader_text_onscene = 5
+  integer, parameter, public :: shader_pickindex = 6
+  integer, parameter, public :: shader_NUM = 6
 
   public :: shaders_init
   public :: shaders_end
