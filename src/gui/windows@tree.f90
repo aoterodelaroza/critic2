@@ -79,7 +79,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
-    logical :: export
+    logical :: export, didtableselected
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -262,6 +262,7 @@ contains
     call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
 
     ! next and previous systems
+    didtableselected = .false.
     inext = 0
     iprev = 0
 
@@ -871,11 +872,9 @@ contains
       call igSetCursorPosX(pos)
 
       ! update the iprev and inext
-      if (isys < w%table_selected) then
-         iprev = isys
-      elseif (isys > w%table_selected .and. inext == 0) then
-         inext = isys
-      end if
+      if (inext==0.and.didtableselected) inext = isys
+      if (isys == w%table_selected) didtableselected = .true.
+      if (.not.didtableselected) iprev = isys
 
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
