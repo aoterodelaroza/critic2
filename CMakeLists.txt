@@ -48,19 +48,23 @@ include(CTest)
 ## GUI requirements
 if (ENABLE_GUI)
   ## option to use freetype
-  option(USE_FREETYPE2 "Use the freetype2 library (improved font rendering in GUI)." OFF)
+  option(USE_FREETYPE "Use the freetype library (improved font rendering in GUI)." ON)
 
   ## needs -fPIC
   enable_language(CXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
   ## find GUI libraries
-  find_package(PkgConfig REQUIRED)
-  pkg_search_module(GLFW REQUIRED glfw3)
-  pkg_search_module(GL REQUIRED gl)
-  if (USE_FREETYPE2)
-    pkg_search_module(FREETYPE2 freetype2)
+  if (USE_FREETYPE)
+    find_package(Freetype REQUIRED)
   endif()
+
+  ## glfw3
+  find_package(GLFW3 REQUIRED)
+
+  ## opengl
+  set(OpenGL_GL_PREFERENCE "GLVND")
+  find_package(OpenGL REQUIRED)
 
   ## the GUI requires threads
   set(ENABLE_OPENMP ON)
@@ -254,10 +258,10 @@ set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
 
 if (ENABLE_GUI)
   set(_message
-    "${_message}gl: lib=${GL_LIBRARIES} | inc=${GL_INCLUDE_DIRS}\n"
+    "${_message}gl: lib=${OPENGL_LIBRARIES} | inc=${OPENGL_INCLUDE_DIRS}\n"
     "glm: lib=${GLM_LIBRARIES} | inc=${GLM_INCLUDE_DIRS}\n"
-    "glfw: lib=${GLFW_LIBRARIES} | inc=${GLFW_INCLUDE_DIRS}\n"
-    "freetype2: lib=${FREETYPE2_LIBRARIES} | inc=${FREETYPE2_INCLUDE_DIRS}\n"
+    "glfw: lib=${GLFW3_LIBRARY} | inc=${GLFW3_INCLUDE_DIR}\n"
+    "freetype: lib=${FREETYPE_LIBRARIES} | inc=${FREETYPE_INCLUDE_DIRS}\n"
     "dl: lib=${CMAKE_DL_LIBS}\n")
 endif()
 

@@ -15,6 +15,18 @@ find_library(READLINE_LIBRARY
     HINTS ${READLINE_DIR}
 )
 
+if (BUILD_STATIC)
+  find_library(TINFO
+      NAMES tinfo
+      PATH_SUFFIXES lib
+      HINTS ${READLINE_DIR}
+  )
+
+  if (TINFO)
+    set(READLINE_LIBRARY "${READLINE_LIBRARY};${TINFO}")
+  endif()
+endif()
+
 find_path(READLINE_INCLUDE_DIRS
   NAMES readline/readline.h
   PATH_SUFFIXES include

@@ -39,6 +39,9 @@ if (FREETYPE2_FOUND)
   add_definitions("-DIMGUI_ENABLE_FREETYPE")
   set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
 endif()
+if (OpenGL_EGL_FOUND)
+  set_property(SOURCE imgui/gl3w.c APPEND PROPERTY COMPILE_FLAGS "-DUSE_EGL")
+endif()
 
 add_library(fgui OBJECT ${SOURCES})
 

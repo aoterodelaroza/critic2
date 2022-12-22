@@ -119,17 +119,23 @@ endif()
 
 ## The library for the GUI, fortran version
 if (ENABLE_GUI)
-  ## GUI libraries
-  target_include_directories(critic2 PRIVATE
-    ${GLFW_INCLUDE_DIRS}
-    ${FREETYPE2_INCLUDE_DIRS}
-    ${GL_INCLUDE_DIRS}
-    )
-  target_link_libraries(critic2 PRIVATE
-    ${GLFW_LIBRARIES}
-    ${FREETYPE2_LIBRARIES}
-    ${GL_LIBRARIES}
-    )
+  ## GLFW
+  target_include_directories(critic2 PRIVATE ${GLFW3_INCLUDE_DIR})
+  target_link_libraries(critic2 PRIVATE ${GLFW3_LIBRARY})
+
+  ## FREETYPE
+  if (FREETYPE_FOUND)
+   target_include_directories(critic2 PRIVATE ${FREETYPE_INCLUDE_DIRS})
+   target_link_libraries(critic2 PRIVATE ${FREETYPE_LIBRARIES})
+  endif()
+
+  ## OpenGL
+  if (OpenGL_EGL_FOUND)
+   target_link_libraries(critic2 PRIVATE OpenGL::OpenGL OpenGL::EGL)
+  else()
+   target_link_libraries(critic2 PRIVATE OpenGL::OpenGL OpenGL::GLX)
+  endif()
+
   ## the dynamic linking library
   target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
 
