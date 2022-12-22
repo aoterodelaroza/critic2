@@ -63,13 +63,7 @@ contains
 
     ! shader default settings
     s%style = style_simple
-    s%bgcolor = (/0._c_float,0._c_float,0._c_float/)
-    s%lightpos = (/20._c_float,20._c_float,0._c_float/)
-    s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
-    s%ambient = 0.2_c_float
-    s%diffuse = 0.4_c_float
-    s%specular = 0.6_c_float
-    s%shininess = 8_c_int
+    call s%set_style_defaults()
 
     ! measure atom sets
     s%nmsel = 0
@@ -88,12 +82,12 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms)
+    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms,s%style)
 
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init(s%id,s%nrep,reptype_unitcell)
+       call s%rep(s%nrep)%init(s%id,s%nrep,reptype_unitcell,s%style)
     end if
 
     ! reset the camera later
@@ -407,9 +401,95 @@ contains
           end do
        end if
 
+       ! disable the stencil buffer for the rest
        call glStencilMask(int(z'FF',c_int))
        call glStencilFunc(GL_ALWAYS, 0, int(z'FF',c_int))
        call glDisable(GL_STENCIL_TEST)
+
+       ! draw the bonds
+       if (s%ncyl > 0) then
+          call glBindVertexArray(cylVAO(s%bond_res))
+          do i = 1, s%ncyl
+             call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
+                s%drawlist_cyl(i)%rgb,s%bond_res)
+          end do
+       end if
+
+       ! draw the flat cylinders (unit cell)
+       if (s%ncylflat > 0) then
+          call setuniform_int("uselighting",0_c_int)
+          call glBindVertexArray(cylVAO(s%uc_res))
+          do i = 1, s%ncylflat
+             call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+                s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
+          end do
+       end if
+
+       ! draw the selected atoms
+       if (s%nmsel > 0) then
+          call setuniform_int("uselighting",0_c_int)
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          do i = 1, s%nsph
+             do j = 1, s%nmsel
+                if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
+                   call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+                   radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+                   xsel(:,j) = s%drawlist_sph(i)%x
+                end if
+             end do
+          end do
+          call glDisable(GL_BLEND)
+       end if
+
+       ! render labels with on-scene text
+       call useshader(shader_text_onscene)
+       call setuniform_mat4("world",s%world)
+       call setuniform_mat4("view",s%view)
+       call setuniform_mat4("projection",s%projection)
+       call setuniform_vec3("campos",s%campos)
+
+       call glDisable(GL_MULTISAMPLE)
+       call glEnable(GL_BLEND)
+       call glBlendEquation(GL_FUNC_ADD)
+       call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+       call glActiveTexture(GL_TEXTURE0)
+       call glBindVertexArray(textVAOos)
+       call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+       call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+
+       do i = 1, s%nstring
+          call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
+          nvert = 0
+          if (s%drawlist_string(i)%scale > 0._c_float) then
+             hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+             hside = hside * s%camratio
+             hside = max(hside,3._c_float)
+             siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
+          else
+             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
+          end if
+          call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
+             siz,nvert,vert,centered=.true.)
+          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+          call glDrawArrays(GL_TRIANGLES, 0, nvert)
+       end do
+
+       ! render selected atom labels with on-scene text
+       if (s%nmsel > 0) then
+          do j = 1, s%nmsel
+             call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
+             siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+             nvert = 0
+             call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
+             call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+             call glDrawArrays(GL_TRIANGLES, 0, nvert)
+          end do
+       end if
+       call glEnable(GL_MULTISAMPLE)
+       call glDisable(GL_BLEND)
     end if
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -461,6 +541,45 @@ contains
     end if
 
   end subroutine scene_render_pick
+
+  !> Set the style defaults for the current scene. If style is
+  !> not given, use s%style
+  module subroutine scene_set_style_defaults(s,style)
+    class(scene), intent(inout), target :: s
+    integer(c_int), intent(in), optional :: style
+
+    integer :: style_
+    integer :: i
+
+    style_ = s%style
+    if (present(style)) style_ = style
+
+    if (style_ == style_phong) then
+       !! phong !!
+       s%bgcolor = (/0._c_float,0._c_float,0._c_float/)
+       s%lightpos = (/20._c_float,20._c_float,0._c_float/)
+       s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
+       s%ambient = 0.2_c_float
+       s%diffuse = 0.4_c_float
+       s%specular = 0.6_c_float
+       s%shininess = 8_c_int
+       do i = 1, s%nrep
+          s%rep(i)%label_rgb = 1._c_float
+          s%rep(i)%uc_rgb = 1._c_float
+          s%rep(i)%bond_color_style=1
+       end do
+    else
+       !! simple !!
+       s%bgcolor = (/1._c_float,1._c_float,1._c_float/)
+       do i = 1, s%nrep
+          s%rep(i)%label_rgb = 0._c_float
+          s%rep(i)%uc_rgb = 0._c_float
+          s%rep(i)%bond_color_style=0
+          s%rep(i)%bond_rgb = 0._c_float
+       end do
+    end if
+
+  end subroutine scene_set_style_defaults
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.
@@ -777,14 +896,16 @@ contains
   !> Initialize a representation. If itype is present and not _none,
   !> fill the representation with the default values for the
   !> corresponding type and set isinit = .true. and shown = .true.
-  module subroutine representation_init(r,isys,irep,itype)
+  module subroutine representation_init(r,isys,irep,itype,style)
     use gui_main, only: sys, sysc
     use tools_io, only: string
     class(representation), intent(inout), target :: r
     integer, intent(in) :: isys
     integer, intent(in) :: irep
-    integer, intent(in), optional :: itype
+    integer, intent(in) :: itype
+    integer, intent(in) :: style
 
+    ! common settings
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
@@ -806,50 +927,60 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%bond_color_style = 1
-    r%bond_rgb = (/1._c_float,0._c_float,0._c_float/)
     r%bond_rad = 0.2_c_float
     r%label_style = 0
     r%label_scale = 0.5_c_float
-    r%label_rgb = 1._c_float
     r%label_const_size = .false._c_bool
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
     r%uc_innersteplen = 2d0
     r%uc_innerstipple = .true.
-    r%uc_rgb = (/1._c_float,1._c_float,1._c_float/)
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
     r%origin = 0._c_float
-    if (present(itype)) then
-       if (itype == reptype_atoms) then
-          r%isinit = .true.
-          r%shown = .true.
-          r%type = reptype_atoms
-          r%name = "Atoms"
-          if (sys(isys)%c%ismolecule) then
-             r%ncell = 0
-             r%border = .false.
-             r%onemotif = .false.
-          else
-             r%border = .true.
-             r%onemotif = sys(isys)%c%ismol3d
-             r%ncell = 1
-          end if
-       elseif (itype == reptype_unitcell) then
-          r%isinit = .true.
-          r%shown = .true.
-          r%type = reptype_unitcell
-          r%name = "Unit cell"
-       end if
 
-       sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
-       if (sysc(isys)%sc%icount(itype) > 1) then
-          r%name = trim(r%name) // " " // string(sysc(isys)%sc%icount(itype))
-       end if
+    ! style-dependent settings
+    if (style == style_phong) then
+       r%label_rgb = 1._c_float
+       r%bond_color_style = 1
+       r%bond_rgb = (/1._c_float,0._c_float,0._c_float/)
+       r%uc_rgb = 1._c_float
+    else
+       r%label_rgb = 0._c_float
+       r%bond_color_style = 0
+       r%bond_rgb = 0._c_float
+       r%uc_rgb = 0._c_float
     end if
 
-    ! increment counter and force sort of the parent scene
+    ! type-dependent settings
+    if (itype == reptype_atoms) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%type = reptype_atoms
+       r%name = "Atoms"
+       if (sys(isys)%c%ismolecule) then
+          r%ncell = 0
+          r%border = .false.
+          r%onemotif = .false.
+       else
+          r%border = .true.
+          r%onemotif = sys(isys)%c%ismol3d
+          r%ncell = 1
+       end if
+    elseif (itype == reptype_unitcell) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%type = reptype_unitcell
+       r%name = "Unit cell"
+    end if
+
+    ! increment type counter and set name
+    sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
+    if (sysc(isys)%sc%icount(itype) > 1) then
+       r%name = trim(r%name) // " " // string(sysc(isys)%sc%icount(itype))
+    end if
+
+    ! increment global counter and force sort of the parent scene
     sysc(isys)%sc%icount(0) = sysc(isys)%sc%icount(0) + 1
     r%iord = sysc(isys)%sc%icount(0)
     sysc(isys)%sc%forcesort = .true.

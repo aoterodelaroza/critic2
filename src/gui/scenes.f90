@@ -90,7 +90,7 @@ module scenes
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
-     integer(c_int) :: bond_color_style = 0 ! bond color style: 0=single color, 1=half-and-half
+     integer(c_int) :: bond_color_style ! bond color style: 0=single color, 1=half-and-half
      real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
@@ -114,8 +114,8 @@ module scenes
   end type representation
   public :: representation
 
-  integer(c_int), parameter :: style_simple = 0
-  integer(c_int), parameter :: style_phong = 1
+  integer(c_int), parameter, public :: style_simple = 0
+  integer(c_int), parameter, public :: style_phong = 1
 
   !> Scene: objects from the system to be drawn and plot settings
   type scene
@@ -177,6 +177,7 @@ module scenes
      procedure :: build_lists => scene_build_lists
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
+     procedure :: set_style_defaults => scene_set_style_defaults
      procedure :: representation_menu
      procedure :: get_new_representation_id
      procedure :: update_projection_matrix
@@ -208,6 +209,10 @@ module scenes
      module subroutine scene_render_pick(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render_pick
+     module subroutine scene_set_style_defaults(s,style)
+       class(scene), intent(inout), target :: s
+       integer(c_int), intent(in), optional :: style
+     end subroutine scene_set_style_defaults
      module function representation_menu(s,idcaller) result(changed)
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in) :: idcaller
@@ -232,11 +237,12 @@ module scenes
        integer, intent(in) :: idx(4)
      end subroutine select_atom
      ! representation
-     module subroutine representation_init(r,isys,irep,itype)
+     module subroutine representation_init(r,isys,irep,itype,style)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: isys
        integer, intent(in) :: irep
-       integer, intent(in), optional :: itype
+       integer, intent(in) :: itype
+       integer, intent(in) :: style
      end subroutine representation_init
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r

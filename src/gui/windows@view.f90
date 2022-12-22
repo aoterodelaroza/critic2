@@ -42,8 +42,8 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_NAV_ROTATE, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname
-    use scenes, only: reptype_atoms, reptype_unitcell
-    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3
+    use scenes, only: reptype_atoms, reptype_unitcell, style_phong
+    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
@@ -58,7 +58,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
-    logical(c_bool) :: isatom, isbond, islabels, isuc
+    logical(c_bool) :: isatom, isbond, islabels, isuc, ch
     integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
@@ -282,49 +282,59 @@ contains
              chrender = .true.
           end if
 
-          ! scene settings
-          call iw_text("Light Settings",highlight=.true.)
-          call igPushItemWidth(iw_calcwidth(15,3))
-          str2 = "Light Position" // c_null_char
-          str3 = "%.1f" // c_null_char
-          chrender = chrender .or. igDragFloat3(c_loc(str2),sysc(w%view_selected)%sc%lightpos,&
-             0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
-          call iw_tooltip("Change the position of the light",ttshown)
-          call igPopItemWidth()
+          ! scene style
+          call iw_text("Appearance",highlight=.true.)
+          call iw_combo_simple("Style##scenestyle","Simple"//c_null_char//"Realistic"&
+             //c_null_char//c_null_char,sysc(w%view_selected)%sc%style,changed=ch)
+          if (ch) then
+             call sysc(w%view_selected)%sc%set_style_defaults()
+             sysc(w%view_selected)%sc%forcebuildlists = .true.
+          end if
 
-          call igPushItemWidth(iw_calcwidth(5,1))
-          str2 = "Ambient " // c_null_char
-          str3 = "%.3f" // c_null_char
-          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the ambient light intensity",ttshown)
-          call igSameLine(0._c_float,-1._c_float)
-          str2 = "Diffuse" // c_null_char
-          str3 = "%.3f" // c_null_char
-          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the diffuse light intensity",ttshown)
-          str2 = "Specular" // c_null_char
-          str3 = "%.3f" // c_null_char
-          chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the specular light intensity",ttshown)
-          call igSameLine(0._c_float,-1._c_float)
-          str2 = "Shininess" // c_null_char
-          str3 = "%.0f" // c_null_char
-          chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
-             1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the shininess of the light",ttshown)
-          call igPopItemWidth()
+          if (sysc(w%view_selected)%sc%style == style_phong) then
+             !! phong-specific options !!
+             call igPushItemWidth(iw_calcwidth(15,3))
+             str2 = "Light Position" // c_null_char
+             str3 = "%.1f" // c_null_char
+             chrender = chrender .or. igDragFloat3(c_loc(str2),sysc(w%view_selected)%sc%lightpos,&
+                0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
+             call iw_tooltip("Change the position of the light",ttshown)
+             call igPopItemWidth()
 
-          ! color settings
-          call iw_text("Color Settings",highlight=.true.)
-          str2 = "Light" // c_null_char
-          chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
-             ImGuiColorEditFlags_NoInputs)
-          call iw_tooltip("Change the color of the light",ttshown)
-          call iw_clamp_color3(sysc(w%view_selected)%sc%lightcolor)
-          call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Ambient " // c_null_char
+             str3 = "%.3f" // c_null_char
+             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the ambient light intensity",ttshown)
+             call igSameLine(0._c_float,-1._c_float)
+             str2 = "Diffuse" // c_null_char
+             str3 = "%.3f" // c_null_char
+             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the diffuse light intensity",ttshown)
+             str2 = "Specular" // c_null_char
+             str3 = "%.3f" // c_null_char
+             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the specular light intensity",ttshown)
+             call igSameLine(0._c_float,-1._c_float)
+             str2 = "Shininess" // c_null_char
+             str3 = "%.0f" // c_null_char
+             chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
+                1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the shininess of the light",ttshown)
+             call igPopItemWidth()
+
+             str2 = "Light" // c_null_char
+             chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
+                ImGuiColorEditFlags_NoInputs)
+             call iw_tooltip("Change the color of the light",ttshown)
+             call iw_clamp_color3(sysc(w%view_selected)%sc%lightcolor)
+             call igSameLine(0._c_float,-1._c_float)
+          end if
+
+          ! background color
           str2 = "Background" // c_null_char
           chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
              ImGuiColorEditFlags_NoInputs)
@@ -393,7 +403,8 @@ contains
              str2 = "Atoms" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = sysc(w%view_selected)%sc%get_new_representation_id()
-                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_atoms)
+                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,&
+                   reptype_atoms,sysc(w%view_selected)%sc%style)
                 chbuild = .true.
              end if
              call iw_tooltip("Represent atoms, bonds, and labels in the scene",ttshown)
@@ -402,7 +413,8 @@ contains
                 str2 = "Unit Cell" // c_null_char
                 if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                    id = sysc(w%view_selected)%sc%get_new_representation_id()
-                   call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,reptype_unitcell)
+                   call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,&
+                      reptype_unitcell,sysc(w%view_selected)%sc%style)
                    chbuild = .true.
                 end if
                 call iw_tooltip("Represent the unit cell",ttshown)
@@ -1372,7 +1384,7 @@ contains
           str2 = w%rep%name
           itype = w%rep%type
           lshown = w%rep%shown
-          call w%rep%init(w%rep%id,w%rep%idrep,itype)
+          call w%rep%init(w%rep%id,w%rep%idrep,itype,sysc(win(w%idparent)%view_selected)%sc%style)
           w%rep%name = str2
           w%rep%shown = lshown
           sysc(win(w%idparent)%view_selected)%sc%forcebuildlists = .true.
