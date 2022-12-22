@@ -56,7 +56,7 @@ if (ENABLE_GUI)
 
   ## find GUI libraries
   if (USE_FREETYPE)
-    find_package(Freetype REQUIRED)
+    find_package(Freetype)
   endif()
 
   ## glfw3
