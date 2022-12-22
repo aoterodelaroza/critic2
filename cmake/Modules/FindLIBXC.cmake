@@ -40,7 +40,7 @@ endif()
 ## check whether we can compile against it
 if (LIBXC_FOUND)
   try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90"
-    LINK_LIBRARIES ${LIBXC_xc_LIBRARY}  ${LIBXC_xcf90_LIBRARY}
+    LINK_LIBRARIES ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY}
     CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${LIBXC_INCLUDE_DIRS}")
   if (NOT LIBXC_FOUND)
     message(STATUS "Found libxc (lib=${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")

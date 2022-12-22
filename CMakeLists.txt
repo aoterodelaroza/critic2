@@ -76,6 +76,7 @@ endif()
 ## perform a static build
 if (BUILD_STATIC)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  set(BLA_STATIC ON)
   set(BUILD_SHARED_LIBS OFF)
   set(CMAKE_EXE_LINKER_FLAGS "-static")
   find_library(LIBDL_LIBRARY NAMES dl)
