@@ -130,11 +130,7 @@ if (ENABLE_GUI)
   endif()
 
   ## OpenGL
-  if (OpenGL_EGL_FOUND)
-   target_link_libraries(critic2 PRIVATE OpenGL::OpenGL OpenGL::EGL)
-  else()
-   target_link_libraries(critic2 PRIVATE OpenGL::OpenGL OpenGL::GLX)
-  endif()
+  target_link_libraries(critic2 PRIVATE OpenGL::GL)
 
   ## the dynamic linking library
   target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})

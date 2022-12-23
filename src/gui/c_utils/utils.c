@@ -40,9 +40,8 @@ int getCurrentWorkDir(char *str, size_t siz){
 // Call the external browser to open a link (portable?)
 void openLink(const char* link){
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-    ::ShellExecuteA(NULL, "open", link, NULL, NULL, SW_SHOWDEFAULT);
-#else
-#if __APPLE__
+    const char* open_executable = "start";
+#elif __APPLE__
     const char* open_executable = "open";
 #else
     const char* open_executable = "xdg-open";
@@ -50,6 +49,5 @@ void openLink(const char* link){
     char command[1024];
     snprintf(command, 1024, "%s \"%s\"", open_executable, link);
     system(command);
-#endif
 }
 
