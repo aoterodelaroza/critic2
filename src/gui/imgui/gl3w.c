@@ -64,11 +64,11 @@ static void *get_proc(const char *proc)
 }
 #else
 #include <dlfcn.h>
-#ifdef USE_EGL
-#include <EGL/egl.h>
-#else
+//#ifdef USE_EGL
+//#include <EGL/egl.h>
+//#else
 #include <GL/glx.h>
-#endif
+//#endif
 
 static void *libgl;
 
@@ -86,11 +86,11 @@ static void *get_proc(const char *proc)
 {
 	void *res;
 
-#ifdef USE_EGL
-	res = (void*)eglGetProcAddress((const GLubyte *) proc);
-#else
+//#ifdef USE_EGL
+//	res = (void*)eglGetProcAddress((const GLubyte *) proc);
+//#else
 	res = (void*)glXGetProcAddress((const GLubyte *) proc);
-#endif
+//#endif
 	if (!res)
 		res = dlsym(libgl, proc);
 	return res;
