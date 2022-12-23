@@ -266,8 +266,8 @@ contains
           ! object resolution
           call iw_text("Object Resolution",highlight=.true.)
           ires = sysc(w%view_selected)%sc%atom_res - 1
-          call iw_combo_simple("Atoms##atomresselect","1: Carnby" // c_null_char // "2: Rough" // c_null_char //&
-             "3: Normal" // c_null_char // "4: Good" // c_null_char,ires)
+          call iw_combo_simple("Atoms##atomresselect","1: Carnby"//c_null_char//"2: Rough"//c_null_char//&
+             "3: Normal"//c_null_char//"4: Good"//c_null_char//"5: Amazing"//c_nulL_char,ires)
           call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
           if (ires + 1 /= sysc(w%view_selected)%sc%atom_res) then
              sysc(w%view_selected)%sc%atom_res = ires + 1

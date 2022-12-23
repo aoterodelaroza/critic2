@@ -57,7 +57,7 @@ contains
     s%forcebuildlists = .true.
 
     ! resolutions
-    s%atom_res = 3
+    s%atom_res = 4
     s%bond_res = 1
     s%uc_res = 1
 
