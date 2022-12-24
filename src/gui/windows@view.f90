@@ -566,7 +566,7 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
-    ldum = igImageButton(w%FBO, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
+    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
     call igPopStyleColor(3)
 
     ! get hover, image rectangle coordinates, and atom idx
