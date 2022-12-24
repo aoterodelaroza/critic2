@@ -1978,6 +1978,7 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init
     use utils, only: iw_text
+    use types, only: realloc
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -2003,14 +2004,19 @@ contains
           allocate(w%plotx(num),w%ploty(num))
           n = 0
           do i = 1, nsys
-             if (sysc(i)%collapse == isys) then
+             if (sysc(i)%collapse == isys .and. sysc(i)%seed%energy /= huge(1d0)) then
                 n = n + 1
                 w%plotx(n) = n
                 w%ploty(n) = sysc(i)%seed%energy
              end if
           end do
-          w%plotx(num) = num
-          w%ploty(num) = sysc(isys)%seed%energy
+          if (sysc(isys)%seed%energy /= huge(1d0)) then
+             n = n + 1
+             w%plotx(n) = n
+             w%ploty(n) = sysc(isys)%seed%energy
+          end if
+          call realloc(w%plotx,n)
+          call realloc(w%ploty,n)
           w%ymax = maxval(w%ploty)
           w%ymin = minval(w%ploty)
        end if
