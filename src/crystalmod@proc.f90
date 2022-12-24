@@ -1860,7 +1860,7 @@ contains
     integer, allocatable, intent(inout) :: hvecp(:,:)
 
     integer :: i, np, hcell, h, k, l, iz, idx
-    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2
+    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
@@ -1961,25 +1961,13 @@ contains
                 end do
                 int = cterm**2 + sterm**2
 
-                ! profile correction
-                ! Yinghua J. Appl. Cryst. 20 (1987) 258
-                ! lpf = (1 + cos(th2)**2) / sin(th)**2
-                ! int = int * lpf
-
-                ! gdis lorentz-polarization correction; checked in diamond;
-                ! criticized by Yinghua because it is a correction for the integrated
-                ! intensity
-                ! lpf = 0.5*(1+cos(th2)**2) / sin(th2) / sin(th)
-                ! int = int * lpf
-
-                ! FoX-compatible
-                ! lorentz correction
-                mcorr = 1d0 / sin(th2)
-                ! slit aperture
-                mcorr = mcorr / sin(th)
-                ! polarization
+                ! lorentz-polarization correction.
+                ! this formula is compatible with Pecharsky, IuCR
+                ! website, and the Fox, gdis, and dioptas implementations
+                cth = cos(th)
+                cth2 = cth*cth-sth*sth
                 afac = (1-fpol) / (1+fpol)
-                mcorr = mcorr * (1+afac*(0.5d0+0.5d0*cos(2*th2))) / (1+afac)
+                mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
                 int = int * mcorr
 
                 ! sum the peak
