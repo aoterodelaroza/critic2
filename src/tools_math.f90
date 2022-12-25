@@ -62,6 +62,7 @@ module tools_math
   public :: umeyama_graph_matching
   public :: ullmann_graph_matching
   public :: invert_permutation
+  public :: emd
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -335,6 +336,15 @@ module tools_math
        integer, intent(in) :: iperm(:)
        integer :: invert_permutation(size(iperm,1))
      end function invert_permutation
+     module function emd(n,mp,p,wp,mq,q,wq)
+       integer, intent(in) :: n
+       integer, intent(in) :: mp
+       real*8, intent(in) :: p(n,mp)
+       real*8, intent(in) :: wp(mp)
+       integer, intent(in) :: mq
+       real*8, intent(in) :: q(n,mq)
+       real*8, intent(in) :: wq(mq)
+     end function emd
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

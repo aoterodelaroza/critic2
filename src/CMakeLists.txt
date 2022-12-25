@@ -117,7 +117,13 @@ if (READLINE_FOUND)
   add_definitions("-DHAVE_READLINE")
 endif()
 
-## The library for the GUI, fortran version
+## emd (earth mover's distance)
+add_subdirectory(emd)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/emd")
+target_sources(critic2 PRIVATE $<TARGET_OBJECTS:emd>)
+add_dependencies(critic2_core emd)
+
+## graphical user interface
 if (ENABLE_GUI)
   ## GLFW
   target_include_directories(critic2 PRIVATE ${GLFW3_INCLUDE_DIR})

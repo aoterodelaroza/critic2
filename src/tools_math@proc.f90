@@ -2046,6 +2046,53 @@ contains
 
   end function invert_permutation
 
+  !> Returns the earth mover's distance of two distribution of vectors
+  !> with dimension n. There are mp vectors in distribution P.  with
+  !> positions p and weights wp. There are mq vectors in distribution
+  !> Q with positions q and weights wq. Euclidean distance only.
+  !> Rubner et al. "The earth mover's distance as a metric for image
+  !> retrieval." Int. J. Comput. Vis. 40.2 (2000) 99-121.
+  !> This is a wrapper for the C routine provded by Rubner et al. in
+  !> the emd subdirectory.
+  module function emd(n,mp,p,wp,mq,q,wq)
+    use iso_c_binding, only: c_int, c_ptr, c_double, c_loc
+    integer, intent(in) :: n
+    integer, intent(in) :: mp
+    real*8, intent(in) :: p(n,mp)
+    real*8, intent(in) :: wp(mp)
+    integer, intent(in) :: mq
+    real*8, intent(in) :: q(n,mq)
+    real*8, intent(in) :: wq(mq)
+
+    integer(c_int) :: n_, mp_, mq_
+    real(c_double), allocatable, target :: p_(:,:), wp_(:), q_(:,:), wq_(:)
+
+    interface
+       function emdwrap(n,mp,p,wp,mq,q,wq) bind(c,name="emdwrap")
+         import c_int, c_ptr, c_double
+         integer(c_int), value :: n
+         integer(c_int), value :: mp
+         type(c_ptr), value :: p
+         type(c_ptr), value :: wp
+         integer(c_int), value :: mq
+         type(c_ptr), value :: q
+         type(c_ptr), value :: wq
+         real(c_double) :: emdwrap
+       end function emdwrap
+    end interface
+
+    n_ = n
+    mp_ = mp
+    mq_ = mq
+    allocate(p_(n_,mp_),wp_(mp_),q_(n_,mq_),wq_(mq_))
+    p_ = p
+    wp_ = wp
+    q_ = q
+    wq_ = wq
+    emd = emdwrap(n_,mp_,c_loc(p_),c_loc(wp_),mq_,c_loc(q_),c_loc(wq_))
+
+  end function emd
+
   !xx! private procedures
 
   !< RHS of the BR hole equation, and derivative.
