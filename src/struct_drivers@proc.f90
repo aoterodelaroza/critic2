@@ -1641,7 +1641,7 @@ contains
              end if
              na(i) = n
              th2a(1:n,i) = th2p
-             iha(1:n,i) = ip
+             iha(1:n,i) = ip**3
           end if
        end do
 

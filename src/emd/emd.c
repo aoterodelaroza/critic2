@@ -86,7 +86,7 @@ static double *dij = NULL;
 static int mq_ = 0;
 static double calcdist(feature_t *i, feature_t *j){
   double d = dij[*i * mq_ + *j];
-  return erf(d/0.1) - erf(-d/0.1);
+  return 0.5*(erf(d/0.05) - erf(-d/0.05));
 }
 
 /*
