@@ -457,20 +457,21 @@ module crystalmod
        real*8, intent(in), optional :: rtable(:)
        real*8 :: vvdw
      end function vdw_volume
-     module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
-        sigma,t,ih,th2p,ip,hvecp)
+     module subroutine powder(c,mode,th2ini0,th2end0,lambda0,fpol,npts,sigma,ishard,&
+        th2p,ip,hvecp,t,ih)
        class(crystal), intent(in) :: c
+       integer, intent(in) :: mode
        real*8, intent(in) :: th2ini0, th2end0
-       logical, intent(in) :: ishard
-       integer, intent(in) :: npts
        real*8, intent(in) :: lambda0
        real*8, intent(in) :: fpol
-       real*8, intent(in) :: sigma
-       real*8, allocatable, intent(inout) :: t(:)
-       real*8, allocatable, intent(inout) :: ih(:)
-       real*8, allocatable, intent(inout) :: th2p(:)
-       real*8, allocatable, intent(inout) :: ip(:)
-       integer, allocatable, intent(inout) :: hvecp(:,:)
+       integer, intent(in), optional :: npts
+       real*8, intent(in), optional :: sigma
+       logical, intent(in), optional :: ishard
+       real*8, allocatable, intent(inout), optional :: t(:)
+       real*8, allocatable, intent(inout), optional :: ih(:)
+       real*8, allocatable, intent(inout), optional :: th2p(:)
+       real*8, allocatable, intent(inout), optional :: ip(:)
+       integer, allocatable, intent(inout), optional :: hvecp(:,:)
      end subroutine powder
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(in) :: c

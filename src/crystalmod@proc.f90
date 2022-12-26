@@ -1828,36 +1828,49 @@ contains
 
   end function vdw_volume
 
-  !> Calculate the powder diffraction pattern.
-  !> On input, npts is the number of 2*theta points from the initial
-  !> (th2ini0) to the final (th2end0) 2*theta values. Both angles are
-  !> in degrees. lambda0 is the wavelength of the radiation (in
-  !> angstrom). sigma is the parameter for the Gaussian broadening.
-  !> fpol is the polarization correction factor (0 = unpolarized, 0.95
-  !> = syncrhotron). If ishard=.false., represent the tails of the peaks
-  !> outside the plot range.
-  !> On output, t is the 2*theta grid, ih is the intensity on the
-  !> 2*theta grid, th2p is the 2*theta for the located maxima, ip is
-  !> the list of maxima itensities, and hvecp is the reciprocal
-  !> lattice vector corresponding to the peaks.
-  module subroutine powder(c,th2ini0,th2end0,ishard,npts,lambda0,fpol,&
-     sigma,t,ih,th2p,ip,hvecp)
+  !> Calculate the powder diffraction pattern of the crystal structure.
+  !> Modes of operation(mode) =
+  !>   0 : return a simulated diffractogram using Gaussian functions
+  !>       at every peak.
+  !>   1 : return the list of 2*theta vs. intensity values.
+  !> Common input:
+  !>   th2ini0 = initial 2*theta (in degrees).
+  !>   th2end0 = final 2*theta (in degrees).
+  !>   lambda0 = wavelength of the radiation (in angstrom).
+  !>   fpol = polarization correction factor (0 = unpolarized, 0.95 = syncrhotron).
+  !> Input, mode 0 (simulated diffractogram):
+  !>   npts = number of points in the diffractoram.
+  !>   sigma =  parameter for the Gaussian broadening.
+  !>   ishard = if false represent the tails of the peaks outside the plot range.
+  !> Output, global:
+  !>   th2p = 2*theta for the located maxima (in degrees, optional)
+  !>   ip = itensities at the peak maxima (optional)
+  !>   hvecp= reciprocal lattice vector corresponding to the peaks (optional)
+  !> Output, mode 0 (simulated diffractogram):
+  !>   t = 2*theta uniform grid with npts points between th2ini0 and th2end0 (degrees, optional)
+  !>   ih = intensity on the 2*theta grid (optional)
+  module subroutine powder(c,mode,& ! mode
+     th2ini0,th2end0,lambda0,fpol,& ! global input
+     npts,sigma,ishard,& ! mode 0 input
+     th2p,ip,hvecp,& ! global output
+     t,ih) ! mode 0 output
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
     class(crystal), intent(in) :: c
+    integer, intent(in) :: mode
     real*8, intent(in) :: th2ini0, th2end0
-    logical, intent(in) :: ishard
-    integer, intent(in) :: npts
     real*8, intent(in) :: lambda0
     real*8, intent(in) :: fpol
-    real*8, intent(in) :: sigma
-    real*8, allocatable, intent(inout) :: t(:)
-    real*8, allocatable, intent(inout) :: ih(:)
-    real*8, allocatable, intent(inout) :: th2p(:)
-    real*8, allocatable, intent(inout) :: ip(:)
-    integer, allocatable, intent(inout) :: hvecp(:,:)
+    integer, intent(in), optional :: npts
+    real*8, intent(in), optional :: sigma
+    logical, intent(in), optional :: ishard
+    real*8, allocatable, intent(inout), optional :: t(:)
+    real*8, allocatable, intent(inout), optional :: ih(:)
+    real*8, allocatable, intent(inout), optional :: th2p(:)
+    real*8, allocatable, intent(inout), optional :: ip(:)
+    integer, allocatable, intent(inout), optional :: hvecp(:,:)
 
     integer :: i, np, hcell, h, k, l, iz, idx
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
@@ -1865,8 +1878,7 @@ contains
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
     integer :: hmax
-    logical :: again
-    integer, allocatable :: multp(:)
+    logical :: again, found
     integer, allocatable :: io(:)
     real*8, allocatable :: isum(:)
 
@@ -1876,37 +1888,59 @@ contains
     real*8, parameter :: iepscont = 1d-10
     real*8, parameter :: intmax = 1d15
 
+    ! check input consistency
+    if (mode == 0 .and..not.(present(npts).and.present(sigma).and.present(ishard))) &
+       call ferror('struct_powder','mode=0 requires npts, sigma, and ishard',faterr)
+    if (mode == 1 .and.(present(npts).or.present(sigma).or.present(ishard))) &
+       call ferror('struct_powder','mode=1 incompatible with npts, sigma, and ishard',faterr)
+    if (mode == 1 .and.(present(t).or.present(ih))) &
+       call ferror('struct_powder','mode=1 incompatible with t and ih',faterr)
+
     ! calculate tshift
-    if (.not.ishard) then
-       tshift = sigma * sqrt(abs(-2d0 * log(iepscont/intmax)))
-    else
-       tshift = 0d0
+    tshift = 0d0
+    if (present(ishard)) then
+       if (.not.ishard) then
+          tshift = sigma * sqrt(abs(-2d0 * log(iepscont/intmax)))
+          tshift = tshift * pi / 180d0
+       end if
     end if
-    tshift = tshift * pi / 180d0
 
     ! prepare the grid limits
-    if (allocated(t)) deallocate(t)
-    if (allocated(ih)) deallocate(ih)
-    allocate(t(npts),ih(npts),isum(npts))
-    do i = 1, npts
-       t(i) = th2ini0 + real(i-1,8) / real(npts-1,8) * (th2end0-th2ini0)
-    end do
-    ih = 0d0
+    if (present(t)) then
+       if (allocated(t)) deallocate(t)
+       allocate(t(npts))
+       do i = 1, npts
+          t(i) = th2ini0 + real(i-1,8) / real(npts-1,8) * (th2end0-th2ini0)
+       end do
+    end if
+    if (present(ih)) then
+       if (allocated(ih)) deallocate(ih)
+       allocate(ih(npts),isum(npts))
+       ih = 0d0
+    end if
     th2ini = th2ini0 * pi / 180d0
     th2end = th2end0 * pi / 180d0
 
     ! allocate for peak list
-    if (allocated(th2p)) deallocate(th2p)
-    if (allocated(ip)) deallocate(ip)
-    if (allocated(hvecp)) deallocate(hvecp)
-    allocate(th2p(mp),ip(mp),multp(mp),hvecp(3,mp))
+    if (present(th2p)) then
+       if (allocated(th2p)) deallocate(th2p)
+       allocate(th2p(mp))
+    end if
+    if (present(ip)) then
+       if (allocated(ip)) deallocate(ip)
+       allocate(ip(mp))
+    end if
+    if (present(hvecp)) then
+       if (allocated(hvecp)) deallocate(hvecp)
+       allocate(hvecp(3,mp))
+    end if
 
     ! cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
     smax = sin((th2end+tshift)/2d0)
     hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
     ! broadening -> gaussian
-    sigma2 = sigma * sigma
+    if (present(sigma)) sigma2 = sigma * sigma
 
     ! calculate the intensities
     np = 0
@@ -1919,6 +1953,7 @@ contains
           do k = -hcell, hcell
              do l = -hcell, hcell
                 if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
+
                 ! reciprocal lattice vector length
                 hvec = real((/h,k,l/),8)
                 dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
@@ -1974,64 +2009,73 @@ contains
                 if (int > ieps) then
                    again = .true.
                    ! use a gaussian profile, add the intensity
-                   isum = int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
-                   ih = ih + isum
+                   if (present(ih)) then
+                      isum = int * exp(-(t-th2*180/pi)**2 / 2d0 / sigma2)
+                      ih = ih + isum
+                   end if
 
                    ! identify the new peak
-                   if (th2 > th2ini .and. th2 < th2end) then
-                      if (all(abs(th2p(1:np)-th2) > theps)) then
-                         np = np + 1
-                         if (np > size(th2p)) then
-                            call realloc(th2p,2*np)
-                            call realloc(ip,2*np)
-                            call realloc(multp,2*np)
-                            call realloc(hvecp,3,2*np)
-                         end if
-                         th2p(np) = th2
-                         ip(np) = int
-                         multp(np) = 1
-                         hvecp(:,np) = (/h,k,l/)
-                      else
-                         do idx = 1, np
-                            if (abs(th2p(idx)-th2) <= theps) exit
+                   if (present(th2p).and.present(ip).and.present(hvecp)) then
+                      if (th2 > th2ini .and. th2 < th2end) then
+                         idx = 0
+                         do i = 1, np
+                            if (abs(th2p(i)-th2) <= theps) then
+                               idx = i
+                               exit
+                            end if
                          end do
-                         multp(idx) = multp(idx) + 1
-                         ! usually the hvec with the most positive indices is the last one
-                         hvecp(:,idx) = (/h,k,l/)
-                      endif
+
+                         if (idx == 0) then
+                            np = np + 1
+                            if (np > size(th2p)) then
+                               call realloc(th2p,2*np)
+                               call realloc(ip,2*np)
+                               call realloc(hvecp,3,2*np)
+                            end if
+                            th2p(np) = th2
+                            ip(np) = int
+                            hvecp(:,np) = (/h,k,l/)
+                         else
+                            ip(idx) = ip(idx) + int
+                            hvecp(:,idx) = (/h,k,l/)
+                         endif
+                      end if
                    end if
+
                 end if
              end do
           end do
        end do
     end do
-    call realloc(th2p,np)
-    call realloc(ip,np)
-    call realloc(multp,np)
-    call realloc(hvecp,3,np)
+    if (present(th2p)) call realloc(th2p,np)
+    if (present(ip)) call realloc(ip,np)
+    if (present(hvecp)) call realloc(hvecp,3,np)
 
     ! normalize the intensities to 100
-    if (np == 0) &
-       call ferror('struct_powder','no peaks found in the 2theta range',faterr)
-    ip = ip * multp
-    ipmax = maxval(ip)
-    ihmax = maxval(ih)
-    ih = ih / ihmax * 100
-    ip = ip / ipmax * 100
-
-    ! deallocate the multiplicities
-    deallocate(multp)
+    if (present(ip)) then
+       ipmax = maxval(ip)
+       if (ipmax > 1d-10) ip = ip / ipmax * 100
+    end if
+    if (present(ih)) then
+       ihmax = maxval(ih)
+       if (ihmax > 1d-10) ih = ih / ihmax * 100
+    end if
 
     ! sort the peaks
-    allocate(io(np))
-    do i = 1, np
-       io(i) = i
-    end do
-    call qcksort(th2p,io,1,np)
-    th2p = th2p(io)
-    ip = ip(io)
-    hvecp = hvecp(:,io)
-    deallocate(io)
+    if (present(th2p).and.present(ip).and.present(hvecp)) then
+       if (np == 0) &
+          call ferror('struct_powder','no peaks found in the 2theta range',faterr)
+
+       allocate(io(np))
+       do i = 1, np
+          io(i) = i
+       end do
+       call qcksort(th2p,io,1,np)
+       th2p = th2p(io)
+       ip = ip(io)
+       hvecp = hvecp(:,io)
+       deallocate(io)
+    end if
 
   end subroutine powder
 

@@ -1054,7 +1054,8 @@ contains
        end if
     end do
 
-    call s%c%powder(th2ini,th2end,ishard,npts,lambda,fpol,sigma,t,ih,th2p,ip,hvecp)
+    call s%c%powder(0,th2ini,th2end,lambda,fpol,npts=npts,sigma=sigma,ishard=ishard,&
+       t=t,ih=ih,th2p=th2p,ip=ip,hvecp=hvecp)
     np = size(th2p)
 
     ! write the data file
@@ -1308,10 +1309,10 @@ contains
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
-    real*8, allocatable :: t(:), ih(:), th2p(:), ip(:), iha(:,:)
+    real*8, allocatable :: t(:), ih(:), iha(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
-    integer, allocatable :: hvecp(:,:), zcount1(:), zcount2(:), isperm(:), list(:,:)
-    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:)
+    integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:)
+    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:), ip(:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
     integer, allocatable :: singleatom(:)
     logical :: ok, noh
@@ -1337,6 +1338,7 @@ contains
     integer, parameter :: imethod_umeyama = 4
     integer, parameter :: imethod_ullmann = 5
     integer, parameter :: imethod_amd = 6
+    integer, parameter :: imethod_emd = 7
 
     ! initialize
     imethod = imethod_default
@@ -1384,6 +1386,8 @@ contains
           imethod = imethod_umeyama
        elseif (equal(lword,'sorted')) then
           imethod = imethod_sorted
+       elseif (equal(lword,'emd')) then
+          imethod = imethod_emd
        elseif (equal(lword,'molecule')) then
           imol = 1
        elseif (equal(lword,'crystal')) then
@@ -1497,7 +1501,8 @@ contains
           imethod = imethod_ullmann
        end if
     else
-       if (imethod /= imethod_rdf .and. imethod /= imethod_amd) imethod = imethod_powder
+       if (imethod /= imethod_rdf .and. imethod /= imethod_amd .and.&
+           imethod /= imethod_emd) imethod = imethod_powder
     end if
 
     ! strip the hydrogens
@@ -1515,6 +1520,13 @@ contains
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       if (xend < 0d0) xend = th2end0
+       difstr = "DIFF"
+    elseif (imethod == imethod_emd) then
+       write (uout,'("# Using discrete powder diffraction patterns and the earth mover''s distance (EMD).")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = th2end0
        difstr = "DIFF"
@@ -1558,7 +1570,8 @@ contains
           else
              ! calculate the powder diffraction pattern
              if (imethod == imethod_powder) then
-                call c(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ih,th2p,ip,hvecp)
+                call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                   t=t,ih=ih)
 
                 ! normalize the integral of abs(ih)
                 tini = ih(1)**2
@@ -1573,9 +1586,6 @@ contains
        end do
        if (allocated(t)) deallocate(t)
        if (allocated(ih)) deallocate(ih)
-       if (allocated(th2p)) deallocate(th2p)
-       if (allocated(ip)) deallocate(ip)
-       if (allocated(hvecp)) deallocate(hvecp)
 
        ! self-correlation
        allocate(xnorm(ns))
@@ -1606,6 +1616,70 @@ contains
           end do
        end do
        deallocate(xnorm)
+    elseif (imethod == imethod_emd) then
+       ! crystals: EMD
+
+       ! allocate(iha(npts,ns),singleatom(ns))
+       ! singleatom = -1
+       ! do i = 1, ns
+       !    if (c(i)%ncel == 1) then
+       !       singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
+       !    else
+       !       ! calculate the powder diffraction pattern
+       !       if (imethod == imethod_powder) then
+       !          call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+       !             t=t,ih=ih,th2p,ip,hvecp)
+
+       !          ! normalize the integral of abs(ih)
+       !          tini = ih(1)**2
+       !          tend = ih(npts)**2
+       !          nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+       !          iha(:,i) = ih / sqrt(nor)
+       !       else
+       !          call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
+       !          iha(:,i) = ih
+       !       end if
+       !    end if
+       ! end do
+
+       ! if (allocated(t)) deallocate(t)
+       ! if (allocated(ih)) deallocate(ih)
+       ! if (allocated(th2p)) deallocate(th2p)
+       ! if (allocated(ip)) deallocate(ip)
+       ! if (allocated(hvecp)) deallocate(hvecp)
+
+       ! ! self-correlation
+       ! allocate(xnorm(ns))
+       ! h =  (xend-th2ini) / real(npts-1,8)
+       ! do i = 1, ns
+       !    if (singleatom(i) < 0) then
+       !       xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+       !    end if
+       ! end do
+       ! xnorm = sqrt(abs(xnorm))
+
+       ! ! calculate the overlap between diffraction patterns
+       ! diff = 0d0
+       ! do i = 1, ns
+       !    do j = i+1, ns
+       !       if (singleatom(i) > 0 .and. singleatom(j) > 0) then
+       !          if (singleatom(i) == singleatom(j)) then
+       !             diff(i,j) = 0d0
+       !          else
+       !             diff(i,j) = 1d0
+       !          end if
+       !       else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
+       !          diff(i,j) = 1d0
+       !       else
+       !          diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+       !       end if
+       !       diff(j,i) = diff(i,j)
+       !    end do
+       ! end do
+       ! deallocate(xnorm)
+       write (*,*) "bleh!"
+       stop 1
+
     elseif (imethod == imethod_amd) then
        ! crystals: AMD
        allocate(iha(amd_imax,ns))
@@ -1801,8 +1875,7 @@ contains
     integer, allocatable :: eid(:), irange(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
-    real*8, allocatable :: t(:), th2p(:), ip(:)
-    integer, allocatable :: hvecp(:,:)
+    real*8, allocatable :: t(:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
     logical :: ok, dowrite, noh
@@ -1999,7 +2072,8 @@ contains
 
     ! calculate the powder of structure 1 (reference)
     h = (th2end-th2ini) / real(npts-1,8)
-    call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+       t=t,ih=iha1)
     tini = iha1(1)**2
     tend = iha1(npts)**2
     nor = (2d0 * sum(iha1(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2017,7 +2091,8 @@ contains
     do i = 1, 3
        c2del%ar(i) = sqrt(c2del%grtensor(i,i))
     end do
-    call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+    call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+       t=t,ih=iha2)
     tini = iha2(1)**2
     tend = iha2(npts)**2
     nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2088,7 +2163,8 @@ contains
              end do
 
              ! calculate the powder of structure 2
-             call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+             call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+                t=t,ip=iha2)
              tini = iha2(1)**2
              tend = iha2(npts)**2
              nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)

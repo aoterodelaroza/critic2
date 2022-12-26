@@ -717,8 +717,7 @@ contains
     logical :: ok, firstpass, outputposcar
     character*1 :: let
     type(crystal) :: ci, cj
-    real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
-    integer, allocatable :: hvecp(:,:)
+    real*8, allocatable :: t(:), ihi(:), ihj(:)
     real*8 :: tini, tend, nor, xnormi, xnormj, diffij
     integer :: ndigit
     integer :: ns, n
@@ -1068,7 +1067,8 @@ contains
        call ci%struct_new(seed(i),.true.)
 
        ! powder for structure i
-       call ci%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihi,th2p,ip,hvecp)
+       call ci%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+          t=t,ih=ihi)
        tini = ihi(1)*ihi(1)
        tend = ihi(npts)*ihi(npts)
        nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
@@ -1112,7 +1112,8 @@ contains
              call cj%struct_new(seed(j),.true.)
 
              ! powder for structure j
-             call cj%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
+             call cj%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                t=t,ih=ihj)
              tini = ihj(1)*ihj(1)
              tend = ihj(npts)*ihj(npts)
              nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
@@ -1217,8 +1218,7 @@ contains
     logical, allocatable :: active(:)
 
     real*8 :: adv, adh
-    real*8, allocatable :: t(:), ihi(:), ihj(:), th2p(:), ip(:)
-    integer, allocatable :: hvecp(:,:)
+    real*8, allocatable :: t(:), ihi(:), ihj(:)
     real*8 :: tini, tend, nor, xnormi, xnormj, diffij
     integer :: ndigit, maxlen
 
@@ -1313,7 +1313,8 @@ contains
        if (.not.active(i)) cycle
 
        ! powder for structure i
-       call st(i)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihi,th2p,ip,hvecp)
+       call st(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+          t=t,ih=ihi)
        tini = ihi(1)*ihi(1)
        tend = ihi(npts)*ihi(npts)
        nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
@@ -1332,7 +1333,8 @@ contains
              exit
           else if (adh < ediff_thr) then
              ! powder for structure j
-             call st(j)%powder(th2ini,xend,.false.,npts,lambda0,fpol0,sigma,t,ihj,th2p,ip,hvecp)
+             call st(j)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                t=t,ih=ihj)
              tini = ihj(1)*ihj(1)
              tend = ihj(npts)*ihj(npts)
              nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
@@ -2206,8 +2208,7 @@ contains
     integer, allocatable :: eid(:), irange(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
-    real*8, allocatable :: t(:), th2p(:), ip(:)
-    integer, allocatable :: hvecp(:,:)
+    real*8, allocatable :: t(:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
     logical :: ok, dowrite, noh, useamd
@@ -2455,7 +2456,8 @@ contains
        if (usexy) then
           iha1 = intxy
        else
-          call c1%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha1,th2p,ip,hvecp)
+          call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+             t=t,ih=iha1)
        end if
        tini = iha1(1)**2
        tend = iha1(npts)**2
@@ -2486,7 +2488,8 @@ contains
        do i = 1, 3
           c2del%ar(i) = sqrt(c2del%grtensor(i,i))
        end do
-       call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+       call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+          t=t,ip=iha2)
        tini = iha2(1)**2
        tend = iha2(npts)**2
        nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2579,7 +2582,8 @@ contains
                 end do
 
                 ! calculate the powder of structure 2
-                call c2del%powder(th2ini,th2end,.false.,npts,lambda0,fpol0,sigma0,t,iha2,th2p,ip,hvecp)
+                call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+                   t=t,ih=iha2)
                 tini = iha2(1)**2
                 tend = iha2(npts)**2
                 nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
