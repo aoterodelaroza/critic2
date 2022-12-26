@@ -22,7 +22,7 @@
 /* DEFINITIONS */
 #define MAX_SIG_SIZE   2000
 #define MAX_ITERATIONS 500
-#define INFINITY       1e20
+#define INFINITY_      1e20
 #define EPSILON        1e-6
 
 /*****************************************************************************/

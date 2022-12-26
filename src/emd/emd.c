@@ -81,17 +81,63 @@ static void addBasicVariable(int minI, int minJ, double *S, double *D,
 static void printSolution();
 #endif
 
+// for the wrapper routine
 static double *dij = NULL;
+static int mq_ = 0;
+static double calcdist(feature_t *i, feature_t *j){
+  return dij[*i * mq_ + *j];
+}
 
 /*
 Wrapper routine for critic2. Dec2 2022
 */
 double emdwrap(int n, int mp, double *p, double *wp,
 	       int mq, double *q, double *wq){
-  dij = malloc(mp * mq * sizeof(double));
 
-  printf("Hello! %f\n",*p);
-  exit(1);
+  // calculate the distance matrix
+  dij = malloc(mp * mq * sizeof(double));
+  mq_ = mq;
+  for (int i = 0; i < mp; i++){
+    for (int j = 0; j < mq; j++){
+      if (n == 1){
+	dij[i * mq + j] = abs(p[i] - q[j]);
+      } else {
+	double norm2 = 0;
+	for (int k = 0; k < n; k++){
+	  double d = p[i * n + k] - q[j * n + k];
+	  norm2 += d * d;
+	}
+	dij[i * mq + j] = sqrt(norm2);
+      }
+    }
+  }
+
+  // build the signatures
+  signature_t sp, sq;
+  sp.n = mp;
+  sp.Weights = malloc(mp * sizeof(double));
+  sp.Features = malloc(mp * sizeof(feature_t));
+  for (int i = 0; i < mp ; i++){
+    sp.Weights[i] = wp[i];
+    sp.Features[i] = i;
+  }
+  sq.n = mq;
+  sq.Weights = malloc(mq * sizeof(double));
+  sq.Features = malloc(mq * sizeof(feature_t));
+  for (int i = 0; i < mq ; i++){
+    sq.Weights[i] = wq[i];
+    sq.Features[i] = i;
+  }
+
+  // get the emd
+  double res = emd(&sp, &sq, &calcdist, NULL, NULL);
+
+  // deallocate
+  free(sp.Weights);
+  free(sp.Features);
+  free(sq.Weights);
+  free(sq.Features);
+  free(dij);
 }
 
 
@@ -428,7 +474,7 @@ static int isOptimal(node1_t *U, node1_t *V)
   int i, j, minI, minJ;
 
   /* FIND THE MINIMAL Cij-Ui-Vj OVER ALL i,j */
-  deltaMin = INFINITY;
+  deltaMin = INFINITY_;
   for(i=0; i < _n1; i++)
     for(j=0; j < _n2; j++)
       if (! _IsX[i][j])
@@ -446,7 +492,7 @@ static int isOptimal(node1_t *U, node1_t *V)
   printf("deltaMin=%f\n", deltaMin);
 #endif
 
-   if (deltaMin == INFINITY)
+   if (deltaMin == INFINITY_)
      {
        fprintf(stderr, "emd: Unexpected error in isOptimal.\n");
        exit(0);
@@ -492,7 +538,7 @@ static void newSol()
     steps = findLoop(Loop);
 
     /* FIND THE LARGEST VALUE IN THE LOOP */
-    xMin = INFINITY;
+    xMin = INFINITY_;
     for (k=1; k < steps; k+=2)
       {
 	if (Loop[k]->val < xMin)
@@ -654,7 +700,7 @@ static void russel(double *S, double *D)
   for (i=0; i < _n1; i++)
     {
       CurU->i = i;
-      CurU->val = -INFINITY;
+      CurU->val = -INFINITY_;
       CurU->Next = CurU+1;
       CurU++;
     }
@@ -664,7 +710,7 @@ static void russel(double *S, double *D)
   for (j=0; j < _n2; j++)
     {
       CurV->i = j;
-      CurV->val = -INFINITY;
+      CurV->val = -INFINITY_;
       CurV->Next = CurV+1;
       CurV++;
     }
@@ -704,7 +750,7 @@ static void russel(double *S, double *D)
 
       /* FIND THE SMALLEST Delta[i][j] */
       found = 0;
-      deltaMin = INFINITY;
+      deltaMin = INFINITY_;
       PrevU = &uHead;
       for (CurU=uHead.Next; CurU != NULL; CurU=CurU->Next)
 	{
@@ -747,7 +793,7 @@ static void russel(double *S, double *D)
 		{
 		  /* FIND THE NEW MAXIMUM VALUE IN THE COLUMN */
 		  oldVal = CurV->val;
-		  CurV->val = -INFINITY;
+		  CurV->val = -INFINITY_;
 		  for (CurU=uHead.Next; CurU != NULL; CurU=CurU->Next)
 		    {
 		      int i;
@@ -774,7 +820,7 @@ static void russel(double *S, double *D)
 		{
 		  /* FIND THE NEW MAXIMUM VALUE IN THE ROW */
 		  oldVal = CurU->val;
-		  CurU->val = -INFINITY;
+		  CurU->val = -INFINITY_;
 		  for (CurV=vHead.Next; CurV != NULL; CurV=CurV->Next)
 		    {
 		      int j;

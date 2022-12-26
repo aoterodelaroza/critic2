@@ -61,8 +61,7 @@ contains
     character(len=:), allocatable :: line, errmsg
     !
     integer :: id, idum
-    integer :: i, nn, ismoli, ncom, n, mp, mq
-    real*8, allocatable :: p(:,:), wp(:), q(:,:), wq(:)
+    integer :: i, nn, ismoli, ncom
     logical :: ok
     real*8 :: rdum
 #ifdef HAVE_LIBXC
@@ -615,19 +614,6 @@ contains
           ! trick
        elseif (equal(word,'trick')) then
           call trick(line(lp:))
-
-          ! temp
-       elseif (equal(word,'temp')) then
-          n = 1
-          mp = 4
-          mq = 2
-          allocate(p(n,mp),wp(mp),q(n,mq),wq(mq))
-          p(1,:) = (/3.4d0, 3.9d0, 7.5d0, 7.8d0/)
-          wp = (/1.4d0, 0.9d0, 3.1d0, 7.2d0/)
-          q(1,:) = (/4.5d0, 1.4d0/)
-          wq = (/3.2d0, 3.5d0/)
-          rdum = emd(n,mp,p,wp,mq,q,wq)
-          ! 4.0781331438047861
 
           ! end
        elseif (equal(word,'end').or.equal(word,'exit')) then
