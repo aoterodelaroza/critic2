@@ -1294,7 +1294,7 @@ contains
     use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
-       ullmann_graph_matching
+       ullmann_graph_matching, emd
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
        ioj_left, string, lower, lgetword
     use types, only: realloc
@@ -1309,10 +1309,10 @@ contains
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
-    real*8, allocatable :: t(:), ih(:), iha(:,:)
+    real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
-    integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:)
-    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:), ip(:)
+    integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:)
+    real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:), ip(:), th2p(:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
     integer, allocatable :: singleatom(:)
     logical :: ok, noh
@@ -1618,67 +1618,51 @@ contains
        deallocate(xnorm)
     elseif (imethod == imethod_emd) then
        ! crystals: EMD
+       allocate(na(ns),th2a(100,ns),iha(100,ns),singleatom(ns))
+       singleatom = -1
+       do i = 1, ns
+          if (c(i)%ncel == 1) then
+             singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
+          else
+             ! calculate the powder diffraction pattern
+             call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                th2p=th2p,ip=ip)
 
-       ! allocate(iha(npts,ns),singleatom(ns))
-       ! singleatom = -1
-       ! do i = 1, ns
-       !    if (c(i)%ncel == 1) then
-       !       singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
-       !    else
-       !       ! calculate the powder diffraction pattern
-       !       if (imethod == imethod_powder) then
-       !          call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-       !             t=t,ih=ih,th2p,ip,hvecp)
+             ! normalize
+             n = size(ip,1)
+             ip(1:n) = ip(1:n) / sum(ip(1:n))
+             th2p(1:n) = (th2p(1:n) - th2ini) / xend * 100d0
 
-       !          ! normalize the integral of abs(ih)
-       !          tini = ih(1)**2
-       !          tend = ih(npts)**2
-       !          nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-       !          iha(:,i) = ih / sqrt(nor)
-       !       else
-       !          call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
-       !          iha(:,i) = ih
-       !       end if
-       !    end if
-       ! end do
+             ! write it down
+             if (n > size(na,1)) then
+                call realloc(na,2*n)
+                call realloc(th2a,2*n,ns)
+                call realloc(iha,2*n,ns)
+             end if
+             na(i) = n
+             th2a(1:n,i) = th2p
+             iha(1:n,i) = ip
+          end if
+       end do
 
-       ! if (allocated(t)) deallocate(t)
-       ! if (allocated(ih)) deallocate(ih)
-       ! if (allocated(th2p)) deallocate(th2p)
-       ! if (allocated(ip)) deallocate(ip)
-       ! if (allocated(hvecp)) deallocate(hvecp)
-
-       ! ! self-correlation
-       ! allocate(xnorm(ns))
-       ! h =  (xend-th2ini) / real(npts-1,8)
-       ! do i = 1, ns
-       !    if (singleatom(i) < 0) then
-       !       xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
-       !    end if
-       ! end do
-       ! xnorm = sqrt(abs(xnorm))
-
-       ! ! calculate the overlap between diffraction patterns
-       ! diff = 0d0
-       ! do i = 1, ns
-       !    do j = i+1, ns
-       !       if (singleatom(i) > 0 .and. singleatom(j) > 0) then
-       !          if (singleatom(i) == singleatom(j)) then
-       !             diff(i,j) = 0d0
-       !          else
-       !             diff(i,j) = 1d0
-       !          end if
-       !       else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
-       !          diff(i,j) = 1d0
-       !       else
-       !          diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
-       !       end if
-       !       diff(j,i) = diff(i,j)
-       !    end do
-       ! end do
-       ! deallocate(xnorm)
-       write (*,*) "bleh!"
-       stop 1
+       ! calculate the distance between diffraction patterns
+       diff = 0d0
+       do i = 1, ns
+          do j = i+1, ns
+             if (singleatom(i) > 0 .and. singleatom(j) > 0) then
+                if (singleatom(i) == singleatom(j)) then
+                   diff(i,j) = 0d0
+                else
+                   diff(i,j) = 1d0
+                end if
+             else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
+                diff(i,j) = 1d0
+             else
+                diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j))
+             end if
+             diff(j,i) = diff(i,j)
+          end do
+       end do
 
     elseif (imethod == imethod_amd) then
        ! crystals: AMD

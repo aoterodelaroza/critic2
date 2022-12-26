@@ -85,7 +85,8 @@ static void printSolution();
 static double *dij = NULL;
 static int mq_ = 0;
 static double calcdist(feature_t *i, feature_t *j){
-  return dij[*i * mq_ + *j];
+  double d = dij[*i * mq_ + *j];
+  return erf(d/0.1) - erf(-d/0.1);
 }
 
 /*
@@ -100,7 +101,7 @@ double emdwrap(int n, int mp, double *p, double *wp,
   for (int i = 0; i < mp; i++){
     for (int j = 0; j < mq; j++){
       if (n == 1){
-	dij[i * mq + j] = abs(p[i] - q[j]);
+	dij[i * mq + j] = fabs(p[i] - q[j]);
       } else {
 	double norm2 = 0;
 	for (int k = 0; k < n; k++){
@@ -138,6 +139,9 @@ double emdwrap(int n, int mp, double *p, double *wp,
   free(sq.Weights);
   free(sq.Features);
   free(dij);
+
+  // finish
+  return res;
 }
 
 

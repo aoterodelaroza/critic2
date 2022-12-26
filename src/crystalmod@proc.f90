@@ -1878,7 +1878,7 @@ contains
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
     integer :: hmax
-    logical :: again, found
+    logical :: again
     integer, allocatable :: io(:)
     real*8, allocatable :: isum(:)
 
@@ -1895,6 +1895,8 @@ contains
        call ferror('struct_powder','mode=1 incompatible with npts, sigma, and ishard',faterr)
     if (mode == 1 .and.(present(t).or.present(ih))) &
        call ferror('struct_powder','mode=1 incompatible with t and ih',faterr)
+    if (mode == 1 .and..not.(present(th2p).and.present(ip))) &
+       call ferror('struct_powder','mode=1 requires th2p and ip as output',faterr)
 
     ! calculate tshift
     tshift = 0d0
@@ -2015,7 +2017,7 @@ contains
                    end if
 
                    ! identify the new peak
-                   if (present(th2p).and.present(ip).and.present(hvecp)) then
+                   if (present(th2p).and.present(ip)) then
                       if (th2 > th2ini .and. th2 < th2end) then
                          idx = 0
                          do i = 1, np
@@ -2030,14 +2032,14 @@ contains
                             if (np > size(th2p)) then
                                call realloc(th2p,2*np)
                                call realloc(ip,2*np)
-                               call realloc(hvecp,3,2*np)
+                               if (present(hvecp)) call realloc(hvecp,3,2*np)
                             end if
                             th2p(np) = th2
                             ip(np) = int
-                            hvecp(:,np) = (/h,k,l/)
+                            if (present(hvecp)) hvecp(:,np) = (/h,k,l/)
                          else
                             ip(idx) = ip(idx) + int
-                            hvecp(:,idx) = (/h,k,l/)
+                            if (present(hvecp)) hvecp(:,idx) = (/h,k,l/)
                          endif
                       end if
                    end if
@@ -2062,7 +2064,7 @@ contains
     end if
 
     ! sort the peaks
-    if (present(th2p).and.present(ip).and.present(hvecp)) then
+    if (present(th2p).and.present(ip)) then
        if (np == 0) &
           call ferror('struct_powder','no peaks found in the 2theta range',faterr)
 
@@ -2073,7 +2075,7 @@ contains
        call qcksort(th2p,io,1,np)
        th2p = th2p(io)
        ip = ip(io)
-       hvecp = hvecp(:,io)
+       if (present(hvecp)) hvecp = hvecp(:,io)
        deallocate(io)
     end if
 
