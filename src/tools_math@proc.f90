@@ -2049,12 +2049,15 @@ contains
   !> Returns the earth mover's distance of two distribution of vectors
   !> with dimension n. There are mp vectors in distribution P.  with
   !> positions p and weights wp. There are mq vectors in distribution
-  !> Q with positions q and weights wq. Euclidean distance only.
+  !> Q with positions q and weights wq.
+  !> distfun =
+  !>   0 = Euclidean distance
+  !>   1 = 0.5*(erf(x/0.1) - erf(-x/0.1))
   !> Rubner et al. "The earth mover's distance as a metric for image
   !> retrieval." Int. J. Comput. Vis. 40.2 (2000) 99-121.
   !> This is a wrapper for the C routine provded by Rubner et al. in
   !> the emd subdirectory.
-  module function emd(n,mp,p,wp,mq,q,wq)
+  module function emd(n,mp,p,wp,mq,q,wq,distfun)
     use iso_c_binding, only: c_int, c_ptr, c_double, c_loc
     integer, intent(in) :: n
     integer, intent(in) :: mp
@@ -2063,12 +2066,13 @@ contains
     integer, intent(in) :: mq
     real*8, intent(in) :: q(n,mq)
     real*8, intent(in) :: wq(mq)
+    integer, intent(in) :: distfun
 
-    integer(c_int) :: n_, mp_, mq_
+    integer(c_int) :: n_, mp_, mq_, df
     real(c_double), allocatable, target :: p_(:,:), wp_(:), q_(:,:), wq_(:)
 
     interface
-       function emdwrap(n,mp,p,wp,mq,q,wq) bind(c,name="emdwrap")
+       function emdwrap(n,mp,p,wp,mq,q,wq,df) bind(c,name="emdwrap")
          import c_int, c_ptr, c_double
          integer(c_int), value :: n
          integer(c_int), value :: mp
@@ -2078,6 +2082,7 @@ contains
          type(c_ptr), value :: q
          type(c_ptr), value :: wq
          real(c_double) :: emdwrap
+         integer(c_int), value :: df
        end function emdwrap
     end interface
 
@@ -2089,7 +2094,8 @@ contains
     wp_ = wp
     q_ = q
     wq_ = wq
-    emd = emdwrap(n_,mp_,c_loc(p_),c_loc(wp_),mq_,c_loc(q_),c_loc(wq_))
+    df = distfun
+    emd = emdwrap(n_,mp_,c_loc(p_),c_loc(wp_),mq_,c_loc(q_),c_loc(wq_),df)
 
   end function emd
 

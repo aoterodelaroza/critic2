@@ -1658,7 +1658,7 @@ contains
              else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
                 diff(i,j) = 1d0
              else
-                diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j))
+                diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j),1)
              end if
              diff(j,i) = diff(i,j)
           end do

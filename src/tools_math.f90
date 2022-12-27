@@ -336,7 +336,7 @@ module tools_math
        integer, intent(in) :: iperm(:)
        integer :: invert_permutation(size(iperm,1))
      end function invert_permutation
-     module function emd(n,mp,p,wp,mq,q,wq)
+     module function emd(n,mp,p,wp,mq,q,wq,distfun)
        integer, intent(in) :: n
        integer, intent(in) :: mp
        real*8, intent(in) :: p(n,mp)
@@ -344,6 +344,7 @@ module tools_math
        integer, intent(in) :: mq
        real*8, intent(in) :: q(n,mq)
        real*8, intent(in) :: wq(mq)
+       integer, intent(in) :: distfun
      end function emd
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)

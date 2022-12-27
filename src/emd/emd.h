@@ -48,7 +48,7 @@ typedef struct
 
 
 double emdwrap(int n, int mp, double *p, double *wp,
-	       int mq, double *q, double *wq);
+	       int mq, double *q, double *wq, int df);
 
 double emd(signature_t *Signature1, signature_t *Signature2,
 	  double (*func)(feature_t *, feature_t *),

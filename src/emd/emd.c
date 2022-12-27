@@ -84,20 +84,25 @@ static void printSolution();
 // for the wrapper routine
 static double *dij = NULL;
 static int mq_ = 0;
+static int df_ = 0;
 static double calcdist(feature_t *i, feature_t *j){
   double d = dij[*i * mq_ + *j];
-  return 0.5*(erf(d/0.05) - erf(-d/0.05));
+  if (df_ == 0)
+    return d;
+  else
+    return 0.5*(erf(d/0.05) - erf(-d/0.05));
 }
 
 /*
 Wrapper routine for critic2. Dec2 2022
 */
 double emdwrap(int n, int mp, double *p, double *wp,
-	       int mq, double *q, double *wq){
+	       int mq, double *q, double *wq, int df){
 
   // calculate the distance matrix
   dij = malloc(mp * mq * sizeof(double));
   mq_ = mq;
+  df_ = df;
   for (int i = 0; i < mp; i++){
     for (int j = 0; j < mq; j++){
       if (n == 1){
