@@ -91,6 +91,7 @@ contains
     end if
 
     ! reset the camera later
+    s%camresetdist = 1.1_c_float
     s%camratio = 2.5_c_float
     s%forceresetcam = .true.
 
@@ -131,7 +132,7 @@ contains
     s%world = eye4
 
     ! camera distance and view matrix
-    hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
     hside = hside * s%camratio
     hside = max(hside,3._c_float)
     s%campos = s%scenecenter
@@ -346,7 +347,7 @@ contains
           call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
           nvert = 0
           if (s%drawlist_string(i)%scale > 0._c_float) then
-             hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
              hside = hside * s%camratio
              hside = max(hside,3._c_float)
              siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
@@ -464,7 +465,7 @@ contains
           call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
           nvert = 0
           if (s%drawlist_string(i)%scale > 0._c_float) then
-             hside = 1.1_c_float * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
              hside = hside * s%camratio
              hside = max(hside,3._c_float)
              siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
@@ -790,7 +791,7 @@ contains
 
     ! near and far planes
     znear = 0._c_float
-    zfar = (1.1_c_float * max_zoom) * s%scenerad
+    zfar = (s%camresetdist * max_zoom) * s%scenerad
 
     ! update the projection matrix
     hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)

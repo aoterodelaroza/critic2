@@ -145,6 +145,7 @@ module scenes
      real(c_float) :: specular ! specular light coefficent
      integer(c_int) :: shininess ! shininess parameter
      ! scene transformation matrices
+     real(c_float) :: camresetdist ! camera reset distance
      real(c_float) :: camratio ! window ratio for the camera
      real(c_float) :: ortho_fov ! orthographic field of view
      real(c_float) :: persp_fov ! perspective field of view

@@ -262,6 +262,18 @@ contains
              chrender = .true.
           end if
           call iw_tooltip("Align the camera along the Cartesian z axis",ttshown)
+          call igSameLine(0._c_float,-1._c_float)
+          str2 = "Reset Distance##resetdistance" // c_null_char
+          str3 = "%.2f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          ch = igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%camresetdist,&
+             0.01_c_float,0.1_c_float,5.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          if (ch) then
+             call sysc(w%view_selected)%sc%reset()
+             chrender = .true.
+          end if
+          call igPopItemWidth()
+          call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
           ! object resolution
           call iw_text("Object Resolution",highlight=.true.)
@@ -370,6 +382,7 @@ contains
                    sysc(i)%sc%shininess = sysc(w%view_selected)%sc%shininess
                    sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
                    sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
+                   sysc(i)%sc%camresetdist = sysc(w%view_selected)%sc%camresetdist
                 end if
                 call sysc(i)%sc%build_lists()
              end do
