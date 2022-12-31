@@ -345,6 +345,7 @@ module tools_math
        real*8, intent(in) :: q(n,mq)
        real*8, intent(in) :: wq(mq)
        integer, intent(in) :: distfun
+       real*8 :: emd
      end function emd
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)

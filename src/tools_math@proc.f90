@@ -2067,6 +2067,7 @@ contains
     real*8, intent(in) :: q(n,mq)
     real*8, intent(in) :: wq(mq)
     integer, intent(in) :: distfun
+    real*8 :: emd
 
     integer(c_int) :: n_, mp_, mq_, df
     real(c_double), allocatable, target :: p_(:,:), wp_(:), q_(:,:), wq_(:)
