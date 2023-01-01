@@ -152,6 +152,7 @@ module windows
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: process_events_view ! process the mouse events in the view
+     procedure :: select_view
      procedure :: draw_selection_tooltip ! draw the measure selection tooltip
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
@@ -295,6 +296,10 @@ module windows
      module subroutine delete_texture_view(w)
        class(window), intent(inout), target :: w
      end subroutine delete_texture_view
+     module subroutine select_view(w,isys)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: isys
+     end subroutine select_view
      module subroutine process_events_view(w,hover,idx)
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover

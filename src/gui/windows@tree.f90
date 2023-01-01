@@ -232,10 +232,8 @@ contains
           ! if we removed the system for the input console or the view, update
           if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
              win(iwin_console_input)%inpcon_selected = w%table_selected
-          if (w%forceremove(k) == win(iwin_view)%view_selected) then
-             win(iwin_view)%view_selected = w%table_selected
-             win(iwin_view)%forcerender = .true.
-          end if
+          if (w%forceremove(k) == win(iwin_view)%view_selected) &
+             call win(iwin_view)%select_view(w%table_selected)
        end do
        deallocate(w%forceremove)
        ! restart initialization if the threads were killed
@@ -520,11 +518,8 @@ contains
                       w%table_selected = i
                       if (tree_select_updates_inpcon) &
                          win(iwin_console_input)%inpcon_selected = i
-                      if (tree_select_updates_view) then
-                         if (win(iwin_view)%view_selected /= i) &
-                            win(iwin_view)%forcerender = .true.
-                         win(iwin_view)%view_selected = i
-                      end if
+                      if (tree_select_updates_view) &
+                         call win(iwin_view)%select_view(i)
                       call sys(i)%set_reference(k,.false.)
                    end if
                    call igPopStyleColor(1)
@@ -860,11 +855,8 @@ contains
          end if
          if (tree_select_updates_inpcon) &
             win(iwin_console_input)%inpcon_selected = isys
-         if (tree_select_updates_view) then
-            if (win(iwin_view)%view_selected /= isys) &
-               win(iwin_view)%forcerender = .true.
-            win(iwin_view)%view_selected = isys
-         end if
+         if (tree_select_updates_view) &
+            call win(iwin_view)%select_view(isys)
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
             sysc(isys)%showfields = .true.
       end if
@@ -901,9 +893,7 @@ contains
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
             win(iwin_console_input)%inpcon_selected = isys
-            if (win(iwin_view)%view_selected /= isys) &
-               win(iwin_view)%forcerender = .true.
-            win(iwin_view)%view_selected = isys
+            call win(iwin_view)%select_view(isys)
             w%table_selected = isys
          end if
          call iw_tooltip("Set this system as current",ttshown)
@@ -1049,11 +1039,8 @@ contains
             win(iwin_console_input)%inpcon_selected = i
       end if
       if (win(iwin_view)%view_selected >= 1 .and. win(iwin_view)%view_selected <= nsys) then
-         if (sysc(win(iwin_view)%view_selected)%collapse == i) then
-            if (win(iwin_view)%view_selected /= i) &
-               win(iwin_view)%forcerender = .true.
-            win(iwin_view)%view_selected = i
-         end if
+         if (sysc(win(iwin_view)%view_selected)%collapse == i) &
+            call win(iwin_view)%select_view(i)
       end if
       w%forceupdate = .true.
 

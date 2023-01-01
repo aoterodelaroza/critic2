@@ -766,6 +766,19 @@ contains
 
   end subroutine delete_texture_view
 
+  !> Select system isys in view window.
+  module subroutine select_view(w,isys)
+    use gui_main, only: nsys
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    if (isys < 1 .or. isys > nsys) return
+    if (w%view_selected == isys) return
+    w%view_selected = isys
+    w%forcerender = .true.
+
+  end subroutine select_view
+
   !> Process the mouse events in the view window
   module subroutine process_events_view(w,hover,idx)
     use interfaces_cimgui
