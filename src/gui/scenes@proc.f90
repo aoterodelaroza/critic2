@@ -100,12 +100,15 @@ contains
 
     ! sort the representations next pass
     s%forcesort = .true.
+    s%timelastrender = 0d0
 
     ! locking group for the camera if system is master or dependent
     if (sysc(isys)%collapse < 0) then
        call s%lock_cam(isys)
     elseif (sysc(isys)%collapse > 0) then
        call s%lock_cam(sysc(isys)%collapse)
+    else
+       s%lockedcam = 0
     end if
 
   end subroutine scene_init
@@ -246,7 +249,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize
+    use gui_main, only: fonts, fontbakesize, time
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -507,6 +510,9 @@ contains
     call glBindVertexArray(0)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
+    ! save the rendering time
+    s%timelastrender = time
+
   end subroutine scene_render
 
   !> Draw the scene (for object picking
@@ -608,6 +614,24 @@ contains
     end if
 
   end subroutine scene_lock_cam
+
+  !> Copy camera parameters from scene si to the current scene.
+  module subroutine scene_copy_cam(s,si)
+    class(scene), intent(inout), target :: s
+    type(scene), intent(in), target :: si
+
+    s%camresetdist = si%camresetdist
+    s%camratio = si%camratio
+    s%ortho_fov = si%ortho_fov
+    s%persp_fov = si%persp_fov
+    s%campos = si%campos
+    s%camfront = si%camfront
+    s%camup = si%camup
+    s%world = si%world
+    s%view = si%view
+    s%projection = si%projection
+
+  end subroutine scene_copy_cam
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.
