@@ -173,6 +173,7 @@ contains
     w%dialog_data%molcubic = .false.
     w%dialog_data%rborder = rborder_def*bohrtoa
     w%forcequitdialog = .false.
+    w%plotn = 0
     w%idsave = 0
 
     ! type-specific initialization
@@ -245,6 +246,7 @@ contains
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)
+    w%plotn = 0
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)

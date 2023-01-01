@@ -1972,7 +1972,7 @@ contains
     real(c_double) :: xmin, xmax
     real*8 :: dy
     logical :: doquit
-    integer :: i, isys, num, n
+    integer :: i, isys, num
     type(ImVec2) :: sz
     type(ImVec4) :: auto
     character(len=:,kind=c_char), allocatable, target :: str1, str2
@@ -1981,59 +1981,62 @@ contains
     doquit = (isys < 1 .or. isys > nsys)
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
+    if (w%firstpass) w%plotn = 0
 
     if (.not.doquit) then
        ! get the property and prepare x and y
-       if (.not.allocated(w%plotx) .or..not.allocated(w%ploty)) then
+       if (w%firstpass) then
           if (allocated(w%plotx)) deallocate(w%plotx)
           if (allocated(w%ploty)) deallocate(w%ploty)
           num = count(sysc(1:nsys)%collapse == isys) + 1
           allocate(w%plotx(num),w%ploty(num))
-          n = 0
+          w%plotn = 0
           do i = 1, nsys
              if (sysc(i)%collapse == isys .and. sysc(i)%seed%energy /= huge(1d0)) then
-                n = n + 1
-                w%plotx(n) = n
-                w%ploty(n) = sysc(i)%seed%energy
+                w%plotn = w%plotn + 1
+                w%plotx(w%plotn) = w%plotn
+                w%ploty(w%plotn) = sysc(i)%seed%energy
              end if
           end do
           if (sysc(isys)%seed%energy /= huge(1d0)) then
-             n = n + 1
-             w%plotx(n) = n
-             w%ploty(n) = sysc(isys)%seed%energy
+             w%plotn = w%plotn + 1
+             w%plotx(w%plotn) = w%plotn
+             w%ploty(w%plotn) = sysc(isys)%seed%energy
           end if
-          call realloc(w%plotx,n)
-          call realloc(w%ploty,n)
+          call realloc(w%plotx,w%plotn)
+          call realloc(w%ploty,w%plotn)
           w%ymax = maxval(w%ploty)
           w%ymin = minval(w%ploty)
        end if
 
        ! make the plot
-       str1 = "##scfiterations" // string(isys) // c_null_char
-       call igGetContentRegionAvail(sz)
-       if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
-          str1 = "SCF Iteration" // c_null_char
-          str2 = "Energy (Ha)" // c_null_char
-          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+       if (w%plotn > 0) then
+          str1 = "##scfiterations" // string(isys) // c_null_char
+          call igGetContentRegionAvail(sz)
+          if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
+             str1 = "SCF Iteration" // c_null_char
+             str2 = "Energy (Ha)" // c_null_char
+             call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
 
-          str1 = "%.0f" // c_null_char
-          call ipSetupAxisTicks(ImAxis_X1,w%plotx(1),w%plotx(size(w%plotx,1)),size(w%plotx,1))
-          call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
+             str1 = "%.0f" // c_null_char
+             call ipSetupAxisTicks(ImAxis_X1,w%plotx(1),w%plotx(size(w%plotx,1)),size(w%plotx,1))
+             call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
 
-          dy = (w%ymax - w%ymin)
-          str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
-          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
-          call ipGetPlotCurrentLimits(xmin,xmax,w%ymin,w%ymax) ! these need to be switched
+             dy = (w%ymax - w%ymin)
+             str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
+             call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
+             call ipGetPlotCurrentLimits(xmin,xmax,w%ymin,w%ymax) ! these need to be switched
 
-          str1 = "Energy" // c_null_char
-          auto%x = 0._c_float
-          auto%y = 0._c_float
-          auto%z = 0._c_float
-          auto%w = -1._c_float
-          call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
+             str1 = "Energy" // c_null_char
+             auto%x = 0._c_float
+             auto%y = 0._c_float
+             auto%z = 0._c_float
+             auto%w = -1._c_float
+             call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
 
-          call ipPlotLine(c_loc(str1),c_loc(w%plotx),c_loc(w%ploty),size(w%plotx,1),ImPlotLineFlags_None,0_c_int)
-          call ipEndPlot()
+             call ipPlotLine(c_loc(str1),c_loc(w%plotx),c_loc(w%ploty),w%plotn,ImPlotLineFlags_None,0_c_int)
+             call ipEndPlot()
+          end if
        end if
     end if
 

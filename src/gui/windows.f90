@@ -127,6 +127,7 @@ module windows
      ! load field parameters
      ! scf plot parameters
      real(c_double) :: ymin, ymax ! y-end of the plot
+     integer :: plotn ! number of plot data
      real(c_double), allocatable :: plotx(:), ploty(:) ! plot data
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
