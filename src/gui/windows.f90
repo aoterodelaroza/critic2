@@ -113,6 +113,7 @@ module windows
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window
+     real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback

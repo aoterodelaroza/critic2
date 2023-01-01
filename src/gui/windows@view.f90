@@ -45,7 +45,7 @@ contains
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize, time
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string, ioj_right
     use param, only: newline
@@ -564,6 +564,7 @@ contains
        if (goodsys) call sysc(w%view_selected)%sc%renderpick()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
+       w%timelastrender = time
        w%forcerender = .false.
     end if
 

@@ -19,6 +19,9 @@
 submodule (scenes) proc
   implicit none
 
+  ! locking group unique identifier
+  integer :: nlockgroup = 0
+
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -40,7 +43,7 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sys
+    use gui_main, only: nsys, sys, sysc
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -97,6 +100,13 @@ contains
 
     ! sort the representations next pass
     s%forcesort = .true.
+
+    ! locking group for the camera if system is master or dependent
+    if (sysc(isys)%collapse < 0) then
+       call s%lock_cam(isys)
+    elseif (sysc(isys)%collapse > 0) then
+       call s%lock_cam(sysc(isys)%collapse)
+    end if
 
   end subroutine scene_init
 
@@ -581,6 +591,23 @@ contains
     end if
 
   end subroutine scene_set_style_defaults
+
+  !> Lock the camera to the lock group lgroup. If
+  !> lgroup = 0, unlock the camera. If lgroup is negative,
+  !> create a new locking group.
+  module subroutine scene_lock_cam(s,lgroup)
+    use gui_main, only: nsys
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: lgroup
+
+    if (lgroup < 0) then
+       nlockgroup = max(nlockgroup,nsys) + 1
+       s%lockedcam = nlockgroup
+    else
+       s%lockedcam = lgroup
+    end if
+
+  end subroutine scene_lock_cam
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.

@@ -155,6 +155,7 @@ module scenes
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
+     integer :: lockedcam = 0 ! 0=no, n=locking group n
      ! list of representations
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
@@ -179,6 +180,7 @@ module scenes
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
      procedure :: set_style_defaults => scene_set_style_defaults
+     procedure :: lock_cam => scene_lock_cam
      procedure :: representation_menu
      procedure :: get_new_representation_id
      procedure :: update_projection_matrix
@@ -214,6 +216,10 @@ module scenes
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in), optional :: style
      end subroutine scene_set_style_defaults
+     module subroutine scene_lock_cam(s,lgroup)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: lgroup
+     end subroutine scene_lock_cam
      module function representation_menu(s,idcaller) result(changed)
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in) :: idcaller
