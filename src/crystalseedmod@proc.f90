@@ -5773,15 +5773,13 @@ contains
                 if (is0 == nseed) then
                    seed(iuse)%name = trim(file) // "|(fin) (" //&
                       trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
-                   if (seed(iuse)%energy /= huge(1d0)) &
-                      seed(iuse)%energy = rdum / 2d0
+                   seed(iuse)%energy = rdum / 2d0
                 else
                    str = string(iuse,npad,pad0=.true.)
                    str = string(str,length=max(5,len(str)))
                    seed(iuse)%name = trim(file) // "|" // str // " (" //&
                       trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
-                   if (seed(iuse)%energy /= huge(1d0)) &
-                      seed(iuse)%energy = rdum / 2d0
+                   seed(iuse)%energy = rdum / 2d0
                 end if
              else
                 seed(iuse)%name = file
@@ -6013,6 +6011,7 @@ contains
 
     if (allocated(seed)) deallocate(seed)
     allocate(seed(nseed),esave(nseed))
+    esave = huge(1d0)
     rewind(lu)
     in = 0
     do while (getline_raw(lu,line))
@@ -6071,17 +6070,14 @@ contains
           str = string(str,length=max(5,len(str)))
           seed(i)%name = trim(file) // "|" // str // " (" //&
              trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
-          if (seed(i)%energy /= huge(1d0)) &
-             seed(i)%energy = esave(i)
+          seed(i)%energy = esave(i)
        end do
        seed(nseed)%name = trim(file) // "|(fin) (" //&
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
-       if (seed(nseed)%energy /= huge(1d0)) &
-          seed(nseed)%energy = energy
+       seed(nseed)%energy = energy
     else
        seed(in)%name = trim(file)
-       if (seed(in)%energy /= huge(1d0)) &
-          seed(in)%energy = energy
+       if (seed(in)%energy /= huge(1d0)) seed(in)%energy = energy
     end if
 
     errmsg = ""
