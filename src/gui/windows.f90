@@ -350,8 +350,9 @@ module windows
      module subroutine run_commands_ci(w)
        class(window), intent(inout), target :: w
      end subroutine run_commands_ci
-     module subroutine block_gui_ci(w)
+     module subroutine block_gui_ci(w,allsys)
        class(window), intent(inout), target :: w
+       logical, intent(in) :: allsys
      end subroutine block_gui_ci
      module function read_output_ci(w,iscom,cominfo)
        class(window), intent(inout), target :: w

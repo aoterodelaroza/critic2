@@ -90,7 +90,7 @@ module gui_main
   type(sysconf), allocatable, target, public :: sysc(:)
 
   ! flags to control main's behavior
-  logical, public :: force_run_commands = .false. ! execute commands from the input console
+  integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)
   logical, public :: force_quit_threads = .false. ! set to true to force all threads to quit as soon as possible
 
   ! public procedures

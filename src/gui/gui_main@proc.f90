@@ -62,7 +62,7 @@ contains
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc
-    integer :: i, j, ludum(10)
+    integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass
     integer(c_short), allocatable, target :: range(:)
 
@@ -257,8 +257,8 @@ contains
           call ipShowDemoWindow(show_implot_demo_window)
 
        ! if there are commands to run from the input console, set up the modal
-       if (force_run_commands) then
-          call win(iwin_console_input)%block_gui_ci()
+       if (force_run_commands > 0) then
+          call win(iwin_console_input)%block_gui_ci(force_run_commands == 2)
        end if
 
        ! rendering
@@ -273,9 +273,17 @@ contains
        call glfwSwapBuffers(rootwin)
 
        ! run commands from the input console
-       if (force_run_commands) then
+       if (force_run_commands == 1) then
           call win(iwin_console_input)%run_commands_ci()
-          force_run_commands = .false.
+          force_run_commands = 0
+       elseif (force_run_commands == 2) then
+          saveinpcon = win(iwin_console_input)%inpcon_selected
+          do i = 1, nsys
+             win(iwin_console_input)%inpcon_selected = i
+             call win(iwin_console_input)%run_commands_ci()
+          end do
+          win(iwin_console_input)%inpcon_selected = saveinpcon
+          force_run_commands = 0
        end if
 
        firstpass = .false.

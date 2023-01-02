@@ -30,13 +30,14 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
     use systemmod, only: sy
     use tools_io, only: string
+    use param, only: newline
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum, is_selected
     real(c_float) :: combowidth
-    logical :: ok
+    logical :: ok, ok2
     integer :: i, idx
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -136,15 +137,24 @@ contains
     call igEndGroup()
 
     ! right-hand-side of lines 2 and 3: RUN button
-    ok = iw_button("RUN",danger=.true.,sameline=.true.,siz=(/sz%x,sz%y/))
+    ok = iw_button("RUN",danger=.true.,sameline=.true.,siz=(/sz%x,sz%y/),&
+       popupcontext=ok2,popupflags=ImGuiPopupFlags_MouseButtonRight)
     ok = ok .or. (igIsWindowFocused(ImGuiFocusedFlags_None) .and. is_bind_event(BIND_INPCON_RUN))
     if (ok) then
        idx = index(inputb,c_null_char)
        if (idx > 1) then
-          if (associated(sy)) force_run_commands = .true.
+          if (associated(sy)) force_run_commands = 1
        end if
     end if
-    call iw_tooltip("Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")",ttshown)
+    if (ok2) then
+       str2 = "Run on all systems" // c_null_char
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) &
+          force_run_commands = 2
+       call iw_tooltip("Run these commands on all loaded systems")
+       call igEndPopup()
+    end if
+    call iw_tooltip("Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")."//newline//&
+       "Right-click to run commands on all systems.",ttshown)
 
     ! calculate sizes and draw the multiline
     call igGetContentRegionAvail(sz)
@@ -211,14 +221,16 @@ contains
 
   end subroutine run_commands_ci
 
-  !> Block the GUI by dimming the background and showing the current console
-  !> input. Useful for preparing the screen for running the commands
-  !> in the console input.
-  module subroutine block_gui_ci(w)
+  !> Block the GUI by dimming the background and showing the current
+  !> console input. Useful for preparing the screen for running the
+  !> commands in the console input. If allsys, the commands will apply
+  !> to all loaded systems.
+  module subroutine block_gui_ci(w,allsys)
     use gui_main, only: mainvwp, io, g, ColorWaitBg
     use utils, only: iw_text
     use param, only: newline
     class(window), intent(inout), target :: w
+    logical, intent(in) :: allsys
 
     integer(c_int) :: flags
     type(ImVec2) :: sz, pivot
@@ -254,10 +266,17 @@ contains
     call w%get_input_details_ci(csystem,cfield)
 
     ! set window size
-    text = "...Running critic2 input..." // newline //&
-       "System: " // csystem // newline //&
-       "Field:  " // cfield // newline //&
-       "Input:  " // newline // inputb
+    if (allsys) then
+       text = "...Running critic2 input..." // newline //&
+          "System: <all systems>" // newline //&
+          "Field:  <all reference fields>" // newline //&
+          "Input:  " // newline // inputb
+    else
+       text = "...Running critic2 input..." // newline //&
+          "System: " // csystem // newline //&
+          "Field:  " // cfield // newline //&
+          "Input:  " // newline // inputb
+    end if
     call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
     sz%y = sz%y + 2 * g%Style%WindowPadding%y
     sz%x = sz%x + 2 * g%Style%WindowPadding%x
@@ -279,9 +298,17 @@ contains
        call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
        call iw_text("...Running critic2 input...",highlight=.true.)
        call iw_text("System: ",highlight=.true.)
-       call iw_text(csystem,sameline=.true.)
+       if (allsys) then
+          call iw_text("<all systems>",sameline=.true.)
+       else
+          call iw_text(csystem,sameline=.true.)
+       end if
        call iw_text("Field:  ",highlight=.true.)
-       call iw_text(cfield,sameline=.true.)
+       if (allsys) then
+          call iw_text("<all reference fields>",sameline=.true.)
+       else
+          call iw_text(cfield,sameline=.true.)
+       end if
        call iw_text("Input:  ",highlight=.true.)
        call igIndent(0._c_float)
        call igText(c_loc(inputb))

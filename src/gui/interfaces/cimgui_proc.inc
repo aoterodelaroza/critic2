@@ -2146,7 +2146,14 @@ end subroutine igTableSetColumnWidthAutoAll
 !x! void igRenderRectFilledWithHole(ImDrawList* draw_list,const ImRect outer,const ImRect inner,ImU32 col,float rounding);
 !x! ImDrawFlags igCalcRoundingFlagsForRectInRect(const ImRect r_in,const ImRect r_outer,float threshold);
 !x! void igTextEx(const char* text,const char* text_end,ImGuiTextFlags flags);
-!x! bool igButtonEx(const char* label,const ImVec2 size_arg,ImGuiButtonFlags flags);
+! bool igButtonEx(const char* label,const ImVec2 size_arg,ImGuiButtonFlags flags);
+function igButtonEx(label,size_arg,flags) bind(c,name="igButtonEx")
+  import c_ptr, ImVec2, c_bool, c_int
+  type(c_ptr), intent(in), value :: label
+  type(ImVec2), intent(in), value :: size_arg
+  integer(c_int), intent(in) :: flags
+  logical(c_bool) :: igButtonEx
+end function igButtonEx
 !x! bool igCloseButton(ImGuiID id,const ImVec2 pos);
 !x! bool igCollapseButton(ImGuiID id,const ImVec2 pos,ImGuiDockNode* dock_node);
 !x! bool igArrowButtonEx(const char* str_id,ImGuiDir dir,ImVec2 size_arg,ImGuiButtonFlags flags);
