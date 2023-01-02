@@ -40,7 +40,7 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sys, sysc
+    use gui_main, only: nsys, sys, sysc, lockbehavior
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -99,14 +99,20 @@ contains
     s%timelastrender = 0d0
     s%timelastbuild = 0d0
 
-    ! locking group for the camera if system is master or dependent
+    ! locking group for the camera
     s%forceresetcam = .true.
-    if (sysc(isys)%collapse < 0) then
-       s%lockedcam = isys
-    elseif (sysc(isys)%collapse > 0) then
-       s%lockedcam = sysc(isys)%collapse
-    else
+    if (lockbehavior == 0) then ! no-lock
        s%lockedcam = 0
+    elseif (lockbehavior == 2) then ! all-lock
+       s%lockedcam = 1
+    else ! ==1, only scf
+       if (sysc(isys)%collapse < 0) then
+          s%lockedcam = isys
+       elseif (sysc(isys)%collapse > 0) then
+          s%lockedcam = sysc(isys)%collapse
+       else
+          s%lockedcam = 0
+       end if
     end if
 
   end subroutine scene_init

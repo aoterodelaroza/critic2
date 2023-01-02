@@ -48,6 +48,7 @@ module gui_main
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
   logical(c_bool), public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
   logical(c_bool), public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
+  integer, public :: lockbehavior = 1 ! 0=no-lock, 1=only SCF, 2=all systems
 
   ! GUI colors
   type(ImVec4), public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule

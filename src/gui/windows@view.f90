@@ -45,13 +45,13 @@ contains
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize
+    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string, ioj_right
     use param, only: newline
     class(window), intent(inout), target :: w
 
-    integer :: i, j, nrep, id, ipad, is, icel, ineq
+    integer :: i, j, k, nrep, id, ipad, is, icel, ineq
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol, col
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -228,8 +228,8 @@ contains
              call igPopItemWidth()
           end if
 
-          ! align view axis
-          call iw_text("Axes Alignment",highlight=.true.)
+          ! camera position: align view axis
+          call iw_text("Camera Position",highlight=.true.)
           if (.not.sys(w%view_selected)%c%ismolecule) then
              if (iw_button("a")) then
                 call sysc(w%view_selected)%sc%align_view_axis(1)
@@ -267,7 +267,7 @@ contains
           str3 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
           ch = igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%camresetdist,&
-             0.01_c_float,0.1_c_float,5.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             0.01_c_float,0.1_c_float,8.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
@@ -474,7 +474,7 @@ contains
     if (chbuild) sysc(w%view_selected)%sc%forcebuildlists = .true.
     if (chrender .or. sysc(w%view_selected)%sc%forcebuildlists) w%forcerender = .true.
 
-    ! save image
+    ! export image
     if (iw_button("Export",sameline=.true.)) then
        if (w%idexportwin == 0) then
           w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
@@ -483,6 +483,46 @@ contains
        end if
     end if
     call iw_tooltip("Export the current scene to an image file",ttshown)
+
+    ! camera lock
+    ldum = iw_button("Cam-Lock",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    if (ok) then
+       str2 = "Lock All" // c_null_char
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==2,c_bool),.true._c_bool)) then
+          lockbehavior = 2
+          do k = 1, nsys
+             sysc(k)%sc%lockedcam = 1
+          end do
+       end if
+       call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
+
+       str2 = "Lock SCF Iterations Only" // c_null_char
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==1,c_bool),.true._c_bool)) then
+          lockbehavior = 1
+          do k = 1, nsys
+             if (sysc(k)%collapse < 0) then
+                sysc(k)%sc%lockedcam = k
+             elseif (sysc(k)%collapse > 0) then
+                sysc(k)%sc%lockedcam = sysc(k)%collapse
+             else
+                sysc(k)%sc%lockedcam = 0
+             end if
+          end do
+       end if
+       call iw_tooltip("Lock the camera position only for SCF iterations of the same system",ttshown)
+
+       str2 = "Unlock All" // c_null_char
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==0,c_bool),.true._c_bool)) then
+          lockbehavior = 0
+          do k = 1, nsys
+             sysc(k)%sc%lockedcam = 0
+          end do
+       end if
+       call iw_tooltip("Do not lock the camera position for any system",ttshown)
+
+       call igEndPopup()
+    end if
+    call iw_tooltip("Lock the camera position and orientation for multiple systems",ttshown)
 
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
