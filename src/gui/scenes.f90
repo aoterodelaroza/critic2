@@ -65,7 +65,7 @@ module scenes
 
   !> Representation: objects to draw on the scene
   type representation
-     logical :: isinit = .false. ! true if the representation has been initialized
+     logical :: isinit = .false. ! whether the representation has been initialized
      logical(c_bool) :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
      integer :: id ! system ID
@@ -119,18 +119,19 @@ module scenes
 
   !> Scene: objects from the system to be drawn and plot settings
   type scene
-     logical :: isinit = .false. ! whether the scene has been initialized
+     integer :: isinit = 0 ! 0=uninitialized, 1=initialized but not built, 2=init and built
      integer :: id ! system ID
      integer, allocatable :: iord(:) ! the representation order
      logical :: forcesort = .false. ! force sort the representations
      logical :: forceresetcam = .false. ! force reset of the camera
      logical :: forcebuildlists ! force rebuild of lists
+     real*8 :: timelastrender = 0d0 ! time when the view was last rendered
+     real*8 :: timelastbuild = 0d0 ! time of the last build
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center (world coords)
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
      real(c_float) :: scenexmax(3) ! scene xmax (world coords)
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
-     real*8 :: time_last_build ! time of the last build
      ! object resolutions
      integer(c_int) :: atom_res ! atom resolution
      integer(c_int) :: bond_res ! bond resolution
@@ -155,8 +156,7 @@ module scenes
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
-     integer :: lockedcam = 0 ! 0=no, n=locking group n
-     real*8 :: timelastrender = 0d0 ! time when the view was last rendered
+     integer :: lockedcam = 0 ! 0=no, n=locking group n (same as first system in the lock group)
      ! list of representations
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
@@ -181,7 +181,6 @@ module scenes
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
      procedure :: set_style_defaults => scene_set_style_defaults
-     procedure :: lock_cam => scene_lock_cam
      procedure :: copy_cam => scene_copy_cam
      procedure :: representation_menu
      procedure :: get_new_representation_id
@@ -218,13 +217,10 @@ module scenes
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in), optional :: style
      end subroutine scene_set_style_defaults
-     module subroutine scene_lock_cam(s,lgroup)
+     recursive module subroutine scene_copy_cam(s,si,idx)
        class(scene), intent(inout), target :: s
-       integer, intent(in) :: lgroup
-     end subroutine scene_lock_cam
-     module subroutine scene_copy_cam(s,si)
-       class(scene), intent(inout), target :: s
-       type(scene), intent(in), target :: si
+       type(scene), intent(in), target, optional :: si
+       integer, intent(in), optional :: idx
      end subroutine scene_copy_cam
      module function representation_menu(s,idcaller) result(changed)
        class(scene), intent(inout), target :: s

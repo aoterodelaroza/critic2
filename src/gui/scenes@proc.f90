@@ -19,9 +19,6 @@
 submodule (scenes) proc
   implicit none
 
-  ! locking group unique identifier
-  integer :: nlockgroup = 0
-
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -51,7 +48,7 @@ contains
 
     ! basic variables
     s%id = isys
-    s%isinit = .true.
+    s%isinit = 1
     s%nc = 1
     s%scenerad = 10d0
     s%scenecenter = 0d0
@@ -94,19 +91,20 @@ contains
     end if
 
     ! reset the camera later
-    s%camresetdist = 1.1_c_float
+    s%camresetdist = 1.5_c_float
     s%camratio = 2.5_c_float
-    s%forceresetcam = .true.
 
     ! sort the representations next pass
     s%forcesort = .true.
     s%timelastrender = 0d0
+    s%timelastbuild = 0d0
 
     ! locking group for the camera if system is master or dependent
+    s%forceresetcam = .true.
     if (sysc(isys)%collapse < 0) then
-       call s%lock_cam(isys)
+       s%lockedcam = isys
     elseif (sysc(isys)%collapse > 0) then
-       call s%lock_cam(sysc(isys)%collapse)
+       s%lockedcam = sysc(isys)%collapse
     else
        s%lockedcam = 0
     end if
@@ -117,7 +115,7 @@ contains
   module subroutine scene_end(s)
     class(scene), intent(inout), target :: s
 
-    s%isinit = .false.
+    s%isinit = 0
     s%id = 0
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
@@ -233,14 +231,15 @@ contains
        ! reset the camera if requested
        call s%reset()
        s%forceresetcam = .false.
-    else
+    elseif (s%lockedcam == 0) then
        ! translate the scene so the center position remains unchanged
        s%world = translate(s%world,-xc)
     end if
 
     ! rebuilding lists is done
     s%forcebuildlists = .false.
-    s%time_last_build = time
+    s%isinit = 2
+    s%timelastbuild = time
 
   end subroutine scene_build_lists
 
@@ -271,10 +270,10 @@ contains
     real(c_float), parameter :: msel_thickness = 0.3_c_float
 
     ! check that the scene and system are initialized
-    if (.not.s%isinit) return
+    if (s%isinit == 0) return
 
     ! build draw lists if not done already
-    if (.not.allocated(s%drawlist_sph)) call s%build_lists()
+    if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
 
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
@@ -534,7 +533,7 @@ contains
     real(c_float), allocatable, target :: vert(:,:)
 
     ! check that the scene and system are initialized
-    if (.not.s%isinit) return
+    if (s%isinit < 2) return
 
     ! build draw lists if not done already
     if (.not.allocated(s%drawlist_sph)) call s%build_lists()
@@ -598,38 +597,41 @@ contains
 
   end subroutine scene_set_style_defaults
 
-  !> Lock the camera to the lock group lgroup. If
-  !> lgroup = 0, unlock the camera. If lgroup is negative,
-  !> create a new locking group.
-  module subroutine scene_lock_cam(s,lgroup)
-    use gui_main, only: nsys
+  !> Copy camera parameters from scene si to the current scene. If an
+  !> integer is given instead, search the system list for the most
+  !> recent render in group idx and, if found, copy the camera
+  !> parameters from that scene.
+  recursive module subroutine scene_copy_cam(s,si,idx)
+    use gui_main, only: nsys, sysc
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: lgroup
+    type(scene), intent(in), target, optional :: si
+    integer, intent(in), optional :: idx
 
-    if (lgroup < 0) then
-       nlockgroup = max(nlockgroup,nsys) + 1
-       s%lockedcam = nlockgroup
-    else
-       s%lockedcam = lgroup
+    real*8 :: time
+    integer :: i, ifound
+
+    if (present(si)) then
+       s%camresetdist = si%camresetdist
+       s%camratio = si%camratio
+       s%ortho_fov = si%ortho_fov
+       s%persp_fov = si%persp_fov
+       s%campos = si%campos
+       s%camfront = si%camfront
+       s%camup = si%camup
+       s%world = si%world
+       s%view = si%view
+       s%projection = si%projection
+    elseif (present(idx)) then
+       time = 0d0
+       ifound = 0
+       do i = 1, nsys
+          if (sysc(i)%sc%lockedcam == idx .and. sysc(i)%sc%timelastrender > time) then
+             ifound = i
+             time = sysc(i)%sc%timelastrender
+          end if
+       end do
+       if (ifound > 0) call s%copy_cam(sysc(ifound)%sc)
     end if
-
-  end subroutine scene_lock_cam
-
-  !> Copy camera parameters from scene si to the current scene.
-  module subroutine scene_copy_cam(s,si)
-    class(scene), intent(inout), target :: s
-    type(scene), intent(in), target :: si
-
-    s%camresetdist = si%camresetdist
-    s%camratio = si%camratio
-    s%ortho_fov = si%ortho_fov
-    s%persp_fov = si%persp_fov
-    s%campos = si%campos
-    s%camfront = si%camfront
-    s%camup = si%camup
-    s%world = si%world
-    s%view = si%view
-    s%projection = si%projection
 
   end subroutine scene_copy_cam
 

@@ -912,6 +912,10 @@ contains
                 call sysc(i)%sc%init(i)
                 call sysc(i)%sc%build_lists()
 
+                ! copy the camera if this is a dependent
+                if (sysc(i)%sc%lockedcam /= 0 .and. sysc(i)%sc%lockedcam /= i) &
+                   call sysc(i)%sc%copy_cam(idx=sysc(i)%sc%lockedcam)
+
                 ! this system has been initialized
                 sysc(i)%status = sys_init
 

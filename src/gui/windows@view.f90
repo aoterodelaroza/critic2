@@ -268,10 +268,6 @@ contains
           call igPushItemWidth(iw_calcwidth(5,1))
           ch = igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%camresetdist,&
              0.01_c_float,0.1_c_float,5.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          if (ch) then
-             call sysc(w%view_selected)%sc%reset()
-             chrender = .true.
-          end if
           call igPopItemWidth()
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
@@ -782,18 +778,8 @@ contains
 
     ! if the camera is locked, copy the camera parameters from the member
     ! of the locking group who was rendered last
-    if (sysc(isys)%sc%lockedcam > 0) then
-       idx = 0
-       time = sysc(isys)%sc%timelastrender
-       do i = 1, nsys
-          if (sysc(i)%sc%lockedcam == sysc(isys)%sc%lockedcam .and. sysc(i)%sc%timelastrender > time) then
-             idx = i
-             time = sysc(i)%sc%timelastrender
-          end if
-       end do
-       if (idx > 0) &
-          call sysc(isys)%sc%copy_cam(sysc(idx)%sc)
-    end if
+    if (sysc(isys)%sc%lockedcam > 0) &
+       call sysc(isys)%sc%copy_cam(idx=sysc(isys)%sc%lockedcam)
 
   end subroutine select_view
 
@@ -836,7 +822,7 @@ contains
     ! only process if there is an associated system is viewed and scene is initialized
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
-    if (.not.sc%isinit) return
+    if (sc%isinit < 2) return
 
     ! process mode-specific events
     if (w%view_mousebehavior == MB_Navigation) then
@@ -1253,7 +1239,7 @@ contains
 
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
-    if (.not.sc%isinit) return
+    if (sc%isinit < 2) return
 
     pos = project(pos,eye4,sc%projection,w%FBOside)
 
@@ -1272,7 +1258,7 @@ contains
 
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
-    if (.not.sc%isinit) return
+    if (sc%isinit < 2) return
 
     pos = unproject(pos,eye4,sc%projection,w%FBOside)
 
@@ -1291,7 +1277,7 @@ contains
 
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
-    if (.not.sc%isinit) return
+    if (sc%isinit < 2) return
 
     pos = project(pos,sc%view,sc%projection,w%FBOside)
 
@@ -1310,7 +1296,7 @@ contains
 
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
     sc => sysc(w%view_selected)%sc
-    if (.not.sc%isinit) return
+    if (sc%isinit < 2) return
 
     pos = unproject(pos,sc%view,sc%projection,w%FBOside)
 
