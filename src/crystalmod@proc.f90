@@ -113,6 +113,7 @@ contains
     c%nlvac = 0
     c%lvac = 0
     c%lcon = 0
+    c%vaclength = 0d0
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
 
     ! no 3d molecular crystals
@@ -176,7 +177,7 @@ contains
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
-    use tools, only: wscell
+    use tools, only: wscell, qcksort
     use types, only: realloc
     use param, only: pi, eyet, icrd_cart
     class(crystal), intent(inout) :: c
@@ -188,8 +189,8 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border, xx(3)
     logical :: good, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
-    real*8, allocatable :: atpos(:,:), area(:)
-    integer, allocatable :: irotm(:), icenv(:)
+    real*8, allocatable :: atpos(:,:), area(:), xcoord(:)
+    integer, allocatable :: irotm(:), icenv(:), iord(:)
     logical, allocatable :: useatom(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
@@ -527,6 +528,23 @@ contains
           call c%env%find_asterisms_covalent(c%nstar)
           call c%fill_molecular_fragments()
           call c%calculate_molecular_equivalence()
+
+          ! calculate vacuum lengths
+          allocate(xcoord(2*c%ncel),iord(2*c%ncel))
+          do i = 1, 3
+             do j = 1, c%ncel
+                xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
+                xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
+                iord(j) = j
+                iord(c%ncel+j) = c%ncel + j
+             end do
+             call qcksort(xcoord,iord,1,2*c%ncel)
+             c%vaclength(i) = 0d0
+             do j = 2, 2*c%ncel
+                c%vaclength(i) = max(c%vaclength(i),xcoord(iord(j))-xcoord(iord(j-1)))
+             end do
+          end do
+          deallocate(xcoord,iord)
 
           ! Write the half nearest-neighbor distance
           do i = 1, c%nneq

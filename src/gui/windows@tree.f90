@@ -1272,7 +1272,7 @@ contains
           end if
           str = str // "." // newline
        elseif (sys(i)%c%nlvac == 2) then
-          str = str // "A 1D periodic (polymer) structure." //&
+          str = str // "A 1D periodic (chain) structure." //&
              newline
        elseif (sys(i)%c%nlvac == 1) then
           str = str // "A 2D periodic (layered) structure." //&

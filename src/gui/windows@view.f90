@@ -65,6 +65,8 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
+    ! threshold for the increase/decrease cell number if vacuum
+    real*8, parameter :: vacthr = 15d0 ! bohr
     ! coordinate this with representation_menu in scenes module
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
@@ -685,10 +687,19 @@ contains
     if (goodsys) then
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
-             sysc(w%view_selected)%sc%nc = sysc(w%view_selected)%sc%nc + 1
+             do i = 1, 3
+                if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                   sysc(w%view_selected)%sc%nc(i) = sysc(w%view_selected)%sc%nc(i) + 1
+                endif
+             end do
              sysc(w%view_selected)%sc%forcebuildlists = .true.
           elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
-             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc - 1,1)
+             do i = 1, 3
+                if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                   sysc(w%view_selected)%sc%nc(i) = sysc(w%view_selected)%sc%nc(i) - 1
+                endif
+             end do
+             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
              sysc(w%view_selected)%sc%forcebuildlists = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then

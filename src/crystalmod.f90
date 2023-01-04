@@ -141,6 +141,7 @@ module crystalmod
      integer :: nlvac = 0 !< Number of vacuum lattice vectors
      integer :: lvac(3,2) !< Vacuum lattice vectors
      integer :: lcon(3,2) !< Connected lattice vectors
+     real*8 :: vaclength(3) !< Vacuum length in bohr along the crystallographic axes (a,b,c)
      ! variables for 3d molecular crystals
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
