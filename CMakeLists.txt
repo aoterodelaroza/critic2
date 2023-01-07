@@ -1,6 +1,6 @@
 ## project and version
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-cmake_policy(SET CMP0074 NEW)
+#cmake_policy(SET CMP0074 NEW)
 
 ## some project variables
 set(critic2_MAJOR_VERSION 1)
