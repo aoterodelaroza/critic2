@@ -130,7 +130,7 @@ module keybindings
      end function is_bind_event
      module function get_bind_keyname(bind)
        integer, intent(in) :: bind
-       character(len=:), allocatable :: get_bind_keyname
+       character(len=128) :: get_bind_keyname
      end function get_bind_keyname
      module function is_bind_mousescroll(bind)
        integer, intent(in) :: bind

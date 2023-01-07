@@ -309,7 +309,7 @@ contains
     use c_interface_module, only: C_F_string_ptr_alloc
     use tools_io, only: lower
     integer, intent(in) :: bind
-    character(len=:), allocatable :: get_bind_keyname
+    character(len=128) :: get_bind_keyname
 
     integer :: group
     integer(c_int) :: key, mod
@@ -321,27 +321,27 @@ contains
 
     if (key /= ImGuiKey_None) then
        get_bind_keyname = ""
-       if (iand(mod,mod_ctrl)/=0)  get_bind_keyname = get_bind_keyname // "Ctrl+"
-       if (iand(mod,mod_alt)/=0)   get_bind_keyname = get_bind_keyname // "Alt+"
-       if (iand(mod,mod_shift)/=0) get_bind_keyname = get_bind_keyname // "Shift+"
-       if (iand(mod,mod_super)/=0) get_bind_keyname = get_bind_keyname // "Super+"
+       if (iand(mod,mod_ctrl)/=0)  get_bind_keyname = trim(get_bind_keyname) // "Ctrl+"
+       if (iand(mod,mod_alt)/=0)   get_bind_keyname = trim(get_bind_keyname) // "Alt+"
+       if (iand(mod,mod_shift)/=0) get_bind_keyname = trim(get_bind_keyname) // "Shift+"
+       if (iand(mod,mod_super)/=0) get_bind_keyname = trim(get_bind_keyname) // "Super+"
 
        if (key == ImGuiKey_MouseLeft) then
-          get_bind_keyname = "Left Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Left Mouse"
        elseif (key == ImGuiKey_MouseLeftDouble) then
-          get_bind_keyname = "Double Left Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Double Left Mouse"
        elseif (key == ImGuiKey_MouseRight) then
-          get_bind_keyname = "Right Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Right Mouse"
        elseif (key == ImGuiKey_MouseRightDouble) then
-          get_bind_keyname = "Double Right Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Double Right Mouse"
        elseif (key == ImGuiKey_MouseMiddle) then
-          get_bind_keyname = "Middle Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Middle Mouse"
        elseif (key == ImGuiKey_MouseMiddleDouble) then
-          get_bind_keyname = "Double Middle Mouse"
+          get_bind_keyname = trim(get_bind_keyname) // "Double Middle Mouse"
        elseif (key == ImGuiKey_MouseScroll) then
-          get_bind_keyname = "Mouse Wheel"
+          get_bind_keyname = trim(get_bind_keyname) // "Mouse Wheel"
        else
-          get_bind_keyname = get_bind_keyname // trim(keynames(key - ImGuiKey_NamedKey_BEGIN + 1))
+          get_bind_keyname = trim(get_bind_keyname) // trim(keynames(key - ImGuiKey_NamedKey_BEGIN + 1))
        end if
     else
        get_bind_keyname = "<not bound>"

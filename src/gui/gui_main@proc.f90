@@ -749,7 +749,7 @@ contains
 
           ! File -> New
           str1 = "New..." // c_null_char
-          str2 = get_bind_keyname(BIND_NEW) // c_null_char
+          str2 = trim(get_bind_keyname(BIND_NEW)) // c_null_char
           launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_new))
           call iw_tooltip("Create a new structure",ttshown)
 
@@ -760,13 +760,13 @@ contains
 
           ! File -> Open
           str1 = "Open..." // c_null_char
-          str2 = get_bind_keyname(BIND_OPEN) // c_null_char
+          str2 = trim(get_bind_keyname(BIND_OPEN)) // c_null_char
           launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_open))
           call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
 
           ! File -> Quit
           str1 = "Quit" // c_null_char
-          str2 = get_bind_keyname(BIND_QUIT) // c_null_char
+          str2 = trim(get_bind_keyname(BIND_QUIT)) // c_null_char
           launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
           call iw_tooltip("Quit the program",ttshown)
 
