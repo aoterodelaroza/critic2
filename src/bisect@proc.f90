@@ -860,7 +860,7 @@ contains
   !> low-level integrals_*.
   module subroutine integrals(line)
     use systemmod, only: sy
-    use integration, only: int_output_header, int_output_fields
+    use integration, only: int_output_header, int_output_fields, imtype_bisect
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
        fileroot
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
@@ -961,6 +961,7 @@ contains
     end do
     allocate(atprop(sy%npropi,n))
     atprop = 0d0
+    bas%imtype = imtype_bisect
     bas%nattr = n
     allocate(res(sy%npropi),bas%icp(bas%nattr),bas%xattr(3,bas%nattr),bas%docelatom(0:sy%f(sy%iref)%ncpcel))
     bas%docelatom = .true.

@@ -48,13 +48,6 @@ submodule (integration) proc
   ! subroutine unpackidx(idx,io,jo,ko,bo,nmo,nbnd,nlat)
   ! subroutine packidx(io,jo,ko,bo,idx,nmo,nbnd,nlat)
 
-  ! grid integration types
-  integer, parameter :: imtype_bader = 1
-  integer, parameter :: imtype_yt = 2
-  integer, parameter :: imtype_isosurface = 3
-  integer, parameter :: imtype_hirshfeld = 4
-  integer, parameter :: imtype_voronoi = 5
-
 contains
 
   !> Driver for the integration in grids

@@ -72,6 +72,14 @@ module integration
   public :: int_output_header
   public :: int_output_fields
 
+  ! integration types
+  integer, parameter, public :: imtype_bader = 1
+  integer, parameter, public :: imtype_yt = 2
+  integer, parameter, public :: imtype_isosurface = 3
+  integer, parameter, public :: imtype_hirshfeld = 4
+  integer, parameter, public :: imtype_voronoi = 5
+  integer, parameter, public :: imtype_bisect = 6
+
   interface
      module subroutine intgrid_driver(line)
        character*(*), intent(in) :: line
