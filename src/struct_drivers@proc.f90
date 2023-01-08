@@ -1296,7 +1296,7 @@ contains
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching, emd
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
-       ioj_left, string, lower, lgetword
+       ioj_left, string, lower, lgetword, fopen_read, fclose, getline, isreal
     use types, only: realloc
     use param, only: isformat_unknown, maxzat
     type(system), intent(in) :: s
@@ -1304,11 +1304,11 @@ contains
 
     character(len=:), allocatable :: word, lword, tname, difstr
     integer :: doguess0
-    integer :: lp, i, j, k, l, n, iz, is
+    integer :: lp, i, j, k, l, n, iz, is, idx, lu
     integer :: ns, imol, isformat, mcon, nlist
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2, th2, ii
     real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
     integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:)
@@ -1318,8 +1318,10 @@ contains
     logical :: ok, noh
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
+    character(len=:), allocatable :: str
     logical, allocatable :: unique(:)
     type(crystalseed) :: seed
+    integer, allocatable :: fname_type(:)
 
     real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -1329,6 +1331,10 @@ contains
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
     integer, parameter :: amd_imax = 100
+
+    integer, parameter :: fname_current = 0
+    integer, parameter :: fname_structure = 1
+    integer, parameter :: fname_peaks = 2
 
     integer :: imethod
     integer, parameter :: imethod_default = 0
@@ -1345,7 +1351,7 @@ contains
     lp = 1
     ns = 0
     xend = -1d0
-    allocate(fname(10))
+    allocate(fname(10),fname_type(10))
     sigma = sigma0
     epsreduce = -1d0
     imol = -1
@@ -1404,12 +1410,25 @@ contains
              amd_norm = 0
           else
              call ferror('struct_compare','incorrect NORM',faterr,syntax=.true.)
+             return
           end if
        elseif (len_trim(word) > 0) then
           ns = ns + 1
-          if (ns > size(fname)) &
+          if (ns > size(fname)) then
              call realloc(fname,2*ns)
+             call realloc(fname_type,2*ns)
+          end if
           fname(ns) = word
+          if (equal(fname(ns),".")) then
+             fname_type(ns) = fname_current
+          else
+             idx = index(word,'.',.true.)
+             if (equal(word(idx+1:),"peaks")) then
+                fname_type(ns) = fname_peaks
+             else
+                fname_type(ns) = fname_structure
+             end if
+          end if
        else
           exit
        end if
@@ -1429,7 +1448,16 @@ contains
     else
        ismol = .true.
        do i = 1, ns
-          if (.not.equal(fname(i),".")) then
+          if (fname_type(i) == fname_current) then
+             if (.not.s%c%isinit) &
+                call ferror('struct_compare','Current structure (".") is not initialized.',faterr)
+             ismol = ismol .and. s%c%ismolecule
+          elseif (fname_type(i) == fname_peaks) then
+             ismol = .false.
+             inquire(file=fname(i),exist=laux)
+             if (.not.laux) &
+                call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
+          elseif (fname_type(i) == fname_structure) then
              call struct_detect_format(fname(i),isformat)
              call struct_detect_ismol(fname(i),isformat,laux)
              ismol = ismol .and. laux
@@ -1438,10 +1466,6 @@ contains
              inquire(file=fname(i),exist=laux)
              if (.not.laux) &
                 call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
-          else
-             if (.not.s%c%isinit) &
-                call ferror('struct_compare','Current structure (".") is not initialized.',faterr)
-             ismol = ismol .and. s%c%ismolecule
           end if
        end do
        if (ismol) then
@@ -1460,9 +1484,13 @@ contains
     end if
     allocate(c(ns))
     do i = 1, ns
-       if (equal(fname(i),".")) then
+       if (fname_type(i) == fname_current) then
           write (uout,'("  ",A," ",A,": <current>")') string(tname), string(i,2)
           c(i) = s%c
+       elseif (fname_type(i) == fname_peaks) then
+          write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
+          if (imethod /= imethod_emd) &
+             call ferror("struct_compare","reading peaks files only allowed for EMD",faterr)
        else
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
           call struct_crystal_input(fname(i),imol,.false.,.false.,cr0=c(i))
@@ -1509,6 +1537,7 @@ contains
     if (noh) then
        write (uout,'("# Removing hydrogens from the structures.")')
        do i = 1, ns
+          if (fname_type(i) == fname_peaks) cycle
           call c(i)%makeseed(seed,.true.)
           call seed%strip_hydrogens()
           call c(i)%struct_new(seed,.true.)
@@ -1621,27 +1650,56 @@ contains
        allocate(na(ns),th2a(100,ns),iha(100,ns),singleatom(ns))
        singleatom = -1
        do i = 1, ns
-          if (c(i)%ncel == 1) then
-             singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
+          if (fname_type(i) == fname_peaks) then
+             n = 0
+             if (.not.allocated(th2p)) allocate(th2p(10))
+             if (.not.allocated(ip)) allocate(ip(10))
+
+             ! read the peaks file
+             lu = fopen_read(fname(i))
+             if (lu < 0) &
+                call ferror('struct_compare','error opening file: ' // trim(fname(i)),faterr)
+             do while(getline(lu,str))
+                lp = 1
+                ok = isreal(th2,str,lp)
+                ok = ok .and. isreal(ii,str,lp)
+                if (.not.ok) &
+                   call ferror('struct_compare','error reading file: ' // trim(fname(i)),faterr)
+                n = n + 1
+                if (n > size(th2p,1)) then
+                   call realloc(th2p,2*n)
+                   call realloc(ip,2*n)
+                end if
+                th2p(n) = th2
+                ip(n) = ii
+             end do
+             call fclose(lu)
           else
-             ! calculate the powder diffraction pattern
-             call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                th2p=th2p,ip=ip)
+             n = 0
+             if (c(i)%ncel == 1) then
+                singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
+             else
+                ! calculate the powder diffraction pattern
+                call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                   th2p=th2p,ip=ip)
 
-             ! normalize
-             n = size(ip,1)
-             ip(1:n) = ip(1:n) / sum(ip(1:n))
-             th2p(1:n) = (th2p(1:n) - th2ini) / xend * 20d0
+                ! normalize
+                n = size(ip,1)
+                ip(1:n) = ip(1:n) / sum(ip(1:n))
+                th2p(1:n) = (th2p(1:n) - th2ini) / xend * 20d0
+             end if
+          end if
 
-             ! write it down
+          ! write it down
+          if (n > 0) then
              if (n > size(na,1)) then
                 call realloc(na,2*n)
                 call realloc(th2a,2*n,ns)
                 call realloc(iha,2*n,ns)
              end if
              na(i) = n
-             th2a(1:n,i) = th2p
-             iha(1:n,i) = ip
+             th2a(1:n,i) = th2p(1:n)
+             iha(1:n,i) = ip(1:n)
           end if
        end do
 
