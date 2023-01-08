@@ -133,62 +133,62 @@ module utils
        character*(*), intent(in), optional :: suffix
      end subroutine buffer_to_string_array
      !xx! math submodule !xx!
-     module function infiniteperspective(fovy,aspect,znear)
+     module subroutine infiniteperspective(m,fovy,aspect,znear)
        use iso_c_binding, only: c_float
+       real(c_float), intent(out) :: m(4,4)
        real(c_float), intent(in) :: fovy, aspect, znear
-       real(c_float) :: infiniteperspective(4,4)
-     end function infiniteperspective
-     module function ortho(left,right,bottom,top,znear,zfar)
+     end subroutine infiniteperspective
+     module subroutine ortho(m,left,right,bottom,top,znear,zfar)
        use iso_c_binding, only: c_float
+       real(c_float), intent(out) :: m(4,4)
        real(c_float), intent(in) :: left, right, bottom, top, znear, zfar
-       real(c_float) :: ortho(4,4)
-     end function ortho
-     module function lookat(eye,center,up)
+     end subroutine ortho
+     module subroutine lookat(m,eye,center,up)
        use iso_c_binding, only: c_float
-       real(c_float) :: eye(3)
-       real(c_float) :: center(3)
-       real(c_float) :: up(3)
-       real(c_float) :: lookat(4,4)
-     end function lookat
-     module function project(pos,mview,proj,viewport_a)
+       real(c_float), intent(out) :: m(4,4)
+       real(c_float), intent(in) :: eye(3)
+       real(c_float), intent(in) :: center(3)
+       real(c_float), intent(in) :: up(3)
+     end subroutine lookat
+     module subroutine project(m,pos,mview,proj,viewport_a)
        use iso_c_binding, only: c_float, c_int
+       real(c_float), intent(out) :: m(3)
        real(c_float), intent(in) :: pos(3)
        real(c_float), intent(in) :: mview(4,4)
        real(c_float), intent(in) :: proj(4,4)
        integer(c_int), intent(in) :: viewport_a
-       real(c_float) :: project(3)
-     end function project
-     module function unproject(pos,mview,proj,viewport_a)
+     end subroutine project
+     module subroutine unproject(m,pos,mview,proj,viewport_a)
        use iso_c_binding, only: c_float, c_int
+       real(c_float), intent(out) :: m(3)
        real(c_float), intent(in) :: pos(3)
        real(c_float), intent(in) :: mview(4,4)
        real(c_float), intent(in) :: proj(4,4)
        integer(c_int), intent(in) :: viewport_a
-       real(c_float) :: unproject(3)
-     end function unproject
-     module function translate(m,v)
-       real(c_float), intent(in) :: m(4,4)
+     end subroutine unproject
+     module subroutine translate(m,mat,v)
+       real(c_float), intent(out) :: m(4,4)
+       real(c_float), intent(in) :: mat(4,4)
        real(c_float), intent(in) :: v(3)
-       real(c_float) :: translate(4,4)
-     end function translate
-     module function rotate(m,angle,axis)
-       real(c_float), intent(in) :: m(4,4)
+     end subroutine translate
+     module subroutine rotate(m,mat,angle,axis)
+       real(c_float), intent(out) :: m(4,4)
+       real(c_float), intent(in) :: mat(4,4)
        real(c_float), intent(in) :: angle
        real(c_float), intent(in) :: axis(3)
-       real(c_float) :: rotate(4,4)
-     end function rotate
-     module function mult(m,v,notrans)
-       real(c_float), intent(in) :: m(4,4)
+     end subroutine rotate
+     module subroutine mult(m,mat,v,notrans)
+       real(c_float), intent(out) :: m(3)
+       real(c_float), intent(in) :: mat(4,4)
        real(c_float), intent(in) :: v(3)
        logical, intent(in), optional :: notrans
-       real(c_float) :: mult(3)
-     end function mult
-     module function invmult(m,v,notrans)
-       real(c_float), intent(in) :: m(4,4)
+     end subroutine mult
+     module subroutine invmult(m,mat,v,notrans)
+       real(c_float), intent(out) :: m(3)
+       real(c_float), intent(in) :: mat(4,4)
        real(c_float), intent(in) :: v(3)
        logical, intent(in), optional :: notrans
-       real(c_float) :: invmult(3)
-     end function invmult
+     end subroutine invmult
   end interface
 
 end module utils

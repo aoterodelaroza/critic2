@@ -239,7 +239,7 @@ contains
        s%forceresetcam = .false.
     elseif (s%lockedcam == 0) then
        ! translate the scene so the center position remains unchanged
-       s%world = translate(s%world,-xc)
+       call translate(s%world,s%world,-xc)
     end if
 
     ! rebuilding lists is done
@@ -846,7 +846,7 @@ contains
     pic = real(pi,c_float)
 
     ! scene center: world to tworld
-    sc = mult(s%world,s%scenecenter)
+    call mult(sc,s%world,s%scenecenter)
 
     ! near and far planes
     znear = 0._c_float
@@ -854,7 +854,7 @@ contains
 
     ! update the projection matrix
     hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
-    s%projection = ortho(-hw2,hw2,-hw2,hw2,znear,zfar)
+    call ortho(s%projection,-hw2,hw2,-hw2,hw2,znear,zfar)
 
   end subroutine update_projection_matrix
 
@@ -863,7 +863,7 @@ contains
     use utils, only: lookat
     class(scene), intent(inout), target :: s
 
-    s%view = lookat(s%campos,s%campos+s%camfront,s%camup)
+    call lookat(s%view,s%campos,s%campos+s%camfront,s%camup)
 
   end subroutine update_view_matrix
 
@@ -907,9 +907,9 @@ contains
     ! set the world matrix
     if (angle > 1e-10_c_float) then
        raxis_c = real(raxis / norm2(raxis),c_float)
-       s%world = translate(s%world,s%scenecenter)
-       s%world = rotate(s%world,-angle,raxis_c)
-       s%world = translate(s%world,-s%scenecenter)
+       call translate(s%world,s%world,s%scenecenter)
+       call rotate(s%world,s%world,-angle,raxis_c)
+       call translate(s%world,s%world,-s%scenecenter)
     end if
 
   end subroutine align_view_axis
@@ -1506,8 +1506,8 @@ contains
     integer :: i
 
     call useshader(shader_text_direct)
-    proj = ortho(0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,real(win(iwin_view)%FBOside,c_float),&
-       -1._c_float,1._c_float)
+    call ortho(proj,0._c_float,real(win(iwin_view)%FBOside,c_float),0._c_float,&
+       real(win(iwin_view)%FBOside,c_float),-1._c_float,1._c_float)
     call setuniform_mat4("projection",proj)
     call setuniform_vec3("textColor",color)
 

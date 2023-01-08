@@ -907,7 +907,7 @@ contains
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          xc = mult(sc%world,sc%scenecenter)
+          call mult(xc,sc%world,sc%scenecenter)
           pos3 = sc%campos - xc
           pos3 = pos3 - ratio * pos3
           if (norm2(pos3) < min_zoom) &
@@ -940,7 +940,7 @@ contains
                 call w%texpos_to_view(vold)
 
                 xc = vold - vnew
-                xc = invmult(oldview,xc)
+                call invmult(xc,oldview,xc)
                 sc%campos = xc
                 call sc%update_view_matrix()
                 w%forcerender = .true.
@@ -967,13 +967,13 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
-                   axis = invmult(sc%world,axis,notrans=.true.)
+                   call invmult(axis,sc%world,axis,notrans=.true.)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                   sc%world = translate(sc%world,sc%scenecenter)
-                   sc%world = rotate(sc%world,ang,axis)
-                   sc%world = translate(sc%world,-sc%scenecenter)
+                   call translate(sc%world,sc%world,sc%scenecenter)
+                   call rotate(sc%world,sc%world,ang,axis)
+                   call translate(sc%world,sc%world,-sc%scenecenter)
 
                    w%forcerender = .true.
                 end if
@@ -1292,7 +1292,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    pos = project(pos,eye4,sc%projection,w%FBOside)
+    call project(pos,pos,eye4,sc%projection,w%FBOside)
 
   end subroutine view_to_texpos
 
@@ -1311,7 +1311,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    pos = unproject(pos,eye4,sc%projection,w%FBOside)
+    call unproject(pos,pos,eye4,sc%projection,w%FBOside)
 
   end subroutine texpos_to_view
 
@@ -1330,7 +1330,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    pos = project(pos,sc%view,sc%projection,w%FBOside)
+    call project(pos,pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine world_to_texpos
 
@@ -1349,7 +1349,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    pos = unproject(pos,sc%view,sc%projection,w%FBOside)
+    call unproject(pos,pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine texpos_to_world
 
