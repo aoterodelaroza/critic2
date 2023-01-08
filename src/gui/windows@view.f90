@@ -652,7 +652,7 @@ contains
 
        msg = trim(sys(w%view_selected)%c%spc(is)%name)
        if (.not.ismol) then
-          x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
+          x0 = sys(w%view_selected)%c%atcel(icel)%x
 
           msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
              "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
@@ -663,7 +663,7 @@ contains
              string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
              string(x0(3),'f',decimal=4) // " (frac)"
        else
-          x0 = sys(w%view_selected)%c%atcel(icel)%x
+          x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
 
           msg = trim(msg) // " [id=" // string(icel)
           if (sys(w%view_selected)%c%nmol > 1) &
