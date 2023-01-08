@@ -2052,7 +2052,7 @@ contains
   !> Q with positions q and weights wq.
   !> distfun =
   !>   0 = Euclidean distance
-  !>   1 = 0.5*(erf(x/0.05) - erf(-x/0.05))
+  !>   1 = erf(x/0.05)
   !> Rubner et al. "The earth mover's distance as a metric for image
   !> retrieval." Int. J. Comput. Vis. 40.2 (2000) 99-121.
   !> This is a wrapper for the C routine provded by Rubner et al. in

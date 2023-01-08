@@ -90,7 +90,7 @@ static double calcdist(feature_t *i, feature_t *j){
   if (df_ == 0)
     return d;
   else
-    return 0.5*(erf(d/0.05) - erf(-d/0.05));
+    return erf(d/0.05);
 }
 
 /*

@@ -1631,7 +1631,7 @@ contains
              ! normalize
              n = size(ip,1)
              ip(1:n) = ip(1:n) / sum(ip(1:n))
-             th2p(1:n) = (th2p(1:n) - th2ini) / xend * 100d0
+             th2p(1:n) = (th2p(1:n) - th2ini) / xend * 20d0
 
              ! write it down
              if (n > size(na,1)) then
@@ -1641,7 +1641,7 @@ contains
              end if
              na(i) = n
              th2a(1:n,i) = th2p
-             iha(1:n,i) = ip**3
+             iha(1:n,i) = ip
           end if
        end do
 
