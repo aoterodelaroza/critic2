@@ -5946,7 +5946,7 @@ contains
     character(len=:), allocatable :: line, str
     integer :: lu, nat, idum, iz, nspc, i, npad
     integer :: usez(0:maxzat), idx, in
-    logical :: ok, laste, useinputor
+    logical :: ok, laste, lastinputor
     type(species), allocatable :: spc(:)
     real*8 :: energy
     real*8, allocatable :: esave(:)
@@ -5964,12 +5964,17 @@ contains
     energy = huge(1d0)
     nat = 0
     nseed = 0
-    useinputor = .false.
+    lastinputor = .false.
     do while (getline_raw(lu,line))
-       if (index(line,"Input orientation:") > 0) useinputor = .true.
+       ok = (index(line,"Input orientation:") > 0)
+       if (ok) then
+          lastinputor = .true.
+       elseif (.not.lastinputor) then
+          ok = (index(line,"Standard orientation:") > 0)
+          if (ok) lastinputor = .false.
+       end if
 
-       if ((index(line,"Input orientation:") > 0 .and. useinputor) .or.&
-          (index(line,"Standard orientation:") > 0 .and..not.useinputor)) then
+       if (ok) then
           nseed = nseed + 1
 
           if (nat == 0) then
@@ -6018,9 +6023,17 @@ contains
     esave = huge(1d0)
     rewind(lu)
     in = 0
+    lastinputor = .false.
     do while (getline_raw(lu,line))
-       if ((index(line,"Input orientation:") > 0 .and. useinputor) .or.&
-          (index(line,"Standard orientation:") > 0 .and..not.useinputor)) then
+       ok = (index(line,"Input orientation:") > 0)
+       if (ok) then
+          lastinputor = .true.
+       elseif (.not.lastinputor) then
+          ok = (index(line,"Standard orientation:") > 0)
+          if (ok) lastinputor = .false.
+       end if
+
+       if (ok) then
           in = in + 1
           seed(in)%nat = nat
           allocate(seed(in)%x(3,nat),seed(in)%is(nat))
