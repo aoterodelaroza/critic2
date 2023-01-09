@@ -1,0 +1,8 @@
+## delete: 036_crystal_cell.cro
+## check: 036_crystal_cell_gen_1.cri -a1e-10
+## check: 036_crystal_cell_gen_2.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/castep-22.11/si2/si2.cell
+write 036_crystal_cell_gen_1.cri
+crystal ../zz_source/castep-22.11/polyacetylene/polyacetylene-constr.cell
+write 036_crystal_cell_gen_2.cri

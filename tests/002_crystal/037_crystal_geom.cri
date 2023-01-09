@@ -1,0 +1,5 @@
+## delete: 037_crystal_geom.cro
+## check: 037_crystal_geom_gen_1.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/castep-22.11/si2/si2.geom
+write 037_crystal_geom_gen_1.cri

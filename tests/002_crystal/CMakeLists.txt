@@ -34,6 +34,8 @@ set(TESTS
   033_crystal_aimsmol      ## from an FHIaims molecule
   034_crystal_tinkerfrac   ## from a TINKER frac file
   035_crystal_forceformat  ## force a crystal file format
+  036_crystal_cell         ## from a CASTEP cell file
+  037_crystal_geom         ## from a CASTEP geom file
   )
 
 runtests(${TESTS})
