@@ -3266,11 +3266,7 @@ contains
   module subroutine read_castep_geom(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword,&
        getword, lower, isinteger, isreal, zatguess
-    ! use tools_io, only: lgetword,&
-    !    equal, getword, isinteger, zatguess, isreal, lower
-    ! use tools_math, only: matinv
-    ! use types, only: realloc
-    ! use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm
+    use tools_math, only: matinv
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -3279,11 +3275,12 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word, lword
-    integer :: lu, ll, i, lp, idum, is
+    integer :: lu, ll, i, lp, idum, is, ier
     integer :: nlast, n, nat, nspc
     logical :: ok
     type(hash) :: usen
     logical, allocatable :: usespc(:)
+    real*8 :: m(3,3)
 
     call usen%init()
     call seed%end()
@@ -3341,7 +3338,6 @@ contains
           read(line,*,err=999,end=999) seed%m_x2c(:,2)
           if (.not.getline_raw(lu,line)) goto 999
           read(line,*,err=999,end=999) seed%m_x2c(:,3)
-          if (.not.getline_raw(lu,line)) goto 999
        elseif (line(ll-4:ll) == "<-- R") then
           nat = nat + 1
           lp = 1
@@ -3372,61 +3368,16 @@ contains
        end if
     end do
 
-
-
-    write (*,*) nlast, nat, n
-    stop 1
-
-!                    call usen%put(lword,seed%nspc)
-!                    seed%is(seed%nat) = seed%nspc
-!                 end if
-
-!                 ! read the atomic coordinates
-!                 ok = isreal(seed%x(1,seed%nat),line,lp)
-!                 ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-!                 ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
-!                 if (.not.ok) goto 999
-
-!                 ok = get_next_line()
-!              end do
-!              if (seed%nat == 0 .or. seed%nspc == 0) then
-!                 errmsg = "Error reading atoms"
-!                 goto 999
-!              end if
-!              call realloc(seed%x,3,seed%nat)
-!              call realloc(seed%is,seed%nat)
-!              call realloc(seed%spc,seed%nspc)
-
-!              ! conversion factor
-!              if (iscart) seed%x = seed%x * rconv
-!           end if
-!        end if
-!     ! consistency checks
-!     if (seed%useabr == 0) then
-!        errmsg = "No lattice block found"
-!        goto 999
-!     end if
-!     if (seed%nat == 0 .or. seed%nspc == 0) then
-!        errmsg = "No atoms found"
-!        goto 999
-!     end if
-!     if (iscart .and. seed%useabr /= 2) then
-!        errmsg = "Atomic Cartesian (absolute) coordinates require lattice_cart"
-!        goto 999
-!     end if
-
-!     ! transform to fractional coordinates
-!     if (iscart) then
-!        m = seed%m_x2c
-!        call matinv(m,3,ier)
-!        if (ier /= 0) then
-!           errmsg = "error inverting lattice vector matrix"
-!           goto 999
-!        end if
-!        do i = 1, seed%nat
-!           seed%x(:,i) = matmul(m,seed%x(:,i))
-!        end do
-!     end if
+    ! transform to fractional coordinates
+    m = seed%m_x2c
+    call matinv(m,3,ier)
+    if (ier /= 0) then
+       errmsg = "error inverting lattice vector matrix"
+       goto 999
+    end if
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(m,seed%x(:,i))
+    end do
 
     errmsg = ""
 999 continue
@@ -3446,75 +3397,6 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-
-    write (*,*) "bleh!"
-    stop 1
-
-!   contains
-!     function get_optional_unit(rconv)
-!       real*8, intent(out) :: rconv
-!       logical :: get_optional_unit
-
-!       logical :: ok, readnew
-!       integer :: lp
-
-!       get_optional_unit = .false.
-!       rconv = 1d0 / bohrtoa
-!       ok = get_next_line()
-!       if (.not.ok) return
-!       lp = 1
-!       word = lgetword(line,lp)
-!       readnew = .true.
-!       if (equal(word,"ang")) then
-!          rconv = 1d0 / bohrtoa
-!       elseif (equal(word,"bohr") .or. equal(word,"a0")) then
-!          rconv = 1d0
-!       elseif (equal(word,"m")) then
-!          rconv = 1d0 / bohrtom
-!       elseif (equal(word,"cm")) then
-!          rconv = 1d0 / bohrtocm
-!       elseif (equal(word,"nm")) then
-!          rconv = 1d0 / bohrtonm
-!       else
-!          readnew = .false.
-!       end if
-!       if (readnew) then
-!          ok = getline_raw(lu,line)
-!          if (.not.ok) return
-!       end if
-!       get_optional_unit = .true.
-
-!     end function get_optional_unit
-
-!     function get_next_line()
-!       logical :: get_next_line
-
-!       do while(getline_raw(lu,line))
-!          line = trim(adjustl(line))
-!          if (skipline(line)) cycle
-!          get_next_line = .true.
-!          return
-!       end do
-!       get_next_line = .false.
-
-!     end function get_next_line
-
-!     function skipline(line)
-!       use tools_io, only: lower
-!       character*(*), intent(in) :: line
-!       logical :: skipline
-
-!       integer :: alen
-
-!       alen = len(line)
-!       skipline = .true.
-!       if (alen == 0) return
-!       if (line(1:1) == "#" .or. line(1:1) == "!" .or. line(1:1) == ";") return
-!       if (alen >= 7) then
-!          if (lower(line(1:7)) == "comment") return
-!       end if
-!       skipline = .false.
-!     end function skipline
 
   end subroutine read_castep_geom
 
