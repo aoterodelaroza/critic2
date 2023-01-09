@@ -49,6 +49,7 @@ set(TESTS
   048_check_molwfn_lmax    ## molecular wavefunctions; check max. angular momentum
   049_check_molwfn_wfntyp  ## molecular wavefunctions; check wavefunction type
   050_load-corekeyw        ## core, nocore, zpsp keywords
+  051_load-fmt             ## load grid from CASTEP fmt file
   )
 
 runtests(${TESTS})

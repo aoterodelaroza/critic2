@@ -1,0 +1,4 @@
+## check: 051_load-fmt.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/castep-22.11/si2/si2.geom
+load ../zz_source/castep-22.11/si2/si2.den_fmt
