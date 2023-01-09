@@ -28,6 +28,7 @@ set(TESTS
   027_write_d12_withsym ## write d12 file, with symmetry
   028_write_fhi        ## write FHIaims input files
   029_write_tinkerfrac ## write TINKER frac format
+  030_write_cell       ## write CASTEP cell file
   )
 
 runtests(${TESTS})

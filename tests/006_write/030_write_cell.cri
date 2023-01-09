@@ -1,0 +1,5 @@
+## delete: 030_write_cell.cro
+## check: 030_write_cell_1.cell -a1e-10
+## labels: regression quick nodata
+crystal library uracil
+write 030_write_cell_1.cell 60
