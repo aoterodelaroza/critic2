@@ -507,6 +507,7 @@ contains
     errmsg = "Error reading file"
     call f%end()
     luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
 
     read (luc,*,err=999,end=999)
     read (luc,*,err=999,end=999)
@@ -924,6 +925,67 @@ contains
     if (luc > 0) call fclose(luc)
 
   end subroutine read_xsf
+
+  !> Read a grid in CASTEP fmt format
+  module subroutine read_fmt(f,file,x2c,env,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, fclose
+    use types, only: realloc
+    class(grid3), intent(inout) :: f
+    character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
+    type(environ), intent(in), target :: env
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: luc
+    integer :: istat, i, j, k, idum(3)
+
+    errmsg = "Error reading file"
+    call f%end()
+
+    ! open file for reading
+    luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
+
+    ! skip most of the header and get the n
+    do i = 1, 8
+       read (luc,*,err=999,end=999)
+    end do
+    read (luc,*,err=999,end=999) f%n
+    allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+
+    ! read the grid
+    do i = 1, 2
+       read (luc,*,err=999,end=999)
+    end do
+    do k = 1, f%n(3)
+       do j = 1, f%n(2)
+          do i = 1, f%n(1)
+             read(luc,*,err=999,end=999) idum, f%f(i,j,k)
+          end do
+       end do
+    end do
+    f%f = f%f / (f%n(1)*f%n(2)*f%n(3))
+
+    ! wrap up
+    call fclose(luc)
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+    call init_geometry(f,x2c,f%n,env)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
+
+  end subroutine read_fmt
 
   !> Read pwc file created by pw2critic.x in Quantum
   !> ESPRESSO. Contains the Bloch states, k-points, and structural

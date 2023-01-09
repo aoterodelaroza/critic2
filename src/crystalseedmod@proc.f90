@@ -25,6 +25,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
+  ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
   ! function string_to_symop(str)
@@ -3351,7 +3352,7 @@ contains
 
           is = usen%get(lword,1)
           seed%is(nat) = is
-          if (.not.usespc(seed%is(nat))) then
+          if (.not.usespc(is)) then
              seed%spc(is)%name = trim(word)
              seed%spc(is)%qat = 0d0
              if (isinteger(idum,word)) then
@@ -3363,7 +3364,7 @@ contains
                    goto 999
                 end if
              end if
-             usespc(seed%is(nat)) = .true.
+             usespc(is) = .true.
           end if
        end if
     end do
@@ -5065,7 +5066,7 @@ contains
     elseif (isformat == isformat_castepcell) then
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_castepgeom) then
-       call seed(1)%read_castep_geom(file,mol,errmsg,ti=ti)
+       call read_all_castep_geom(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_dmain) then
        call seed(1)%read_dmain(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_aimsin) then
@@ -5123,7 +5124,7 @@ contains
 
     ! output collapse
     collapse = ((isformat == isformat_qeout .or. isformat == isformat_gaussian .or.&
-       isformat == isformat_aimsout).and.nseed > 1)
+       isformat == isformat_aimsout .or. isformat == isformat_castepgeom).and.nseed > 1)
 
   end subroutine read_seeds_from_file
 
@@ -6790,6 +6791,168 @@ contains
     deallocate(seed)
 
   end subroutine read_all_aimsout
+
+  !> Read all seeds from a CASTEP geom file.
+  subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword,&
+       getword, lower, isinteger, isreal, zatguess, string
+    use tools_math, only: matinv
+    use hashmod, only: hash
+    use param, only: hartoev
+    integer, intent(out) :: nseed !< number of seeds
+    type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line, word, lword, str
+    integer :: lu, ll, i, j, lp, idum, is, ier
+    integer :: nat, nspc, npad
+    logical :: ok
+    type(hash) :: usen
+    logical, allocatable :: usespc(:)
+    real*8 :: m(3,3)
+
+    call usen%init()
+    errmsg = ""
+    ! open
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    ! first pass, read the number of lines and the number of atoms
+    nseed = 0
+    nat = 0
+    nspc = 0
+    do while(getline_raw(lu,line))
+       line = trim(adjustl(line))
+       ll = len(line)
+       if (line(ll-4:ll) == "<-- E") then
+          nseed = nseed + 1
+       elseif (nseed == 1) then
+          if (line(ll-4:ll) == "<-- R") then
+             nat = nat + 1
+             lp = 1
+             word = lgetword(line,lp)
+             if (.not.usen%iskey(word)) then
+                nspc = nspc + 1
+                call usen%put(word,nspc)
+             end if
+          end if
+       end if
+    end do
+
+    ! allocate seeds
+    if (allocated(seed)) deallocate(seed)
+    allocate(seed(nseed))
+    do i = 1, nseed
+       allocate(seed(i)%x(3,nat),seed(i)%is(nat),seed(i)%spc(nspc))
+       seed(i)%useabr = 2
+       seed(i)%nat = nat
+       seed(i)%nspc = nspc
+    end do
+
+    ! second pass, actual read
+    allocate(usespc(nspc))
+    usespc = .false.
+    rewind(lu)
+    nseed = 0
+    do while(getline_raw(lu,line))
+       line = trim(adjustl(line))
+       ll = len(line)
+       if (line(ll-4:ll) == "<-- E") then
+          nseed = nseed + 1
+          nat = 0
+          read(line,*,err=999,end=999) seed(nseed)%energy
+       elseif (line(ll-4:ll) == "<-- h") then
+          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,1)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,2)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,3)
+       elseif (line(ll-4:ll) == "<-- R") then
+          nat = nat + 1
+          lp = 1
+          word = getword(line,lp)
+          lword = lower(word)
+          ok = isinteger(idum,line,lp)
+          ok = ok .and. isreal(seed(nseed)%x(1,nat),line,lp)
+          ok = ok .and. isreal(seed(nseed)%x(2,nat),line,lp)
+          ok = ok .and. isreal(seed(nseed)%x(3,nat),line,lp)
+          if (.not.ok) goto 999
+
+          is = usen%get(lword,1)
+          seed(nseed)%is(nat) = is
+          if (.not.usespc(is)) then
+             seed(1)%spc(is)%name = trim(word)
+             seed(1)%spc(is)%qat = 0d0
+             if (isinteger(idum,word)) then
+                seed(1)%spc(is)%z = idum
+             else
+                seed(1)%spc(is)%z = zatguess(word)
+                if (seed(1)%spc(is)%z < 0) then
+                   errmsg = "Unknown atomic symbol: " // word
+                   goto 999
+                end if
+             end if
+             usespc(is) = .true.
+          end if
+       end if
+    end do
+
+    ! copy the species
+    do i = 2, nseed
+       seed(i)%spc = seed(1)%spc
+    end do
+
+    ! transform to fractional coordinates
+    do i = 1, nseed
+       m = seed(i)%m_x2c
+       call matinv(m,3,ier)
+       if (ier /= 0) then
+          errmsg = "error inverting lattice vector matrix"
+          goto 999
+       end if
+       do j = 1, seed(i)%nat
+          seed(i)%x(:,j) = matmul(m,seed(i)%x(:,j))
+       end do
+    end do
+
+    ! rest of the seed info
+    npad = ceiling(log10(nseed-1+0.1d0))
+    do i = 1, nseed
+       ! no symmetry
+       seed(i)%havesym = 0
+       seed(i)%findsym = -1
+       seed(i)%checkrepeats = .false.
+
+       ! rest of the seed information
+       seed(i)%isused = .true.
+       seed(i)%ismolecule = .false.
+       seed(i)%cubic = .false.
+       seed(i)%border = 0d0
+       seed(i)%havex0 = .false.
+       seed(i)%molx0 = 0d0
+       seed(i)%file = file
+       if (i == nseed) then
+          seed(i)%name = trim(file) // "|(fin) (" //&
+             trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
+       else
+          str = string(i,npad,pad0=.true.)
+          str = string(str,length=max(5,len(str)))
+          seed(i)%name = trim(file) // "|" // str // " (" //&
+             trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
+       end if
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end subroutine read_all_castep_geom
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.

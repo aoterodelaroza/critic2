@@ -93,6 +93,7 @@ module grid3mod
      procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
      procedure :: read_qub !< grid3 from aimpac qub format
      procedure :: read_xsf !< grid3 from xsf (xcrysden) file
+     procedure :: read_fmt !< grid3 from fmt (CASTEP) file
      procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
@@ -203,6 +204,14 @@ module grid3mod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_xsf
+     module subroutine read_fmt(f,file,x2c,env,errmsg,ti)
+       class(grid3), intent(inout) :: f
+       character*(*), intent(in) :: file
+       real*8, intent(in) :: x2c(3,3)
+       type(environ), intent(in), target :: env
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_fmt
      module subroutine read_pwc(f,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,env,errmsg,ti)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: fpwc

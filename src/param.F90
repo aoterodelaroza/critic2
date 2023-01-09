@@ -40,10 +40,15 @@ module param
   real*8, parameter :: cteuler  = 0.57721566490153286061d0 !< gamma
   real*8, parameter :: ctgold   = 1.61803398874989484820d0 !< golden ratio (1+sqrt(5))/2
   real*8, parameter :: bohrtoa  =  0.52917720859d0 !< bohr to angstrom conversion factor
+  real*8, parameter :: bohrtocm = 0.52917720859d-8      !< bohr -> cm (nist2006)
+  real*8, parameter :: bohrtom = 0.52917720859d-10      !< bohr -> m (nist2006)
+  real*8, parameter :: bohrtonm = 0.052917720859d2      !< bohr -> nm (nist2006)
+  real*8, parameter :: bohrtopm = 0.52917720859d2       !< bohr -> pm (nist2006)
   real*8, parameter :: hartocm1 =  2.194746313705d5 !< hartree to cm-1 factor
-  real*8, parameter :: hartoev  =  27.21138386d0 !< hartree to ev factor
+  real*8, parameter :: hartoev  =  27.211386245988d0 !< hartree to ev factor
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa
   real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
+  real*8, parameter :: pcamu = 1.660538782d-24 !< atomic mass unit [g] (nist2006)
   real*8, parameter :: zero=0d0 !< 0
   real*8, parameter :: one=1d0 !< 1
   real*8, parameter :: two=2d0 !< 2
@@ -63,29 +68,6 @@ module param
   complex*16, parameter :: img = (0d0,1d0)
   character*1, parameter :: tab = char(9)
   character(*), parameter :: newline = new_line('a')
-
-  ! Physical constants and conversion factors.
-  ! Most of them involve atomic units:  hartree (Hy), bohr, ...
-  ! The physical constant names begin with pc.
-  ! The conversion factors are named as: <unit1>2<unit2>
-  ! meaning that the factor converts <unit1> to <unit2>.
-  real*8, parameter :: pckbau = 3.166815d-6    !< Boltzmann ct. [Hy/K] (nist2006)
-  real*8, parameter :: pcamu = 1.660538782d-24 !< atomic mass unit [g] (nist2006)
-  real*8, parameter :: pcme = 9.10938215d-28   !< electron mass [g] (nist2006)
-  real*8, parameter :: pcna = 6.02214179d23    !< Avogadro ct. [1/mol] (nist2006)
-  real*8, parameter :: pct0 = 298.15d0         !< ambient temperature (K)
-  real*8, parameter :: pch = 6.62606896d-34    !< Planck ct. [J.s] (nist2006)
-  real*8, parameter :: pcc = 2.99792458d10     !< light speed [cm/s] (nist2006)
-  real*8, parameter :: bohrtocm = 0.52917720859d-8      !< bohr -> cm (nist2006)
-  real*8, parameter :: bohrtom = 0.52917720859d-10      !< bohr -> m (nist2006)
-  real*8, parameter :: bohrtonm = 0.052917720859d2      !< bohr -> nm (nist2006)
-  real*8, parameter :: bohrtopm = 0.52917720859d2       !< bohr -> pm (nist2006)
-  real*8, parameter :: hy2k = 3.1577465d5              !< hartree -> K (nist2006)
-  real*8, parameter :: hy2ev = 27.21138386d0           !< hartree -> eV (nist2006)
-  real*8, parameter :: hy2cm_1 = 2.194746313705d5      !< hartree -> cm**(-1) (nist2006)
-  real*8, parameter :: hy2kjmol = 2625.4996d0          !< hartree -> kJ/mol (nist2006)
-  real*8, parameter :: au2gpa = 29421.0108037190       !< at.u.(pres) --> GPa (nist2006)
-  real*8, parameter :: amu2au = pcamu/pcme             !< amu --> at. units
 
   ! limits for critic2
   integer, parameter :: maxzat = 118 ! maximum atomic number supported
@@ -164,22 +146,23 @@ module param
   integer, parameter, public :: ifformat_wfx = 16
   integer, parameter, public :: ifformat_fchk = 17
   integer, parameter, public :: ifformat_molden = 18
-  integer, parameter, public :: ifformat_as = 19
-  integer, parameter, public :: ifformat_as_promolecular = 20
-  integer, parameter, public :: ifformat_as_core = 21
-  integer, parameter, public :: ifformat_as_lap = 22
-  integer, parameter, public :: ifformat_as_grad = 23
-  integer, parameter, public :: ifformat_as_pot = 24
-  integer, parameter, public :: ifformat_as_resample = 25
-  integer, parameter, public :: ifformat_as_clm = 26
-  integer, parameter, public :: ifformat_as_clm_sub = 27
-  integer, parameter, public :: ifformat_as_ghost = 28
-  integer, parameter, public :: ifformat_copy = 29
-  integer, parameter, public :: ifformat_promolecular = 30
-  integer, parameter, public :: ifformat_promolecular_fragment = 31
-  integer, parameter, public :: ifformat_as_hxx1 = 32
-  integer, parameter, public :: ifformat_as_hxx2 = 33
-  integer, parameter, public :: ifformat_as_hxx3 = 34
+  integer, parameter, public :: ifformat_fmt = 19
+  integer, parameter, public :: ifformat_as = 20
+  integer, parameter, public :: ifformat_as_promolecular = 21
+  integer, parameter, public :: ifformat_as_core = 22
+  integer, parameter, public :: ifformat_as_lap = 23
+  integer, parameter, public :: ifformat_as_grad = 24
+  integer, parameter, public :: ifformat_as_pot = 25
+  integer, parameter, public :: ifformat_as_resample = 26
+  integer, parameter, public :: ifformat_as_clm = 27
+  integer, parameter, public :: ifformat_as_clm_sub = 28
+  integer, parameter, public :: ifformat_as_ghost = 29
+  integer, parameter, public :: ifformat_copy = 30
+  integer, parameter, public :: ifformat_promolecular = 31
+  integer, parameter, public :: ifformat_promolecular_fragment = 32
+  integer, parameter, public :: ifformat_as_hxx1 = 33
+  integer, parameter, public :: ifformat_as_hxx2 = 34
+  integer, parameter, public :: ifformat_as_hxx3 = 35
 
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat0) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4
