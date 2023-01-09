@@ -251,6 +251,7 @@ module crystalmod
      procedure :: write_pyscf
      procedure :: write_fhi
      procedure :: write_tinkerfrac
+     procedure :: write_castep_cell
 
      ! grid writers
      procedure :: writegrid_cube
@@ -759,6 +760,12 @@ module crystalmod
        character*(*), intent(in) :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine write_tinkerfrac
+     module subroutine write_castep_cell(c,file,rklength,ti)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       real*8, intent(in), optional :: rklength
+       type(thread_info), intent(in), optional :: ti
+     end subroutine write_castep_cell
      module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)

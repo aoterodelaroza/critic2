@@ -682,6 +682,17 @@ contains
           end if
        end if
 
+    elseif (equal(wext,'cell')) then
+       ! CASTEP cell
+       ok = eval_next(rk,line,lp)
+       write (uout,'("* WRITE CASTEP cell file: ",A)') string(file)
+       if (ok) then
+          call s%c%write_castep_cell(file,rk)
+       else
+          call s%c%write_castep_cell(file)
+       end if
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        ! vasp
        write (uout,'("* WRITE VASP file: ",A)') string(file)
