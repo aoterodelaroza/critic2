@@ -791,7 +791,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_gjf,&
-       isformat_castepcell
+       isformat_castepcell, isformat_castepgeom
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -870,6 +870,9 @@ contains
 
     elseif (isformat == isformat_castepcell) then
        call seed%read_castep_cell(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_castepgeom) then
+       call seed%read_castep_geom(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_xsf) then
        call seed%read_xsf(file,rborder_def,.false.,errmsg,ti=ti)
@@ -3259,6 +3262,262 @@ contains
 
   end subroutine read_castep_cell
 
+  !> Read the structure from a CASTEP geom file
+  module subroutine read_castep_geom(seed,file,mol,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword,&
+       getword, lower, isinteger, isreal, zatguess
+    ! use tools_io, only: lgetword,&
+    !    equal, getword, isinteger, zatguess, isreal, lower
+    ! use tools_math, only: matinv
+    ! use types, only: realloc
+    ! use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm
+    use hashmod, only: hash
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line, word, lword
+    integer :: lu, ll, i, lp, idum, is
+    integer :: nlast, n, nat, nspc
+    logical :: ok
+    type(hash) :: usen
+    logical, allocatable :: usespc(:)
+
+    call usen%init()
+    call seed%end()
+    errmsg = ""
+    ! open
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    ! first pass, read the number of lines and the number of atoms
+    nlast = 0
+    n = 0
+    nat = 0
+    nspc = 0
+    do while(getline_raw(lu,line))
+       n = n + 1
+       line = trim(adjustl(line))
+       ll = len(line)
+       if (line(ll-4:ll) == "<-- E") then
+          nlast = n
+          nat = 0
+       elseif (line(ll-4:ll) == "<-- R") then
+          nat = nat + 1
+          lp = 1
+          word = lgetword(line,lp)
+          if (.not.usen%iskey(word)) then
+             nspc = nspc + 1
+             call usen%put(word,nspc)
+          end if
+       end if
+    end do
+
+    ! second pass, actual read
+    seed%useabr = 2
+    seed%nat = nat
+    seed%nspc = nspc
+    allocate(seed%x(3,nat),seed%is(nat),seed%spc(nspc),usespc(nspc))
+    usespc = .false.
+    rewind(lu)
+    do i = 1, nlast-1
+       read (lu,*,err=999,end=999)
+    end do
+    nat = 0
+    do while(getline_raw(lu,line))
+       line = trim(adjustl(line))
+       ll = len(line)
+       if (line(ll-4:ll) == "<-- E") then
+          read(line,*,err=999,end=999) seed%energy
+       elseif (line(ll-4:ll) == "<-- h") then
+          read(line,*,err=999,end=999) seed%m_x2c(:,1)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed%m_x2c(:,2)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed%m_x2c(:,3)
+          if (.not.getline_raw(lu,line)) goto 999
+       elseif (line(ll-4:ll) == "<-- R") then
+          nat = nat + 1
+          lp = 1
+          word = getword(line,lp)
+          lword = lower(word)
+          ok = isinteger(idum,line,lp)
+          ok = ok .and. isreal(seed%x(1,nat),line,lp)
+          ok = ok .and. isreal(seed%x(2,nat),line,lp)
+          ok = ok .and. isreal(seed%x(3,nat),line,lp)
+          if (.not.ok) goto 999
+
+          is = usen%get(lword,1)
+          seed%is(nat) = is
+          if (.not.usespc(seed%is(nat))) then
+             seed%spc(is)%name = trim(word)
+             seed%spc(is)%qat = 0d0
+             if (isinteger(idum,word)) then
+                seed%spc(is)%z = idum
+             else
+                seed%spc(is)%z = zatguess(word)
+                if (seed%spc(is)%z < 0) then
+                   errmsg = "Unknown atomic symbol: " // word
+                   goto 999
+                end if
+             end if
+             usespc(seed%is(nat)) = .true.
+          end if
+       end if
+    end do
+
+
+
+    write (*,*) nlast, nat, n
+    stop 1
+
+!                    call usen%put(lword,seed%nspc)
+!                    seed%is(seed%nat) = seed%nspc
+!                 end if
+
+!                 ! read the atomic coordinates
+!                 ok = isreal(seed%x(1,seed%nat),line,lp)
+!                 ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
+!                 ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+!                 if (.not.ok) goto 999
+
+!                 ok = get_next_line()
+!              end do
+!              if (seed%nat == 0 .or. seed%nspc == 0) then
+!                 errmsg = "Error reading atoms"
+!                 goto 999
+!              end if
+!              call realloc(seed%x,3,seed%nat)
+!              call realloc(seed%is,seed%nat)
+!              call realloc(seed%spc,seed%nspc)
+
+!              ! conversion factor
+!              if (iscart) seed%x = seed%x * rconv
+!           end if
+!        end if
+!     ! consistency checks
+!     if (seed%useabr == 0) then
+!        errmsg = "No lattice block found"
+!        goto 999
+!     end if
+!     if (seed%nat == 0 .or. seed%nspc == 0) then
+!        errmsg = "No atoms found"
+!        goto 999
+!     end if
+!     if (iscart .and. seed%useabr /= 2) then
+!        errmsg = "Atomic Cartesian (absolute) coordinates require lattice_cart"
+!        goto 999
+!     end if
+
+!     ! transform to fractional coordinates
+!     if (iscart) then
+!        m = seed%m_x2c
+!        call matinv(m,3,ier)
+!        if (ier /= 0) then
+!           errmsg = "error inverting lattice vector matrix"
+!           goto 999
+!        end if
+!        do i = 1, seed%nat
+!           seed%x(:,i) = matmul(m,seed%x(:,i))
+!        end do
+!     end if
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+    write (*,*) "bleh!"
+    stop 1
+
+!   contains
+!     function get_optional_unit(rconv)
+!       real*8, intent(out) :: rconv
+!       logical :: get_optional_unit
+
+!       logical :: ok, readnew
+!       integer :: lp
+
+!       get_optional_unit = .false.
+!       rconv = 1d0 / bohrtoa
+!       ok = get_next_line()
+!       if (.not.ok) return
+!       lp = 1
+!       word = lgetword(line,lp)
+!       readnew = .true.
+!       if (equal(word,"ang")) then
+!          rconv = 1d0 / bohrtoa
+!       elseif (equal(word,"bohr") .or. equal(word,"a0")) then
+!          rconv = 1d0
+!       elseif (equal(word,"m")) then
+!          rconv = 1d0 / bohrtom
+!       elseif (equal(word,"cm")) then
+!          rconv = 1d0 / bohrtocm
+!       elseif (equal(word,"nm")) then
+!          rconv = 1d0 / bohrtonm
+!       else
+!          readnew = .false.
+!       end if
+!       if (readnew) then
+!          ok = getline_raw(lu,line)
+!          if (.not.ok) return
+!       end if
+!       get_optional_unit = .true.
+
+!     end function get_optional_unit
+
+!     function get_next_line()
+!       logical :: get_next_line
+
+!       do while(getline_raw(lu,line))
+!          line = trim(adjustl(line))
+!          if (skipline(line)) cycle
+!          get_next_line = .true.
+!          return
+!       end do
+!       get_next_line = .false.
+
+!     end function get_next_line
+
+!     function skipline(line)
+!       use tools_io, only: lower
+!       character*(*), intent(in) :: line
+!       logical :: skipline
+
+!       integer :: alen
+
+!       alen = len(line)
+!       skipline = .true.
+!       if (alen == 0) return
+!       if (line(1:1) == "#" .or. line(1:1) == "!" .or. line(1:1) == ";") return
+!       if (alen >= 7) then
+!          if (lower(line(1:7)) == "comment") return
+!       end if
+!       skipline = .false.
+!     end function skipline
+
+  end subroutine read_castep_geom
+
   !> Read the structure from a DMACRYS input file (dmain)
   module subroutine read_dmain(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose, getline_raw, lgetword, isreal,&
@@ -4501,7 +4760,7 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_castepcell
+       isformat_castepcell, isformat_castepgeom
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4597,6 +4856,8 @@ contains
        isformat = isformat_siesta
     elseif (equal(wextdot,'cell')) then
        isformat = isformat_castepcell
+    elseif (equal(wextdot,'geom')) then
+       isformat = isformat_castepgeom
     elseif (equal(wextdot,'dmain')) then
        isformat = isformat_dmain
     elseif (equal(wextdot,'xsf')) then
@@ -4663,7 +4924,7 @@ contains
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_castepcell
+       isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -4680,7 +4941,7 @@ contains
        isformat_cube,isformat_bincube,isformat_struct,isformat_abinit,&
        isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
        isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
-       isformat_crystal,isformat_castepcell)
+       isformat_crystal,isformat_castepcell,isformat_castepgeom)
        ismol = .false.
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
@@ -4826,7 +5087,7 @@ contains
        isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
-       isformat_xsf, isformat_castepcell,&
+       isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac
     character*(*), intent(in) :: file
@@ -4921,6 +5182,8 @@ contains
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_castepcell) then
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_castepgeom) then
+       call seed(1)%read_castep_geom(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_dmain) then
        call seed(1)%read_dmain(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_aimsin) then

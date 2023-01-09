@@ -85,6 +85,7 @@ module crystalseedmod
      procedure :: read_crystalout
      procedure :: read_siesta
      procedure :: read_castep_cell
+     procedure :: read_castep_geom
      procedure :: read_dmain
      procedure :: read_dftbp
      procedure :: read_xsf
@@ -257,6 +258,13 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_castep_cell
+     module subroutine read_castep_geom(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_castep_geom
      module subroutine read_dmain(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
