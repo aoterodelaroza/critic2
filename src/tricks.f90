@@ -2459,8 +2459,8 @@ contains
           th2p=th1,ip=iha1)
        nh1 = size(iha1,1)
        iha1(1:nh1) = iha1(1:nh1) / sum(iha1(1:nh1))
-       iha1(1:nh1) = iha1(1:nh1)**3
-       th1(1:nh1) = (th1(1:nh1) - th2ini) / th2end * 100d0
+       iha1(1:nh1) = iha1(1:nh1)
+       th1(1:nh1) = (th1(1:nh1) - th2ini) / th2end * 20d0
     else
        ! POWDER
        h = (th2end-th2ini) / real(npts-1,8)
@@ -2503,8 +2503,8 @@ contains
           th2p=th2,ip=iha2)
        nh2 = size(iha2,1)
        iha2(1:nh2) = iha2(1:nh2) / sum(iha2(1:nh2))
-       iha2(1:nh2) = iha2(1:nh2)**3
-       th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 100d0
+       iha2(1:nh2) = iha2(1:nh2)
+       th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 20d0
 
        ! calculate baseline emd
        mindiff = emd(1,nh1,th1(1:nh1),iha1(1:nh1),nh2,th2(1:nh2),iha2(1:nh2),1)
@@ -2615,8 +2615,8 @@ contains
                    th2p=th2,ip=iha2)
                 nh2 = size(iha2,1)
                 iha2(1:nh2) = iha2(1:nh2) / sum(iha2(1:nh2))
-                iha2(1:nh2) = iha2(1:nh2)**3
-                th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 100d0
+                iha2(1:nh2) = iha2(1:nh2)
+                th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 20d0
 
                 ! calculate emd
                 diff = emd(1,nh1,th1(1:nh1),iha1(1:nh1),nh2,th2(1:nh2),iha2(1:nh2),1)
