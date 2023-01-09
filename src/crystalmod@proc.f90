@@ -3061,7 +3061,7 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat, pi, atmass, pcamu,bohr2cm
+    use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
     class(crystal), intent(in) :: c
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
@@ -3130,7 +3130,7 @@ contains
 
        ! Cell volume and density, space group short report
        if (.not.c%ismolecule) then
-          dens = (mass*pcamu) / (c%omega*bohr2cm**3)
+          dens = (mass*pcamu) / (c%omega*bohrtocm**3)
           write (uout,'("  Cell volume (bohr^3): ",A)') string(c%omega,'f',decimal=5)
           write (uout,'("  Cell volume (ang^3): ",A)') string(c%omega * bohrtoa**3,'f',decimal=5)
           write (uout,'("  Density (g/cm^3): ",A)') string(dens,'f',decimal=5)

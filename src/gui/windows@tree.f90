@@ -1224,7 +1224,7 @@ contains
     use crystalmod, only: pointgroup_info, holo_string
     use gui_main, only: sys, sysc, nsys, sys_init
     use tools_io, only: string
-    use param, only: bohrtoa, maxzat, atmass, pcamu, bohr2cm, newline
+    use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm, newline
     use tools_math, only: gcd
     integer, intent(in) :: i
     character(kind=c_char,len=:), allocatable, target :: str
@@ -1324,7 +1324,7 @@ contains
              newline
           str = str // "V (Å³): " // &
              string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // newline
-          dens = (mass*pcamu) / (sys(i)%c%omega*bohr2cm**3)
+          dens = (mass*pcamu) / (sys(i)%c%omega*bohrtocm**3)
           str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // newline
           if (sysc(i)%seed%energy /= huge(1d0)) then
              str = str // "Energy (Ha): " // string(sysc(i)%seed%energy,'f',decimal=8) // newline

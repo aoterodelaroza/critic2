@@ -76,8 +76,10 @@ module param
   real*8, parameter :: pct0 = 298.15d0         !< ambient temperature (K)
   real*8, parameter :: pch = 6.62606896d-34    !< Planck ct. [J.s] (nist2006)
   real*8, parameter :: pcc = 2.99792458d10     !< light speed [cm/s] (nist2006)
-  real*8, parameter :: bohr2cm = 0.52917720859d-8      !< bohr -> cm (nist2006)
-  real*8, parameter :: bohr2pm = 0.52917720859d2       !< bohr -> pm (nist2006)
+  real*8, parameter :: bohrtocm = 0.52917720859d-8      !< bohr -> cm (nist2006)
+  real*8, parameter :: bohrtom = 0.52917720859d-10      !< bohr -> m (nist2006)
+  real*8, parameter :: bohrtonm = 0.052917720859d2      !< bohr -> nm (nist2006)
+  real*8, parameter :: bohrtopm = 0.52917720859d2       !< bohr -> pm (nist2006)
   real*8, parameter :: hy2k = 3.1577465d5              !< hartree -> K (nist2006)
   real*8, parameter :: hy2ev = 27.21138386d0           !< hartree -> eV (nist2006)
   real*8, parameter :: hy2cm_1 = 2.194746313705d5      !< hartree -> cm**(-1) (nist2006)
@@ -129,6 +131,7 @@ module param
   integer, parameter, public :: isformat_aimsout = 29
   integer, parameter, public :: isformat_tinkerfrac = 30
   integer, parameter, public :: isformat_gjf = 31
+  integer, parameter, public :: isformat_castepcell = 32
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.

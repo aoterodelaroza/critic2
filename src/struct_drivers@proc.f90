@@ -38,7 +38,8 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_unknown
+       isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
+       isformat_unknown
     use crystalseedmod, only: crystalseed, struct_detect_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -107,6 +108,8 @@ contains
        isformat = isformat_gaussian
     elseif (equal(lword,'siesta')) then
        isformat = isformat_siesta
+    elseif (equal(lword,'cell')) then
+       isformat = isformat_castepcell
     elseif (equal(lword,'xsf')) then
        isformat = isformat_xsf
     elseif (equal(lword,'gen')) then
@@ -248,6 +251,9 @@ contains
 
     elseif (isformat == isformat_siesta) then
        call seed%read_siesta(word,mol,errmsg)
+
+    elseif (isformat == isformat_castepcell) then
+       call seed%read_castep_cell(word,mol,errmsg)
 
     elseif (isformat == isformat_xsf) then
        call seed%read_xsf(word,rborder,docube,errmsg)
