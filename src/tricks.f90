@@ -2519,7 +2519,7 @@ contains
           c2del%ar(i) = sqrt(c2del%grtensor(i,i))
        end do
        call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-          t=t,ip=iha2)
+          t=t,ih=iha2)
        tini = iha2(1)**2
        tend = iha2(npts)**2
        nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
