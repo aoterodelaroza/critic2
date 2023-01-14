@@ -29,10 +29,6 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release)
 
 ## interface options
 option(ENABLE_GUI "Enables the critic2 GUI" OFF)
-if(NOT CROSSCOMPILE)
-  set(CROSSCOMPILE "OFF" CACHE STRING "Choose the cross-compilation toolchain." FORCE)
-endif()
-set_property(CACHE CROSSCOMPILE PROPERTY STRINGS OFF Win32 Win64)
 option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library (linear algebra operations)." ON)
 #option(USE_EXTERNAL_QHULL "Use external QHULL library (calculation of convex hulls)." ON)
 #option(USE_EXTERNAL_SPGLIB "Use external spglib library (crystal symmetry determination)." ON)
@@ -107,9 +103,6 @@ if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
 elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
   set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
   set(FFLAGS_RELEASE "-O3")
-  if (NOT ${CMAKE_CROSSCOMPILING})
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-rdynamic")
-  endif()
   if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 6.0.0)
     set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
@@ -121,18 +114,12 @@ endif()
 ## compiler flags, C
 if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU")
   set(CFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -g -Wall")
-  if (NOT ${CMAKE_CROSSCOMPILING})
-    set(CFLAGS_DEBUG "${CFLAGS_DEBUG} -fstack-protector-all")
-  endif()
   set(CFLAGS_RELEASE "-O3")
 endif()
 
 ## compiler flags, CXX
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   set(CXXFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -g -Wall")
-  if (NOT ${CMAKE_CROSSCOMPILING})
-    set(CXXFLAGS_DEBUG "${CXXFLAGS_DEBUG} -fstack-protector-all")
-  endif()
   set(CXXFLAGS_RELEASE "-O3")
 endif()
 
@@ -207,7 +194,6 @@ endif()
 ## summary
 set(_message
 "\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION}###\n"
-"System: ${CMAKE_SYSTEM} (crosscompiling? ${CROSSCOMPILE})\n"
 "Date: ${DATE}\n"
 "Build type: ${CMAKE_BUILD_TYPE}\n"
 "Fortran compiler: ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID}, ${CMAKE_Fortran_COMPILER_VERSION})\n"

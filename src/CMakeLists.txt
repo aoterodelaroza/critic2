@@ -41,7 +41,8 @@ set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
 add_library(critic2_core OBJECT ${SOURCES_Fortran} ${SOURCES_C})
 
 ## gfortran-10: do not check fftpack for argument mismatch
-if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0)
+if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0
+      OR "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_EQUAL 10.0.0))
   set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS -fallow-argument-mismatch)
 endif()
 
