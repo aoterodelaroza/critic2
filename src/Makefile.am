@@ -47,7 +47,7 @@ AM_CFLAGS= -I$(top_srcdir)/src/qhull
 if !WIN
   AM_FCFLAGS+=-DDATADIR='"$(datadir)"'
 else
-  AM_FCFLAGS+=-DWIN
+  AM_FCFLAGS+=-D_WIN32
 endif
 
 # Compilation flags (in config.F90)

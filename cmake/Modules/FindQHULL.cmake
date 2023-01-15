@@ -4,6 +4,8 @@
 # QHULL_LIBRARIES - Libraries needed to use QHULL.
 #
 include(FindPackageHandleStandardArgs)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{QHULL_DIR})
   set(QHULL_DIR "$ENV{QHULL_DIR}")

@@ -95,7 +95,7 @@ program critic
 999 continue
 
     ! pause at the end of the windows execution so I can see the output
-#ifdef WIN
+#ifdef _WIN32
     read (*,*)
 #endif
 

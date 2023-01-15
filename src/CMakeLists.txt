@@ -159,5 +159,10 @@ if (ENABLE_GUI)
   add_definitions("-DHAVE_GUI")
 endif()
 
+## cross-compilation for windows, add the flag
+if (WIN32)
+  add_definitions("-D_WIN32")
+endif()
+
 ## install the binary
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

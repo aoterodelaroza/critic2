@@ -34,16 +34,22 @@ set(SOURCES
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
   )
+
+## cross-compilation for windows, add the flag
+if (WIN32)
+  add_definitions("-D_WIN32")
+endif()
+
+## freetype
 if (FREETYPE2_FOUND)
   set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
   add_definitions("-DIMGUI_ENABLE_FREETYPE")
   set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
 endif()
-if (OpenGL_EGL_FOUND)
-  set_property(SOURCE imgui/gl3w.c APPEND PROPERTY COMPILE_FLAGS "-DUSE_EGL")
-endif()
 
 add_library(fgui OBJECT ${SOURCES})
 
+## include directories
+target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
 target_include_directories(fgui PRIVATE "${CMAKE_BINARY_DIR}/src/")
 target_include_directories(fgui PRIVATE "${FREETYPE2_INCLUDE_DIRS}")

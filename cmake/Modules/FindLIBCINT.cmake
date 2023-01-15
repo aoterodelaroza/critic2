@@ -5,6 +5,8 @@
 #  LIBCINT_VERSION - version of the libcint library.
 #
 include(FindPackageHandleStandardArgs)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{LIBCINT_DIR})
   set(LIBCINT_DIR "$ENV{LIBCINT_DIR}")

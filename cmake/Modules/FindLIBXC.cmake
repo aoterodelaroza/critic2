@@ -6,6 +6,8 @@
 ## LIBXC_VERSION - the version of the libxc found
 
 include(FindPackageHandleStandardArgs)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{LIBXC_DIR})
   set(LIBXC_DIR "$ENV{LIBXC_DIR}")

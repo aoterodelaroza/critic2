@@ -3,6 +3,8 @@
 #  SPGLIB_LIBRARIES - the location of the spglib library
 #
 include(FindPackageHandleStandardArgs)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{SPGLIB_DIR})
   set(SPGLIB_DIR "$ENV{SPGLIB_DIR}")
