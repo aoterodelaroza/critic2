@@ -96,7 +96,9 @@ program critic
 
     ! pause at the end of the windows execution so I can see the output
 #ifdef _WIN32
-    read (*,*)
+  if (.not.usegui) then
+     read (*,*)
+  end if
 #endif
 
 end program critic

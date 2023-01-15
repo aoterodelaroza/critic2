@@ -117,13 +117,13 @@ endif()
 
 ## compiler flags, C
 if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU")
-  set(CFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -g -Wall")
+  set(CFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall")
   set(CFLAGS_RELEASE "-O3")
 endif()
 
 ## compiler flags, CXX
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-  set(CXXFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -g -Wall")
+  set(CXXFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall")
   set(CXXFLAGS_RELEASE "-O3")
 endif()
 
