@@ -3,7 +3,7 @@ set(SOURCES
 
   imgui/imgui_impl_glfw.cpp imgui/imgui_impl_opengl3.cpp
   imgui/imgui.cpp imgui/imgui_demo.cpp imgui/imgui_draw.cpp
-  imgui/imgui_tables.cpp imgui/imgui_widgets.cpp imgui/gl3w.c
+  imgui/imgui_tables.cpp imgui/imgui_widgets.cpp
   imgui/glfwwrapper.cpp
 
   implot/implot.cpp implot/implot_demo.cpp implot/implot_items.cpp implot/cimplot.cpp
@@ -22,7 +22,7 @@ set(SOURCES
 
   imgui_own_widgets/imgui_own_widgets.cpp
 
-  opengl/openglwrapper.cpp
+  opengl/openglwrapper.c opengl/gl3w.c
 
   gui_main.f90 gui_main@proc.f90
   keybindings.f90 keybindings@proc.f90
