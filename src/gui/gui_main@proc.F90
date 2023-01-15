@@ -45,7 +45,7 @@ contains
 
   ! Start the critic2 GUI.
   module subroutine gui_start()
-    use interfaces_threads
+    use interfaces_threads, only: deallocate_mtx
     use interfaces_cimgui
     use interfaces_glfw
     use interfaces_opengl3
@@ -303,9 +303,11 @@ contains
     call igDestroyContext(c_null_ptr)
 
     ! cleanup mutexes
+#ifdef _THREADS
     do i = 1, nsys
        if (c_associated(sysc(i)%thread_lock)) call deallocate_mtx(sysc(i)%thread_lock)
     end do
+#endif
 
     ! terminate
     call glfwDestroyWindow(rootwin)
@@ -329,28 +331,34 @@ contains
   !> Launch the initialization threads, which will go over all systems
   !> trying to initialize them.
   module subroutine launch_initialization_thread()
-    use interfaces_threads
+    use interfaces_threads, only: thrd_create
     integer :: i, idum
 
     force_quit_threads = .false.
+#ifdef _THREADS
     do i = 1, nthread
        idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_loc(thread_ti(i)))
     end do
+#else
+    idum = initialization_thread_worker(c_loc(thread_ti(1)))
+#endif
 
   end subroutine launch_initialization_thread
 
   !> Force the initialization threads to quit and wait for them to
   !> finish before returning.
   module subroutine kill_initialization_thread()
-    use interfaces_threads
+    use interfaces_threads, only: wrap_thrd_join
     integer :: i
     integer(c_int) :: res, idum
 
+#ifdef _THREADS
     force_quit_threads = .true.
     do i = 1, nthread
        idum = wrap_thrd_join(c_loc(thread(i)),res)
     end do
     force_quit_threads = .false.
+#endif
 
   end subroutine kill_initialization_thread
 
@@ -593,10 +601,12 @@ contains
        end if
 
        ! initialize the mutex
+#ifdef _THREADS
        if (.not.c_associated(sysc(idx)%thread_lock)) then
           sysc(idx)%thread_lock = allocate_mtx()
           idum = mtx_init(sysc(idx)%thread_lock,mtx_plain)
        end if
+#endif
 
        ! register all all-electron densities (global - should not
        ! be done by threads because agrid and cgrid are common)
@@ -628,10 +638,12 @@ contains
     if (sysc(idx)%status == sys_empty) return
     call sys(idx)%end()
     call sysc(idx)%seed%end()
+#ifdef _THREADS
     if (c_associated(sysc(idx)%thread_lock)) then
        call deallocate_mtx(sysc(idx)%thread_lock)
        sysc(idx)%thread_lock = c_null_ptr
     end if
+#endif
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
@@ -875,7 +887,7 @@ contains
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
-    use interfaces_threads
+    use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
     use windows, only: nwin, win, iwin_tree, iwin_view
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
@@ -898,9 +910,11 @@ contains
        ! check if they want us to quit
        if (force_quit_threads) exit
        ! try to grab the lock for this system
+#ifdef _THREADS
        if (c_associated(sysc(i)%thread_lock)) then
           idum = mtx_trylock(sysc(i)%thread_lock)
           if (idum == thrd_success) then
+#endif
              ! see if we can load it - only uninitialized and not hidden
              if (sysc(i)%status == sys_loaded_not_init.and..not.sysc(i)%hidden) then
                 sysc(i)%status = sys_initializing
@@ -941,10 +955,12 @@ contains
                 end if
              end if
 
+#ifdef _THREADS
              ! unlock
              idum = mtx_unlock(sysc(i)%thread_lock)
           end if
        end if
+#endif
     end do
     initialization_thread_worker = 0
     ti%active = .false.

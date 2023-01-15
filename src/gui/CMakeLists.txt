@@ -24,7 +24,7 @@ set(SOURCES
 
   opengl/openglwrapper.c opengl/gl3w.c
 
-  gui_main.f90 gui_main@proc.f90
+  gui_main.f90 gui_main@proc.F90
   keybindings.f90 keybindings@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
   windows@ci.f90 windows@co.f90 windows@new_struct.f90
@@ -38,6 +38,9 @@ set(SOURCES
 ## cross-compilation for windows, add the flag
 if (WIN32)
   add_definitions("-D_WIN32")
+endif()
+if (USE_GUI_THREADS)
+  add_definitions("-D_THREADS")
 endif()
 
 ## freetype

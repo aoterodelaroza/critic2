@@ -143,7 +143,7 @@ if (ENABLE_GUI)
   target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
 
   ## the threads library
-  if(CMAKE_THREAD_LIBS_INIT)
+  if (USE_GUI_THREADS AND CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(critic2 PRIVATE ${CMAKE_THREAD_LIBS_INIT})
   endif()
 

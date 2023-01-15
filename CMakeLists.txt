@@ -48,8 +48,9 @@ include(CTest)
 
 ## GUI requirements
 if (ENABLE_GUI)
-  ## option to use freetype
+  ## GUI options
   option(USE_FREETYPE "Use the freetype library (improved font rendering in GUI)." ON)
+  option(USE_GUI_THREADS "Use threads in the GUI." ON)
 
   ## needs -fPIC
   enable_language(CXX)
@@ -71,10 +72,12 @@ if (ENABLE_GUI)
   set(ENABLE_OPENMP ON)
 
   ## find pthreads
-  find_package(Threads REQUIRED)
-  if(THREADS_HAVE_PTHREAD_ARG)
-    set_property(TARGET critic2 PROPERTY COMPILE_OPTIONS "-pthread")
-    set_property(TARGET critic2 PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+  if (USE_GUI_THREADS)
+    find_package(Threads REQUIRED)
+    if(THREADS_HAVE_PTHREAD_ARG)
+      set_property(TARGET critic2 PROPERTY COMPILE_OPTIONS "-pthread")
+      set_property(TARGET critic2 PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+    endif()
   endif()
 endif()
 
