@@ -1,5 +1,5 @@
 ## For GUI cross-compilation, use:
-##   cmake --toolchain ../cmake/toolchains/mingw32.cmake -DBUILD_TESTING=ON -DENABLE_GUI=ON -DCMAKE_BUILD_TYPE=Debug -DGLFW3_ROOT=/home/alberto/dll/glfw-3.3.8.bin.WIN64 ..
+##   cmake --toolchain ../cmake/toolchains/mingw32.cmake -DBUILD_TESTING=ON -DENABLE_GUI=ON -DCMAKE_BUILD_TYPE=Debug -DGLFW3_ROOT=/home/alberto/dll/glfw-3.3.8.bin.WIN64 -DUSE_GUI_THREADS=OFF ..
 ##
 
 set(CMAKE_SYSTEM_NAME Windows)

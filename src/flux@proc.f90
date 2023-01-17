@@ -790,7 +790,7 @@ contains
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
              write (luout,'(99(E20.12," "))') flx_path(i)%x, flx_path(i)%f,&
-                flx_path(i)%gf, flx_path(i)%hf(1,:), flx_path(i)%hf(2,:), flx_path(i)%hf(3,:)
+                flx_path(i)%gf, flx_path(i)%hf(1,1:3), flx_path(i)%hf(2,2:3), flx_path(i)%hf(3,3)
           end do
        else
           write (luout,'(A," ",A10," ",12(A20," "))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
@@ -800,7 +800,7 @@ contains
              if (sy%c%ismolecule) &
                 x = (sy%c%x2c(x) + sy%c%molx0) * dunit0(iunit)
              write (luout,'(99(E20.12," "))') x, flx_path(i)%f,&
-                flx_path(i)%gf, flx_path(i)%hf(1,:), flx_path(i)%hf(2,:), flx_path(i)%hf(3,:)
+                flx_path(i)%gf, flx_path(i)%hf(1,1:3), flx_path(i)%hf(2,2:3), flx_path(i)%hf(3,3)
           end do
        end if
        write (luout,'(A/)') "# End gradient path"
