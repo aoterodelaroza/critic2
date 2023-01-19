@@ -1151,7 +1151,7 @@ contains
     type(hash) :: shown_atoms
     logical :: havefilter, step, ok, isedge(3), foundsel(4)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
-    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
     real*8 :: xx(3), x0(3), x1(3), x2(3), res, uoriginc(3)
     type(dl_sphere), allocatable :: auxsph(:)
@@ -1390,6 +1390,10 @@ contains
                          drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
                       elseif (r%label_style == 6) then ! 6 = mol
                          drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
+                      elseif (r%label_style == 7) then ! 7 = wycoff
+                         idx = sys(r%id)%c%atcel(i)%idx
+                         drawlist_string(nstring)%str = string(sys(r%id)%c%at(idx)%mult) //&
+                            string(sys(r%id)%c%at(idx)%wyc)
                       end if
                    end if
                 end do ! i3

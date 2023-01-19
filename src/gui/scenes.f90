@@ -94,7 +94,7 @@ module scenes
      real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
-     integer(c_int) :: label_style ! 0 = atom name, 1 = cel-atom, 2 = cel-atom + lvec, 3 = neq atom, 4 = spc, 5 = Z, 6 = mol
+     integer(c_int) :: label_style ! 0=atom-name, 1=cel-atom, 2=cel-atom+lvec, 3=neq-atom, 4=spc, 5=Z, 6=mol, 7=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
      logical(c_bool) :: label_const_size ! whether labels scale with objects or are constant size

@@ -1967,9 +1967,10 @@ contains
              lst,changed=ch)
           w%rep%label_style = lsttransi(lst)
        else
-          call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Cell atom ID"// c_null_char//&
-             "Cell atom ID + lattice vector"// c_null_char// "Symmetry-unique atom ID"// c_null_char//&
-             "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+          call iw_combo_simple("Text##labelcontentselect","Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
+             "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
+             "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
+             "Wyckoff position"//c_null_char,&
              w%rep%label_style,changed=ch)
        end if
        call iw_tooltip("Text to display in the atom labels",ttshown)
