@@ -1316,9 +1316,10 @@ contains
     use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
-       ullmann_graph_matching, emd
+       ullmann_graph_matching, emd, synthetic_powder
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
-       ioj_left, string, lower, lgetword, fopen_read, fclose, getline, isreal
+       ioj_left, string, lower, lgetword, fopen_read, fclose, getline, isreal,&
+       file_read_xy
     use types, only: realloc
     use param, only: isformat_unknown, maxzat, pi
     type(system), intent(in) :: s
@@ -1620,31 +1621,9 @@ contains
        singleatom = -1
        do i = 1, ns
           if (fname_type(i) == fname_peaks) then
-             ! calculate the 2*theta
-             do j = 1, npts
-                t(j) = th2ini + real(j-1,8) / real(npts-1,8) * (xend-th2ini)
-             end do
-
-             ! read the peaks file and make synthetic powder pattern
-             iha(:,i) = 0d0
-             lu = fopen_read(fname(i))
-             if (lu < 0) &
-                call ferror('struct_compare','error opening file: ' // trim(fname(i)),faterr)
-             do while(getline(lu,str))
-                lp = 1
-                ok = isreal(th2,str,lp)
-                ok = ok .and. isreal(ii,str,lp)
-                if (.not.ok) &
-                   call ferror('struct_compare','error reading file: ' // trim(fname(i)),faterr)
-                iha(:,i) = iha(:,i) + ii * exp(-(t-th2)**2 / 2d0 / (sigma*sigma))
-             end do
-             call fclose(lu)
-
-             ! normalize the integral of abs(ih)
-             tini = iha(1,i)**2
-             tend = iha(npts,i)**2
-             nor = (2d0 * sum(iha(2:npts-1,i)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-             iha(:,i) = iha(:,i) / sqrt(nor)
+             call file_read_xy(fname(i),n,th2p,ip)
+             call synthetic_powder(th2ini,xend,npts,sigma,th2p,ip,t,ih)
+             iha(:,i) = ih
           else
              if (c(i)%ncel == 1) then
                 singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
@@ -1704,29 +1683,7 @@ contains
        singleatom = -1
        do i = 1, ns
           if (fname_type(i) == fname_peaks) then
-             n = 0
-             if (.not.allocated(th2p)) allocate(th2p(10))
-             if (.not.allocated(ip)) allocate(ip(10))
-
-             ! read the peaks file
-             lu = fopen_read(fname(i))
-             if (lu < 0) &
-                call ferror('struct_compare','error opening file: ' // trim(fname(i)),faterr)
-             do while(getline(lu,str))
-                lp = 1
-                ok = isreal(th2,str,lp)
-                ok = ok .and. isreal(ii,str,lp)
-                if (.not.ok) &
-                   call ferror('struct_compare','error reading file: ' // trim(fname(i)),faterr)
-                n = n + 1
-                if (n > size(th2p,1)) then
-                   call realloc(th2p,2*n)
-                   call realloc(ip,2*n)
-                end if
-                th2p(n) = th2
-                ip(n) = ii
-             end do
-             call fclose(lu)
+             call file_read_xy(fname(i),n,th2p,ip)
           else
              n = 0
              if (c(i)%ncel == 1) then

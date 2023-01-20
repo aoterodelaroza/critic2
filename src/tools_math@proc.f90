@@ -64,6 +64,48 @@ contains
 
   end function crosscorr_triangle
 
+  !> Calculate a synthetic powder diffraction pattern between the
+  !> given initial and final 2*theta values (in degrees) with npts
+  !> points. Plant Gaussian peaks with sigma width parameter at the
+  !> positions and intensities given by th2p and ip. Return the
+  !> pattern in t (2*theta) and ih (intensity). The powder pattern is
+  !> normalized to 1.
+  module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
+    real*8, intent(in) :: th2ini, th2end
+    integer, intent(in) :: npts
+    real*8, intent(in) :: sigma
+    real*8, intent(in) :: th2p(:)
+    real*8, intent(in) :: ip(:)
+    real*8, allocatable, intent(inout) :: t(:)
+    real*8, allocatable, intent(inout) :: ih(:)
+
+    integer :: i
+    real*8 :: tini, tend, nor
+
+    ! allocate
+    if (allocated(t)) deallocate(t)
+    if (allocated(ih)) deallocate(ih)
+    allocate(t(npts),ih(npts))
+
+    ! calculate the 2*theta
+    do i = 1, npts
+       t(i) = th2ini + real(i-1,8) / real(npts-1,8) * (th2end-th2ini)
+    end do
+
+    ! calculate the intensity
+    ih = 0d0
+    do i = 1, size(th2p,1)
+       ih = ih + ip(i) * exp(-(t-th2p(i))**2 / 2d0 / (sigma*sigma))
+    end do
+
+    ! normalize
+    tini = ih(1)**2
+    tend = ih(npts)**2
+    nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
+    ih = ih / sqrt(nor)
+
+  end subroutine synthetic_powder
+
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor. Input angles in degrees.

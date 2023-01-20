@@ -23,6 +23,7 @@ module tools_math
 
   !xx! proc submodule !xx!
   public :: crosscorr_triangle
+  public :: synthetic_powder
   public :: m_x2c_from_cellpar
   public :: m_c2x_from_cellpar
   public :: factorial
@@ -98,6 +99,15 @@ module tools_math
        real*8, intent(in) :: f(:), g(:)
        real*8 :: dfg
      end function crosscorr_triangle
+     module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
+       real*8, intent(in) :: th2ini, th2end
+       integer, intent(in) :: npts
+       real*8, intent(in) :: sigma
+       real*8, intent(in) :: th2p(:)
+       real*8, intent(in) :: ip(:)
+       real*8, allocatable, intent(inout) :: t(:)
+       real*8, allocatable, intent(inout) :: ih(:)
+     end subroutine synthetic_powder
      module function m_x2c_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)

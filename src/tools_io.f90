@@ -56,6 +56,7 @@ module tools_io
   public :: fdealloc
   public :: ferror
   public :: tictac
+  public :: file_read_xy
 
   ! Justification parameters
   integer, parameter :: ioj_left = -1
@@ -309,6 +310,12 @@ module tools_io
      module subroutine tictac(mesg)
        character*(*), intent(in) :: mesg
      end subroutine tictac
+     module subroutine file_read_xy(file,npts,x,y)
+       character*(*), intent(in) :: file
+       integer, intent(out) :: npts
+       real*8, intent(inout), allocatable :: x(:)
+       real*8, intent(inout), allocatable :: y(:)
+     end subroutine file_read_xy
      module subroutine start_clock()
      end subroutine start_clock
      module subroutine print_clock()

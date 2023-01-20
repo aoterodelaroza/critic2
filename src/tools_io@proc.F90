@@ -1588,6 +1588,52 @@ contains
 
   end subroutine tictac
 
+  !> Read a file with two columns of numbers, and return
+  !> the first and second column in x and y. The number of points
+  !> read is npts.
+  module subroutine file_read_xy(file,npts,x,y)
+    use types, only: realloc
+    character*(*), intent(in) :: file
+    integer, intent(out) :: npts
+    real*8, intent(inout), allocatable :: x(:)
+    real*8, intent(inout), allocatable :: y(:)
+
+    integer :: lu, lp
+    character(len=:), allocatable :: str
+    real*8 :: xi, yi
+    logical :: ok
+
+    ! initialize
+    if (allocated(x)) deallocate(x)
+    if (allocated(y)) deallocate(y)
+
+    ! read the file
+    lu = fopen_read(file)
+    if (lu < 0) &
+       call ferror('file_read_xyz','error opening file: ' // trim(file),faterr)
+    npts = 0
+    allocate(x(10),y(10))
+    do while(getline(lu,str))
+       lp = 1
+       ok = isreal(xi,str,lp)
+       ok = ok .and. isreal(yi,str,lp)
+       if (.not.ok) cycle
+       npts = npts + 1
+       if (npts > size(x,1)) then
+          call realloc(x,2*npts)
+          call realloc(y,2*npts)
+       end if
+       x(npts) = xi
+       y(npts) = yi
+    end do
+    call fclose(lu)
+    if (npts > 0) then
+       call realloc(x,npts)
+       call realloc(y,npts)
+    end if
+
+  end subroutine file_read_xy
+
   !> Start the clock
   module subroutine start_clock()
 
