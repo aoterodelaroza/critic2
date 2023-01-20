@@ -7,7 +7,7 @@
 
     An implementation of the Earth Movers Distance.
     Based of the solution for the Transportation problem as described in
-    "Introduction to Mathematical Programming" by F. S. Hillier and 
+    "Introduction to Mathematical Programming" by F. S. Hillier and
     G. J. Lieberman, McGraw-Hill, 1990.
 
     Copyright (C) 1998 Yossi Rubner
@@ -20,8 +20,8 @@
 
 
 /* DEFINITIONS */
-#define MAX_SIG_SIZE   2000
-#define MAX_ITERATIONS 500
+#define MAX_SIG_SIZE   5000
+#define MAX_ITERATIONS 2000
 #define INFINITY_      1e20
 #define EPSILON        1e-6
 

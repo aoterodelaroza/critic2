@@ -1320,7 +1320,7 @@ contains
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
        ioj_left, string, lower, lgetword, fopen_read, fclose, getline, isreal
     use types, only: realloc
-    use param, only: isformat_unknown, maxzat
+    use param, only: isformat_unknown, maxzat, pi
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -1352,7 +1352,8 @@ contains
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
-    integer, parameter :: amd_imax = 100
+    integer, parameter :: amd_imax = 100 ! length of the AMD vector
+    real*8, parameter :: emd_discardp = 0.1d0 ! discard signals below this intentsity (highest I is 100)
 
     integer, parameter :: fname_current = 0
     integer, parameter :: fname_structure = 1
@@ -1703,12 +1704,12 @@ contains
              else
                 ! calculate the powder diffraction pattern
                 call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                   th2p=th2p,ip=ip)
+                   th2p=th2p,ip=ip,discardp=emd_discardp)
 
                 ! normalize
                 n = size(ip,1)
                 ip(1:n) = ip(1:n) / sum(ip(1:n))
-                th2p(1:n) = (th2p(1:n) - th2ini) / xend * 20d0
+                th2p(1:n) = th2p(1:n) * 180d0 / pi
              end if
           end if
 

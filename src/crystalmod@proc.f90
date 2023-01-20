@@ -1870,7 +1870,7 @@ contains
   module subroutine powder(c,mode,& ! mode
      th2ini0,th2end0,lambda0,fpol,& ! global input
      npts,sigma,ishard,& ! mode 0 input
-     th2p,ip,hvecp,& ! global output
+     th2p,ip,hvecp,discardp,& ! global output
      t,ih) ! mode 0 output
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
@@ -1884,19 +1884,20 @@ contains
     integer, intent(in), optional :: npts
     real*8, intent(in), optional :: sigma
     logical, intent(in), optional :: ishard
-    real*8, allocatable, intent(inout), optional :: t(:)
-    real*8, allocatable, intent(inout), optional :: ih(:)
     real*8, allocatable, intent(inout), optional :: th2p(:)
     real*8, allocatable, intent(inout), optional :: ip(:)
     integer, allocatable, intent(inout), optional :: hvecp(:,:)
+    real*8, intent(in), optional :: discardp
+    real*8, allocatable, intent(inout), optional :: t(:)
+    real*8, allocatable, intent(inout), optional :: ih(:)
 
-    integer :: i, np, hcell, h, k, l, iz, idx
+    integer :: i, j, np, hcell, h, k, l, iz, idx
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
     real*8 :: sigma2, smax, dh2, dh, dh3, sthlam, cterm, sterm
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
     integer :: hmax
-    logical :: again
+    logical :: again, ok
     integer, allocatable :: io(:)
     real*8, allocatable :: isum(:)
 
@@ -2079,6 +2080,22 @@ contains
     if (present(ih)) then
        ihmax = maxval(ih)
        if (ihmax > 1d-10) ih = ih / ihmax * 100
+    end if
+
+    ! discard if necessary
+    if (present(discardp) .and. present(ip)) then
+       j = 0
+       do i = 1, np
+          if (ip(i) < discardp) cycle
+          j = j + 1
+          ip(j) = ip(i)
+          if (present(th2p)) th2p(j) = th2p(i)
+          if (present(hvecp)) hvecp(:,j) = hvecp(:,i)
+       end do
+       np = j
+       call realloc(ip,np)
+       if (present(th2p)) call realloc(th2p,np)
+       if (present(hvecp)) call realloc(hvecp,3,np)
     end if
 
     ! sort the peaks

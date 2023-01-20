@@ -460,7 +460,7 @@ module crystalmod
        real*8 :: vvdw
      end function vdw_volume
      module subroutine powder(c,mode,th2ini0,th2end0,lambda0,fpol,npts,sigma,ishard,&
-        th2p,ip,hvecp,t,ih)
+        th2p,ip,hvecp,discardp,t,ih)
        class(crystal), intent(in) :: c
        integer, intent(in) :: mode
        real*8, intent(in) :: th2ini0, th2end0
@@ -469,11 +469,12 @@ module crystalmod
        integer, intent(in), optional :: npts
        real*8, intent(in), optional :: sigma
        logical, intent(in), optional :: ishard
-       real*8, allocatable, intent(inout), optional :: t(:)
-       real*8, allocatable, intent(inout), optional :: ih(:)
        real*8, allocatable, intent(inout), optional :: th2p(:)
        real*8, allocatable, intent(inout), optional :: ip(:)
        integer, allocatable, intent(inout), optional :: hvecp(:,:)
+       real*8, intent(in), optional :: discardp
+       real*8, allocatable, intent(inout), optional :: t(:)
+       real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(in) :: c
