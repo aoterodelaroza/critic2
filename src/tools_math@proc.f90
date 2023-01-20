@@ -2057,6 +2057,7 @@ contains
   !> retrieval." Int. J. Comput. Vis. 40.2 (2000) 99-121.
   !> This is a wrapper for the C routine provded by Rubner et al. in
   !> the emd subdirectory.
+  !> FIXME: This routine is NOT thread safe!
   module function emd(n,mp,p,wp,mq,q,wq,distfun)
     use iso_c_binding, only: c_int, c_ptr, c_double, c_loc
     integer, intent(in) :: n

@@ -2172,7 +2172,7 @@ contains
   ! Compare structures, allowing deformation of one crystal into the other such
   ! as may be cause by temperature or pressure effects without a phase change.
   !
-  ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r] [AMD] [EMD]
+  ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r] [AMD]
   ! 2:  TRICK COMPARE struct1 xyfile a b c alpha beta gamma ...
   !
   ! Mode 1: compare the two structures.
@@ -2191,7 +2191,7 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
-       m_x2c_from_cellpar, emd
+       m_x2c_from_cellpar
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
        isreal, equal, lgetword
     use param, only: pi, icrd_crys, eye, bohrtoa
@@ -2211,7 +2211,7 @@ contains
     real*8, allocatable :: t(:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
-    logical :: ok, dowrite, noh, useamd, useemd
+    logical :: ok, dowrite, noh, useamd
     real*8 :: powdiff_thr, max_elong, max_ang
     real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
     integer :: npts
@@ -2267,7 +2267,6 @@ contains
     dowrite = .false.
     noh = .false.
     useamd = .false.
-    useemd = .false.
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'thr')) then
@@ -2285,8 +2284,6 @@ contains
           noh = .true.
        elseif (equal(word,'amd')) then
           useamd = .true.
-       elseif (equal(word,'emd')) then
-          useemd = .true.
        elseif (len_trim(word) > 0) then
           if (.not.ok) call ferror('trick_compare_deformed','Unknown keyword',faterr)
        else
@@ -2453,14 +2450,6 @@ contains
        ! AMD
        allocate(iha1(imax_amd))
        call c1%amd(imax_amd,iha1)
-    elseif (useemd) then
-       ! EMD
-       call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-          th2p=th1,ip=iha1)
-       nh1 = size(iha1,1)
-       iha1(1:nh1) = iha1(1:nh1) / sum(iha1(1:nh1))
-       iha1(1:nh1) = iha1(1:nh1)
-       th1(1:nh1) = (th1(1:nh1) - th2ini) / th2end * 20d0
     else
        ! POWDER
        h = (th2end-th2ini) / real(npts-1,8)
@@ -2489,25 +2478,6 @@ contains
 
        ! calculate baseline powdiff
        mindiff = maxval(abs(iha1-iha2))
-    elseif (useemd) then
-       c2del = c2
-       c2del%aa = targetaa
-       c2del%bb = targetbb
-       c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
-       c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
-       call matinv(c2del%grtensor,3)
-       do i = 1, 3
-          c2del%ar(i) = sqrt(c2del%grtensor(i,i))
-       end do
-       call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-          th2p=th2,ip=iha2)
-       nh2 = size(iha2,1)
-       iha2(1:nh2) = iha2(1:nh2) / sum(iha2(1:nh2))
-       iha2(1:nh2) = iha2(1:nh2)
-       th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 20d0
-
-       ! calculate baseline emd
-       mindiff = emd(1,nh1,th1(1:nh1),iha1(1:nh1),nh2,th2(1:nh2),iha2(1:nh2),1)
     else
        c2del = c2
        c2del%aa = targetaa
@@ -2593,33 +2563,6 @@ contains
                 call c2del%struct_new(c2seed,.true.)
                 call c2del%amd(imax_amd,iha2)
                 diff = maxval(abs(iha1-iha2))
-                if (diff < mindiff) then
-                   mindiff = diff
-                   xd2min = xd2
-                end if
-             elseif (useemd) then
-                !! EMD
-                ! make the new crystal
-                c2del = c2
-                call c2del%newcell(xd2,noenv=.true.)
-                c2del%aa = targetaa
-                c2del%bb = targetbb
-                c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
-                c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
-                call matinv(c2del%grtensor,3)
-                do i = 1, 3
-                   c2del%ar(i) = sqrt(c2del%grtensor(i,i))
-                end do
-
-                call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-                   th2p=th2,ip=iha2)
-                nh2 = size(iha2,1)
-                iha2(1:nh2) = iha2(1:nh2) / sum(iha2(1:nh2))
-                iha2(1:nh2) = iha2(1:nh2)
-                th2(1:nh2) = (th2(1:nh2) - th2ini) / th2end * 20d0
-
-                ! calculate emd
-                diff = emd(1,nh1,th1(1:nh1),iha1(1:nh1),nh2,th2(1:nh2),iha2(1:nh2),1)
                 if (diff < mindiff) then
                    mindiff = diff
                    xd2min = xd2
