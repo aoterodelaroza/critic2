@@ -69,7 +69,7 @@ contains
   !> points. Plant Gaussian peaks with sigma width parameter at the
   !> positions and intensities given by th2p and ip. Return the
   !> pattern in t (2*theta) and ih (intensity). The powder pattern is
-  !> normalized to 1.
+  !> normalized to have 100 as the highest point.
   module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
     real*8, intent(in) :: th2ini, th2end
     integer, intent(in) :: npts
@@ -99,10 +99,7 @@ contains
     end do
 
     ! normalize
-    tini = ih(1)**2
-    tend = ih(npts)**2
-    nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
-    ih = ih / sqrt(nor)
+    ih = ih / maxval(ih) * 100d0
 
   end subroutine synthetic_powder
 

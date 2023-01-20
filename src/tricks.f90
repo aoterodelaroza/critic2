@@ -2173,7 +2173,8 @@ contains
   ! as may be cause by temperature or pressure effects without a phase change.
   !
   ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r] [AMD]
-  ! 2:  TRICK COMPARE struct1 xyfile a b c alpha beta gamma ...
+  ! 2:  TRICK COMPARE struct1 file.xy a b c alpha beta gamma ...
+  ! 3:  TRICK COMPARE struct1 file.peaks a b c alpha beta gamma ...
   !
   ! Mode 1: compare the two structures.
   ! Mode 2: compare structure 1 with the diffraction pattern in the xyfile, which has
@@ -2191,22 +2192,22 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
-       m_x2c_from_cellpar
+       m_x2c_from_cellpar, synthetic_powder
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
-       isreal, equal, lgetword
+       isreal, equal, lgetword, file_read_xy
     use param, only: pi, icrd_crys, eye, bohrtoa
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed, c2seed
     type(environ) :: e
-    integer :: lp, lp2, ierr, i, j, nh1, nh2
+    integer :: lp, lp2, ierr, i, j, n, nh1, nh2
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
-    real*8, allocatable :: dist(:)
+    real*8, allocatable :: dist(:), th2p(:), ip(:)
     integer, allocatable :: eid(:), irange(:,:)
-    integer :: nat, n1, n2, n3, i1, i2, i3
+    integer :: nat, n1, n2, n3, i1, i2, i3, idx
     real*8, allocatable :: iha1(:), iha2(:), th1(:), th2(:)
     real*8, allocatable :: t(:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
@@ -2303,8 +2304,19 @@ contains
        call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
 
     if (usexy) then
-       write (uout,'("+ Reading xy data from: ",A)') trim(file2)
-       call readxy()
+       idx = index(file2,".peaks")
+       if (idx + 5 == len_trim(file2)) then
+          ! interpret this as a peaks file
+          write (uout,'("+ Reading peaks data from: ",A)') trim(file2)
+          call file_read_xy(file2,n,th2p,ip)
+          th2ini = th2p(1)
+          th2end = th2p(n)
+          call synthetic_powder(th2ini,th2end,npts,sigma0,th2p,ip,t,intxy)
+       else
+          ! interpret this as an xy file
+          write (uout,'("+ Reading xy data from: ",A)') trim(file2)
+          call readxy()
+       end if
     else
        ! read the second structure, force symmetry recalculation
        write (uout,'("+ Reading the structure from: ",A)') trim(file2)

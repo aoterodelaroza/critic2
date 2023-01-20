@@ -1624,6 +1624,12 @@ contains
              call file_read_xy(fname(i),n,th2p,ip)
              call synthetic_powder(th2ini,xend,npts,sigma,th2p,ip,t,ih)
              iha(:,i) = ih
+
+             ! normalize the integral of abs(ih)
+             tini = ih(1)**2
+             tend = ih(npts)**2
+             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             iha(:,i) = ih / sqrt(nor)
           else
              if (c(i)%ncel == 1) then
                 singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
