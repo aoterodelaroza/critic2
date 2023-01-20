@@ -1512,8 +1512,10 @@ contains
           c(i) = s%c
        elseif (fname_type(i) == fname_peaks) then
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
-          if (imethod /= imethod_emd) &
-             call ferror("struct_compare","reading peaks files only allowed for EMD",faterr)
+          if (ismol) &
+             call ferror("struct_compare","reading peaks files only allowed for crystals",faterr)
+          if (imethod /= imethod_emd .and. imethod /= imethod_powder .and. imethod /= imethod_default) &
+             call ferror("struct_compare","reading peaks files only allowed for EMD and POWDER",faterr)
        else
           write (uout,'("  ",A," ",A,": ",A)') string(tname), string(i,2), string(fname(i))
           call struct_crystal_input(fname(i),imol,.false.,.false.,cr0=c(i))
@@ -1614,25 +1616,53 @@ contains
 
     if (imethod == imethod_powder .or. imethod == imethod_rdf) then
        ! crystals: POWDER and RDF
-       allocate(iha(npts,ns),singleatom(ns))
+       allocate(iha(npts,ns),singleatom(ns),t(npts))
        singleatom = -1
        do i = 1, ns
-          if (c(i)%ncel == 1) then
-             singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
-          else
-             ! calculate the powder diffraction pattern
-             if (imethod == imethod_powder) then
-                call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                   t=t,ih=ih)
+          if (fname_type(i) == fname_peaks) then
+             ! calculate the 2*theta
+             do j = 1, npts
+                t(j) = th2ini + real(j-1,8) / real(npts-1,8) * (xend-th2ini)
+             end do
 
-                ! normalize the integral of abs(ih)
-                tini = ih(1)**2
-                tend = ih(npts)**2
-                nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-                iha(:,i) = ih / sqrt(nor)
+             ! read the peaks file and make synthetic powder pattern
+             iha(:,i) = 0d0
+             lu = fopen_read(fname(i))
+             if (lu < 0) &
+                call ferror('struct_compare','error opening file: ' // trim(fname(i)),faterr)
+             do while(getline(lu,str))
+                lp = 1
+                ok = isreal(th2,str,lp)
+                ok = ok .and. isreal(ii,str,lp)
+                if (.not.ok) &
+                   call ferror('struct_compare','error reading file: ' // trim(fname(i)),faterr)
+                iha(:,i) = iha(:,i) + ii * exp(-(t-th2)**2 / 2d0 / (sigma*sigma))
+             end do
+             call fclose(lu)
+
+             ! normalize the integral of abs(ih)
+             tini = iha(1,i)**2
+             tend = iha(npts,i)**2
+             nor = (2d0 * sum(iha(2:npts-1,i)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             iha(:,i) = iha(:,i) / sqrt(nor)
+          else
+             if (c(i)%ncel == 1) then
+                singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
              else
-                call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
-                iha(:,i) = ih
+                ! calculate the powder diffraction pattern
+                if (imethod == imethod_powder) then
+                   call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                      t=t,ih=ih)
+
+                   ! normalize the integral of abs(ih)
+                   tini = ih(1)**2
+                   tend = ih(npts)**2
+                   nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+                   iha(:,i) = ih / sqrt(nor)
+                else
+                   call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
+                   iha(:,i) = ih
+                end if
              end if
           end if
        end do
