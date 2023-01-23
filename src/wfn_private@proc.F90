@@ -692,7 +692,7 @@ contains
 
     integer :: lu, idum
     character(len=:), allocatable :: line
-    logical :: ok
+    logical :: ok, lastinputor
 
     errmsg = ""
     ! deallocate
@@ -709,8 +709,17 @@ contains
 
     n = 0
     allocate(x(3,10),z(10),name(10))
+    lastinputor = .false.
     do while (getline_raw(lu,line))
-       if (index(line,"Input orientation:") > 0) then
+       ok = (index(line,"Input orientation:") > 0)
+       if (ok) then
+          lastinputor = .true.
+       elseif (.not.lastinputor) then
+          ok = (index(line,"Standard orientation:") > 0)
+          if (ok) lastinputor = .false.
+       end if
+
+       if (ok) then
           n = 0
           ok = getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
