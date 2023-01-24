@@ -912,6 +912,7 @@ contains
           deallocate(fr%at)
           fr%nspc = 0
           deallocate(fr%spc)
+          errmsg = "Could not identify fragment from xyz file: " // trim(file)
           return
        endif
        fr%at(i)%r = x0
