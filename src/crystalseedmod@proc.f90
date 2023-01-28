@@ -926,6 +926,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
+    call seed%end()
     call read_all_cif(file,mol,errmsg,seed0=seed,dblock=dblock,ti=ti)
 
   end subroutine read_cif
@@ -1889,6 +1890,7 @@ contains
     real*8 :: omegaa
 
     ! open
+    call seed%end()
     errmsg = "Error reading file."
     hastypes = .true.
     lu = fopen_read(file,ti=ti)
