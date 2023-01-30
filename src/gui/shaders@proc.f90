@@ -135,7 +135,12 @@ contains
     character*(*), intent(in), target :: name
     integer(c_int), intent(in) :: x
 
-    call glUniform1i(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), x)
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniform1i(idx,x)
 
   end subroutine setuniform_int
 
@@ -145,7 +150,12 @@ contains
     character*(*), intent(in), target :: name
     real(c_float), intent(in) :: x
 
-    call glUniform1f(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), x)
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniform1f(idx,x)
 
   end subroutine setuniform_float
 
@@ -155,7 +165,12 @@ contains
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(3)
 
-    call glUniform3fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, c_loc(x))
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniform3fv(idx,1,c_loc(x))
 
   end subroutine setuniform_vec3
 
@@ -165,7 +180,12 @@ contains
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(4)
 
-    call glUniform4fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, c_loc(x))
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniform4fv(idx,1,c_loc(x))
 
   end subroutine setuniform_vec4
 
@@ -175,8 +195,12 @@ contains
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(3,3)
 
-    call glUniformMatrix3fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, &
-       int(GL_FALSE,c_signed_char), c_loc(x))
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
   end subroutine setuniform_mat3
 
@@ -186,8 +210,12 @@ contains
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(4,4)
 
-    call glUniformMatrix4fv(glGetUniformLocation(ishad_prog(icur_shader),c_loc(name)), 1, &
-       int(GL_FALSE,c_signed_char), c_loc(x))
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+
+    str = trim(name) // c_null_char
+    idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
   end subroutine setuniform_mat4
 
