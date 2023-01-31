@@ -1,18 +1,6 @@
 ## For GUI compilation with MINGW/wine, use:
-##   cmake -G 'Unix Makefiles' --toolchain ../cmake/toolchains/wine.cmake -DCMAKE_INSTALL_PREFIX='/home/alberto/temp2/critic2-install' -DBUILD_TESTING=ON -DENABLE_GUI=ON -DCMAKE_BUILD_TYPE=Debug -DGLFW3_ROOT=/home/alberto/temp2/glfw-3.3.8.bin.WIN64 -DUSE_GUI_THREADS=OFF ..
-##
+## Use it as: cmake -C ../cmake/toolchains/wine.cmake ..
 
-set(CMAKE_SYSTEM_NAME Windows)
-set(TOOLCHAIN_PREFIX x86_64-w64-mingw32)
-set(CMAKE_CROSSCOMPILING_EMULATOR wine)
+set(CMAKE_GENERATOR "Unix Makefiles" CACHE INTERNAL "" FORCE)
+set(BUILD_RECIPE "WINE" CACHE INTERNAL "" FORCE)
 
-set(_WIN32 1)
-set(CMAKE_Fortran_COMPILER ${TOOLCHAIN_PREFIX}-gfortran)
-set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
-set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
-
-set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX})
-
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

@@ -54,7 +54,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(PACKAGE ${CMAKE_PROJECT_NAME})
 set(VERSION "${CMAKE_PROJECT_VERSION}")
 set(TARGET ${CMAKE_SYSTEM})
-set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
+if (CRITIC2_ROOT)
+  set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CRITIC2_ROOT}\"'")
+else()
+  set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
+endif()
 configure_file(config@proc.F90.in "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
 
 ## executable
@@ -171,8 +175,16 @@ install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if (BUILD_RECIPE STREQUAL "MSYS2")
   foreach (i IN ITEMS libblas.dll libgcc_s_seh-1.dll glfw3.dll libgomp-1.dll liblapack.dll libreadline8.dll libstdc++-6.dll libgfortran-5.dll libwinpthread-1.dll libtermcap-0.dll libquadmath-0.dll)
     add_custom_command(TARGET critic2 POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy /mingw64/bin/${i} ${CMAKE_BINARY_DIR}/src
-      COMMENT "Copying MINGW64 dll libraries" VERBATIM)
+      COMMAND ${CMAKE_COMMAND} -E copy /mingw64/bin/${i} ${CMAKE_BINARY_DIR}/src)
     install(FILES ${CMAKE_BINARY_DIR}/src/${i} DESTINATION ${CMAKE_INSTALL_BINDIR})
   endforeach()
+elseif (BUILD_RECIPE STREQUAL "WINE")
+  foreach (i IN ITEMS libgfortran-5.dll libgcc_s_seh-1.dll libgomp-1.dll libstdc++-6.dll libquadmath-0.dll)
+    add_custom_command(TARGET critic2 POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy /usr/lib/gcc/x86_64-w64-mingw32/12-win32/${i} ${CMAKE_BINARY_DIR}/src)
+    install(FILES ${CMAKE_BINARY_DIR}/src/${i} DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endforeach()
+  add_custom_command(TARGET critic2 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll ${CMAKE_BINARY_DIR}/src)
+  install(FILES ${CMAKE_BINARY_DIR}/src/libwinpthread-1.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
