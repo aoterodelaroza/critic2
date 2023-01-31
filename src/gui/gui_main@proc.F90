@@ -115,6 +115,7 @@ contains
     rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
        call ferror('gui_start','Failed to create window',faterr)
+    fdum = glfwSetDropCallback(rootwin,c_funloc(drop_callback))
     call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
 
@@ -314,6 +315,7 @@ contains
     call glfwTerminate()
 
   contains
+    ! typedef void(* GLFWerrorfun) (int, const char *)
     subroutine error_callback(error,description) bind(c)
       use c_interface_module, only: c_f_string_alloc, c_strlen
       use tools_io, only: ferror, faterr, string
@@ -326,6 +328,30 @@ contains
       call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),faterr)
 
     end subroutine error_callback
+    ! void drop_callback(GLFWwindow* window, int count, const char* paths[])
+    subroutine drop_callback(window,count,ipaths) bind(c)
+      use global, only: rborder_def
+      use param, only: isformat_unknown
+      use c_interface_module, only: c_f_string_alloc
+      type(c_ptr), value :: window
+      integer(c_int), value :: count
+      type(c_ptr), intent(in) :: ipaths(count)
+
+      integer :: i
+      type(c_ptr) :: path
+      type(c_ptr), pointer :: padd
+      character(kind=c_char,len=:), allocatable :: file
+      integer(c_intptr_t) :: address
+
+      if (count < 1) return
+      do i = 1, count
+         call c_f_string_alloc(ipaths(i),file)
+         call add_systems_from_name(file,-1,isformat_unknown,.false.,rborder_def,.false.)
+      end do
+      call launch_initialization_thread()
+      call system_shorten_names()
+
+    end subroutine drop_callback
   end subroutine gui_start
 
   !> Launch the initialization threads, which will go over all systems

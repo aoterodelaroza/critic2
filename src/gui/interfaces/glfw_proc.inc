@@ -7,6 +7,13 @@ function glfwSetErrorCallback(callback) bind(c,name="glfwSetErrorCallback")
   type(c_funptr) :: glfwSetErrorCallback
   type(c_funptr), value :: callback
 end function glfwSetErrorCallback
+! GLFWdropfun glfwSetDropCallback (GLFWwindow * window, GLFWdropfun callback)
+function glfwSetDropCallback(window,callback) bind(c,name="glfwSetDropCallback")
+  import c_ptr,c_funptr
+  type(c_funptr) :: glfwSetDropCallback
+  type(c_ptr), value :: window
+  type(c_funptr), value :: callback
+end function glfwSetDropCallback
 ! int glfwInit(void)
 function glfwInit() bind(c,name="glfwInit")
   import c_int
