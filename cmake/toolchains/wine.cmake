@@ -1,5 +1,5 @@
-## For GUI cross-compilation, use:
-##   cmake -G 'MSYS Makefiles' --toolchain ../cmake/toolchains/mingw32.cmake -DCMAKE_INSTALL_PREFIX='D:/msys2/home/media service/critic2-install' -DBUILD_TESTING=ON -DENABLE_GUI=ON -DCMAKE_BUILD_TYPE=Debug -DGLFW3_ROOT=/home/alberto/dll/glfw-3.3.8.bin.WIN64 -DUSE_GUI_THREADS=OFF ..
+## For GUI compilation with MINGW/wine, use:
+##   cmake -G 'Unix Makefiles' --toolchain ../cmake/toolchains/wine.cmake -DCMAKE_INSTALL_PREFIX='/home/alberto/temp2/critic2-install' -DBUILD_TESTING=ON -DENABLE_GUI=ON -DCMAKE_BUILD_TYPE=Debug -DGLFW3_ROOT=/home/alberto/temp2/glfw-3.3.8.bin.WIN64 -DUSE_GUI_THREADS=OFF ..
 ##
 
 set(CMAKE_SYSTEM_NAME Windows)
