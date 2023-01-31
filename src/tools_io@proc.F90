@@ -1343,11 +1343,17 @@ contains
 
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
-    abspath = .false.
-    ofile = trim(adjustl(filepath)) // dirsep // file
-    if (file(1:1) == dirsep) abspath = .true.
+
+    abspath = (file(1:1) == dirsep)
+#ifdef _WIN32
+    if (len(file) > 1) abspath = abspath .or. (file(2:2) == ":")
+#endif
     if (present(abspath0)) abspath = abspath0
-    if (abspath) ofile = file
+    if (abspath) then
+       ofile = file
+    else
+       ofile = trim(adjustl(filepath)) // dirsep // file
+    end if
 
     lu = falloc(ti)
     if (present(form)) then
@@ -1382,11 +1388,17 @@ contains
 
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
-    abspath = .false.
-    ofile = trim(adjustl(filepath)) // dirsep // file
-    if (file(1:1) == dirsep) abspath = .true.
+
+    abspath = (file(1:1) == dirsep)
+#ifdef _WIN32
+    if (len(file) > 1) abspath = abspath .or. (file(2:2) == ":")
+#endif
     if (present(abspath0)) abspath = abspath0
-    if (abspath) ofile = file
+    if (abspath) then
+       ofile = file
+    else
+       ofile = trim(adjustl(filepath)) // dirsep // file
+    end if
 
     lu = falloc(ti)
     if (present(form)) then
@@ -1419,11 +1431,17 @@ contains
 
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
-    abspath = .false.
-    ofile = trim(adjustl(filepath)) // dirsep // file
-    if (file(1:1) == dirsep) abspath = .true.
+
+    abspath = (file(1:1) == dirsep)
+#ifdef _WIN32
+    if (len(file) > 1) abspath = abspath .or. (file(2:2) == ":")
+#endif
     if (present(abspath0)) abspath = abspath0
-    if (abspath) ofile = file
+    if (abspath) then
+       ofile = file
+    else
+       ofile = trim(adjustl(filepath)) // dirsep // file
+    end if
 
     lu = falloc(ti)
     if (present(form)) then
