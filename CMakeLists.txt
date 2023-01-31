@@ -36,7 +36,7 @@ if (BUILD_RECIPE STREQUAL "MSYS2")
   set(ENABLE_GUI ON CACHE BOOL "" FORCE)
   set(BUILD_TYPE "Debug" CACHE STRING "" FORCE)
   set(GLFW3_ROOT "/home/alberto/dll/glfw-3.3.8.bin.WIN64" CACHE STRING "" FORCE)
-  set(USE_GUI_THREADS OFF CACHE BOOL "" FORCE)
+  set(USE_GUI_THREADS ON CACHE BOOL "" FORCE)
 endif()
 
 ## project definition
@@ -165,6 +165,13 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BT)
 set(CMAKE_Fortran_FLAGS_${BT} "${FFLAGS_${BT}}")
 set(CMAKE_C_FLAGS_${BT} "${CFLAGS_${BT}}")
 set(CMAKE_CXX_FLAGS_${BT} "${CXXFLAGS_${BT}}")
+
+## build recipes flags
+if (BUILD_RECIPE STREQUAL "MSYS2")
+  set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} -mwindows")
+  set(CMAKE_C_FLAGS_${BT} "${CMAKE_C_FLAGS_${BT}} -mwindows")
+  set(CMAKE_CXX_FLAGS_${BT} "${CMAKE_CXX_FLAGS_${BT}} -mwindows")
+endif()
 
 ## openmp
 if (ENABLE_OPENMP)
