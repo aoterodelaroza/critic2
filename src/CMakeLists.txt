@@ -166,3 +166,13 @@ endif()
 
 ## install the binary
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+## recipe specific copies and install
+if (BUILD_RECIPE STREQUAL "MSYS2")
+  foreach (i IN ITEMS libblas.dll libgcc_s_seh-1.dll glfw3.dll libgomp-1.dll liblapack.dll libreadline8.dll libstdc++-6.dll libgfortran-5.dll libwinpthread-1.dll libtermcap-0.dll libquadmath-0.dll)
+    add_custom_command(TARGET critic2 POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy /mingw64/bin/${i} ${CMAKE_BINARY_DIR}/src
+      COMMENT "Copying MINGW64 dll libraries" VERBATIM)
+    install(FILES ${CMAKE_BINARY_DIR}/src/${i} DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endforeach()
+endif()

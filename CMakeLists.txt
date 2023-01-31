@@ -15,6 +15,30 @@ set(critic2_LICENSE "GNU/GPL version 3")
 set(critic2_DESCRIPTION "Analysis of quantum mechanical calculations in molecules and solids")
 string(TIMESTAMP DATE "%a %d %b %Y %H:%M:%S")
 
+## build recipes
+if (BUILD_RECIPE STREQUAL "MSYS2")
+  ## system and compiler details
+  set(CMAKE_SYSTEM_NAME Windows)
+  set(TOOLCHAIN_PREFIX x86_64-w64-mingw32)
+
+  set(CMAKE_Fortran_COMPILER ${TOOLCHAIN_PREFIX}-gfortran)
+  set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
+  set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
+  
+  set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX})
+  set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+  ## set the cache
+  set(CMAKE_INSTALL_PREFIX "D:/msys2/home/media service/critic2-install" CACHE PATH "Install directory" FORCE)
+  set(BUILD_TESTING ON CACHE BOOL "" FORCE)
+  set(ENABLE_GUI ON CACHE BOOL "" FORCE)
+  set(BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+  set(GLFW3_ROOT "/home/alberto/dll/glfw-3.3.8.bin.WIN64" CACHE STRING "" FORCE)
+  set(USE_GUI_THREADS OFF CACHE BOOL "" FORCE)
+endif()
+
 ## project definition
 project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C Fortran)
 
@@ -24,6 +48,12 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
 include(utils)
+
+## whether we are following a build recipe
+if(NOT BUILD_RECIPE)
+  set(BUILD_RECIPE OFF CACHE STRING "Choose the build recipe." FORCE)
+endif()
+set_property(CACHE BUILD_RECIPE PROPERTY STRINGS OFF MSYS2 WINE)
 
 ## default build type, and type options
 if(NOT CMAKE_BUILD_TYPE)
