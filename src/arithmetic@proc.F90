@@ -1857,6 +1857,7 @@ contains
        case (fun_prod)
           q(nq) = a * b
        case (fun_div)
+          if (b == 0d0) call die('divided by zero in expression')
           q(nq) = a / b
        case (fun_power)
           q(nq) = a ** b
