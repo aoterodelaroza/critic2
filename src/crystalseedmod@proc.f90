@@ -3318,6 +3318,8 @@ contains
           end if
        end if
     end do
+    if (nat == 0) goto 999
+    if (nspc == 0) goto 999
 
     ! second pass, actual read
     seed%useabr = 2
@@ -6847,6 +6849,7 @@ contains
           end if
        end if
     end do
+    if (nseed == 0) goto 999
 
     ! allocate seeds
     if (allocated(seed)) deallocate(seed)
