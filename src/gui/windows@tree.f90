@@ -1970,12 +1970,15 @@ contains
     class(window), intent(inout), target :: w
 
     real(c_double) :: xmin, xmax
+    integer(c_int) :: nticks
     real*8 :: dy
     logical :: doquit
     integer :: i, isys, num
     type(ImVec2) :: sz
     type(ImVec4) :: auto
     character(len=:,kind=c_char), allocatable, target :: str1, str2
+
+    integer, parameter :: maxxticks = 10
 
     isys = w%isys
     doquit = (isys < 1 .or. isys > nsys)
@@ -2018,8 +2021,15 @@ contains
              str2 = "Energy (Ha)" // c_null_char
              call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
 
-             str1 = "%.0f" // c_null_char
-             call ipSetupAxisTicks(ImAxis_X1,w%plotx(1),w%plotx(size(w%plotx,1)),size(w%plotx,1))
+             str1 = "%d" // c_null_char
+             nticks = size(w%plotx,1)
+             xmin = w%plotx(1)
+             xmax = w%plotx(nticks)
+             if (nticks > maxxticks) then
+                nticks = maxxticks + 1
+                xmax = xmin + ceiling((xmax - xmin) / maxxticks) * maxxticks
+             end if
+             call ipSetupAxisTicks(ImAxis_X1,xmin,xmax,nticks)
              call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
 
              dy = (w%ymax - w%ymin)
