@@ -715,13 +715,7 @@ contains
           discol = .not.s%rep(i)%shown
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
-          str1 = trim(s%rep(i)%name) // "##" // string(ic_name) // "," // string(i) // c_null_char
-          flags = ImGuiSelectableFlags_SpanAllColumns
-          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-          if (igSelectable_Bool(c_loc(str1),.false._c_bool,flags,szero)) then
-             s%rep(i)%shown = .not.s%rep(i)%shown
-             changed = .true.
-          end if
+          call iw_text(trim(s%rep(i)%name))
           if (discol) call igPopStyleColor(1)
 
           ! name context menu
