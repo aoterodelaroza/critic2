@@ -5235,6 +5235,7 @@ contains
        ! read the title and the scale line
        ok = getline_raw(lu,line)
        if (.not.ok) exit
+       if (len_trim(line) == 0) exit ! USPEX does not insert a blank line after
        lp = 1
        word = getword(line,lp)
        if (len_trim(word) > 0) then
