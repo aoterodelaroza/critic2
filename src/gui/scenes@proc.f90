@@ -422,7 +422,6 @@ contains
 
        ! draw the flat cylinders (unit cell)
        if (s%ncylflat > 0) then
-          call setuniform_int("uselighting",0_c_int)
           call glBindVertexArray(cylVAO(s%uc_res))
           do i = 1, s%ncylflat
              call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
@@ -432,7 +431,6 @@ contains
 
        ! draw the selected atoms
        if (s%nmsel > 0) then
-          call setuniform_int("uselighting",0_c_int)
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

@@ -132,6 +132,7 @@ contains
   !> Set an integer uniform.
   module subroutine setuniform_int(name,x)
     use interfaces_opengl3, only: glUniform1i, glGetUniformLocation
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     integer(c_int), intent(in) :: x
 
@@ -140,6 +141,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
     call glUniform1i(idx,x)
 
   end subroutine setuniform_int
@@ -147,6 +150,7 @@ contains
   !> Set a float uniform.
   module subroutine setuniform_float(name,x)
     use interfaces_opengl3, only: glUniform1f, glGetUniformLocation
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     real(c_float), intent(in) :: x
 
@@ -155,6 +159,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_float','error finding uniform location for ' // trim(name),faterr)
     call glUniform1f(idx,x)
 
   end subroutine setuniform_float
@@ -162,6 +168,7 @@ contains
   !> Set a vec3 float uniform.
   module subroutine setuniform_vec3(name,x)
     use interfaces_opengl3, only: glUniform3fv, glGetUniformLocation
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(3)
 
@@ -170,6 +177,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_vec3','error finding uniform location for ' // trim(name),faterr)
     call glUniform3fv(idx,1,c_loc(x))
 
   end subroutine setuniform_vec3
@@ -177,6 +186,7 @@ contains
   !> Set a vec4 float uniform.
   module subroutine setuniform_vec4(name,x)
     use interfaces_opengl3, only: glUniform4fv, glGetUniformLocation
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(4)
 
@@ -185,6 +195,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_vec4','error finding uniform location for ' // trim(name),faterr)
     call glUniform4fv(idx,1,c_loc(x))
 
   end subroutine setuniform_vec4
@@ -192,6 +204,7 @@ contains
   !> Set a mat3 float uniform
   module subroutine setuniform_mat3(name,x)
     use interfaces_opengl3, only: glUniformMatrix3fv, glGetUniformLocation, GL_FALSE
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(3,3)
 
@@ -200,6 +213,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_mat3','error finding uniform location for ' // trim(name),faterr)
     call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
   end subroutine setuniform_mat3
@@ -207,6 +222,7 @@ contains
   !> Set a mat4 float uniform
   module subroutine setuniform_mat4(name,x)
     use interfaces_opengl3, only: glUniformMatrix4fv, glGetUniformLocation, GL_FALSE
+    use tools_io, only: ferror, faterr
     character*(*), intent(in), target :: name
     real(c_float), intent(in), target :: x(4,4)
 
@@ -215,6 +231,8 @@ contains
 
     str = trim(name) // c_null_char
     idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+    if (idx == -1) &
+       call ferror('setuniform_mat4','error finding uniform location for ' // trim(name),faterr)
     call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
   end subroutine setuniform_mat4
