@@ -28,6 +28,8 @@ submodule (scenes) proc
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
+  real(c_float), parameter :: atom_border = 0.2_c_float
+
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
@@ -399,33 +401,17 @@ contains
        call setuniform_mat4("view",s%view)
        call setuniform_mat4("projection",s%projection)
 
-       ! prepare the stencil buffer
-       call glEnable(GL_STENCIL_TEST)
-       call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
-       call glClearStencil(int(z'FF',c_int))
-       call glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-
        ! draw the atoms
+       call setuniform_float("rborder",atom_border)
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           do i = 1, s%nsph
-             call glStencilFunc(GL_ALWAYS, 1, int(z'FF',c_int))
-             call glStencilMask(int(z'FF',c_int))
-             call glClear(GL_STENCIL_BUFFER_BIT)
              call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
-             call glStencilFunc(GL_NOTEQUAL, 1, int(z'FF',c_int))
-             call glStencilMask(0_c_int)
-             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + 0.25_c_float,s%atom_res,&
-                rgb=(/0._c_float,0._c_float,0._c_float/))
           end do
        end if
 
-       ! disable the stencil buffer for the rest
-       call glStencilMask(int(z'FF',c_int))
-       call glStencilFunc(GL_ALWAYS, 0, int(z'FF',c_int))
-       call glDisable(GL_STENCIL_TEST)
-
        ! draw the bonds
+       call setuniform_float("rborder",-1._c_float)
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           do i = 1, s%ncyl
