@@ -203,11 +203,10 @@ module systemmod
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
-     module function system_eval_expression(s,expr,hardfail,iok,x0)
+     module function system_eval_expression(s,expr,errmsg,x0)
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
-       logical, intent(in) :: hardfail
-       logical, intent(out) :: iok
+       character(len=:), allocatable, intent(inout) :: errmsg
        real*8, intent(in), optional :: x0(3)
        real*8 :: system_eval_expression
      end function system_eval_expression

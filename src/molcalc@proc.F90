@@ -233,6 +233,7 @@ contains
     real*8 :: fval, fsum
     integer :: i
     logical :: ok
+    character(len=:), allocatable :: errmsg
 
     call m%gen(sy%c,mesh_type,mesh_level)
 
@@ -241,9 +242,9 @@ contains
     call m%report()
 
     allocate(ff(m%n))
-    !$omp parallel do private(fval,ok)
+    !$omp parallel do private(fval,ok,errmsg)
     do i = 1, m%n
-       fval = sy%eval(expr,.true.,ok,m%x(:,i))
+       fval = sy%eval(expr,errmsg,m%x(:,i))
        !$omp critical (save)
        ff(i) = fval
        !$omp end critical (save)

@@ -871,7 +871,8 @@ contains
     logical :: ok
     real*8 :: rdum
     integer :: lp2, iz
-    logical :: iok, iscov
+    logical :: iscov
+    character(len=:), allocatable :: errmsg
 
     word = lgetword(line,lp)
     if (equal(word,'bondfactor')) then
@@ -1058,16 +1059,16 @@ contains
           end if
        end do
     elseif (isassignment(var,word,line)) then
-       rdum = eval(word,.false.,iok)
-       if (.not.iok) then
-          call ferror('critic2','Syntax error or wrong assignment',faterr,line,syntax=.true.)
+       rdum = eval(word,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
           return
        end if
        call setvariable(trim(var),rdum)
     else
        word = string(line)
-       rdum = eval(word,.false.,iok)
-       if (.not.iok) then
+       rdum = eval(word,errmsg)
+       if (len_trim(errmsg) > 0) then
           call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
           return
        end if
@@ -1126,13 +1127,15 @@ contains
 
     integer :: lp
     character(len=:), allocatable :: word
+    character(len=:), allocatable :: errmsg
 
     res = 0d0
     lp = lp0
     word = ""
     eval_next_real = isexpression_or_word(word,line,lp)
     if (eval_next_real) then
-       res = eval(string(word),.false.,eval_next_real)
+       res = eval(string(word),errmsg)
+       if (len_trim(errmsg) > 0) eval_next_real = .false.
        if (eval_next_real) lp0 = lp
     endif
 
@@ -1151,6 +1154,7 @@ contains
     character(len=:), allocatable :: word
     integer :: lp
     real*8 :: rdum
+    character(len=:), allocatable :: errmsg
 
     real*8, parameter :: eps = 1d-20
 
@@ -1159,7 +1163,8 @@ contains
     word = ""
     eval_next_int = isexpression_or_word(word,line,lp)
     if (eval_next_int) then
-       rdum = eval(word,.false.,eval_next_int)
+       rdum = eval(word,errmsg)
+       if (len_trim(errmsg) > 0) eval_next_int = .false.
        if (abs(rdum - nint(rdum)) > eps) then
           eval_next_int = .false.
           return

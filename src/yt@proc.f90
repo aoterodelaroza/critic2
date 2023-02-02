@@ -55,6 +55,7 @@ contains
     logical :: isias, isassigned, ok
     integer :: nid
     real*8 :: dv(3), fval, x(3)
+    character(len=:), allocatable :: errmsg
 
     if (.not.s%isinit) &
        call ferror("yt_integrate","system not initialized",faterr)
@@ -153,9 +154,9 @@ contains
              ok = .true.
              if (len_trim(bas%expr) > 0) then
                 x = s%c%x2c(dv)
-                fval = s%eval(bas%expr,.false.,ok,x)
-                if (.not.ok) &
-                   call ferror("yt","invalid DISCARD expression",faterr)
+                fval = s%eval(bas%expr,errmsg,x)
+                if (len_trim(errmsg) > 0) &
+                   call ferror("yt","Invalid DISCARD expression: "//trim(errmsg),faterr)
                 ok = (abs(fval) < vsmall)
              end if
              if (ok) then
@@ -247,8 +248,9 @@ contains
     integer :: nhi, imin
     integer, allocatable :: ibasin(:), ihi(:)
     real*8 :: fval, x(3), dv(3)
-    logical :: interior, ok
+    logical :: interior
     integer, allocatable :: imap(:)
+    character(len=:), allocatable :: errmsg
 
     if (.not.s%isinit) &
        call ferror("yt_isosurface","system not initialized",faterr)
@@ -298,9 +300,9 @@ contains
        dv = real(ib-1,8) / n
        if (len_trim(bas%expr) > 0) then
           x = s%c%x2c(dv)
-          fval = s%eval(bas%expr,.false.,ok,x)
-          if (.not.ok) &
-             call ferror("yt","invalid DISCARD expression",faterr)
+          fval = s%eval(bas%expr,errmsg,x)
+          if (len_trim(errmsg) > 0) &
+             call ferror("yt","Invalid DISCARD expression: " // trim(errmsg),faterr)
           if (abs(fval) > vsmall) cycle
        end if
 

@@ -1987,8 +1987,8 @@ contains
     integer :: i
     real*8 :: x(3)
     real*8, allocatable :: fsurf(:)
-    logical :: iok
     type(grhandle) :: gr
+    character(len=:), allocatable :: errmsg
 
     if (s%isinit <= 1) &
        call ferror ('minisurf_write3dmodel','No face information in minisurf',faterr)
@@ -2001,7 +2001,9 @@ contains
           x(2) = s%n(2) + s%r(i) * sin(s%th(i)) * sin(s%ph(i))
           x(3) = s%n(3) + s%r(i) * cos(s%th(i))
           call sy%f(sy%iref)%grd(x,0,res)
-          fsurf(i) = sy%eval(expr,.true.,iok,x)
+          fsurf(i) = sy%eval(expr,errmsg,x)
+          if (len_trim(errmsg) > 0) &
+             call ferror('minisurf_write3dmodel','Error in expression: '//trim(expr),faterr)
        end do
     else
        allocate(fsurf(3))

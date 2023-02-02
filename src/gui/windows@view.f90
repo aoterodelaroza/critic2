@@ -1529,8 +1529,8 @@ contains
     call igAlignTextToFramePadding()
     call iw_text("Filter",highlight=.true.)
     call iw_text("(?)",sameline=.true.)
-    call iw_tooltip("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. "&
-       &"Structural variables are very useful for filters. Examples:"//newline//&
+    call iw_tooltip("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. &
+       &Structural variables are very useful for filters. Examples:"//newline//&
        "- '@x < 3' = all atoms with x lower than 3"//newline//&
        "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&
        "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
@@ -1556,21 +1556,20 @@ contains
        else
           x0 = 0d0
        end if
-       res = sys(isys)%eval(w%rep%filter,.false.,w%rep%goodfilter,x0)
-
-       if (w%rep%goodfilter) changed = .true.
+       changed = .true.
+       w%rep%errfilter = ""
     end if
-    if (len_trim(w%rep%filter) == 0) w%rep%goodfilter = .true.
+    if (len_trim(w%rep%filter) == 0) w%rep%errfilter = ""
     call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",&
        ttshown)
     if (iw_button("Clear",sameline=.true.)) then
        w%rep%filter = ""
-       w%rep%goodfilter = .true.
+       w%rep%errfilter = ""
        changed = .true.
     end if
     call iw_tooltip("Clear the filter",ttshown)
-    if (.not.w%rep%goodfilter) &
-       call iw_text("Error in the filter expression.",danger=.true.)
+    if (len_trim(w%rep%errfilter) > 0) &
+       call iw_text("Error: " // trim(w%rep%errfilter),danger=.true.)
 
     ! periodicity
     if (.not.sys(isys)%c%ismolecule) then

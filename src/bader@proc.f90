@@ -93,6 +93,7 @@ contains
     real*8 :: dlat(3), dcar(3), dv(3), x(3), fval
     integer :: bat(s%c%ncel)
     logical :: isassigned, ok
+    character(len=:), allocatable :: errmsg
 
     if (.not.s%isinit) &
        call ferror("bader_integrate","system not initialized",faterr)
@@ -183,9 +184,9 @@ contains
                       ok = .true.
                       if (len_trim(bas%expr) > 0) then
                          x = s%c%x2c(dv)
-                         fval = s%eval(bas%expr,.false.,ok,x)
-                         if (.not.ok) &
-                            call ferror("yt","invalid DISCARD expression",faterr)
+                         fval = s%eval(bas%expr,errmsg,x)
+                         if (len_trim(errmsg) > 0) &
+                            call ferror("yt","invalid DISCARD expression: " // trim(errmsg),faterr)
                          ok = (abs(fval) < 1d-30)
                       end if
                       if (ok) then

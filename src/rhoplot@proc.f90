@@ -77,10 +77,10 @@ contains
     character*(*), intent(in) :: line
 
     type(scalar_value) :: res
-    logical :: ok, iok, doall
+    logical :: ok, doall
     integer :: lp, lp2, i, j, ifi, lu
     real*8 :: x0(3), xx(3), rdum, x1, y1, z1
-    character(len=:), allocatable :: word, expr, str
+    character(len=:), allocatable :: word, expr, str, errmsg
     integer :: np
     real*8, allocatable :: xp(:,:)
 
@@ -163,7 +163,11 @@ contains
           write (uout,'("+ Field: ",A)') string(ifi)
           call sy%propty(ifi,x0,res,.false.,.true.,doall)
        else
-          rdum = sy%eval(expr,.true.,iok,xx)
+          rdum = sy%eval(expr,errmsg,xx)
+          if (len_trim(errmsg) > 0) then
+             call ferror('critic','error in expression: '//trim(expr),faterr,line,syntax=.true.)
+             return
+          end if
           write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
        endif
        write (uout,*)
@@ -192,7 +196,7 @@ contains
 
     integer :: lp, lp2, nti, id, luout, np
     real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xout(3)
-    character(len=:), allocatable :: word, outfile, prop, expr
+    character(len=:), allocatable :: word, outfile, prop, expr, errmsg
     type(scalar_value) :: res
     logical :: ok, iok
     integer :: i, j
@@ -309,7 +313,7 @@ contains
     allocate(rhoout(np),lapout(np))
     lapout = 0d0
 
-    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt)
+    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt,errmsg)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
@@ -349,7 +353,7 @@ contains
              lappt = res%del2f
           end select
        else
-          rhopt = sy%eval(expr,.true.,iok,xp)
+          rhopt = sy%eval(expr,errmsg,xp)
           lappt = rhopt
        end if
 
@@ -407,9 +411,9 @@ contains
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2, nder
-    character(len=:), allocatable :: word, outfile, expr, wext1
+    character(len=:), allocatable :: word, outfile, expr, wext1, errmsg
     type(scalar_value) :: res
-    logical :: ok, iok, doortho
+    logical :: ok, doortho
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
     real*8, allocatable :: lf(:,:,:)
     logical :: dogrid, useexpr, doheader
@@ -761,7 +765,7 @@ contains
           lf = faux%f
           call faux%end()
        else
-          !$omp parallel do private (xp,res,lappt)
+          !$omp parallel do private (xp,res,lappt,errmsg)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
                 do ix = 0, nn(1)-1
@@ -797,7 +801,7 @@ contains
                          lappt = res%del2f
                       end select
                    else
-                      lappt = sy%eval(expr,.true.,iok,xp)
+                      lappt = sy%eval(expr,errmsg,xp)
                    end if
                    !$omp critical (fieldwrite)
                    lf(ix+1,iy+1,iz+1) = lappt
@@ -839,9 +843,9 @@ contains
     real*8 :: uu(3), vv(3), fmin, fmax
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap, fset
-    character(len=:), allocatable :: word, outfile, root0, expr
+    character(len=:), allocatable :: word, outfile, root0, expr, errmsg
     type(scalar_value) :: res
-    logical :: ok, iok
+    logical :: ok
     integer :: ix, iy, cmopt, nder
     real*8, allocatable :: ff(:,:), ziso(:)
 
@@ -1077,7 +1081,7 @@ contains
        nder = 2
     end if
 
-    !$omp parallel do private (xp,res,rhopt,iok)
+    !$omp parallel do private (xp,res,rhopt,errmsg)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1111,7 +1115,7 @@ contains
                 rhopt = res%del2f
              end select
           else
-             rhopt = sy%eval(expr,.true.,iok,xp)
+             rhopt = sy%eval(expr,errmsg,xp)
           endif
           !$omp critical (write)
           ff(ix,iy) = rhopt

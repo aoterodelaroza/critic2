@@ -1800,6 +1800,7 @@ contains
     use systemmod, only: sy
     use types, only: scalar_value
     use tools_math, only: rsindex
+    use tools_io, only: ferror, faterr
     use global, only: cp_hdegen
     type(json_core), intent(inout) :: json
     type(json_value), pointer, intent(inout) :: p
@@ -1811,6 +1812,7 @@ contains
     type(scalar_value) :: res
     logical :: iok
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
+    character(len=:), allocatable :: errmsg
 
     call json%create_object(s,'critical_points')
     call json%add(p,s)
@@ -1879,7 +1881,9 @@ contains
              call json%add(ap2,'name',trim(sy%propp(ip)%name))
              call json%add(ap2,'expression',trim(sy%propp(ip)%expr))
              if (sy%propp(ip)%ispecial == 0) then
-                fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
+                fres = sy%eval(sy%propp(ip)%expr,errmsg,xp)
+                if (len_trim(errmsg) > 0) &
+                   call ferror('cp_json_report',errmsg,faterr)
                 call json%add(ap2,'value',fres)
              else
                 ! stress tensor
@@ -2162,7 +2166,7 @@ contains
   !> cmake.
   subroutine write_test_cps(file)
     use systemmod, only: sy
-    use tools_io, only: uout, fopen_write, fclose, string
+    use tools_io, only: uout, fopen_write, fclose, string, ferror, faterr
     use types, only: scalar_value
     character*(*), intent(in) :: file
 
@@ -2171,6 +2175,7 @@ contains
     integer :: i, j, ip
     real*8 :: fres, xp(3)
     logical :: iok
+    character(len=:), allocatable :: errmsg
 
     write (uout,'("* WRITE TEST file: ",A/)') string(file)
 
@@ -2223,7 +2228,9 @@ contains
           write (lu,'("pointprops: ")')
           do ip = 1, sy%npropp
              if (sy%propp(ip)%ispecial == 0) then
-                fres = sy%eval(sy%propp(ip)%expr,.true.,iok,xp)
+                fres = sy%eval(sy%propp(ip)%expr,errmsg,xp)
+                if (len_trim(errmsg) > 0) &
+                   call ferror('cp_json_report',errmsg,faterr)
                 write (lu,'("id: ",A)') string(ip)
                 write (lu,'("name: ",A)') string(sy%propp(ip)%name)
                 write (lu,'("expression: ",A)') string(sy%propp(ip)%expr)

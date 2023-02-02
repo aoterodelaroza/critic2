@@ -272,7 +272,7 @@ contains
     integer :: i, j, k, n(3)
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
-    logical :: iok
+    logical :: ifail
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -479,20 +479,24 @@ contains
              xdelta(i,i) = 1d0 / real(n(i),8)
           end do
 
-          !$omp parallel do private(x,rho)
+          ifail = .false.
+          !$omp parallel do private(x,rho,errmsg)
           do k = 1, n(3)
              do j = 1, n(2)
                 do i = 1, n(1)
+                   if (ifail) cycle
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
-                   rho = eval(seed%expr,.true.,iok,x,sptr,.true.)
+                   rho = eval(seed%expr,errmsg,x,sptr,.true.)
                    !$omp critical(write)
+                   if (len_trim(errmsg) > 0) ifail = .true.
                    f%grid%f(i,j,k) = rho
                    !$omp end critical(write)
                 end do
              end do
           end do
           !$omp end parallel do
+          if (len_trim(errmsg) > 0) goto 999
           f%grid%isinit = .true.
        end if
        f%name = "<generated>, grid: " // trim(seed%expr)
@@ -673,7 +677,8 @@ contains
     real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
-    logical :: isgrid, iok, per, skipvalassign
+    logical :: isgrid, per, skipvalassign
+    character(len=:), allocatable :: errmsg
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
     real*8, parameter :: neargrideps = 1d-12
@@ -850,9 +855,11 @@ contains
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
-       res%f = eval(f%expr,.true.,iok,wc,f%sptr,periodic)
+       res%f = eval(f%expr,errmsg,wc,f%sptr,periodic)
        res%gf = 0d0
        res%hf = 0d0
+       if (len_trim(errmsg) > 0) &
+          call ferror("grd",errmsg,faterr)
 
     case default
        call ferror("grd","unknown scalar field type",faterr)
@@ -914,7 +921,8 @@ contains
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gradx(3,3), gradv(3,3)
     real*8 :: rhox(3), rhov(3), gkinx(3)
-    logical :: iok, per
+    logical :: per
+    character(len=:), allocatable :: errmsg
 
     ! initialize
     if (present(periodic)) then
@@ -969,7 +977,9 @@ contains
     case(type_promol_frag)
        call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
-       rho = eval(f%expr,.true.,iok,wc,f%sptr,periodic)
+       rho = eval(f%expr,errmsg,wc,f%sptr,periodic)
+       if (len_trim(errmsg) > 0) &
+          call ferror("grd",errmsg,faterr)
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select

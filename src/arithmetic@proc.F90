@@ -30,19 +30,19 @@ submodule (arithmetic) proc
   ! function istype(c,type,iwantarg)
   ! function isspecialfield(fid)
   ! function isstructvar(fid,c,fder)
-  ! recursive function fieldeval(fid,fder,x0,sptr,periodic)
+  ! recursive function fieldeval(fid,fder,errmsg,x0,sptr,periodic)
   ! function structvareval(svar,x0,syl,periodic) result(q)
   ! function isnumber(rval,expr,lp)
   ! function isoperator(c,expr,lp)
   ! function isfunction(c,expr,lp,wasop)
   ! function isidentifier(id,expr,lp,fder)
-  ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,fail)
+  ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,errmsg)
   ! subroutine pop_grid(q,nq,s,ns,fail)
-  ! subroutine die(msg,msg2)
-  ! function chemfunction(c,sia,x0,args,sptr,periodic) result(q)
+  ! function chemfunction(c,sia,x0,args,sptr,periodic,errmsg) result(q)
   ! function specialfieldeval(fid,syl,x0) result(res)
 
   ! enum for operators and functions
+  integer, parameter :: fun_unknown     = 0  !< unknown operator
   integer, parameter :: fun_openpar     = 1  !< open parenthesis
   integer, parameter :: fun_closepar    = 2  !< close parenthesis
   integer, parameter :: fun_uplus       = 3  !< unary +
@@ -189,14 +189,13 @@ contains
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
   !> sptr C pointer to the calling system. This routine is
   !> thread-safe.
-  recursive module function eval(expr,hardfail,iok,x0,sptr,periodic)
+  recursive module function eval(expr,errmsg,x0,sptr,periodic)
     use systemmod, only: system
     use iso_c_binding, only: c_ptr, c_f_pointer
     use hashmod, only: hash
     real*8 :: eval
     character(*), intent(in) :: expr
-    logical, intent(in) :: hardfail
-    logical, intent(out) :: iok
+    character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
     type(c_ptr), intent(in), optional :: sptr
     logical, intent(in), optional :: periodic
@@ -209,23 +208,23 @@ contains
     type(token), allocatable :: toklist(:)
     type(system), pointer :: syl
 
+    errmsg = ""
     ! recover the system pointer
     syl => null()
     eval = 0d0
     if (present(sptr)) then
        call c_f_pointer(sptr,syl)
        if (.not.syl%isinit) then
-          call dofail('system not initialized')
+          errmsg = 'system not initialized'
           return
        end if
     end if
 
     ! tokenize the expression in input
-    iok = .false.
     lp = 1
     ok = tokenize(expr,ntok,toklist,lp,syl)
     if (.not.ok) then
-       call dofail(expr(1:lp-1) // " -- " // expr(lp:))
+       errmsg = 'syntax error'
        return
     end if
 
@@ -252,11 +251,8 @@ contains
              again = .false.
              if (ns > 0) then
                 if (iprec(c) < iprec(s(ns)) .or. iassoc(c)==-1 .and. iprec(c)<=iprec(s(ns))) then
-                   call pop(q,nq,s,ns,x0,syl,periodic,ifail)
-                   if (ifail) then
-                      call dofail()
-                      return
-                   endif
+                   call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+                   if (len_trim(errmsg) > 0) return
                    again = .true.
                 end if
              end if
@@ -271,14 +267,11 @@ contains
           ! right parenthesis
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,syl,periodic,ifail)
-              if (ifail) then
-                 call dofail()
-                 return
-              end if
+              call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+              if (len_trim(errmsg) > 0) return
            end do
            if (ns == 0) then
-              call dofail('mismatched parentheses')
+              errmsg = 'mismatched parentheses'
               return
            end if
            ns = ns - 1
@@ -286,78 +279,43 @@ contains
            if (ns > 0) then
               c = s(ns)
               if (istype(c,'function')) then
-                 call pop(q,nq,s,ns,x0,syl,periodic,ifail)
-                 if (ifail) then
-                    call dofail()
-                    return
-                 end if
+                 call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+                 if (len_trim(errmsg) > 0) return
               end if
            end if
         elseif (toklist(i)%type == token_comma) then
            ! a comma
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
-              call pop(q,nq,s,ns,x0,syl,periodic,ifail)
-              if (ifail) then
-                 call dofail()
-                 return
-              endif
+              call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+              if (len_trim(errmsg) > 0) return
            end do
            if (s(ns) /= fun_openpar) then
-              call dofail('mismatched parentheses')
+              errmsg = 'mismatched parentheses'
               return
            end if
         elseif (toklist(i)%type == token_field) then
            ! a field
            nq = nq + 1
-           if (present(x0)) then
-              q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,x0,syl,periodic)
-           else
-              call dofail()
-              return
-           end if
+           q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,errmsg,x0,syl,periodic)
+           if (len_trim(errmsg) > 0) return
         elseif (toklist(i)%type == token_structvar) then
            ! a structural variable
            nq = nq + 1
-           if (present(x0)) then
-              q(nq) = structvareval(toklist(i)%ival,toklist(i)%fder,x0,syl,periodic)
-           else
-              call dofail()
-              return
-           end if
+           q(nq) = structvareval(toklist(i)%ival,toklist(i)%fder,errmsg,x0,syl,periodic)
+           if (len_trim(errmsg) > 0) return
         else
-           call dofail()
+           errmsg = 'syntax error'
            return
         end if
     end do
 
     ! unwind the stack
     do while (ns > 0)
-       call pop(q,nq,s,ns,x0,syl,periodic,ifail)
-       if (ifail) then
-          call dofail()
-          return
-       endif
+       call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+       if (len_trim(errmsg) > 0) return
     end do
-    iok = .true.
     eval = q(1)
-    return
-
-  contains
-    subroutine dofail(errmsg)
-      character*(*), intent(in), optional :: errmsg
-
-      iok = .false.
-      if (hardfail) then
-         if (present(errmsg)) then
-            call die("Error evaluating expression. ",errmsg)
-         else
-            call die("Error evaluating expression. ",expr)
-         end if
-      else
-         return
-      endif
-    end subroutine dofail
 
   end function eval
 
@@ -502,14 +460,16 @@ contains
 
   !> Parse an expression (expr) and return the n field ids in it
   !> (idlist).  sptr = C pointer to the calling system. This routine
-  !> is thread-safe.
-  module subroutine fields_in_eval(expr,n,idlist,sptr)
+  !> is thread-safe. If error, return non-zero-length string in
+  !> errmsg.
+  module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr)
     use systemmod, only: system
     use tools_io, only: string
     use types, only: realloc
     use param, only: mlen
     use iso_c_binding, only: c_ptr, c_f_pointer
     character(*), intent(in) :: expr
+    character(len=:), allocatable, intent(inout) :: errmsg
     integer, intent(out) :: n
     character(len=mlen), allocatable, intent(inout) :: idlist(:)
     type(c_ptr), intent(in) :: sptr
@@ -520,11 +480,14 @@ contains
     type(token), allocatable :: toklist(:)
     type(system), pointer :: syl
 
+    errmsg = ""
     syl => null()
     ! recover the system pointer
     call c_f_pointer(sptr,syl)
-    if (.not.syl%isinit) &
-       call die("system not initialized evaluating expression: " // string(expr))
+    if (.not.syl%isinit) then
+       errmsg = "system not initialized"
+       return
+    end if
 
     ! allocate space for the field ids
     if (allocated(idlist)) deallocate(idlist)
@@ -533,8 +496,10 @@ contains
     ! tokenize the expression
     lp = 1
     ok = tokenize(expr,ntok,toklist,lp,syl)
-    if (.not. ok) &
-       call die("error evaluating expression: " // string(expr))
+    if (.not. ok) then
+       errmsg = "syntax error"
+       return
+    end if
 
     ! return the ids of the fields in an array
     n = 0
@@ -1159,17 +1124,18 @@ contains
 
   end function isstructvar
 
-  !> Evaluate field with identifier fid and field flag fder at
-  !> point x0. syl = calling system. fcheck checks whether
-  !> the field is sane. feval is the evaluation function. If periodic
-  !> is true, evaluate the field under pbc.
-  recursive function fieldeval(fid,fder,x0,syl,periodic)
+  !> Evaluate field with identifier fid and field flag fder at point
+  !> x0 and return the value. syl = calling system. If periodic is
+  !> true, evaluate the field under pbc. Returns non-empty errmsg if
+  !> the evaluation failed.
+  recursive function fieldeval(fid,fder,errmsg,x0,syl,periodic)
     use systemmod, only: system
     use tools_io, only: string, isinteger, lower
     use types, only: scalar_value
     real*8 :: fieldeval
     character*(*), intent(in) :: fid
     character*(*), intent(in) :: fder
+    character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
@@ -1178,10 +1144,14 @@ contains
     type(scalar_value) :: res
     character*10 :: fderl
 
+    errmsg = ""
+
     ! recover the system pointer
     if (present(syl)) then
-       if (.not.syl%isinit) &
-          call die('evaluating field ' // string(fid) // ', system not initialized')
+       if (.not.syl%isinit) then
+          errmsg = 'evaluating field ' // string(fid) // ', system not initialized'
+          return
+       end if
     end if
 
     fieldeval = 0d0
@@ -1210,16 +1180,22 @@ contains
              fieldeval = res%f - res%fval
           case ("up")
              fieldeval = res%fspin(1)
-             if (.not.res%avail_spin) &
-                call die('evaluating field ' // string(fid) // ', spin quantities not available')
+             if (.not.res%avail_spin) then
+                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
+                return
+             end if
           case ("dn")
              fieldeval = res%fspin(2)
-             if (.not.res%avail_spin) &
-                call die('evaluating field ' // string(fid) // ', spin quantities not available')
+             if (.not.res%avail_spin) then
+                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
+                return
+             end if
           case ("sp")
              fieldeval = res%fspin(1) - res%fspin(2)
-             if (.not.res%avail_spin) &
-                call die('evaluating field ' // string(fid) // ', spin quantities not available')
+             if (.not.res%avail_spin) then
+                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
+                return
+             end if
           case ("x")
              fieldeval = res%gf(1)
           case ("y")
@@ -1252,17 +1228,19 @@ contains
        else if (isspecialfield(fid)) then
           fieldeval = specialfieldeval(fid,syl,x0)
        else
-          call die('wrong field (' // string(fid) // ') in expression')
+          errmsg = 'wrong field (' // string(fid) // ')'
+          return
        end if
     else
-       call die('evaluating field ' // string(fid) // ' without point')
+       errmsg = 'evaluating field ' // string(fid) // ' without point'
+       return
     end if
 
   end function fieldeval
 
   !> Evaluate a structural variable at point x0 using the crystal/molecular
   !> structure in syl. periodic=.true. if the system is assumed periodic.
-  function structvareval(svar,fder,x0,syl,periodic) result(q)
+  function structvareval(svar,fder,errmsg,x0,syl,periodic) result(q)
     use systemmod, only: system
     use grid1mod, only: agrid
     use global, only: dunit0, iunit
@@ -1272,6 +1250,7 @@ contains
     real*8 :: q
     integer, intent(in) :: svar
     character*(*), intent(in) :: fder
+    character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
@@ -1280,15 +1259,22 @@ contains
     real*8 :: dist, x(3), rrho1, rrho2
     logical :: ok
 
+    errmsg = ""
+
     ! recover the system pointer
     if (present(syl)) then
-       if (.not.syl%isinit) &
-          call die('evaluating structural variable but system not initialized')
-       if (.not.syl%c%isinit) &
-          call die('evaluating structural variable but structure not initialized')
+       if (.not.syl%isinit) then
+          errmsg = 'evaluating structural variable but system not initialized'
+          return
+       end if
+       if (.not.syl%c%isinit) then
+          errmsg = 'evaluating structural variable but structure not initialized'
+          return
+       end if
     end if
     if (.not.present(x0)) then
-       call die('evaluating structural variable without point')
+       errmsg = 'evaluating structural variable without point'
+       return
     end if
 
     select case (svar)
@@ -1341,10 +1327,14 @@ contains
        if (len_trim(fder) > 0) then
           lp = 1
           ok = isinteger(nid,fder,lp)
-          if (.not.ok) &
-             call die('wrong selector in rho0nuc structural variable')
-          if (nid < 1 .or. nid > syl%c%ncel) &
-             call die('atom ID in rho0nuc structural variable out of range')
+          if (.not.ok) then
+             errmsg = 'wrong selector in rho0nuc structural variable'
+             return
+          end if
+          if (nid < 1 .or. nid > syl%c%ncel) then
+             errmsg = 'atom ID in rho0nuc structural variable out of range'
+             return
+          end if
           call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,cidx0=nid)
           if (nid /= nid0) return ! fixme: the atom was too far
        else
@@ -1388,7 +1378,8 @@ contains
           q = syl%c%spc(syl%c%atcel(nid)%is)%z
        end if
     case default
-       call die('evaluating structural variable: unknown variable')
+       errmsg = 'evaluating structural variable: unknown variable'
+       return
     end select
 
   end function structvareval
@@ -1500,7 +1491,7 @@ contains
              c = fun_or
              lp = lp + 1
           else
-             call die("isoperator","unknown operator")
+             c = fun_unknown
           end if
        else
           if (expr(lp:lp) == "+") then
@@ -1520,7 +1511,7 @@ contains
           elseif (expr(lp:lp) == "^") then
              c = fun_power
           else
-             call die("isoperator","unknown operator")
+             c = fun_unknown
           end if
        endif
        lp = lp + 1
@@ -1758,9 +1749,9 @@ contains
   !> elements). If the expression contains fields ($), use x0 as the
   !> evaluation point (Cartesian). syl = calling system.  If periodic
   !> is present and false, evaluate the expression at x0 considering
-  !> the field as non-periodic. Return fail=.true. if an error was
+  !> the field as non-periodic. Return non-zero errmsg if an error was
   !> found. This routine is thread-safe.
-  subroutine pop(q,nq,s,ns,x0,syl,periodic,fail)
+  subroutine pop(q,nq,s,ns,x0,syl,periodic,errmsg)
     use systemmod, only: system
     use tools_io, only: string
 #ifdef HAVE_LIBXC
@@ -1773,7 +1764,7 @@ contains
     real*8, intent(in), optional :: x0(3)
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
-    logical, intent(out) :: fail
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: ia, iwantarg
     integer :: c, i
@@ -1786,13 +1777,18 @@ contains
 
     ! recover the system pointer
     if (present(syl)) then
-       if (.not.syl%isinit) &
-          call die('error: system not initialized')
+       if (.not.syl%isinit) then
+          errmsg = 'system not initialized'
+          return
+       end if
     end if
 
     ! pop from the stack
-    fail = .false.
-    if (ns == 0) call die('error in expression')
+    errmsg = ""
+    if (ns == 0) then
+       errmsg = 'syntax error'
+       return
+    end if
     c = s(ns)
     ns = ns - 1
 
@@ -1800,7 +1796,11 @@ contains
     if (c == fun_xc) then
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
-       ia = tointeger(q(nq))
+       ia = nint(q(nq))
+       if (abs(q(nq) - ia) > 1d-13) then
+          errmsg = "need an integer for the functional ID"
+          return
+       end if
 
        ! dirty trick for syncing the threads
        if (.not.ifun(ia)%init) then
@@ -1818,7 +1818,8 @@ contains
        if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
           ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
           ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
-          call die("insufficient argument list in xc")
+          errmsg = "insufficient argument list in xc"
+          return
        endif
 
        select case(ifun(ia)%family)
@@ -1841,11 +1842,15 @@ contains
        end select
        q(nq) = zk(1) * rho(1)
 #else
-       call die('(/"!! ERROR !! critic2 was not compiled with libxc support !!"/)')
+       errmsg = "critic2 was not compiled with libxc support"
+       return
 #endif
     elseif (istype(c,'binary')) then
        ! a binary operator or function
-       if (nq < 2) call die('error in expression')
+       if (nq < 2) then
+          errmsg = 'syntax error'
+          return
+       end if
        a = q(nq-1)
        b = q(nq)
        nq = nq - 1
@@ -1857,7 +1862,10 @@ contains
        case (fun_prod)
           q(nq) = a * b
        case (fun_div)
-          if (b == 0d0) call die('divided by zero in expression')
+          if (b == 0d0) then
+             errmsg = 'divided by zero'
+             return
+          end if
           q(nq) = a / b
        case (fun_power)
           q(nq) = a ** b
@@ -1920,7 +1928,10 @@ contains
        end select
     elseif (istype(c,'unary')) then
        ! a unary operator or function
-       if (nq < 1) call die('error in expression')
+       if (nq < 1) then
+          errmsg = 'syntax error'
+          return
+       end if
        select case(c)
        case (fun_uplus)
           q(nq) = +q(nq)
@@ -1939,20 +1950,32 @@ contains
        case (fun_round)
           q(nq) = nint(q(nq))
        case (fun_log)
-          if (q(nq) <= 0d0) call die('arithmetic error in expression')
+          if (q(nq) <= 0d0) then
+             errmsg = 'logarithm of a negative number'
+             return
+          end if
           q(nq) = log(q(nq))
        case (fun_log10)
-          if (q(nq) <= 0d0) call die('arithmetic error in expression')
+          if (q(nq) <= 0d0) then
+             errmsg = 'logarithm of a negative number'
+             return
+          end if
           q(nq) = log10(q(nq))
        case (fun_sin)
           q(nq) = sin(q(nq))
        case (fun_asin)
-          if (q(nq) > 1d0 .or. q(nq) < -1d0) call die('arithmetic error in expression')
+          if (q(nq) > 1d0 .or. q(nq) < -1d0) then
+             errmsg = 'asin argument out of range'
+             return
+          end if
           q(nq) = asin(q(nq))
        case (fun_cos)
           q(nq) = cos(q(nq))
        case (fun_acos)
-          if (q(nq) > 1d0 .or. q(nq) < -1d0) call die('arithmetic error in expression')
+          if (q(nq) > 1d0 .or. q(nq) < -1d0) then
+             errmsg = 'acos argument out of range'
+             return
+          end if
           q(nq) = acos(q(nq))
        case (fun_tan)
           q(nq) = tan(q(nq))
@@ -1970,7 +1993,7 @@ contains
     elseif (istype(c,'chemfunction',iwantarg)) then
        ! We need a point and the evaluator
        if (.not.present(x0).or..not.present(syl)) then
-          fail = .true.
+          errmsg = "a point is needed for evaluating chemical function"
           return
        endif
 
@@ -1984,27 +2007,27 @@ contains
        end if
 
        ! An integer field identifier as the first argument
-       ia = tointeger(q(nq))
+       ia = nint(q(nq))
+       if (abs(ia - q(nq)) > 1d-13) then
+          errmsg = "an integer field is required as argument"
+          return
+       end if
        write (sia,'(I8)') ia
        sia = adjustl(sia)
-       if (.not.syl%goodfield(key=sia)) &
-          call die('wrong field ' // string(sia))
+       if (.not.syl%goodfield(key=sia)) then
+          errmsg = 'wrong field: ' // string(sia)
+          return
+       end if
 
        ! Use the library of chemical functions
-       q(nq) = chemfunction(c,sia,x0,args,syl,periodic)
+       q(nq) = chemfunction(c,sia,x0,args,syl,periodic,errmsg)
+       if (len_trim(errmsg) > 0) return
        if (iwantarg > 1) &
           deallocate(args)
     else
-       call die('error in expression')
+       errmsg = 'error in expression'
+       return
     end if
-  contains
-    function tointeger(a) result(ia)
-      real*8 :: a
-      integer :: ia
-
-      if (a - nint(a) > 1d-13) call die("An integer was required in this expression.")
-      ia = nint(a)
-    endfunction tointeger
   end subroutine pop
 
   !> Pop from the stack and operate on the queue, grid version. q is
@@ -2155,20 +2178,9 @@ contains
 
   end subroutine pop_grid
 
-  !> Crash the execution, emit two messages (the second message is
-  !> optional and gives more info).
-  subroutine die(msg,msg2)
-    use tools_io, only: ferror, faterr
-    character*(*), intent(in) :: msg
-    character*(*), intent(in), optional :: msg2
-    !$omp critical (error)
-    call ferror('eval',msg,faterr,msg2)
-    !$omp end critical (error)
-  end subroutine die
-
   !> Calculate a chemical function for a given field.  This routine is
   !> thread-safe.
-  function chemfunction(c,sia,x0,args,syl,periodic) result(q)
+  function chemfunction(c,sia,x0,args,syl,periodic,errmsg) result(q)
     use systemmod, only: system
     use fieldmod, only: type_wfn
     use global, only: dunit0, iunit
@@ -2183,6 +2195,7 @@ contains
     real*8 :: q, xref(3)
     logical, intent(in), optional :: periodic
     type(system), intent(inout), optional :: syl
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
@@ -2249,14 +2262,18 @@ contains
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
        call syl%f(idx)%grd(x0,1,res,periodic=periodic)
-       if (.not.res%avail_gkin) &
-          call die("Tried to calculate GKIN with a field that cannot provide the kinetic energy density.")
+       if (.not.res%avail_gkin) then
+          errmsg = "Tried to calculate GKIN with a field that cannot provide the kinetic energy density."
+          return
+       end if
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%avail_gkin) &
-          call die("Tried to calculate KKIN with a field that cannot provide the kinetic energy density.")
+       if (.not.res%avail_gkin) then
+          errmsg = "Tried to calculate KKIN with a field that cannot provide the kinetic energy density."
+          return
+       end if
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
@@ -2266,8 +2283,10 @@ contains
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
        call syl%f(idx)%grd(x0,1,res,periodic=periodic)
-       if (.not.res%avail_gkin) &
-          call die("Tried to calculate the ELF with a field that cannot provide the kinetic energy density.")
+       if (.not.res%avail_gkin) then
+          errmsg = "Tried to calculate the ELF with a field that cannot provide the kinetic energy density."
+          return
+       end if
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -2281,23 +2300,29 @@ contains
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%avail_vir) &
-          call die("Tried to calculate VIR with a field that cannot provide the virial.")
+       if (.not.res%avail_vir) then
+          errmsg = "Tried to calculate VIR with a field that cannot provide the virial."
+          return
+       end if
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%avail_vir) &
-          call die("Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial.")
+       if (.not.res%avail_vir) then
+          errmsg = "Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial."
+          return
+       end if
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%avail_vir) &
-          call die("Tried to calculate the LOL with a field that cannot provide the kinetic energy density.")
+       if (.not.res%avail_vir) then
+          errmsg = "Tried to calculate the LOL with a field that cannot provide the kinetic energy density."
+          return
+       end if
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
@@ -2327,8 +2352,10 @@ contains
        use1 = (c==fun_brhole_a1).or.(c==fun_brhole_b1).or.(c==fun_brhole_alf1).or.(c==fun_xhcurv1).or.(c==fun_dsigs1)
        use2 = (c==fun_brhole_a2).or.(c==fun_brhole_b2).or.(c==fun_brhole_alf2).or.(c==fun_xhcurv2).or.(c==fun_dsigs2)
 
-       if (dohole .and..not.res%avail_gkin) &
-          call die("Tried to calculate BR hole with a field that cannot provide the kinetic energy density.")
+       if (dohole .and..not.res%avail_gkin) then
+          errmsg = "Tried to calculate BR hole with a field that cannot provide the kinetic energy density."
+          return
+       end if
 
        if (res%avail_spin .and. res%spinpol) then
           if (use1) then
@@ -2372,10 +2399,14 @@ contains
           q = dsigs
        end if
     case (fun_mep,fun_uslater,fun_nheff,fun_xhole)
-       if (.not.syl%goodfield(id=idx)) &
-          call die("Invalid field or incorrect number of arguments in expression.")
-       if (.not.syl%goodfield(id=idx,type=type_wfn)) &
-          call die("Tried to calculate MEP/USLATER/etc. with a non-wavefunction field: " // string(idx))
+       if (.not.syl%goodfield(id=idx)) then
+          errmsg = "Invalid field or incorrect number of arguments in expression."
+          return
+       end if
+       if (.not.syl%goodfield(id=idx,type=type_wfn)) then
+          errmsg = "Tried to calculate MEP/USLATER/etc. with a non-wavefunction field"
+          return
+       end if
        if (c == fun_mep) then
           q = syl%f(idx)%wfn%mep(x0)
        else if (c == fun_uslater) then
@@ -2383,10 +2414,14 @@ contains
        else if (c == fun_nheff) then
           call syl%f(idx)%wfn%uslater(x0,ux,nheff=q)
        else if (c == fun_xhole) then
-          if (.not.allocated(args)) &
-             call die("xhole requires arguments for the reference point.")
-          if (size(args,1) /= 3) &
-             call die("xhole requires three arguments for the reference point.")
+          if (.not.allocated(args)) then
+             errmsg = "xhole requires arguments for the reference point."
+             return
+          end if
+          if (size(args,1) /= 3) then
+             errmsg = "xhole requires three arguments for the reference point."
+             return
+          end if
 
           ! Transform units of the reference point
           if (syl%c%ismolecule) then

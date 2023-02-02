@@ -338,10 +338,7 @@ contains
       type(c_ptr), intent(in) :: ipaths(count)
 
       integer :: i
-      type(c_ptr) :: path
-      type(c_ptr), pointer :: padd
       character(kind=c_char,len=:), allocatable :: file
-      integer(c_intptr_t) :: address
 
       if (count < 1) return
       do i = 1, count

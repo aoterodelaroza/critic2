@@ -950,7 +950,7 @@ contains
     r%idwin = 0
     r%name = ""
     r%filter = ""
-    r%goodfilter = .true.
+    r%errfilter = ""
     r%pertype = 1
     r%ncell = 1
     r%border = .true.
@@ -1033,7 +1033,7 @@ contains
 
     r%name = ""
     r%filter = ""
-    r%goodfilter = .true.
+    r%errfilter = ""
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
@@ -1133,7 +1133,7 @@ contains
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
-    character(len=:), allocatable :: atcode
+    character(len=:), allocatable :: atcode, errmsg
 
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
@@ -1179,7 +1179,7 @@ contains
 
        !! first, the atoms
        ! do we have a filter?
-       havefilter = (len_trim(r%filter) > 0) .and. r%goodfilter
+       havefilter = (len_trim(r%filter) > 0) .and. (len_trim(r%errfilter) == 0)
 
        ! calculate the periodicity
        n = 1
@@ -1254,9 +1254,12 @@ contains
 
                    ! apply the filter
                    if (havefilter) then
-                      res = sys(r%id)%eval(r%filter,.false.,ok,xx)
-                      if (ok) then
+                      res = sys(r%id)%eval(r%filter,errmsg,xx)
+                      if (len_trim(errmsg) == 0) then
                          if (res == 0d0) cycle
+                      else
+                         havefilter = .false.
+                         r%errfilter = errmsg
                       end if
                    end if
 

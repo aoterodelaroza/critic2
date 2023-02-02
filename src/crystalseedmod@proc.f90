@@ -7094,9 +7094,9 @@ contains
        call replace(tok,'x',0)
        call replace(tok,'y',0)
        call replace(tok,'z',0)
-       rot0(i,4) = eval(tok,.false.,ok)
-       if (.not.ok) then
-          errmsg = "Error reading symmetry operation."
+       rot0(i,4) = eval(tok,errmsg)
+       if (len_trim(errmsg) > 0) then
+          errmsg = "Error reading symmetry operation: " // trim(errmsg)
           return
        end if
 
@@ -7116,9 +7116,9 @@ contains
              call replace(tok,'y',0)
              call replace(tok,'z',1)
           end if
-          rot0(i,j) = eval(tok,.false.,ok) - rot0(i,4)
-          if (.not.ok) then
-             errmsg = "Error reading symmetry operation."
+          rot0(i,j) = eval(tok,errmsg) - rot0(i,4)
+          if (len_trim(errmsg) > 0) then
+             errmsg = "Error reading symmetry operation: " // trim(errmsg)
              return
           end if
        enddo

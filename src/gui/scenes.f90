@@ -78,8 +78,8 @@ module scenes
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      real(c_float) :: origin(3) ! unit cell, origin shift
      ! atoms, bonds, labels
-     logical :: goodfilter ! true if the filter is not in error
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
+     character(kind=c_char,len=:), allocatable :: errfilter ! filter error
      logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
      logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
      logical(c_bool) :: labels_display = .true. ! whether to draw the labels

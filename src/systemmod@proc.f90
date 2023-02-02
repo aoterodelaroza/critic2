@@ -486,7 +486,9 @@ contains
     ! and they are the same size
     if (seed%iff == ifformat_as_ghost) then
        syl => s
-       call fields_in_eval(seed%expr,nn,idlist,c_loc(syl))
+       call fields_in_eval(seed%expr,errmsg,nn,idlist,c_loc(syl))
+       if (len_trim(errmsg) > 0) return
+
        ok = .true.
        n = -1
        do i = 1, nn
@@ -1127,7 +1129,8 @@ contains
     ! Determine the fields in the expression, check that they are defined
     if (s%propp(s%npropp)%ispecial == 0) then
        syl => s
-       call fields_in_eval(expr,n,idlist,c_loc(syl))
+       call fields_in_eval(expr,errmsg,n,idlist,c_loc(syl))
+       if (len_trim(errmsg) > 0) return
        do i = 1, n
           if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
              errmsg = "Unknown field in arithmetic expression (POINTPROP)"
@@ -1156,20 +1159,19 @@ contains
   end subroutine new_pointprop_string
 
   !> Evaluate an arithmetic expression using the system's fields
-  module function system_eval_expression(s,expr,hardfail,iok,x0)
+  module function system_eval_expression(s,expr,errmsg,x0)
     use arithmetic, only: eval
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
     character(*), intent(in) :: expr
-    logical, intent(in) :: hardfail
-    logical, intent(out) :: iok
+    character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
     real*8 :: system_eval_expression
 
     type(system), pointer :: syl
 
     syl => s
-    system_eval_expression = eval(expr,hardfail,iok,x0,c_loc(syl),.not.sy%c%ismolecule)
+    system_eval_expression = eval(expr,errmsg,x0,c_loc(syl),.not.sy%c%ismolecule)
 
   end function system_eval_expression
 
@@ -1183,7 +1185,7 @@ contains
   module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
     use global, only: cp_hdegen
     use tools_math, only: rsindex
-    use tools_io, only: uout, string
+    use tools_io, only: uout, string, ferror, faterr
     use arithmetic, only: eval
     use types, only: scalar_value
     class(system), intent(inout) :: s
@@ -1197,8 +1199,8 @@ contains
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     integer :: str, sts
     integer :: i, j, k
-    logical :: iok
     type(scalar_value) :: res2
+    character(len=:), allocatable :: errmsg
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
@@ -1247,7 +1249,9 @@ contains
        do i = 1, s%npropp
           if (s%propp(i)%ispecial == 0) then
              ! ispecial=0 ... use the expression
-             fres = s%eval(s%propp(i)%expr,.true.,iok,xp)
+             fres = s%eval(s%propp(i)%expr,errmsg,xp)
+             if (len_trim(errmsg) > 0) &
+                call ferror("propty","Error evaluating expression: " // trim(errmsg),faterr)
              write (uout,'("  ",A," (",A,"): ",A)') string(s%propp(i)%name),&
                 string(s%propp(i)%expr), string(fres,'e',decimal=9)
           else
@@ -1281,14 +1285,16 @@ contains
   !> position xpos (Cartesian). This routine is thread-safe.
   module subroutine grdall(s,xpos,lprop,pmask)
     use types, only: scalar_value
+    use tools_io, only: ferror, faterr
     class(system), intent(inout) :: s
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
     real*8, intent(out) :: lprop(s%npropi) !< the properties vector.
     logical, intent(in), optional :: pmask(s%npropi) !< properties mask
 
     type(scalar_value) :: res(0:ubound(s%f,1))
-    logical :: fdone(0:ubound(s%f,1)), iok, pmask0(s%npropi)
+    logical :: fdone(0:ubound(s%f,1)), pmask0(s%npropi)
     integer :: i, id
+    character(len=:), allocatable :: errmsg
 
     if (present(pmask)) then
        pmask0 = pmask
@@ -1302,7 +1308,9 @@ contains
        if (.not.pmask0(i)) cycle
        if (.not.s%propi(i)%used) cycle
        if (s%propi(i)%itype == itype_expr) then
-          lprop(i) = s%eval(s%propi(i)%expr,.true.,iok,xpos)
+          lprop(i) = s%eval(s%propi(i)%expr,errmsg,xpos)
+          if (len_trim(errmsg) > 0) &
+             call ferror("addcp","Error evaluating expression: " // trim(errmsg),faterr)
        else
           id = s%propi(i)%fid
           if (.not.s%goodfield(id)) cycle
@@ -1358,11 +1366,12 @@ contains
 
     real*8 :: fval
     logical :: ok
+    character(len=:), allocatable :: errmsg
 
     if (len_trim(discexpr) > 0) then
-       fval = s%eval(discexpr,.false.,ok,x0)
-       if (.not.ok) &
-          call ferror("addcp","invalid DISCARD expression",faterr)
+       fval = s%eval(discexpr,errmsg,x0)
+       if (len_trim(errmsg) > 0) &
+          call ferror("addcp","Invalid DISCARD expression: " // trim(errmsg),faterr)
        ok = (abs(fval) < 1d-30)
        if (.not.ok) return
     end if

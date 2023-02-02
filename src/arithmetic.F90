@@ -34,12 +34,11 @@ module arithmetic
 
   ! module procedure interfaces
   interface
-     recursive module function eval(expr,hardfail,iok,x0,sptr,periodic)
+     recursive module function eval(expr,errmsg,x0,sptr,periodic)
        use iso_c_binding, only: c_ptr
        real*8 :: eval
        character(*), intent(in) :: expr
-       logical, intent(in) :: hardfail
-       logical, intent(out) :: iok
+       character(len=:), allocatable, intent(inout) :: errmsg
        real*8, intent(in), optional :: x0(3)
        type(c_ptr), intent(in), optional :: sptr
        logical, intent(in), optional :: periodic
@@ -52,10 +51,11 @@ module arithmetic
        real*8, intent(out) :: f(n(1),n(2),n(3))
        logical, intent(out) :: iok
      end subroutine eval_grid
-     module subroutine fields_in_eval(expr,n,idlist,sptr)
+     module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr)
        use iso_c_binding, only: c_ptr
        use param, only: mlen
        character(*), intent(in) :: expr
+       character(len=:), allocatable, intent(inout) :: errmsg
        integer, intent(out) :: n
        character(len=mlen), allocatable, intent(inout) :: idlist(:)
        type(c_ptr), intent(in) :: sptr
