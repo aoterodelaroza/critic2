@@ -275,7 +275,8 @@ contains
        0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
        0.4_c_float, 0.4_c_float, 1._c_float,  0.5_c_float,&
        0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbsel))
-    real(c_float), parameter :: msel_thickness = 0.3_c_float
+    real(c_float), parameter :: msel_thickness = 0.1_c_float
+    real(c_float), parameter :: sel_label_size = 1.2_c_float
 
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
@@ -383,7 +384,7 @@ contains
        if (s%nmsel > 0) then
           do j = 1, s%nmsel
              call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+             siz = sel_label_size * s%projection(1,1) / fontbakesize
              nvert = 0
              call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
@@ -482,7 +483,7 @@ contains
        if (s%nmsel > 0) then
           do j = 1, s%nmsel
              call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = 1.5_c_float * s%projection(1,1) / fontbakesize
+             siz = sel_label_size * s%projection(1,1) / fontbakesize
              nvert = 0
              call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
