@@ -1964,25 +1964,19 @@ contains
        call realloc(seed%spc,seed%nspc)
        ok = getline_raw(lu,line,.true.)
        if (.not.ok) goto 999
+       hastypes = .true.
     else
-       if (seed%nspc == 0) then
-          errmsg = ""
-          hastypes = .false.
-          goto 999
-       end if
+       errmsg = ""
+       hastypes = .false.
     end if
-    hastypes = .true.
 
     ! read number of atoms of each type
     lp = 1
     seed%nat = 0
+    i = 0
     allocate(seed%is(10))
-    do i = 1, seed%nspc
-       ok = isinteger(nn,line,lp)
-       if (.not.ok) then
-          errmsg = "Too many atom types"
-          goto 999
-       end if
+    do while(isinteger(nn,line,lp))
+       i = i + 1
        do j = seed%nat+1, seed%nat+nn
           if (j > size(seed%is)) &
              call realloc(seed%is,2*(seed%nat+nn))
@@ -1990,6 +1984,12 @@ contains
        end do
        seed%nat = seed%nat + nn
     end do
+    if (hastypes) then
+       if (i /= seed%nspc) then
+          errmsg = "Too many atom types"
+          goto 999
+       end if
+    end if
     allocate(seed%x(3,seed%nat))
     call realloc(seed%is,seed%nat)
 

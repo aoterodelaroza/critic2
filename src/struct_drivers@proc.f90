@@ -58,7 +58,7 @@ contains
     character(len=:), allocatable :: word, word2, lword, subline
     integer :: nn, isformat
     real*8 :: rborder, raux, xnudge
-    logical :: docube, ok, ismol, mol, hastypes
+    logical :: docube, ok, ismol, mol, hastypes, readtypes
     type(crystalseed) :: seed
     character(len=:), allocatable :: errmsg
 
@@ -197,33 +197,35 @@ contains
        call seed%read_wien(word,mol,errmsg)
 
     elseif (isformat == isformat_vasp) then
-       seed%nspc = 0
-       if (index(word2,'POTCAR') > 0) then
-          call seed%read_potcar(word2,errmsg)
-       else
-          allocate(seed%spc(2))
-          do while(.true.)
-             nn = zatguess(word2)
-             if (nn >= 0) then
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) &
-                   call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%name = string(word2)
-                seed%spc(seed%nspc)%z = zatguess(word2)
-             else
-                if (len_trim(word2) > 0) then
-                   call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
-                   return
+       call seed%read_vasp(word,mol,hastypes,errmsg)
+       if (.not.hastypes) then
+          if (index(word2,'POTCAR') > 0) then
+             call seed%read_potcar(word2,errmsg)
+             readtypes = .true.
+          else
+             seed%nspc = 0
+             allocate(seed%spc(2))
+             do while(.true.)
+                nn = zatguess(word2)
+                if (nn >= 0) then
+                   seed%nspc = seed%nspc + 1
+                   if (seed%nspc > size(seed%spc,1)) &
+                      call realloc(seed%spc,2*seed%nspc)
+                   seed%spc(seed%nspc)%name = string(word2)
+                   seed%spc(seed%nspc)%z = zatguess(word2)
+                else
+                   if (len_trim(word2) > 0) then
+                      call ferror('struct_crystal_input','Unknown atom type in CRYSTAL',faterr,line,syntax=.true.)
+                      return
+                   end if
+                   exit
                 end if
-                exit
-             end if
-             word2 = getword(line,lp)
-          end do
-       end if
-       if (len_trim(errmsg) == 0) then
-          call seed%read_vasp(word,mol,hastypes,errmsg)
-          if (len_trim(errmsg) == 0 .and..not.hastypes) &
+                word2 = getword(line,lp)
+             end do
+          end if
+          if (seed%nspc == 0) &
              errmsg = "Atom types not found (use POTCAR or give atom types after structure file)"
+          call realloc(seed%spc,seed%nspc)
        end if
 
     elseif (isformat == isformat_abinit) then
