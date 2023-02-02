@@ -9,14 +9,13 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 world;
 uniform float depth;
-uniform vec3 campos;
 
 void main(){
-  vec4 x = world * vec4(x0, 1.0);
-  vec4 x0 = projection * view * x;
+  vec4 x = view * world * vec4(x0, 1.0);
+  vec4 x0 = projection * x;
   x /= x.w;
-  x.xyz += (campos - x.xyz) / length(campos - x.xyz) * rshift;
-  x = projection * view * x;
+  x.z += rshift;
+  x = projection * x;
   x /= x.w;
   x0 /= x0.w;
 

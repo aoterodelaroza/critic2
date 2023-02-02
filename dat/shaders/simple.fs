@@ -16,7 +16,7 @@ void main(){
     float rproj = length(vx - dot(vx,n) * n);
 
     if (radius - rproj < rborder)
-      outputColor = vec4(0.,0.,0.,vColor.w);
+      outputColor = vec4(0.,0.,0.,vColor.a);
     else
       outputColor = vColor;
   } else {

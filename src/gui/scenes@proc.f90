@@ -351,7 +351,6 @@ contains
        call setuniform_mat4("world",s%world)
        call setuniform_mat4("view",s%view)
        call setuniform_mat4("projection",s%projection)
-       call setuniform_vec3("campos",s%campos)
 
        call glDisable(GL_MULTISAMPLE)
        call glEnable(GL_BLEND)
@@ -451,7 +450,6 @@ contains
        call setuniform_mat4("world",s%world)
        call setuniform_mat4("view",s%view)
        call setuniform_mat4("projection",s%projection)
-       call setuniform_vec3("campos",s%campos)
 
        call glDisable(GL_MULTISAMPLE)
        call glEnable(GL_BLEND)
@@ -1768,7 +1766,7 @@ contains
     real(c_float), allocatable :: xlen(:)
     integer, allocatable :: jlen(:)
 
-    real(c_float), parameter :: rshift = 0.1_c_float
+    real(c_float), parameter :: rshift = 0.01_c_float
 
     ! initialize
     centered_ = .false.
