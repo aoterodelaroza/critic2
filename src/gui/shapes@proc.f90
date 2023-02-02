@@ -50,7 +50,7 @@ contains
     ! allocate icosphere vertex and face arrays
     if (allocated(sphv)) deallocate(sphv)
     if (allocated(sphi)) deallocate(sphi)
-    allocate(sphv(6,sphnve(nmaxsph)))
+    allocate(sphv(3,sphnve(nmaxsph)))
     allocate(sphi(3,sphneladd(nmaxsph)))
 
     ! initialize icosahedron
@@ -60,19 +60,19 @@ contains
     xico = (tau - 1._c_float) / rad0
     zico = 1._c_float / rad0
 
-    ! vertices and normals
-    sphv(:,1 ) = (/-xico,  zero,  zico, -xico,  zero,  zico/)
-    sphv(:,2 ) = (/ xico,  zero,  zico,  xico,  zero,  zico/)
-    sphv(:,3 ) = (/-xico,  zero, -zico, -xico,  zero, -zico/)
-    sphv(:,4 ) = (/ xico,  zero, -zico,  xico,  zero, -zico/)
-    sphv(:,5 ) = (/ zero,  zico,  xico,  zero,  zico,  xico/)
-    sphv(:,6 ) = (/ zero,  zico, -xico,  zero,  zico, -xico/)
-    sphv(:,7 ) = (/ zero, -zico,  xico,  zero, -zico,  xico/)
-    sphv(:,8 ) = (/ zero, -zico, -xico,  zero, -zico, -xico/)
-    sphv(:,9 ) = (/ zico,  xico,  zero,  zico,  xico,  zero/)
-    sphv(:,10) = (/-zico,  xico,  zero, -zico,  xico,  zero/)
-    sphv(:,11) = (/ zico, -xico,  zero,  zico, -xico,  zero/)
-    sphv(:,12) = (/-zico, -xico,  zero, -zico, -xico,  zero/)
+    ! vertices
+    sphv(:,1 ) = (/-xico,  zero,  zico/)
+    sphv(:,2 ) = (/ xico,  zero,  zico/)
+    sphv(:,3 ) = (/-xico,  zero, -zico/)
+    sphv(:,4 ) = (/ xico,  zero, -zico/)
+    sphv(:,5 ) = (/ zero,  zico,  xico/)
+    sphv(:,6 ) = (/ zero,  zico, -xico/)
+    sphv(:,7 ) = (/ zero, -zico,  xico/)
+    sphv(:,8 ) = (/ zero, -zico, -xico/)
+    sphv(:,9 ) = (/ zico,  xico,  zero/)
+    sphv(:,10) = (/-zico,  xico,  zero/)
+    sphv(:,11) = (/ zico, -xico,  zero/)
+    sphv(:,12) = (/-zico, -xico,  zero/)
 
     ! sphere faces, counter-clock-wise
     sphi(:,1 ) = (/ 0_c_int,  1_c_int,  4_c_int/)
@@ -113,7 +113,6 @@ contains
              call ipair%put(idx,n)
              sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(2)))
              sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-             sphv(4:6,n) = sphv(1:3,n)
           end if
           call ipack(k(1),k(3))
           if (ipair%iskey(idx)) then
@@ -124,7 +123,6 @@ contains
              call ipair%put(idx,n)
              sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(3)))
              sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-             sphv(4:6,n) = sphv(1:3,n)
           end if
           call ipack(k(2),k(3))
           if (ipair%iskey(idx)) then
@@ -135,7 +133,6 @@ contains
              call ipair%put(idx,n)
              sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(2)) + sphv(1:3,k(3)))
              sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-             sphv(4:6,n) = sphv(1:3,n)
           end if
 
           ! create the new faces
@@ -155,19 +152,16 @@ contains
     call glGenBuffers(1, c_loc(sphVBO))
     call glGenBuffers(nmaxsph, c_loc(sphEBO))
     call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
-    call glBufferData(GL_ARRAY_BUFFER, 6*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
+    call glBufferData(GL_ARRAY_BUFFER, 3*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
 
     do i = 1, nmaxsph
        call glBindVertexArray(sphVAO(i))
        call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
        call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
 
-       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
           c_null_ptr)
        call glEnableVertexAttribArray(0)
-       call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-          transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
-       call glEnableVertexAttribArray(1)
     end do
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -177,7 +171,7 @@ contains
     ! allocate cylinder vertex and face arrays
     if (allocated(cylv)) deallocate(cylv)
     if (allocated(cyli)) deallocate(cyli)
-    allocate(cylv(6,cylnveadd(nmaxcyl)))
+    allocate(cylv(3,cylnveadd(nmaxcyl)))
     allocate(cyli(3,cylneladd(nmaxcyl)))
 
     ! initialize cylinders
@@ -199,13 +193,9 @@ contains
        n = n + 1
        cylv(1:2,n) = 0._c_float
        cylv(3,n) = -0.5_c_float
-       cylv(4:5,n) = 0._c_float
-       cylv(6,n) = -1._c_float
        n = n + 1
        cylv(1:2,n) = 0._c_float
        cylv(3,n) = 0.5_c_float
-       cylv(4:5,n) = 0._c_float
-       cylv(6,n) = 1._c_float
 
        half = 0.5_c_float
        do j = 1, 2
@@ -218,9 +208,6 @@ contains
              cylv(1,n) = 0.5_c_float * ca
              cylv(2,n) = 0.5_c_float * sa
              cylv(3,n) = half
-             cylv(4,n) = ca
-             cylv(5,n) = sa
-             cylv(6,n) = 0._c_float
           end do
        end do
 
@@ -252,17 +239,14 @@ contains
 
     do i = 1, nmaxcyl
        call glBindBuffer(GL_ARRAY_BUFFER, cylVBO(i))
-       call glBufferData(GL_ARRAY_BUFFER, 6*cylnve(i)*c_sizeof(c_float_), c_loc(cylv(1,cylnveadd(i-1)+1)), GL_STATIC_DRAW)
+       call glBufferData(GL_ARRAY_BUFFER, 3*cylnve(i)*c_sizeof(c_float_), c_loc(cylv(1,cylnveadd(i-1)+1)), GL_STATIC_DRAW)
        call glBindVertexArray(cylVAO(i))
        call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO(i))
        call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*cylnel(i)*c_sizeof(c_int_), c_loc(cyli(1,cylneladd(i-1)+1)), GL_STATIC_DRAW)
 
-       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
+       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
           c_null_ptr)
        call glEnableVertexAttribArray(0)
-       call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(6*c_sizeof(c_float_),c_int),&
-          transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
-       call glEnableVertexAttribArray(1)
     end do
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
