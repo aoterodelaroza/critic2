@@ -589,7 +589,7 @@ contains
        else
           call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        end if
-       call glClear(ior(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT),GL_STENCIL_BUFFER_BIT))
+       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        if (goodsys) &
           call sysc(w%view_selected)%sc%render()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
@@ -759,7 +759,7 @@ contains
 
     ! render buffers
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, atex, atex)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepthp)
     call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
@@ -769,7 +769,6 @@ contains
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
     call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
     call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
-    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
        call ferror('window_init','framebuffer (draw) is not complete',faterr)
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
@@ -788,7 +787,7 @@ contains
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
     call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
     call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
-    call glClear(ior(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT),GL_STENCIL_BUFFER_BIT))
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
@@ -2286,23 +2285,23 @@ contains
 
        ! render buffer
        call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
-       call glRenderbufferStorageMultisample(GL_RENDERBUFFER, w%nsample, GL_DEPTH32F_STENCIL8, w%npixel, w%npixel)
+       call glRenderbufferStorageMultisample(GL_RENDERBUFFER, w%nsample, GL_DEPTH_COMPONENT, w%npixel, w%npixel)
        call glBindRenderbuffer(GL_RENDERBUFFER, 0)
        call glBindRenderbuffer(GL_RENDERBUFFER, endFBOdepth)
-       call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH32F_STENCIL8, w%npixel, w%npixel)
+       call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, w%npixel, w%npixel)
        call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
        ! frame buffer
        call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
        call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, msFBOtex, 0)
-       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, msFBOdepth)
+       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, msFBOdepth)
        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) then
           w%errmsg = "Failed creating the multi-sampled framebuffer (too large?)"
           goto 999
        end if
        call glBindFramebuffer(GL_FRAMEBUFFER, endFBO)
        call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, endFBOtex, 0)
-       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, endFBOdepth)
+       call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, endFBOdepth)
        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) then
           w%errmsg = "Failed creating the render framebuffer (too large?)"
           goto 999
