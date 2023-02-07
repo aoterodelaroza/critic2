@@ -288,7 +288,7 @@ contains
     real*8, allocatable :: rl(:,:), rlp(:,:), rlpp(:,:)
     real*8, allocatable :: phi(:,:,:), phip(:,:,:,:), phipp(:,:,:,:)
     integer, allocatable :: idxion(:)
-    real*8 :: rmo, rmop(3), rmopp(6)
+    real*8 :: rmo, rmop(3), rmopp(6), lvecc(3)
     integer :: nenvl, ionl
     integer :: imin, ip, im, iphas
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
@@ -296,12 +296,15 @@ contains
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
 
+    real*8, parameter :: docc_cutoff = 1d-20
+
     ! calculate the environment of the input point
     rho = 0d0
     grad = 0d0
     h = 0d0
     gkin = 0d0
     call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,lvec,up2dsp=f%spcutoff)
+    lvecc = f%e%x2c(real(lvec,8))
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
@@ -323,7 +326,7 @@ contains
 
     nenvl = 0
     do ion = 1, nenv
-       xion = xpos - f%e%at(eid(ion))%r
+       xion = xpos - (f%e%at(eid(ion))%r + lvecc)
        it = f%ispec(f%e%at(eid(ion))%is)
 
        ! apply the distance cutoff
@@ -383,7 +386,7 @@ contains
           end do
        end do
 
-       lenv = floor(f%e%c2x(f%e%at(eid(ion))%r))
+       lenv = floor(f%e%xr2x(f%e%at(eid(ion))%x) + lvec)
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
@@ -407,6 +410,7 @@ contains
           do ik = 1, f%nkpt
              ! run over the states
              do istate = 1, f%nstates
+                if (abs(f%docc(istate,ik,is)) < docc_cutoff) cycle
 
                 ! determine the atomic contributions. The unit cell atoms
                 ! in critic are in the same order as in dftb+, which is
