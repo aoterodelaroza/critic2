@@ -397,6 +397,7 @@ contains
     deallocate(rl,rlp,rlpp,ylm)
 
     if (.not.f%isreal) then
+       !! complex wavefunction !!
        allocate(xao(f%midxorb),xaol(f%midxorb))
        if (nder >= 1) &
           allocate(xaolp(3,f%midxorb),xaop(3,f%midxorb))
@@ -487,6 +488,7 @@ contains
           deallocate(xaolpp,xaopp)
        deallocate(phase)
     else
+       !! real wavefunction !!
        allocate(rao(f%midxorb),raol(f%midxorb))
        if (nder >= 1) &
           allocate(raolp(3,f%midxorb),raop(3,f%midxorb))
@@ -497,6 +499,7 @@ contains
        do is = 1, f%nspin
           ! run over the states
           do istate = 1, f%nstates
+             if (abs(f%docc(istate,1,is)) < docc_cutoff) cycle
 
              ! determine the atomic contributions. The unit cell atoms
              ! in critic are in the same order as in dftb+, which is
