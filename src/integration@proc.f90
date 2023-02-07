@@ -1850,7 +1850,7 @@ contains
   !> Write the Sij checkpoint file (DI integration).
   subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,&
      kpt,occ,sij)
-    use tools_io, only: fopen_write, fclose
+    use tools_io, only: fopen_write, fclose, ferror, faterr
     character(len=*), intent(in) :: sijfname
     integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
     real*8, intent(in) :: kpt(3,nlattot)
@@ -1860,17 +1860,22 @@ contains
     integer :: lu
 
     lu = fopen_write(sijfname,"unformatted")
-    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
-    write (lu) kpt
-    write (lu) occ
-    write (lu) sij
+    if (lu < 0) goto 999
+    write (lu,err=999) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
+    write (lu,err=999) kpt
+    write (lu,err=999) occ
+    write (lu,err=999) sij
     call fclose(lu)
+
+    return
+999 continue
+    call ferror("read_fachk_body","error reading fachk file",faterr)
 
   end subroutine write_sijchk
 
   !> Write the Fa checkpoint file (DI integration).
   subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
-    use tools_io, only: fopen_write, fclose
+    use tools_io, only: fopen_write, fclose, ferror, faterr
     character(len=*), intent(in) :: fafname
     integer, intent(in) :: nbnd, nbndw(2), nlat(3), nmo, nlattot, nspin, nattr, sijtype
     real*8, intent(in) :: fa(:,:,:,:)
@@ -1878,9 +1883,14 @@ contains
     integer :: lu
 
     lu = fopen_write(fafname,"unformatted")
-    write (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
-    write (lu) fa
+    if (lu < 0) goto 999
+    write (lu,err=999) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
+    write (lu,err=999) fa
     call fclose(lu)
+
+    return
+999 continue
+    call ferror("read_fachk_body","error reading fachk file",faterr)
 
   end subroutine write_fachk
 
@@ -1897,14 +1907,19 @@ contains
     inquire(file=fname,exist=haschk)
     if (.not.haschk) return
     lu = fopen_read(fname,"unformatted")
-    read (lu) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
+    if (lu < 0) goto 999
+    read (lu,err=999,end=999) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     call fclose(lu)
+    return
+
+999 continue
+    haschk = .false.
 
   end function read_chk_header
 
   !> Read the body of the Sij checkpoint file (DI integration).
   subroutine read_sijchk_body(sijfname,kpt,occ,sij)
-    use tools_io, only: fopen_read, fclose
+    use tools_io, only: fopen_read, fclose, ferror, faterr
     character(len=*), intent(in) :: sijfname
     real*8, intent(inout) :: kpt(:,:)
     real*8, intent(inout) :: occ(:,:,:)
@@ -1913,26 +1928,36 @@ contains
     integer :: lu
 
     lu = fopen_read(sijfname,"unformatted")
-    read (lu)
-    read (lu) kpt
-    read (lu) occ
-    read (lu) sij
+    if (lu < 0) goto 999
+    read (lu,err=999,end=999)
+    read (lu,err=999,end=999) kpt
+    read (lu,err=999,end=999) occ
+    read (lu,err=999) sij
     call fclose(lu)
+
+    return
+999 continue
+    call ferror("read_sijchk_body","error reading sijchk file",faterr)
 
   end subroutine read_sijchk_body
 
   !> Read the body of the Fa checkpoint file (DI integration).
   subroutine read_fachk_body(fafname,fa)
-    use tools_io, only: fopen_read, fclose
+    use tools_io, only: fopen_read, fclose, ferror, faterr
     character(len=*), intent(in) :: fafname
     real*8, intent(inout) :: fa(:,:,:,:)
 
     integer :: lu
 
     lu = fopen_read(fafname,"unformatted")
-    read (lu)
-    read (lu) fa
+    if (lu < 0) goto 999
+    read (lu,err=999,end=999)
+    read (lu,err=999) fa
     call fclose(lu)
+
+    return
+999 continue
+    call ferror("read_fachk_body","error reading fachk file",faterr)
 
   end subroutine read_fachk_body
 
