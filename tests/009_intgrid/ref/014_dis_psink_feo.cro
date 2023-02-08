@@ -107,7 +107,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 2
 + Attractors after reordering: 2
 
@@ -126,151 +126,9 @@
   ... unique grid functions (nbnd x nlat) = 8 
   ... spin channels = 2 
   Calculating overlaps using Bloch states (psink) 
+  Restart file read/written:  ../zz_source/qe-6.5/feo_nosym/feo.pwc-sijrestart 
 # Calculating overlaps... 
-    State k=1 n=1 of total (k=8,n=10). Spin 1/2
-    State k=1 n=2 of total (k=8,n=10). Spin 1/2
-    State k=1 n=3 of total (k=8,n=10). Spin 1/2
-    State k=1 n=4 of total (k=8,n=10). Spin 1/2
-    State k=1 n=5 of total (k=8,n=10). Spin 1/2
-    State k=1 n=6 of total (k=8,n=10). Spin 1/2
-    State k=1 n=7 of total (k=8,n=10). Spin 1/2
-    State k=1 n=8 of total (k=8,n=10). Spin 1/2
-    State k=1 n=9 of total (k=8,n=10). Spin 1/2
-    State k=1 n=10 of total (k=8,n=10). Spin 1/2
-    State k=2 n=1 of total (k=8,n=10). Spin 1/2
-    State k=2 n=2 of total (k=8,n=10). Spin 1/2
-    State k=2 n=3 of total (k=8,n=10). Spin 1/2
-    State k=2 n=4 of total (k=8,n=10). Spin 1/2
-    State k=2 n=5 of total (k=8,n=10). Spin 1/2
-    State k=2 n=6 of total (k=8,n=10). Spin 1/2
-    State k=2 n=7 of total (k=8,n=10). Spin 1/2
-    State k=2 n=8 of total (k=8,n=10). Spin 1/2
-    State k=2 n=9 of total (k=8,n=10). Spin 1/2
-    State k=2 n=10 of total (k=8,n=10). Spin 1/2
-    State k=3 n=1 of total (k=8,n=10). Spin 1/2
-    State k=3 n=2 of total (k=8,n=10). Spin 1/2
-    State k=3 n=3 of total (k=8,n=10). Spin 1/2
-    State k=3 n=4 of total (k=8,n=10). Spin 1/2
-    State k=3 n=5 of total (k=8,n=10). Spin 1/2
-    State k=3 n=6 of total (k=8,n=10). Spin 1/2
-    State k=3 n=7 of total (k=8,n=10). Spin 1/2
-    State k=3 n=8 of total (k=8,n=10). Spin 1/2
-    State k=3 n=9 of total (k=8,n=10). Spin 1/2
-    State k=3 n=10 of total (k=8,n=10). Spin 1/2
-    State k=4 n=1 of total (k=8,n=10). Spin 1/2
-    State k=4 n=2 of total (k=8,n=10). Spin 1/2
-    State k=4 n=3 of total (k=8,n=10). Spin 1/2
-    State k=4 n=4 of total (k=8,n=10). Spin 1/2
-    State k=4 n=5 of total (k=8,n=10). Spin 1/2
-    State k=4 n=6 of total (k=8,n=10). Spin 1/2
-    State k=4 n=7 of total (k=8,n=10). Spin 1/2
-    State k=4 n=8 of total (k=8,n=10). Spin 1/2
-    State k=4 n=9 of total (k=8,n=10). Spin 1/2
-    State k=4 n=10 of total (k=8,n=10). Spin 1/2
-    State k=5 n=1 of total (k=8,n=10). Spin 1/2
-    State k=5 n=2 of total (k=8,n=10). Spin 1/2
-    State k=5 n=3 of total (k=8,n=10). Spin 1/2
-    State k=5 n=4 of total (k=8,n=10). Spin 1/2
-    State k=5 n=5 of total (k=8,n=10). Spin 1/2
-    State k=5 n=6 of total (k=8,n=10). Spin 1/2
-    State k=5 n=7 of total (k=8,n=10). Spin 1/2
-    State k=5 n=8 of total (k=8,n=10). Spin 1/2
-    State k=5 n=9 of total (k=8,n=10). Spin 1/2
-    State k=5 n=10 of total (k=8,n=10). Spin 1/2
-    State k=6 n=1 of total (k=8,n=10). Spin 1/2
-    State k=6 n=2 of total (k=8,n=10). Spin 1/2
-    State k=6 n=3 of total (k=8,n=10). Spin 1/2
-    State k=6 n=4 of total (k=8,n=10). Spin 1/2
-    State k=6 n=5 of total (k=8,n=10). Spin 1/2
-    State k=6 n=6 of total (k=8,n=10). Spin 1/2
-    State k=6 n=7 of total (k=8,n=10). Spin 1/2
-    State k=6 n=8 of total (k=8,n=10). Spin 1/2
-    State k=6 n=9 of total (k=8,n=10). Spin 1/2
-    State k=6 n=10 of total (k=8,n=10). Spin 1/2
-    State k=7 n=1 of total (k=8,n=10). Spin 1/2
-    State k=7 n=2 of total (k=8,n=10). Spin 1/2
-    State k=7 n=3 of total (k=8,n=10). Spin 1/2
-    State k=7 n=4 of total (k=8,n=10). Spin 1/2
-    State k=7 n=5 of total (k=8,n=10). Spin 1/2
-    State k=7 n=6 of total (k=8,n=10). Spin 1/2
-    State k=7 n=7 of total (k=8,n=10). Spin 1/2
-    State k=7 n=8 of total (k=8,n=10). Spin 1/2
-    State k=7 n=9 of total (k=8,n=10). Spin 1/2
-    State k=7 n=10 of total (k=8,n=10). Spin 1/2
-    State k=8 n=1 of total (k=8,n=10). Spin 1/2
-    State k=8 n=2 of total (k=8,n=10). Spin 1/2
-    State k=8 n=3 of total (k=8,n=10). Spin 1/2
-    State k=8 n=4 of total (k=8,n=10). Spin 1/2
-    State k=8 n=5 of total (k=8,n=10). Spin 1/2
-    State k=8 n=6 of total (k=8,n=10). Spin 1/2
-    State k=8 n=7 of total (k=8,n=10). Spin 1/2
-    State k=8 n=8 of total (k=8,n=10). Spin 1/2
-    State k=8 n=9 of total (k=8,n=10). Spin 1/2
-    State k=8 n=10 of total (k=8,n=10). Spin 1/2
-    State k=1 n=1 of total (k=8,n=8). Spin 2/2
-    State k=1 n=2 of total (k=8,n=8). Spin 2/2
-    State k=1 n=3 of total (k=8,n=8). Spin 2/2
-    State k=1 n=4 of total (k=8,n=8). Spin 2/2
-    State k=1 n=5 of total (k=8,n=8). Spin 2/2
-    State k=1 n=6 of total (k=8,n=8). Spin 2/2
-    State k=1 n=7 of total (k=8,n=8). Spin 2/2
-    State k=1 n=8 of total (k=8,n=8). Spin 2/2
-    State k=2 n=1 of total (k=8,n=8). Spin 2/2
-    State k=2 n=2 of total (k=8,n=8). Spin 2/2
-    State k=2 n=3 of total (k=8,n=8). Spin 2/2
-    State k=2 n=4 of total (k=8,n=8). Spin 2/2
-    State k=2 n=5 of total (k=8,n=8). Spin 2/2
-    State k=2 n=6 of total (k=8,n=8). Spin 2/2
-    State k=2 n=7 of total (k=8,n=8). Spin 2/2
-    State k=2 n=8 of total (k=8,n=8). Spin 2/2
-    State k=3 n=1 of total (k=8,n=8). Spin 2/2
-    State k=3 n=2 of total (k=8,n=8). Spin 2/2
-    State k=3 n=3 of total (k=8,n=8). Spin 2/2
-    State k=3 n=4 of total (k=8,n=8). Spin 2/2
-    State k=3 n=5 of total (k=8,n=8). Spin 2/2
-    State k=3 n=6 of total (k=8,n=8). Spin 2/2
-    State k=3 n=7 of total (k=8,n=8). Spin 2/2
-    State k=3 n=8 of total (k=8,n=8). Spin 2/2
-    State k=4 n=1 of total (k=8,n=8). Spin 2/2
-    State k=4 n=2 of total (k=8,n=8). Spin 2/2
-    State k=4 n=3 of total (k=8,n=8). Spin 2/2
-    State k=4 n=4 of total (k=8,n=8). Spin 2/2
-    State k=4 n=5 of total (k=8,n=8). Spin 2/2
-    State k=4 n=6 of total (k=8,n=8). Spin 2/2
-    State k=4 n=7 of total (k=8,n=8). Spin 2/2
-    State k=4 n=8 of total (k=8,n=8). Spin 2/2
-    State k=5 n=1 of total (k=8,n=8). Spin 2/2
-    State k=5 n=2 of total (k=8,n=8). Spin 2/2
-    State k=5 n=3 of total (k=8,n=8). Spin 2/2
-    State k=5 n=4 of total (k=8,n=8). Spin 2/2
-    State k=5 n=5 of total (k=8,n=8). Spin 2/2
-    State k=5 n=6 of total (k=8,n=8). Spin 2/2
-    State k=5 n=7 of total (k=8,n=8). Spin 2/2
-    State k=5 n=8 of total (k=8,n=8). Spin 2/2
-    State k=6 n=1 of total (k=8,n=8). Spin 2/2
-    State k=6 n=2 of total (k=8,n=8). Spin 2/2
-    State k=6 n=3 of total (k=8,n=8). Spin 2/2
-    State k=6 n=4 of total (k=8,n=8). Spin 2/2
-    State k=6 n=5 of total (k=8,n=8). Spin 2/2
-    State k=6 n=6 of total (k=8,n=8). Spin 2/2
-    State k=6 n=7 of total (k=8,n=8). Spin 2/2
-    State k=6 n=8 of total (k=8,n=8). Spin 2/2
-    State k=7 n=1 of total (k=8,n=8). Spin 2/2
-    State k=7 n=2 of total (k=8,n=8). Spin 2/2
-    State k=7 n=3 of total (k=8,n=8). Spin 2/2
-    State k=7 n=4 of total (k=8,n=8). Spin 2/2
-    State k=7 n=5 of total (k=8,n=8). Spin 2/2
-    State k=7 n=6 of total (k=8,n=8). Spin 2/2
-    State k=7 n=7 of total (k=8,n=8). Spin 2/2
-    State k=7 n=8 of total (k=8,n=8). Spin 2/2
-    State k=8 n=1 of total (k=8,n=8). Spin 2/2
-    State k=8 n=2 of total (k=8,n=8). Spin 2/2
-    State k=8 n=3 of total (k=8,n=8). Spin 2/2
-    State k=8 n=4 of total (k=8,n=8). Spin 2/2
-    State k=8 n=5 of total (k=8,n=8). Spin 2/2
-    State k=8 n=6 of total (k=8,n=8). Spin 2/2
-    State k=8 n=7 of total (k=8,n=8). Spin 2/2
-    State k=8 n=8 of total (k=8,n=8). Spin 2/2
+    Restarting at state k=8 n=8 of total (k=8,n=8). Spin 2/2
 # Calculating Fa
 
 * List of properties integrated in the attractor basins

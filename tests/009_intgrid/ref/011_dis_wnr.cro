@@ -108,7 +108,7 @@
 * Yu-Trinkle integration 
   Please cite: 
   Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in YT: 2
 + Attractors after reordering: 2
 
@@ -128,18 +128,10 @@
   ... spin channels = 1 
   Calculating overlaps using Wannier functions (wan) 
   Discarding overlaps if (spr(w1)+spr(w2)) * cutoff > d(cen(w1),cen(w2)), cutoff =  4.00  
+  Restart file read/written:  ../zz_source/qe-6.5/mgo/mgo.pwc-sijrestart 
   Writing temporary evc files... 
 # Calculating overlaps... 
-    Bands (1,1) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,2) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,2) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
+    Restarting at band (4,4) of total 4. Spin 1/1
 # Calculating translation mappings... 
 # Calculating Fa
 + Integrated property (number 6): $2#deloca
@@ -152,18 +144,10 @@
   ... spin channels = 1 
   Calculating overlaps using Wannier functions (wan) 
   Discarding no overlaps. 
+  Restart file read/written:  ../zz_source/qe-6.5/mgo/mgo.pwc-sijrestart 
   Writing temporary evc files... 
 # Calculating overlaps... 
-    Bands (1,1) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,2) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (1,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,2) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (2,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (3,3) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (3,4) of total 4. Spin 1/1. Overlaps: 1024/1024
-    Bands (4,4) of total 4. Spin 1/1. Overlaps: 1024/1024
+    Restarting at band (4,4) of total 4. Spin 1/1
 # Calculating translation mappings... 
 # Calculating Fa
 

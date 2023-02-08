@@ -91,7 +91,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 2
 + Attractors after reordering: 2
 
@@ -110,39 +110,9 @@
   ... unique grid functions (nbnd x nlat) = 8 
   ... spin channels = 1 
   Calculating overlaps using Bloch states (psink) 
+  Restart file read/written:  ../zz_source/qe-6.5/mgo_nosym/mgo.pwc-sijrestart 
 # Calculating overlaps... 
-    State k=1 n=1 of total (k=8,n=4). Spin 1/1
-    State k=1 n=2 of total (k=8,n=4). Spin 1/1
-    State k=1 n=3 of total (k=8,n=4). Spin 1/1
-    State k=1 n=4 of total (k=8,n=4). Spin 1/1
-    State k=2 n=1 of total (k=8,n=4). Spin 1/1
-    State k=2 n=2 of total (k=8,n=4). Spin 1/1
-    State k=2 n=3 of total (k=8,n=4). Spin 1/1
-    State k=2 n=4 of total (k=8,n=4). Spin 1/1
-    State k=3 n=1 of total (k=8,n=4). Spin 1/1
-    State k=3 n=2 of total (k=8,n=4). Spin 1/1
-    State k=3 n=3 of total (k=8,n=4). Spin 1/1
-    State k=3 n=4 of total (k=8,n=4). Spin 1/1
-    State k=4 n=1 of total (k=8,n=4). Spin 1/1
-    State k=4 n=2 of total (k=8,n=4). Spin 1/1
-    State k=4 n=3 of total (k=8,n=4). Spin 1/1
-    State k=4 n=4 of total (k=8,n=4). Spin 1/1
-    State k=5 n=1 of total (k=8,n=4). Spin 1/1
-    State k=5 n=2 of total (k=8,n=4). Spin 1/1
-    State k=5 n=3 of total (k=8,n=4). Spin 1/1
-    State k=5 n=4 of total (k=8,n=4). Spin 1/1
-    State k=6 n=1 of total (k=8,n=4). Spin 1/1
-    State k=6 n=2 of total (k=8,n=4). Spin 1/1
-    State k=6 n=3 of total (k=8,n=4). Spin 1/1
-    State k=6 n=4 of total (k=8,n=4). Spin 1/1
-    State k=7 n=1 of total (k=8,n=4). Spin 1/1
-    State k=7 n=2 of total (k=8,n=4). Spin 1/1
-    State k=7 n=3 of total (k=8,n=4). Spin 1/1
-    State k=7 n=4 of total (k=8,n=4). Spin 1/1
-    State k=8 n=1 of total (k=8,n=4). Spin 1/1
-    State k=8 n=2 of total (k=8,n=4). Spin 1/1
-    State k=8 n=3 of total (k=8,n=4). Spin 1/1
-    State k=8 n=4 of total (k=8,n=4). Spin 1/1
+    Restarting at state k=8 n=4 of total (k=8,n=4). Spin 1/1
 # Calculating Fa
 
 * List of properties integrated in the attractor basins

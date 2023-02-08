@@ -71,7 +71,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 9
 + Attractors after reordering: 9
 
@@ -145,7 +145,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 9
 + Attractors after reordering: 9
 
@@ -215,7 +215,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 9
 + Attractors after reordering: 9
 
@@ -285,7 +285,7 @@
     G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
     E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
     W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
-+ Distance atomic assignment (bohr): 1.0000E+40
++ Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 9
 + Attractors after reordering: 9
 
