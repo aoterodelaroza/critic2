@@ -28,11 +28,13 @@ submodule (integration) proc
   ! subroutine intgrid_fields_atomloop(bas,res)
   ! subroutine intgrid_deloc(bas,res)
   ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,kpt,occ,sij)
+  ! subroutine write_sijrestart(sijfname,nbnd,nbndw,nwan,nmo,nspin,nattr,sijtype,is,ibnd1,ibnd2,sij)
+  ! function read_sijrestart(sijfname,nbnd,nbndw,nwan,nmo,nspin,nattr,sijtype,is,ibnd1,ibnd2,sij) result(valid)
   ! subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
-  ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlat,nspin,nattr,sijtype)
+  ! function read_chk_header(fname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype) result(haschk)
   ! subroutine read_sijchk_body(sijfname,kpt,occ,sij)
   ! subroutine read_fachk_body(fafname,fa)
-  ! subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
+  ! subroutine calc_sij_wannier(fid,wancut,useu,restart,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
   ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin)
   ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
@@ -255,7 +257,7 @@ contains
        write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).")')
        write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).")')
        write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
-       write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
+       write (uout,'("+ Distance for atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
@@ -265,7 +267,7 @@ contains
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
        write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
-       write (uout,'("+ Distance atomic assignment (",A,"): ",A)') iunitname0(iunit),&
+       write (uout,'("+ Distance for atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
           write (uout,'("+ Discard attractor expression: ",A)') trim(bas%expr)
@@ -1747,6 +1749,8 @@ contains
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              write (uout,'(99(A," "))') "  Calculating overlaps using Bloch states (psink)"
           end if
+          if (sy%propi(l)%sijrestart) &
+             write (uout,'(99(A," "))') "  Restart file read/written: ", trim(sy%f(fid)%file) // "-sijrestart"
 
           if (sy%propi(l)%itype == itype_deloc_wnr) then
              !!! using wannier functions !!!
@@ -1758,8 +1762,8 @@ contains
 
              ! calculate overlaps
              write (uout,'(99(A," "))') "# Calculating overlaps..."
-             call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,bas%imtype,nattn,iatt,&
-                bas%docelatom,ilvec,idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
+             call calc_sij_wannier(fid,sy%propi(l)%wancut,sy%propi(l)%useu,sy%propi(l)%sijrestart,&
+                bas%imtype,nattn,iatt,bas%docelatom,ilvec,idg1,bas%xattr,dat,luevc,luevc_ibnd,res(l)%sijc)
 
              ! close the rotated evc scratch files
              if (luevc(1) >= 0) call fclose(luevc(1))
@@ -1768,8 +1772,8 @@ contains
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              !!! using bloch functions !!!
              write (uout,'(99(A," "))') "# Calculating overlaps..."
-             call calc_sij_psink(fid,bas%imtype,nattn,iatt,bas%docelatom,ilvec,idg1,bas%xattr,&
-                dat,res(l)%sijc)
+             call calc_sij_psink(fid,sy%propi(l)%sijrestart,bas%imtype,nattn,iatt,bas%docelatom,ilvec,&
+                idg1,bas%xattr,dat,res(l)%sijc)
 
           end if
           deallocate(iatt,ilvec)
@@ -1869,9 +1873,69 @@ contains
 
     return
 999 continue
-    call ferror("read_fachk_body","error reading fachk file",faterr)
+    call ferror("write_sijchk","error writing sijchk file",faterr)
 
   end subroutine write_sijchk
+
+  !> Write the Sij restart file (DI integration).
+  subroutine write_sijrestart(sijfname,nbnd,nbndw,nwan,nmo,nspin,nattr,sijtype,is,ibnd1,ibnd2,sij)
+    use tools_io, only: fopen_write, fclose, ferror, faterr
+    character(len=*), intent(in) :: sijfname
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nspin, nattr, sijtype
+    integer, intent(in) :: is, ibnd1, ibnd2
+    complex*16, intent(in) :: sij(:,:,:,:)
+
+    integer :: lu
+
+    lu = fopen_write(sijfname,"unformatted")
+    if (lu < 0) goto 999
+    write (lu,err=999) nbnd, nbndw, nwan, nmo, nspin, nattr, sijtype
+    write (lu,err=999) is, ibnd1, ibnd2
+    write (lu,err=999) sij
+    call fclose(lu)
+
+    return
+999 continue
+    call ferror("write_sijrestart","error writing sij restart file",faterr)
+
+  end subroutine write_sijrestart
+
+  !> Read the Sij restart file (DI integration). Returns true if
+  !> usable. If the file is valid, also return the spin and band
+  !> indices for the last calculated band pair as well as the current
+  !> sij.
+  function read_sijrestart(sijfname,nbnd,nbndw,nwan,nmo,nspin,nattr,sijtype,is,ibnd1,ibnd2,sij) result(valid)
+    use tools_io, only: fopen_read, fclose, ferror, faterr
+    character(len=*), intent(in) :: sijfname
+    integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nspin, nattr, sijtype
+    integer, intent(out) :: is, ibnd1, ibnd2
+    complex*16, intent(inout) :: sij(:,:,:,:)
+    logical :: valid
+
+    integer :: lu
+    integer :: nbnd_, nbndw_(2), nwan_(3), nmo_, nspin_, nattr_, sijtype_
+
+    is = -1
+    ibnd1 = -1
+    ibnd2 = -1
+    valid = .true.
+    lu = fopen_read(sijfname,"unformatted",errstop=.false.)
+    if (lu < 0) goto 999
+    read (lu,err=999,end=999) nbnd_, nbndw_, nwan_, nmo_, nspin_, nattr_, sijtype_
+    valid = (nbnd_ == nbnd) .and. all(nbndw_ == nbndw) .and. all(nwan_ == nwan) .and.&
+       (nmo_ == nmo) .and. (nspin_ == nspin)
+    if (valid) then
+       read (lu,err=999,end=999) is, ibnd1, ibnd2
+       read (lu,err=999) sij
+    end if
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu > 0) call fclose(lu)
+    valid = .false.
+
+  end function read_sijrestart
 
   !> Write the Fa checkpoint file (DI integration).
   subroutine write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,fa)
@@ -1890,7 +1954,7 @@ contains
 
     return
 999 continue
-    call ferror("read_fachk_body","error reading fachk file",faterr)
+    call ferror("write_fachk","error writing fachk file",faterr)
 
   end subroutine write_fachk
 
@@ -1906,13 +1970,14 @@ contains
 
     inquire(file=fname,exist=haschk)
     if (.not.haschk) return
-    lu = fopen_read(fname,"unformatted")
+    lu = fopen_read(fname,"unformatted",errstop=.false.)
     if (lu < 0) goto 999
     read (lu,err=999,end=999) nbnd, nbndw, nlat, nmo, nlattot, nspin, nattr, sijtype
     call fclose(lu)
     return
 
 999 continue
+    if (lu > 0) call fclose(lu)
     haschk = .false.
 
   end function read_chk_header
@@ -1968,15 +2033,18 @@ contains
   !> to attractors in Bader, xattr = attractor position, dat = YT data
   !> type. luevc are the two scratch files for the rotated evc and
   !> luevc_ibnd are the band pointers in those files.
-  subroutine calc_sij_wannier(fid,wancut,useu,imtype,natt1,iatt,doatcel,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
+  subroutine calc_sij_wannier(fid,wancut,useu,restart,imtype,natt1,iatt,doatcel,&
+     ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr, uout, string
+    use types, only: sijtype_wnr
     integer, intent(in) :: fid
     real*8, intent(in) :: wancut
     logical, intent(in) :: useu
+    logical, intent(in) :: restart
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
@@ -1989,11 +2057,12 @@ contains
     integer, intent(inout) :: luevc_ibnd(2)
     complex*16, intent(out) :: sij(:,:,:,:)
 
-    integer :: i, is, ibnd1, ibnd2
+    integer :: i, is, ibnd1, ibnd2, is_restart, ibnd1_restart, ibnd2_restart
     integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
     integer :: n(3), nbnd, nbndw(2), nwan(3), nlat, nmo, nspin
     integer :: ncalc, m1, m2, m3, p(3)
     real*8 :: d0, d2, x(3), xs(3)
+    logical :: okrestart
     type(crystalseed) :: ncseed
     type(crystal) :: nc
     logical, allocatable :: lovrlp(:,:,:,:,:,:)
@@ -2002,6 +2071,7 @@ contains
     complex*16, allocatable :: f1(:,:,:,:), f2(:,:,:,:)
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
+    character(len=:), allocatable :: restartname
 
     sij = 0d0
     n = sy%f(sy%iref)%grid%n
@@ -2011,6 +2081,7 @@ contains
     nbnd = sy%f(fid)%grid%qe%nbnd
     nbndw = sy%f(fid)%grid%qe%nbndw
     nmo = nlat * nbnd
+    restartname = trim(sy%f(fid)%file) // "-sijrestart"
 
     ! build the supercell
     ncseed%isused = .true.
@@ -2024,6 +2095,24 @@ contains
     ncseed%ismolecule = sy%c%ismolecule
     call nc%struct_new(ncseed,.true.)
 
+    ! restart
+    if (restart) then
+       okrestart = read_sijrestart(restartname,nbnd,nbndw,nwan,nmo,nspin,natt1,sijtype_wnr,&
+          is_restart,ibnd1_restart,ibnd2_restart,sij)
+       if (okrestart) then
+          write (uout,'("    Restarting at band (",A,",",A,") of total ",A,". Spin ",A,"/",A)') &
+             string(ibnd1_restart), string(ibnd2_restart), string(nbndw(is_restart)), string(is_restart),&
+             string(nspin)
+       else
+          sij = 0d0
+       end if
+    else
+       okrestart = .false.
+       is_restart = -1
+       ibnd1_restart = -1
+       ibnd2_restart = -1
+    end if
+
     if (any(n /= sy%f(fid)%grid%n)) &
        call ferror("calc_sij_wannier","inconsistent grid sizes",faterr)
     allocate(psic(n(1),n(2),n(3)))
@@ -2035,11 +2124,14 @@ contains
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic2(n(1),n(2),n(3)))
     do is = 1, nspin
+       if (okrestart .and. is < is_restart) cycle
        do ibnd1 = 1, nbndw(is)
+          if (okrestart .and. is == is_restart .and. ibnd1 < ibnd1_restart) cycle
           ! first wannier function
           call sy%f(fid)%grid%get_qe_wnr(sy%c%omega,ibnd1,is,luevc,luevc_ibnd,f1)
 
           do ibnd2 = ibnd1, nbndw(is)
+             if (okrestart .and. is == is_restart .and. ibnd1 == ibnd1_restart .and. ibnd2 <= ibnd2_restart) cycle
              ! second wannier function
              if (ibnd1 == ibnd2) then
                 f2 = f1
@@ -2158,6 +2250,9 @@ contains
                 !$omp end parallel do
              end if ! imtype == bader/yt
 
+
+             if (restart) &
+                call write_sijrestart(restartname,nbnd,nbndw,nwan,nmo,nspin,natt1,sijtype_wnr,is,ibnd1,ibnd2,sij)
              write (uout,'("    Bands (",A,",",A,") of total ",A,". Spin ",A,"/",A,". Overlaps: ",A,"/",A)') &
                 string(ibnd1), string(ibnd2), string(nbndw(is)), string(is), string(nspin),&
                 string(ncalc), string(natt1*nlat*nlat)
@@ -2180,14 +2275,16 @@ contains
   !> with natt1 remapped attractors, iatt = attractor mapping, ilvec =
   !> attractor lattice vector, idg1 = grid assignment to attractors in
   !> Bader, xattr = attractor position, dat = YT data type.
-  subroutine calc_sij_psink(fid,imtype,natt1,iatt,doatcel,ilvec,idg1,xattr,dat,sij)
+  subroutine calc_sij_psink(fid,restart,imtype,natt1,iatt,doatcel,ilvec,idg1,xattr,dat,sij)
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr, uout, string, fopen_read, fclose
+    use types, only: sijtype_psink
     use param, only: tpi, img
     integer, intent(in) :: fid
+    logical, intent(in) :: restart
     integer, intent(in) :: imtype
     integer, intent(in) :: natt1
     integer, intent(in) :: iatt(natt1)
@@ -2206,6 +2303,9 @@ contains
     real*8, allocatable :: w(:,:,:)
     logical, allocatable :: wmask(:,:,:)
     integer :: luc, ireg
+    logical :: okrestart
+    integer :: is_restart, imo1_restart, idum
+    character(len=:), allocatable :: restartname
 
     ! initialize
     sij = 0d0
@@ -2216,6 +2316,7 @@ contains
     nbnd = sy%f(fid)%grid%qe%nbnd
     nbndw = sy%f(fid)%grid%qe%nbndw
     nmo = nks * nbnd
+    restartname = trim(sy%f(fid)%file) // "-sijrestart"
 
     ! check consistency
     if (any(n /= sy%f(fid)%grid%n)) &
@@ -2249,11 +2350,31 @@ contains
     ! allocate work space
     allocate(psi1(n(1),n(2),n(3)),psi2(n(1),n(2),n(3)),rseq(n(1)*n(2)*n(3)))
 
+    ! restart
+    if (restart) then
+       okrestart = read_sijrestart(restartname,nbnd,nbndw,nlat,nmo,nspin,natt1,sijtype_psink,&
+          is_restart,imo1_restart,idum,sij)
+       if (okrestart) then
+          ibnd1 = modulo(imo1_restart-1,nbnd) + 1
+          ik1 = (imo1_restart-1) / nbnd + 1
+          write (uout,'("    Restarting at state k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
+             string(ik1), string(ibnd1), string(nks), string(nbndw(is_restart)), string(is_restart), string(nspin)
+       else
+          sij = 0d0
+       end if
+    else
+       okrestart = .false.
+       is_restart = -1
+       imo1_restart = -1
+    end if
+
     ! the big loop
     if (imtype == imtype_yt) &
        allocate(w(n(1),n(2),n(3)),wmask(n(1),n(2),n(3)),psic(n(1),n(2),n(3)))
     do is = 1, nspin
+       if (okrestart .and. is < is_restart) cycle
        do imo1 = 1, nmo
+          if (okrestart .and. is == is_restart .and. imo1 <= imo1_restart) cycle
           ibnd1 = modulo(imo1-1,nbnd) + 1
           ik1 = (imo1-1) / nbnd + 1
           if (ibnd1 > nbndw(is)) cycle
@@ -2331,6 +2452,8 @@ contains
           !$omp end parallel do
           write (uout,'("    State k=",A," n=",A," of total (k=",A,",n=",A,"). Spin ",A,"/",A)') &
              string(ik1), string(ibnd1), string(nks), string(nbndw(is)), string(is), string(nspin)
+          if (restart) &
+             call write_sijrestart(restartname,nbnd,nbndw,nlat,nmo,nspin,natt1,sijtype_psink,is,imo1,-1,sij)
        end do ! imo1
     end do ! is
 

@@ -220,6 +220,7 @@ module types
      logical :: useu = .true.   ! use the U rotation if using mlwfs
      logical :: sijchk = .true. ! read and write the sijchk file
      logical :: fachk = .true.  ! read and write the fachk file
+     logical :: sijrestart = .false.  ! read and write the sij restart file
      real*8 :: wancut = 4d0     ! Wannier center distance cutoff
      character(len=mlen) :: sijchkfile = "" ! name of sijchk file
      character(len=mlen) :: fachkfile = ""  ! name of fachk file

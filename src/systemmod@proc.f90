@@ -956,6 +956,7 @@ contains
              s%propi(s%npropi)%useu = .true.
              s%propi(s%npropi)%sijchk = .true.
              s%propi(s%npropi)%fachk = .true.
+             s%propi(s%npropi)%sijrestart = .true.
              s%propi(s%npropi)%wancut = 4d0
              s%propi(s%npropi)%sijchkfile = ""
              s%propi(s%npropi)%fachkfile = ""
@@ -967,6 +968,8 @@ contains
                    s%propi(s%npropi)%sijchk = .false.
                 else if (equal(word,"nofachk")) then
                    s%propi(s%npropi)%fachk = .false.
+                else if (equal(word,"norestart")) then
+                   s%propi(s%npropi)%sijrestart = .false.
                 else if (equal(word,"wannier")) then
                    s%propi(s%npropi)%itype = itype_deloc_wnr
                 else if (equal(word,"psink")) then
