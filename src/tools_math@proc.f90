@@ -80,7 +80,6 @@ contains
     real*8, allocatable, intent(inout) :: ih(:)
 
     integer :: i
-    real*8 :: tini, tend, nor
 
     ! allocate
     if (allocated(t)) deallocate(t)

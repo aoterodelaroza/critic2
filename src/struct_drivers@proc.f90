@@ -1329,11 +1329,11 @@ contains
 
     character(len=:), allocatable :: word, lword, tname, difstr
     integer :: doguess0
-    integer :: lp, i, j, k, l, n, iz, is, idx, lu
+    integer :: lp, i, j, k, l, n, iz, is, idx
     integer :: ns, imol, isformat, mcon, nlist
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2, th2, ii
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
     real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
     integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:)
@@ -1343,7 +1343,6 @@ contains
     logical :: ok, noh
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
-    character(len=:), allocatable :: str
     logical, allocatable :: unique(:)
     type(crystalseed) :: seed
     integer, allocatable :: fname_type(:)

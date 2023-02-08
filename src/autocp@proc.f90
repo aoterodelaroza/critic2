@@ -1810,7 +1810,6 @@ contains
     integer :: str, sts
     integer :: i, k, ip, nprop, idx
     type(scalar_value) :: res
-    logical :: iok
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     character(len=:), allocatable :: errmsg
 
@@ -2174,7 +2173,6 @@ contains
     integer :: lu, nprop
     integer :: i, j, ip
     real*8 :: fres, xp(3)
-    logical :: iok
     character(len=:), allocatable :: errmsg
 
     write (uout,'("* WRITE TEST file: ",A/)') string(file)

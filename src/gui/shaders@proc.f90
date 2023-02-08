@@ -41,7 +41,7 @@ contains
   module subroutine shaders_init()
     use interfaces_opengl3
     use global, only: critic_home
-    use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr, uout
+    use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr
     use param, only: dirsep, newline
 
     integer :: i, j, lu

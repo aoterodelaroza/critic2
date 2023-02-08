@@ -91,9 +91,8 @@ contains
   !> coordinates. model is the [world]*view*[model] matrix, proj
   !> is the projection matrix. viewport_a is the side of the current
   !> (square) viewport (0,0,a,a).
-  module subroutine project(m,pos,mview,proj,viewport_a)
-    real(c_float), intent(out) :: m(3)
-    real(c_float), intent(in) :: pos(3)
+  module subroutine project(pos,mview,proj,viewport_a)
+    real(c_float), intent(inout) :: pos(3)
     real(c_float), intent(in) :: mview(4,4)
     real(c_float), intent(in) :: proj(4,4)
     integer(c_int), intent(in) :: viewport_a
@@ -108,7 +107,7 @@ contains
     tmp = tmp * 0.5_c_float + 0.5_c_float
     tmp(1) = tmp(1) * real(viewport_a,c_float)
     tmp(2) = tmp(2) * real(viewport_a,c_float)
-    m = tmp(1:3)
+    pos = tmp(1:3)
 
   end subroutine project
 
@@ -116,10 +115,9 @@ contains
   !> coordinates. model is the [world]*view*[model] matrix, proj
   !> is the projection matrix. viewport_a is the side of the current
   !> (square) viewport (0,0,a,a).
-  module subroutine unproject(m,pos,mview,proj,viewport_a)
+  module subroutine unproject(pos,mview,proj,viewport_a)
     use tools_math, only: matinv_cfloat
-    real(c_float), intent(out) :: m(3)
-    real(c_float), intent(in) :: pos(3)
+    real(c_float), intent(inout) :: pos(3)
     real(c_float), intent(in) :: mview(4,4)
     real(c_float), intent(in) :: proj(4,4)
     integer(c_int), intent(in) :: viewport_a
@@ -139,35 +137,29 @@ contains
     tmp = tmp * 2._c_float - 1._c_float
     tmp = matmul(minv,tmp)
     tmp = tmp / tmp(4)
-    m = tmp(1:3)
+    pos = tmp(1:3)
 
   end subroutine unproject
 
   ! Apply a translation matrix to m by vector v. Return the translated matrix.
-  module subroutine translate(m,mat,v)
-    real(c_float), intent(out) :: m(4,4)
-    real(c_float), intent(in) :: mat(4,4)
+  module subroutine translate(mat,v)
+    real(c_float), intent(inout) :: mat(4,4)
     real(c_float), intent(in) :: v(3)
 
-    m = mat
-    m(:,4) = mat(:,1) * v(1) + mat(:,2) * v(2) + mat(:,3) * v(3) + mat(:,4)
+    mat(:,4) = mat(:,1) * v(1) + mat(:,2) * v(2) + mat(:,3) * v(3) + mat(:,4)
 
   end subroutine translate
 
   ! Apply a rotation matrix to m by axis and angle. Return the rotated matrix.
-  module subroutine rotate(m,mat,angle,axis)
-    real(c_float), intent(out) :: m(4,4)
-    real(c_float), intent(in) :: mat(4,4)
+  module subroutine rotate(mat,angle,axis)
+    real(c_float), intent(inout) :: mat(4,4)
     real(c_float), intent(in) :: angle
     real(c_float), intent(in) :: axis(3)
 
     real(c_float) :: a, c, s, ax(3), temp(3), mm(3,3), res(4,4), nn
 
     nn = norm2(axis)
-    if (nn < 1d-20) then
-       m = mat
-       return
-    end if
+    if (nn < 1d-20) return
 
     a = angle
     c = cos(angle)
@@ -191,7 +183,7 @@ contains
     res(:,2) = mat(:,1) * mm(1,2) + mat(:,2) * mm(2,2) + mat(:,3) * mm(3,2)
     res(:,3) = mat(:,1) * mm(1,3) + mat(:,2) * mm(2,3) + mat(:,3) * mm(3,3)
     res(:,4) = mat(:,4)
-    m = res
+    mat = res
 
   end subroutine rotate
 
@@ -221,13 +213,12 @@ contains
 
   end subroutine mult
 
-  ! Calculate inv(m) * v + t, where t is the translation in the
-  ! 4x4 matrix. Returns the resulting 3-vector.
-  module subroutine invmult(m,mat,v,notrans)
+  ! Calculate inv(mat) * v + t, where t is the translation in the 4x4
+  ! matrix. Returns the resulting 3-vector.
+  module subroutine invmult(v,mat,notrans)
     use tools_math, only: matinv_cfloat
-    real(c_float), intent(out) :: m(3)
+    real(c_float), intent(inout) :: v(3)
     real(c_float), intent(in) :: mat(4,4)
-    real(c_float), intent(in) :: v(3)
     logical, intent(in), optional :: notrans
 
     integer :: ier
@@ -243,12 +234,12 @@ contains
     if (notrans_) then
        m3 = mx(1:3,1:3)
        vx(1:3) = matmul(m3,v)
-       m = vx(1:3)
+       v = vx(1:3)
     else
        vx(1:3) = v
        vx(4) = 1._c_float
        vx = matmul(mx,vx)
-       m = vx(1:3) / vx(4)
+       v = vx(1:3) / vx(4)
     end if
 
   end subroutine invmult

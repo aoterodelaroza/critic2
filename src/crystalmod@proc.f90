@@ -1898,7 +1898,7 @@ contains
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     real*8 :: ipmax, ihmax, tshift
     integer :: hmax
-    logical :: again, ok
+    logical :: again
     integer, allocatable :: io(:)
     real*8, allocatable :: isum(:)
 

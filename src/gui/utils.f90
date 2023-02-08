@@ -150,30 +150,26 @@ module utils
        real(c_float), intent(in) :: center(3)
        real(c_float), intent(in) :: up(3)
      end subroutine lookat
-     module subroutine project(m,pos,mview,proj,viewport_a)
+     module subroutine project(pos,mview,proj,viewport_a)
        use iso_c_binding, only: c_float, c_int
-       real(c_float), intent(out) :: m(3)
-       real(c_float), intent(in) :: pos(3)
+       real(c_float), intent(inout) :: pos(3)
        real(c_float), intent(in) :: mview(4,4)
        real(c_float), intent(in) :: proj(4,4)
        integer(c_int), intent(in) :: viewport_a
      end subroutine project
-     module subroutine unproject(m,pos,mview,proj,viewport_a)
+     module subroutine unproject(pos,mview,proj,viewport_a)
        use iso_c_binding, only: c_float, c_int
-       real(c_float), intent(out) :: m(3)
-       real(c_float), intent(in) :: pos(3)
+       real(c_float), intent(inout) :: pos(3)
        real(c_float), intent(in) :: mview(4,4)
        real(c_float), intent(in) :: proj(4,4)
        integer(c_int), intent(in) :: viewport_a
      end subroutine unproject
-     module subroutine translate(m,mat,v)
-       real(c_float), intent(out) :: m(4,4)
-       real(c_float), intent(in) :: mat(4,4)
+     module subroutine translate(mat,v)
+       real(c_float), intent(inout) :: mat(4,4)
        real(c_float), intent(in) :: v(3)
      end subroutine translate
-     module subroutine rotate(m,mat,angle,axis)
-       real(c_float), intent(out) :: m(4,4)
-       real(c_float), intent(in) :: mat(4,4)
+     module subroutine rotate(mat,angle,axis)
+       real(c_float), intent(inout) :: mat(4,4)
        real(c_float), intent(in) :: angle
        real(c_float), intent(in) :: axis(3)
      end subroutine rotate
@@ -183,10 +179,9 @@ module utils
        real(c_float), intent(in) :: v(3)
        logical, intent(in), optional :: notrans
      end subroutine mult
-     module subroutine invmult(m,mat,v,notrans)
-       real(c_float), intent(out) :: m(3)
+     module subroutine invmult(v,mat,notrans)
+       real(c_float), intent(inout) :: v(3)
        real(c_float), intent(in) :: mat(4,4)
-       real(c_float), intent(in) :: v(3)
        logical, intent(in), optional :: notrans
      end subroutine invmult
   end interface

@@ -277,7 +277,7 @@ module scenes
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
      module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-        ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel,msel)
+        ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        integer, intent(inout) :: nsph
@@ -289,7 +289,6 @@ module scenes
        integer, intent(inout) :: nstring
        type(dl_string), intent(inout), allocatable :: drawlist_string(:)
        integer, intent(in) :: nmsel
-       integer, intent(in) :: msel(4,4)
      end subroutine add_draw_elements
      module subroutine draw_text_direct(str,x0,siz,color,centered)
        character(len=*), intent(in) :: str

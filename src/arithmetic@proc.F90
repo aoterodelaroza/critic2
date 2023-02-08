@@ -202,7 +202,7 @@ contains
 
     integer :: i, ntok, lp
     integer :: c, s(100)
-    logical :: again, ok, ifail
+    logical :: again, ok
     real*8 :: q(100)
     integer :: nq, ns
     type(token), allocatable :: toklist(:)

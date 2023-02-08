@@ -1905,7 +1905,7 @@ contains
   !> indices for the last calculated band pair as well as the current
   !> sij.
   function read_sijrestart(sijfname,nbnd,nbndw,nwan,nmo,nspin,nattr,sijtype,is,ibnd1,ibnd2,sij) result(valid)
-    use tools_io, only: fopen_read, fclose, ferror, faterr
+    use tools_io, only: fopen_read, fclose
     character(len=*), intent(in) :: sijfname
     integer, intent(in) :: nbnd, nbndw(2), nwan(3), nmo, nspin, nattr, sijtype
     integer, intent(out) :: is, ibnd1, ibnd2
@@ -1923,7 +1923,8 @@ contains
     if (lu < 0) goto 999
     read (lu,err=999,end=999) nbnd_, nbndw_, nwan_, nmo_, nspin_, nattr_, sijtype_
     valid = (nbnd_ == nbnd) .and. all(nbndw_ == nbndw) .and. all(nwan_ == nwan) .and.&
-       (nmo_ == nmo) .and. (nspin_ == nspin)
+       (nmo_ == nmo) .and. (nspin_ == nspin) .and. (nattr_ == nattr) .and.&
+       (sijtype_ == sijtype)
     if (valid) then
        read (lu,err=999,end=999) is, ibnd1, ibnd2
        read (lu,err=999) sij

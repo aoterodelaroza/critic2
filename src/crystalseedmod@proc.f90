@@ -7073,7 +7073,6 @@ contains
 
     character(len=:), allocatable :: sym, tok, tok0
     integer :: i, j, idx
-    logical :: ok
 
     errmsg = ""
     rot0 = 0d0

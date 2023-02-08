@@ -45,15 +45,15 @@ contains
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, io, fontsize, lockbehavior
+    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
-    use tools_io, only: string, ioj_right
+    use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
     integer :: i, j, k, nrep, id, ipad, is, icel, ineq
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
-    type(ImVec4) :: tintcol, bgcol, col
+    type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
@@ -818,9 +818,6 @@ contains
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
-    integer :: i, idx
-    real*8 :: time
-
     if (isys < 1 .or. isys > nsys) return
     if (w%view_selected == isys) return
     w%view_selected = isys
@@ -939,7 +936,7 @@ contains
                 call w%texpos_to_view(vold)
 
                 xc = vold - vnew
-                call invmult(xc,oldview,xc)
+                call invmult(xc,oldview)
                 sc%campos = xc
                 call sc%update_view_matrix()
                 w%forcerender = .true.
@@ -966,13 +963,13 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
-                   call invmult(axis,sc%world,axis,notrans=.true.)
+                   call invmult(axis,sc%world,notrans=.true.)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                   call translate(sc%world,sc%world,sc%scenecenter)
-                   call rotate(sc%world,sc%world,ang,axis)
-                   call translate(sc%world,sc%world,-sc%scenecenter)
+                   call translate(sc%world,sc%scenecenter)
+                   call rotate(sc%world,ang,axis)
+                   call translate(sc%world,-sc%scenecenter)
 
                    w%forcerender = .true.
                 end if
@@ -1027,11 +1024,8 @@ contains
     class(window), intent(inout), target :: w
     integer(c_int), intent(in) :: idx(4)
 
-    character(kind=c_char,len=:), allocatable, target :: msg
-
-    integer :: nmsel, i
+    integer :: nmsel
     integer :: msel(4,4)
-    type(ImVec4) :: col
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
 
@@ -1291,7 +1285,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    call project(pos,pos,eye4,sc%projection,w%FBOside)
+    call project(pos,eye4,sc%projection,w%FBOside)
 
   end subroutine view_to_texpos
 
@@ -1310,7 +1304,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    call unproject(pos,pos,eye4,sc%projection,w%FBOside)
+    call unproject(pos,eye4,sc%projection,w%FBOside)
 
   end subroutine texpos_to_view
 
@@ -1329,7 +1323,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    call project(pos,pos,sc%view,sc%projection,w%FBOside)
+    call project(pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine world_to_texpos
 
@@ -1348,7 +1342,7 @@ contains
     sc => sysc(w%view_selected)%sc
     if (sc%isinit < 2) return
 
-    call unproject(pos,pos,sc%view,sc%projection,w%FBOside)
+    call unproject(pos,sc%view,sc%projection,w%FBOside)
 
   end subroutine texpos_to_world
 
@@ -1504,7 +1498,7 @@ contains
     character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     type(ImVec2) :: sz0
-    real*8 :: x0(3), res
+    real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
     integer(c_int) :: flags, nc(3), lst
     real(c_float) :: sqw

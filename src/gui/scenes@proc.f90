@@ -191,7 +191,7 @@ contains
     ! add the items by representation
     do i = 1, s%nrep
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
-          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%nmsel,s%msel)
+          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%nmsel)
     end do
 
     ! recalculate scene center and radius
@@ -241,7 +241,7 @@ contains
        s%forceresetcam = .false.
     elseif (s%lockedcam == 0) then
        ! translate the scene so the center position remains unchanged
-       call translate(s%world,s%world,-xc)
+       call translate(s%world,-xc)
     end if
 
     ! rebuilding lists is done
@@ -507,8 +507,8 @@ contains
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize
+    use shapes, only: sphVAO
+    use gui_main, only: fonts
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_pickindex, useshader, setuniform_int,&
@@ -517,9 +517,6 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i
-    real(c_float) :: siz, hside
-    integer(c_int) :: nvert
-    real(c_float), allocatable, target :: vert(:,:)
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
@@ -642,7 +639,6 @@ contains
     logical :: discol, doerase
     type(ImVec2) :: szero
     character(kind=c_char,len=1024), target :: txtinp
-    integer(c_int) :: flags
     integer, allocatable :: idx(:)
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -884,9 +880,9 @@ contains
     ! set the world matrix
     if (angle > 1e-10_c_float) then
        raxis_c = real(raxis / norm2(raxis),c_float)
-       call translate(s%world,s%world,s%scenecenter)
-       call rotate(s%world,s%world,-angle,raxis_c)
-       call translate(s%world,s%world,-s%scenecenter)
+       call translate(s%world,s%scenecenter)
+       call rotate(s%world,-angle,raxis_c)
+       call translate(s%world,-s%scenecenter)
     end if
 
   end subroutine align_view_axis
@@ -1107,7 +1103,7 @@ contains
 
   !> Add the spheres, cylinder, etc. to the draw lists.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-     ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel,msel)
+     ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel)
     use gui_main, only: sys
     use tools_io, only: string
     use hashmod, only: hash
@@ -1123,10 +1119,9 @@ contains
     integer, intent(inout) :: nstring
     type(dl_string), intent(inout), allocatable :: drawlist_string(:)
     integer, intent(in) :: nmsel
-    integer, intent(in) :: msel(4,4)
 
     type(hash) :: shown_atoms
-    logical :: havefilter, step, ok, isedge(3), foundsel(4)
+    logical :: havefilter, step, isedge(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
