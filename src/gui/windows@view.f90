@@ -42,7 +42,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_NAV_ROTATE, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname
-    use scenes, only: reptype_atoms, reptype_unitcell, style_phong
+    use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
@@ -342,6 +342,21 @@ contains
              call iw_tooltip("Change the color of the light",ttshown)
              call iw_clamp_color3(sysc(w%view_selected)%sc%lightcolor)
              call igSameLine(0._c_float,-1._c_float)
+          elseif (sysc(w%view_selected)%sc%style == style_simple) then
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Border (Å)" // c_null_char
+             str3 = "%.3f" // c_null_char
+             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%atomborder,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the thickness of the atom borders",ttshown)
+             call igPopItemWidth()
+
+             call igSameLine(0._c_float,-1._c_float)
+             str2 = "Color" // c_null_char
+             chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bordercolor,&
+                ImGuiColorEditFlags_NoInputs)
+             call iw_tooltip("Change the color of the atom borders",ttshown)
+             call iw_clamp_color3(sysc(w%view_selected)%sc%bordercolor)
           end if
 
           ! background color
@@ -378,6 +393,8 @@ contains
                    sysc(i)%sc%diffuse = sysc(w%view_selected)%sc%diffuse
                    sysc(i)%sc%specular = sysc(w%view_selected)%sc%specular
                    sysc(i)%sc%shininess = sysc(w%view_selected)%sc%shininess
+                   sysc(i)%sc%atomborder = sysc(w%view_selected)%sc%atomborder
+                   sysc(i)%sc%bordercolor = sysc(w%view_selected)%sc%bordercolor
                    sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
                    sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
                    sysc(i)%sc%camresetdist = sysc(w%view_selected)%sc%camresetdist

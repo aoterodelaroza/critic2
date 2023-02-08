@@ -145,6 +145,8 @@ module scenes
      real(c_float) :: diffuse ! diffuse light coefficent
      real(c_float) :: specular ! specular light coefficent
      integer(c_int) :: shininess ! shininess parameter
+     real(c_float) :: atomborder ! atom border (simple shader)
+     real(c_float) :: bordercolor(3) ! border color (simple shader)
      ! scene transformation matrices
      real(c_float) :: camresetdist ! camera reset distance
      real(c_float) :: camratio ! window ratio for the camera

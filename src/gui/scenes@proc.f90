@@ -28,8 +28,6 @@ submodule (scenes) proc
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
-  real(c_float), parameter :: atom_border = 0.2_c_float
-
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
@@ -402,7 +400,8 @@ contains
        call setuniform_mat4("projection",s%projection)
 
        ! draw the atoms
-       call setuniform_float("rborder",atom_border)
+       call setuniform_float("rborder",s%atomborder)
+       call setuniform_vec3("bordercolor",s%bordercolor)
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           do i = 1, s%nsph
@@ -579,6 +578,8 @@ contains
           s%rep(i)%bond_color_style=0
           s%rep(i)%bond_rgb = 0._c_float
        end do
+       s%atomborder = 0.2_c_float
+       s%bordercolor = 0._c_float
     end if
 
   end subroutine scene_set_style_defaults
