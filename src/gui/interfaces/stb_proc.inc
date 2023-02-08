@@ -54,3 +54,16 @@ function stbi_write_hdr(filename,w,h,comp,data) bind(c,name="stbi_write_hdr")
   integer(c_int), value :: comp
   type(c_ptr), value :: data
 end function stbi_write_hdr
+!x! STBIDEF void stbi_image_free(void *retval_from_stbi_load)
+subroutine stbi_image_free(retval_from_stbi_load) bind(c,name="stbi_image_free")
+  import c_ptr
+  type(c_ptr), value :: retval_from_stbi_load
+end subroutine stbi_image_free
+!x! STBIDEF stbi_uc *stbi_load(char const *filename, int *x, int *y, int *comp, int req_comp)
+function stbi_load(filename,x,y,comp,req_comp) bind(c,name="stbi_load")
+  import c_ptr, c_int
+  type(c_ptr), value :: filename
+  integer(c_int) :: x, y, comp
+  integer(c_int), value :: req_comp
+  type(c_ptr) :: stbi_load
+end function stbi_load

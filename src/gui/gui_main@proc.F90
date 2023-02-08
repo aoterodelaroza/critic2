@@ -49,22 +49,26 @@ contains
     use interfaces_cimgui
     use interfaces_glfw
     use interfaces_opengl3
+    use interfaces_stb
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe
+    use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
+    use param, only: dirsep
     use omp_lib, only: omp_get_max_threads
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom, ileft2, iright2
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
-    character(kind=c_char,len=:), allocatable, target :: strc
+    character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass
     integer(c_short), allocatable, target :: range(:)
+    type(GLFWimage), target :: icon
 
     ! initialize the sys arrays
     nsys = 0
@@ -118,6 +122,12 @@ contains
     fdum = glfwSetDropCallback(rootwin,c_funloc(drop_callback))
     call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
+
+    ! set GUI icon
+    file = trim(critic_home) // dirsep // "assets" // dirsep // "critic2_icon.png" // c_null_char
+    icon%pixels = stbi_load(c_loc(file), icon%width, icon%height, idum, 4)
+    call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
+    call stbi_image_free(icon%pixels)
 
     ! set up ImGui context
     ptrc = igCreateContext(c_null_ptr)

@@ -25,6 +25,9 @@ module interfaces_glfw
   !xx! GLFW constants
   include "interfaces/glfw_constants.inc"
 
+  !xx! GLFW types
+  include "interfaces/glfw_types.inc"
+
   interface
      !xx! GLFW
      include "interfaces/glfw_proc.inc"
