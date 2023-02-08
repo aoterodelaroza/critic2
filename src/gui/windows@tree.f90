@@ -858,7 +858,7 @@ contains
          if (tree_select_updates_view) &
             call win(iwin_view)%select_view(isys)
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
-            sysc(isys)%showfields = .true.
+            sysc(isys)%showfields = .not.sysc(isys)%showfields
       end if
       call igSameLine(0._c_float,-1._c_float)
       call igSetCursorPosX(pos)
