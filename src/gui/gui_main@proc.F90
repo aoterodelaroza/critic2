@@ -76,8 +76,11 @@ contains
 
     ! initialize threads: reserve some un-used LUs and then
     ! deallocate them for fopen
-    ! nthread = omp_get_max_threads()
+#ifdef _WIN32
     nthread = 1
+#else
+    nthread = omp_get_max_threads()
+#endif
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
     do i = 1, size(ludum,1)
