@@ -89,7 +89,7 @@ contains
     ! name
     call iw_text("Name",highlight=.true.)
     str2 = "##name"
-    ldum = igInputText(c_loc(str2),c_loc(namebuf),maxnamebuf-1,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)
+    ldum = igInputText(c_loc(str2),c_loc(namebuf),maxnamebuf-1,ImGuiInputTextFlags_None,c_null_funptr,c_null_ptr)
 
     if (.not.ismolecule) then
        ! symmetry
@@ -112,7 +112,7 @@ contains
           sz%y = 9 * igGetTextLineHeightWithSpacing()
           str = "##symopsmanual" // c_null_char
           ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
-             ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+             ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
        end if
 
        ! lattice: header
@@ -163,7 +163,7 @@ contains
           sz%y = 4 * igGetTextLineHeightWithSpacing()
           str = "##latvecmanual" // c_null_char
           ldum = igInputTextMultiline(c_loc(str),c_loc(latvecbuf),maxlatvecbuf,sz,&
-             ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+             ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
        end if
     end if ! .not.ismolecule
 
@@ -198,7 +198,7 @@ contains
     end if
     str = "##atomicpositions" // c_null_char
     ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
-       ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+       ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
 
     ! options line
     if (ismolecule) then

@@ -877,7 +877,7 @@ contains
   !xx! private procedures
 
   ! the callback for the right-hand-side pane of the dialog
-  subroutine dialog_user_callback(vFilter, vUserData, vCantContinue) bind(c)
+  subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
        iw_combo_simple

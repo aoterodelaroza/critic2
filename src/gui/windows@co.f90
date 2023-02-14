@@ -208,11 +208,11 @@ contains
     str1 = "##outputmultiline" // c_null_char
     if (idcom == 0) then
        ldum = igInputTextMultiline(c_loc(str1),c_loc(outputb),lob,sz,&
-          ImGuiInputTextFlags_ReadOnly,c_null_ptr,c_null_ptr)
+          ImGuiInputTextFlags_ReadOnly,c_null_funptr,c_null_ptr)
     else
        ldum = igInputTextMultiline(c_loc(str1),c_loc(com(icom(idcom))%output),&
           com(icom(idcom))%size+1,sz,ImGuiInputTextFlags_ReadOnly,&
-          c_null_ptr,c_null_ptr)
+          c_null_funptr,c_null_ptr)
     end if
     call igPopStyleVar(1)
     call igPopStyleColor(1)

@@ -39,7 +39,6 @@ contains
     real(c_float) :: tau, rad0, xico, zico, zero, half, one, angle
     real(c_float) :: cylr, pic, cylnorm, cylrn, halfn, halfn2, ca, sa
     integer :: i, l, j, k(3), nk1, nk2, nk3, n, nface, npt
-    integer :: nk1, nk2, nk3
     integer(c_int) :: shift1, shift2
     integer(c_int) :: c_int_
     real(c_float) :: c_float_

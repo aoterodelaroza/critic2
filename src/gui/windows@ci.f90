@@ -160,7 +160,7 @@ contains
     call igGetContentRegionAvail(sz)
     str1 = "##inputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,&
-       ImGuiInputTextFlags_AllowTabInput,c_null_ptr,c_null_ptr)
+       ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
 
   end subroutine draw_ci
 

@@ -740,7 +740,7 @@ contains
                 txtinp = trim(adjustl(s%rep(i)%name)) // c_null_char
                 call igSetKeyboardFocusHere(0_c_int)
                 if (igInputText(c_loc(str3),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
-                   c_null_ptr,c_null_ptr)) then
+                   c_null_funptr,c_null_ptr)) then
                    ll = index(txtinp,c_null_char)
                    s%rep(i)%name = txtinp(1:ll-1)
                    call igCloseCurrentPopup()

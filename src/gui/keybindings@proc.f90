@@ -96,7 +96,7 @@ submodule (keybindings) proc
 contains
 
   ! unbind the key/mod/group combination
-  subroutine erase_bind(key, mod, group)
+  module subroutine erase_bind(key, mod, group)
     use interfaces_cimgui, only: ImGuiKey_None
     integer(c_int), intent(in) :: key, mod
     integer, intent(in) :: group

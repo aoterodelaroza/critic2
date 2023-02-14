@@ -1441,7 +1441,7 @@ contains
        txtinp = trim(adjustl(w%rep%name)) // c_null_char
        call igSameLine(0._c_float,-1._c_float)
        call igPushItemWidth(iw_calcwidth(30,1))
-       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_ptr,c_null_ptr)) then
+       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_funptr,c_null_ptr)) then
           ll = index(txtinp,c_null_char)
           w%rep%name = txtinp(1:ll-1)
        end if
@@ -1557,7 +1557,7 @@ contains
     str1 = "##filtertext"
     txtinp = trim(adjustl(w%rep%filter)) // c_null_char
     if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
-       c_null_ptr,c_null_ptr)) then
+       c_null_funptr,c_null_ptr)) then
        ll = index(txtinp,c_null_char)
        w%rep%filter = txtinp(1:ll-1)
 

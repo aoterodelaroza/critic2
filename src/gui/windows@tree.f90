@@ -541,7 +541,7 @@ contains
                          txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
                          call igSetKeyboardFocusHere(0_c_int)
                          flags = ImGuiInputTextFlags_EnterReturnsTrue
-                         if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+                         if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
                             ll = index(txtinp,c_null_char)
                             sys(i)%f(k)%name = txtinp(1:ll-1)
                             call igCloseCurrentPopup()
@@ -948,7 +948,7 @@ contains
             txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
             call igSetKeyboardFocusHere(0_c_int)
             flags = ImGuiInputTextFlags_EnterReturnsTrue
-            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_ptr,c_null_ptr)) then
+            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
                ll = index(txtinp,c_null_char)
                sysc(isys)%seed%name = txtinp(1:ll-1)
                sysc(isys)%renamed = .true.
@@ -2070,7 +2070,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: ok, doquit, oksys, ch
-    integer :: i, iz, isys, natused, iat
+    integer :: i, iz, isys, natused
     type(ImVec2) :: szavail, szero, sz0
     integer(c_int) :: flags
     real(c_float) :: combowidth, rad, bf, bfmin, bfmax
