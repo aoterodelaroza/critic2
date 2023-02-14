@@ -32,7 +32,7 @@ submodule (gui_main) proc
   integer(c_int) :: iddock = 0
 
   ! threads in execution
-  integer :: nthread = 1
+  integer, parameter :: nthread = 1
   type(c_ptr), target, allocatable :: thread(:)
   type(thread_info), target, allocatable :: thread_ti(:)
 
@@ -76,11 +76,6 @@ contains
 
     ! initialize threads: reserve some un-used LUs and then
     ! deallocate them for fopen
-#ifdef _WIN32
-    nthread = 1
-#else
-    nthread = omp_get_max_threads()
-#endif
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
     do i = 1, size(ludum,1)
