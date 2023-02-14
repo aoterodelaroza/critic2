@@ -87,6 +87,7 @@ contains
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
     integer(c_int), save :: idrebond = 0 ! ID of the window used rebond the sytsem
+    integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
 
     ! initialize
     hadenabledcolumn = .false.
@@ -117,6 +118,7 @@ contains
           call ImGuiTextFilter_Clear(cfilter)
     end if
     call iw_tooltip("Clear the filter",ttshown)
+    call iw_text(" " // string(shown_after_filter) // " shown",sameline=.true.)
 
     ! row of buttons
     ! button: expand
@@ -386,6 +388,7 @@ contains
        call igTableHeadersRow()
 
        ! draw the rows
+       shown_after_filter = 0
        do j = 1, nshown
           i = w%iord(j)
           if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
@@ -393,6 +396,7 @@ contains
              str = trim(sysc(i)%seed%name) // c_null_char
              if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
           end if
+          shown_after_filter = shown_after_filter + 1
 
           ! start defining the table row
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
