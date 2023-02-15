@@ -1935,10 +1935,10 @@ contains
     integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)
-    real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
+    real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff, vtarget
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
     logical :: ok, dowrite, noh
-    real*8 :: powdiff_thr, max_elong, max_ang
+    real*8 :: powdiff_thr, max_elong, max_ang, max_vol
     real*8 :: th2ini, th2end, targetaa(3), targetbb(3)
     integer :: npts
 
@@ -1951,6 +1951,7 @@ contains
 
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
+    real*8, parameter :: max_vol_def = 0.5d0 ! at most 50% change in volume
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
     ! header and initalization
@@ -1970,6 +1971,7 @@ contains
 
     max_elong = max_elong_def
     max_ang = max_ang_def
+    max_vol = max_vol_def
     powdiff_thr = -1d0
     dowrite = .false.
     noh = .false.
@@ -1984,6 +1986,9 @@ contains
        elseif (equal(word,'maxang')) then
           ok = isreal(max_ang,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXANG',faterr)
+       elseif (equal(word,'maxvol')) then
+          ok = isreal(max_vol,line,lp)
+          if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXVOL',faterr)
        elseif (equal(word,'write')) then
           dowrite = .true.
        elseif (equal(word,'noh')) then
@@ -2164,6 +2169,7 @@ contains
     xd2min = eye
 
     ! run over all permutations
+    vtarget = det3(m_x2c_from_cellpar(targetaa,targetbb))
     write (uout,'("+ Structural comparison of candidate structures")')
     write (uout,'("# Reference structure is 1.")')
     write (uout,'("# Structure 2 takes lattice vectors (a,b,c) from the list above.")')
@@ -2202,16 +2208,15 @@ contains
              if (abs(dd) < 1d-5) cycle
              if (dd < 0d0) xd2 = -xd2
 
-             ! check volumes
-             ! if (nint(abs(dd)) /= nint(c1%omega/c2%omega)) cycle
-
              ! check number of atoms
              if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
 
-             !! powder diffraction
-             ! make the new crystal
+             ! make the new crystal and check the volume
              c2del = c2
              call c2del%newcell(xd2,noenv=.true.)
+             if (abs(c2del%omega-vtarget) / vtarget > max_vol) cycle
+
+             ! transform the cell
              c2del%aa = targetaa
              c2del%bb = targetbb
              c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
