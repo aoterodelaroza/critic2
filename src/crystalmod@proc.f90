@@ -4592,6 +4592,8 @@ contains
        end if
        if (idx == 0) &
             call c%write_fhi(file,.true.,ti=ti)
+    elseif (equal(wext,'pwi')) then
+       call c%write_espresso(file,ti=ti)
     elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
        call c%write_vasp(file,.false.,ti=ti)
     elseif (equal(wext,'abin')) then
