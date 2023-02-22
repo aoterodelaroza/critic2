@@ -4647,7 +4647,7 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_castepcell, isformat_castepgeom
+       isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4718,6 +4718,10 @@ contains
     elseif (equal(wextdot2,'in.next_step')) then
        call which_in_format(file,isformat,ti=ti)
        if (isformat /= isformat_aimsin) goto 999
+    elseif (equal(wextdot,'pwi')) then
+       isformat = isformat_qein
+    elseif (equal(wextdot,'pwo')) then
+       isformat = isformat_qeout
     elseif (equal(wextdot,'xyz')) then
        isformat = isformat_xyz
     elseif (equal(wextdot,'gjf').or.equal(wextdot,'com')) then
