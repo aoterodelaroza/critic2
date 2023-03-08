@@ -438,12 +438,18 @@ contains
           w%name = "Recalculate Bonds" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
-          inisize%y = 19 * fontsize%y
+          inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences..." // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 65 * fontsize%x
+          inisize%y = 19 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_treeplot) then
+          w%name = "Plot Tree Data" // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
           inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
@@ -495,6 +501,8 @@ contains
                 call w%draw_rebond()
              elseif (w%type == wintype_preferences) then
                 call w%draw_preferences()
+             elseif (w%type == wintype_treeplot) then
+                call w%draw_treeplot()
              end if
           end if
           call igEnd()

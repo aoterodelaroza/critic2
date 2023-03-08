@@ -148,6 +148,7 @@ module windows
      procedure :: draw_tree ! draw a tree
      procedure :: update_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
+     procedure :: draw_treeplot
      ! view procedures
      procedure :: draw_view ! draw a view
      procedure :: create_texture_view ! create the texture for the view
@@ -222,6 +223,7 @@ module windows
   integer, parameter, public :: wintype_about = 12
   integer, parameter, public :: wintype_rebond = 13
   integer, parameter, public :: wintype_preferences = 14
+  integer, parameter, public :: wintype_treeplot = 15
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -287,6 +289,9 @@ module windows
        class(window), intent(inout) :: w
        integer(c_int), intent(in) :: cid, dir
      end subroutine sort_tree
+     module subroutine draw_treeplot(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_treeplot
      module subroutine draw_view(w)
        class(window), intent(inout), target :: w
      end subroutine draw_view

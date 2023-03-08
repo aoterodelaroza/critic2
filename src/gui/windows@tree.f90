@@ -86,7 +86,8 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
-    integer(c_int), save :: idrebond = 0 ! ID of the window used rebond the sytsem
+    integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
+    integer(c_int), save :: idplot = 0 ! ID of the plot window
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
 
     ! initialize
@@ -104,6 +105,7 @@ contains
     ! update the window ID for the load field dialog
     call update_window_id(idloadfield)
     call update_window_id(idrebond)
+    call update_window_id(idplot)
 
     ! text filter
     if (.not.c_associated(cfilter)) &
@@ -140,6 +142,16 @@ contains
     ! button: export
     export = iw_button("Export",sameline=.true.)
     call iw_tooltip("Write the current table to the output console in csv-style (for copying)",ttshown)
+
+    ! button: plot
+    if (iw_button("Plot",sameline=.true.)) then
+       if (idplot > 0) then
+          call igSetWindowFocus_Str(c_loc(win(idrebond)%name))
+       else
+          idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id)
+       end if
+    end if
+    call iw_tooltip("Plot the tree data",ttshown)
 
     ! helper
     call iw_text("(?)",sameline=.true.)
@@ -2301,5 +2313,34 @@ contains
 
     end function system_ok
   end subroutine draw_rebond
+
+  !> Draw the tree plot window
+  module subroutine draw_treeplot(w)
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use gui_main, only: g
+    use utils, only: iw_calcwidth, iw_button
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
+    class(window), intent(inout), target :: w
+
+    type(ImVec2) :: szavail
+    logical :: ok
+
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+
+    ! close button
+    ok = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
+    ok = ok .or. iw_button("Close",sameline=.true.)
+
+    ! quit the window
+    if (ok) call w%end()
+
+  end subroutine draw_treeplot
 
 end submodule tree
