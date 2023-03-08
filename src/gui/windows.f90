@@ -89,6 +89,7 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
+     real*8 :: timelastupdate ! time the window data was last updated
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
@@ -125,7 +126,7 @@ module windows
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      ! load field parameters
-     ! scf plot parameters
+     ! scf plot and tree plot parameters
      real(c_double) :: ymin, ymax ! y-end of the plot
      integer :: plotn ! number of plot data
      real(c_double), allocatable :: plotx(:), ploty(:) ! plot data

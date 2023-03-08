@@ -60,7 +60,7 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view, fontsize
+       tree_select_updates_view, fontsize, time
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -250,6 +250,7 @@ contains
              call win(iwin_view)%select_view(w%table_selected)
        end do
        deallocate(w%forceremove)
+       w%timelastupdate = time
        ! restart initialization if the threads were killed
        if (reinit) w%forceinit = .true.
     end if
@@ -1068,7 +1069,7 @@ contains
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
-    use gui_main, only: sysc, nsys, sys_empty
+    use gui_main, only: sysc, nsys, sys_empty, time
     class(window), intent(inout) :: w
 
     integer :: i, n
@@ -1088,13 +1089,14 @@ contains
     end if
     w%forceupdate = .false.
     w%forcesort = .true.
+    w%timelastupdate = time
 
   end subroutine update_tree
 
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sysc, sys_init, sys_empty
+    use gui_main, only: sys, sysc, sys_init, sys_empty, time
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -1229,6 +1231,9 @@ contains
     ! apply the permutation
     w%iord = w%iord(iperm)
     w%forcesort = .false.
+
+    ! update the time
+    w%timelastupdate = time
 
   end subroutine sort_tree
 
@@ -2318,14 +2323,99 @@ contains
   module subroutine draw_treeplot(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: g
+    use gui_main, only: g, time, sysc, sys_empty, sys_init, sys
+    use windows, only: win, iwin_tree
     use utils, only: iw_calcwidth, iw_button
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
+    use tools_io, only: string
+    use types, only: realloc
+    use param, only: bohrtoa
     class(window), intent(inout), target :: w
 
-    type(ImVec2) :: szavail
+    type(ImVec2) :: szavail, sz
     logical :: ok
+    integer :: i, j, nshown
+    real*8 :: valx, valy
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    integer(c_int) :: nticks
+    real(c_double) :: xmin, xmax, ymin, ymax, dy
+    type(ImVec4) :: auto
+
+    integer, save :: ic_plotx = 0, ic_ploty = 0
+
+    integer, parameter :: maxxticks = 10
+
+    ! initialize
+    if (w%firstpass) then
+       ic_plotx = ic_v
+       ic_ploty = ic_e
+    end if
+
+    ! update the plot data if necessary
+    if (w%firstpass .or. w%timelastupdate < win(iwin_tree)%timelastupdate) then
+       w%plotn = 0
+       if (allocated(w%plotx)) deallocate(w%plotx)
+       if (allocated(w%ploty)) deallocate(w%ploty)
+       nshown = size(win(iwin_tree)%iord,1)
+       allocate(w%plotx(nshown),w%ploty(nshown))
+       do j = 1, nshown
+          i = win(iwin_tree)%iord(j)
+          if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
+
+          ok = getvalue(valx,ic_plotx,i)
+          ok = ok .and. getvalue(valy,ic_ploty,i)
+          if (ok) then
+             w%plotn = w%plotn + 1
+             w%plotx(w%plotn) = valx
+             w%ploty(w%plotn) = valy
+          end if
+       end do
+       if (w%plotn > 0) then
+          call realloc(w%plotx,w%plotn)
+          call realloc(w%ploty,w%plotn)
+       end if
+       w%timelastupdate = time
+    end if
+
+    ! make the plot
+    if (w%plotn > 0) then
+       str1 = "##treeplot" // c_null_char
+       call igGetContentRegionAvail(sz)
+       if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
+          str1 = "Volume (Å³)" // c_null_char
+          str2 = "Energy (Ha)" // c_null_char
+          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+
+          str1 = "%.2f" // c_null_char
+          nticks = size(w%plotx,1)
+          xmin = w%plotx(1)
+          xmax = w%plotx(nticks)
+          if (nticks > maxxticks) then
+             nticks = maxxticks + 1
+             xmax = xmin + ceiling((xmax - xmin) / maxxticks) * maxxticks
+          end if
+          if (nticks > 1) call ipSetupAxisTicks(ImAxis_X1,xmin,xmax,nticks)
+          call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
+
+          ymax = maxval(w%ploty)
+          ymin = minval(w%ploty)
+          dy = max(ymax - ymin,1d-20)
+          str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
+          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
+          call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) ! these need to be switched
+
+          str1 = "Energy" // c_null_char
+          auto%x = 0._c_float
+          auto%y = 0._c_float
+          auto%z = 0._c_float
+          auto%w = -1._c_float
+          call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
+
+          call ipPlotLine(c_loc(str1),c_loc(w%plotx),c_loc(w%ploty),w%plotn,ImPlotLineFlags_None,0_c_int)
+          call ipEndPlot()
+       end if
+    end if
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
@@ -2340,6 +2430,66 @@ contains
 
     ! quit the window
     if (ok) call w%end()
+
+  contains
+    ! Get value ic for system i and return it in val. The function returns ok if it
+    ! is a valid value.
+    function getvalue(val,ic,i)
+      real*8, intent(out) :: val
+      integer, intent(in) :: ic, i
+      logical :: getvalue
+
+      val = 0d0
+      getvalue = .false.
+      if (ic == ic_id) then
+         val = real(i,8)
+      elseif (ic == ic_e) then
+         if (sysc(i)%seed%energy == huge(1d0)) return
+         val = sysc(i)%seed%energy
+      elseif (ic == ic_v) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%omega*bohrtoa**3
+      elseif (ic == ic_vmol) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol
+      elseif (ic == ic_nneq) then
+         if (sysc(i)%status /= sys_init) return
+         val = sys(i)%c%nneq
+      elseif (ic == ic_ncel) then
+         if (sysc(i)%status /= sys_init) return
+         val = sys(i)%c%ncel
+      elseif (ic == ic_nmol) then
+         if (sysc(i)%status /= sys_init) return
+         val = sys(i)%c%nmol
+      elseif (ic == ic_a) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%aa(1)*bohrtoa
+      elseif (ic == ic_b) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%aa(2)*bohrtoa
+      elseif (ic == ic_c) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%aa(3)*bohrtoa
+      elseif (ic == ic_alpha) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%bb(1)
+      elseif (ic == ic_beta) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%bb(2)
+      elseif (ic == ic_gamma) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         val = sys(i)%c%bb(3)
+      elseif (ic == ic_emol) then
+         if (sysc(i)%status /= sys_init .or. sysc(i)%seed%energy == huge(1d0)) return
+         val = sysc(i)%seed%energy/sys(i)%c%nmol
+      elseif (ic == ic_p) then
+         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule .or.&
+             sysc(i)%seed%pressure == huge(1d0)) return
+         val = sysc(i)%seed%pressure
+      end if
+      getvalue = .true.
+
+    end function getvalue
 
   end subroutine draw_treeplot
 
