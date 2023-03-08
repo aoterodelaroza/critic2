@@ -451,7 +451,7 @@ contains
           w%name = "Plot Tree Data" // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
-          inisize%y = 19 * fontsize%y
+          inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if

@@ -146,7 +146,7 @@ contains
     ! button: plot
     if (iw_button("Plot",sameline=.true.)) then
        if (idplot > 0) then
-          call igSetWindowFocus_Str(c_loc(win(idrebond)%name))
+          call igSetWindowFocus_Str(c_loc(win(idplot)%name))
        else
           idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id)
        end if
@@ -2040,7 +2040,7 @@ contains
           if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
              str1 = "SCF Iteration" // c_null_char
              str2 = "Energy (Ha)" // c_null_char
-             call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+             call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_AutoFit,ImPlotAxisFlags_AutoFit)
 
              str1 = "%d" // c_null_char
              nticks = size(w%plotx,1)
@@ -2325,7 +2325,7 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: g, time, sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
-    use utils, only: iw_calcwidth, iw_button
+    use utils, only: iw_calcwidth, iw_button, iw_combo_simple, iw_tooltip, iw_text
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string
@@ -2338,22 +2338,43 @@ contains
     integer :: i, j, nshown
     real*8 :: valx, valy
     character(len=:,kind=c_char), allocatable, target :: str1, str2
-    integer(c_int) :: nticks
     real(c_double) :: xmin, xmax, ymin, ymax, dy
     type(ImVec4) :: auto
+    logical(c_bool) :: ch, forceupdate
 
     integer, save :: ic_plotx = 0, ic_ploty = 0
+    logical, save :: ttshown = .false. ! tooltip flag
 
     integer, parameter :: maxxticks = 10
+    integer, parameter :: ictrans(0:14) = (/ic_id,ic_e,ic_v,ic_vmol,ic_nneq,ic_ncel,&
+       ic_nmol,ic_a,ic_b,ic_c,ic_alpha,ic_beta,ic_gamma,ic_emol,ic_p/)
 
     ! initialize
     if (w%firstpass) then
-       ic_plotx = ic_v
-       ic_ploty = ic_e
+       ic_plotx = 2
+       ic_ploty = 1
     end if
 
+    ! x-choose and y-choose
+    forceupdate = .false.
+    str1 = "ID"//c_null_char//"Energy (Ha)"//c_null_char//"Volume (Å³)"//c_null_char//&
+       "Volume/Z (Å³)"//c_null_char//&
+       "Number of symmetry-unique atoms"//c_null_char//"Number of cell atoms"//c_null_char//&
+       "Number of molecules"//c_null_char//"a (Å)"//c_null_char//&
+       "b (Å)"//c_null_char//"c (Å)"//c_null_char//"α (°)"//c_null_char//"β (°)"//c_null_char//&
+       "γ (°)"//c_null_char//"Energy/Z (Ha)"//c_null_char//"Pressure (GPa)"//c_null_char//c_null_char
+    call iw_text("x: ")
+    call iw_combo_simple("##xselect",str1,ic_plotx,changed=ch,sameline=.true.)
+    call iw_tooltip("Property to represent on the x-axis",ttshown)
+    forceupdate = forceupdate .or. ch
+
+    call iw_text("y: ")
+    call iw_combo_simple("##yselect",str1,ic_ploty,changed=ch,sameline=.true.)
+    call iw_tooltip("Property to represent on the y-axis",ttshown)
+    forceupdate = forceupdate .or. ch
+
     ! update the plot data if necessary
-    if (w%firstpass .or. w%timelastupdate < win(iwin_tree)%timelastupdate) then
+    if (w%firstpass .or. w%timelastupdate < win(iwin_tree)%timelastupdate .or. forceupdate) then
        w%plotn = 0
        if (allocated(w%plotx)) deallocate(w%plotx)
        if (allocated(w%ploty)) deallocate(w%ploty)
@@ -2363,8 +2384,8 @@ contains
           i = win(iwin_tree)%iord(j)
           if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
 
-          ok = getvalue(valx,ic_plotx,i)
-          ok = ok .and. getvalue(valy,ic_ploty,i)
+          ok = getvalue(valx,ictrans(ic_plotx),i)
+          ok = ok .and. getvalue(valy,ictrans(ic_ploty),i)
           if (ok) then
              w%plotn = w%plotn + 1
              w%plotx(w%plotn) = valx
@@ -2383,53 +2404,25 @@ contains
        str1 = "##treeplot" // c_null_char
        call igGetContentRegionAvail(sz)
        if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
-          str1 = "Volume (Å³)" // c_null_char
-          str2 = "Energy (Ha)" // c_null_char
-          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+          call getname(str1,ictrans(ic_plotx))
+          call getname(str2,ictrans(ic_ploty))
+          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_AutoFit,ImPlotAxisFlags_AutoFit)
 
-          str1 = "%.2f" // c_null_char
-          nticks = size(w%plotx,1)
-          xmin = w%plotx(1)
-          xmax = w%plotx(nticks)
-          if (nticks > maxxticks) then
-             nticks = maxxticks + 1
-             xmax = xmin + ceiling((xmax - xmin) / maxxticks) * maxxticks
-          end if
-          if (nticks > 1) call ipSetupAxisTicks(ImAxis_X1,xmin,xmax,nticks)
-          call ipSetupAxisFormat(ImAxis_X1,c_loc(str1))
-
-          ymax = maxval(w%ploty)
-          ymin = minval(w%ploty)
-          dy = max(ymax - ymin,1d-20)
-          str1 = "%." // string(min(ceiling(max(abs(log10(dy)),0d0)) + 1,10)) // "f" // c_null_char
-          call ipSetupAxisFormat(ImAxis_Y1,c_loc(str1))
-          call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) ! these need to be switched
-
-          str1 = "Energy" // c_null_char
           auto%x = 0._c_float
           auto%y = 0._c_float
           auto%z = 0._c_float
           auto%w = -1._c_float
           call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
 
-          call ipPlotLine(c_loc(str1),c_loc(w%plotx),c_loc(w%ploty),w%plotn,ImPlotLineFlags_None,0_c_int)
+          call ipPlotLine(c_loc(str2),c_loc(w%plotx),c_loc(w%ploty),w%plotn,ImPlotLineFlags_None,0_c_int)
           call ipEndPlot()
        end if
     end if
 
-    ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
-
-    ! close button
-    ok = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
-    ok = ok .or. iw_button("Close",sameline=.true.)
-
-    ! quit the window
-    if (ok) call w%end()
+    ! close
+    if ((w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))) &
+       call w%end()
 
   contains
     ! Get value ic for system i and return it in val. The function returns ok if it
@@ -2490,6 +2483,46 @@ contains
       getvalue = .true.
 
     end function getvalue
+
+    ! Get value ic for system i and return it in val. The function returns ok if it
+    ! is a valid value.
+    subroutine getname(str,ic)
+      character(len=:,kind=c_char), allocatable, target :: str
+      integer, intent(in) :: ic
+
+      if (ic == ic_id) then
+         str = "ID" // c_null_char
+      elseif (ic == ic_e) then
+         str = "Energy (Ha)" // c_null_char
+      elseif (ic == ic_v) then
+         str = "Volume (Å³)" // c_null_char
+      elseif (ic == ic_vmol) then
+         str = "Volume/Z (Å³)" // c_null_char
+      elseif (ic == ic_nneq) then
+         str = "Number of symmetry-unique atoms" // c_null_char
+      elseif (ic == ic_ncel) then
+         str = "Number of cell atoms" // c_null_char
+      elseif (ic == ic_nmol) then
+         str = "Number of molecules" // c_null_char
+      elseif (ic == ic_a) then
+         str = "a (Å)" // c_null_char
+      elseif (ic == ic_b) then
+         str = "b (Å)" // c_null_char
+      elseif (ic == ic_c) then
+         str = "c (Å)" // c_null_char
+      elseif (ic == ic_alpha) then
+         str = "α (°)" // c_null_char
+      elseif (ic == ic_beta) then
+         str = "β (°)" // c_null_char
+      elseif (ic == ic_gamma) then
+         str = "γ (°)" // c_null_char
+      elseif (ic == ic_emol) then
+         str = "Energy/Z (Ha)" // c_null_char
+      elseif (ic == ic_p) then
+         str = "Pressure (GPa)" // c_null_char
+      end if
+
+    end subroutine getname
 
   end subroutine draw_treeplot
 
