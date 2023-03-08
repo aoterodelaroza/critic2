@@ -214,8 +214,14 @@ subroutine igSetScrollHereY(center_y_ratio) bind(c,name="igSetScrollHereY")
 end subroutine igSetScrollHereY
 !x! void igSetScrollFromPosX_Float(float local_x,float center_x_ratio);
 !x! void igSetScrollFromPosY_Float(float local_y,float center_y_ratio);
-!x! void igPushFont(ImFont* font);
-!x! void igPopFont(void);
+! void igPushFont(ImFont* font);
+subroutine igPushFont(font) bind(c,name="igPushFont")
+  import c_ptr
+  type(c_ptr), intent(in), value :: font
+end subroutine igPushFont
+! void igPopFont(void);
+subroutine igPopFont() bind(c,name="igPopFont")
+end subroutine igPopFont
 ! void igPushStyleColor_U32(ImGuiCol idx,ImU32 col);
 subroutine igPushStyleColor_U32(idx,col) bind(c,name="igPushStyleColor_U32")
   import c_int

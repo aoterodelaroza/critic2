@@ -38,7 +38,9 @@ module gui_main
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
   type(ImVec2), public :: fontsize ! font size (sensitive to scaling)
-  real(c_float), parameter, public :: fontbakesize = 16._c_float ! font size (for baking the font)
+  real(c_float), parameter, public :: fontbakesize = 16._c_float ! normal bake size (for GUI)
+  real(c_float), parameter, public :: fontbakesize_large = 128._c_float ! large bake size (for rendering)
+  type(c_ptr), public :: font_normal, font_large ! GUI and rendering font pointers
 
   ! GUI control parameters
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples

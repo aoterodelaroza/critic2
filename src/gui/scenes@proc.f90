@@ -254,7 +254,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize, time
+    use gui_main, only: fonts, fontbakesize_large, time, font_large
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -281,6 +281,9 @@ contains
 
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
+
+    ! render text with the large font
+    call igPushFont(font_large)
 
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
@@ -368,9 +371,9 @@ contains
              hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
              hside = hside * s%camratio
              hside = max(hside,3._c_float)
-             siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
+             siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
           else
-             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
+             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
           end if
           call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
              siz,nvert,vert,centered=.true.)
@@ -382,7 +385,7 @@ contains
        if (s%nmsel > 0) then
           do j = 1, s%nmsel
              call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = sel_label_size * s%projection(1,1) / fontbakesize
+             siz = sel_label_size * s%projection(1,1) / fontbakesize_large
              nvert = 0
              call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
@@ -468,9 +471,9 @@ contains
              hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
              hside = hside * s%camratio
              hside = max(hside,3._c_float)
-             siz = 2 * s%drawlist_string(i)%scale / fontbakesize / hside
+             siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
           else
-             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize
+             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
           end if
           call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
              siz,nvert,vert,centered=.true.)
@@ -482,7 +485,7 @@ contains
        if (s%nmsel > 0) then
           do j = 1, s%nmsel
              call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = sel_label_size * s%projection(1,1) / fontbakesize
+             siz = sel_label_size * s%projection(1,1) / fontbakesize_large
              nvert = 0
              call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
@@ -492,6 +495,9 @@ contains
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     end if
+
+    ! pop the large font
+    call igPopFont()
 
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
@@ -1631,7 +1637,7 @@ contains
   !> centered, center the text in x and y.
   subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
     use interfaces_cimgui
-    use gui_main, only: g, fontbakesize
+    use gui_main, only: g, fontbakesize_large
     use types, only: realloc
     use param, only: newline
     character(len=*), intent(in) :: text
@@ -1668,7 +1674,7 @@ contains
     ! initial variables
     xpos = floor(x0)
     ypos = floor(y0)
-    fs = fontbakesize
+    fs = fontbakesize_large
     scale = siz / fs
     lheight = scale * fs
     if (centered_) then
@@ -1747,7 +1753,7 @@ contains
   !> r = radius of the associated atom.
   subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
     use interfaces_cimgui
-    use gui_main, only: g, fontbakesize
+    use gui_main, only: g, fontbakesize_large
     use types, only: realloc
     use param, only: newline
     character(len=*), intent(in) :: text
@@ -1780,7 +1786,7 @@ contains
     ! initial variables
     xpos = 0._c_float
     ypos = 0._c_float
-    lheight = fontbakesize
+    lheight = fontbakesize_large
     if (centered_) then
        nline = 1
        allocate(xlen(10),jlen(10))
