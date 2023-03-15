@@ -139,7 +139,7 @@ AC_MSG_NOTICE([LIBADD    = ${LIBADD}])
 
 # Final output
 AC_CONFIG_FILES([Makefile src/Makefile src/oldlibs/Makefile src/cubpack/Makefile \
-	   src/qhull/Makefile src/spglib/Makefile src/json-fortran/Makefile tools/Makefile \
-	   src/config@proc.F90 dat/Makefile \
+	   src/qhull/Makefile src/spglib/Makefile src/json-fortran/Makefile src/emd/Makefile \
+	   tools/Makefile src/config@proc.F90 dat/Makefile \
 	   dat/wfc/Makefile dat/lib/Makefile])
 AC_OUTPUT

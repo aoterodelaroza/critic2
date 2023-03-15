@@ -31,12 +31,13 @@ critic2_SOURCES = critic2.F90 c_interface_module.f90 cfftnd.f90 \
 	yt.f90 yt@proc.f90
 
 # Library subdirectories
-SUBDIRS = oldlibs cubpack qhull spglib json-fortran
+SUBDIRS = oldlibs cubpack qhull spglib json-fortran emd
 
 # Static libraries
 critic2_LDADD=$(top_builddir)/src/oldlibs/libmisc.a \
 	$(top_builddir)/src/cubpack/libcubpack.a $(top_builddir)/src/spglib/libspglib.a \
-	$(top_builddir)/src/qhull/libqhull_critic.a $(top_builddir)/src/json-fortran/libjsonfortran.a
+	$(top_builddir)/src/qhull/libqhull_critic.a $(top_builddir)/src/json-fortran/libjsonfortran.a \
+	$(top_builddir)/src/emd/libemd.a
 critic2_DEPENDENCIES=$(critic2_LDADD)
 
 # Include the subdirectories with the modules
