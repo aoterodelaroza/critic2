@@ -190,6 +190,8 @@ module windows
      procedure :: update_editrep
      procedure :: draw_editrep
      procedure :: draw_editrep_atoms
+     procedure :: draw_editrep_bonds
+     procedure :: draw_editrep_labels
      procedure :: draw_editrep_unitcell
      ! export image
      procedure :: draw_exportimage
@@ -409,6 +411,16 @@ module windows
        logical, intent(inout) :: ttshown
        logical(c_bool) :: changed
      end function draw_editrep_atoms
+     module function draw_editrep_bonds(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical(c_bool) :: changed
+     end function draw_editrep_bonds
+     module function draw_editrep_labels(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical(c_bool) :: changed
+     end function draw_editrep_labels
      module function draw_editrep_unitcell(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

@@ -84,6 +84,15 @@ contains
     s%nrep = s%nrep + 1
     call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms,s%style)
 
+    ! bonds
+    s%nrep = s%nrep + 1
+    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_bonds,s%style)
+
+    ! labels
+    s%nrep = s%nrep + 1
+    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_labels,s%style)
+    s%rep(s%nrep)%shown = .false.
+
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
@@ -959,9 +968,6 @@ contains
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
-    r%atoms_display = .true.
-    r%bonds_display = .true.
-    r%labels_display = .false.
     r%atom_style_type = 0
     r%natom_style = 0
     r%atom_radii_reset_type = 0
@@ -993,24 +999,19 @@ contains
     end if
 
     ! type-dependent settings
+    r%isinit = .true.
+    r%shown = .true.
+    r%type = itype
+    r%border = .true.
+    r%onemotif = sys(isys)%c%ismol3d
+    r%ncell = 1
     if (itype == reptype_atoms) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%type = reptype_atoms
-       r%name = "Atoms/Bonds/Labels"
-       if (sys(isys)%c%ismolecule) then
-          r%ncell = 0
-          r%border = .false.
-          r%onemotif = .false.
-       else
-          r%border = .true.
-          r%onemotif = sys(isys)%c%ismol3d
-          r%ncell = 1
-       end if
+       r%name = "Atoms"
+    elseif (itype == reptype_bonds) then
+       r%name = "Bonds"
+    elseif (itype == reptype_labels) then
+       r%name = "Labels"
     elseif (itype == reptype_unitcell) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%type = reptype_unitcell
        r%name = "Unit cell"
     end if
 
@@ -1177,7 +1178,7 @@ contains
        nstring = 0
     end if
 
-    if (r%type == reptype_atoms) then
+    if (r%type == reptype_atoms .or. r%type == reptype_bonds .or. r%type == reptype_labels) then
        !!! atoms and bonds representation !!!
 
        !! first, the atoms
@@ -1267,7 +1268,7 @@ contains
                    end if
 
                    ! draw the atom, reallocate if necessary
-                   if (r%atoms_display) then
+                   if (r%type == reptype_atoms) then
                       nsph = nsph + 1
                       if (nsph > size(drawlist_sph,1)) then
                          allocate(auxsph(2*nsph))
@@ -1284,7 +1285,7 @@ contains
                    end if
 
                    ! bonds
-                   if (r%bonds_display) then
+                   if (r%type == reptype_bonds) then
                       ! add this atom to the hash
                       atcode = string(i) // "_" // string(ix(1)) // "_" // string(ix(2)) // "_" // string(ix(3))
                       call shown_atoms%put(atcode,1)
@@ -1341,7 +1342,7 @@ contains
                    end if
 
                    ! labels
-                   if (r%labels_display) then
+                   if (r%type == reptype_labels) then
                       nstring = nstring + 1
                       if (nstring > size(drawlist_string,1)) then
                          allocate(auxstr(2*nstring))
