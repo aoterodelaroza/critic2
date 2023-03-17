@@ -60,10 +60,8 @@ module scenes
 
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
-  integer, parameter, public :: reptype_bonds = 2
-  integer, parameter, public :: reptype_labels = 3
-  integer, parameter, public :: reptype_unitcell = 4
-  integer, parameter, public :: reptype_NUM = 4
+  integer, parameter, public :: reptype_unitcell = 2
+  integer, parameter, public :: reptype_NUM = 2
 
   !> Representation: objects to draw on the scene
   type representation
@@ -82,6 +80,9 @@ module scenes
      ! atoms, bonds, labels
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      character(kind=c_char,len=:), allocatable :: errfilter ! filter error
+     logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
+     logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
+     logical(c_bool) :: labels_display = .true. ! whether to draw the labels
      logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
      logical(c_bool) :: onemotif = .false. ! draw connected molecules
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species,1=nneq,2=cell
