@@ -664,7 +664,7 @@ contains
        call igSameLine(0._c_float,-1._c_float)
        icel = idx(1)
        is = sys(w%view_selected)%c%atcel(icel)%is
-       ineq = sys(w%view_selected)%c%atcel(icel)%is
+       ineq = sys(w%view_selected)%c%atcel(icel)%idx
        ismol = sys(w%view_selected)%c%ismolecule
 
        msg = trim(sys(w%view_selected)%c%spc(is)%name)
@@ -1678,7 +1678,7 @@ contains
     call iw_tooltip("Coordinates for the origin shift of the atoms/bonds/labels",ttshown)
     call igPopItemWidth()
 
-    ! global display control
+    !!! atom selection !!!
     call iw_text("Atom Selection",highlight=.true.)
 
     ! selector and reset
@@ -1849,8 +1849,12 @@ contains
     end if
     call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
 
-    !!! atoms !!!
+    !!! molecule selection !!!
+    if (sys(isys)%c%nmol > 1) then
+       call iw_text("Molecule Selection",highlight=.true.)
+    end if
 
+    !!! atoms display !!!
     str2 = "Atoms##atomsglobaldisplay " // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
@@ -1920,7 +1924,7 @@ contains
        end if
     end if
 
-    !!! bonds !!!
+    !!! bonds display !!!
 
     str2 = "Bonds##bondsglobaldisplay" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
@@ -1960,7 +1964,7 @@ contains
        call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
     end if
 
-    !!! labels !!!
+    !!! labels display !!!
 
     str2 = "Labels##labelsglobaldisplay" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
