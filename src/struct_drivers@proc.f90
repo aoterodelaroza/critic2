@@ -1350,11 +1350,10 @@ contains
     integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:), ip(:), th2p(:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
-    integer, allocatable :: singleatom(:)
+    integer, allocatable :: singleatom(:), idsame(:)
     logical :: ok, noh
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
-    logical, allocatable :: unique(:)
     type(crystalseed) :: seed
     integer, allocatable :: fname_type(:)
 
@@ -1884,30 +1883,31 @@ contains
 
     ! reduce
     if (epsreduce > 0d0) then
-       allocate(unique(ns))
-       unique = .true.
+       allocate(idsame(ns))
+       idsame = 0
        do i = ns, 1, -1
           do j = 1, i-1
              if (diff(i,j) < epsreduce) then
-                unique(i) = .false.
+                idsame(i) = j
                 exit
              end if
           end do
        end do
 
-       write (uout,'("+ List of unique structures (",A,"): ")') string(count(unique))
+       write (uout,'("+ List of unique structures (",A,"): ")') string(count(idsame == 0))
        do i = 1, ns
-          if (unique(i)) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
+          if (idsame(i) == 0) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
        end do
        write (uout,*)
 
-       write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(unique))
+       write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(idsame == 0))
        do i = 1, ns
-          if (.not.unique(i)) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
+          if (idsame(i) > 0) write (uout,'(A,": ",A," same as ",A,": ",A)') &
+             string(i), trim(c(i)%file), string(idsame(i)), trim(c(idsame(i))%file)
        end do
        write (uout,*)
 
-       deallocate(unique)
+       deallocate(idsame)
     end if
 
     ! clean up
