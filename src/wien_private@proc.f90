@@ -877,10 +877,8 @@ contains
     if (allocated(f%tauki)) deallocate(f%tauki)
     allocate (taup(nsym))
     allocate (f%tauk(f%nwav*nsym))
-    if (f%cmpl) then
-       allocate (taupi(nsym))
-       allocate (f%tauki(f%nwav*nsym))
-    end if
+    allocate (taupi(nsym))
+    allocate (f%tauki(f%nwav*nsym))
 
     f%lastind = 0
     do i = 1, f%nwav
@@ -938,7 +936,7 @@ contains
     END IF
 
     deallocate(taup)
-    if (allocated(taupi)) deallocate(taupi)
+    deallocate(taupi)
     deallocate(k2)
 
 117 FORMAT(//,13X,I6)
