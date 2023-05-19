@@ -1345,17 +1345,20 @@ contains
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
     real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
+    character*15 :: auxdif(5)
     real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
-    integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:)
+    integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:), irepeat(:)
     real*8, allocatable :: diff(:,:), xnorm(:), x1(:,:), x2(:,:), ip(:), th2p(:)
     integer, allocatable :: iz1(:), ncon1(:), idcon1(:,:), iz2(:), ncon2(:), idcon2(:,:)
-    integer, allocatable :: singleatom(:), idsame(:)
+    integer, allocatable :: singleatom(:)
     logical :: ok, noh
     logical :: ismol, laux, lzc
     character*1024, allocatable :: fname(:)
     type(crystalseed) :: seed
     integer, allocatable :: fname_type(:)
+
+    integer, parameter :: msg_counter = 50
 
     real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: lambda0 = 1.5406d0
@@ -1621,6 +1624,11 @@ contains
        write (uout,'("# RMS of the atomic positions in ",A)') iunitname0(iunit)
        difstr = "RMS"
     end if
+    if (epsreduce > 0d0) then
+       write (uout,'("# REDUCE: Only repeated/unique structures will be listed, at DIFF level: ",A)') string(epsreduce,'e',10,4)
+       allocate(irepeat(ns))
+       irepeat = 0
+    end if
 
     ! allocate space for difference/rms values
     allocate(diff(ns,ns))
@@ -1631,6 +1639,8 @@ contains
        allocate(iha(npts,ns),singleatom(ns),t(npts))
        singleatom = -1
        do i = 1, ns
+          if (mod(i-1,msg_counter) == 0) &
+             write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(i), string(ns)
           if (fname_type(i) == fname_peaks) then
              call file_read_xy(fname(i),n,th2p,ip)
              call synthetic_powder(th2ini,xend,npts,sigma,th2p,ip,t,ih)
@@ -1664,6 +1674,7 @@ contains
        end do
        if (allocated(t)) deallocate(t)
        if (allocated(ih)) deallocate(ih)
+       write (uout,'("  ... finished calculating patterns")')
 
        ! self-correlation
        allocate(xnorm(ns))
@@ -1678,7 +1689,15 @@ contains
        ! calculate the overlap between diffraction patterns
        diff = 0d0
        do i = 1, ns
+          if (mod(i-1,msg_counter) == 0) &
+             write (uout,'("  ... comparing pattern ",A," of ",A,".")') string(i), string(ns)
+          if (epsreduce > 0d0) then
+             if (irepeat(i) > 0) cycle
+          end if
           do j = i+1, ns
+             if (epsreduce > 0d0) then
+                if (irepeat(j) > 0) cycle
+             end if
              if (singleatom(i) > 0 .and. singleatom(j) > 0) then
                 if (singleatom(i) == singleatom(j)) then
                    diff(i,j) = 0d0
@@ -1691,9 +1710,14 @@ contains
                 diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
              end if
              diff(j,i) = diff(i,j)
+
+             if (epsreduce > 0d0) then
+                if (diff(i,j) < epsreduce) irepeat(j) = i
+             end if
           end do
        end do
        deallocate(xnorm)
+       write (uout,'("  ... finished comparing patterns")')
     elseif (imethod == imethod_emd) then
        ! crystals: EMD
        allocate(na(ns),th2a(100,ns),iha(100,ns),singleatom(ns))
@@ -1746,6 +1770,9 @@ contains
                 diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j),1)
              end if
              diff(j,i) = diff(i,j)
+             if (epsreduce > 0d0) then
+                if (diff(i,j) < epsreduce) irepeat(j) = i
+             end if
           end do
        end do
 
@@ -1771,6 +1798,9 @@ contains
                 diff(i,j) = norm2(ip)
              end if
              diff(j,i) = diff(i,j)
+             if (epsreduce > 0d0) then
+                if (diff(i,j) < epsreduce) irepeat(j) = i
+             end if
           end do
        end do
        deallocate(ip)
@@ -1848,6 +1878,9 @@ contains
              ! calculate the RMS
              diff(i,j) = diffmin
              diff(j,i) = diff(i,j)
+             if (epsreduce > 0d0) then
+                if (diff(i,j) < epsreduce) irepeat(j) = i
+             end if
           end do
        end do
        diff = diff * dunit0(iunit)
@@ -1873,8 +1906,14 @@ contains
           write (uout,'(99(A," "))') string(difstr,15,ioj_center), &
              (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
           do j = 1, ns
+             do k = 1, min(5,ns-i*5)
+                auxdif(k) = string(diff(j,5*i+k),'f',15,7,3)
+                if (epsreduce > 0d0) then
+                   if (diff(j,5*i+k) < epsreduce) auxdif(k) = string(" not calculated")
+                end if
+             end do
              write (uout,'("  ",99(A," "))') string(c(j)%file,15,ioj_left), &
-                (string(diff(j,5*i+k),'f',15,7,3),k=1,min(5,ns-i*5))
+                (auxdif(k),k=1,min(5,ns-i*5))
           end do
           write (uout,*)
        end do
@@ -1883,31 +1922,21 @@ contains
 
     ! reduce
     if (epsreduce > 0d0) then
-       allocate(idsame(ns))
-       idsame = 0
-       do i = ns, 1, -1
-          do j = 1, i-1
-             if (diff(i,j) < epsreduce) then
-                idsame(i) = j
-                exit
-             end if
-          end do
-       end do
-
-       write (uout,'("+ List of unique structures (",A,"): ")') string(count(idsame == 0))
+       write (uout,'("+ List of unique structures (",A,"): ")') string(count(irepeat == 0))
        do i = 1, ns
-          if (idsame(i) == 0) write (uout,'(A,": ",A)') string(i), trim(c(i)%file)
+          if (irepeat(i) == 0) write (uout,'(A,": ",A," with multiplicity ",A)') &
+             string(i), trim(c(i)%file), string(count(irepeat == i) + 1)
        end do
        write (uout,*)
 
-       write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(idsame == 0))
+       write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(irepeat == 0))
        do i = 1, ns
-          if (idsame(i) > 0) write (uout,'(A,": ",A," same as ",A,": ",A)') &
-             string(i), trim(c(i)%file), string(idsame(i)), trim(c(idsame(i))%file)
+          if (irepeat(i) > 0) write (uout,'(A,": ",A," same as ",A,": ",A)') &
+             string(i), trim(c(i)%file), string(irepeat(i)), trim(c(irepeat(i))%file)
        end do
        write (uout,*)
 
-       deallocate(idsame)
+       deallocate(irepeat)
     end if
 
     ! clean up
