@@ -1340,7 +1340,7 @@ contains
 
     character(len=:), allocatable :: word, lword, tname, difstr
     integer :: doguess0
-    integer :: lp, i, j, k, l, n, iz, is, idx
+    integer :: lp, i, j, k, l, n, iz, is, idx, ncount
     integer :: ns, imol, isformat, mcon, nlist
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
@@ -1638,12 +1638,21 @@ contains
        ! crystals: POWDER and RDF
        allocate(iha(npts,ns),singleatom(ns),t(npts))
        singleatom = -1
+
+       ncount = 0
+       !$omp parallel do private(tini,tend,nor,n) firstprivate(t,ih,th2p,ip)
        do i = 1, ns
-          if (mod(i-1,msg_counter) == 0) &
-             write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(i), string(ns)
+          !$omp critical (ncount)
+          ncount = ncount + 1
+          if (mod(ncount-1,msg_counter) == 0) &
+             write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(ncount), string(ns)
+          !$omp end critical (ncount)
+
           if (fname_type(i) == fname_peaks) then
+             !$omp critical (fileread)
              call file_read_xy(fname(i),n,th2p,ip)
              call synthetic_powder(th2ini,xend,npts,sigma,th2p,ip,t,ih)
+             !$omp end critical (fileread)
              iha(:,i) = ih
 
              ! normalize the integral of abs(ih)
@@ -1672,6 +1681,7 @@ contains
              end if
           end if
        end do
+       !$omp end parallel do
        if (allocated(t)) deallocate(t)
        if (allocated(ih)) deallocate(ih)
        write (uout,'("  ... finished calculating patterns")')
@@ -1688,12 +1698,15 @@ contains
 
        ! calculate the overlap between diffraction patterns
        diff = 0d0
+       ncount = 0
        do i = 1, ns
+          ncount = ncount + 1
           if (mod(i-1,msg_counter) == 0) &
              write (uout,'("  ... comparing pattern ",A," of ",A,".")') string(i), string(ns)
           if (epsreduce > 0d0) then
              if (irepeat(i) > 0) cycle
           end if
+          !$omp parallel do
           do j = i+1, ns
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
@@ -1715,6 +1728,7 @@ contains
                 if (diff(i,j) < epsreduce) irepeat(j) = i
              end if
           end do
+          !$omp end parallel do
        end do
        deallocate(xnorm)
        write (uout,'("  ... finished comparing patterns")')
