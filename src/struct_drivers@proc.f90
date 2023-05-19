@@ -1923,7 +1923,7 @@ contains
              do k = 1, min(5,ns-i*5)
                 auxdif(k) = string(diff(j,5*i+k),'f',15,7,3)
                 if (epsreduce > 0d0) then
-                   if (diff(j,5*i+k) < epsreduce) auxdif(k) = string(" not calculated")
+                   if (diff(j,5*i+k) < epsreduce) auxdif(k) = string(" not-calculated")
                 end if
              end do
              write (uout,'("  ",99(A," "))') string(c(j)%file,15,ioj_left), &
