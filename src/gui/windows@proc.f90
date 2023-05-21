@@ -160,6 +160,7 @@ contains
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
+    nullify(w%sc)
     w%view_mousebehavior = MB_navigation
     w%idexportwin = 0
     w%forcerender = .true.

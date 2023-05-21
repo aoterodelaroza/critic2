@@ -18,7 +18,7 @@
 ! The class to handle ImGui windows.
 module windows
   use iso_c_binding
-  use scenes, only: representation
+  use scenes, only: representation, scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use param, only: isformat_unknown
@@ -102,6 +102,7 @@ module windows
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      ! view parameters
+     type(scene), pointer :: sc ! pointer to the view scene
      integer(c_int) :: FBO ! draw framebuffer
      integer(c_int) :: FBOtex ! draw framebuffer -> texture
      integer(c_int) :: FBOdepth ! draw framebuffer -> depth buffer

@@ -82,42 +82,49 @@ contains
     ! update ID for the export window
     call update_window_id(w%idexportwin)
 
+    ! whether the selected view system is a good system, and associate the scene
+    goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
+    if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
+    if (goodsys) then
+       if (.not.associated(w%sc)) w%sc => sysc(w%view_selected)%sc
+    else
+       nullify(w%sc)
+    end if
+
     ! flags for shortcuts
     isatom = .false.
     isbond = .false.
     islabels = .false.
     isuc = .false.
-    do i = 1, sysc(w%view_selected)%sc%nrep
-       if (sysc(w%view_selected)%sc%rep(i)%isinit) then
-          if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
-             isatom = isatom .or. sysc(w%view_selected)%sc%rep(i)%atoms_display
-             isbond = isbond .or. sysc(w%view_selected)%sc%rep(i)%bonds_display
-             islabels = islabels .or. sysc(w%view_selected)%sc%rep(i)%labels_display
-          elseif (sysc(w%view_selected)%sc%rep(i)%type == reptype_unitcell) then
-             isuc = isuc .or. sysc(w%view_selected)%sc%rep(i)%shown
+    if (associated(w%sc)) then
+       do i = 1, w%sc%nrep
+          if (w%sc%rep(i)%isinit) then
+             if (w%sc%rep(i)%type == reptype_atoms) then
+                isatom = isatom .or. w%sc%rep(i)%atoms_display
+                isbond = isbond .or. w%sc%rep(i)%bonds_display
+                islabels = islabels .or. w%sc%rep(i)%labels_display
+             elseif (w%sc%rep(i)%type == reptype_unitcell) then
+                isuc = isuc .or. w%sc%rep(i)%shown
+             end if
           end if
-       end if
-    end do
-
-    ! whether the selected view system is a good system
-    goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
-    if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
+       end do
+    end if
 
     ! scene menu
     str1="##viewscenebutton" // c_null_char
     if (iw_button("Scene")) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
-    if (goodsys) then
+    if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! display shortcuts
           call iw_text("Display Shortcuts",highlight=.true.)
           str2 = "Atoms##atomsshortcut" // c_null_char
           if (igCheckbox(c_loc(str2),isatom)) then
-             do i = 1, sysc(w%view_selected)%sc%nrep
-                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
-                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
-                      sysc(w%view_selected)%sc%rep(i)%atoms_display = isatom
+             do i = 1, w%sc%nrep
+                if (w%sc%rep(i)%isinit) then
+                   if (w%sc%rep(i)%type == reptype_atoms) then
+                      w%sc%rep(i)%atoms_display = isatom
                    end if
                 end if
              end do
@@ -128,10 +135,10 @@ contains
           str2 = "Bonds##bondsshortcut" // c_null_char
           call igSameLine(0._c_float,-1._c_float)
           if (igCheckbox(c_loc(str2),isbond)) then
-             do i = 1, sysc(w%view_selected)%sc%nrep
-                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
-                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
-                      sysc(w%view_selected)%sc%rep(i)%bonds_display = isbond
+             do i = 1, w%sc%nrep
+                if (w%sc%rep(i)%isinit) then
+                   if (w%sc%rep(i)%type == reptype_atoms) then
+                      w%sc%rep(i)%bonds_display = isbond
                    end if
                 end if
              end do
@@ -142,10 +149,10 @@ contains
           str2 = "Labels##labelshortcut" // c_null_char
           call igSameLine(0._c_float,-1._c_float)
           if (igCheckbox(c_loc(str2),islabels)) then
-             do i = 1, sysc(w%view_selected)%sc%nrep
-                if (sysc(w%view_selected)%sc%rep(i)%isinit) then
-                   if (sysc(w%view_selected)%sc%rep(i)%type == reptype_atoms) then
-                      sysc(w%view_selected)%sc%rep(i)%labels_display = islabels
+             do i = 1, w%sc%nrep
+                if (w%sc%rep(i)%isinit) then
+                   if (w%sc%rep(i)%type == reptype_atoms) then
+                      w%sc%rep(i)%labels_display = islabels
                    end if
                 end if
              end do
@@ -157,10 +164,10 @@ contains
              str2 = "Unit Cell##ucshortcut" // c_null_char
              call igSameLine(0._c_float,-1._c_float)
              if (igCheckbox(c_loc(str2),isuc)) then
-                do i = 1, sysc(w%view_selected)%sc%nrep
-                   if (sysc(w%view_selected)%sc%rep(i)%isinit) then
-                      if (sysc(w%view_selected)%sc%rep(i)%type == reptype_unitcell) then
-                         sysc(w%view_selected)%sc%rep(i)%shown = isuc
+                do i = 1, w%sc%nrep
+                   if (w%sc%rep(i)%isinit) then
+                      if (w%sc%rep(i)%type == reptype_unitcell) then
+                         w%sc%rep(i)%shown = isuc
                       end if
                    end if
                 end do
@@ -174,17 +181,17 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("Periodicity",highlight=.true.)
              if (iw_button("Reset##periodicity",sameline=.true.)) then
-                sysc(w%view_selected)%sc%nc = 1
+                w%sc%nc = 1
                 chbuild = .true.
              end if
              call iw_tooltip("Reset the number of cells to one",ttshown)
 
              ! calculate widths
-             ipad = ceiling(log10(max(maxval(sysc(w%view_selected)%sc%nc),1) + 0.1))
+             ipad = ceiling(log10(max(maxval(w%sc%nc),1) + 0.1))
              sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
              call igPushItemWidth(sqw)
 
-             nc = sysc(w%view_selected)%sc%nc
+             nc = w%sc%nc
              call igAlignTextToFramePadding()
              call iw_text("a:")
              call igSameLine(0._c_float,0._c_float)
@@ -222,8 +229,8 @@ contains
              if (iw_button("+##caxis")) nc(3) = nc(3)+1
 
              nc = max(nc,1)
-             if (any(nc /= sysc(w%view_selected)%sc%nc)) then
-                sysc(w%view_selected)%sc%nc = nc
+             if (any(nc /= w%sc%nc)) then
+                w%sc%nc = nc
                 chbuild = .true.
              end if
 
@@ -234,33 +241,33 @@ contains
           call iw_text("Camera Position",highlight=.true.)
           if (.not.sys(w%view_selected)%c%ismolecule) then
              if (iw_button("a")) then
-                call sysc(w%view_selected)%sc%align_view_axis(1)
+                call w%sc%align_view_axis(1)
                 chrender = .true.
              end if
              call iw_tooltip("Align the camera along the crystallographic a axis",ttshown)
              if (iw_button("b",sameline=.true.)) then
-                call sysc(w%view_selected)%sc%align_view_axis(2)
+                call w%sc%align_view_axis(2)
                 chrender = .true.
              end if
              call iw_tooltip("Align the camera along the crystallographic b axis",ttshown)
              if (iw_button("c",sameline=.true.)) then
-                call sysc(w%view_selected)%sc%align_view_axis(3)
+                call w%sc%align_view_axis(3)
                 chrender = .true.
              end if
              call iw_tooltip("Align the camera along the crystallographic c axis",ttshown)
           end if
           if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-1)
+             call w%sc%align_view_axis(-1)
              chrender = .true.
           end if
           call iw_tooltip("Align the camera along the Cartesian x axis",ttshown)
           if (iw_button("y",sameline=.true.)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-2)
+             call w%sc%align_view_axis(-2)
              chrender = .true.
           end if
           call iw_tooltip("Align the camera along the Cartesian y axis",ttshown)
           if (iw_button("z",sameline=.true.)) then
-             call sysc(w%view_selected)%sc%align_view_axis(-3)
+             call w%sc%align_view_axis(-3)
              chrender = .true.
           end if
           call iw_tooltip("Align the camera along the Cartesian z axis",ttshown)
@@ -268,45 +275,45 @@ contains
           str2 = "Reset Distance##resetdistance" // c_null_char
           str3 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
-          ch = igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%camresetdist,&
+          ch = igDragFloat(c_loc(str2),w%sc%camresetdist,&
              0.01_c_float,0.1_c_float,8.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
           ! object resolution
           call iw_text("Object Resolution",highlight=.true.)
-          ires = sysc(w%view_selected)%sc%atom_res - 1
+          ires = w%sc%atom_res - 1
           call iw_combo_simple("Atoms##atomresselect","1: Carnby"//c_null_char//"2: Rough"//c_null_char//&
              "3: Normal"//c_null_char//"4: Good"//c_null_char//"5: Amazing"//c_nulL_char,ires)
           call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
-          if (ires + 1 /= sysc(w%view_selected)%sc%atom_res) then
-             sysc(w%view_selected)%sc%atom_res = ires + 1
+          if (ires + 1 /= w%sc%atom_res) then
+             w%sc%atom_res = ires + 1
              chrender = .true.
           end if
-          ires = sysc(w%view_selected)%sc%bond_res - 1
+          ires = w%sc%bond_res - 1
           call iw_combo_simple("Bonds##bondresselect","1: Rough" // c_null_char // "2: Normal" // c_null_char //&
              "3: Good" // c_null_char,ires,sameline=.true.)
           call iw_tooltip("Set the resolution of the cylinders representing the bonds",ttshown)
-          if (ires + 1 /= sysc(w%view_selected)%sc%bond_res) then
-             sysc(w%view_selected)%sc%bond_res = ires + 1
+          if (ires + 1 /= w%sc%bond_res) then
+             w%sc%bond_res = ires + 1
              chrender = .true.
           end if
 
           ! scene style
           call iw_text("Appearance",highlight=.true.)
           call iw_combo_simple("Style##scenestyle","Simple"//c_null_char//"Realistic"&
-             //c_null_char//c_null_char,sysc(w%view_selected)%sc%style,changed=ch)
+             //c_null_char//c_null_char,w%sc%style,changed=ch)
           if (ch) then
-             call sysc(w%view_selected)%sc%set_style_defaults()
-             sysc(w%view_selected)%sc%forcebuildlists = .true.
+             call w%sc%set_style_defaults()
+             w%sc%forcebuildlists = .true.
           end if
 
-          if (sysc(w%view_selected)%sc%style == style_phong) then
+          if (w%sc%style == style_phong) then
              !! phong-specific options !!
              call igPushItemWidth(iw_calcwidth(15,3))
              str2 = "Light Position" // c_null_char
              str3 = "%.1f" // c_null_char
-             chrender = chrender .or. igDragFloat3(c_loc(str2),sysc(w%view_selected)%sc%lightpos,&
+             chrender = chrender .or. igDragFloat3(c_loc(str2),w%sc%lightpos,&
                 0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
              call iw_tooltip("Change the position of the light",ttshown)
              call igPopItemWidth()
@@ -314,57 +321,57 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              str2 = "Ambient " // c_null_char
              str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%ambient,&
+             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%ambient,&
                 0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the ambient light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
              str2 = "Diffuse" // c_null_char
              str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%diffuse,&
+             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%diffuse,&
                 0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the diffuse light intensity",ttshown)
              str2 = "Specular" // c_null_char
              str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%specular,&
+             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%specular,&
                 0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the specular light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
              str2 = "Shininess" // c_null_char
              str3 = "%.0f" // c_null_char
-             chrender = chrender .or. igDragInt(c_loc(str2),sysc(w%view_selected)%sc%shininess,&
+             chrender = chrender .or. igDragInt(c_loc(str2),w%sc%shininess,&
                 1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the shininess of the light",ttshown)
              call igPopItemWidth()
 
              str2 = "Light" // c_null_char
-             chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%lightcolor,&
+             chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%lightcolor,&
                 ImGuiColorEditFlags_NoInputs)
              call iw_tooltip("Change the color of the light",ttshown)
-             call iw_clamp_color3(sysc(w%view_selected)%sc%lightcolor)
+             call iw_clamp_color3(w%sc%lightcolor)
              call igSameLine(0._c_float,-1._c_float)
-          elseif (sysc(w%view_selected)%sc%style == style_simple) then
+          elseif (w%sc%style == style_simple) then
              call igPushItemWidth(iw_calcwidth(5,1))
              str2 = "Border (Å)" // c_null_char
              str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),sysc(w%view_selected)%sc%atomborder,&
+             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%atomborder,&
                 0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the thickness of the atom borders",ttshown)
              call igPopItemWidth()
 
              call igSameLine(0._c_float,-1._c_float)
              str2 = "Color" // c_null_char
-             chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bordercolor,&
+             chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%bordercolor,&
                 ImGuiColorEditFlags_NoInputs)
              call iw_tooltip("Change the color of the atom borders",ttshown)
-             call iw_clamp_color3(sysc(w%view_selected)%sc%bordercolor)
+             call iw_clamp_color3(w%sc%bordercolor)
           end if
 
           ! background color
           str2 = "Background" // c_null_char
-          chrender = chrender .or. igColorEdit3(c_loc(str2),sysc(w%view_selected)%sc%bgcolor,&
+          chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%bgcolor,&
              ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Change the scene background color",ttshown)
-          call iw_clamp_color3(sysc(w%view_selected)%sc%bgcolor)
+          call iw_clamp_color3(w%sc%bgcolor)
 
           ! apply to all scenes
           if (iw_button("Apply to All Systems",danger=.true.)) then
@@ -385,26 +392,26 @@ contains
                    end do
                    ! rest
                    if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
-                      sysc(i)%sc%nc = sysc(w%view_selected)%sc%nc
-                   sysc(i)%sc%atom_res = sysc(w%view_selected)%sc%atom_res
-                   sysc(i)%sc%bond_res = sysc(w%view_selected)%sc%bond_res
-                   sysc(i)%sc%lightpos = sysc(w%view_selected)%sc%lightpos
-                   sysc(i)%sc%ambient = sysc(w%view_selected)%sc%ambient
-                   sysc(i)%sc%diffuse = sysc(w%view_selected)%sc%diffuse
-                   sysc(i)%sc%specular = sysc(w%view_selected)%sc%specular
-                   sysc(i)%sc%shininess = sysc(w%view_selected)%sc%shininess
-                   sysc(i)%sc%atomborder = sysc(w%view_selected)%sc%atomborder
-                   sysc(i)%sc%bordercolor = sysc(w%view_selected)%sc%bordercolor
-                   sysc(i)%sc%lightcolor = sysc(w%view_selected)%sc%lightcolor
-                   sysc(i)%sc%bgcolor = sysc(w%view_selected)%sc%bgcolor
-                   sysc(i)%sc%camresetdist = sysc(w%view_selected)%sc%camresetdist
+                      sysc(i)%sc%nc = w%sc%nc
+                   sysc(i)%sc%atom_res = w%sc%atom_res
+                   sysc(i)%sc%bond_res = w%sc%bond_res
+                   sysc(i)%sc%lightpos = w%sc%lightpos
+                   sysc(i)%sc%ambient = w%sc%ambient
+                   sysc(i)%sc%diffuse = w%sc%diffuse
+                   sysc(i)%sc%specular = w%sc%specular
+                   sysc(i)%sc%shininess = w%sc%shininess
+                   sysc(i)%sc%atomborder = w%sc%atomborder
+                   sysc(i)%sc%bordercolor = w%sc%bordercolor
+                   sysc(i)%sc%lightcolor = w%sc%lightcolor
+                   sysc(i)%sc%bgcolor = w%sc%bgcolor
+                   sysc(i)%sc%camresetdist = w%sc%camresetdist
                 end if
                 call sysc(i)%sc%build_lists()
              end do
           end if
           call iw_tooltip("Apply these settings to all loaded systems",ttshown)
           if (iw_button("Reset",sameline=.true.,danger=.true.)) then
-             call sysc(w%view_selected)%sc%init(w%view_selected)
+             call w%sc%init(w%view_selected)
              chbuild = .true.
           end if
           call iw_tooltip("Reset to the default settings",ttshown)
@@ -419,7 +426,7 @@ contains
     if (iw_button("Reps",sameline=.true.)) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
-    if (goodsys) then
+    if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           call igAlignTextToFramePadding()
           ! representations table
@@ -430,9 +437,8 @@ contains
           if (ok) then
              str2 = "Atoms" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                id = sysc(w%view_selected)%sc%get_new_representation_id()
-                call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,&
-                   reptype_atoms,sysc(w%view_selected)%sc%style)
+                id = w%sc%get_new_representation_id()
+                call w%sc%rep(id)%init(w%view_selected,id,reptype_atoms,w%sc%style)
                 chbuild = .true.
              end if
              call iw_tooltip("Represent atoms, and also perhaps bonds, and labels in the scene",ttshown)
@@ -440,9 +446,8 @@ contains
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 str2 = "Unit Cell" // c_null_char
                 if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                   id = sysc(w%view_selected)%sc%get_new_representation_id()
-                   call sysc(w%view_selected)%sc%rep(id)%init(w%view_selected,id,&
-                      reptype_unitcell,sysc(w%view_selected)%sc%style)
+                   id = w%sc%get_new_representation_id()
+                   call w%sc%rep(id)%init(w%view_selected,id,reptype_unitcell,w%sc%style)
                    chbuild = .true.
                 end if
                 call iw_tooltip("Represent the unit cell",ttshown)
@@ -457,7 +462,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
           sz0%x = 0
-          nrep = count(sysc(w%view_selected)%sc%rep(1:sysc(w%view_selected)%sc%nrep)%isinit)
+          nrep = count(w%sc%rep(1:w%sc%nrep)%isinit)
           nrep = min(nrep,10)
           sz0%y = iw_calcheight(nrep,0,.true.)
           if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
@@ -479,7 +484,7 @@ contains
              width = iw_calcwidth(4,1)
              call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
 
-             if (sysc(w%view_selected)%sc%representation_menu(w%id)) chbuild = .true.
+             if (w%sc%representation_menu(w%id)) chbuild = .true.
 
              call igEndTable()
           end if
@@ -490,8 +495,10 @@ contains
     call iw_tooltip("Add, remove, and modify representations",ttshown)
 
     ! update the draw lists and render
-    if (chbuild) sysc(w%view_selected)%sc%forcebuildlists = .true.
-    if (chrender .or. sysc(w%view_selected)%sc%forcebuildlists) w%forcerender = .true.
+    if (associated(w%sc)) then
+       if (chbuild) w%sc%forcebuildlists = .true.
+       if (chrender .or. w%sc%forcebuildlists) w%forcerender = .true.
+    end if
 
     ! export image
     if (iw_button("Export",sameline=.true.)) then
@@ -555,11 +562,8 @@ contains
           if (sysc(i)%status == sys_init) then
              is_selected = (w%view_selected == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
-             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                if (w%view_selected /= i) w%forcerender = .true.
-                w%view_selected = i
-                goodsys = .true.
-             end if
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
+                call w%select_view(i)
              if (is_selected) &
                 call igSetItemDefaultFocus()
           end if
@@ -593,22 +597,21 @@ contains
     else
        ratio = szavail%y / max(szavail%x,1._c_float)
     end if
-    sysc(w%view_selected)%sc%camratio = min(ratio,2.5_c_float)
+    if (associated(w%sc)) w%sc%camratio = min(ratio,2.5_c_float)
 
     ! render the image to the texture, if requested
     if (w%forcerender) then
        ! render to the draw framebuffer
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       if (goodsys) then
-          call glClearColor(sysc(w%view_selected)%sc%bgcolor(1),sysc(w%view_selected)%sc%bgcolor(2),&
-             sysc(w%view_selected)%sc%bgcolor(3),1._c_float)
+       if (associated(w%sc)) then
+          call glClearColor(w%sc%bgcolor(1),w%sc%bgcolor(2),&
+             w%sc%bgcolor(3),1._c_float)
        else
           call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       if (goodsys) &
-          call sysc(w%view_selected)%sc%render()
+       if (associated(w%sc)) call w%sc%render()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
        ! render to the pick frame buffer
@@ -616,7 +619,7 @@ contains
        call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
        call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       if (goodsys) call sysc(w%view_selected)%sc%renderpick()
+       if (associated(w%sc)) call w%sc%renderpick()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
        w%forcerender = .false.
@@ -701,47 +704,47 @@ contains
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
-    if (goodsys) then
+    if (associated(w%sc)) then
        if (.not.sys(w%view_selected)%c%ismolecule) then
           if (is_bind_event(BIND_VIEW_INC_NCELL)) then
              do i = 1, 3
                 if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
-                   sysc(w%view_selected)%sc%nc(i) = sysc(w%view_selected)%sc%nc(i) + 1
+                   w%sc%nc(i) = w%sc%nc(i) + 1
                 endif
              end do
-             sysc(w%view_selected)%sc%forcebuildlists = .true.
+             w%sc%forcebuildlists = .true.
           elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
              do i = 1, 3
                 if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
-                   sysc(w%view_selected)%sc%nc(i) = sysc(w%view_selected)%sc%nc(i) - 1
+                   w%sc%nc(i) = w%sc%nc(i) - 1
                 endif
              end do
-             sysc(w%view_selected)%sc%nc = max(sysc(w%view_selected)%sc%nc,1)
-             sysc(w%view_selected)%sc%forcebuildlists = .true.
+             w%sc%nc = max(w%sc%nc,1)
+             w%sc%forcebuildlists = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(1)
+             call w%sc%align_view_axis(1)
              w%forcerender = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_B_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(2)
+             call w%sc%align_view_axis(2)
              w%forcerender = .true.
           end if
           if (is_bind_event(BIND_VIEW_ALIGN_C_AXIS)) then
-             call sysc(w%view_selected)%sc%align_view_axis(3)
+             call w%sc%align_view_axis(3)
              w%forcerender = .true.
           end if
        end if
        if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
-          call sysc(w%view_selected)%sc%align_view_axis(-1)
+          call w%sc%align_view_axis(-1)
           w%forcerender = .true.
        end if
        if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
-          call sysc(w%view_selected)%sc%align_view_axis(-2)
+          call w%sc%align_view_axis(-2)
           w%forcerender = .true.
        end if
        if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
-          call sysc(w%view_selected)%sc%align_view_axis(-3)
+          call w%sc%align_view_axis(-3)
           w%forcerender = .true.
        end if
     end if
@@ -838,6 +841,7 @@ contains
     if (isys < 1 .or. isys > nsys) return
     if (w%view_selected == isys) return
     w%view_selected = isys
+    w%sc => sysc(w%view_selected)%sc
     w%forcerender = .true.
 
     ! if the camera is locked, copy the camera parameters from the member
@@ -864,7 +868,6 @@ contains
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
     real(c_float) :: mpos2(2), ang, xc(3)
-    type(scene), pointer :: sc
 
     integer, parameter :: ilock_no = 1
     integer, parameter :: ilock_left = 2
@@ -885,8 +888,8 @@ contains
 
     ! only process if there is an associated system is viewed and scene is initialized
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
-    sc => sysc(w%view_selected)%sc
-    if (sc%isinit < 2) return
+    if (.not.associated(w%sc)) return
+    if (w%sc%isinit < 2) return
 
     ! process mode-specific events
     if (w%view_mousebehavior == MB_Navigation) then
@@ -920,17 +923,17 @@ contains
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
 
-          call mult(xc,sc%world,sc%scenecenter)
-          pos3 = sc%campos - xc
+          call mult(xc,w%sc%world,w%sc%scenecenter)
+          pos3 = w%sc%campos - xc
           pos3 = pos3 - ratio * pos3
           if (norm2(pos3) < min_zoom) &
              pos3 = pos3 / norm2(pos3) * min_zoom
-          if (norm2(pos3) > max_zoom * sc%scenerad) &
-             pos3 = pos3 / norm2(pos3) * (max_zoom * sc%scenerad)
-          sc%campos = xc + pos3
+          if (norm2(pos3) > max_zoom * w%sc%scenerad) &
+             pos3 = pos3 / norm2(pos3) * (max_zoom * w%sc%scenerad)
+          w%sc%campos = xc + pos3
 
-          call sc%update_view_matrix()
-          call sc%update_projection_matrix()
+          call w%sc%update_view_matrix()
+          call w%sc%update_projection_matrix()
           w%forcerender = .true.
        end if
 
@@ -939,7 +942,7 @@ contains
           mpos0_r = (/texpos%x,texpos%y,1._c_float/)
 
           ! save the current view matrix
-          oldview = sc%view
+          oldview = w%sc%view
 
           ilock = ilock_right
           mposlast = mousepos
@@ -954,8 +957,8 @@ contains
 
                 xc = vold - vnew
                 call invmult(xc,oldview)
-                sc%campos = xc
-                call sc%update_view_matrix()
+                w%sc%campos = xc
+                call w%sc%update_view_matrix()
                 w%forcerender = .true.
              end if
           else
@@ -980,13 +983,13 @@ contains
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
-                   call invmult(axis,sc%world,notrans=.true.)
+                   call invmult(axis,w%sc%world,notrans=.true.)
                    mpos2(1) = texpos%x - mpos0_l(1)
                    mpos2(2) = texpos%y - mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                   call translate(sc%world,sc%scenecenter)
-                   call rotate(sc%world,ang,axis)
-                   call translate(sc%world,-sc%scenecenter)
+                   call translate(w%sc%world,w%sc%scenecenter)
+                   call rotate(w%sc%world,ang,axis)
+                   call translate(w%sc%world,-w%sc%scenecenter)
 
                    w%forcerender = .true.
                 end if
@@ -1001,17 +1004,17 @@ contains
 
        ! reset the view
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
-          call sc%reset()
+          call w%sc%reset()
           w%forcerender = .true.
        end if
 
        ! atom selection
        if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
-          call sc%select_atom(idx)
+          call w%sc%select_atom(idx)
           w%forcerender = .true.
        end if
        if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
-          call sc%select_atom((/0,0,0,0/))
+          call w%sc%select_atom((/0,0,0,0/))
           w%forcerender = .true.
        end if
     end if
@@ -1053,10 +1056,12 @@ contains
        0.4_c_float, 0.4_c_float, 1._c_float, 1._c_float,&
        0.9_c_float, 0.7_c_float, 0.4_c_float, 1._c_float/),shape(rgbsel))
 
+    if (.not.associated(w%sc)) return
+
     ! check if the tooltip is needed
-    nmsel = sysc(w%view_selected)%sc%nmsel
+    nmsel = w%sc%nmsel
     if (nmsel == 0) return
-    msel = sysc(w%view_selected)%sc%msel
+    msel = w%sc%msel
     if (nmsel == 1 .and. (idx(1) == 0 .or. all(idx == msel(:,1)))) return
 
     ! start tooltip and header
@@ -1298,8 +1303,8 @@ contains
 
     type(scene), pointer :: sc
 
-    if (w%view_selected < 1 .or. w%view_selected > nsys) return
-    sc => sysc(w%view_selected)%sc
+    if (.not.associated(w%sc)) return
+    sc => w%sc
     if (sc%isinit < 2) return
 
     call project(pos,eye4,sc%projection,w%FBOside)
@@ -1317,8 +1322,8 @@ contains
 
     type(scene), pointer :: sc
 
-    if (w%view_selected < 1 .or. w%view_selected > nsys) return
-    sc => sysc(w%view_selected)%sc
+    if (.not.associated(w%sc)) return
+    sc => w%sc
     if (sc%isinit < 2) return
 
     call unproject(pos,eye4,sc%projection,w%FBOside)
@@ -1336,8 +1341,8 @@ contains
 
     type(scene), pointer :: sc
 
-    if (w%view_selected < 1 .or. w%view_selected > nsys) return
-    sc => sysc(w%view_selected)%sc
+    if (.not.associated(w%sc)) return
+    sc => w%sc
     if (sc%isinit < 2) return
 
     call project(pos,sc%view,sc%projection,w%FBOside)
@@ -1355,8 +1360,8 @@ contains
 
     type(scene), pointer :: sc
 
-    if (w%view_selected < 1 .or. w%view_selected > nsys) return
-    sc => sysc(w%view_selected)%sc
+    if (.not.associated(w%sc)) return
+    sc => w%sc
     if (sc%isinit < 2) return
 
     call unproject(pos,sc%view,sc%projection,w%FBOside)
@@ -1420,6 +1425,7 @@ contains
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
+    if (.not.doquit) doquit = .not.associated(win(w%idparent)%sc)
     if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
 
     if (.not.doquit) then
@@ -1462,7 +1468,7 @@ contains
        end if
 
        ! rebuild draw lists if necessary
-       if (changed) sysc(win(w%idparent)%view_selected)%sc%forcebuildlists = .true.
+       if (changed) win(w%idparent)%sc%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call igGetContentRegionAvail(szavail)
@@ -1475,10 +1481,10 @@ contains
           str2 = w%rep%name
           itype = w%rep%type
           lshown = w%rep%shown
-          call w%rep%init(w%rep%id,w%rep%idrep,itype,sysc(win(w%idparent)%view_selected)%sc%style)
+          call w%rep%init(w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
           w%rep%name = str2
           w%rep%shown = lshown
-          sysc(win(w%idparent)%view_selected)%sc%forcebuildlists = .true.
+          win(w%idparent)%sc%forcebuildlists = .true.
        end if
 
        ! close button
