@@ -290,19 +290,19 @@ contains
        w%firstpass = .true.
        w%id = abs(w%id)
        if (w%type == wintype_tree) then
-          w%name = "Tree" // c_null_char
+          w%name = "Tree##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_view) then
-          w%name = "View" // c_null_char
+          w%name = "View##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_console_input) then
-          w%name = "Input Console" // c_null_char
+          w%name = "Input Console##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_console_output) then
-          w%name = "Output Console" // c_null_char
+          w%name = "Output Console##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_about) then
-          w%name = "About" // c_null_char
+          w%name = "About##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 52 * fontsize%x
           inisize%y = 17 * fontsize%y
@@ -323,7 +323,7 @@ contains
           str1 = "All files (*.*){*.*}" // c_null_char
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              ! open dialog
-             w%name = "Open File(s)" // c_null_char
+             w%name = "Open File(s)##" // string(w%id)  // c_null_char
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -352,17 +352,17 @@ contains
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
-             w%name = "Save Log File" // c_null_char
+             w%name = "Save Log File##" // string(w%id)  // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
-             w%name = "Open Library File" // c_null_char
+             w%name = "Open Library File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
-             w%name = "Open Field File(s)" // c_null_char
+             w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
              str1 = &
                 "&
                 &All files (*.*){*.*},&
@@ -385,11 +385,11 @@ contains
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
-             w%name = "Open File" // c_null_char
+             w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
-             w%name = "Save Image File" // c_null_char
+             w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              str2 = "file.png" // c_null_char
              str3 = "./" // c_null_char
@@ -399,56 +399,56 @@ contains
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
        elseif (w%type == wintype_new_struct) then
-          w%name = "New Structure" // c_null_char
+          w%name = "New Structure##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 40 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_new_struct_library) then
-          w%name = "New Structure from Library" // c_null_char
+          w%name = "New Structure from Library##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 90 * fontsize%x
           inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_load_field) then
-          w%name = "Load Field" // c_null_char
+          w%name = "Load Field##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
           inisize%y = 15 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_scfplot) then
-          w%name = "SCF Iterations (" // string(w%isys) // ")" // c_null_char
+          w%name = "SCF Iterations (" // string(w%isys) // ")##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 45 * fontsize%x
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_editrep) then
           w%name = "Representation [" // string(w%rep%name) // ", " // &
-             string(w%isys) // "]##" // string(w%rep%idrep) // c_null_char
+             string(w%isys) // "]##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
           inisize%y = 44 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_exportimage) then
-          w%name = "Export Image" // "##" // string(w%idparent) // c_null_char
+          w%name = "Export Image" // "##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 50 * fontsize%x
           inisize%y = 17 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_rebond) then
-          w%name = "Recalculate Bonds" // c_null_char
+          w%name = "Recalculate Bonds##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
           inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
-          w%name = "Preferences..." // c_null_char
+          w%name = "Preferences...##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 65 * fontsize%x
           inisize%y = 19 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_treeplot) then
-          w%name = "Plot Tree Data" // c_null_char
+          w%name = "Plot Tree Data##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
           inisize%y = 25 * fontsize%y
