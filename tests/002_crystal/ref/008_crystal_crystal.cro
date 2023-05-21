@@ -7,7 +7,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 4.440892E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal14/oxalic_acid_beta/oxacb.out
@@ -16,7 +20,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 4.440892E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal17/oxalic_acid_beta/oxacb.out
@@ -25,5 +33,9 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 4.440892E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 

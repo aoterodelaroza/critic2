@@ -8,21 +8,26 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+# REDUCE: Only repeated/unique structures will be listed, at DIFF level: 1.0000E-06
+  ... calculating pattern 1 of 5.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 5.
+  ... finished comparing patterns
    Molecule     neopentane (library) ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk ../zz_source/g16A.03/benzene/benzene.log 
      DIFF              1               2               3               4               5        
-  neopentane (library)  0.0000000       0.1028311       0.1028311       0.1028311       0.1028314      
-  ../zz_source/g16A.03/benzene/benzene.wfn  0.1028311       0.0000000       0.0000000       0.0000000       0.0000000      
-  ../zz_source/g16A.03/benzene/benzene.wfx  0.1028311       0.0000000       0.0000000       0.0000000       0.0000000      
-  ../zz_source/g16A.03/benzene/benzene.fchk  0.1028311       0.0000000       0.0000000       0.0000000       0.0000000      
-  ../zz_source/g16A.03/benzene/benzene.log  0.1028314       0.0000000       0.0000000       0.0000000       0.0000000      
+  neopentane (library) not-calculated   0.1028311       0.1028311       0.1028311       0.1028314      
+  ../zz_source/g16A.03/benzene/benzene.wfn  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
+  ../zz_source/g16A.03/benzene/benzene.wfx  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
+  ../zz_source/g16A.03/benzene/benzene.fchk  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
+  ../zz_source/g16A.03/benzene/benzene.log  0.1028314      not-calculated  not-calculated  not-calculated  not-calculated  
 
 
 + List of unique structures (2): 
-1: neopentane (library)
-2: ../zz_source/g16A.03/benzene/benzene.wfn
+1: neopentane (library) with multiplicity 1
+2: ../zz_source/g16A.03/benzene/benzene.wfn with multiplicity 4
 
 + List of repeated structures (3): 
-3: ../zz_source/g16A.03/benzene/benzene.wfx
-4: ../zz_source/g16A.03/benzene/benzene.fchk
-5: ../zz_source/g16A.03/benzene/benzene.log
+3: ../zz_source/g16A.03/benzene/benzene.wfx same as 2: ../zz_source/g16A.03/benzene/benzene.wfn
+4: ../zz_source/g16A.03/benzene/benzene.fchk same as 2: ../zz_source/g16A.03/benzene/benzene.wfn
+5: ../zz_source/g16A.03/benzene/benzene.log same as 2: ../zz_source/g16A.03/benzene/benzene.wfn
 

@@ -7,6 +7,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 002_kyanite.cif
@@ -18,6 +22,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 003a_b-kyb2f7.cif
@@ -29,6 +37,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 003b_b-kyb2f7.cif
@@ -40,7 +52,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 003c_b-kyb2f7.cif
 
@@ -51,6 +67,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 004a_alloclasite.cif
@@ -62,6 +82,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 004b_alloclasite.cif
@@ -73,6 +97,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 004c_alloclasite.cif
@@ -84,7 +112,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 005a_taikanite.cif
 
@@ -95,6 +127,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005b_taikanite.cif
@@ -106,6 +142,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005c_taikanite.cif
@@ -117,6 +157,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005d_taikanite.cif
@@ -128,6 +172,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005e_taikanite.cif
@@ -139,6 +187,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005f_taikanite.cif
@@ -150,6 +202,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005g_taikanite.cif
@@ -161,6 +217,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 005h_taikanite.cif
@@ -172,6 +232,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 005i_taikanite.cif
@@ -183,6 +247,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 006a_li3na3n2.cif
@@ -194,6 +262,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 006b_li3na3n2.cif
@@ -205,7 +277,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 006c_li3na3n2.cif
 
@@ -216,7 +292,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 007a_dervillite.cif
 
@@ -227,6 +307,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 007b_dervillite.cif
@@ -238,7 +322,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 007c_dervillite.cif
 
@@ -249,7 +337,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 007d_dervillite.cif
 
@@ -260,6 +352,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 007e_dervillite.cif
@@ -271,6 +367,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 007f_dervillite.cif
@@ -282,6 +382,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 007g_dervillite.cif
@@ -293,6 +397,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 007h_dervillite.cif
@@ -304,7 +412,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 007i_dervillite.cif
 
@@ -315,7 +427,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 008a_up4o12.cif
 
@@ -326,6 +442,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 008b_up4o12.cif
@@ -337,6 +457,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 008c_up4o12.cif
@@ -348,6 +472,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 008d_up4o12.cif
@@ -359,6 +487,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 008e_up4o12.cif
@@ -370,7 +502,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 008f_up4o12.cif
 
@@ -381,6 +517,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 008g_up4o12.cif
@@ -392,6 +532,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 008h_up4o12.cif
@@ -403,6 +547,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 008i_up4o12.cif
@@ -414,6 +562,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009a_tilasite.cif
@@ -425,7 +577,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 009b_tilasite.cif
 
@@ -436,7 +592,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 009c_tilasite.cif
 
@@ -447,7 +607,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 009d_tilasite.cif
 
@@ -458,6 +622,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009e_tilasite.cif
@@ -469,7 +637,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 009f_tilasite.cif
 
@@ -480,6 +652,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009g_tilasite.cif
@@ -491,7 +667,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 009h_tilasite.cif
 
@@ -502,6 +682,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009i_tilasite.cif
@@ -513,6 +697,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 009j_tilasite.cif
@@ -524,6 +712,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009k_tilasite.cif
@@ -535,6 +727,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009l_tilasite.cif
@@ -546,7 +742,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 009m_tilasite.cif
 
@@ -557,6 +757,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 009n_tilasite.cif
@@ -568,6 +772,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009o_tilasite.cif
@@ -579,6 +787,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009p_tilasite.cif
@@ -590,6 +802,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009q_tilasite.cif
@@ -601,6 +817,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 009r_tilasite.cif
@@ -612,6 +832,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 010a_muthmannite.cif
@@ -623,6 +847,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 010b_muthmannite.cif
@@ -634,6 +862,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 010c_muthmannite.cif
@@ -645,6 +877,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 011a_kinoite.cif
@@ -656,7 +892,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 011b_kinoite.cif
 
@@ -667,6 +907,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 011c_kinoite.cif
@@ -678,6 +922,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012a_calaverite.cif
@@ -689,6 +937,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012b_calaverite.cif
@@ -700,7 +952,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 012c_calaverite.cif
 
@@ -711,6 +967,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012d_calaverite.cif
@@ -722,6 +982,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012e_calaverite.cif
@@ -733,6 +997,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012f_calaverite.cif
@@ -744,6 +1012,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 012g_calaverite.cif
@@ -755,6 +1027,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 012h_calaverite.cif
@@ -766,7 +1042,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 012i_calaverite.cif
 
@@ -777,6 +1057,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 013a_petalite.cif
@@ -788,7 +1072,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 013b_petalite.cif
 
@@ -799,6 +1087,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 013c_petalite.cif
@@ -810,6 +1102,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 013d_petalite.cif
@@ -821,6 +1117,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 013e_petalite.cif
@@ -832,6 +1132,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 013f_petalite.cif
@@ -843,7 +1147,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 013g_petalite.cif
 
@@ -854,7 +1162,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 013h_petalite.cif
 
@@ -865,6 +1177,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 013i_petalite.cif
@@ -876,6 +1192,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 014a_baddeleyite.cif
@@ -887,7 +1207,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 014b_baddeleyite.cif
 
@@ -898,6 +1222,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 014c_baddeleyite.cif
@@ -909,7 +1237,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 014d_baddeleyite.cif
 
@@ -920,6 +1252,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 014e_baddeleyite.cif
@@ -931,7 +1267,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 014f_baddeleyite.cif
 
@@ -942,6 +1282,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 014g_baddeleyite.cif
@@ -953,7 +1297,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 014h_baddeleyite.cif
 
@@ -964,7 +1312,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 014i_baddeleyite.cif
 
@@ -975,7 +1327,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 015a_coesite.cif
 
@@ -986,6 +1342,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015b_coesite.cif
@@ -997,6 +1357,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015c_coesite.cif
@@ -1008,6 +1372,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015d_coesite.cif
@@ -1019,6 +1387,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015e_coesite.cif
@@ -1030,6 +1402,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015f_coesite.cif
@@ -1041,7 +1417,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 015g_coesite.cif
 
@@ -1052,6 +1432,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015h_coesite.cif
@@ -1063,6 +1447,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015i_coesite.cif
@@ -1074,6 +1462,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015j_coesite.cif
@@ -1085,6 +1477,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015k_coesite.cif
@@ -1096,6 +1492,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015l_coesite.cif
@@ -1107,6 +1507,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015m_coesite.cif
@@ -1118,6 +1522,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015n_coesite.cif
@@ -1129,7 +1537,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 015o_coesite.cif
 
@@ -1140,6 +1552,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 015p_coesite.cif
@@ -1151,6 +1567,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 015q_coesite.cif
@@ -1162,6 +1582,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 015r_coesite.cif
@@ -1173,6 +1597,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 016_alps4.cif
@@ -1184,6 +1612,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 017a_lueshite.cif
@@ -1195,6 +1627,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 017b_lueshite.cif
@@ -1206,7 +1642,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 017c_lueshite.cif
 
@@ -1217,6 +1657,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 018a_bas3.cif
@@ -1228,7 +1672,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 018b_bas3.cif
 
@@ -1239,6 +1687,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 018c_bas3.cif
@@ -1250,7 +1702,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 019_baalf5.cif
 
@@ -1261,6 +1717,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 020a_bas3v.cif
@@ -1272,7 +1732,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 020b_bas3v.cif
 
@@ -1283,6 +1747,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 020c_bas3v.cif
@@ -1294,6 +1762,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 021a_anhydrite.cif
@@ -1305,7 +1777,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 021b_anhydrite.cif
 
@@ -1316,6 +1792,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 021c_anhydrite.cif
@@ -1327,6 +1807,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 022_ru2ceb2.cif
@@ -1338,6 +1822,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 023_nd2so6.cif
@@ -1349,6 +1837,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 024_c4h6br2cdn6o.cif
@@ -1360,6 +1852,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 025a_dyscrasite.cif
@@ -1371,7 +1867,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 025b_dyscrasite.cif
 
@@ -1382,6 +1882,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 025c_dyscrasite.cif
@@ -1393,6 +1897,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 026a_krupkaite.cif
@@ -1404,7 +1912,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 026b_krupkaite.cif
 
@@ -1415,6 +1927,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 026c_krupkaite.cif
@@ -1426,6 +1942,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 026d_krupkaite.cif
@@ -1437,6 +1957,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 026e_krupkaite.cif
@@ -1448,6 +1972,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 026f_krupkaite.cif
@@ -1459,6 +1987,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 027a_c8h6bri.cif
@@ -1470,6 +2002,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 027b_c8h6bri.cif
@@ -1481,6 +2017,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 027c_c8h6bri.cif
@@ -1492,7 +2032,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 028a_krennerite.cif
 
@@ -1503,6 +2047,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 028b_krennerite.cif
@@ -1514,6 +2062,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 028c_krennerite.cif
@@ -1525,7 +2077,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 028d_krennerite.cif
 
@@ -1536,7 +2092,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 028e_krennerite.cif
 
@@ -1547,6 +2107,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 028f_krennerite.cif
@@ -1558,7 +2122,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 029a_cobaltite.cif
 
@@ -1569,6 +2137,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 029b_cobaltite.cif
@@ -1580,6 +2152,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 029c_cobaltite.cif
@@ -1591,6 +2167,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 029d_cobaltite.cif
@@ -1602,6 +2182,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 029e_cobaltite.cif
@@ -1613,6 +2197,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 029f_cobaltite.cif
@@ -1624,6 +2212,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 030a_kcuta3o9.cif
@@ -1635,6 +2227,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 030b_kcuta3o9.cif
@@ -1646,7 +2242,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 030c_kcuta3o9.cif
 
@@ -1657,7 +2257,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 030d_kcuta3o9.cif
 
@@ -1668,6 +2272,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 030e_kcuta3o9.cif
@@ -1679,6 +2287,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 030f_kcuta3o9.cif
@@ -1690,6 +2302,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 031a_enargite.cif
@@ -1701,7 +2317,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 031b_enargite.cif
 
@@ -1712,7 +2332,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 031c_enargite.cif
 
@@ -1723,7 +2347,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 031d_enargite.cif
 
@@ -1734,6 +2362,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 031e_enargite.cif
@@ -1745,6 +2377,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 031f_enargite.cif
@@ -1756,6 +2392,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 032a_minyulite.cif
@@ -1767,6 +2407,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 032b_minyulite.cif
@@ -1778,6 +2422,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 032c_minyulite.cif
@@ -1789,6 +2437,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 033a_lautite.cif
@@ -1800,6 +2452,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 033b_lautite.cif
@@ -1811,6 +2467,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 033c_lautite.cif
@@ -1822,6 +2482,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 033d_lautite.cif
@@ -1833,6 +2497,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 033e_lautite.cif
@@ -1844,6 +2512,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 033f_lautite.cif
@@ -1855,6 +2527,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 034a_seinajokite.cif
@@ -1866,6 +2542,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 034b_seinajokite.cif
@@ -1877,7 +2557,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 034c_seinajokite.cif
 
@@ -1888,6 +2572,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 035a_seeligerite.cif
@@ -1899,6 +2587,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 035b_seeligerite.cif
@@ -1910,6 +2602,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 035c_seeligerite.cif
@@ -1921,6 +2617,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 036a_polarite.cif
@@ -1932,6 +2632,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 036b_polarite.cif
@@ -1943,6 +2647,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 036c_polarite.cif
@@ -1954,7 +2662,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 036d_polarite.cif
 
@@ -1965,6 +2677,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 036e_polarite.cif
@@ -1976,6 +2692,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 036f_polarite.cif
@@ -1987,7 +2707,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 037a_cagabo4.cif
 
@@ -1998,6 +2722,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 037b_cagabo4.cif
@@ -2009,6 +2737,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 037c_cagabo4.cif
@@ -2020,6 +2752,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 038a_weeksite.cif
@@ -2031,6 +2767,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 038b_weeksite.cif
@@ -2042,6 +2782,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 038c_weeksite.cif
@@ -2053,7 +2797,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 038d_weeksite.cif
 
@@ -2064,6 +2812,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 038e_weeksite.cif
@@ -2075,6 +2827,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 038f_weeksite.cif
@@ -2086,6 +2842,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 039a_smirnite.cif
@@ -2097,6 +2857,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 039b_smirnite.cif
@@ -2108,6 +2872,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 039c_smirnite.cif
@@ -2119,7 +2887,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 039d_smirnite.cif
 
@@ -2130,7 +2902,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 039e_smirnite.cif
 
@@ -2141,7 +2917,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 039f_smirnite.cif
 
@@ -2152,7 +2932,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 040a_vaterite.cif
 
@@ -2163,6 +2947,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 040b_vaterite.cif
@@ -2174,7 +2962,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 040c_vaterite.cif
 
@@ -2185,7 +2977,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 040d_vaterite.cif
 
@@ -2196,7 +2992,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 040e_vaterite.cif
 
@@ -2207,6 +3007,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 040f_vaterite.cif
@@ -2218,6 +3022,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041a_so2.cif
@@ -2229,6 +3037,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041b_so2.cif
@@ -2240,6 +3052,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041c_so2.cif
@@ -2251,6 +3067,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041d_so2.cif
@@ -2262,6 +3082,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041e_so2.cif
@@ -2273,6 +3097,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 041f_so2.cif
@@ -2284,6 +3112,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 042a_libgeo4.cif
@@ -2295,6 +3127,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 042b_libgeo4.cif
@@ -2306,6 +3142,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 042c_libgeo4.cif
@@ -2317,6 +3157,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 043a_blossite.cif
@@ -2328,6 +3172,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 043b_blossite.cif
@@ -2339,6 +3187,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 043c_blossite.cif
@@ -2350,6 +3202,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 044a_cr2p.cif
@@ -2361,6 +3217,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 044b_cr2p.cif
@@ -2372,7 +3232,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 044c_cr2p.cif
 
@@ -2383,7 +3247,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 045a_banalsite.cif
 
@@ -2394,6 +3262,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 045b_banalsite.cif
@@ -2405,6 +3277,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 045c_banalsite.cif
@@ -2416,6 +3292,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 046a_fesiti.cif
@@ -2427,6 +3307,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 046b_fesiti.cif
@@ -2438,7 +3322,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 046c_fesiti.cif
 
@@ -2449,6 +3337,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 046d_fesiti.cif
@@ -2460,6 +3352,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 046e_fesiti.cif
@@ -2471,6 +3367,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 046f_fesiti.cif
@@ -2482,6 +3382,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 047_ba2ycu3o7.cif
@@ -2493,6 +3397,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 048a_znc48h84n4o4li.cif
@@ -2504,7 +3412,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 048b_znc48h84n4o4li.cif
 
@@ -2515,6 +3427,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 049a_beta-ta2o5.cif
@@ -2526,7 +3442,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 049b_beta-ta2o5.cif
 
@@ -2537,6 +3457,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 049c_beta-ta2o5.cif
@@ -2548,7 +3472,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 050a_ru8c208h328n8o8f60p18.cif
 
@@ -2559,6 +3487,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 050c_ru8c208h328n8o8f60p18.cif
@@ -2570,6 +3502,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 050d_ru8c208h328n8o8f60p18.cif
@@ -2581,7 +3517,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 050e_ru8c208h328n8o8f60p18.cif
 
@@ -2592,6 +3532,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 050f_ru8c208h328n8o8f60p18.cif
@@ -2603,6 +3547,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 051a_valleriite.cif
@@ -2614,6 +3562,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 051b_valleriite.cif
@@ -2625,6 +3577,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 051c_valleriite.cif
@@ -2636,7 +3592,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 051d_valleriite.cif
 
@@ -2647,6 +3607,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 051e_valleriite.cif
@@ -2658,6 +3622,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 051f_valleriite.cif
@@ -2669,6 +3637,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 052a_ba3ga2n4.cif
@@ -2680,6 +3652,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 052b_ba3ga2n4.cif
@@ -2691,6 +3667,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 052c_ba3ga2n4.cif
@@ -2702,6 +3682,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 052d_ba3ga2n4.cif
@@ -2713,6 +3697,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 052e_ba3ga2n4.cif
@@ -2724,6 +3712,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 052f_ba3ga2n4.cif
@@ -2735,6 +3727,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 053a_fenbte2.cif
@@ -2746,6 +3742,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 053b_fenbte2.cif
@@ -2757,7 +3757,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 053c_fenbte2.cif
 
@@ -2768,7 +3772,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 053d_fenbte2.cif
 
@@ -2779,7 +3787,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 053e_fenbte2.cif
 
@@ -2790,6 +3802,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 053f_fenbte2.cif
@@ -2801,6 +3817,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054a_agclo2.cif
@@ -2812,6 +3832,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054b_agclo2.cif
@@ -2823,6 +3847,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054c_agclo2.cif
@@ -2834,6 +3862,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054d_agclo2.cif
@@ -2845,6 +3877,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054e_agclo2.cif
@@ -2856,6 +3892,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 054f_agclo2.cif
@@ -2867,6 +3907,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 055a_reinerite.cif
@@ -2878,6 +3922,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 055b_reinerite.cif
@@ -2889,7 +3937,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 055c_reinerite.cif
 
@@ -2900,7 +3952,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 056a_sophiite.cif
 
@@ -2911,7 +3967,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 056b_sophiite.cif
 
@@ -2922,6 +3982,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 056c_sophiite.cif
@@ -2933,7 +3997,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 057a_massicot.cif
 
@@ -2944,6 +4012,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 057b_massicot.cif
@@ -2955,6 +4027,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 057c_massicot.cif
@@ -2966,6 +4042,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 057d_massicot.cif
@@ -2977,6 +4057,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 057e_massicot.cif
@@ -2988,6 +4072,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 057f_massicot.cif
@@ -2999,6 +4087,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 058a_cacl2.cif
@@ -3010,7 +4102,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 058b_cacl2.cif
 
@@ -3021,6 +4117,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 058c_cacl2.cif
@@ -3032,6 +4132,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 059a_pasavaite.cif
@@ -3043,7 +4147,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 059b_pasavaite.cif
 
@@ -3054,6 +4162,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 059c_pasavaite.cif
@@ -3065,6 +4177,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 059d_pasavaite.cif
@@ -3076,6 +4192,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 059e_pasavaite.cif
@@ -3087,6 +4207,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 059f_pasavaite.cif
@@ -3098,6 +4222,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 060a_fersmite.cif
@@ -3109,6 +4237,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 060b_fersmite.cif
@@ -3120,6 +4252,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 060c_fersmite.cif
@@ -3131,6 +4267,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 060d_fersmite.cif
@@ -3142,6 +4282,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 060e_fersmite.cif
@@ -3153,6 +4297,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 060f_fersmite.cif
@@ -3164,6 +4312,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 061a_brookite.cif
@@ -3175,6 +4327,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 061b_brookite.cif
@@ -3186,6 +4342,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 062a_chrysoberyl.cif
@@ -3197,6 +4357,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 062b_chrysoberyl.cif
@@ -3208,6 +4372,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 062c_chrysoberyl.cif
@@ -3219,6 +4387,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 062d_chrysoberyl.cif
@@ -3230,6 +4402,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 062e_chrysoberyl.cif
@@ -3241,6 +4417,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 062f_chrysoberyl.cif
@@ -3252,6 +4432,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 063a_rasvumite.cif
@@ -3263,7 +4447,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 063b_rasvumite.cif
 
@@ -3274,7 +4462,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 063c_rasvumite.cif
 
@@ -3285,6 +4477,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 063d_rasvumite.cif
@@ -3296,6 +4492,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 063e_rasvumite.cif
@@ -3307,6 +4507,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 063f_rasvumite.cif
@@ -3318,7 +4522,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 064a_gallium.cif
 
@@ -3329,7 +4537,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 064b_gallium.cif
 
@@ -3340,6 +4552,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 064c_gallium.cif
@@ -3351,7 +4567,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 064d_gallium.cif
 
@@ -3362,6 +4582,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 064e_gallium.cif
@@ -3373,6 +4597,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 064f_gallium.cif
@@ -3384,6 +4612,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 065a_naio3.cif
@@ -3395,6 +4627,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 065b_naio3.cif
@@ -3406,7 +4642,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 065c_naio3.cif
 
@@ -3417,6 +4657,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 066a_thi3.cif
@@ -3428,6 +4672,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 2.220446E-16
 
 * WRITE cif file: 066b_thi3.cif
@@ -3439,7 +4687,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 066c_thi3.cif
 
@@ -3450,7 +4702,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 067a_litharge.cif
 
@@ -3461,7 +4717,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 067b_litharge.cif
 
@@ -3472,6 +4732,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 067c_litharge.cif
@@ -3483,7 +4747,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 067d_litharge.cif
 
@@ -3494,6 +4762,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 067e_litharge.cif
@@ -3505,7 +4777,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 067f_litharge.cif
 
@@ -3516,6 +4792,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 068a_pbcl2o4.cif
@@ -3527,6 +4807,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068b_pbcl2o4.cif
@@ -3538,6 +4822,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068c_pbcl2o4.cif
@@ -3549,6 +4837,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068d_pbcl2o4.cif
@@ -3560,6 +4852,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068e_pbcl2o4.cif
@@ -3571,6 +4867,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 068f_pbcl2o4.cif
@@ -3582,6 +4882,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 068g_pbcl2o4.cif
@@ -3593,6 +4897,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068h_pbcl2o4.cif
@@ -3604,6 +4912,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068i_pbcl2o4.cif
@@ -3615,6 +4927,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068j_pbcl2o4.cif
@@ -3626,6 +4942,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 068k_pbcl2o4.cif
@@ -3637,6 +4957,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 068l_pbcl2o4.cif
@@ -3648,6 +4972,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 069_tlf.cif
@@ -3659,6 +4987,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 070a_a-sulfur.cif
@@ -3670,6 +5002,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 070b_a-sulfur.cif
@@ -3681,7 +5017,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 071_beyerite.cif
 
@@ -3692,6 +5032,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 072a_pinchite.cif
@@ -3703,7 +5047,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 072b_pinchite.cif
 
@@ -3714,6 +5062,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 072c_pinchite.cif
@@ -3725,7 +5077,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 073a_chesnokovite.cif
 
@@ -3736,6 +5092,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 073b_chesnokovite.cif
@@ -3747,6 +5107,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 074a_wadsleyite.cif
@@ -3758,6 +5122,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 074b_wadsleyite.cif
@@ -3769,7 +5137,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 074c_wadsleyite.cif
 
@@ -3780,6 +5152,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 074d_wadsleyite.cif
@@ -3791,6 +5167,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 074e_wadsleyite.cif
@@ -3802,6 +5182,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 074f_wadsleyite.cif
@@ -3813,6 +5197,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 075_ni8bi8si.cif
@@ -3824,6 +5212,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 076_b-ca2p2o7.cif
@@ -3835,6 +5227,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 077_pinnoite.cif
@@ -3846,6 +5242,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 078_cerhc2.cif
@@ -3857,6 +5257,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 079_wocl4.cif
@@ -3868,6 +5272,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 080_c12h10br2te.cif
@@ -3879,6 +5287,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 081_cu2te2o5cl2.cif
@@ -3890,6 +5302,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 082_tugtupite.cif
@@ -3901,6 +5317,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 083_ga3ti2.cif
@@ -3912,6 +5332,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 084_vysotskite.cif
@@ -3923,7 +5347,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 2.220446E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 085a_bki4o12.cif
 
@@ -3934,6 +5362,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 085b_bki4o12.cif
@@ -3945,6 +5377,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 086a_n4p4cl8.cif
@@ -3956,6 +5392,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 086b_n4p4cl8.cif
@@ -3967,6 +5407,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 087_a-mno2.cif
@@ -3978,6 +5422,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 088a_scheelite.cif
@@ -3989,6 +5437,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 088b_scheelite.cif
@@ -4000,6 +5452,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 089_c136h136o32fe8pt8.cif
@@ -4011,6 +5467,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 090_cu4o17p4srti.cif
@@ -4022,6 +5482,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 091_mgfe2o4.cif
@@ -4033,6 +5497,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 092_a-cristobalite.cif
@@ -4044,6 +5512,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 093_c864h90n96o72cl4cd24.cif
@@ -4055,6 +5527,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 094_li2mof6.cif
@@ -4066,6 +5542,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 095_mn2tio4.cif
@@ -4077,6 +5557,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 096_retgersite.cif
@@ -4088,7 +5572,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 097_ekanite.cif
 
@@ -4099,7 +5587,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 098_c8h8cl2con4.cif
 
@@ -4110,6 +5602,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 099_macedonite.cif
@@ -4121,7 +5617,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 100_fresnoite.cif
 
@@ -4132,6 +5632,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 102_beta-uranium.cif
@@ -4143,6 +5647,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 103_se2vo6.cif
@@ -4154,6 +5662,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 104_hgtl4i6.cif
@@ -4165,6 +5677,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 105_bage2p2.cif
@@ -4176,6 +5692,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 106_2-methylfuran.cif
@@ -4187,6 +5707,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 107_lipdsi3.cif
@@ -4198,6 +5722,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 108_bi2pdo4.cif
@@ -4209,6 +5737,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 109_diethylzinc.cif
@@ -4220,7 +5752,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 110_diomignite.cif
 
@@ -4231,6 +5767,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 111_ag2hgi4.cif
@@ -4242,6 +5782,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 112_eskebornite.cif
@@ -4253,6 +5797,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 113_urea.cif
@@ -4264,6 +5812,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 114_adamantane.cif
@@ -4275,7 +5827,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 115_mawsonite.cif
 
@@ -4286,7 +5842,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 116_si3os2.cif
 
@@ -4297,7 +5857,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 117_bi2o3.cif
 
@@ -4308,6 +5872,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 118_mnb2h8.cif
@@ -4319,7 +5887,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 119_jasmundite.cif
 
@@ -4330,6 +5902,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 120_rbalf4.cif
@@ -4341,6 +5917,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 121_stannite.cif
@@ -4352,6 +5932,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 122_chalcopyrite.cif
@@ -4363,6 +5947,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 123_tetrataenite.cif
@@ -4374,6 +5962,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 124_conb4p.cif
@@ -4385,7 +5977,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 125a_c44h56cl8la4n8na20o48.cif
 
@@ -4396,6 +5992,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 125b_c44h56cl8la4n8na20o48.cif
@@ -4407,6 +6007,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 126a_torbernite.cif
@@ -4418,6 +6022,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 126b_torbernite.cif
@@ -4429,6 +6037,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 127_phosgenite.cif
@@ -4440,6 +6052,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 128_apophyllite.cif
@@ -4451,7 +6067,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 129a_matlockite.cif
 
@@ -4462,6 +6082,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 129b_matlockite.cif
@@ -4473,6 +6097,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 130a_gillespite.cif
@@ -4484,6 +6112,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 130b_gillespite.cif
@@ -4495,6 +6127,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 131_cooperite.cif
@@ -4506,6 +6142,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 132_agtaf6.cif
@@ -4517,6 +6157,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 133a_denningite.cif
@@ -4528,6 +6172,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 133b_denningite.cif
@@ -4539,6 +6187,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 134a_a-boron.cif
@@ -4550,7 +6202,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 134b_a-boron.cif
 
@@ -4561,7 +6217,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 135_minium.cif
 
@@ -4572,6 +6232,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 136_rutile.cif
@@ -4583,6 +6247,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 137a_coccinite.cif
@@ -4594,6 +6262,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 137b_coccinite.cif
@@ -4605,6 +6277,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 138a_aui.cif
@@ -4616,6 +6292,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 138b_aui.cif
@@ -4627,6 +6307,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 139_indium.cif
@@ -4638,6 +6322,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 140_anyuiite.cif
@@ -4649,6 +6337,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 141a_zircon.cif
@@ -4660,7 +6352,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 141b_zircon.cif
 
@@ -4671,7 +6367,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 142a_braunite.cif
 
@@ -4682,6 +6382,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 142b_braunite.cif
@@ -4693,6 +6397,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 143_basi4o9.cif
@@ -4704,7 +6412,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 144_stillwellite.cif
 
@@ -4715,6 +6427,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 145_boricacid.cif
@@ -4726,6 +6442,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 146a_a-eucryptite.cif
@@ -4737,6 +6457,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 146b_a-eucryptite.cif
@@ -4748,6 +6472,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 147_na2so3.cif
@@ -4759,6 +6487,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 148a_ilmenite.cif
@@ -4770,7 +6502,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 148b_ilmenite.cif
 
@@ -4781,6 +6517,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 149_srgeteo6.cif
@@ -4792,6 +6532,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 150_malladrite.cif
@@ -4803,6 +6547,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 152_selenium.cif
@@ -4814,6 +6562,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 153_crcl3.cif
@@ -4825,6 +6577,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 154_quartz.cif
@@ -4836,6 +6592,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 155a_alf3.cif
@@ -4847,6 +6607,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 155b_alf3.cif
@@ -4858,6 +6622,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 156_pbi2.cif
@@ -4869,6 +6637,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 157_pbtegeo6.cif
@@ -4880,7 +6652,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 158_mn2nb2o9zn2.cif
 
@@ -4891,7 +6667,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 159_nierite.cif
 
@@ -4902,7 +6682,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 160a_millerite.cif
 
@@ -4913,7 +6697,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 160b_millerite.cif
 
@@ -4924,6 +6712,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 161a_proustite.cif
@@ -4935,6 +6727,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 161b_proustite.cif
@@ -4946,6 +6742,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 162_rosiaite.cif
@@ -4957,6 +6757,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 163_murchisite.cif
@@ -4968,6 +6772,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 164_melonite.cif
@@ -4979,7 +6787,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 165_cu3p.cif
 
@@ -4990,6 +6802,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 166a_cdcl2.cif
@@ -5001,7 +6817,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 166b_cdcl2.cif
 
@@ -5012,7 +6832,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 167a_corundum.cif
 
@@ -5023,6 +6847,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 167b_corundum.cif
@@ -5034,6 +6862,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 168_c18h12con3o6.cif
@@ -5045,6 +6877,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 169_trinepheline.cif
@@ -5056,6 +6892,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 170_c15h20o4.cif
@@ -5067,6 +6907,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 171_c23h19cl2cun7.cif
@@ -5078,6 +6922,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 172_c8h4f6n4zn.cif
@@ -5089,7 +6937,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 173_nepheline.cif
 
@@ -5100,6 +6952,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 174_gdis.cif
@@ -5111,6 +6967,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 175_hmgn.cif
@@ -5122,6 +6982,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 176_fluorapatite.cif
@@ -5133,7 +6997,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 177_c36h26cofen6o13.cif
 
@@ -5144,6 +7012,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 178_cscucl3.cif
@@ -5155,6 +7027,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 179_c20h22ag2cl2n4o8s2.cif
@@ -5166,6 +7042,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 180_b-quartz.cif
@@ -5177,6 +7057,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 181_b-eucryptite.cif
@@ -5188,6 +7072,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 182_edgarite.cif
@@ -5199,7 +7087,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 183_ta21te13.cif
 
@@ -5210,6 +7102,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 184_kmn2zn3si12o30.cif
@@ -5221,7 +7117,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 185_iceih.cif
 
@@ -5232,6 +7132,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 186_wurtzite.cif
@@ -5243,6 +7147,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 187_wc.cif
@@ -5254,6 +7162,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 188_benitoite.cif
@@ -5265,7 +7177,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 189_monipite.cif
 
@@ -5276,6 +7192,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 190_troilite.cif
@@ -5287,6 +7207,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 191_mnb2.cif
@@ -5298,6 +7222,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 192_beryl.cif
@@ -5309,6 +7237,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 193_xifengite.cif
@@ -5320,6 +7252,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 194_graphite.cif
@@ -5331,6 +7267,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 195_c80h276cl10gd18n8o188.cif
@@ -5342,6 +7282,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 196_c32h35cdn9o6.cif
@@ -5353,6 +7297,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 197_sillenite.cif
@@ -5364,6 +7312,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 198_brownleeite.cif
@@ -5375,6 +7327,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 199_corderoite.cif
@@ -5386,6 +7342,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 200_na2cd11.cif
@@ -5397,6 +7357,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 201b_ksbo3.cif
@@ -5408,6 +7372,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 202_buckminsterfullerene.cif
@@ -5419,6 +7387,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 203a_tychite.cif
@@ -5430,6 +7402,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 203b_tychite.cif
@@ -5441,6 +7417,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 204_kieftite.cif
@@ -5452,6 +7432,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 205_pyrite.cif
@@ -5463,6 +7447,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 206_mcalpineite.cif
@@ -5474,6 +7462,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 207_palladseite.cif
@@ -5485,6 +7477,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 208_na11u5o16.cif
@@ -5496,6 +7492,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 209_mof-boracite.cif
@@ -5507,6 +7507,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 210_mg-dodecaborate.cif
@@ -5518,6 +7522,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 211_mof-c48h82k2o42.cif
@@ -5529,6 +7537,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 212_ga5lio8.cif
@@ -5540,7 +7552,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 213_uytenbogaardtite.cif
 
@@ -5551,7 +7567,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 214_petzite.cif
 
@@ -5562,6 +7582,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 215_sulvanite.cif
@@ -5573,6 +7597,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 216_sphalerite.cif
@@ -5584,6 +7612,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 217_manganese.cif
@@ -5595,6 +7627,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 218_ag3po4.cif
@@ -5606,6 +7642,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 219_high-boracite.cif
@@ -5617,6 +7657,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 220_domeykite.cif
@@ -5628,6 +7672,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 221_cscl.cif
@@ -5639,6 +7687,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 222a_fec4o6h4.cif
@@ -5650,6 +7702,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 222b_fec4o6h4.cif
@@ -5661,6 +7717,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 223_pt3o4.cif
@@ -5672,6 +7732,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 224a_cuprite.cif
@@ -5683,7 +7747,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 224b_cuprite.cif
 
@@ -5694,7 +7762,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 1.110223E-16
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 225_mgo.cif
 
@@ -5705,6 +7777,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 226_ube13.cif
@@ -5716,6 +7792,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 227a_diamond.cif
@@ -5727,6 +7807,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 1.110223E-16
 
 * WRITE cif file: 227b_diamond.cif
@@ -5738,6 +7822,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 228a_telluricacid.cif
@@ -5749,7 +7837,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 228b_telluricacid.cif
 
@@ -5760,7 +7852,11 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
-+ DIFF = 0.000000E+00
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 229_li.cif
 
@@ -5771,6 +7867,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 
 * WRITE cif file: 230_pyrope.cif
@@ -5782,5 +7882,9 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 2.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 2.
+  ... finished comparing patterns
 + DIFF = 0.000000E+00
 

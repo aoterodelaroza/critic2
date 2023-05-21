@@ -11,6 +11,10 @@
 # Please cite:
 #   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
+  ... calculating pattern 1 of 6.
+  ... finished calculating patterns
+  ... comparing pattern 1 of 6.
+  ... finished comparing patterns
    Molecule     neopentane (library) 019_compare_molecules_gen.xyz ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk 
      DIFF              1               2               3               4               5        
   neopentane (library)  0.0000000       0.0000000       0.1028311       0.1028311       0.1028311      
