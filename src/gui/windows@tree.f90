@@ -333,7 +333,7 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nneq)
 
-       str = "ncel##0" // c_null_char
+       str = "nat/ncel##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_ncel)
 
