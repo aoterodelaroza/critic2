@@ -3493,8 +3493,9 @@ contains
     use systemmod, only: system
     use global, only: iunit, iunit_bohr, iunit_ang, iunitname0, dunit0, &
        eval_next
-    use tools_io, only: lgetword, getword, getline, equal, ferror, &
-       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read
+    use tools_io, only: lgetword, getword, getline, equal, ferror,&
+       faterr, uin, ucopy, uout, string, ioj_left, ioj_center, fopen_read,&
+       lower
     use param, only: bohrtoa
     use types, only: realloc
     type(system), intent(in) :: s
@@ -3502,7 +3503,7 @@ contains
     integer, intent(inout) :: lp
 
     logical :: ok
-    character(len=:), allocatable :: line, word
+    character(len=:), allocatable :: line, word, lword
     real*8 :: x0(3), xmin(3), xmax(3), x0out(3)
     real*8, allocatable :: pointlist(:,:)
     integer :: i, j, n, idx
@@ -3528,14 +3529,15 @@ contains
 
     ! parse the first word
     doenv = .true.
-    word = lgetword(line0,lp)
-    if (equal(word,'angstrom') .or.equal(word,'ang')) then
+    word = getword(line0,lp)
+    lword = lower(word)
+    if (equal(lword,'angstrom') .or.equal(lword,'ang')) then
        ldunit = unit_ang
-    elseif (equal(word,'bohr') .or.equal(word,'au')) then
+    elseif (equal(lword,'bohr') .or.equal(lword,'au')) then
        ldunit = unit_au
-    elseif (equal(word,'cryst')) then
+    elseif (equal(lword,'cryst')) then
        ldunit = unit_x
-    elseif (len_trim(word) > 0) then
+    elseif (len_trim(lword) > 0) then
        doenv = .false.
     endif
 
@@ -3543,8 +3545,9 @@ contains
     allocate(pointlist(3,10))
     n = 0
     if (doenv) then
-       word = lgetword(line0,lp)
-       if (len_trim(word) > 0) then
+       word = getword(line0,lp)
+       lword = lower(word)
+       if (len_trim(lword) > 0) then
           call ferror('struct_identify','Unkwnon extra keyword',faterr,line0,syntax=.true.)
           return
        end if
@@ -3552,24 +3555,24 @@ contains
        lp = 1
        ok = getline(uin,line,ucopy=ucopy)
        if (ok) then
-          word = lgetword(line,lp)
+          lword = lgetword(line,lp)
        else
-          word = ""
+          lword = ""
           lp = 1
        end if
-       do while (ok.and..not.equal(word,'endidentify').and..not.equal(word,'end'))
+       do while (ok.and..not.equal(lword,'endidentify').and..not.equal(lword,'end'))
           lp = 1
           ok = eval_next (x0(1), line, lp)
           ok = ok .and. eval_next (x0(2), line, lp)
           ok = ok .and. eval_next (x0(3), line, lp)
           if (ok) then
              ! this is a point, parse the last word
-             word = lgetword(line,lp)
-             if (equal(word,'angstrom') .or.equal(word,'ang')) then
+             lword = lgetword(line,lp)
+             if (equal(lword,'angstrom') .or.equal(lword,'ang')) then
                 unit = unit_ang
-             elseif (equal(word,'bohr') .or.equal(word,'au')) then
+             elseif (equal(lword,'bohr') .or.equal(lword,'au')) then
                 unit = unit_au
-             elseif (equal(word,'cryst')) then
+             elseif (equal(lword,'cryst')) then
                 unit = unit_x
              else
                 unit = ldunit
@@ -3594,14 +3597,14 @@ contains
           lp = 1
           ok = getline(uin,line,ucopy=ucopy)
           if (ok) then
-             word = lgetword(line,lp)
+             lword = lgetword(line,lp)
           else
              line = ""
              lp = 1
           end if
        enddo
-       word = lgetword(line,lp)
-       if (len_trim(word) > 0) then
+       lword = lgetword(line,lp)
+       if (len_trim(lword) > 0) then
           call ferror('struct_identify','Unkwnon extra keyword',faterr,line,syntax=.true.)
           return
        end if
