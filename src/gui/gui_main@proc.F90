@@ -875,7 +875,7 @@ contains
           call igSeparator()
 
           ! Windows -> Alternate view
-          str1 = "Alternate view" // c_null_char
+          str1 = "New Alternate View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
              idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
           call iw_tooltip("Open a new view window in addition to the main view",ttshown)
