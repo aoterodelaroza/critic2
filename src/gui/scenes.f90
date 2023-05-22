@@ -65,6 +65,7 @@ module scenes
 
   !> Representation: objects to draw on the scene
   type representation
+     ! main variables
      logical :: isinit = .false. ! whether the representation has been initialized
      logical(c_bool) :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
@@ -73,6 +74,7 @@ module scenes
      integer :: idwin = 0 ! edit representation window ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
+     type(scene), pointer :: sc ! pointer to the parent scene
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
@@ -248,8 +250,9 @@ module scenes
        integer, intent(in) :: idx(4)
      end subroutine select_atom
      ! representation
-     module subroutine representation_init(r,isys,irep,itype,style)
+     module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r
+       type(scene), intent(inout), target :: sc
        integer, intent(in) :: isys
        integer, intent(in) :: irep
        integer, intent(in) :: itype

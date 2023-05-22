@@ -125,7 +125,7 @@ contains
 
     ! scene menu
     str1="##viewscenebutton" // c_null_char
-    if (iw_button("Scene")) then
+    if (iw_button("Scene",disabled=.not.associated(w%sc))) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (associated(w%sc)) then
@@ -436,7 +436,7 @@ contains
 
     ! gear menu
     str1="##viewgear" // c_null_char
-    if (iw_button("Reps",sameline=.true.)) then
+    if (iw_button("Reps",sameline=.true.,disabled=.not.associated(w%sc))) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (associated(w%sc)) then
@@ -451,7 +451,7 @@ contains
              str2 = "Atoms" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
-                call w%sc%rep(id)%init(w%view_selected,id,reptype_atoms,w%sc%style)
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style)
                 chbuild = .true.
              end if
              call iw_tooltip("Represent atoms, and also perhaps bonds, and labels in the scene",ttshown)
@@ -460,7 +460,7 @@ contains
                 str2 = "Unit Cell" // c_null_char
                 if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                    id = w%sc%get_new_representation_id()
-                   call w%sc%rep(id)%init(w%view_selected,id,reptype_unitcell,w%sc%style)
+                   call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_unitcell,w%sc%style)
                    chbuild = .true.
                 end if
                 call iw_tooltip("Represent the unit cell",ttshown)
@@ -515,7 +515,7 @@ contains
     end if
 
     ! export image
-    if (iw_button("Export",sameline=.true.)) then
+    if (iw_button("Export",disabled=.not.associated(w%sc),sameline=.true.)) then
        if (w%idexportwin == 0) then
           w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
        else
@@ -526,7 +526,8 @@ contains
 
     ! camera lock
     if (w%ismain) then
-       ldum = iw_button("Cam-Lock",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       ldum = iw_button("Cam-Lock",disabled=.not.associated(w%sc),sameline=.true.,&
+          popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
        if (ok) then
           str2 = "Lock All" // c_null_char
           if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==2,c_bool),.true._c_bool)) then
@@ -1385,6 +1386,7 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = .not.associated(w%rep%sc)
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
@@ -1422,6 +1424,7 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = .not.associated(w%rep%sc)
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
@@ -1481,7 +1484,7 @@ contains
           str2 = w%rep%name
           itype = w%rep%type
           lshown = w%rep%shown
-          call w%rep%init(w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
+          call w%rep%init(w%rep%sc,w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
           w%rep%name = str2
           w%rep%shown = lshown
           win(w%idparent)%sc%forcebuildlists = .true.
@@ -2212,7 +2215,12 @@ contains
 
     ! initialize
     doquit = .false.
-    isys = win(w%idparent)%view_selected
+    if (associated(win(w%idparent)%sc)) then
+       isys = win(w%idparent)%sc%id
+    else
+       isys = win(w%idparent)%view_selected
+       doquit = .true.
+    end if
 
     ! check if we have info from the save image file window when it
     ! closes and recover it
@@ -2333,14 +2341,16 @@ contains
        call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
        call glViewport(0_c_int,0_c_int,w%npixel,w%npixel)
        if (w%transparentbg) then
-          call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),0._c_float)
+          call glClearColor(win(w%idparent)%sc%bgcolor(1),win(w%idparent)%sc%bgcolor(2),&
+             win(w%idparent)%sc%bgcolor(3),0._c_float)
        else
-          call glClearColor(sysc(isys)%sc%bgcolor(1),sysc(isys)%sc%bgcolor(2),sysc(isys)%sc%bgcolor(3),1._c_float)
+          call glClearColor(win(w%idparent)%sc%bgcolor(1),win(w%idparent)%sc%bgcolor(2),&
+             win(w%idparent)%sc%bgcolor(3),1._c_float)
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        goodsys = (isys >= 1 .and. isys <= nsys)
        if (goodsys) goodsys = (sysc(isys)%status == sys_init)
-       if (goodsys) call sysc(isys)%sc%render()
+       if (goodsys) call win(w%idparent)%sc%render()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
        ! blit the multisampled buffer to the normal colorbuffer

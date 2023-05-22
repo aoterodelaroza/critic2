@@ -82,12 +82,12 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s%id,s%nrep,reptype_atoms,s%style)
+    call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_atoms,s%style)
 
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init(s%id,s%nrep,reptype_unitcell,s%style)
+       call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_unitcell,s%style)
     end if
 
     ! reset the camera later
@@ -634,7 +634,7 @@ contains
     use interfaces_cimgui
     use utils, only: iw_text, iw_tooltip, iw_button
     use windows, only: win, stack_create_window, wintype_editrep, update_window_id
-    use gui_main, only: ColorDangerButton, g, sysc
+    use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
     use tools, only: mergesort
     class(scene), intent(inout), target :: s
@@ -720,12 +720,12 @@ contains
              ! duplicate
              str2 = "Duplicate" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                id = sysc(s%id)%sc%get_new_representation_id()
-                sysc(s%id)%sc%rep(id) = s%rep(i)
-                sysc(s%id)%sc%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
+                id = s%get_new_representation_id()
+                s%rep(id) = s%rep(i)
+                s%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
                 s%icount(s%rep(i)%type) = s%icount(s%rep(i)%type) + 1
                 s%icount(0) = s%icount(0) + 1
-                sysc(s%id)%sc%rep(id)%iord = s%icount(0)
+                s%rep(id)%iord = s%icount(0)
                 s%forcesort = .true.
                 changed = .true.
              end if
@@ -935,11 +935,14 @@ contains
 
   !> Initialize a representation. If itype is present and not _none,
   !> fill the representation with the default values for the
-  !> corresponding type and set isinit = .true. and shown = .true.
-  module subroutine representation_init(r,isys,irep,itype,style)
-    use gui_main, only: sys, sysc
+  !> corresponding type and set isinit = .true. and shown = .true.  sc
+  !> = parent scene, isys = system ID, irep = representation ID, style
+  !> = phong or simple.
+  module subroutine representation_init(r,sc,isys,irep,itype,style)
+    use gui_main, only: sys
     use tools_io, only: string
     class(representation), intent(inout), target :: r
+    type(scene), intent(inout), target :: sc
     integer, intent(in) :: isys
     integer, intent(in) :: irep
     integer, intent(in) :: itype
@@ -949,6 +952,7 @@ contains
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
+    r%sc => sc
     r%id = isys
     r%idrep = irep
     r%idwin = 0
@@ -1015,15 +1019,15 @@ contains
     end if
 
     ! increment type counter and set name
-    sysc(isys)%sc%icount(itype) = sysc(isys)%sc%icount(itype) + 1
-    if (sysc(isys)%sc%icount(itype) > 1) then
-       r%name = trim(r%name) // " " // string(sysc(isys)%sc%icount(itype))
+    sc%icount(itype) = sc%icount(itype) + 1
+    if (sc%icount(itype) > 1) then
+       r%name = trim(r%name) // " " // string(sc%icount(itype))
     end if
 
     ! increment global counter and force sort of the parent scene
-    sysc(isys)%sc%icount(0) = sysc(isys)%sc%icount(0) + 1
-    r%iord = sysc(isys)%sc%icount(0)
-    sysc(isys)%sc%forcesort = .true.
+    sc%icount(0) = sc%icount(0) + 1
+    r%iord = sc%icount(0)
+    sc%forcesort = .true.
 
     ! initialize the styles
     call r%reset_atom_style()

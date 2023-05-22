@@ -207,7 +207,7 @@ contains
        if (.not.present(idcaller)) &
           call ferror('window_init','editrep requires idcaller',faterr)
        w%isys = isys
-       w%rep => sysc(isys)%sc%rep(irep)
+       w%rep => win(idcaller)%sc%rep(irep)
        w%idparent = idcaller
     elseif (type == wintype_exportimage) then
        ! export image window

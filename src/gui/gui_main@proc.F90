@@ -811,6 +811,9 @@ contains
           launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_open))
           call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
 
+          ! File -> Separator
+          call igSeparator()
+
           ! File -> Quit
           str1 = "Quit" // c_null_char
           str2 = trim(get_bind_keyname(BIND_QUIT)) // c_null_char
