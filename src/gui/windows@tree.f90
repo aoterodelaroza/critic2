@@ -89,6 +89,9 @@ contains
     integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
     integer(c_int), save :: idplot = 0 ! ID of the plot window
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
+    real*8, save :: timelastupdate = 0d0
+    real*8, save :: timelastresize = 0d0
+    real*8, save :: timelastsort = 0d0
 
     ! initialize
     hadenabledcolumn = .false.
@@ -100,7 +103,17 @@ contains
        w%table_sortdir = 1
        w%table_selected = 1
        w%forceupdate = .true.
+       timelastupdate = 0d0
+       timelastresize = 0d0
+       timelastsort = 0d0
     end if
+
+    ! check for updates in systems
+    do i = 1, nsys
+       if (timelastupdate < sysc(i)%timelastchange) w%forceupdate = .true.
+       if (timelastresize < sysc(i)%timelastchange) w%forceresize = .true.
+       if (timelastsort < sysc(i)%timelastchange) w%forcesort = .true.
+    end do
 
     ! update the window ID for the load field dialog
     call update_window_id(idloadfield)
@@ -254,8 +267,14 @@ contains
        ! restart initialization if the threads were killed
        if (reinit) w%forceinit = .true.
     end if
-    if (w%forceupdate) call w%update_tree()
-    if (w%forcesort) call w%sort_tree(w%table_sortcid,w%table_sortdir)
+    if (w%forceupdate) then
+       call w%update_tree()
+       timelastupdate = time
+    end if
+    if (w%forcesort) then
+       call w%sort_tree(w%table_sortcid,w%table_sortdir)
+       timelastsort = time
+    end if
     if (w%forceinit) then
        call kill_initialization_thread()
        call launch_initialization_thread()
@@ -292,6 +311,7 @@ contains
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
           w%forceresize = .false.
+          timelastresize = time
        end if
 
        ! set up the columns

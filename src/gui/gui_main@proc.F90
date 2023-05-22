@@ -656,10 +656,6 @@ contains
     end do
     deallocate(id)
 
-    ! update the tree
-    if (iwin_tree > 0 .and. iwin_tree <= nwin) &
-       win(iwin_tree)%forceupdate = .true.
-
   end subroutine add_systems_from_seeds
 
   ! Remove system with index idx and leave behind a sys_empty spot. If
@@ -988,12 +984,6 @@ contains
                 ! this system has been initialized
                 sysc(i)%status = sys_init
                 sysc(i)%timelastchange = time
-
-                ! force resize and sort of table columns (no lock needed for this)
-                if (iwin_tree > 0 .and. iwin_tree <= nwin) then
-                   win(iwin_tree)%forceresize = .true.
-                   win(iwin_tree)%forcesort = .true.
-                end if
              end if
 
 #ifdef _THREADS
