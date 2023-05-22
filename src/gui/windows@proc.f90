@@ -466,7 +466,7 @@ contains
           inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
-          w%name = "Preferences...##" // string(w%id)  // c_null_char
+          w%name = "Preferences##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 65 * fontsize%x
           inisize%y = 19 * fontsize%y
