@@ -61,7 +61,7 @@ contains
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
     logical(c_bool) :: isatom, isbond, islabels, isuc, ch
-    integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype
+    integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
 
@@ -568,6 +568,16 @@ contains
        end if
        call iw_tooltip("Lock the camera position and orientation for multiple systems",ttshown)
     end if
+
+    ! the button for new alternate view
+    if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
+       idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
+       win(idum)%sc = w%sc
+       do i = 1, win(idum)%sc%nrep
+          win(idum)%sc%rep(i)%idwin = 0
+       end do
+    end if
+    call iw_tooltip("Create a new view for the current scene",ttshown)
 
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
