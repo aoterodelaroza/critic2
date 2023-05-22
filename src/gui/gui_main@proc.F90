@@ -931,7 +931,6 @@ contains
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
-    use windows, only: nwin, win, iwin_tree, iwin_view
     use tools_io, only: string, uout
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker

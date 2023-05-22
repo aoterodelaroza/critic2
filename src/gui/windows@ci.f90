@@ -166,7 +166,6 @@ contains
 
   !> Run the commands from the console input
   module subroutine run_commands_ci(w)
-    use windows, only: iwin_view, win
     use systemmod, only: sy
     use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
        sysc, sys_init, nsys, sys, time
