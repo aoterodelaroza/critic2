@@ -866,7 +866,7 @@ contains
 
       integer :: k, idx
       real(c_float) :: pos
-      integer(c_int) :: flags, ll, isyscollapse
+      integer(c_int) :: flags, ll, isyscollapse, idum
       logical(c_bool) :: selected, enabled
       logical :: ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
@@ -934,6 +934,18 @@ contains
             w%table_selected = isys
          end if
          call iw_tooltip("Set this system as current",ttshown)
+
+         ! set as current system option
+         strpop = "Display in New View" // c_null_char
+         enabled = (sysc(isys)%status == sys_init)
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
+            win(idum)%sc = sysc(isys)%sc
+            do i = 1, win(idum)%sc%nrep
+               win(idum)%sc%rep(i)%idwin = 0
+            end do
+         end if
+         call iw_tooltip("Display this system in a new alternate view window",ttshown)
 
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
