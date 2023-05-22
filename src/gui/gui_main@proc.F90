@@ -749,7 +749,8 @@ contains
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
-       wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate
+       wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate,&
+       wintype_about
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -902,7 +903,7 @@ contains
              if (win(iwin_about)%isopen) then
                 call igSetWindowFocus_Str(c_loc(win(iwin_about)%name))
              else
-                win(iwin_about)%isopen = .true.
+                call win(iwin_about)%init(wintype_about,.true.,iwin_about)
              end if
           end if
 

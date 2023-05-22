@@ -296,7 +296,11 @@ contains
     type(ImVec2) :: inisize
 
     if (.not.w%isinit) return
-    if (.not.w%isopen) return
+    if (.not.w%isopen) then
+       ! the window may have been closed in imgui (x button)
+       call w%end()
+       return
+    end if
 
     ! First pass on creation: assign ID, name, and flags
     if (w%id < 0) then

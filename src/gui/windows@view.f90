@@ -766,6 +766,26 @@ contains
        end if
     end if
 
+    ! ! exit if focused and received the close keybinding, or if forced by some other window
+    ! if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. &
+    !    is_bind_event(BIND_CLOSE_ALL_DIALOGS) .or. w%forcequitdialog) &
+    !    call IGFD_ForceQuit(w%dptr)
+
+    ! ! exit if focused and received the OK keybinding
+    ! if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) &
+    !    call IGFD_ForceOK(w%dptr)
+
+    ! ! exit if focused and received the close keybinding
+    ! if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+    !    is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
+    !    doquit = .true.
+
+    ! ! quit the window
+    ! if (doquit) then
+    !    call end_state()
+    !    call w%end()
+    ! end if
+
   end subroutine draw_view
 
   !> Create the texture for the view window, with atex x atex pixels.
