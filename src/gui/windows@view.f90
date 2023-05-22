@@ -41,9 +41,11 @@ contains
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_NAV_ROTATE, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
-       BIND_NAV_MEASURE, bindnames, get_bind_keyname
+       BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
+       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
-    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple
+    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
+       iw_setposx_fromend
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
@@ -766,25 +768,20 @@ contains
        end if
     end if
 
-    ! ! exit if focused and received the close keybinding, or if forced by some other window
-    ! if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. &
-    !    is_bind_event(BIND_CLOSE_ALL_DIALOGS) .or. w%forcequitdialog) &
-    !    call IGFD_ForceQuit(w%dptr)
+    ! right-align the rest of the contents
+    call igSameLine(0._c_float,0._c_float)
+    call iw_setposx_fromend(5,1)
 
-    ! ! exit if focused and received the OK keybinding
-    ! if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) &
-    !    call IGFD_ForceOK(w%dptr)
+    ! the close button
+    if (iw_button("Close",danger=.true.)) w%isopen = .false.
 
-    ! ! exit if focused and received the close keybinding
-    ! if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
-    !    is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
-    !    doquit = .true.
-
-    ! ! quit the window
-    ! if (doquit) then
-    !    call end_state()
-    !    call w%end()
-    ! end if
+    ! exit if focused and received the close keybinding
+    if (.not.w%ismain) then
+       if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+          is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
+          w%isopen = .false.
+       end if
+    end if
 
   end subroutine draw_view
 
