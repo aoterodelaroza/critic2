@@ -509,8 +509,9 @@ contains
 
     ! update the draw lists and render
     if (associated(w%sc)) then
-       if (chbuild) w%sc%forcebuildlists = .true.
-       if (chrender .or. w%sc%forcebuildlists) w%forcerender = .true.
+       if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange) w%sc%forcebuildlists = .true.
+       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange) &
+          w%forcerender = .true.
     end if
 
     ! export image
@@ -858,17 +859,17 @@ contains
     w%view_selected = isys
     if (w%ismain) then
        w%sc => sysc(w%view_selected)%sc
+
+       ! if the camera is locked, copy the camera parameters from the member
+       ! of the locking group who was rendered last
+       if (sysc(isys)%sc%lockedcam > 0) &
+          call sysc(isys)%sc%copy_cam(idx=sysc(isys)%sc%lockedcam)
     else
        if (.not.associated(w%sc)) allocate(w%sc)
        call w%sc%end()
        call w%sc%init(w%view_selected)
     end if
     w%forcerender = .true.
-
-    ! if the camera is locked, copy the camera parameters from the member
-    ! of the locking group who was rendered last
-    if (sysc(isys)%sc%lockedcam > 0) &
-       call sysc(isys)%sc%copy_cam(idx=sysc(isys)%sc%lockedcam)
 
   end subroutine select_view
 

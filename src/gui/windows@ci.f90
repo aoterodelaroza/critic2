@@ -169,7 +169,7 @@ contains
     use windows, only: iwin_view, win
     use systemmod, only: sy
     use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
-       sysc, sys_init, nsys, sys
+       sysc, sys_init, nsys, sys, time
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
     use iso_fortran_env, only: input_unit
@@ -209,11 +209,8 @@ contains
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
 
-    ! rebuild lists and render if necessary
-    if (sysc(w%inpcon_selected)%sc%isinit > 0) &
-       call sysc(w%inpcon_selected)%sc%build_lists()
-    if (win(iwin_view)%view_selected == w%inpcon_selected) &
-       win(iwin_view)%forcerender = .true.
+    ! set the time to rebuild lists
+    sysc(w%inpcon_selected)%timelastchange = time
 
     ! clean up
     call fclose(uin)

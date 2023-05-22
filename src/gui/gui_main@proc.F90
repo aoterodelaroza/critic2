@@ -650,6 +650,9 @@ contains
 
        ! set the iafield
        if (iseed == iafield_) sysc(idx)%has_field = .true.
+
+       ! set the time
+       sysc(idx)%timelastchange = time
     end do
     deallocate(id)
 
@@ -681,6 +684,7 @@ contains
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
+    sysc(idx)%timelastchange = time
 
     if (sysc(idx)%collapse == -1) then
        ! kill all dependents if collapsed
@@ -983,18 +987,12 @@ contains
 
                 ! this system has been initialized
                 sysc(i)%status = sys_init
+                sysc(i)%timelastchange = time
 
                 ! force resize and sort of table columns (no lock needed for this)
                 if (iwin_tree > 0 .and. iwin_tree <= nwin) then
                    win(iwin_tree)%forceresize = .true.
                    win(iwin_tree)%forcesort = .true.
-                end if
-
-                ! force render, if this system is selected
-                if (iwin_view > 0 .and. iwin_view <= nwin) then
-                   if (win(iwin_view)%view_selected == i) then
-                      win(iwin_view)%forcerender = .true.
-                   end if
                 end if
              end if
 

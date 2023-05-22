@@ -176,7 +176,6 @@ contains
     w%forcequitdialog = .false.
     w%plotn = 0
     w%idsave = 0
-    w%timelastupdate = 0d0
 
     ! type-specific initialization
     if (type == wintype_dialog) then
