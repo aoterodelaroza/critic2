@@ -850,11 +850,11 @@ contains
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
           call iw_tooltip("Toggle the tree window",ttshown)
 
-          ! Windows -> View
-          str1 = "View" // c_null_char
+          ! Windows -> Main View
+          str1 = "Main View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
-          call iw_tooltip("Toggle the view window",ttshown)
+          call iw_tooltip("Toggle the main view window",ttshown)
 
           ! Windows -> Input Console
           str1 = "Input Console" // c_null_char
@@ -868,12 +868,14 @@ contains
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the output console window",ttshown)
 
-          ! xxxx
+          ! Windows -> Separator
+          call igSeparator()
+
+          ! Windows -> Alternate view
           str1 = "Alternate view" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
              idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
-
-          call iw_tooltip("Toggle the output console window",ttshown)
+          call iw_tooltip("Open a new view window in addition to the main view",ttshown)
 
           call igEndMenu()
        else

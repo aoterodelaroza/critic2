@@ -306,8 +306,15 @@ contains
           w%name = "Tree##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_view) then
-          w%name = "View##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
+          if (w%ismain) then
+             w%name = "Main View##" // string(w%id)  // c_null_char
+          else
+             w%name = "Alternate View##" // string(w%id)  // c_null_char
+             inisize%x = 90 * fontsize%x
+             inisize%y = 30 * fontsize%y
+             call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          end if
        elseif (w%type == wintype_console_input) then
           w%name = "Input Console##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
