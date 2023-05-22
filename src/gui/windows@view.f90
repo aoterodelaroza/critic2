@@ -86,9 +86,22 @@ contains
     goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
     if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
     if (goodsys) then
-       if (.not.associated(w%sc)) w%sc => sysc(w%view_selected)%sc
+       if (w%ismain) then
+          if (.not.associated(w%sc)) w%sc => sysc(w%view_selected)%sc
+       else
+          if (.not.associated(w%sc)) allocate(w%sc)
+          if (w%sc%isinit == 0) call w%sc%init(w%view_selected)
+       end if
     else
-       nullify(w%sc)
+       if (w%ismain) then
+          nullify(w%sc)
+       else
+          if (associated(w%sc)) then
+             call w%sc%end()
+             deallocate(w%sc)
+          end if
+          w%forcerender = .true.
+       end if
     end if
 
     ! flags for shortcuts
@@ -511,44 +524,46 @@ contains
     call iw_tooltip("Export the current scene to an image file",ttshown)
 
     ! camera lock
-    ldum = iw_button("Cam-Lock",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
-    if (ok) then
-       str2 = "Lock All" // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==2,c_bool),.true._c_bool)) then
-          lockbehavior = 2
-          do k = 1, nsys
-             sysc(k)%sc%lockedcam = 1
-          end do
-       end if
-       call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
+    if (w%ismain) then
+       ldum = iw_button("Cam-Lock",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       if (ok) then
+          str2 = "Lock All" // c_null_char
+          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==2,c_bool),.true._c_bool)) then
+             lockbehavior = 2
+             do k = 1, nsys
+                sysc(k)%sc%lockedcam = 1
+             end do
+          end if
+          call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
 
-       str2 = "Lock SCF Iterations Only" // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==1,c_bool),.true._c_bool)) then
-          lockbehavior = 1
-          do k = 1, nsys
-             if (sysc(k)%collapse < 0) then
-                sysc(k)%sc%lockedcam = k
-             elseif (sysc(k)%collapse > 0) then
-                sysc(k)%sc%lockedcam = sysc(k)%collapse
-             else
+          str2 = "Lock SCF Iterations Only" // c_null_char
+          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==1,c_bool),.true._c_bool)) then
+             lockbehavior = 1
+             do k = 1, nsys
+                if (sysc(k)%collapse < 0) then
+                   sysc(k)%sc%lockedcam = k
+                elseif (sysc(k)%collapse > 0) then
+                   sysc(k)%sc%lockedcam = sysc(k)%collapse
+                else
+                   sysc(k)%sc%lockedcam = 0
+                end if
+             end do
+          end if
+          call iw_tooltip("Lock the camera position only for SCF iterations of the same system",ttshown)
+
+          str2 = "Unlock All" // c_null_char
+          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==0,c_bool),.true._c_bool)) then
+             lockbehavior = 0
+             do k = 1, nsys
                 sysc(k)%sc%lockedcam = 0
-             end if
-          end do
-       end if
-       call iw_tooltip("Lock the camera position only for SCF iterations of the same system",ttshown)
+             end do
+          end if
+          call iw_tooltip("Do not lock the camera position for any system",ttshown)
 
-       str2 = "Unlock All" // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==0,c_bool),.true._c_bool)) then
-          lockbehavior = 0
-          do k = 1, nsys
-             sysc(k)%sc%lockedcam = 0
-          end do
+          call igEndPopup()
        end if
-       call iw_tooltip("Do not lock the camera position for any system",ttshown)
-
-       call igEndPopup()
+       call iw_tooltip("Lock the camera position and orientation for multiple systems",ttshown)
     end if
-    call iw_tooltip("Lock the camera position and orientation for multiple systems",ttshown)
 
     ! the selected system combo
     call igSameLine(0._c_float,-1._c_float)
@@ -841,7 +856,13 @@ contains
     if (isys < 1 .or. isys > nsys) return
     if (w%view_selected == isys) return
     w%view_selected = isys
-    w%sc => sysc(w%view_selected)%sc
+    if (w%ismain) then
+       w%sc => sysc(w%view_selected)%sc
+    else
+       if (.not.associated(w%sc)) allocate(w%sc)
+       call w%sc%end()
+       call w%sc%init(w%view_selected)
+    end if
     w%forcerender = .true.
 
     ! if the camera is locked, copy the camera parameters from the member
@@ -869,22 +890,25 @@ contains
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
     real(c_float) :: mpos2(2), ang, xc(3)
 
-    integer, parameter :: ilock_no = 1
-    integer, parameter :: ilock_left = 2
-    integer, parameter :: ilock_right = 3
-    integer, parameter :: ilock_scroll = 4
+    integer, parameter :: ilock_no = 0
+    integer, parameter :: ilock_left = 1
+    integer, parameter :: ilock_right = 2
+    integer, parameter :: ilock_scroll = 3
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
 
-    type(ImVec2), save :: mposlast
-    real(c_float), save :: mpos0_r(3), mpos0_l(3), cpos0_l(3)
-    real(c_float), save :: oldview(4,4)
-    real(c_float), save :: mpos0_s
-    integer, save :: ilock = ilock_no
-
     ! first pass when opened, reset the state
-    if (w%firstpass) call init_state()
+    if (w%firstpass) then
+       w%mposlast%x = 0._c_float
+       w%mposlast%y = 0._c_float
+       w%mpos0_r = 0._c_float
+       w%mpos0_l = 0._c_float
+       w%oldview = 0._c_float
+       w%cpos0_l = 0._c_float
+       w%mpos0_s = 0._c_float
+       w%ilock = ilock_no
+    end if
 
     ! only process if there is an associated system is viewed and scene is initialized
     if (w%view_selected < 1 .or. w%view_selected > nsys) return
@@ -902,22 +926,22 @@ contains
        ! Zoom. There are two behaviors: mouse scroll and hold key and
        ! translate mouse
        ratio = 0._c_float
-       if (hover.and.(ilock == ilock_no .or. ilock == ilock_scroll).and. is_bind_event(BIND_NAV_ZOOM,.false.)) then
+       if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(BIND_NAV_ZOOM,.false.)) then
           if (is_bind_mousescroll(BIND_NAV_ZOOM)) then
              ! mouse scroll
              ratio = mousesens_zoom0 * io%MouseWheel
           else
              ! keys
-             mpos0_s = mousepos%y
-             ilock = ilock_scroll
+             w%mpos0_s = mousepos%y
+             w%ilock = ilock_scroll
           end if
-       elseif (ilock == ilock_scroll) then
+       elseif (w%ilock == ilock_scroll) then
           if (is_bind_event(BIND_NAV_ZOOM,.true.)) then
              ! 10/a to make it adimensional
-             ratio = mousesens_zoom0 * (mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
-             mpos0_s = mousepos%y
+             ratio = mousesens_zoom0 * (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
+             w%mpos0_s = mousepos%y
           else
-             ilock = ilock_no
+             w%ilock = ilock_no
           end if
        end if
        if (ratio /= 0._c_float) then
@@ -938,54 +962,54 @@ contains
        end if
 
        ! drag
-       if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_right)) then
-          mpos0_r = (/texpos%x,texpos%y,1._c_float/)
+       if (hover .and. is_bind_event(BIND_NAV_TRANSLATE,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_right)) then
+          w%mpos0_r = (/texpos%x,texpos%y,1._c_float/)
 
           ! save the current view matrix
-          oldview = w%sc%view
+          w%oldview = w%sc%view
 
-          ilock = ilock_right
-          mposlast = mousepos
-       elseif (ilock == ilock_right) then
+          w%ilock = ilock_right
+          w%mposlast = mousepos
+       elseif (w%ilock == ilock_right) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
           if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
-             if (mousepos%x /= mposlast%x .or. mousepos%y /= mposlast%y) then
-                vnew = (/texpos%x,texpos%y,mpos0_r(3)/)
+             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+                vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
                 call w%texpos_to_view(vnew)
-                vold = mpos0_r
+                vold = w%mpos0_r
                 call w%texpos_to_view(vold)
 
                 xc = vold - vnew
-                call invmult(xc,oldview)
+                call invmult(xc,w%oldview)
                 w%sc%campos = xc
                 call w%sc%update_view_matrix()
                 w%forcerender = .true.
              end if
           else
-             ilock = ilock_no
+             w%ilock = ilock_no
           end if
        end if
 
        ! rotate
-       if (hover .and. is_bind_event(BIND_NAV_ROTATE,.false.) .and. (ilock == ilock_no .or. ilock == ilock_left)) then
-          mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-          cpos0_l = mpos0_l
-          call w%texpos_to_view(cpos0_l)
-          ilock = ilock_left
-       elseif (ilock == ilock_left) then
+       if (hover .and. is_bind_event(BIND_NAV_ROTATE,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
+          w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
+          w%cpos0_l = w%mpos0_l
+          call w%texpos_to_view(w%cpos0_l)
+          w%ilock = ilock_left
+       elseif (w%ilock == ilock_left) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
           if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
-             if (texpos%x /= mpos0_l(1) .or. texpos%y /= mpos0_l(2)) then
-                vnew = (/texpos%x,texpos%y,mpos0_l(3)/)
+             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
+                vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
                 call w%texpos_to_view(vnew)
                 pos3 = (/0._c_float,0._c_float,1._c_float/)
-                axis = cross_cfloat(pos3,vnew - cpos0_l)
+                axis = cross_cfloat(pos3,vnew - w%cpos0_l)
                 lax = norm2(axis)
                 if (lax > 1e-10_c_float) then
                    axis = axis / lax
                    call invmult(axis,w%sc%world,notrans=.true.)
-                   mpos2(1) = texpos%x - mpos0_l(1)
-                   mpos2(2) = texpos%y - mpos0_l(2)
+                   mpos2(1) = texpos%x - w%mpos0_l(1)
+                   mpos2(2) = texpos%y - w%mpos0_l(2)
                    ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
                    call translate(w%sc%world,w%sc%scenecenter)
                    call rotate(w%sc%world,ang,axis)
@@ -993,12 +1017,12 @@ contains
 
                    w%forcerender = .true.
                 end if
-                mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-                cpos0_l = mpos0_l
-                call w%texpos_to_view(cpos0_l)
+                w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
+                w%cpos0_l = w%mpos0_l
+                call w%texpos_to_view(w%cpos0_l)
              end if
           else
-             ilock = ilock_no
+             w%ilock = ilock_no
           end if
        end if
 
@@ -1018,19 +1042,6 @@ contains
           w%forcerender = .true.
        end if
     end if
-
-  contains
-    ! initialize the state for this window
-    subroutine init_state()
-      mposlast%x = 0._c_float
-      mposlast%y = 0._c_float
-      mpos0_r = 0._c_float
-      mpos0_l = 0._c_float
-      oldview = 0._c_float
-      cpos0_l = 0._c_float
-      mpos0_s = 0._c_float
-      ilock = ilock_no
-    end subroutine init_state
 
   end subroutine process_events_view
 
@@ -1301,13 +1312,10 @@ contains
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
-    type(scene), pointer :: sc
-
     if (.not.associated(w%sc)) return
-    sc => w%sc
-    if (sc%isinit < 2) return
+    if (w%sc%isinit < 2) return
 
-    call project(pos,eye4,sc%projection,w%FBOside)
+    call project(pos,eye4,w%sc%projection,w%FBOside)
 
   end subroutine view_to_texpos
 
@@ -1320,13 +1328,10 @@ contains
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
-    type(scene), pointer :: sc
-
     if (.not.associated(w%sc)) return
-    sc => w%sc
-    if (sc%isinit < 2) return
+    if (w%sc%isinit < 2) return
 
-    call unproject(pos,eye4,sc%projection,w%FBOside)
+    call unproject(pos,eye4,w%sc%projection,w%FBOside)
 
   end subroutine texpos_to_view
 
@@ -1339,13 +1344,10 @@ contains
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
-    type(scene), pointer :: sc
-
     if (.not.associated(w%sc)) return
-    sc => w%sc
-    if (sc%isinit < 2) return
+    if (w%sc%isinit < 2) return
 
-    call project(pos,sc%view,sc%projection,w%FBOside)
+    call project(pos,w%sc%view,w%sc%projection,w%FBOside)
 
   end subroutine world_to_texpos
 
@@ -1358,13 +1360,10 @@ contains
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
-    type(scene), pointer :: sc
-
     if (.not.associated(w%sc)) return
-    sc => w%sc
-    if (sc%isinit < 2) return
+    if (w%sc%isinit < 2) return
 
-    call unproject(pos,sc%view,sc%projection,w%FBOside)
+    call unproject(pos,w%sc%view,w%sc%projection,w%FBOside)
 
   end subroutine texpos_to_world
 

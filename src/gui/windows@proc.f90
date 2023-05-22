@@ -217,6 +217,16 @@ contains
        w%idparent = idcaller
     elseif (type == wintype_view) then
        ! view window
+       if (.not.present(purpose)) &
+          call ferror('window_init','view requires purpose',faterr)
+       if (purpose == wpurp_view_main) then
+          w%ismain = .true.
+       elseif (purpose == wpurp_view_alternate) then
+          w%ismain = .false.
+          allocate(w%sc)
+       else
+          call ferror('window_init','unknown view purpose',faterr)
+       end if
        call w%create_texture_view(initial_texture_side)
     elseif (type == wintype_rebond) then
        ! recalculate bonds window
@@ -238,6 +248,9 @@ contains
           call IGFD_Destroy(w%dptr)
        elseif (w%type == wintype_view) then
           call w%delete_texture_view()
+          if (.not.w%ismain) then
+             if (associated(w%sc)) deallocate(w%sc)
+          end if
        end if
     end if
 

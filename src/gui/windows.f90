@@ -102,6 +102,7 @@ module windows
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      ! view parameters
+     logical :: ismain ! whether this is the main view or an alternate
      type(scene), pointer :: sc ! pointer to the view scene
      integer(c_int) :: FBO ! draw framebuffer
      integer(c_int) :: FBOtex ! draw framebuffer -> texture
@@ -115,6 +116,11 @@ module windows
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window
+     type(ImVec2) :: mposlast ! mouse parameters ----v
+     real(c_float) :: mpos0_r(3), mpos0_l(3), cpos0_l(3)
+     real(c_float) :: oldview(4,4)
+     real(c_float) :: mpos0_s
+     integer :: ilock = 0 ! mouse parameters -^
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
@@ -235,6 +241,8 @@ module windows
   integer, parameter, public :: wpurp_dialog_openfieldfile = 4
   integer, parameter, public :: wpurp_dialog_openonefilemodal = 5
   integer, parameter, public :: wpurp_dialog_saveimagefile = 6
+  integer, parameter, public :: wpurp_view_main = 7
+  integer, parameter, public :: wpurp_view_alternate = 8
 
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe

@@ -54,7 +54,8 @@ contains
     use shapes, only: shapes_init, shapes_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe
+       iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe,&
+       wpurp_view_main
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
@@ -206,7 +207,7 @@ contains
 
     ! initialize the window stack with the toggle-able windows (open, for now)
     iwin_tree = stack_create_window(wintype_tree,.true.)
-    iwin_view = stack_create_window(wintype_view,.true.)
+    iwin_view = stack_create_window(wintype_view,.true.,purpose=wpurp_view_main)
     iwin_console_input = stack_create_window(wintype_console_input,.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.)
     iwin_about = stack_create_window(wintype_about,.false.)
@@ -748,7 +749,7 @@ contains
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
-       wintype_preferences, update_window_id
+       wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -761,6 +762,7 @@ contains
     integer, parameter :: d_preferences = 4
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
+    integer(c_int) :: idum
     logical(c_bool) :: enabled(4)
     logical :: launchquit, launch(4)
     integer :: i
@@ -865,6 +867,14 @@ contains
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the output console window",ttshown)
+
+          ! xxxx
+          str1 = "Alternate view" // c_null_char
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
+             idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
+
+          call iw_tooltip("Toggle the output console window",ttshown)
+
           call igEndMenu()
        else
           ttshown = .false.
