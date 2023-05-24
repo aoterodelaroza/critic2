@@ -944,6 +944,7 @@ contains
             do i = 1, win(idum)%sc%nrep
                win(idum)%sc%rep(i)%idwin = 0
             end do
+            win(idum)%view_selected = isys
          end if
          call iw_tooltip("Display this system in a new alternate view window",ttshown)
 

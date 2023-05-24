@@ -576,6 +576,7 @@ contains
        do i = 1, win(idum)%sc%nrep
           win(idum)%sc%rep(i)%idwin = 0
        end do
+       win(idum)%view_selected = w%view_selected
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
 
@@ -782,11 +783,12 @@ contains
     call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
 
-    ! the close button
-    if (iw_button("Close",danger=.true.)) w%isopen = .false.
 
-    ! exit if focused and received the close keybinding
     if (.not.w%ismain) then
+       ! the close button
+       if (iw_button("Close",danger=.true.)) w%isopen = .false.
+
+       ! exit if focused and received the close keybinding
        if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
           is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
           w%isopen = .false.
