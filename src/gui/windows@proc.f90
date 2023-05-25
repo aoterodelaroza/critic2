@@ -288,12 +288,13 @@ contains
   !> Draw an ImGui window.
   module subroutine window_draw(w)
     use gui_main, only: fontsize
-    use utils, only: iw_text
+    use utils, only: iw_text, get_nice_next_window_pos
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-    type(ImVec2) :: inisize
+    type(ImVec2) :: inisize, pos, pivot
+    type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
     if (.not.w%isopen) then
@@ -306,6 +307,8 @@ contains
     if (w%id < 0) then
        w%firstpass = .true.
        w%id = abs(w%id)
+       w%pos = 0._c_float
+       w%isdocked = .false.
        if (w%type == wintype_tree) then
           w%name = "Tree##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -318,6 +321,10 @@ contains
              inisize%x = 90 * fontsize%x
              inisize%y = 30 * fontsize%y
              call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+             call get_nice_next_window_pos(pos)
+             pivot%x = 0._c_float
+             pivot%y = 0._c_float
+             call igSetNextWindowPos(pos,ImGuiCond_None,pivot)
           end if
        elseif (w%type == wintype_console_input) then
           w%name = "Input Console##" // string(w%id)  // c_null_char
@@ -533,6 +540,14 @@ contains
           call igEnd()
        end if
        w%firstpass = .false.
+
+       ! write down window info
+       if (c_associated(w%ptr)) then
+          call c_f_pointer(w%ptr,wptr)
+          w%pos(1) = wptr%Pos%x
+          w%pos(2) = wptr%Pos%y
+          w%isdocked = wptr%DockIsActive
+       end if
     else
        w%firstpass = .true.
     end if

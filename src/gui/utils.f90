@@ -37,6 +37,7 @@ module utils
   public :: igIsItemHovered_delayed
   public :: get_time_string
   public :: buffer_to_string_array
+  public :: get_nice_next_window_pos
   !xx! math submodule !xx!
   public :: infiniteperspective
   public :: ortho
@@ -132,6 +133,10 @@ module utils
        character*(*), intent(in), optional :: prefix
        character*(*), intent(in), optional :: suffix
      end subroutine buffer_to_string_array
+     module subroutine get_nice_next_window_pos(pos)
+       use interfaces_cimgui, only: ImVec2
+       type(ImVec2), intent(out) :: pos
+     end subroutine get_nice_next_window_pos
      !xx! math submodule !xx!
      module subroutine infiniteperspective(m,fovy,aspect,znear)
        use iso_c_binding, only: c_float

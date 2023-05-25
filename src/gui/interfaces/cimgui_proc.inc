@@ -107,7 +107,11 @@ function igGetWindowDrawList() bind(c,name="igGetWindowDrawList")
   type(c_ptr) :: igGetWindowDrawList
 end function igGetWindowDrawList
 !x! float igGetWindowDpiScale(void);
-!x! void igGetWindowPos(ImVec2 *pOut);
+! void igGetWindowPos(ImVec2 *pOut);
+subroutine igGetWindowPos(pOut) bind(c,name="igGetWindowPos")
+  import ImVec2
+  type(ImVec2) :: pout
+end subroutine igGetWindowPos
 ! void igGetWindowSize(ImVec2 *pOut);
 subroutine igGetWindowSize(pout) bind(c,name="igGetWindowSize")
   import ImVec2

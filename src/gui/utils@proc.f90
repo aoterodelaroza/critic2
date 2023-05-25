@@ -424,4 +424,39 @@ contains
 
   end subroutine buffer_to_string_array
 
+  !> Calculate a nice starting position for the next window based on
+  !> the existing windows.
+  module subroutine get_nice_next_window_pos(pos)
+    use windows, only: nwin, win
+    use interfaces_cimgui
+    type(ImVec2), intent(out) :: pos
+
+    type(ImVec2) :: wpos
+    type(ImGuiWindow), pointer :: wptr
+    integer :: i
+    real(c_float) :: step
+    logical :: found
+
+    step = igGetTextLineHeightWithSpacing()
+    pos%x = step
+    pos%y = step
+
+    found = .true.
+    do while (found)
+       pos%x = pos%x + step
+       pos%y = pos%y + step
+
+       found = .false.
+       do i = 1, nwin
+          if (win(i)%isopen.and..not.win(i)%isdocked) then
+             if (abs(win(i)%pos(1) - pos%x) < step .and. abs(win(i)%pos(2) - pos%y) < step) then
+                found = .true.
+                exit
+             end if
+          end if
+       end do
+    end do
+
+  end subroutine get_nice_next_window_pos
+
 end submodule proc

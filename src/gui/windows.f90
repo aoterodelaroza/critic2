@@ -89,6 +89,8 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
+     real(c_float) :: pos(2) ! the position of the window's top left corner
+     logical :: isdocked ! whether the window is docked
      real*8 :: timelastupdate ! time the window data was last updated
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
