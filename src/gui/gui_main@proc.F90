@@ -205,12 +205,12 @@ contains
     call shapes_init()
     call shaders_init()
 
-    ! initialize the window stack with the toggle-able windows (open, for now)
-    iwin_tree = stack_create_window(wintype_tree,.true.)
-    iwin_view = stack_create_window(wintype_view,.true.,purpose=wpurp_view_main)
-    iwin_console_input = stack_create_window(wintype_console_input,.true.)
-    iwin_console_output = stack_create_window(wintype_console_output,.true.)
-    iwin_about = stack_create_window(wintype_about,.false.)
+    ! initialize the window stack with the toggle-able windows
+    iwin_tree = stack_create_window(wintype_tree,.true.,permanent=.true.)
+    iwin_view = stack_create_window(wintype_view,.true.,purpose=wpurp_view_main,permanent=.true.)
+    iwin_console_input = stack_create_window(wintype_console_input,.true.,permanent=.true.)
+    iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
+    iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
 
     ! main loop
     show_demo_window = .false.
@@ -746,7 +746,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
-    use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
+    use windows, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate,&
@@ -906,7 +906,6 @@ contains
                 call win(iwin_about)%init(wintype_about,.true.,iwin_about)
              end if
           end if
-
           call igEndMenu()
        else
           ttshown = .false.

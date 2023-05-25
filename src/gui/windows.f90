@@ -78,6 +78,7 @@ module windows
   type window
      ! global window parameters
      logical :: isinit = .false. ! whether this window has been initialized
+     logical :: permanent = .false. ! permanent = do not steal window's ID if it is closed
      logical :: firstpass = .true. ! true if this is the first draw() call
      logical(c_bool) :: isopen ! whether the window is open
      integer :: type ! the window type
@@ -89,8 +90,8 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
-     real(c_float) :: pos(2) ! the position of the window's top left corner
-     logical :: isdocked ! whether the window is docked
+     real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
+     logical :: isdocked = .false. ! whether the window is docked
      real*8 :: timelastupdate ! time the window data was last updated
      ! tree table parameters
      integer :: table_selected = 1 ! the system selected in a table (input to iord)
@@ -258,13 +259,14 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
        integer, intent(in), optional :: idcaller
+       logical, intent(in), optional :: permanent
        integer :: stack_create_window
      end function stack_create_window
      module subroutine update_window_id(id,changed)

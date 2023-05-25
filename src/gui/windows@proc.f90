@@ -62,7 +62,7 @@ contains
 
   !> Create a window in the window stack with the given type. Returns
   !> the window ID.
-  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller)
+  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -71,6 +71,7 @@ contains
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
     integer, intent(in), optional :: idcaller
+    logical, intent(in), optional :: permanent
 
     integer :: stack_create_window
 
@@ -80,7 +81,7 @@ contains
     ! find the first unused window or create a new one
     id = 0
     do i = 1, nwin
-       if (.not.win(i)%isinit) then
+       if (.not.win(i)%isinit.and..not.win(i)%permanent) then
           id = i
           exit
        end if
@@ -98,6 +99,11 @@ contains
 
     ! initialize the new window
     call win(id)%init(type,isopen,id,purpose,isys,irep,idcaller)
+    if (present(permanent)) then
+       win(id)%permanent = permanent
+    else
+       win(id)%permanent = .false.
+    end if
     stack_create_window = id
 
   end function stack_create_window
@@ -297,7 +303,7 @@ contains
     type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
-    if (.not.w%isopen) then
+    if (.not.w%isopen.and..not.w%permanent) then
        ! the window may have been closed in imgui (x button)
        call w%end()
        return
