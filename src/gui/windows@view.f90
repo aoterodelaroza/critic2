@@ -735,47 +735,49 @@ contains
     ! process keybindings
     !! increase and decrease the number of cells in main view
     if (associated(w%sc)) then
-       if (.not.sys(w%view_selected)%c%ismolecule) then
-          if (is_bind_event(BIND_VIEW_INC_NCELL)) then
-             do i = 1, 3
-                if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
-                   w%sc%nc(i) = w%sc%nc(i) + 1
-                endif
-             end do
-             w%sc%forcebuildlists = .true.
-          elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
-             do i = 1, 3
-                if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
-                   w%sc%nc(i) = w%sc%nc(i) - 1
-                endif
-             end do
-             w%sc%nc = max(w%sc%nc,1)
-             w%sc%forcebuildlists = .true.
+       if (w%ismain) then
+          if (.not.sys(w%view_selected)%c%ismolecule) then
+             if (is_bind_event(BIND_VIEW_INC_NCELL)) then
+                do i = 1, 3
+                   if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                      w%sc%nc(i) = w%sc%nc(i) + 1
+                   endif
+                end do
+                w%sc%forcebuildlists = .true.
+             elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
+                do i = 1, 3
+                   if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                      w%sc%nc(i) = w%sc%nc(i) - 1
+                   endif
+                end do
+                w%sc%nc = max(w%sc%nc,1)
+                w%sc%forcebuildlists = .true.
+             end if
+             if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
+                call w%sc%align_view_axis(1)
+                w%forcerender = .true.
+             end if
+             if (is_bind_event(BIND_VIEW_ALIGN_B_AXIS)) then
+                call w%sc%align_view_axis(2)
+                w%forcerender = .true.
+             end if
+             if (is_bind_event(BIND_VIEW_ALIGN_C_AXIS)) then
+                call w%sc%align_view_axis(3)
+                w%forcerender = .true.
+             end if
           end if
-          if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
-             call w%sc%align_view_axis(1)
+          if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
+             call w%sc%align_view_axis(-1)
              w%forcerender = .true.
           end if
-          if (is_bind_event(BIND_VIEW_ALIGN_B_AXIS)) then
-             call w%sc%align_view_axis(2)
+          if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
+             call w%sc%align_view_axis(-2)
              w%forcerender = .true.
           end if
-          if (is_bind_event(BIND_VIEW_ALIGN_C_AXIS)) then
-             call w%sc%align_view_axis(3)
+          if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
+             call w%sc%align_view_axis(-3)
              w%forcerender = .true.
           end if
-       end if
-       if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
-          call w%sc%align_view_axis(-1)
-          w%forcerender = .true.
-       end if
-       if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
-          call w%sc%align_view_axis(-2)
-          w%forcerender = .true.
-       end if
-       if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
-          call w%sc%align_view_axis(-3)
-          w%forcerender = .true.
        end if
     end if
 
