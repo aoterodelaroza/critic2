@@ -2284,6 +2284,7 @@ contains
        ! calculate the range of each primitive (in distance^2)
        call complete_struct(f,env)
 
+       errmsg = ""
        return
     end if
 
