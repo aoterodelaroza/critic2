@@ -1642,11 +1642,11 @@ contains
        ncount = 0
        !$omp parallel do private(tini,tend,nor,n) firstprivate(t,ih,th2p,ip)
        do i = 1, ns
-          !$omp critical (ncount)
+          !$omp critical (ncount_)
           ncount = ncount + 1
           if (mod(ncount-1,msg_counter) == 0) &
              write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(ncount), string(ns)
-          !$omp end critical (ncount)
+          !$omp end critical (ncount_)
 
           if (fname_type(i) == fname_peaks) then
              !$omp critical (fileread)
