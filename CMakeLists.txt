@@ -68,6 +68,7 @@ project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANG
 ## global flags for cmake
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_C_STANDARD 99)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
 include(utils)
