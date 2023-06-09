@@ -1455,7 +1455,7 @@ contains
 
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
-    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
     logical :: ismo, ok
     character(len=:), allocatable :: line
 
@@ -1505,7 +1505,10 @@ contains
        read (lu,*,err=999,end=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
-          rx = matmul(rx - x0,rmat)
+          !! intel compiler errors with
+          ! rx = matmul(rx - x0,rmat)
+          rxt = rx - x0
+          rx = matmul(rxt,rmat)
           seed%x(:,seed%nat) = rx - floor(rx)
           it = 0
           do j = 1, seed%nspc
@@ -1565,7 +1568,7 @@ contains
 
     integer :: lu, ier
     integer :: i, j, nstep(3), nn, iz, it
-    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
 
     call seed%end()
     errmsg = "Error reading file."
@@ -1601,7 +1604,10 @@ contains
        read (lu,err=999,end=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
-          rx = matmul(rx - x0,rmat)
+          !! intel compiler errors with
+          ! rx = matmul(rx - x0,rmat)
+          rxt = rx - x0
+          rx = matmul(rxt,rmat)
           seed%x(:,seed%nat) = rx - floor(rx)
           it = 0
           do j = 1, seed%nspc
