@@ -1250,7 +1250,7 @@ contains
 
     integer :: lu
     integer :: i, nstep(3), nn, iz
-    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
     logical :: ismo
 
     lu = fopen_read(file)
@@ -1282,7 +1282,10 @@ contains
        if (iz > 0) then
           seed%nat = seed%nat + 1
           seed%z(seed%nat) = iz
-          rx = matmul(rx - x0,rmat)
+          !! intel compiler errors with
+          ! rx = matmul(rx - x0,rmat)
+          rxt = rx - x0
+          rx = matmul(rxt,rmat)
           seed%x(:,seed%nat) = rx - floor(rx)
        endif
     end do
