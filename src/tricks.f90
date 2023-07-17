@@ -2173,13 +2173,15 @@ contains
   ! as may be cause by temperature or pressure effects without a phase change.
   !
   ! 1:  TRICK COMPARE struct1 struct2 [THR thr.r] [WRITE] [NOH] [MAXELONG me.r] [MAXANG ma.r] [AMD]
-  ! 2:  TRICK COMPARE struct1 file.xy a b c alpha beta gamma ...
+  ! 2:  TRICK COMPARE struct1 file.xy a b c alpha beta gamma ... [UNIFORM]
   ! 3:  TRICK COMPARE struct1 file.peaks a b c alpha beta gamma ...
   !
   ! Mode 1: compare the two structures.
   ! Mode 2: compare structure 1 with the diffraction pattern in the xyfile, which has
   ! been indexed and has cell parameters a, b, c, alpha, beta, and gamma. The cell
-  ! lengths a, b, c must be given in ANGSTROM.
+  ! lengths a, b, c must be given in ANGSTROM. If UNIFORM is given,
+  ! assume the 2theta grid is uniform and recalculate the 2theta
+  ! values using the first and last value and the number of points.
   !
   ! If thr.r, then stop if the POWDIFF is below thr.r. If WRITE, write stucture 2
   ! to a file. If NOH, strip the hydrogens from the structure before comparing.
@@ -2218,7 +2220,7 @@ contains
     integer :: npts
     ! for mode2: use an xy file
     real*8 :: cellaa(3), cellbb(3)
-    logical :: usexy
+    logical :: usexy, uniformx
     integer :: nxy
     real*8, allocatable :: intxy(:)
 
@@ -2262,6 +2264,7 @@ contains
        lp = lp2
     end if
 
+    uniformx = .false.
     max_elong = max_elong_def
     max_ang = max_ang_def
     powdiff_thr = -1d0
@@ -2276,6 +2279,8 @@ contains
        elseif (equal(word,'maxelong')) then
           ok = isreal(max_elong,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXELONG',faterr)
+       elseif (equal(word,'uniform')) then
+          uniformx = .true.
        elseif (equal(word,'maxang')) then
           ok = isreal(max_ang,line,lp)
           if (.not.ok) call ferror('trick_compare_deformed','Wrong MAXANG',faterr)
@@ -2658,7 +2663,7 @@ contains
          string
       use types, only: realloc
 
-      integer :: lu, lp
+      integer :: lu, lp, i
       character(len=:), allocatable :: line
       logical :: ok
       real*8 :: xtt, xint, hxy
@@ -2685,13 +2690,20 @@ contains
 
          if (nxy == 2) then
             hxy = ttxy(2) - ttxy(1)
-         elseif (nxy > 2) then
+         elseif (nxy > 2 .and..not.uniformx) then
             if (abs(ttxy(nxy) - ttxy(nxy-1) - hxy) > 1d-5) &
                call ferror('trick_compare_deformed','data in xy file (at ' // string(ttxy(nxy),'f',decimal=4) // &
                ') not uniformly spaced',faterr)
          end if
       end do
       call fclose(lu)
+
+      if (uniformx) then
+         do i = 1, nxy
+            hxy = ttxy(i)
+            ttxy(i) = ttxy(1) + real(i-1,8) / real(nxy - 1) * (ttxy(nxy) - ttxy(1))
+         end do
+      end if
 
       ! reallocate and subtract the lowest intensity
       call realloc(ttxy,nxy)
