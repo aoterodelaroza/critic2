@@ -43,7 +43,7 @@ add_library(critic2_core OBJECT ${SOURCES_Fortran} ${SOURCES_C})
 ## gfortran-10: do not check fftpack for argument mismatch
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0
       OR "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_EQUAL 10.0.0))
-  set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS -fallow-argument-mismatch)
+  set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS "-fallow-argument-mismatch")
 endif()
 
 ## C standards
@@ -80,6 +80,9 @@ endif()
 if (LAPACK_FOUND)
   set_property(TARGET critic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
+  if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
+    set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} -fexternal-blas")
+  endif()
 else()
   add_subdirectory(oldlibs)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
