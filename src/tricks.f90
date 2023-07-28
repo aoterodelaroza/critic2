@@ -2548,18 +2548,36 @@ contains
              cc2(1) = dot_product(cd2(:,2),cd2(:,3)) / aa2(2) / aa2(3)
              cc2(2) = dot_product(cd2(:,1),cd2(:,3)) / aa2(1) / aa2(3)
              cc2(3) = dot_product(cd2(:,1),cd2(:,2)) / aa2(1) / aa2(2)
-             if (any(abs(cc2) > 0.9999d0)) cycle
+             if (any(abs(cc2) > 0.9999d0)) then
+                write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                   string(irange(i3,3),2,ioj_right),&
+                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                   "rejected because collinear lattice vectors"
+                cycle
+             end if
 
              ! check angle conditions
              bb2(1) = acos(cc2(1)) * 180d0 / pi
              bb2(2) = acos(cc2(2)) * 180d0 / pi
              bb2(3) = acos(cc2(3)) * 180d0 / pi
-             if (any(abs(targetbb - bb2) > max_ang)) cycle
+             if (any(abs(targetbb - bb2) > max_ang)) then
+                write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                   string(irange(i3,3),2,ioj_right),&
+                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                   "rejected because maximum angle exceeded"
+                cycle
+             end if
              xd2 = matmul(c2%m_c2x,cd2)
 
              ! check determinant
              dd = det3(xd2)
-             if (abs(dd) < 1d-5) cycle
+             if (abs(dd) < 1d-5) then
+                write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                   string(irange(i3,3),2,ioj_right),&
+                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                   "rejected because zero determinant"
+                cycle
+             end if
              if (dd < 0d0) xd2 = -xd2
 
              ! check volumes
@@ -2567,9 +2585,14 @@ contains
 
              ! check number of atoms
              if (.not.usexy) then
-                if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) cycle
+                if (abs(abs(dd) - real(c1%ncel,8)/real(c2%ncel,8)) > 1d-5) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                      "rejected because inconsistent number of atom ratio"
+                   cycle
+                end if
              end if
-
              if (useamd) then
                 !! AMD
                 c2del = c2
