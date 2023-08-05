@@ -58,6 +58,8 @@ contains
        call trick_check_valence(line0(lp:))
     else if (equal(word,'predict')) then
        call trick_predict(line0(lp:))
+    else if (equal(word,'gaucomp')) then
+       call trick_gaucomp(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2959,5 +2961,58 @@ contains
     stop 1
 
   end subroutine trick_predict
+
+  subroutine trick_gaucomp(line0)
+    use param, only: pi
+    character*(*), intent(in) :: line0
+
+    integer, parameter :: ngau1 = 1
+    real*8, parameter :: th1(*) = (/30d0/)
+    real*8, parameter :: int1(*) = (/100d0/)
+
+    integer, parameter :: ngau2 = 1
+    real*8, parameter :: th2(*) = (/31d0/)
+    real*8, parameter :: int2(*) = (/50d0/)
+
+    ! real*8, parameter :: sigma = 0.05d0
+    ! integer, parameter :: npts = 10001
+    real*8, parameter :: sigma = 1d0
+    integer, parameter :: npts = 101
+    real*8, parameter :: th2ini = 5d0
+    real*8, parameter :: th2end = 50d0
+
+    integer :: i
+    real*8, allocatable :: th(:), ih1(:), ih2(:), iprod(:)
+
+    allocate(th(npts),ih1(npts),ih2(npts),iprod(npts))
+    do i = 1, npts
+       th(i) = th2ini + real(i-1,8) / real(npts-1,8) * (th2end-th2ini)
+    end do
+    ih1 = 0d0
+    ih2 = 0d0
+    do i = 1, ngau1
+       ih1 = ih1 + int1(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th1(i))**2 / 2d0 / sigma**2)
+    end do
+    do i = 1, ngau2
+       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
+    end do
+
+
+    iprod = int1(1) * int2(1) * sqrt(2d0) / 4d0 / pi**2 / sigma**4 * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2) *&
+       exp(-(th - (0.5d0 * (th1(1) + th2(1))))**2 / sqrt(2d0) / sigma)
+
+    do i = 1, npts
+       write (*,*) i, th(i), ih1(i)*ih2(i)/iprod(i)
+    end do
+
+    ! module function crosscorr_triangle(h,f,g,l) result(dfg)
+    ! real*8, intent(in) :: h, l
+    ! real*8, intent(in) :: f(:), g(:)
+
+
+    write (*,*) "here!"
+    stop 1
+
+  end subroutine trick_gaucomp
 
 end module tricks
