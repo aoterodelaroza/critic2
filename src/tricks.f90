@@ -2963,75 +2963,117 @@ contains
   end subroutine trick_predict
 
   subroutine trick_gaucomp(line0)
+    use crystalmod, only: crystal
+    use struct_drivers, only: struct_crystal_input
     use tools_math, only: crosscorr_triangle
+    use tools_io, only: getword, uout, string
     use param, only: pi
     character*(*), intent(in) :: line0
-
-    integer, parameter :: ngau1 = 4
-    real*8, parameter :: th1(*) = (/30d0,35d0,15d0,20d0/)
-    real*8, parameter :: int1(*) = (/100d0,20d0,10d0,33d0/)
-
-    integer, parameter :: ngau2 = 4
-    real*8, parameter :: th2(*) = (/31d0,38d0,22d0,29d0/)
-    real*8, parameter :: int2(*) = (/50d0,70d0,80d0,10d0/)
 
     real*8, parameter :: sigma = 0.05d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
 
+    integer :: lp
     integer :: i, j, m
-    real*8 :: thav, int12, dfg, h, w, r, xprod, z
-    real*8, allocatable :: th(:), ih1(:), ih2(:), iprod(:)
+    real*8 :: thav, int11, int22, int12, dfg, h, w, r, xprod, z
+    real*8 :: tini, tend, nor, diff
+    real*8, allocatable :: t(:), ih1(:), ih2(:), iprod(:)
+    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
+    character(len=:), allocatable :: word
+    type(crystal) :: c1, c2
 
-    allocate(th(npts),ih1(npts),ih2(npts),iprod(npts))
-    do i = 1, npts
-       th(i) = th2ini + real(i-1,8) / real(npts-1,8) * (th2end-th2ini)
-    end do
-    h = th(2)-th(1)
-    ih1 = 0d0
-    ih2 = 0d0
-    do i = 1, ngau1
-       ih1 = ih1 + int1(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th1(i))**2 / 2d0 / sigma**2)
-    end do
-    do i = 1, ngau2
-       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
-    end do
+    ! read the input crystals
+    lp = 1
+    word = getword(line0,lp)
+    write (uout,'("  Crystal 1: ",A)') string(word)
+    call struct_crystal_input(word,0,.false.,.false.,cr0=c1)
+    word = getword(line0,lp)
+    write (uout,'("  Crystal 2: ",A)') string(word)
+    call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
-    ! analytical
+    ! calculate powder diffraction patterns
+    allocate(t(npts),ih1(npts),ih2(npts))
+    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,t=t,ih=ih1)
+    call c2%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,t=t,ih=ih2)
+    h = t(2) - t(1)
+    diff = max(1d0 - crosscorr_exp(h,ih1,ih2,1d0) / sqrt(crosscorr_exp(h,ih1,ih1,1d0) * crosscorr_exp(h,ih2,ih2,1d0)),0d0)
+    write (*,*) "FINAL DIFF (1) = ", diff
+
+    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p1,ip=ip1)
+    call c2%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p2,ip=ip2)
+    th2p1 = th2p1 * 180d0 / pi
+    th2p2 = th2p2 * 180d0 / pi
+    ip1 = ip1 * sqrt(2 * pi) * sigma
+    ip2 = ip2 * sqrt(2 * pi) * sigma
+
     z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
     int12 = 0d0
-    do i = 1, ngau1
-       do j = 1, ngau2
-          int12 = int12 + int1(i) * int2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
+    do i = 1, size(th2p1,1)
+       do j = 1, size(th2p2,1)
+          int12 = int12 + ip1(i) * ip2(j) * exp(-pi * z * (th2p1(i) - th2p2(j))**2)
        end do
     end do
     int12 = int12 * sqrt(z)
-    write (*,*) "analytical crosscorr integral: ", int12
 
-    ! numerical
-    m = 3*floor(1d0 / h)
-    dfg = 0d0
-    do i = 0, m
-       r = real(i)*h
-
-       ! triangle weight
-       w = exp(-pi * r**2)
-       ! w = max(1d0 - r,0d0)
-
-       ! cfg(r) = int (f(x) * g(x+r))
-       dfg = dfg + sum(ih1(1:npts-i) * ih2(i+1:npts)) * w
-
-       ! cfg(-r) = int (f(x) * g(x-r))
-       if (i == 0) cycle
-       dfg = dfg + sum(ih2(1:npts-i) * ih1(i+1:npts)) * w
+    int11 = 0d0
+    do i = 1, size(th2p1,1)
+       do j = 1, size(th2p1,1)
+          int11 = int11 + ip1(i) * ip1(j) * exp(-pi * z * (th2p1(i) - th2p1(j))**2)
+       end do
     end do
-    dfg = dfg * h**2
-    write (*,*) "numerical crosscorr integral: ", dfg, crosscorr_triangle(h,ih1,ih2,1d0)
+    int11 = int11 * sqrt(z)
 
+    int22 = 0d0
+    do i = 1, size(th2p2,1)
+       do j = 1, size(th2p2,1)
+          int22 = int22 + ip2(i) * ip2(j) * exp(-pi * z * (th2p2(i) - th2p2(j))**2)
+       end do
+    end do
+    int22 = int22 * sqrt(z)
+
+    diff = int12 / sqrt(int11 * int22)
+    write (*,*) "FINAL DIFF (2) = ", max(1d0 - diff,0d0)
 
     write (*,*) "here!"
     stop 1
+
+  contains
+    module function crosscorr_exp(h,f,g,l) result(dfg)
+      use tools_io, only: ferror, faterr
+      real*8, intent(in) :: h, l
+      real*8, intent(in) :: f(:), g(:)
+      real*8 :: dfg
+
+      integer :: n, m, i
+      real*8 :: w, r
+
+      ! check that the lengths are equal
+      n = size(f)
+      if (size(g) /= n) call ferror('crosscorr_exp','inconsistent spectra',faterr)
+
+      ! numerical
+      m = 3*floor(1d0 / h)
+      dfg = 0d0
+      do i = 0, m
+         r = real(i)*h
+
+         ! triangle weight
+         w = exp(-pi * r**2)
+
+         ! cfg(r) = int (f(x) * g(x+r))
+         dfg = dfg + sum(f(1:n-i) * g(i+1:n)) * w
+
+         ! cfg(-r) = int (f(x) * g(x-r))
+         if (i == 0) cycle
+         dfg = dfg + sum(g(1:n-i) * f(i+1:n)) * w
+
+      end do
+      dfg = dfg * h**2
+    end function crosscorr_exp
 
   end subroutine trick_gaucomp
 
