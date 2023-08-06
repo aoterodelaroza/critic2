@@ -2965,7 +2965,6 @@ contains
   subroutine trick_gaucomp(line0)
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
-    use tools_math, only: crosscorr_triangle
     use tools_io, only: getword, uout, string
     use param, only: pi
     character*(*), intent(in) :: line0
@@ -2986,7 +2985,6 @@ contains
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
 
-    ! read the input crystals
     lp = 1
     word = getword(line0,lp)
     write (uout,'("  Crystal 1: ",A)') string(word)
@@ -2995,85 +2993,34 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
-    ! calculate powder diffraction patterns
-    allocate(t(npts),ih1(npts),ih2(npts))
-    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,t=t,ih=ih1)
-    call c2%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,t=t,ih=ih2)
-    h = t(2) - t(1)
-    diff = max(1d0 - crosscorr_exp(h,ih1,ih2,1d0) / sqrt(crosscorr_exp(h,ih1,ih1,1d0) * crosscorr_exp(h,ih2,ih2,1d0)),0d0)
-    write (*,*) "FINAL DIFF (1) = ", diff
-
     call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p1,ip=ip1)
     call c2%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p2,ip=ip2)
     th2p1 = th2p1 * 180d0 / pi
     th2p2 = th2p2 * 180d0 / pi
-    ip1 = ip1 * sqrt(2 * pi) * sigma
-    ip2 = ip2 * sqrt(2 * pi) * sigma
-
-    z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
-    int12 = 0d0
-    do i = 1, size(th2p1,1)
-       do j = 1, size(th2p2,1)
-          int12 = int12 + ip1(i) * ip2(j) * exp(-pi * z * (th2p1(i) - th2p2(j))**2)
-       end do
-    end do
-    int12 = int12 * sqrt(z)
-
-    int11 = 0d0
-    do i = 1, size(th2p1,1)
-       do j = 1, size(th2p1,1)
-          int11 = int11 + ip1(i) * ip1(j) * exp(-pi * z * (th2p1(i) - th2p1(j))**2)
-       end do
-    end do
-    int11 = int11 * sqrt(z)
-
-    int22 = 0d0
-    do i = 1, size(th2p2,1)
-       do j = 1, size(th2p2,1)
-          int22 = int22 + ip2(i) * ip2(j) * exp(-pi * z * (th2p2(i) - th2p2(j))**2)
-       end do
-    end do
-    int22 = int22 * sqrt(z)
-
-    diff = int12 / sqrt(int11 * int22)
-    write (*,*) "FINAL DIFF (2) = ", max(1d0 - diff,0d0)
-
-    write (*,*) "here!"
-    stop 1
+    diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
+       crosscorr_exp2(th2p2,ip2,th2p2,ip2,sigma))
+    diff = max(1d0 - diff,0d0)
+    write (*,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
 
   contains
-    module function crosscorr_exp(h,f,g,l) result(dfg)
-      use tools_io, only: ferror, faterr
-      real*8, intent(in) :: h, l
-      real*8, intent(in) :: f(:), g(:)
+    function crosscorr_exp2(th1,ip1,th2,ip2,sigma) result(dfg)
+      use param, only: pi
+      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
+      real*8, intent(in) :: sigma
       real*8 :: dfg
 
-      integer :: n, m, i
-      real*8 :: w, r
+      real*8 :: z
 
-      ! check that the lengths are equal
-      n = size(f)
-      if (size(g) /= n) call ferror('crosscorr_exp','inconsistent spectra',faterr)
-
-      ! numerical
-      m = 3*floor(1d0 / h)
+      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
       dfg = 0d0
-      do i = 0, m
-         r = real(i)*h
-
-         ! triangle weight
-         w = exp(-pi * r**2)
-
-         ! cfg(r) = int (f(x) * g(x+r))
-         dfg = dfg + sum(f(1:n-i) * g(i+1:n)) * w
-
-         ! cfg(-r) = int (f(x) * g(x-r))
-         if (i == 0) cycle
-         dfg = dfg + sum(g(1:n-i) * f(i+1:n)) * w
-
+      do i = 1, size(th1,1)
+         do j = 1, size(th2,1)
+            dfg = dfg + ip1(i) * ip2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
+         end do
       end do
-      dfg = dfg * h**2
-    end function crosscorr_exp
+      dfg = dfg * sqrt(z)
+
+    end function crosscorr_exp2
 
   end subroutine trick_gaucomp
 
