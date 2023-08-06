@@ -2982,6 +2982,7 @@ contains
     real*8, parameter :: th2end = 50d0
 
     integer :: i
+    real*8 :: thav, int12
     real*8, allocatable :: th(:), ih1(:), ih2(:), iprod(:)
 
     allocate(th(npts),ih1(npts),ih2(npts),iprod(npts))
@@ -2997,18 +2998,17 @@ contains
        ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
     end do
 
+    thav = 0.5d0 * (th1(1) + th2(1))
+    iprod = int1(1) * int2(1) / 2d0 / pi / sigma**2 * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2) *&
+       exp(-(th - thav)**2 / sigma)
 
-    iprod = int1(1) * int2(1) * sqrt(2d0) / 4d0 / pi**2 / sigma**4 * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2) *&
-       exp(-(th - (0.5d0 * (th1(1) + th2(1))))**2 / sqrt(2d0) / sigma)
+    int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2)
 
-    do i = 1, npts
-       write (*,*) i, th(i), ih1(i)*ih2(i)/iprod(i)
-    end do
+    write (*,*) i, sum(iprod) * (th(2) - th(1)), int12
 
     ! module function crosscorr_triangle(h,f,g,l) result(dfg)
     ! real*8, intent(in) :: h, l
     ! real*8, intent(in) :: f(:), g(:)
-
 
     write (*,*) "here!"
     stop 1
