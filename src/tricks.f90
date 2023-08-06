@@ -2967,77 +2967,49 @@ contains
     use param, only: pi
     character*(*), intent(in) :: line0
 
-    integer, parameter :: ngau1 = 1
-    real*8, parameter :: th1(*) = (/30d0/)
-    real*8, parameter :: int1(*) = (/100d0/)
+    integer, parameter :: ngau1 = 4
+    real*8, parameter :: th1(*) = (/30d0,35d0,15d0,20d0/)
+    real*8, parameter :: int1(*) = (/100d0,20d0,10d0,33d0/)
 
-    integer, parameter :: ngau2 = 1
-    real*8, parameter :: th2(*) = (/31d0/)
-    real*8, parameter :: int2(*) = (/50d0/)
+    integer, parameter :: ngau2 = 4
+    real*8, parameter :: th2(*) = (/31d0,38d0,22d0,29d0/)
+    real*8, parameter :: int2(*) = (/50d0,70d0,80d0,10d0/)
 
-    ! real*8, parameter :: sigma = 0.05d0
-    ! integer, parameter :: npts = 10001
-    real*8, parameter :: sigma = 1d0
+    real*8, parameter :: sigma = 0.05d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
 
-    integer :: i, m
+    integer :: i, j, m
     real*8 :: thav, int12, dfg, h, w, r, xprod, z
-    real*8, allocatable :: th(:), ih1(:), ih2(:), ih2o(:), iprod(:)
+    real*8, allocatable :: th(:), ih1(:), ih2(:), iprod(:)
 
-    ! the shift r xxxx
-    r = 0.5d0
-
-    allocate(th(npts),ih1(npts),ih2(npts),ih2o(npts),iprod(npts))
+    allocate(th(npts),ih1(npts),ih2(npts),iprod(npts))
     do i = 1, npts
        th(i) = th2ini + real(i-1,8) / real(npts-1,8) * (th2end-th2ini)
     end do
     h = th(2)-th(1)
     ih1 = 0d0
     ih2 = 0d0
-    ih2o = 0d0
     do i = 1, ngau1
        ih1 = ih1 + int1(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th1(i))**2 / 2d0 / sigma**2)
     end do
     do i = 1, ngau2
-       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th + r - th2(i))**2 / 2d0 / sigma**2)
-       ih2o = ih2o + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
+       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
     end do
 
-    thav = 0.5d0 * (th1(1) + th2(1) - r)
-    iprod = int1(1) * int2(1) / 2d0 / pi / sigma**2 * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2) *&
-       exp(-(th - thav)**2 / sigma)
-
-    int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2)
-
-    write (*,*) "r = ", r
-    write (*,*) "int f(x)g(x+r) = ", sum(iprod) * h, int12
-
-    ! product int(f(x)g(x+r)) * w(r)
+    ! analytical
     z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
-    xprod = int1(1) * int2(1) / (2d0 * sigma * sqrt(pi)) * exp(-pi * z * (th1(1) - th2(1))**2) *&
-       exp(-(r - z * (th2(1) - th1(1)))**2 / (4d0 * sigma**2 * z))
-    write (*,*) "point value with r = ", int12 * exp(-pi * r**2), xprod
-
-    ! integral int(int(f(x)g(x+r)) * w(r) dr)
-    m = 3*floor(1d0 / h)
-    dfg = 0d0
-    do i = -m, m
-       r = real(i) * h
-       int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2)
-       xprod = int1(1) * int2(1) / (2d0 * sigma * sqrt(pi)) * exp(-pi * z * (th1(1) - th2(1))**2) *&
-          exp(-(r - z * (th2(1) - th1(1)))**2 / (4d0 * sigma**2 * z))
-       ! write (*,*) "point value with r = ", r, int12 * exp(-pi * r**2), xprod
-       dfg = dfg + xprod
-       ! write (*,*) r, xprod
+    int12 = 0d0
+    do i = 1, ngau1
+       do j = 1, ngau2
+          int12 = int12 + int1(i) * int2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
+       end do
     end do
-    dfg = dfg * h
-    write (*,*) "numerical crosscorr integral: ", dfg
-    int12 = int1(1) * int2(1) * sqrt(z) * exp(-pi * z * (th1(1) - th2(1))**2)
+    int12 = int12 * sqrt(z)
     write (*,*) "analytical crosscorr integral: ", int12
 
-    ! calculate maximum displacement
+    ! numerical
     m = 3*floor(1d0 / h)
     dfg = 0d0
     do i = 0, m
@@ -3045,18 +3017,18 @@ contains
 
        ! triangle weight
        w = exp(-pi * r**2)
+       ! w = max(1d0 - r,0d0)
 
        ! cfg(r) = int (f(x) * g(x+r))
-       dfg = dfg + sum(ih1(1:npts-i) * ih2o(i+1:npts)) * w
-       ! write (*,*) r, sum(ih1(1:npts-i) * ih2o(i+1:npts)) * w * h
+       dfg = dfg + sum(ih1(1:npts-i) * ih2(i+1:npts)) * w
 
        ! cfg(-r) = int (f(x) * g(x-r))
        if (i == 0) cycle
-       dfg = dfg + sum(ih2o(1:npts-i) * ih1(i+1:npts)) * w
-       ! write (*,*) -r, sum(ih2o(1:npts-i) * ih1(i+1:npts)) * w * h
+       dfg = dfg + sum(ih2(1:npts-i) * ih1(i+1:npts)) * w
     end do
     dfg = dfg * h**2
-    write (*,*) "alternative crosscorr integral: ", dfg, crosscorr_triangle(h,ih1,ih2o,1d0)
+    write (*,*) "numerical crosscorr integral: ", dfg, crosscorr_triangle(h,ih1,ih2,1d0)
+
 
     write (*,*) "here!"
     stop 1
