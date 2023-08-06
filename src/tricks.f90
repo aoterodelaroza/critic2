@@ -2963,6 +2963,7 @@ contains
   end subroutine trick_predict
 
   subroutine trick_gaucomp(line0)
+    use tools_math, only: crosscorr_triangle
     use param, only: pi
     character*(*), intent(in) :: line0
 
@@ -2977,38 +2978,85 @@ contains
     ! real*8, parameter :: sigma = 0.05d0
     ! integer, parameter :: npts = 10001
     real*8, parameter :: sigma = 1d0
-    integer, parameter :: npts = 101
+    integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
 
-    integer :: i
-    real*8 :: thav, int12
-    real*8, allocatable :: th(:), ih1(:), ih2(:), iprod(:)
+    integer :: i, m
+    real*8 :: thav, int12, dfg, h, w, r, xprod, z
+    real*8, allocatable :: th(:), ih1(:), ih2(:), ih2o(:), iprod(:)
 
-    allocate(th(npts),ih1(npts),ih2(npts),iprod(npts))
+    ! the shift r xxxx
+    r = 0.5d0
+
+    allocate(th(npts),ih1(npts),ih2(npts),ih2o(npts),iprod(npts))
     do i = 1, npts
        th(i) = th2ini + real(i-1,8) / real(npts-1,8) * (th2end-th2ini)
     end do
+    h = th(2)-th(1)
     ih1 = 0d0
     ih2 = 0d0
+    ih2o = 0d0
     do i = 1, ngau1
        ih1 = ih1 + int1(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th1(i))**2 / 2d0 / sigma**2)
     end do
     do i = 1, ngau2
-       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
+       ih2 = ih2 + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th + r - th2(i))**2 / 2d0 / sigma**2)
+       ih2o = ih2o + int2(i) / sigma / sqrt(2d0 * pi) * exp(- (th - th2(i))**2 / 2d0 / sigma**2)
     end do
 
-    thav = 0.5d0 * (th1(1) + th2(1))
-    iprod = int1(1) * int2(1) / 2d0 / pi / sigma**2 * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2) *&
+    thav = 0.5d0 * (th1(1) + th2(1) - r)
+    iprod = int1(1) * int2(1) / 2d0 / pi / sigma**2 * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2) *&
        exp(-(th - thav)**2 / sigma)
 
-    int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) - th2(1))**2 / 4d0 / sigma**2)
+    int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2)
 
-    write (*,*) i, sum(iprod) * (th(2) - th(1)), int12
+    write (*,*) "r = ", r
+    write (*,*) "int f(x)g(x+r) = ", sum(iprod) * h, int12
 
-    ! module function crosscorr_triangle(h,f,g,l) result(dfg)
-    ! real*8, intent(in) :: h, l
-    ! real*8, intent(in) :: f(:), g(:)
+    ! product int(f(x)g(x+r)) * w(r)
+    z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
+    xprod = int1(1) * int2(1) / (2d0 * sigma * sqrt(pi)) * exp(-pi * z * (th1(1) - th2(1))**2) *&
+       exp(-(r - z * (th2(1) - th1(1)))**2 / (4d0 * sigma**2 * z))
+    write (*,*) "point value with r = ", int12 * exp(-pi * r**2), xprod
+
+    ! integral int(int(f(x)g(x+r)) * w(r) dr)
+    m = 3*floor(1d0 / h)
+    dfg = 0d0
+    do i = -m, m
+       r = real(i) * h
+       int12 = int1(1) * int2(1) / 2d0 / sqrt(pi) / sigma * exp(-(th1(1) + r - th2(1))**2 / 4d0 / sigma**2)
+       xprod = int1(1) * int2(1) / (2d0 * sigma * sqrt(pi)) * exp(-pi * z * (th1(1) - th2(1))**2) *&
+          exp(-(r - z * (th2(1) - th1(1)))**2 / (4d0 * sigma**2 * z))
+       ! write (*,*) "point value with r = ", r, int12 * exp(-pi * r**2), xprod
+       dfg = dfg + xprod
+       ! write (*,*) r, xprod
+    end do
+    dfg = dfg * h
+    write (*,*) "numerical crosscorr integral: ", dfg
+    int12 = int1(1) * int2(1) * sqrt(z) * exp(-pi * z * (th1(1) - th2(1))**2)
+    write (*,*) "analytical crosscorr integral: ", int12
+
+    ! calculate maximum displacement
+    m = 3*floor(1d0 / h)
+    dfg = 0d0
+    do i = 0, m
+       r = real(i)*h
+
+       ! triangle weight
+       w = exp(-pi * r**2)
+
+       ! cfg(r) = int (f(x) * g(x+r))
+       dfg = dfg + sum(ih1(1:npts-i) * ih2o(i+1:npts)) * w
+       ! write (*,*) r, sum(ih1(1:npts-i) * ih2o(i+1:npts)) * w * h
+
+       ! cfg(-r) = int (f(x) * g(x-r))
+       if (i == 0) cycle
+       dfg = dfg + sum(ih2o(1:npts-i) * ih1(i+1:npts)) * w
+       ! write (*,*) -r, sum(ih2o(1:npts-i) * ih1(i+1:npts)) * w * h
+    end do
+    dfg = dfg * h**2
+    write (*,*) "alternative crosscorr integral: ", dfg, crosscorr_triangle(h,ih1,ih2o,1d0)
 
     write (*,*) "here!"
     stop 1
