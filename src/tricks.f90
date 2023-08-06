@@ -3000,7 +3000,7 @@ contains
     diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
        crosscorr_exp2(th2p2,ip2,th2p2,ip2,sigma))
     diff = max(1d0 - diff,0d0)
-    write (*,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
+    write (uout,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
 
   contains
     function crosscorr_exp2(th1,ip1,th2,ip2,sigma) result(dfg)
