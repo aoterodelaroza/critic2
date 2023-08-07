@@ -3040,8 +3040,8 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: diff, gaux
-    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
+    real*8 :: diff, gaux, dfg, dfgg(6)
+    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
@@ -3054,19 +3054,32 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
-    gaux = c1%gtensor(2,3)
+    ! gaux = c1%gtensor(2,3)
 
-    c1%gtensor(2,3) = gaux - 0.2d0
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    c1%gtensor(2,3) = gaux - 0.1d0
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    c1%gtensor(2,3) = gaux
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    c1%gtensor(2,3) = gaux + 0.1d0
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    c1%gtensor(2,3) = gaux + 0.2d0
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    stop 1
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    ! call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
+
+    ! c1%gtensor(2,3) = gaux - 0.2d0
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
+    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
+    ! c1%gtensor(2,3) = gaux - 0.1d0
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
+    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
+    ! c1%gtensor(2,3) = gaux
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
+    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
+    ! c1%gtensor(2,3) = gaux + 0.1d0
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
+    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
+    ! c1%gtensor(2,3) = gaux + 0.2d0
+    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
+    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
+    ! stop 1
 
 
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
@@ -3097,6 +3110,29 @@ contains
       dfg = dfg * sqrt(z)
 
     end function crosscorr_exp
+
+    subroutine crosscorr_expg(th1,th1g,ip1,ip1g,th2,ip2,sigma,dfg,dfgg)
+      use param, only: pi
+      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:), th1g(:,:), ip1g(:,:)
+      real*8, intent(in) :: sigma
+      real*8, intent(out) :: dfg, dfgg(6)
+
+      real*8 :: z, expt12
+
+      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
+      dfg = 0d0
+      dfgg = 0d0
+      do j = 1, size(th2,1)
+         do i = 1, size(th1,1)
+            expt12 = exp(-pi * z * (th1(i) - th2(j))**2)
+            dfg = dfg + ip1(i) * ip2(j) * expt12
+            dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - 2d0 * pi * z * ip1(i) * (th1(i) - th2(j)) * th1g(:,i))
+         end do
+      end do
+      dfg = dfg * sqrt(z)
+      dfgg = dfgg * sqrt(z)
+
+    end subroutine crosscorr_expg
 
   end subroutine trick_gaucomp2
 
