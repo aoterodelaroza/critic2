@@ -3040,7 +3040,7 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: diff
+    real*8 :: diff, gaux
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
@@ -3053,6 +3053,21 @@ contains
     word = getword(line0,lp)
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+
+    gaux = c1%gtensor(2,3)
+
+    c1%gtensor(2,3) = gaux - 0.2d0
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    c1%gtensor(2,3) = gaux - 0.1d0
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    c1%gtensor(2,3) = gaux
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    c1%gtensor(2,3) = gaux + 0.1d0
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    c1%gtensor(2,3) = gaux + 0.2d0
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    stop 1
+
 
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
@@ -3085,7 +3100,8 @@ contains
 
   end subroutine trick_gaucomp2
 
-  subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp)
+  subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp,&
+     th2pg,ipg)
     use crystalmod, only: crystal
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
@@ -3100,11 +3116,15 @@ contains
     real*8, allocatable, intent(inout) :: ip(:)
     integer, allocatable, intent(inout) :: hvecp(:,:)
     logical, intent(in) :: usehvecp
+    real*8, allocatable, intent(inout), optional :: th2pg(:,:)
+    real*8, allocatable, intent(inout), optional :: ipg(:,:)
 
     integer :: i, np, hcell, h, k, l, iz
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
-    real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm, ar(3), gr(3,3)
-    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
+    real*8 :: smax, dh2, dh, dh3, ar(3), gr(3,3)
+    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, intg(6), mcorr, afac
+    real*8 :: dhv(3), dhm(6), th2g(6), mcorrg(6)
+    real*8 :: aux, auxg(6)
     integer :: hmax
     logical :: again
     integer, allocatable :: io(:)
@@ -3117,16 +3137,26 @@ contains
 
     ! allocate for peak list
     if (allocated(th2p)) deallocate(th2p)
+    if (present(th2pg)) then
+       if (allocated(th2pg)) deallocate(th2pg)
+    end if
     if (allocated(ip)) deallocate(ip)
+    if (present(ipg)) then
+       if (allocated(ipg)) deallocate(ipg)
+    end if
     if (.not.usehvecp) then
        allocate(th2p(mp))
        allocate(ip(mp))
        if (allocated(hvecp)) deallocate(hvecp)
        allocate(hvecp(3,mp))
+       if (present(th2pg)) allocate(th2pg(6,mp))
+       if (present(ipg)) allocate(ipg(6,mp))
     else
        np = size(hvecp,2)
        allocate(th2p(np))
        allocate(ip(np))
+       if (present(th2pg)) allocate(th2pg(6,np))
+       if (present(ipg)) allocate(ipg(6,np))
     end if
 
     ! metric tensor, cell limits, convert lambda to bohr
@@ -3153,7 +3183,6 @@ contains
                    if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
 
                    ! calculate this reciprocal lattice vector
-                   int = 0d0
                    hvec = real((/h,k,l/),8)
                    call run_function_body()
 
@@ -3165,12 +3194,16 @@ contains
                          call realloc(th2p,2*np)
                          call realloc(ip,2*np)
                          call realloc(hvecp,3,2*np)
+                         if (present(th2pg)) call realloc(th2pg,6,2*np)
+                         if (present(ipg)) call realloc(ipg,6,2*np)
                       end if
                       th2p(np) = th2
                       ip(np) = int
                       hvecp(1,np) = h
                       hvecp(2,np) = k
                       hvecp(3,np) = l
+                      if (present(th2pg)) th2pg(:,np) = th2g
+                      if (present(ipg)) ipg(:,np) = intg
                    end if
                 end do
              end do
@@ -3179,12 +3212,16 @@ contains
        call realloc(th2p,np)
        call realloc(ip,np)
        call realloc(hvecp,3,np)
+       if (present(th2pg)) call realloc(th2pg,6,np)
+       if (present(ipg)) call realloc(ipg,6,np)
     else
        do np = 1, size(hvecp,2)
           hvec = real(hvecp(:,np),8)
           call run_function_body()
           th2p(np) = th2
           ip(np) = int
+          if (present(th2pg)) th2pg(:,np) = th2g
+          if (present(ipg)) ipg(:,np) = intg
        end do
     end if
 
@@ -3201,14 +3238,34 @@ contains
        th2p = th2p(io)
        ip = ip(io)
        hvecp = hvecp(:,io)
+       if (present(th2pg)) th2pg = th2pg(:,io)
+       if (present(ipg)) ipg = ipg(:,io)
        deallocate(io)
     end if
 
   contains
     subroutine run_function_body()
+
+      real*8 :: xfac, ffacg(6), sthlam, esthlam
+      real*8 :: cterm, sterm, ctermg(6), stermg(6)
+      real*8 :: cthg, sthg
+      ! initialize
+      int = 0d0
+      th = 0d0
+      th2 = 0d0
+
+      ! plane distance and derivatives
       dh2 = dot_product(hvec,matmul(gr,hvec))
       dh = sqrt(dh2)
       dh3 = dh2 * dh
+      dhv = matmul(gr,hvec)
+      dhm(1) = dhv(1) * dhv(1)
+      dhm(2) = dhv(1) * dhv(2)
+      dhm(3) = dhv(1) * dhv(3)
+      dhm(4) = dhv(2) * dhv(2)
+      dhm(5) = dhv(2) * dhv(3)
+      dhm(6) = dhv(3) * dhv(3)
+      dhm = -0.5d0 * dhm / dh
 
       ! the theta is not outside the spectrum range
       sth = 0.5d0 * lambda * dh
@@ -3216,6 +3273,8 @@ contains
       th = asin(sth)
       th2 = 2d0 * th
       if (.not.usehvecp .and. th2 < th2ini .or. th2 > th2end) return
+      cth = cos(th)
+      th2g = 2d0 * sth / (cth * dh) * dhm
 
       ! more stuff we need
       sthlam = dh / bohrtoa / 2d0
@@ -3224,6 +3283,8 @@ contains
       ! calculate the raw intensity for this (hkl)
       cterm = 0d0
       sterm = 0d0
+      ctermg = 0d0
+      stermg = 0d0
       do i = 1, c%ncel
          iz = c%spc(c%atcel(i)%is)%z
          if (iz < 1 .or. iz > size(cscatt,2)) &
@@ -3232,27 +3293,40 @@ contains
          bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
          cs = cscatt(9,iz)
          if (dh < 2d0) then
-            ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+&
-               as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
+            ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
+            xfac = as(1)*bs(1)*exp(-bs(1)*dh2) + as(2)*bs(2)*exp(-bs(2)*dh2) +&
+               as(3)*bs(3)*exp(-bs(3)*dh2) + as(4)*bs(4)*exp(-bs(4)*dh2)
+            ffacg = -2d0 * dh * xfac * dhm
          elseif (iz == 1) then
             ffac = 0d0
+            ffacg = 0d0
          else
             c2s = c2scatt(:,iz)
             ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
+            xfac = c2s(2) + 2d0 * c2s(3) * dh / 10d0 + 3d0 * c2s(4) * dh2 / 100d0
+            ffacg = ffac * xfac * dhm
          end if
-         ffac = ffac * exp(-sthlam**2)
+         esthlam = exp(-sthlam**2)
+         ffacg = (ffacg - sthlam / bohrtoa * ffac * dhm) * esthlam
+         ffac = ffac * esthlam
+
          cterm = cterm + ffac * cos(dot_product(kvec,c%atcel(i)%x))
          sterm = sterm + ffac * sin(dot_product(kvec,c%atcel(i)%x))
+         ctermg = ctermg + ffacg * cos(dot_product(kvec,c%atcel(i)%x))
+         stermg = stermg + ffacg * sin(dot_product(kvec,c%atcel(i)%x))
       end do
       int = cterm**2 + sterm**2
+      intg = 2d0 * (cterm * ctermg + sterm * stermg)
 
       ! lorentz-polarization correction.
       ! this formula is compatible with Pecharsky, IuCR
       ! website, and the Fox, gdis, and dioptas implementations
-      cth = cos(th)
       cth2 = cth*cth-sth*sth
       afac = (1-fpol) / (1+fpol)
       mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
+      mcorrg = 0.5d0 * (- 8 * afac * cth2 / ((1+afac) * sth) - mcorr * cth / sth - mcorr * cth2 / (sth * cth)) * th2g
+
+      intg = intg * mcorr + int * mcorrg
       int = int * mcorr
 
     end subroutine run_function_body
