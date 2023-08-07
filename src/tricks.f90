@@ -3040,7 +3040,7 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: diff, gaux, dfg, dfgg(6)
+    real*8 :: diff, diffg(6), gaux, dfg22
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
@@ -3054,42 +3054,32 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
-    ! gaux = c1%gtensor(2,3)
-
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    ! call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
-
-    ! c1%gtensor(2,3) = gaux - 0.2d0
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
-    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
-    ! c1%gtensor(2,3) = gaux - 0.1d0
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
-    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
-    ! c1%gtensor(2,3) = gaux
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
-    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
-    ! c1%gtensor(2,3) = gaux + 0.1d0
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
-    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
-    ! c1%gtensor(2,3) = gaux + 0.2d0
-    ! call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    ! call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg,dfgg)
-    ! write (*,*) "xx ", c1%gtensor(2,3), crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma), dfgg(5)
-    ! stop 1
-
-
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
-    th2p1 = th2p1 * 180d0 / pi
-    th2p2 = th2p2 * 180d0 / pi
-    diff = crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp(th2p1,ip1,th2p1,ip1,sigma)*&
-       crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma))
-    diff = max(1d0 - diff,0d0)
-    write (uout,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
+    dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
+
+
+    ! gaux = c1%gtensor(2,2)
+
+    ! c1%gtensor(2,2) = gaux - 0.2d0
+    ! call crys_diff()
+    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
+    ! c1%gtensor(2,2) = gaux - 0.1d0
+    ! call crys_diff()
+    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
+    ! c1%gtensor(2,2) = gaux
+    ! call crys_diff()
+    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
+    ! c1%gtensor(2,2) = gaux + 0.1d0
+    ! call crys_diff()
+    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
+    ! c1%gtensor(2,2) = gaux + 0.2d0
+    ! call crys_diff()
+    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
+    ! stop 1
+
+    call crys_diff()
+    write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
   contains
     function crosscorr_exp(th1,ip1,th2,ip2,sigma) result(dfg)
@@ -3133,6 +3123,21 @@ contains
       dfgg = dfgg * sqrt(z)
 
     end subroutine crosscorr_expg
+
+    subroutine crys_diff()
+
+      real*8, allocatable :: th2p1(:), ip1(:), th2pg(:,:), ipg(:,:)
+      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
+
+      call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
+      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
+
+      diff = dfg12 / sqrt(dfg11 * dfg22)
+      diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
+      diff = 1d0 - diff
+
+    end subroutine crys_diff
 
   end subroutine trick_gaucomp2
 
@@ -3278,6 +3283,10 @@ contains
        if (present(ipg)) ipg = ipg(:,io)
        deallocate(io)
     end if
+
+    ! scale the angles
+    th2p = th2p * 180d0 / pi
+    if (present(th2pg)) th2pg = th2pg * 180d0 / pi
 
   contains
     subroutine run_function_body()
