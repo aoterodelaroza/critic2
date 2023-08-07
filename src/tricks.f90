@@ -3073,13 +3073,13 @@ contains
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     th2p1 = th2p1 * 180d0 / pi
     th2p2 = th2p2 * 180d0 / pi
-    diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
-       crosscorr_exp2(th2p2,ip2,th2p2,ip2,sigma))
+    diff = crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp(th2p1,ip1,th2p1,ip1,sigma)*&
+       crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma))
     diff = max(1d0 - diff,0d0)
     write (uout,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
 
   contains
-    function crosscorr_exp2(th1,ip1,th2,ip2,sigma) result(dfg)
+    function crosscorr_exp(th1,ip1,th2,ip2,sigma) result(dfg)
       use param, only: pi
       real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
       real*8, intent(in) :: sigma
@@ -3096,7 +3096,7 @@ contains
       end do
       dfg = dfg * sqrt(z)
 
-    end function crosscorr_exp2
+    end function crosscorr_exp
 
   end subroutine trick_gaucomp2
 
