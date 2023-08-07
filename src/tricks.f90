@@ -60,6 +60,8 @@ contains
        call trick_predict(line0(lp:))
     else if (equal(word,'gaucomp')) then
        call trick_gaucomp(line0(lp:))
+    else if (equal(word,'gaucomp2')) then
+       call trick_gaucomp2(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2962,6 +2964,7 @@ contains
 
   end subroutine trick_predict
 
+  ! simple comparison using exponential function and analytical expression
   subroutine trick_gaucomp(line0)
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
@@ -2970,17 +2973,14 @@ contains
     character*(*), intent(in) :: line0
 
     real*8, parameter :: sigma = 0.05d0
-    integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
 
     integer :: lp
-    integer :: i, j, m
-    real*8 :: thav, int11, int22, int12, dfg, h, w, r, xprod, z
-    real*8 :: tini, tend, nor, diff
-    real*8, allocatable :: t(:), ih1(:), ih2(:), iprod(:)
+    integer :: i, j
+    real*8 :: diff
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
@@ -2993,8 +2993,8 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
-    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p1,ip=ip1)
-    call c2%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,th2p=th2p2,ip=ip2)
+    call c1%powder(1,th2ini,th2end,lambda0,fpol0,th2p=th2p1,ip=ip1)
+    call c2%powder(1,th2ini,th2end,lambda0,fpol0,th2p=th2p2,ip=ip2)
     th2p1 = th2p1 * 180d0 / pi
     th2p2 = th2p2 * 180d0 / pi
     diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
@@ -3023,5 +3023,234 @@ contains
     end function crosscorr_exp2
 
   end subroutine trick_gaucomp
+
+  !
+  subroutine trick_gaucomp2(line0)
+    use crystalmod, only: crystal
+    use struct_drivers, only: struct_crystal_input
+    use tools_io, only: getword, uout, string, tictac
+    use param, only: pi
+    character*(*), intent(in) :: line0
+
+    real*8, parameter :: sigma = 0.05d0
+    real*8, parameter :: th2ini = 5d0
+    real*8, parameter :: th2end = 50d0
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
+
+    integer :: lp
+    integer :: i, j
+    real*8 :: diff
+    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
+    integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
+    character(len=:), allocatable :: word
+    type(crystal) :: c1, c2
+
+    lp = 1
+    word = getword(line0,lp)
+    write (uout,'("  Crystal 1: ",A)') string(word)
+    call struct_crystal_input(word,0,.false.,.false.,cr0=c1)
+    word = getword(line0,lp)
+    write (uout,'("  Crystal 2: ",A)') string(word)
+    call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
+    th2p1 = th2p1 * 180d0 / pi
+    th2p2 = th2p2 * 180d0 / pi
+    diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
+       crosscorr_exp2(th2p2,ip2,th2p2,ip2,sigma))
+    diff = max(1d0 - diff,0d0)
+    write (uout,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
+
+  contains
+    function crosscorr_exp2(th1,ip1,th2,ip2,sigma) result(dfg)
+      use param, only: pi
+      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
+      real*8, intent(in) :: sigma
+      real*8 :: dfg
+
+      real*8 :: z
+
+      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
+      dfg = 0d0
+      do i = 1, size(th1,1)
+         do j = 1, size(th2,1)
+            dfg = dfg + ip1(i) * ip2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
+         end do
+      end do
+      dfg = dfg * sqrt(z)
+
+    end function crosscorr_exp2
+
+  end subroutine trick_gaucomp2
+
+  subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp)
+    use crystalmod, only: crystal
+    use param, only: pi, bohrtoa, cscatt, c2scatt
+    use tools_io, only: ferror, faterr
+    use tools, only: qcksort
+    use types, only: realloc
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: th2ini0, th2end0
+    real*8, intent(in) :: lambda0
+    real*8, intent(in) :: fpol
+    real*8, allocatable, intent(inout) :: th2p(:)
+    real*8, allocatable, intent(inout) :: ip(:)
+    integer, allocatable, intent(inout) :: hvecp(:,:)
+    logical, intent(in) :: usehvecp
+
+    integer :: i, np, hcell, h, k, l, iz
+    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
+    real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm
+    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
+    integer :: hmax
+    logical :: again
+    integer, allocatable :: io(:)
+
+    integer, parameter :: mp = 20
+    real*8, parameter :: ieps = 1d-5
+
+    th2ini = th2ini0 * pi / 180d0
+    th2end = th2end0 * pi / 180d0
+
+    ! allocate for peak list
+    if (allocated(th2p)) deallocate(th2p)
+    if (allocated(ip)) deallocate(ip)
+    if (.not.usehvecp) then
+       allocate(th2p(mp))
+       allocate(ip(mp))
+       if (allocated(hvecp)) deallocate(hvecp)
+       allocate(hvecp(3,mp))
+    else
+       np = size(hvecp,2)
+       allocate(th2p(np))
+       allocate(ip(np))
+    end if
+
+    ! cell limits, convert lambda to bohr
+    lambda = lambda0 / bohrtoa
+    smax = sin((th2end)/2d0)
+    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
+
+    ! calculate the intensities
+    if (.not.usehvecp) then
+       np = 0
+       hcell = 0
+       again = .true.
+       do while (again)
+          hcell = hcell + 1
+          again = (hcell <= hmax)
+          do h = -hcell, hcell
+             do k = -hcell, hcell
+                do l = -hcell, hcell
+                   if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
+
+                   ! calculate this reciprocal lattice vector
+                   int = 0d0
+                   hvec = real((/h,k,l/),8)
+                   call run_function_body()
+
+                   ! sum the peak
+                   if (int > ieps) then
+                      again = .true.
+                      np = np + 1
+                      if (np > size(th2p)) then
+                         call realloc(th2p,2*np)
+                         call realloc(ip,2*np)
+                         call realloc(hvecp,3,2*np)
+                      end if
+                      th2p(np) = th2
+                      ip(np) = int
+                      hvecp(1,np) = h
+                      hvecp(2,np) = k
+                      hvecp(3,np) = l
+                   end if
+                end do
+             end do
+          end do
+       end do
+       call realloc(th2p,np)
+       call realloc(ip,np)
+       call realloc(hvecp,3,np)
+    else
+       do np = 1, size(hvecp,2)
+          hvec = real(hvecp(:,np),8)
+          call run_function_body()
+          th2p(np) = th2
+          ip(np) = int
+       end do
+    end if
+
+    ! sort the peaks
+    if (.not.usehvecp) then
+       if (np == 0) &
+          call ferror('struct_powder','no peaks found in the 2theta range',faterr)
+
+       allocate(io(np))
+       do i = 1, np
+          io(i) = i
+       end do
+       call qcksort(th2p,io,1,np)
+       th2p = th2p(io)
+       ip = ip(io)
+       hvecp = hvecp(:,io)
+       deallocate(io)
+    end if
+
+  contains
+    subroutine run_function_body()
+      dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
+      dh = sqrt(dh2)
+      dh3 = dh2 * dh
+
+      ! the theta is not outside the spectrum range
+      sth = 0.5d0 * lambda * dh
+      if (.not.usehvecp .and. abs(sth) > smax) return
+      th = asin(sth)
+      th2 = 2d0 * th
+      if (.not.usehvecp .and. th2 < th2ini .or. th2 > th2end) return
+
+      ! more stuff we need
+      sthlam = dh / bohrtoa / 2d0
+      kvec = 2 * pi * hvec
+
+      ! calculate the raw intensity for this (hkl)
+      cterm = 0d0
+      sterm = 0d0
+      do i = 1, c%ncel
+         iz = c%spc(c%atcel(i)%is)%z
+         if (iz < 1 .or. iz > size(cscatt,2)) &
+            call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
+         as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
+         bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
+         cs = cscatt(9,iz)
+         if (dh < 2d0) then
+            ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+&
+               as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
+         elseif (iz == 1) then
+            ffac = 0d0
+         else
+            c2s = c2scatt(:,iz)
+            ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
+         end if
+         ffac = ffac * exp(-sthlam**2)
+         cterm = cterm + ffac * cos(dot_product(kvec,c%atcel(i)%x))
+         sterm = sterm + ffac * sin(dot_product(kvec,c%atcel(i)%x))
+      end do
+      int = cterm**2 + sterm**2
+
+      ! lorentz-polarization correction.
+      ! this formula is compatible with Pecharsky, IuCR
+      ! website, and the Fox, gdis, and dioptas implementations
+      cth = cos(th)
+      cth2 = cth*cth-sth*sth
+      afac = (1-fpol) / (1+fpol)
+      mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
+      int = int * mcorr
+
+    end subroutine run_function_body
+
+  end subroutine powder_simple
 
 end module tricks
