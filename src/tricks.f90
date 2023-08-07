@@ -3089,6 +3089,7 @@ contains
     use crystalmod, only: crystal
     use param, only: pi, bohrtoa, cscatt, c2scatt
     use tools_io, only: ferror, faterr
+    use tools_math, only: matinv
     use tools, only: qcksort
     use types, only: realloc
     type(crystal), intent(in) :: c
@@ -3102,7 +3103,7 @@ contains
 
     integer :: i, np, hcell, h, k, l, iz
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
-    real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm
+    real*8 :: smax, dh2, dh, dh3, sthlam, cterm, sterm, ar(3), gr(3,3)
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, mcorr, afac
     integer :: hmax
     logical :: again
@@ -3128,10 +3129,15 @@ contains
        allocate(ip(np))
     end if
 
-    ! cell limits, convert lambda to bohr
+    ! metric tensor, cell limits, convert lambda to bohr
+    gr = c%gtensor
+    call matinv(gr,3)
+    do i = 1, 3
+       ar = sqrt(gr(i,i))
+    end do
     lambda = lambda0 / bohrtoa
     smax = sin((th2end)/2d0)
-    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
+    hmax = 2*ceiling(2*smax/lambda/minval(ar))
 
     ! calculate the intensities
     if (.not.usehvecp) then
@@ -3200,7 +3206,7 @@ contains
 
   contains
     subroutine run_function_body()
-      dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
+      dh2 = dot_product(hvec,matmul(gr,hvec))
       dh = sqrt(dh2)
       dh3 = dh2 * dh
 
