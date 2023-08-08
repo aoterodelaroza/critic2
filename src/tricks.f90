@@ -3041,6 +3041,7 @@ contains
     integer :: lp
     integer :: i, j
     real*8 :: diff, diffg(6), gaux, dfg22
+    real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
@@ -3054,31 +3055,20 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
+    ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
 
+    ! in-loop calculation
+    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+    call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
+    call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
+    diff = dfg12 / sqrt(dfg11 * dfg22)
+    diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
+    diff = 1d0 - diff
 
-    ! gaux = c1%gtensor(2,2)
-
-    ! c1%gtensor(2,2) = gaux - 0.2d0
-    ! call crys_diff()
-    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
-    ! c1%gtensor(2,2) = gaux - 0.1d0
-    ! call crys_diff()
-    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
-    ! c1%gtensor(2,2) = gaux
-    ! call crys_diff()
-    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
-    ! c1%gtensor(2,2) = gaux + 0.1d0
-    ! call crys_diff()
-    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
-    ! c1%gtensor(2,2) = gaux + 0.2d0
-    ! call crys_diff()
-    ! write (*,*) "xx ", c1%gtensor(2,2), diff, diffg(4)
-    ! stop 1
-
-    call crys_diff()
+    ! final message
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
   contains
@@ -3123,21 +3113,6 @@ contains
       dfgg = dfgg * sqrt(z)
 
     end subroutine crosscorr_expg
-
-    subroutine crys_diff()
-
-      real*8, allocatable :: th2p1(:), ip1(:), th2pg(:,:), ipg(:,:)
-      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
-
-      call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
-      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
-
-      diff = dfg12 / sqrt(dfg11 * dfg22)
-      diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
-      diff = 1d0 - diff
-
-    end subroutine crys_diff
 
   end subroutine trick_gaucomp2
 
