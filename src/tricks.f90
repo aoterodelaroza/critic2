@@ -3043,13 +3043,21 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: diff, diffg(6), gaux, dfg22
-    real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
+    real*8 :: gaux, dfg22, gt(6), diff
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
+    integer*8 :: opt
+    integer :: ires
+    real*8 :: lb(6), ub(6)
 
+    real*8, parameter :: max_elong_def = 0.3d0
+    real*8, parameter :: max_ang_def = 20d0
+
+    include 'nlopt.f'
+
+    ! read crystal structures
     lp = 1
     word = getword(line0,lp)
     write (uout,'("  Crystal 1: ",A)') string(word)
@@ -3063,18 +3071,95 @@ contains
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
 
-    ! in-loop calculation
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-    call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
-    call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
-    diff = dfg12 / sqrt(dfg11 * dfg22)
-    diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
-    diff = 1d0 - diff
+    ! prepare for the minimization
+    ! call nlo_create(opt, NLOPT_LD_MMA, 6)
+    call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+    gt = (/c1%gtensor(1,1),c1%gtensor(1,2),c1%gtensor(1,3),c1%gtensor(2,2),&
+           c1%gtensor(2,3),c1%gtensor(3,3)/)
+    lb(1) = gt(1) * (1-max_elong_def)**2 ! 1,1
+    ub(1) = gt(1) * (1+max_elong_def)**2
+    lb(4) = gt(4) * (1-max_elong_def)**2 ! 2,2
+    ub(4) = gt(4) * (1+max_elong_def)**2
+    lb(6) = gt(6) * (1-max_elong_def)**2 ! 3,3
+    ub(6) = gt(6) * (1+max_elong_def)**2
+    lb(2) = cos(min(acos(gt(2) / sqrt(gt(1) * gt(4))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(1) * gt(4)) ! 1,2
+    ub(2) = cos(max(acos(gt(2) / sqrt(gt(1) * gt(4))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(1) * gt(4))
+    lb(3) = cos(min(acos(gt(3) / sqrt(gt(1) * gt(6))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(1) * gt(6)) ! 1,3
+    ub(3) = cos(max(acos(gt(3) / sqrt(gt(1) * gt(6))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(1) * gt(6))
+    lb(5) = cos(min(acos(gt(5) / sqrt(gt(4) * gt(6))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(4) * gt(6)) ! 2,3
+    ub(5) = cos(max(acos(gt(5) / sqrt(gt(4) * gt(6))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(4) * gt(6))
+    call nlo_set_lower_bounds(ires, opt, lb)
+    call nlo_set_upper_bounds(ires, opt, ub)
+    call nlo_set_min_objective(ires, opt, diff_fun, 0)
+
+    ! local minimization
+    call nlo_set_ftol_rel(ires, opt, 1.d-7)
+    call nlo_optimize(ires, opt, gt, diff)
 
     ! final message
+    if (ires == 1) then
+       write (uout,'("+ SUCCESS")')
+    elseif (ires == 2) then
+       write (uout,'("+ SUCCESS: maximum iterations reached")')
+    elseif (ires == 3) then
+       write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
+    elseif (ires == 4) then
+       write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
+    elseif (ires == 5) then
+       write (uout,'("+ SUCCESS: maxeval was reached")')
+    elseif (ires == 6) then
+       write (uout,'("+ SUCCESS: maxtime was reached")')
+    elseif (ires == -1) then
+       write (uout,'("+ FAILURE")')
+    elseif (ires == -2) then
+       write (uout,'("+ FAILURE: invalid arguments")')
+    elseif (ires == -3) then
+       write (uout,'("+ FAILURE: out of memory")')
+    elseif (ires == -4) then
+       write (uout,'("+ FAILURE: roundoff errors limited progress")')
+    elseif (ires == -5) then
+       write (uout,'("+ FAILURE: termination forced by user")')
+    end if
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
+    ! clean up
+    call nlo_destroy(opt)
+
   contains
+    subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
+      real*8 :: val, x(n), grad(n)
+      integer :: n, need_gradient
+      real :: f_data
+
+      real*8 :: diff, diffg(6)
+      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
+
+      c1%gtensor(1,1) = x(1)
+      c1%gtensor(1,2) = x(2)
+      c1%gtensor(2,1) = x(2)
+      c1%gtensor(1,3) = x(3)
+      c1%gtensor(3,1) = x(3)
+      c1%gtensor(2,2) = x(4)
+      c1%gtensor(2,3) = x(5)
+      c1%gtensor(3,2) = x(5)
+      c1%gtensor(3,3) = x(6)
+
+      ! only recompute crystal 1
+      call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
+      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
+      diff = dfg12 / sqrt(dfg11 * dfg22)
+
+      ! write output
+      val = 1d0 - diff
+      if (need_gradient /= 0) &
+         grad = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
+
+      ! message
+      call write_message(c1%gtensor,val)
+
+    end subroutine diff_fun
+
     function crosscorr_exp(th1,ip1,th2,ip2,sigma) result(dfg)
       use param, only: pi
       real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
@@ -3116,6 +3201,25 @@ contains
       dfgg = dfgg * sqrt(z)
 
     end subroutine crosscorr_expg
+
+    subroutine write_message(g,diff)
+      use tools_io, only: string, uout
+      real*8, intent(in) :: g(3,3), diff
+
+      real*8 :: a,b,c,alp,bet,gam
+
+      a = sqrt(g(1,1))
+      b = sqrt(g(2,2))
+      c = sqrt(g(3,3))
+      gam = acos(g(1,2)/a/b) * 180d0 / pi
+      bet = acos(g(1,3)/a/c) * 180d0 / pi
+      alp = acos(g(2,3)/b/c) * 180d0 / pi
+
+      write (uout,'(A," at ",6(A,X))') string(diff,'f',length=12,decimal=8),&
+         string(a,'f',length=7,decimal=4),string(b,'f',length=7,decimal=4),string(c,'f',length=7,decimal=4),&
+         string(alp,'f',length=6,decimal=2),string(bet,'f',length=6,decimal=2),string(gam,'f',length=6,decimal=2)
+
+    end subroutine write_message
 
 #endif
   end subroutine trick_gaucomp2
