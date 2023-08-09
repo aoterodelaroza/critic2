@@ -3048,12 +3048,12 @@ contains
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
-    integer*8 :: opt
+    integer*8 :: opt, lopt
     integer :: ires
     real*8 :: lb(6), ub(6)
 
-    real*8, parameter :: max_elong_def = 0.3d0
-    real*8, parameter :: max_ang_def = 20d0
+    real*8, parameter :: max_elong_def = 0.1d0
+    real*8, parameter :: max_ang_def = 10d0
 
     include 'nlopt.f'
 
@@ -3073,7 +3073,18 @@ contains
 
     ! prepare for the minimization
     ! call nlo_create(opt, NLOPT_LD_MMA, 6)
-    call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+    ! call nlo_set_ftol_rel(ires, opt, 1d-5)
+
+    ! call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+    ! call nlo_set_ftol_rel(ires, opt, 1d-5)
+
+    ! call nlo_create(lopt, NLOPT_LD_MMA, 6)
+    call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
+    call nlo_set_ftol_rel(ires, lopt, 1d-5)
+
+    call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
+    call nlo_set_local_optimizer(ires, opt, lopt)
+
     gt = (/c1%gtensor(1,1),c1%gtensor(1,2),c1%gtensor(1,3),c1%gtensor(2,2),&
            c1%gtensor(2,3),c1%gtensor(3,3)/)
     lb(1) = gt(1) * (1-max_elong_def)**2 ! 1,1
@@ -3093,7 +3104,6 @@ contains
     call nlo_set_min_objective(ires, opt, diff_fun, 0)
 
     ! local minimization
-    call nlo_set_ftol_rel(ires, opt, 1.d-7)
     call nlo_optimize(ires, opt, gt, diff)
 
     ! final message
