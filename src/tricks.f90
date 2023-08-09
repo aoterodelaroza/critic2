@@ -3028,10 +3028,13 @@ contains
   subroutine trick_gaucomp2(line0)
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
-    use tools_io, only: getword, uout, string, tictac
+    use tools_io, only: getword, uout, string, tictac, ferror, faterr
     use param, only: pi
     character*(*), intent(in) :: line0
 
+#ifndef HAVE_NLOPT
+    call ferror("trick_gaucomp2","trick_gaucomp2 can only be used if nlopt is available",faterr)
+#else
     real*8, parameter :: sigma = 0.05d0
     real*8, parameter :: th2ini = 5d0
     real*8, parameter :: th2end = 50d0
@@ -3114,6 +3117,7 @@ contains
 
     end subroutine crosscorr_expg
 
+#endif
   end subroutine trick_gaucomp2
 
   subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp,&

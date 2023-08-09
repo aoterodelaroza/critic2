@@ -247,6 +247,9 @@ if (USE_LIBCINT)
   find_package(LIBCINT)
 endif()
 
+## nlopt
+find_package(NLOPT)
+
 ## the syntax.txt target
 add_custom_target(syntax
   COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
@@ -302,6 +305,11 @@ if (READLINE_FOUND)
   set(_message "${_message}Readline: lib=${READLINE_LIBRARY} | inc=${READLINE_INCLUDE_DIRS}\n")
 else()
   set(_message "${_message}Readline: not used\n")
+endif()
+if (NLOPT_FOUND)
+  set(_message "${_message}Nlopt: ${NLOPT_VERSION} | lib=${NLOPT_LIBRARIES}\n")
+else()
+  set(_message "${_message}Nlopt: not used\n")
 endif()
 if (NUMDIFF_FOUND)
   set(_message "${_message}Numdiff: ${NUMDIFF_EXE}\n")

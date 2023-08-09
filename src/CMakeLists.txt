@@ -125,6 +125,13 @@ if (READLINE_FOUND)
   add_definitions("-DHAVE_READLINE")
 endif()
 
+## libnlopt
+if (NLOPT_FOUND)
+  target_link_libraries(critic2 PRIVATE ${NLOPT_LIBRARIES})
+  add_definitions("-DHAVE_NLOPT")
+  include_directories("${NLOPT_INCLUDE_DIRS}")
+endif()
+
 ## emd (earth mover's distance)
 add_subdirectory(emd)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/emd")
