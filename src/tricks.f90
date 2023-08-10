@@ -3043,7 +3043,7 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: gaux, dfg22, gt(6), diff
+    real*8 :: gaux, dfg22, x(6), grad(6), diff
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word
@@ -3052,8 +3052,8 @@ contains
     integer :: ires
     real*8 :: lb(6), ub(6)
 
-    real*8, parameter :: max_elong_def = 0.1d0
-    real*8, parameter :: max_ang_def = 10d0
+    real*8, parameter :: max_elong_def = 0.3d0
+    real*8, parameter :: max_ang_def = 20d0
 
     include 'nlopt.f'
 
@@ -3071,88 +3071,112 @@ contains
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
 
-    ! prepare for the minimization
-    ! call nlo_create(opt, NLOPT_LD_MMA, 6)
-    ! call nlo_set_ftol_rel(ires, opt, 1d-5)
+    ! finite differences check
+    x(1:3) = c1%aa
+    x(4:6) = c1%bb
 
+    x(1) = 19.700d0
+    call diff_fun(diff,6,x,grad,1,1.)
+    write (*,*) "xx ", x(1), diff, grad(1)
+    x(1) = 19.701d0
+    call diff_fun(diff,6,x,grad,1,1.)
+    write (*,*) "xx ", x(1), diff, grad(1)
+    x(1) = 19.702d0
+    call diff_fun(diff,6,x,grad,1,1.)
+    write (*,*) "xx ", x(1), diff, grad(1)
+    x(1) = 19.703d0
+    call diff_fun(diff,6,x,grad,1,1.)
+    write (*,*) "xx ", x(1), diff, grad(1)
+    x(1) = 19.704d0
+    call diff_fun(diff,6,x,grad,1,1.)
+    write (*,*) "xx ", x(1), diff, grad(1)
+    stop 1
+
+    ! ! prepare for the minimization
     ! call nlo_create(opt, NLOPT_LD_SLSQP, 6)
     ! call nlo_set_ftol_rel(ires, opt, 1d-5)
 
-    ! call nlo_create(lopt, NLOPT_LD_MMA, 6)
-    call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
-    call nlo_set_ftol_rel(ires, lopt, 1d-5)
+    ! ! call nlo_create(lopt, NLOPT_LD_MMA, 6)
+    ! call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
+    ! call nlo_set_ftol_rel(ires, lopt, 1d-5)
 
-    call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
-    call nlo_set_local_optimizer(ires, opt, lopt)
+    ! call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
+    ! call nlo_set_local_optimizer(ires, opt, lopt)
 
-    gt = (/c1%gtensor(1,1),c1%gtensor(1,2),c1%gtensor(1,3),c1%gtensor(2,2),&
-           c1%gtensor(2,3),c1%gtensor(3,3)/)
-    lb(1) = gt(1) * (1-max_elong_def)**2 ! 1,1
-    ub(1) = gt(1) * (1+max_elong_def)**2
-    lb(4) = gt(4) * (1-max_elong_def)**2 ! 2,2
-    ub(4) = gt(4) * (1+max_elong_def)**2
-    lb(6) = gt(6) * (1-max_elong_def)**2 ! 3,3
-    ub(6) = gt(6) * (1+max_elong_def)**2
-    lb(2) = cos(min(acos(gt(2) / sqrt(gt(1) * gt(4))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(1) * gt(4)) ! 1,2
-    ub(2) = cos(max(acos(gt(2) / sqrt(gt(1) * gt(4))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(1) * gt(4))
-    lb(3) = cos(min(acos(gt(3) / sqrt(gt(1) * gt(6))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(1) * gt(6)) ! 1,3
-    ub(3) = cos(max(acos(gt(3) / sqrt(gt(1) * gt(6))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(1) * gt(6))
-    lb(5) = cos(min(acos(gt(5) / sqrt(gt(4) * gt(6))) + max_ang_def * pi / 180d0,pi)) * sqrt(gt(4) * gt(6)) ! 2,3
-    ub(5) = cos(max(acos(gt(5) / sqrt(gt(4) * gt(6))) - max_ang_def * pi / 180d0,0d0)) * sqrt(gt(4) * gt(6))
-    call nlo_set_lower_bounds(ires, opt, lb)
-    call nlo_set_upper_bounds(ires, opt, ub)
-    call nlo_set_min_objective(ires, opt, diff_fun, 0)
+    ! do i = 1, 3
+    !    x(i) = sqrt(c1%gtensor(i,i))
+    ! end do
+    ! x(4) = acos(c1%gtensor(2,3) / x(2) / x(3)) * 180d0 / pi
+    ! x(5) = acos(c1%gtensor(1,3) / x(1) / x(3)) * 180d0 / pi
+    ! x(6) = acos(c1%gtensor(1,2) / x(1) / x(2)) * 180d0 / pi
+    ! lb(1:3) = x(1:3) * (1 - max_elong_def)
+    ! ub(1:3) = x(1:3) * (1 + max_elong_def)
+    ! lb(4:6) = x(4:6) - max_ang_def
+    ! ub(4:6) = x(4:6) + max_ang_def
+    ! call nlo_set_lower_bounds(ires, opt, lb)
+    ! call nlo_set_upper_bounds(ires, opt, ub)
+    ! call nlo_set_min_objective(ires, opt, diff_fun, 0)
 
-    ! local minimization
-    call nlo_optimize(ires, opt, gt, diff)
+    ! ! local minimization
+    ! call nlo_optimize(ires, opt, gt, diff)
 
-    ! final message
-    if (ires == 1) then
-       write (uout,'("+ SUCCESS")')
-    elseif (ires == 2) then
-       write (uout,'("+ SUCCESS: maximum iterations reached")')
-    elseif (ires == 3) then
-       write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
-    elseif (ires == 4) then
-       write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
-    elseif (ires == 5) then
-       write (uout,'("+ SUCCESS: maxeval was reached")')
-    elseif (ires == 6) then
-       write (uout,'("+ SUCCESS: maxtime was reached")')
-    elseif (ires == -1) then
-       write (uout,'("+ FAILURE")')
-    elseif (ires == -2) then
-       write (uout,'("+ FAILURE: invalid arguments")')
-    elseif (ires == -3) then
-       write (uout,'("+ FAILURE: out of memory")')
-    elseif (ires == -4) then
-       write (uout,'("+ FAILURE: roundoff errors limited progress")')
-    elseif (ires == -5) then
-       write (uout,'("+ FAILURE: termination forced by user")')
-    end if
-    write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
+    ! ! final message
+    ! if (ires == 1) then
+    !    write (uout,'("+ SUCCESS")')
+    ! elseif (ires == 2) then
+    !    write (uout,'("+ SUCCESS: maximum iterations reached")')
+    ! elseif (ires == 3) then
+    !    write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
+    ! elseif (ires == 4) then
+    !    write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
+    ! elseif (ires == 5) then
+    !    write (uout,'("+ SUCCESS: maxeval was reached")')
+    ! elseif (ires == 6) then
+    !    write (uout,'("+ SUCCESS: maxtime was reached")')
+    ! elseif (ires == -1) then
+    !    write (uout,'("+ FAILURE")')
+    ! elseif (ires == -2) then
+    !    write (uout,'("+ FAILURE: invalid arguments")')
+    ! elseif (ires == -3) then
+    !    write (uout,'("+ FAILURE: out of memory")')
+    ! elseif (ires == -4) then
+    !    write (uout,'("+ FAILURE: roundoff errors limited progress")')
+    ! elseif (ires == -5) then
+    !    write (uout,'("+ FAILURE: termination forced by user")')
+    ! end if
+    ! write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
-    ! clean up
-    call nlo_destroy(opt)
+    ! ! clean up
+    ! call nlo_destroy(opt)
 
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
+      use param, only: pi
       real*8 :: val, x(n), grad(n)
       integer :: n, need_gradient
       real :: f_data
 
-      real*8 :: diff, diffg(6)
+      real*8 :: diff, diffg(6), calp, cbet, cgam, a, b, c, salp, sbet, sgam
       real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
 
-      c1%gtensor(1,1) = x(1)
-      c1%gtensor(1,2) = x(2)
-      c1%gtensor(2,1) = x(2)
-      c1%gtensor(1,3) = x(3)
-      c1%gtensor(3,1) = x(3)
-      c1%gtensor(2,2) = x(4)
-      c1%gtensor(2,3) = x(5)
-      c1%gtensor(3,2) = x(5)
-      c1%gtensor(3,3) = x(6)
+      a = x(1)
+      b = x(2)
+      c = x(3)
+      calp = cos(x(4) * pi / 180d0)
+      cbet = cos(x(5) * pi / 180d0)
+      cgam = cos(x(6) * pi / 180d0)
+      salp = sin(x(4) * pi / 180d0)
+      sbet = sin(x(5) * pi / 180d0)
+      sgam = sin(x(6) * pi / 180d0)
+      c1%gtensor(1,1) = a * a
+      c1%gtensor(1,2) = a * b * cgam
+      c1%gtensor(2,1) = c1%gtensor(1,2)
+      c1%gtensor(1,3) = a * c * cbet
+      c1%gtensor(3,1) = c1%gtensor(1,3)
+      c1%gtensor(2,2) = b * b
+      c1%gtensor(2,3) = b * c * calp
+      c1%gtensor(3,2) = c1%gtensor(2,3)
+      c1%gtensor(3,3) = c * c
 
       ! only recompute crystal 1
       call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
@@ -3162,11 +3186,21 @@ contains
 
       ! write output
       val = 1d0 - diff
-      if (need_gradient /= 0) &
-         grad = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
+      if (need_gradient /= 0) then
+         ! derivatives wrt Gij
+         diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
+
+         grad = 0d0
+         grad(1) = 2 * a * diffg(1) + b * cgam * diffg(2) + c * cbet * diffg(3)
+         grad(2) = a * cgam * diffg(2) + 2 * b * diffg(4) + c * calp * diffg(5)
+         grad(3) = a * cbet * diffg(3) + b * calp * diffg(5) + 2 * c * diffg(6)
+         grad(4) = - b * c * salp * diffg(5)
+         grad(5) = - a * c * sbet * diffg(3)
+         grad(6) = - a * b * sgam * diffg(2)
+      end if
 
       ! message
-      call write_message(c1%gtensor,val)
+      ! call write_message(c1%gtensor,val)
 
     end subroutine diff_fun
 
