@@ -3028,7 +3028,7 @@ contains
   subroutine trick_gaucomp2(line0)
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
-    use tools_io, only: getword, uout, string, tictac, ferror, faterr
+    use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal
     use param, only: pi
     character*(*), intent(in) :: line0
 
@@ -3049,7 +3049,7 @@ contains
     character(len=:), allocatable :: word
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
-    integer :: ires
+    integer :: ires, imode
     real*8 :: lb(6), ub(6)
 
     ! global block
@@ -3059,6 +3059,9 @@ contains
     integer :: nbesteval = 0
     real*8, parameter :: ftol_eps = 1d-5
 
+    integer, parameter :: imode_sp = 0
+    integer, parameter :: imode_local = 1
+    integer, parameter :: imode_global = 2
     real*8, parameter :: max_elong_def = 0.3d0
     real*8, parameter :: max_ang_def = 20d0
 
@@ -3073,96 +3076,79 @@ contains
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
 
+    ! read additional options
+    imode = imode_sp
+    do while (.true.)
+       word = lgetword(line0,lp)
+       if (equal(word,'local')) then
+          imode = imode_local
+       elseif (equal(word,'global')) then
+          imode = imode_global
+       else
+          exit
+       end if
+    end do
+
     ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
 
-    ! finite differences check
-    ! x(1:3) = c1%aa
-    ! x(4:6) = c1%bb
-    ! x(1) = 15.00d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(1), diff, grad(1)
-    ! x(1) = 15.01d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(1), diff, grad(1)
-    ! x(1) = 15.02d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(1), diff, grad(1)
-    ! x(1) = 15.03d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(1), diff, grad(1)
-    ! x(1) = 15.04d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(1), diff, grad(1)
-
-    ! x(4) = 80.0d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(4), diff, grad(4)
-    ! x(4) = 80.1d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(4), diff, grad(4)
-    ! x(4) = 80.2d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(4), diff, grad(4)
-    ! x(4) = 80.3d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(4), diff, grad(4)
-    ! x(4) = 80.4d0
-    ! call diff_fun(diff,6,x,grad,1,1.)
-    ! write (*,*) "xx ", x(4), diff, grad(4)
-    ! stop 1
-
-    ! local minimization
-    ! call nlo_create(opt, NLOPT_LD_SLSQP, 6)
-    ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
-
-    ! global minimization
-    call nlo_create(lopt, NLOPT_LD_MMA, 6)
-    call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
-    call nlo_set_ftol_rel(ires, lopt, ftol_eps)
-
-    call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
-    call nlo_set_local_optimizer(ires, opt, lopt)
-
     x(1:3) = c1%aa
     x(4:6) = c1%bb
-    lb(1:3) = max(x(1:3) * (1 - max_elong_def),0d0)
-    ub(1:3) = x(1:3) * (1 + max_elong_def)
-    lb(4:6) = max(x(4:6) - max_ang_def,10d0)
-    ub(4:6) = min(x(4:6) + max_ang_def,170d0)
-    call nlo_set_lower_bounds(ires, opt, lb)
-    call nlo_set_upper_bounds(ires, opt, ub)
-    call nlo_set_min_objective(ires, opt, diff_fun, 0)
+    if (imode /= imode_sp) then
+       if (imode == imode_global) then
+          ! global minimization
+          call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
+          call nlo_set_ftol_rel(ires, lopt, ftol_eps)
 
-    ! local minimization
-    call nlo_optimize(ires, opt, x, diff)
+          call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
+          call nlo_set_local_optimizer(ires, opt, lopt)
+       else
+          ! local minimization
+          call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+          call nlo_set_ftol_rel(ires, opt, ftol_eps)
+       end if
 
-    ! final message
-    if (ires == 1) then
-       write (uout,'("+ SUCCESS")')
-    elseif (ires == 2) then
-       write (uout,'("+ SUCCESS: maximum iterations reached")')
-    elseif (ires == 3) then
-       write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
-    elseif (ires == 4) then
-       write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
-    elseif (ires == 5) then
-       write (uout,'("+ SUCCESS: maxeval was reached")')
-    elseif (ires == 6) then
-       write (uout,'("+ SUCCESS: maxtime was reached")')
-    elseif (ires == -1) then
-       write (uout,'("+ FAILURE")')
-    elseif (ires == -2) then
-       write (uout,'("+ FAILURE: invalid arguments")')
-    elseif (ires == -3) then
-       write (uout,'("+ FAILURE: out of memory")')
-    elseif (ires == -4) then
-       write (uout,'("+ FAILURE: roundoff errors limited progress")')
-    elseif (ires == -5) then
-       write (uout,'("+ FAILURE: termination forced by user")')
+       lb(1:3) = max(x(1:3) * (1 - max_elong_def),0d0)
+       ub(1:3) = x(1:3) * (1 + max_elong_def)
+       lb(4:6) = max(x(4:6) - max_ang_def,10d0)
+       ub(4:6) = min(x(4:6) + max_ang_def,170d0)
+       call nlo_set_lower_bounds(ires, opt, lb)
+       call nlo_set_upper_bounds(ires, opt, ub)
+       call nlo_set_min_objective(ires, opt, diff_fun, 0)
+
+       ! run the minimization
+       call nlo_optimize(ires, opt, x, diff)
+
+       ! final message
+       if (ires == 1) then
+          write (uout,'("+ SUCCESS")')
+       elseif (ires == 2) then
+          write (uout,'("+ SUCCESS: maximum iterations reached")')
+       elseif (ires == 3) then
+          write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
+       elseif (ires == 4) then
+          write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
+       elseif (ires == 5) then
+          write (uout,'("+ SUCCESS: maxeval was reached")')
+       elseif (ires == 6) then
+          write (uout,'("+ SUCCESS: maxtime was reached")')
+       elseif (ires == -1) then
+          write (uout,'("+ FAILURE")')
+       elseif (ires == -2) then
+          write (uout,'("+ FAILURE: invalid arguments")')
+       elseif (ires == -3) then
+          write (uout,'("+ FAILURE: out of memory")')
+       elseif (ires == -4) then
+          write (uout,'("+ FAILURE: roundoff errors limited progress")')
+       elseif (ires == -5) then
+          write (uout,'("+ FAILURE: termination forced by user")')
+       end if
+    else
+       call diff_fun(diff,6,x,grad,0,1.)
     end if
+
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
     ! clean up
