@@ -3055,6 +3055,9 @@ contains
     ! global block
     integer :: neval = 0
     real*8 :: lastval = -1d0
+    real*8 :: bestval = 1.1d0
+    integer :: nbesteval = 0
+    real*8, parameter :: ftol_eps = 1d-5
 
     real*8, parameter :: max_elong_def = 0.3d0
     real*8, parameter :: max_ang_def = 20d0
@@ -3111,24 +3114,24 @@ contains
     ! write (*,*) "xx ", x(4), diff, grad(4)
     ! stop 1
 
-    ! prepare for the local minimization
-    call nlo_create(opt, NLOPT_LD_SLSQP, 6)
-    call nlo_set_ftol_rel(ires, opt, 1d-5)
+    ! local minimization
+    ! call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+    ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
 
-    ! prepare for the global minimization
-    ! ! call nlo_create(lopt, NLOPT_LD_MMA, 6)
-    ! call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
-    ! call nlo_set_ftol_rel(ires, lopt, 1d-5)
+    ! global minimization
+    call nlo_create(lopt, NLOPT_LD_MMA, 6)
+    call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
+    call nlo_set_ftol_rel(ires, lopt, ftol_eps)
 
-    ! call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
-    ! call nlo_set_local_optimizer(ires, opt, lopt)
+    call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
+    call nlo_set_local_optimizer(ires, opt, lopt)
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
-    lb(1:3) = x(1:3) * (1 - max_elong_def)
+    lb(1:3) = max(x(1:3) * (1 - max_elong_def),0d0)
     ub(1:3) = x(1:3) * (1 + max_elong_def)
-    lb(4:6) = min(x(4:6) - max_ang_def,10d0)
-    ub(4:6) = max(x(4:6) + max_ang_def,170d0)
+    lb(4:6) = max(x(4:6) - max_ang_def,10d0)
+    ub(4:6) = min(x(4:6) + max_ang_def,170d0)
     call nlo_set_lower_bounds(ires, opt, lb)
     call nlo_set_upper_bounds(ires, opt, ub)
     call nlo_set_min_objective(ires, opt, diff_fun, 0)
@@ -3168,6 +3171,7 @@ contains
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
       use param, only: pi
+      use tools_math, only: det3sym
       real*8 :: val, x(n), grad(n)
       integer :: n, need_gradient
       real :: f_data
@@ -3194,6 +3198,11 @@ contains
       c1%gtensor(2,3) = b * c * calp
       c1%gtensor(3,2) = c1%gtensor(2,3)
       c1%gtensor(3,3) = c * c
+      if (det3sym(c1%gtensor) < 0d0) then
+         val = huge(1d0)
+         if (need_gradient /= 0) grad = 0d0
+         return
+      end if
 
       ! only recompute crystal 1
       call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
@@ -3263,20 +3272,43 @@ contains
 
     end subroutine crosscorr_expg
 
-    subroutine write_message(g,val)
+    subroutine write_message(x,val)
       use tools_io, only: string, uout, ioj_left, ioj_right
-      real*8, intent(in) :: g(3,3), val
+      real*8, intent(in) :: x(6), val
 
       integer :: i
       real*8 :: a,b,c,alp,bet,gam
+      character(len=:), allocatable :: str
 
-      if (val > lastval) &
-         write (uout,'("-- started local optimization --")')
-      write (uout,'(A,X,A," at ",6(A,X))') string(neval,8,ioj_left),&
+      lastval = val
+      if (val < bestval) then
+         bestval = val
+         nbesteval = neval
+         str = ""
+      else
+         str = " | " // string(bestval,'f',12,8)  // "best for last " // string(neval - nbesteval) // " iterations"
+      end if
+      write (uout,'(A,X,A," at ",7(A,X))') string(neval,8,ioj_left),&
          string(val,'f',length=12,decimal=8),&
          (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
-         (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6)
-      lastval = val
+         (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6), &
+         str
+
+      ! if (val < bestval) then
+      !    write (uout,'(A,X,A," at ",6(A,X))') string(neval,8,ioj_left),&
+      !       string(val,'f',length=12,decimal=8),&
+      !       (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
+      !       (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6)
+      !    bestval = val
+      !    nbesteval = neval
+      ! elseif (neval - nbesteval == 500) then
+      !    write (uout,'("-- 500 evaluations without improvement --")')
+      ! elseif (neval - nbesteval == 1000) then
+      !    write (uout,'("-- 1000 evaluations without improvement --")')
+      ! elseif (neval - nbesteval == 2000) then
+      !    write (uout,'("-- 2000 evaluations without improvement --")')
+      ! end if
+      ! lastval = val
 
     end subroutine write_message
 
