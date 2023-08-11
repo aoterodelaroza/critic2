@@ -3052,6 +3052,10 @@ contains
     integer :: ires
     real*8 :: lb(6), ub(6)
 
+    ! global block
+    integer :: neval = 0
+    real*8 :: lastval = -1d0
+
     real*8, parameter :: max_elong_def = 0.3d0
     real*8, parameter :: max_ang_def = 20d0
 
@@ -3072,30 +3076,46 @@ contains
     dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
 
     ! finite differences check
-    x(1:3) = c1%aa
-    x(4:6) = c1%bb
+    ! x(1:3) = c1%aa
+    ! x(4:6) = c1%bb
+    ! x(1) = 15.00d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(1), diff, grad(1)
+    ! x(1) = 15.01d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(1), diff, grad(1)
+    ! x(1) = 15.02d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(1), diff, grad(1)
+    ! x(1) = 15.03d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(1), diff, grad(1)
+    ! x(1) = 15.04d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(1), diff, grad(1)
 
-    x(1) = 19.700d0
-    call diff_fun(diff,6,x,grad,1,1.)
-    write (*,*) "xx ", x(1), diff, grad(1)
-    x(1) = 19.701d0
-    call diff_fun(diff,6,x,grad,1,1.)
-    write (*,*) "xx ", x(1), diff, grad(1)
-    x(1) = 19.702d0
-    call diff_fun(diff,6,x,grad,1,1.)
-    write (*,*) "xx ", x(1), diff, grad(1)
-    x(1) = 19.703d0
-    call diff_fun(diff,6,x,grad,1,1.)
-    write (*,*) "xx ", x(1), diff, grad(1)
-    x(1) = 19.704d0
-    call diff_fun(diff,6,x,grad,1,1.)
-    write (*,*) "xx ", x(1), diff, grad(1)
-    stop 1
+    ! x(4) = 80.0d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(4), diff, grad(4)
+    ! x(4) = 80.1d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(4), diff, grad(4)
+    ! x(4) = 80.2d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(4), diff, grad(4)
+    ! x(4) = 80.3d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(4), diff, grad(4)
+    ! x(4) = 80.4d0
+    ! call diff_fun(diff,6,x,grad,1,1.)
+    ! write (*,*) "xx ", x(4), diff, grad(4)
+    ! stop 1
 
-    ! ! prepare for the minimization
-    ! call nlo_create(opt, NLOPT_LD_SLSQP, 6)
-    ! call nlo_set_ftol_rel(ires, opt, 1d-5)
+    ! prepare for the local minimization
+    call nlo_create(opt, NLOPT_LD_SLSQP, 6)
+    call nlo_set_ftol_rel(ires, opt, 1d-5)
 
+    ! prepare for the global minimization
     ! ! call nlo_create(lopt, NLOPT_LD_MMA, 6)
     ! call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
     ! call nlo_set_ftol_rel(ires, lopt, 1d-5)
@@ -3103,51 +3123,47 @@ contains
     ! call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
     ! call nlo_set_local_optimizer(ires, opt, lopt)
 
-    ! do i = 1, 3
-    !    x(i) = sqrt(c1%gtensor(i,i))
-    ! end do
-    ! x(4) = acos(c1%gtensor(2,3) / x(2) / x(3)) * 180d0 / pi
-    ! x(5) = acos(c1%gtensor(1,3) / x(1) / x(3)) * 180d0 / pi
-    ! x(6) = acos(c1%gtensor(1,2) / x(1) / x(2)) * 180d0 / pi
-    ! lb(1:3) = x(1:3) * (1 - max_elong_def)
-    ! ub(1:3) = x(1:3) * (1 + max_elong_def)
-    ! lb(4:6) = x(4:6) - max_ang_def
-    ! ub(4:6) = x(4:6) + max_ang_def
-    ! call nlo_set_lower_bounds(ires, opt, lb)
-    ! call nlo_set_upper_bounds(ires, opt, ub)
-    ! call nlo_set_min_objective(ires, opt, diff_fun, 0)
+    x(1:3) = c1%aa
+    x(4:6) = c1%bb
+    lb(1:3) = x(1:3) * (1 - max_elong_def)
+    ub(1:3) = x(1:3) * (1 + max_elong_def)
+    lb(4:6) = min(x(4:6) - max_ang_def,10d0)
+    ub(4:6) = max(x(4:6) + max_ang_def,170d0)
+    call nlo_set_lower_bounds(ires, opt, lb)
+    call nlo_set_upper_bounds(ires, opt, ub)
+    call nlo_set_min_objective(ires, opt, diff_fun, 0)
 
-    ! ! local minimization
-    ! call nlo_optimize(ires, opt, gt, diff)
+    ! local minimization
+    call nlo_optimize(ires, opt, x, diff)
 
-    ! ! final message
-    ! if (ires == 1) then
-    !    write (uout,'("+ SUCCESS")')
-    ! elseif (ires == 2) then
-    !    write (uout,'("+ SUCCESS: maximum iterations reached")')
-    ! elseif (ires == 3) then
-    !    write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
-    ! elseif (ires == 4) then
-    !    write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
-    ! elseif (ires == 5) then
-    !    write (uout,'("+ SUCCESS: maxeval was reached")')
-    ! elseif (ires == 6) then
-    !    write (uout,'("+ SUCCESS: maxtime was reached")')
-    ! elseif (ires == -1) then
-    !    write (uout,'("+ FAILURE")')
-    ! elseif (ires == -2) then
-    !    write (uout,'("+ FAILURE: invalid arguments")')
-    ! elseif (ires == -3) then
-    !    write (uout,'("+ FAILURE: out of memory")')
-    ! elseif (ires == -4) then
-    !    write (uout,'("+ FAILURE: roundoff errors limited progress")')
-    ! elseif (ires == -5) then
-    !    write (uout,'("+ FAILURE: termination forced by user")')
-    ! end if
-    ! write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
+    ! final message
+    if (ires == 1) then
+       write (uout,'("+ SUCCESS")')
+    elseif (ires == 2) then
+       write (uout,'("+ SUCCESS: maximum iterations reached")')
+    elseif (ires == 3) then
+       write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
+    elseif (ires == 4) then
+       write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
+    elseif (ires == 5) then
+       write (uout,'("+ SUCCESS: maxeval was reached")')
+    elseif (ires == 6) then
+       write (uout,'("+ SUCCESS: maxtime was reached")')
+    elseif (ires == -1) then
+       write (uout,'("+ FAILURE")')
+    elseif (ires == -2) then
+       write (uout,'("+ FAILURE: invalid arguments")')
+    elseif (ires == -3) then
+       write (uout,'("+ FAILURE: out of memory")')
+    elseif (ires == -4) then
+       write (uout,'("+ FAILURE: roundoff errors limited progress")')
+    elseif (ires == -5) then
+       write (uout,'("+ FAILURE: termination forced by user")')
+    end if
+    write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
-    ! ! clean up
-    ! call nlo_destroy(opt)
+    ! clean up
+    call nlo_destroy(opt)
 
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
@@ -3159,6 +3175,7 @@ contains
       real*8 :: diff, diffg(6), calp, cbet, cgam, a, b, c, salp, sbet, sgam
       real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
 
+      neval = neval + 1
       a = x(1)
       b = x(2)
       c = x(3)
@@ -3190,17 +3207,17 @@ contains
          ! derivatives wrt Gij
          diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
 
-         grad = 0d0
-         grad(1) = 2 * a * diffg(1) + b * cgam * diffg(2) + c * cbet * diffg(3)
-         grad(2) = a * cgam * diffg(2) + 2 * b * diffg(4) + c * calp * diffg(5)
-         grad(3) = a * cbet * diffg(3) + b * calp * diffg(5) + 2 * c * diffg(6)
-         grad(4) = - b * c * salp * diffg(5)
-         grad(5) = - a * c * sbet * diffg(3)
-         grad(6) = - a * b * sgam * diffg(2)
+         grad(1) = a * diffg(1) + b * cgam * diffg(2) + c * cbet * diffg(3)
+         grad(2) = a * cgam * diffg(2) + b * diffg(4) + c * calp * diffg(5)
+         grad(3) = a * cbet * diffg(3) + b * calp * diffg(5) + c * diffg(6)
+         grad(4) = - b * c * salp * diffg(5) * pi / 180d0
+         grad(5) = - a * c * sbet * diffg(3) * pi / 180d0
+         grad(6) = - a * b * sgam * diffg(2) * pi / 180d0
+         grad = 2 * grad
       end if
 
       ! message
-      ! call write_message(c1%gtensor,val)
+      call write_message(x,val)
 
     end subroutine diff_fun
 
@@ -3246,22 +3263,20 @@ contains
 
     end subroutine crosscorr_expg
 
-    subroutine write_message(g,diff)
-      use tools_io, only: string, uout
-      real*8, intent(in) :: g(3,3), diff
+    subroutine write_message(g,val)
+      use tools_io, only: string, uout, ioj_left, ioj_right
+      real*8, intent(in) :: g(3,3), val
 
+      integer :: i
       real*8 :: a,b,c,alp,bet,gam
 
-      a = sqrt(g(1,1))
-      b = sqrt(g(2,2))
-      c = sqrt(g(3,3))
-      gam = acos(g(1,2)/a/b) * 180d0 / pi
-      bet = acos(g(1,3)/a/c) * 180d0 / pi
-      alp = acos(g(2,3)/b/c) * 180d0 / pi
-
-      write (uout,'(A," at ",6(A,X))') string(diff,'f',length=12,decimal=8),&
-         string(a,'f',length=7,decimal=4),string(b,'f',length=7,decimal=4),string(c,'f',length=7,decimal=4),&
-         string(alp,'f',length=6,decimal=2),string(bet,'f',length=6,decimal=2),string(gam,'f',length=6,decimal=2)
+      if (val > lastval) &
+         write (uout,'("-- started local optimization --")')
+      write (uout,'(A,X,A," at ",6(A,X))') string(neval,8,ioj_left),&
+         string(val,'f',length=12,decimal=8),&
+         (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
+         (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6)
+      lastval = val
 
     end subroutine write_message
 
@@ -3421,6 +3436,7 @@ contains
       real*8 :: xfac, ffacg(6), sthlam, esthlam
       real*8 :: cterm, sterm, ctermg(6), stermg(6)
       real*8 :: cthg, sthg
+
       ! initialize
       int = 0d0
       th = 0d0
@@ -3441,6 +3457,7 @@ contains
 
       ! the theta is not outside the spectrum range
       sth = 0.5d0 * lambda * dh
+      if (abs(sth) > 1d0) return
       if (.not.usehvecp .and. abs(sth) > smax) return
       th = asin(sth)
       th2 = 2d0 * th
