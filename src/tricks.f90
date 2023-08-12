@@ -3459,6 +3459,10 @@ contains
     th2p = th2p * 180d0 / pi
     if (present(th2pg)) th2pg = th2pg * 180d0 / pi
 
+    ! normalize the intensities (highest peak is 1)
+    if (present(ipg)) ipg = ipg / maxval(ip)
+    ip = ip / maxval(ip)
+
   contains
     subroutine run_function_body()
 
