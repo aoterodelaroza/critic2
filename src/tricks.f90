@@ -3030,7 +3030,7 @@ contains
     ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
-    call crosscorr_expg(th2p2,ip2,th2p2,ip2,sigma,dfg22)
+    call crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
@@ -3130,8 +3130,8 @@ contains
 
       ! only recompute crystal 1
       call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-      call crosscorr_expg(th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
-      call crosscorr_expg(th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
+      call crosscorr_exp(th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
+      call crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
       diff = dfg12 / sqrt(dfg11 * dfg22)
 
       ! write output
@@ -3154,7 +3154,7 @@ contains
 
     end subroutine diff_fun
 
-    subroutine crosscorr_expg(th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
+    subroutine crosscorr_exp(th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
       use param, only: pi
       real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
       real*8, intent(in) :: sigma
@@ -3165,6 +3165,7 @@ contains
       logical :: calcderiv
       real*8 :: z, zp, z2p, zsq, expt12, thdif
       real*8 :: thdeps
+      integer :: imin
 
       real*8, parameter :: eps_discard = 1d-10
 
@@ -3177,20 +3178,28 @@ contains
 
       thdeps = sqrt(abs(-log(eps_discard) / zp))
       dfg = 0d0
+      imin = 1
       if (calcderiv) dfgg = 0d0
       do j = 1, size(th2,1)
-         do i = 1, size(th1,1)
+         iloop: do i = imin, size(th1,1)
             thdif = th1(i) - th2(j)
-            if (abs(thdif) > thdeps) cycle
+            if (abs(thdif) > thdeps) then
+               if (thdif > thdeps) then
+                  exit iloop
+               else
+                  imin = i+1
+                  cycle
+               end if
+            end if
             expt12 = exp(-zp * thdif * thdif)
             dfg = dfg + ip1(i) * ip2(j) * expt12
             if (calcderiv) dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
-         end do
+         end do iloop
       end do
       dfg = dfg * zsq
       if (calcderiv) dfgg = dfgg * zsq
 
-    end subroutine crosscorr_expg
+    end subroutine crosscorr_exp
 
     subroutine write_message(x,val)
       use tools_io, only: string, uout, ioj_left, ioj_right
@@ -3254,14 +3263,14 @@ contains
     real*8, allocatable, intent(inout), optional :: th2pg(:,:)
     real*8, allocatable, intent(inout), optional :: ipg(:,:)
 
-    integer :: i, np, hcell, h, k, l, iz
+    integer :: i, kp, np, hcell, h, k, l, iz
     real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
-    real*8 :: smax, dh2, dh, dh3, ar(3), gr(3,3)
+    real*8 :: smax, dh2, dh, dh3, ar(3), gr(3,3), imax
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, intg(6), mcorr, afac
-    real*8 :: dhv(3), dhm(6), th2g(6), mcorrg(6)
+    real*8 :: th2g(6), mcorrg(6)
     real*8 :: aux, auxg(6)
     integer :: hmax
-    logical :: again
+    logical :: again, usederivs
     integer, allocatable :: io(:)
 
     integer, parameter :: mp = 20
@@ -3271,6 +3280,7 @@ contains
     th2end = th2end0 * pi / 180d0
 
     ! allocate for peak list
+    usederivs = present(th2pg) .and. present(ipg)
     if (allocated(th2p)) deallocate(th2p)
     if (present(th2pg)) then
        if (allocated(th2pg)) deallocate(th2pg)
@@ -3350,51 +3360,48 @@ contains
        if (present(th2pg)) call realloc(th2pg,6,np)
        if (present(ipg)) call realloc(ipg,6,np)
     else
-       do np = 1, size(hvecp,2)
-          hvec = real(hvecp(:,np),8)
+       do kp = 1, size(hvecp,2)
+          hvec = real(hvecp(:,kp),8)
           call run_function_body()
-          th2p(np) = th2
-          ip(np) = int
-          if (present(th2pg)) th2pg(:,np) = th2g
-          if (present(ipg)) ipg(:,np) = intg
+          th2p(kp) = th2
+          ip(kp) = int
+          if (present(th2pg)) th2pg(:,kp) = th2g
+          if (present(ipg)) ipg(:,kp) = intg
        end do
     end if
 
     ! sort the peaks
-    if (.not.usehvecp) then
-       if (np == 0) &
-          call ferror('struct_powder','no peaks found in the 2theta range',faterr)
-
-       allocate(io(np))
-       do i = 1, np
-          io(i) = i
-       end do
-       call qcksort(th2p,io,1,np)
-       th2p = th2p(io)
-       ip = ip(io)
-       hvecp = hvecp(:,io)
-       if (present(th2pg)) th2pg = th2pg(:,io)
-       if (present(ipg)) ipg = ipg(:,io)
-       deallocate(io)
-    end if
+    allocate(io(np))
+    do i = 1, np
+       io(i) = i
+    end do
+    call qcksort(th2p,io,1,np)
+    th2p = th2p(io)
+    ip = ip(io)
+    hvecp = hvecp(:,io)
+    if (present(th2pg)) th2pg = th2pg(:,io)
+    if (present(ipg)) ipg = ipg(:,io)
+    deallocate(io)
 
     ! scale the angles
     th2p = th2p * 180d0 / pi
     if (present(th2pg)) th2pg = th2pg * 180d0 / pi
 
     ! normalize the intensities (highest peak is 1)
-    if (present(ipg)) ipg = ipg / maxval(ip)
-    ip = ip / maxval(ip)
+    imax = maxval(ip)
+    ip = ip / imax
+    if (present(ipg)) ipg = ipg / imax
 
   contains
     subroutine run_function_body()
-
       real*8 :: xfac, ffacg(6), sthlam, esthlam
       real*8 :: cterm, sterm, ctermg(6), stermg(6)
-      real*8 :: cthg, sthg
+      real*8 :: cthg, sthg, kx, ckx, skx
+      real*8 :: dhv(3), dhm(6), ebs(4)
 
       ! initialize
       int = 0d0
+      intg = 0d0
       th = 0d0
       th2 = 0d0
 
@@ -3402,14 +3409,16 @@ contains
       dh2 = dot_product(hvec,matmul(gr,hvec))
       dh = sqrt(dh2)
       dh3 = dh2 * dh
-      dhv = matmul(gr,hvec)
-      dhm(1) = dhv(1) * dhv(1)
-      dhm(2) = dhv(1) * dhv(2)
-      dhm(3) = dhv(1) * dhv(3)
-      dhm(4) = dhv(2) * dhv(2)
-      dhm(5) = dhv(2) * dhv(3)
-      dhm(6) = dhv(3) * dhv(3)
-      dhm = -0.5d0 * dhm / dh
+      if (usederivs) then
+         dhv = matmul(gr,hvec)
+         dhm(1) = dhv(1) * dhv(1)
+         dhm(2) = dhv(1) * dhv(2)
+         dhm(3) = dhv(1) * dhv(3)
+         dhm(4) = dhv(2) * dhv(2)
+         dhm(5) = dhv(2) * dhv(3)
+         dhm(6) = dhv(3) * dhv(3)
+         dhm = -0.5d0 * dhm / dh
+      end if
 
       ! the theta is not outside the spectrum range
       sth = 0.5d0 * lambda * dh
@@ -3419,7 +3428,8 @@ contains
       th2 = 2d0 * th
       if (.not.usehvecp .and. th2 < th2ini .or. th2 > th2end) return
       cth = cos(th)
-      th2g = 2d0 * sth / (cth * dh) * dhm
+      if (usederivs) &
+         th2g = 2d0 * sth / (cth * dh) * dhm
 
       ! more stuff we need
       sthlam = dh / bohrtoa / 2d0
@@ -3428,8 +3438,10 @@ contains
       ! calculate the raw intensity for this (hkl)
       cterm = 0d0
       sterm = 0d0
-      ctermg = 0d0
-      stermg = 0d0
+      if (usederivs) then
+         ctermg = 0d0
+         stermg = 0d0
+      end if
       do i = 1, c%ncel
          iz = c%spc(c%atcel(i)%is)%z
          if (iz < 1 .or. iz > size(cscatt,2)) &
@@ -3438,30 +3450,41 @@ contains
          bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
          cs = cscatt(9,iz)
          if (dh < 2d0) then
-            ffac = as(1)*exp(-bs(1)*dh2)+as(2)*exp(-bs(2)*dh2)+as(3)*exp(-bs(3)*dh2)+as(4)*exp(-bs(4)*dh2)+cs
-            xfac = as(1)*bs(1)*exp(-bs(1)*dh2) + as(2)*bs(2)*exp(-bs(2)*dh2) +&
-               as(3)*bs(3)*exp(-bs(3)*dh2) + as(4)*bs(4)*exp(-bs(4)*dh2)
-            ffacg = -2d0 * dh * xfac * dhm
+            ebs = exp(-bs * dh2)
+            ffac = as(1) * ebs(1) + as(2) * ebs(2) + as(3) * ebs(3) + as(4) * ebs(4) + cs
+            if (usederivs) then
+               xfac = as(1)*bs(1)*ebs(1) + as(2)*bs(2)*ebs(2) + as(3)*bs(3)*ebs(3) + as(4)*bs(4)*ebs(4)
+               ffacg = -2d0 * dh * xfac * dhm
+            end if
          elseif (iz == 1) then
             ffac = 0d0
-            ffacg = 0d0
+            if (usederivs) ffacg = 0d0
          else
             c2s = c2scatt(:,iz)
             ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
-            xfac = c2s(2) + 2d0 * c2s(3) * dh / 10d0 + 3d0 * c2s(4) * dh2 / 100d0
-            ffacg = ffac * xfac * dhm
+            if (usederivs) then
+               xfac = c2s(2) + 2d0 * c2s(3) * dh / 10d0 + 3d0 * c2s(4) * dh2 / 100d0
+               ffacg = ffac * xfac * dhm
+            end if
          end if
          esthlam = exp(-sthlam**2)
-         ffacg = (ffacg - sthlam / bohrtoa * ffac * dhm) * esthlam
+         if (usederivs) &
+            ffacg = (ffacg - sthlam / bohrtoa * ffac * dhm) * esthlam
          ffac = ffac * esthlam
 
-         cterm = cterm + ffac * cos(dot_product(kvec,c%atcel(i)%x))
-         sterm = sterm + ffac * sin(dot_product(kvec,c%atcel(i)%x))
-         ctermg = ctermg + ffacg * cos(dot_product(kvec,c%atcel(i)%x))
-         stermg = stermg + ffacg * sin(dot_product(kvec,c%atcel(i)%x))
+         kx = dot_product(kvec,c%atcel(i)%x)
+         ckx = cos(kx)
+         skx = sin(kx)
+         cterm = cterm + ffac * ckx
+         sterm = sterm + ffac * skx
+         if (usederivs) then
+            ctermg = ctermg + ffacg * ckx
+            stermg = stermg + ffacg * skx
+         end if
       end do
-      int = cterm**2 + sterm**2
-      intg = 2d0 * (cterm * ctermg + sterm * stermg)
+      int = cterm*cterm + sterm*sterm
+      if (usederivs) &
+         intg = 2d0 * (cterm * ctermg + sterm * stermg)
 
       ! lorentz-polarization correction.
       ! this formula is compatible with Pecharsky, IuCR
@@ -3469,9 +3492,11 @@ contains
       cth2 = cth*cth-sth*sth
       afac = (1-fpol) / (1+fpol)
       mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
-      mcorrg = 0.5d0 * (- 8 * afac * cth2 / ((1+afac) * sth) - mcorr * cth / sth - mcorr * cth2 / (sth * cth)) * th2g
+      if (usederivs) &
+         mcorrg = 0.5d0 * (- 8 * afac * cth2 / ((1+afac) * sth) - mcorr * cth / sth - mcorr * cth2 / (sth * cth)) * th2g
 
-      intg = intg * mcorr + int * mcorrg
+      if (usederivs) &
+         intg = intg * mcorr + int * mcorrg
       int = int * mcorr
 
     end subroutine run_function_body
