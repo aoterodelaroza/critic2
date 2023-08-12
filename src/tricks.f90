@@ -3241,20 +3241,31 @@ contains
       real*8, intent(in) :: sigma
       real*8, intent(out) :: dfg, dfgg(6)
 
-      real*8 :: z, expt12
+      real*8 :: z, zp, z2p, zsq, expt12, thdif
+      real*8 :: thdeps
+
+      real*8, parameter :: eps_discard = 1d-10
+
 
       z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
+      zp = pi * z
+      z2p = 2d0 * zp
+      zsq = sqrt(z)
+
+      thdeps = sqrt(abs(-log(eps_discard) / zp))
       dfg = 0d0
       dfgg = 0d0
       do j = 1, size(th2,1)
          do i = 1, size(th1,1)
-            expt12 = exp(-pi * z * (th1(i) - th2(j))**2)
+            thdif = th1(i) - th2(j)
+            if (abs(thdif) > thdeps) cycle
+            expt12 = exp(-zp * thdif * thdif)
             dfg = dfg + ip1(i) * ip2(j) * expt12
-            dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - 2d0 * pi * z * ip1(i) * (th1(i) - th2(j)) * th1g(:,i))
+            dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
          end do
       end do
-      dfg = dfg * sqrt(z)
-      dfgg = dfgg * sqrt(z)
+      dfg = dfg * zsq
+      dfgg = dfgg * zsq
 
     end subroutine crosscorr_expg
 
