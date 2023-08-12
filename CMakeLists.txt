@@ -83,7 +83,7 @@ set_property(CACHE BUILD_RECIPE PROPERTY STRINGS OFF MSYS2 WINE)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release)
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Profile Release)
 
 ## interface options
 option(ENABLE_GUI "Enables the critic2 GUI" OFF)
@@ -152,9 +152,11 @@ endif()
 ## compiler flags, fortran, and check versions
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   set(FFLAGS_DEBUG "-g -O0 -C -traceback -debug all -fpp -check all")
+  set(FFLAGS_PROFILE "-g -pg -O0 -C -traceback -debug all -fpp -check all")
   set(FFLAGS_RELEASE "-O3")
   if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_EQUAL 20.2.1.20201112)
     set(FFLAGS_DEBUG "-g -O0 -traceback -debug all -fpp")
+    set(FFLAGS_PROFILE "-g -pg -O0 -traceback -debug all -fpp")
   elseif ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 19.0)
     set(_message "\nA version of intel fortran >=19.5 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
@@ -163,6 +165,7 @@ if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
   set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
+  set(FFLAGS_PROFILE "-g -pg -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
   set(FFLAGS_RELEASE "-O3")
   if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 6.0.0)
     set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
@@ -175,12 +178,14 @@ endif()
 ## compiler flags, C
 if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU")
   set(CFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall")
+  set(CFLAGS_PROFILE "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall -pg")
   set(CFLAGS_RELEASE "-O3")
 endif()
 
 ## compiler flags, CXX
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   set(CXXFLAGS_DEBUG "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall")
+  set(CXXFLAGS_PROFILE "-D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS -fasynchronous-unwind-tables -fexceptions -ggdb -Wall -pg")
   set(CXXFLAGS_RELEASE "-O3")
 endif()
 
