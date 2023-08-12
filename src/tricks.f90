@@ -60,8 +60,6 @@ contains
        call trick_predict(line0(lp:))
     else if (equal(word,'gaucomp')) then
        call trick_gaucomp(line0(lp:))
-    else if (equal(word,'gaucomp2')) then
-       call trick_gaucomp2(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2964,68 +2962,8 @@ contains
 
   end subroutine trick_predict
 
-  ! simple comparison using exponential function and analytical expression
-  subroutine trick_gaucomp(line0)
-    use crystalmod, only: crystal
-    use struct_drivers, only: struct_crystal_input
-    use tools_io, only: getword, uout, string
-    use param, only: pi
-    character*(*), intent(in) :: line0
-
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 50d0
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-
-    integer :: lp
-    integer :: i, j
-    real*8 :: diff
-    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:)
-    character(len=:), allocatable :: word
-    type(crystal) :: c1, c2
-
-    lp = 1
-    word = getword(line0,lp)
-    write (uout,'("  Crystal 1: ",A)') string(word)
-    call struct_crystal_input(word,0,.false.,.false.,cr0=c1)
-    word = getword(line0,lp)
-    write (uout,'("  Crystal 2: ",A)') string(word)
-    call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
-
-    call c1%powder(1,th2ini,th2end,lambda0,fpol0,th2p=th2p1,ip=ip1)
-    call c2%powder(1,th2ini,th2end,lambda0,fpol0,th2p=th2p2,ip=ip2)
-    th2p1 = th2p1 * 180d0 / pi
-    th2p2 = th2p2 * 180d0 / pi
-    diff = crosscorr_exp2(th2p1,ip1,th2p2,ip2,sigma) / sqrt(crosscorr_exp2(th2p1,ip1,th2p1,ip1,sigma)*&
-       crosscorr_exp2(th2p2,ip2,th2p2,ip2,sigma))
-    diff = max(1d0 - diff,0d0)
-    write (uout,'("+ DIFF = ",A/)') string(diff,'f',decimal=10)
-
-  contains
-    function crosscorr_exp2(th1,ip1,th2,ip2,sigma) result(dfg)
-      use param, only: pi
-      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
-      real*8, intent(in) :: sigma
-      real*8 :: dfg
-
-      real*8 :: z
-
-      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
-      dfg = 0d0
-      do i = 1, size(th1,1)
-         do j = 1, size(th2,1)
-            dfg = dfg + ip1(i) * ip2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
-         end do
-      end do
-      dfg = dfg * sqrt(z)
-
-    end function crosscorr_exp2
-
-  end subroutine trick_gaucomp
-
   !
-  subroutine trick_gaucomp2(line0)
+  subroutine trick_gaucomp(line0)
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal
@@ -3295,7 +3233,7 @@ contains
     end subroutine write_message
 
 #endif
-  end subroutine trick_gaucomp2
+  end subroutine trick_gaucomp
 
   subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp,&
      th2pg,ipg)
