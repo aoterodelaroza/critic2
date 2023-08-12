@@ -3092,7 +3092,7 @@ contains
     ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
     call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
-    dfg22 = crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma)
+    call crosscorr_expg(th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
@@ -3192,8 +3192,8 @@ contains
 
       ! only recompute crystal 1
       call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p1,ip1,sigma,dfg11,dfgg11)
-      call crosscorr_expg(th2p1,th2pg,ip1,ipg,th2p2,ip2,sigma,dfg12,dfgg12)
+      call crosscorr_expg(th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
+      call crosscorr_expg(th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
       diff = dfg12 / sqrt(dfg11 * dfg22)
 
       ! write output
@@ -3216,36 +3216,21 @@ contains
 
     end subroutine diff_fun
 
-    function crosscorr_exp(th1,ip1,th2,ip2,sigma) result(dfg)
+    subroutine crosscorr_expg(th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
       use param, only: pi
       real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
       real*8, intent(in) :: sigma
-      real*8 :: dfg
+      real*8, intent(out) :: dfg
+      real*8, intent(in), optional :: th1g(:,:), ip1g(:,:)
+      real*8, intent(out), optional :: dfgg(6)
 
-      real*8 :: z
-
-      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
-      dfg = 0d0
-      do i = 1, size(th1,1)
-         do j = 1, size(th2,1)
-            dfg = dfg + ip1(i) * ip2(j) * exp(-pi * z * (th1(i) - th2(j))**2)
-         end do
-      end do
-      dfg = dfg * sqrt(z)
-
-    end function crosscorr_exp
-
-    subroutine crosscorr_expg(th1,th1g,ip1,ip1g,th2,ip2,sigma,dfg,dfgg)
-      use param, only: pi
-      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:), th1g(:,:), ip1g(:,:)
-      real*8, intent(in) :: sigma
-      real*8, intent(out) :: dfg, dfgg(6)
-
+      logical :: calcderiv
       real*8 :: z, zp, z2p, zsq, expt12, thdif
       real*8 :: thdeps
 
       real*8, parameter :: eps_discard = 1d-10
 
+      calcderiv = present(th1g) .and. present(ip1g) .and. present(dfgg)
 
       z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
       zp = pi * z
@@ -3254,18 +3239,18 @@ contains
 
       thdeps = sqrt(abs(-log(eps_discard) / zp))
       dfg = 0d0
-      dfgg = 0d0
+      if (calcderiv) dfgg = 0d0
       do j = 1, size(th2,1)
          do i = 1, size(th1,1)
             thdif = th1(i) - th2(j)
             if (abs(thdif) > thdeps) cycle
             expt12 = exp(-zp * thdif * thdif)
             dfg = dfg + ip1(i) * ip2(j) * expt12
-            dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
+            if (calcderiv) dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
          end do
       end do
       dfg = dfg * zsq
-      dfgg = dfgg * zsq
+      if (calcderiv) dfgg = dfgg * zsq
 
     end subroutine crosscorr_expg
 
