@@ -2964,6 +2964,7 @@ contains
 
   !
   subroutine trick_gaucomp(line0)
+    use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal
@@ -2981,14 +2982,16 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: gaux, dfg22, x(6), grad(6), diff
+    real*8 :: gaux, dfg22, x(6), xorig(6), grad(6), diff
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, file1
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
     integer :: ires, imode
     real*8 :: lb(6), ub(6)
+    logical :: iresok
+    type(crystalseed) :: seed
 
     ! global block
     integer :: neval = 0
@@ -2997,19 +3000,21 @@ contains
     integer :: nbesteval = 0
     real*8, parameter :: ftol_eps = 1d-5
 
+    ! parameters
     integer, parameter :: imode_sp = 0
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
-    real*8, parameter :: max_elong_def = 0.3d0
-    real*8, parameter :: max_ang_def = 20d0
+    real*8, parameter :: max_elong_def = 0.1d0
+    real*8, parameter :: max_ang_def = 5d0
+    integer, parameter :: maxfeval = 1000
 
     include 'nlopt.f'
 
     ! read crystal structures
     lp = 1
-    word = getword(line0,lp)
-    write (uout,'("  Crystal 1: ",A)') string(word)
-    call struct_crystal_input(word,0,.false.,.false.,cr0=c1)
+    file1 = getword(line0,lp)
+    write (uout,'("  Crystal 1: ",A)') string(file1)
+    call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
     word = getword(line0,lp)
     write (uout,'("  Crystal 2: ",A)') string(word)
     call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
@@ -3034,6 +3039,7 @@ contains
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
+    xorig = x
     if (imode /= imode_sp) then
        if (imode == imode_global) then
           ! global minimization
@@ -3057,6 +3063,7 @@ contains
        call nlo_set_min_objective(ires, opt, diff_fun, 0)
 
        ! run the minimization
+       iresok = .false.
        call nlo_optimize(ires, opt, x, diff)
 
        ! final message
@@ -3081,8 +3088,38 @@ contains
        elseif (ires == -4) then
           write (uout,'("+ FAILURE: roundoff errors limited progress")')
        elseif (ires == -5) then
-          write (uout,'("+ FAILURE: termination forced by user")')
+          if (iresok) then
+             write (uout,'("+ SUCCESS? maximum number of evaluations reached")')
+          else
+             write (uout,'("+ FAILURE: termination forced by user")')
+          end if
        end if
+
+       ! write structure to output
+       write (uout,'("+ Lattice parameters: ")')
+       write (uout,'("  Initial (1): ",6(A,X))') &
+          (string(xorig(i),'f',length=11,decimal=8),i=1,3), &
+          (string(xorig(i),'f',length=10,decimal=6),i=4,6)
+       write (uout,'("  Final (1):   ",6(A,X))') &
+          (string(x(i),'f',length=11,decimal=8),i=1,3), &
+          (string(x(i),'f',length=10,decimal=6),i=4,6)
+       write (uout,'("  Target (2):  ",6(A,X))') &
+          (string(c2%aa(i),'f',length=11,decimal=8),i=1,3), &
+          (string(c2%bb(i),'f',length=10,decimal=6),i=1,3)
+       write (uout,'(" Relative length deformations:   ",3(A,X))') &
+          (string(abs(xorig(i)-x(i))/xorig(i),'f',length=11,decimal=8),i=1,3)
+       write (uout,'(" Angle displacements:   ",3(A,X))') &
+          (string(abs(xorig(i)-x(i)),'f',length=7,decimal=4),i=4,6)
+
+       call c1%makeseed(seed,.false.)
+       seed%useabr = 1
+       seed%aa = x(1:3)
+       seed%bb = x(4:6)
+       call c1%struct_new(seed,.true.)
+       word = trim(file1) // "-final.in"
+       call c1%write_simple_driver(word)
+       write (uout,'("+ Final structure written to ",A/)') trim(word)
+
     else
        call diff_fun(diff,6,x,grad,0,1.)
     end if
@@ -3205,7 +3242,7 @@ contains
       use tools_io, only: string, uout, ioj_left, ioj_right
       real*8, intent(in) :: x(6), val
 
-      integer :: i
+      integer :: i, ires
       real*8 :: a,b,c,alp,bet,gam
       character(len=:), allocatable :: str
 
@@ -3223,21 +3260,11 @@ contains
          (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6), &
          str
 
-      ! if (val < bestval) then
-      !    write (uout,'(A,X,A," at ",6(A,X))') string(neval,8,ioj_left),&
-      !       string(val,'f',length=12,decimal=8),&
-      !       (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
-      !       (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6)
-      !    bestval = val
-      !    nbesteval = neval
-      ! elseif (neval - nbesteval == 500) then
-      !    write (uout,'("-- 500 evaluations without improvement --")')
-      ! elseif (neval - nbesteval == 1000) then
-      !    write (uout,'("-- 1000 evaluations without improvement --")')
-      ! elseif (neval - nbesteval == 2000) then
-      !    write (uout,'("-- 2000 evaluations without improvement --")')
-      ! end if
-      ! lastval = val
+      ! force termination
+      if (imode == imode_global .and. neval - nbesteval > maxfeval) then
+         iresok = .true.
+         call nlo_set_force_stop(ires, opt, 2)
+      end if
 
     end subroutine write_message
 
