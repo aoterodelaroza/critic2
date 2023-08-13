@@ -3120,14 +3120,15 @@ contains
        call c1%write_simple_driver(word)
        write (uout,'("+ Final structure written to ",A/)') trim(word)
 
+       ! clean up
+       if (imode == imode_global) &
+          call nlo_destroy(lopt)
+       call nlo_destroy(opt)
     else
        call diff_fun(diff,6,x,grad,0,1.)
     end if
 
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
-
-    ! clean up
-    call nlo_destroy(opt)
 
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
