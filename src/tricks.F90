@@ -2982,7 +2982,7 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: gaux, dfg22, x(6), xorig(6), grad(6), diff
+    real*8 :: gaux, dfg22, x(6), xorig(6), grad(6), diff, vorig
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word, file1
@@ -3040,6 +3040,7 @@ contains
     x(1:3) = c1%aa
     x(4:6) = c1%bb
     xorig = x
+    vorig = c1%omega
     if (imode /= imode_sp) then
        if (imode == imode_global) then
           ! global minimization
@@ -3095,7 +3096,14 @@ contains
           end if
        end if
 
-       ! write structure to output
+       ! make final structure
+       call c1%makeseed(seed,.false.)
+       seed%useabr = 1
+       seed%aa = x(1:3)
+       seed%bb = x(4:6)
+       call c1%struct_new(seed,.true.)
+
+       ! write message to output
        write (uout,'("+ Lattice parameters: ")')
        write (uout,'("  Initial (1): ",6(A,X))') &
           (string(xorig(i),'f',length=11,decimal=8),i=1,3), &
@@ -3110,12 +3118,11 @@ contains
           (string(abs(xorig(i)-x(i))/xorig(i),'f',length=11,decimal=8),i=1,3)
        write (uout,'(" Angle displacements:   ",3(A,X))') &
           (string(abs(xorig(i)-x(i)),'f',length=7,decimal=4),i=4,6)
+       write (uout,'("  Initial volume (bohr3): ",A)') string(vorig,'f',decimal=4)
+       write (uout,'("  Final volume (bohr3): ",A)') string(c1%omega,'f',decimal=4)
+       write (uout,'("  Volume deformation: ",A)') string(abs(c1%omega-vorig)/vorig,'f',decimal=8)
 
-       call c1%makeseed(seed,.false.)
-       seed%useabr = 1
-       seed%aa = x(1:3)
-       seed%bb = x(4:6)
-       call c1%struct_new(seed,.true.)
+       ! write structure to output
        word = trim(file1) // "-final.in"
        call c1%write_simple_driver(word)
        write (uout,'("+ Final structure written to ",A/)') trim(word)
