@@ -3607,7 +3607,7 @@ contains
     prm = (/28d0,0.6d0,0.4d0,1000d0/)
     f_data = 0d0
     f_data(:,1) = (/28d0,27d0/)
-    call ffit(val,4,prm,prm,0,f_data)
+    call ffit(val,4,prm,prm,1,f_data)
 
 ! ## do the least-squares
 ! warning("off");
@@ -3701,8 +3701,9 @@ contains
       real*8 :: f_data(:,:)
 
       integer :: i
-      real*8 :: x0, gamma, eta, int
+      real*8 :: x0, gamma, eta, int, s, g2
       real*8 :: gau(size(f_data,1)), lor(size(f_data,1)), xfit(size(f_data,1))
+      real*8 :: xfitg(size(f_data,1),n)
 
       xfit = 0d0
       do i = 1, n, 4
@@ -3715,37 +3716,20 @@ contains
          lor = lorentz(f_data(:,1),x0,gamma)
 
          xfit = xfit + int * (eta * gau + (1-eta) * lor)
+         if (need_gradient /= 0) then
+            g2 = gamma / 2d0
+            s = g2 / sqrt(2d0 * log(2d0))
+
+            xfitg(:,i) = int * (eta * (gau * (f_data(:,1)-x0) / (s * s)) +&
+               (1-eta) * (lor * lor * 4 * pi * (f_data(:,1)-x0) / gamma))
+            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (f_data(:,1)-x0)*(f_data(:,1)-x0) / (s*s) / gamma) +&
+               (1-eta) * (lor / gamma - pi * lor * lor))
+            xfitg(:,i+2) = int * (gau - lor)
+            xfitg(:,i+3) = eta * gau + (1-eta) * lor
+         end if
       end do
-      write (*,*) xfit
 
       val = 0d0
-
-  ! x = x(:);
-  ! y = zeros(length(x),length(p));
-  ! for i = 1:4:length(p)
-  !   x0 = p(i);
-  !   gamma = max(p(i+1),1e-80);
-  !   eta = p(i+2);
-  !   I = p(i+3);
-
-  !   gau = gaussian(x,x0,gamma);
-  !   lor = lorentz(x,x0,gamma);
-
-  !   s = gamma / 2 / sqrt(2 * log(2));
-  !   g2 = gamma/2;
-  !   y(:,i) = 0;
-  !   y(:,i) += eta * (gau .* (x-x0) / (s * s));
-  !   y(:,i) += (1-eta) * (lor .* lor * 4 * pi .* (x-x0) / gamma);
-  !   y(:,i) *= I;
-
-  !   y(:,i+1) = 0;
-  !   y(:,i+1) += eta * (-gau / gamma + gau .* (x-x0).^2 / s^2 / gamma);
-  !   y(:,i+1) += (1-eta) * (lor / gamma - pi * lor .* lor);
-  !   y(:,i+1) *= I;
-
-  !   y(:,i+2) = I * (gau - lor);
-  !   y(:,i+3) = eta * gau + (1-eta) * lor;
-  ! endfor
 
     end subroutine ffit
 
