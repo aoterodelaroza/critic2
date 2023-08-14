@@ -3517,8 +3517,6 @@ contains
     real*8 :: x_, y_, ymax, minx, maxx, fac, gamma, eta
     logical :: ok
     integer :: npeaks
-    ! xxxx
-    real*8 :: val, f_data(2,2)
 
     real*8, parameter :: fix_peak_position = 0.02 ! maximum displacmenet of the 2*theta
     real*8, parameter :: fwhm_max = 0.5 ! maximum peak FWHM
@@ -3603,11 +3601,6 @@ contains
        lb(nprm) = 0d0
        ub(nprm) = huge(1d0)
     end do
-
-    prm = (/28d0,0.6d0,0.4d0,1000d0/)
-    f_data = 0d0
-    f_data(:,1) = (/28d0,27d0/)
-    call ffit(val,4,prm,prm,1,f_data)
 
 ! ## do the least-squares
 ! warning("off");
@@ -3703,7 +3696,7 @@ contains
       integer :: i
       real*8 :: x0, gamma, eta, int, s, g2
       real*8 :: gau(size(f_data,1)), lor(size(f_data,1)), xfit(size(f_data,1))
-      real*8 :: xfitg(size(f_data,1),n)
+      real*8 :: xfitg(size(f_data,1),n), ydif(size(f_data,1))
 
       xfit = 0d0
       do i = 1, n, 4
@@ -3729,7 +3722,13 @@ contains
          end if
       end do
 
-      val = 0d0
+      ydif = f_data(:,2) - xfit
+      val = sum(ydif * ydif)
+      if (need_gradient /= 0) then
+         do i = 1, n
+            grad(i) = -2d0 * sum(ydif * xfitg(:,i))
+         end do
+      end if
 
     end subroutine ffit
 
