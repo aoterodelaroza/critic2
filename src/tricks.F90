@@ -3510,16 +3510,24 @@ contains
     use param, only: pi
     character*(*), intent(in) :: line0
 
+#ifndef HAVE_NLOPT
+    call ferror("trick_gaucomp2","trick_profile_fit can only be used if nlopt is available",faterr)
+#else
     character(len=:), allocatable :: line
     integer :: lu, lp, i
     integer :: n, nprm
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:)
-    real*8 :: x_, y_, ymax, minx, maxx, fac, gamma, eta
+    real*8 :: x_, y_, ymax, minx, maxx, fac, gamma, eta, ssq
     logical :: ok
     integer :: npeaks
+    integer*8 :: opt
+    integer :: ires
 
+    real*8, parameter :: ftol_eps = 1d-5
     real*8, parameter :: fix_peak_position = 0.02 ! maximum displacmenet of the 2*theta
     real*8, parameter :: fwhm_max = 0.5 ! maximum peak FWHM
+
+    include 'nlopt.f'
 
     write (uout,'("* Trick: profile fit")')
 
@@ -3540,7 +3548,7 @@ contains
           call realloc(y,2*n)
        end if
        x(n) = x_
-       y(n) = y_
+       y(n) = max(y_,0d0)
     end do
     call fclose(lu)
     call realloc(x,n)
@@ -3564,6 +3572,8 @@ contains
           phei(npeaks) = y(i)
        end if
     end do
+    ! xxxx
+    npeaks = 1
     call realloc(pth2,npeaks)
     call realloc(phei,npeaks)
     write (uout,'("  Peaks detected: ",A)') string(npeaks)
@@ -3601,6 +3611,42 @@ contains
        lb(nprm) = 0d0
        ub(nprm) = huge(1d0)
     end do
+
+    ! run the minimization
+    call nlo_create(opt, NLOPT_LD_SLSQP, nprm)
+    ! call nlo_create(opt, NLOPT_LN_NELDERMEAD, nprm)
+    call nlo_set_ftol_rel(ires, opt, ftol_eps)
+    call nlo_set_lower_bounds(ires, opt, lb)
+    call nlo_set_upper_bounds(ires, opt, ub)
+    call nlo_set_min_objective(ires, opt, ffit, 0)
+    call nlo_optimize(ires, opt, prm, ssq)
+    call nlo_destroy(opt)
+
+    ! output message
+    if (ires == 1) then
+       write (uout,'("+ SUCCESS")')
+    elseif (ires == 2) then
+       write (uout,'("+ SUCCESS: maximum iterations reached")')
+    elseif (ires == 3) then
+       write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
+    elseif (ires == 4) then
+       write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
+    elseif (ires == 5) then
+       write (uout,'("+ SUCCESS: maxeval was reached")')
+    elseif (ires == 6) then
+       write (uout,'("+ SUCCESS: maxtime was reached")')
+    elseif (ires == -1) then
+       write (uout,'("+ FAILURE")')
+    elseif (ires == -2) then
+       write (uout,'("+ FAILURE: invalid arguments")')
+    elseif (ires == -3) then
+       write (uout,'("+ FAILURE: out of memory")')
+    elseif (ires == -4) then
+       write (uout,'("+ FAILURE: roundoff errors limited progress")')
+    elseif (ires == -5) then
+       write (uout,'("+ FAILURE: termination forced by user")')
+    end if
+
 
 ! ## do the least-squares
 ! warning("off");
@@ -3659,8 +3705,7 @@ contains
 !   fclose(fid);
 ! endfor
 
-    write (*,*) "bleh!"
-    stop 1
+    write (*,*) "finished!"
 
   contains
     function gaussian(x,x0,gamma) result(gau)
@@ -3687,51 +3732,52 @@ contains
 
     end function lorentz
 
-    subroutine ffit(val, n, x, grad, need_gradient, f_data)
+    subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
       use param, only: pi
-      real*8 :: val, x(n), grad(n)
-      integer :: n, need_gradient
-      real*8 :: f_data(:,:)
+      real*8 :: val, prm(nprm), grad(nprm)
+      integer :: nprm, need_gradient
+      real :: f_data
 
       integer :: i
       real*8 :: x0, gamma, eta, int, s, g2
-      real*8 :: gau(size(f_data,1)), lor(size(f_data,1)), xfit(size(f_data,1))
-      real*8 :: xfitg(size(f_data,1),n), ydif(size(f_data,1))
+      real*8 :: gau(n), lor(n), xfit(n)
+      real*8 :: xfitg(n,nprm), ydif(n)
 
       xfit = 0d0
-      do i = 1, n, 4
-         x0 = x(i)
-         gamma = max(x(i+1),1d-80)
-         eta = x(i+2)
-         int = x(i+3)
+      do i = 1, nprm, 4
+         x0 = prm(i)
+         gamma = max(prm(i+1),1d-80)
+         eta = prm(i+2)
+         int = prm(i+3)
 
-         gau = gaussian(f_data(:,1),x0,gamma)
-         lor = lorentz(f_data(:,1),x0,gamma)
+         gau = gaussian(x,x0,gamma)
+         lor = lorentz(x,x0,gamma)
 
          xfit = xfit + int * (eta * gau + (1-eta) * lor)
          if (need_gradient /= 0) then
             g2 = gamma / 2d0
             s = g2 / sqrt(2d0 * log(2d0))
 
-            xfitg(:,i) = int * (eta * (gau * (f_data(:,1)-x0) / (s * s)) +&
-               (1-eta) * (lor * lor * 4 * pi * (f_data(:,1)-x0) / gamma))
-            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (f_data(:,1)-x0)*(f_data(:,1)-x0) / (s*s) / gamma) +&
+            xfitg(:,i) = int * (eta * (gau * (x-x0) / (s * s)) +&
+               (1-eta) * (lor * lor * 4 * pi * (x-x0) / gamma))
+            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (x-x0)*(x-x0) / (s*s) / gamma) +&
                (1-eta) * (lor / gamma - pi * lor * lor))
             xfitg(:,i+2) = int * (gau - lor)
             xfitg(:,i+3) = eta * gau + (1-eta) * lor
          end if
       end do
 
-      ydif = f_data(:,2) - xfit
+      ydif = y - xfit
       val = sum(ydif * ydif)
       if (need_gradient /= 0) then
-         do i = 1, n
+         do i = 1, nprm
             grad(i) = -2d0 * sum(ydif * xfitg(:,i))
          end do
       end if
 
     end subroutine ffit
 
+#endif
   end subroutine trick_profile_fit
 
 end module tricks
