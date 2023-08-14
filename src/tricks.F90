@@ -3505,10 +3505,249 @@ contains
 
   !
   subroutine trick_profile_fit(line0)
+    use types, only: realloc
+    use tools_io, only: fopen_read, fclose, ferror, faterr, isreal, getline, string, uout
+    use param, only: pi
     character*(*), intent(in) :: line0
+
+    character(len=:), allocatable :: line
+    integer :: lu, lp, i
+    integer :: n, nprm
+    real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:)
+    real*8 :: x_, y_, ymax, minx, maxx, fac, gamma, eta
+    logical :: ok
+    integer :: npeaks
+    ! xxxx
+    real*8 :: val, f_data(2,2)
+
+    real*8, parameter :: fix_peak_position = 0.02 ! maximum displacmenet of the 2*theta
+    real*8, parameter :: fwhm_max = 0.5 ! maximum peak FWHM
+
+    write (uout,'("* Trick: profile fit")')
+
+    ! read the pattern
+    write (uout,'("+ Reading the pattern from file:",A)') trim(line0)
+    n = 0
+    allocate(x(1000),y(1000))
+    lu = fopen_read(line0)
+    do while (getline(lu,line))
+       lp = 1
+       ok = isreal(x_,line,lp)
+       ok = ok .and. isreal(y_,line,lp)
+       if (.not.ok) &
+          call ferror('trick','Unexpected line in data file',faterr)
+       n = n + 1
+       if (n > size(x,1)) then
+          call realloc(x,2*n)
+          call realloc(y,2*n)
+       end if
+       x(n) = x_
+       y(n) = y_
+    end do
+    call fclose(lu)
+    call realloc(x,n)
+    call realloc(y,n)
+
+    ! auto-detect the peaks
+    write (uout,'("+ Auto-detecting the peaks")')
+    npeaks = 0
+    allocate(pth2(100),phei(100))
+    ymax = sum(y) / real(n,8) + 2 * minval(y)
+    write (uout,'("  Minimum intensity cutoff for peak detection: ",A)') string(ymax,'f',decimal=2)
+    do i = 3, n-2
+       if (y(i) > ymax .and. y(i) > y(i-1) .and. y(i) > y(i-2) .and. y(i) > y(i+1) .and.&
+          y(i) > y(i+2)) then
+          npeaks = npeaks + 1
+          if (npeaks > size(pth2,1)) then
+             call realloc(pth2,2*npeaks)
+             call realloc(phei,2*npeaks)
+          end if
+          pth2(npeaks) = x(i)
+          phei(npeaks) = y(i)
+       end if
+    end do
+    call realloc(pth2,npeaks)
+    call realloc(phei,npeaks)
+    write (uout,'("  Peaks detected: ",A)') string(npeaks)
+
+    ! prepare the parameter list
+    allocate(prm(4*npeaks),lb(4*npeaks),ub(4*npeaks))
+    minx = minval(x)
+    maxx = maxval(x)
+    nprm = 0
+    do i = 1, npeaks
+       ! peak position (2*theta)
+       nprm = nprm + 1
+       prm(nprm) = pth2(i)
+       lb(nprm) = pth2(i) - fix_peak_position
+       ub(nprm) = pth2(i) + fix_peak_position
+
+       ! peak FWHM (gamma)
+       gamma = 0.1d0
+       nprm = nprm + 1
+       prm(nprm) = gamma
+       lb(nprm) = 1d-5
+       ub(nprm) = fwhm_max
+
+       ! Gaussian/Lorentz coefficient (eta)
+       eta = 0.5d0
+       nprm = nprm + 1
+       prm(nprm) = eta
+       lb(nprm) = 0d0
+       ub(nprm) = 1d0
+
+       ! peak area
+       nprm = nprm + 1
+       fac = eta * 2 * sqrt(log(2d0)) / (sqrt(pi) * gamma) + (1-eta) * 2 / (pi * gamma)
+       prm(nprm) = phei(i) / fac
+       lb(nprm) = 0d0
+       ub(nprm) = huge(1d0)
+    end do
+
+    prm = (/28d0,0.6d0,0.4d0,1000d0/)
+    f_data = 0d0
+    f_data(:,1) = (/28d0,27d0/)
+    call ffit(val,4,prm,prm,0,f_data)
+
+! ## do the least-squares
+! warning("off");
+! pkg load optim
+! stol = 1e-5; ## scalar tolerance, improvement scalar sum of squares
+! niter = 20000;
+! wt = ones(size(y));
+
+! npeaks_orig = npeaks;
+! options_orig = options;
+! for npeaks = 1:npeaks_orig
+!   printf("+ Fitting with %d peaks\n",npeaks);
+!   lparam = param(1:4*npeaks);
+!   dp = 0.001*ones(size(lparam));
+!   options.bounds = options_orig.bounds(1:4*npeaks,1:2);
+!   addpath(".")
+!   [f, p, cvg, iter, corp, covp, covr, stdresid, Z, r2] = leasqr(x,y,lparam,"ffit",stol,niter,wt,dp,@fittp,options);
+!   if (cvg == 0)
+!     error("not converged! increase niter!")
+!   endif
+!   param(1:4*npeaks) = p;
+
+!   ## print the results
+!   maxa = max(p(4:4:end));
+!   n = 0;
+!   for i = 1:npeaks
+!     printf("Peak %2.2d:  ",i);
+!     n++;
+!     printf("center=%8.4f,  ",p(n));
+!     n++;
+!     printf("fwhm=%8.4f,  ",p(n));
+!     n++;
+!     printf("gaussian_ratio=%6.4f,  ",p(n));
+!     n++;
+!     printf("area=%10.4f,  ",p(n));
+!     printf("norm_area=%10.4f",p(n)/maxa*100);
+!     printf("\n");
+!   endfor
+!   printf("\n");
+
+!   fid = fopen(out_fit_file,"w");
+!   fprintf(fid,"## x y yfit std-resid\n");
+!   for i = 1:length(x)
+!     fprintf(fid,"%.10f %.10f %.10f %.10f\n",x(i),y(i),f(i),stdresid(i));
+!   endfor
+!   fclose(fid);
+
+!   fid = fopen(out_peaks_file,"w");
+!   n = 0;
+!   for i = 1:npeaks
+!     n++;
+!     fprintf(fid,"%.10f ",p(n));
+!     n += 3;
+!     fprintf(fid,"%.10f\n",p(n)/maxa*100);
+!   endfor
+!   fclose(fid);
+! endfor
 
     write (*,*) "bleh!"
     stop 1
+
+  contains
+    function gaussian(x,x0,gamma) result(gau)
+      use param, only: pi
+      real*8, intent(in) :: x(:), x0, gamma
+      real*8 :: gau(size(x,1))
+
+      real*8 :: s
+
+      s = gamma / 2d0 / sqrt(2d0 * log(2d0))
+      gau = 1d0 / (s * sqrt(2d0*pi)) * exp(-(x-x0)*(x-x0) / (2*s*s))
+
+    end function gaussian
+
+    function lorentz(x,x0,gamma) result(lor)
+      use param, only: pi
+      real*8, intent(in) :: x(:), x0, gamma
+      real*8 :: lor(size(x,1))
+
+      real*8 :: g2
+
+      g2 = gamma / 2
+      lor = (1d0/pi) * g2 / ((x-x0)*(x-x0) + g2*g2)
+
+    end function lorentz
+
+    subroutine ffit(val, n, x, grad, need_gradient, f_data)
+      use param, only: pi
+      real*8 :: val, x(n), grad(n)
+      integer :: n, need_gradient
+      real*8 :: f_data(:,:)
+
+      integer :: i
+      real*8 :: x0, gamma, eta, int
+      real*8 :: gau(size(f_data,1)), lor(size(f_data,1)), xfit(size(f_data,1))
+
+      xfit = 0d0
+      do i = 1, n, 4
+         x0 = x(i)
+         gamma = max(x(i+1),1d-80)
+         eta = x(i+2)
+         int = x(i+3)
+
+         gau = gaussian(f_data(:,1),x0,gamma)
+         lor = lorentz(f_data(:,1),x0,gamma)
+
+         xfit = xfit + int * (eta * gau + (1-eta) * lor)
+      end do
+      write (*,*) xfit
+
+      val = 0d0
+
+  ! x = x(:);
+  ! y = zeros(length(x),length(p));
+  ! for i = 1:4:length(p)
+  !   x0 = p(i);
+  !   gamma = max(p(i+1),1e-80);
+  !   eta = p(i+2);
+  !   I = p(i+3);
+
+  !   gau = gaussian(x,x0,gamma);
+  !   lor = lorentz(x,x0,gamma);
+
+  !   s = gamma / 2 / sqrt(2 * log(2));
+  !   g2 = gamma/2;
+  !   y(:,i) = 0;
+  !   y(:,i) += eta * (gau .* (x-x0) / (s * s));
+  !   y(:,i) += (1-eta) * (lor .* lor * 4 * pi .* (x-x0) / gamma);
+  !   y(:,i) *= I;
+
+  !   y(:,i+1) = 0;
+  !   y(:,i+1) += eta * (-gau / gamma + gau .* (x-x0).^2 / s^2 / gamma);
+  !   y(:,i+1) += (1-eta) * (lor / gamma - pi * lor .* lor);
+  !   y(:,i+1) *= I;
+
+  !   y(:,i+2) = I * (gau - lor);
+  !   y(:,i+3) = eta * gau + (1-eta) * lor;
+  ! endfor
+
+    end subroutine ffit
 
   end subroutine trick_profile_fit
 
