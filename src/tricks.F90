@@ -3724,13 +3724,8 @@ contains
     ! fitting the whole pattern
     write (uout,'("+ Fitting the whole pattern")')
     ! run the minimization (main algorithm)
-    allocate(xtol_abs(nprm))
-    do ip = 1, npeaks
-       xtol_abs(4*(ip-1)+1:4*ip) = xtol_eps_abs
-    end do
     call nlo_create(opt, main_algorithm, nprm)
-    call nlo_set_xtol_abs(ires, opt, xtol_abs)
-    ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
+    call nlo_set_ftol_rel(ires, opt, ftol_eps)
     call nlo_set_lower_bounds(ires, opt, lb)
     call nlo_set_upper_bounds(ires, opt, ub)
     call nlo_set_min_objective(ires, opt, ffit, 0)
@@ -3738,8 +3733,7 @@ contains
     call nlo_destroy(opt)
     if (ires < 0) then
        call nlo_create(opt, fallback_algorithm, nprm)
-       call nlo_set_xtol_abs(ires, opt, xtol_abs)
-       ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
+       call nlo_set_ftol_rel(ires, opt, ftol_eps)
        call nlo_set_lower_bounds(ires, opt, lb)
        call nlo_set_upper_bounds(ires, opt, ub)
        call nlo_set_min_objective(ires, opt, ffit, 0)
