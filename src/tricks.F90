@@ -3762,7 +3762,7 @@ contains
           string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4)
     end do
 
-    ! calcualte final profile and write it to disk
+    ! calculate final profile and write it to disk
     yfit = fsimple(nprm,prm)
     lu = fopen_write("fit.dat")
     write (lu,'("## x y yfit std-resid")')
@@ -3773,16 +3773,18 @@ contains
     call fclose(lu)
     write (uout,'("+ Finished fitting pattern.")')
 
-!   fid = fopen(out_peaks_file,"w");
-!   n = 0;
-!   for i = 1:npeaks
-!     n++;
-!     fprintf(fid,"%.10f ",p(n));
-!     n += 3;
-!     fprintf(fid,"%.10f\n",p(n)/maxa*100);
-!   endfor
-!   fclose(fid);
-! endfor
+    ! final list of peaks to disk
+    write (uout,'("+ List of peaks written to file: fit.peaks")')
+    lu = fopen_write("fit.peaks")
+    write (lu,'("## List of peaks")')
+    write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
+    do ip = 1, npeaks
+       write (lu,'(4(A,X))') string(prm(4*(ip-1)+1),'f',decimal=10),&
+          string(prm(4*(ip-1)+4),'e',decimal=10),&
+          string(prm(4*(ip-1)+2),'f',decimal=10),&
+          string(prm(4*(ip-1)+3),'f',decimal=10)
+    end do
+    call fclose(lu)
 
   contains
     function gaussian(x,x0,gamma) result(gau)
