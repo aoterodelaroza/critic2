@@ -3503,10 +3503,11 @@ contains
 
   end subroutine powder_simple
 
-  !
+  ! PROFILE_FIT file-xy.s ymax.r
   subroutine trick_profile_fit(line0)
     use types, only: realloc
-    use tools_io, only: fopen_write, fopen_read, fclose, ferror, faterr, isreal, getline, string, uout
+    use tools_io, only: fopen_write, fopen_read, fclose, ferror, faterr, isreal, getline, string,&
+       uout, getword
     use tools, only: mergesort, qcksort
     use param, only: pi
     character*(*), intent(in) :: line0
@@ -3514,8 +3515,8 @@ contains
 #ifndef HAVE_NLOPT
     call ferror("trick_gaucomp2","trick_profile_fit can only be used if nlopt is available",faterr)
 #else
-    character(len=:), allocatable :: line
-    integer :: lu, lp, i, ip, k
+    character(len=:), allocatable :: line, file
+    integer :: lu, lp, lpo, i, ip, k
     integer :: n, nprm, nprml
     integer, allocatable :: io(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
@@ -3537,10 +3538,12 @@ contains
     write (uout,'("* Trick: profile fit")')
 
     ! read the pattern
-    write (uout,'("+ Reading the pattern from file:",A)') trim(line0)
+    lpo = 1
+    file = getword(line0,lpo)
+    write (uout,'("+ Reading the pattern from file:",A)') trim(file)
     n = 0
     allocate(x(1000),y(1000))
-    lu = fopen_read(line0)
+    lu = fopen_read(file)
     do while (getline(lu,line))
        lp = 1
        ok = isreal(x_,line,lp)
@@ -3559,12 +3562,15 @@ contains
     call realloc(x,n)
     call realloc(y,n)
 
+    ! read the ymax
+    ok = isreal(ymax,line0,lpo)
+    if (.not.ok) &
+       call ferror('trick','An YMAX must be given to fit the profile',faterr)
+
     ! auto-detect the peaks
     write (uout,'("+ Auto-detecting the peaks")')
     npeaks = 0
     allocate(pth2(100),phei(100))
-    ! ymax = sum(y) / real(n,8) + 2 * minval(y)
-    ymax = 200d0 ! xxxxx
     write (uout,'("  Minimum intensity cutoff for peak detection: ",A)') string(ymax,'f',decimal=2)
     do i = 3, n-2
        if (y(i) > ymax .and. y(i) > y(i-1) .and. y(i) > y(i-2) .and. y(i) > y(i+1) .and.&
@@ -3582,7 +3588,7 @@ contains
     call realloc(phei,npeaks)
     write (uout,'("  Peaks detected: ",A)') string(npeaks)
 
-    ! sort the peaks
+    ! sort the peaks from highest to lowest
     allocate(io(npeaks))
     do i = 1, npeaks
        io(i) = i
@@ -3744,9 +3750,10 @@ contains
     npeaks = npeaks_
     nprm = 4*npeaks
     call realloc(prm,nprm)
-    write (uout,'("+ Number of peaks after final pruning: ",A/)') string(npeaks)
+    write (uout,'("+ Number of peaks after final pruning: ",A)') string(npeaks)
 
     ! output peaks
+    write (uout,'("+ Final list of peaks:")')
     maxa = maxval(prm(4:nprm:4))
     do ip = 1, npeaks
        write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A)') &
