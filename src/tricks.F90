@@ -3520,20 +3520,22 @@ contains
     integer :: n, nprm, nprml
     integer, allocatable :: io(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
-    real*8, allocatable :: y_orig(:)
-    real*8 :: x_, y_, ymax, minx, maxx, maxy, fac, gamma, eta, ssq, maxa
+    real*8, allocatable :: y_orig(:), xtol_abs(:)
+    real*8 :: x_, y_, ymax, minx, maxx, maxy, fac, gamma, eta, ssq, maxa, th2, hei
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
     integer :: ires
 
+    include 'nlopt.f'
+
+    integer, parameter :: main_algorithm = NLOPT_LD_CCSAQ
+    integer, parameter :: fallback_algorithm = NLOPT_LD_MMA
     real*8, parameter :: ftol_eps = 1d-5
     real*8, parameter :: xtol_eps_abs(4) = (/1d-4,1d-8,1d-8,1d-4/)
     real*8, parameter :: fix_peak_position = 0.02 ! maximum displacmenet of the 2*theta
     real*8, parameter :: fwhm_max = 0.5 ! maximum peak FWHM
     real*8, parameter :: area_peak_filter = 1d-4
-
-    include 'nlopt.f'
 
     write (uout,'("* Trick: profile fit")')
 
@@ -3634,7 +3636,7 @@ contains
     end do
 
     ! pre-fit the peaks
-    write (uout,'(/"+ Pre-fitting peaks")')
+    write (uout,'(/"+ Pre-fitting peaks (this make take some time...)")')
     allocate(yfit(n),ysum(n))
     ysum = 0d0
     y_orig = y
@@ -3642,15 +3644,25 @@ contains
        ! number of parameters
        nprml = 4
 
-       ! run the minimization
+       ! run the minimization (main algorithm)
        y = y_orig - ysum
-       call nlo_create(opt, NLOPT_LD_MMA, nprml)
+       call nlo_create(opt, main_algorithm, nprml)
        call nlo_set_xtol_abs(ires, opt, xtol_eps_abs)
        call nlo_set_lower_bounds(ires, opt, lb(4*(ip-1)+1:4*ip))
        call nlo_set_upper_bounds(ires, opt, ub(4*(ip-1)+1:4*ip))
        call nlo_set_min_objective(ires, opt, ffit, 0)
        call nlo_optimize(ires, opt, prm(4*(ip-1)+1:4*ip), ssq)
        call nlo_destroy(opt)
+       if (ires < 0) then
+          ! run the minimization (fallback algorithm)
+          call nlo_create(opt, fallback_algorithm, nprml)
+          call nlo_set_xtol_abs(ires, opt, xtol_eps_abs)
+          call nlo_set_lower_bounds(ires, opt, lb(4*(ip-1)+1:4*ip))
+          call nlo_set_upper_bounds(ires, opt, ub(4*(ip-1)+1:4*ip))
+          call nlo_set_min_objective(ires, opt, ffit, 0)
+          call nlo_optimize(ires, opt, prm(4*(ip-1)+1:4*ip), ssq)
+          call nlo_destroy(opt)
+       end if
 
        ! output message
        if (ires == -1) then
@@ -3711,14 +3723,29 @@ contains
 
     ! fitting the whole pattern
     write (uout,'("+ Fitting the whole pattern")')
-    ! run the minimization
-    call nlo_create(opt, NLOPT_LD_MMA, nprm)
-    call nlo_set_ftol_rel(ires, opt, ftol_eps)
+    ! run the minimization (main algorithm)
+    allocate(xtol_abs(nprm))
+    do ip = 1, npeaks
+       xtol_abs(4*(ip-1)+1:4*ip) = xtol_eps_abs
+    end do
+    call nlo_create(opt, main_algorithm, nprm)
+    call nlo_set_xtol_abs(ires, opt, xtol_abs)
+    ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
     call nlo_set_lower_bounds(ires, opt, lb)
     call nlo_set_upper_bounds(ires, opt, ub)
     call nlo_set_min_objective(ires, opt, ffit, 0)
     call nlo_optimize(ires, opt, prm, ssq)
     call nlo_destroy(opt)
+    if (ires < 0) then
+       call nlo_create(opt, fallback_algorithm, nprm)
+       call nlo_set_xtol_abs(ires, opt, xtol_abs)
+       ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
+       call nlo_set_lower_bounds(ires, opt, lb)
+       call nlo_set_upper_bounds(ires, opt, ub)
+       call nlo_set_min_objective(ires, opt, ffit, 0)
+       call nlo_optimize(ires, opt, prm, ssq)
+       call nlo_destroy(opt)
+    end if
 
     ! output message
     if (ires == -1) then
@@ -3772,6 +3799,124 @@ contains
     end do
     call fclose(lu)
     write (uout,'("+ Finished fitting pattern.")')
+
+    do while(.true.)
+       ! read the new peak
+       write (uout,'(/"Enter 2*theta to search for new peak (<0 exits):")')
+       read (*,*) th2
+       if (th2 < 0d0) exit
+
+       ! assign new parameters
+       npeaks = npeaks + 1
+       call realloc(prm,nprm+4)
+       call realloc(lb,nprm+4)
+       call realloc(ub,nprm+4)
+       ! peak position (2*theta)
+       nprm = nprm + 1
+       prm(nprm) = th2
+       lb(nprm) = th2 - fix_peak_position
+       ub(nprm) = th2 + fix_peak_position
+
+       ! peak FWHM (gamma)
+       gamma = 0.1d0
+       nprm = nprm + 1
+       prm(nprm) = gamma
+       lb(nprm) = 1d-5
+       ub(nprm) = fwhm_max
+
+       ! Gaussian/Lorentz coefficient (eta)
+       eta = 0.5d0
+       nprm = nprm + 1
+       prm(nprm) = eta
+       lb(nprm) = 0d0
+       ub(nprm) = 1d0
+
+       ! peak area (interpolate height from the pattern)
+       hei = y(n)
+       do i = 1, n
+          if (x(i) > th2) then
+             if (i == 1 .or. i == n) then
+                hei = y(i)
+             else
+                hei = y(i-1) + (y(i) - y(i-1)) * (th2 - x(i-1)) / (x(i) - x(i-1))
+             end if
+             exit
+          end if
+       end do
+       nprm = nprm + 1
+       fac = eta * 2 * sqrt(log(2d0)) / (sqrt(pi) * gamma) + (1-eta) * 2 / (pi * gamma)
+       prm(nprm) = hei / fac
+       lb(nprm) = 0d0
+       ub(nprm) = (maxx-minx) * maxy
+
+       ! fit the whole pattern
+       allocate(xtol_abs(nprm))
+       write (uout,'("+ Fitting the whole pattern")')
+       ! run the minimization (main algorithm)
+       call nlo_create(opt, main_algorithm, nprm)
+       do ip = 1, npeaks
+          xtol_abs(4*(ip-1)+1:4*ip) = xtol_eps_abs
+       end do
+       call nlo_set_xtol_abs(ires, opt, xtol_abs)
+       call nlo_set_lower_bounds(ires, opt, lb)
+       call nlo_set_upper_bounds(ires, opt, ub)
+       call nlo_set_min_objective(ires, opt, ffit, 0)
+       call nlo_optimize(ires, opt, prm, ssq)
+       call nlo_destroy(opt)
+       if (ires < 0) then
+          ! run the minimization (fallback algorithm)
+          call nlo_create(opt, fallback_algorithm, nprm)
+          do ip = 1, npeaks
+             xtol_abs(4*(ip-1)+1:4*ip) = xtol_eps_abs
+          end do
+          call nlo_set_xtol_abs(ires, opt, xtol_abs)
+          call nlo_set_lower_bounds(ires, opt, lb)
+          call nlo_set_upper_bounds(ires, opt, ub)
+          call nlo_set_min_objective(ires, opt, ffit, 0)
+          call nlo_optimize(ires, opt, prm, ssq)
+          call nlo_destroy(opt)
+       end if
+       deallocate(xtol_abs)
+
+       ! output message
+       if (ires == -1) then
+          write (uout,'("+ FAILURE")')
+          return
+       elseif (ires == -2) then
+          write (uout,'("+ FAILURE: invalid arguments")')
+          return
+       elseif (ires == -3) then
+          write (uout,'("+ FAILURE: out of memory")')
+          return
+       elseif (ires == -4) then
+          write (uout,'("+ FAILURE: roundoff errors limited progress")')
+          return
+       elseif (ires == -5) then
+          write (uout,'("+ FAILURE: termination forced by user")')
+          return
+       end if
+
+       ! output peaks
+       write (uout,'("+ Final list of peaks:")')
+       maxa = maxval(prm(4:nprm:4))
+       do ip = 1, npeaks
+          write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A)') &
+             string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
+             string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
+             string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4)
+       end do
+
+       ! calculate final profile and write it to disk
+       yfit = fsimple(nprm,prm)
+       lu = fopen_write("fit.dat")
+       write (lu,'("## x y yfit std-resid")')
+       do i = 1, n
+          write (lu,'(3(A,X))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+             string(yfit(i),'f',decimal=10)
+       end do
+       call fclose(lu)
+       write (uout,'("+ Finished fitting pattern.")')
+    end do
 
     ! final list of peaks to disk
     write (uout,'("+ List of peaks written to file: fit.peaks")')
@@ -3853,6 +3998,7 @@ contains
             grad(i) = -2d0 * sum(ydif * xfitg(:,i))
          end do
       end if
+      ! write (*,*) "call = ", x0, gamma, eta, int, val
 
     end subroutine ffit
 
