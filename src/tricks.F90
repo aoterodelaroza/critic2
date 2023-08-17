@@ -2932,11 +2932,14 @@ contains
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
-    use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal
+    use tools, only: qcksort
+    use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
+       fopen_read, fclose, getline, isreal
+    use types, only: realloc
     character*(*), intent(in) :: line0
 
 #ifndef HAVE_NLOPT
-    call ferror("trick_gaucomp2","trick_gaucomp2 can only be used if nlopt is available",faterr)
+    call ferror("trick_gaucomp","trick_gaucomp can only be used if nlopt is available",faterr)
 #else
     real*8, parameter :: sigma = 0.05d0
     real*8, parameter :: th2ini = 5d0
@@ -2944,17 +2947,17 @@ contains
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
 
-    integer :: lp
-    integer :: i, j
-    real*8 :: dfg22, x(6), xorig(6), grad(6), diff, vorig
+    integer :: lp, lp2
+    integer :: i, j, np2
+    real*8 :: dfg22, x(6), xorig(6), grad(6), diff, vorig, th2_, int_
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
-    integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
-    character(len=:), allocatable :: word, file1
+    integer, allocatable :: hvecp1(:,:), hvecp2(:,:), io(:)
+    character(len=:), allocatable :: word, file1, line
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
-    integer :: ires, imode
+    integer :: ires, imode, lu
     real*8 :: lb(6), ub(6)
-    logical :: iresok
+    logical :: iresok, ok
     type(crystalseed) :: seed
 
     ! global block
@@ -2980,8 +2983,44 @@ contains
     write (uout,'("  Crystal 1: ",A)') string(file1)
     call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
     word = getword(line0,lp)
-    write (uout,'("  Crystal 2: ",A)') string(word)
-    call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+    if (len(word) - index(word,".peaks") == 6) then
+       ! read the pattern from the peaks file
+       np2 = 0
+       allocate(th2p2(1000), ip2(1000))
+       lu = fopen_read(word)
+       do while (getline(lu,line))
+          lp2 = 1
+          ok = isreal(th2_,line,lp2)
+          ok = ok .and. isreal(int_,line,lp2)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid input in peaks file",faterr)
+          np2 = np2 + 1
+          if (np2 > size(th2p2,1)) then
+             call realloc(th2p2,2*np2)
+             call realloc(ip2,2*np2)
+          end if
+          th2p2(np2) = th2_
+          ip2(np2) = int_
+       end do
+       call fclose(lu)
+       call realloc(th2p2,np2)
+       call realloc(ip2,np2)
+
+       ! sort the peaks
+       allocate(io(np2))
+       do i = 1, np2
+          io(i) = i
+       end do
+       call qcksort(th2p2,io,1,np2)
+       th2p2 = th2p2(io)
+       ip2 = ip2(io)
+       deallocate(io)
+    else
+       ! read crystal structure 2 and calculate pattern
+       write (uout,'("  Crystal 2: ",A)') string(word)
+       call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+       call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
+    end if
 
     ! read additional options
     imode = imode_sp
@@ -2998,7 +3037,6 @@ contains
 
     ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     call crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa
