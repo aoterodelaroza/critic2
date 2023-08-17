@@ -3531,9 +3531,8 @@ contains
 
     integer, parameter :: main_algorithm = NLOPT_LD_CCSAQ
     integer, parameter :: fallback_algorithm = NLOPT_LD_MMA
-    ! real*8, parameter :: ftol_eps = 1d-8
+    real*8, parameter :: ftol_eps = 1d-8
     real*8, parameter :: xtol_eps_abs(4) = (/1d-4,1d-8,1d-8,1d-4/) ! 2th, fwhm, eta, Int
-    real*8, parameter :: xtol_eps_abs_final(4) = (/1d-3,1d-4,1d-4,1d-1/) ! 2th, fwhm, eta, Int
     real*8, parameter :: fwhm_max = 0.5 ! maximum peak FWHM
     real*8, parameter :: fwhm_max_prefit = 0.1 ! maximum peak FWHM in prefit
     real*8, parameter :: area_peak_filter = 1d-4
@@ -3750,16 +3749,11 @@ contains
     ! put back the maximum FWHM for all peaks
     ub(2:nprm:4) = fwhm_max
 
-    allocate(eps(nprm))
-    do i = 1, nprm, 4
-       eps(i:i+3) = xtol_eps_abs_final
-    end do
     ! fitting the whole pattern
     write (uout,'("+ Fitting the whole pattern")')
     ! run the minimization (main algorithm)
     call nlo_create(opt, main_algorithm, nprm)
-    ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
-    call nlo_set_xtol_abs(ires, opt, eps)
+    call nlo_set_ftol_rel(ires, opt, ftol_eps)
     call nlo_set_lower_bounds(ires, opt, lb)
     call nlo_set_upper_bounds(ires, opt, ub)
     call nlo_set_min_objective(ires, opt, ffit, 0)
@@ -3767,8 +3761,7 @@ contains
     call nlo_destroy(opt)
     if (ires < 0) then
        call nlo_create(opt, fallback_algorithm, nprm)
-       ! call nlo_set_ftol_rel(ires, opt, ftol_eps)
-       call nlo_set_xtol_abs(ires, opt, eps)
+       call nlo_set_ftol_rel(ires, opt, ftol_eps)
        call nlo_set_lower_bounds(ires, opt, lb)
        call nlo_set_upper_bounds(ires, opt, ub)
        call nlo_set_min_objective(ires, opt, ffit, 0)
