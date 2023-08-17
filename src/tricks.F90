@@ -2208,7 +2208,7 @@ contains
 
     type(crystalseed) :: seed, c2seed
     type(environ) :: e
-    integer :: lp, lp2, ierr, i, j, n, nh1, nh2
+    integer :: lp, lp2, ierr, i, j, n
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
@@ -2216,7 +2216,7 @@ contains
     real*8, allocatable :: dist(:), th2p(:), ip(:)
     integer, allocatable :: eid(:), irange(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3, idx
-    real*8, allocatable :: iha1(:), iha2(:), th1(:), th2(:)
+    real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)
     real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff
     real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
@@ -2759,7 +2759,7 @@ contains
     use param, only: pi
     character*(*), intent(in) :: line0
 
-    integer :: i, j, iz, ncon
+    integer :: i, iz, ncon
     logical :: ok, okfin
     real*8 :: v1(3), v2(3), v3(3), v4(3), angle
 
@@ -2933,7 +2933,6 @@ contains
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal
-    use param, only: pi
     character*(*), intent(in) :: line0
 
 #ifndef HAVE_NLOPT
@@ -2947,7 +2946,7 @@ contains
 
     integer :: lp
     integer :: i, j
-    real*8 :: gaux, dfg22, x(6), xorig(6), grad(6), diff, vorig
+    real*8 :: dfg22, x(6), xorig(6), grad(6), diff, vorig
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:)
     character(len=:), allocatable :: word, file1
@@ -3216,7 +3215,6 @@ contains
       real*8, intent(in) :: x(6), val
 
       integer :: i, ires
-      real*8 :: a,b,c,alp,bet,gam
       character(len=:), allocatable :: str
 
       lastval = val
@@ -3268,7 +3266,6 @@ contains
     real*8 :: smax, dh2, dh, dh3, ar(3), gr(3,3), imax
     real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, intg(6), mcorr, afac
     real*8 :: th2g(6), mcorrg(6)
-    real*8 :: aux, auxg(6)
     integer :: hmax
     logical :: again, usederivs
     integer, allocatable :: io(:)
@@ -3396,7 +3393,7 @@ contains
     subroutine run_function_body()
       real*8 :: xfac, ffacg(6), sthlam, esthlam
       real*8 :: cterm, sterm, ctermg(6), stermg(6)
-      real*8 :: cthg, sthg, kx, ckx, skx
+      real*8 :: kx, ckx, skx
       real*8 :: dhv(3), dhm(6), ebs(4)
 
       ! initialize
@@ -3516,12 +3513,12 @@ contains
     call ferror("trick_gaucomp2","trick_profile_fit can only be used if nlopt is available",faterr)
 #else
     character(len=:), allocatable :: line, file
-    integer :: lu, lp, lpo, i, ip, k
-    integer :: n, nprm, nprml, ios, nini
-    integer, allocatable :: io(:), pid(:), idx(:)
+    integer :: lu, lp, lpo, i, ip
+    integer :: n, nprm, nprml
+    integer, allocatable :: io(:), pid(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
-    real*8, allocatable :: y_orig(:), eps(:)
-    real*8 :: x_, y_, ymax_peakdetect, minx, maxx, maxy, fac, gamma, eta, ssq, maxa, th2, hei
+    real*8, allocatable :: y_orig(:)
+    real*8 :: x_, y_, ymax_peakdetect, minx, maxx, maxy, fac, ssq, maxa
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
@@ -3913,7 +3910,6 @@ contains
     end subroutine ffit
 
     function fsimple(nprm, prm) result(yfit)
-      use param, only: pi
       real*8 :: prm(nprm)
       integer :: nprm
       real*8 :: yfit(n)
