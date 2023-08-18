@@ -2942,8 +2942,8 @@ contains
     call ferror("trick_gaucomp","trick_gaucomp can only be used if nlopt is available",faterr)
 #else
     real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end = 50d0
+    real*8, parameter :: th2ini0 = 5d0
+    real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
 
@@ -2956,15 +2956,15 @@ contains
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
     integer :: ires, imode, lu
-    real*8 :: lb(6), ub(6)
+    real*8 :: lb(6), ub(6), th2ini, th2end
     logical :: iresok, ok
     type(crystalseed) :: seed
 
     ! global block
-    integer :: neval = 0
-    real*8 :: lastval = -1d0
-    real*8 :: bestval = 1.1d0
-    integer :: nbesteval = 0
+    integer :: neval
+    real*8 :: lastval
+    real*8 :: bestval
+    integer :: nbesteval
     real*8, parameter :: ftol_eps = 1d-5
 
     ! parameters
@@ -2976,6 +2976,12 @@ contains
     integer, parameter :: maxfeval = 1000
 
     include 'nlopt.f'
+
+    ! initialize
+    neval = 0
+    lastval = -1d0
+    bestval = 1.1d0
+    nbesteval = 0
 
     ! read crystal structures
     lp = 1
@@ -3015,12 +3021,18 @@ contains
        th2p2 = th2p2(io)
        ip2 = ip2(io)
        deallocate(io)
+       th2ini = th2p2(1) - 1d-2
+       th2end = th2p2(np2) + 1d-2
     else
        ! read crystal structure 2 and calculate pattern
+       th2ini = th2ini0
+       th2end = th2end0
        write (uout,'("  Crystal 2: ",A)') string(word)
        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
        call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     end if
+    write (uout,'("  Initial and final 2*theta: ",A,X,A)') &
+       string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
     imode = imode_sp
