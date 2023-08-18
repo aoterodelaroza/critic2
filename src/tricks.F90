@@ -2946,6 +2946,7 @@ contains
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: alpha0 = 0.5d0 ! width of the "triangle"
 
     integer :: lp, lp2
     integer :: i, j, np2
@@ -2956,7 +2957,7 @@ contains
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
     integer :: ires, imode, lu
-    real*8 :: lb(6), ub(6), th2ini, th2end
+    real*8 :: lb(6), ub(6), th2ini, th2end, alpha
     logical :: iresok, ok
     type(crystalseed) :: seed
 
@@ -3035,6 +3036,7 @@ contains
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
+    alpha = alpha0
     imode = imode_sp
     do while (.true.)
        word = lgetword(line0,lp)
@@ -3042,6 +3044,10 @@ contains
           imode = imode_local
        elseif (equal(word,'global')) then
           imode = imode_global
+       elseif (equal(word,'alpha')) then
+          ok = isreal(alpha,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
        else
           exit
        end if
@@ -3049,7 +3055,7 @@ contains
 
     ! pre-calculation
     call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
-    call crosscorr_exp(th2p2,ip2,th2p2,ip2,sigma,dfg22)
+    call crosscorr_exp(alpha,th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
@@ -3189,8 +3195,8 @@ contains
 
       ! only recompute crystal 1
       call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-      call crosscorr_exp(th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
-      call crosscorr_exp(th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
+      call crosscorr_exp(alpha,th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
+      call crosscorr_exp(alpha,th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
       diff = dfg12 / sqrt(dfg11 * dfg22)
 
       ! write output
@@ -3213,8 +3219,9 @@ contains
 
     end subroutine diff_fun
 
-    subroutine crosscorr_exp(th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
+    subroutine crosscorr_exp(alpha,th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
       use param, only: pi
+      real*8, intent(in) :: alpha
       real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
       real*8, intent(in) :: sigma
       real*8, intent(out) :: dfg
@@ -3230,7 +3237,7 @@ contains
 
       calcderiv = present(th1g) .and. present(ip1g) .and. present(dfgg)
 
-      z = 1d0 / (1d0 + 4d0 * pi * sigma**2)
+      z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
       zp = pi * z
       z2p = 2d0 * zp
       zsq = sqrt(z)
