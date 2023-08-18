@@ -2927,14 +2927,14 @@ contains
 
   end subroutine trick_check_valence
 
-  !
+  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [MAXFEVAL maxfeval.i]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
-       fopen_read, fclose, getline, isreal
+       fopen_read, fclose, getline, isreal, isinteger
     use types, only: realloc
     character*(*), intent(in) :: line0
 
@@ -2956,7 +2956,7 @@ contains
     character(len=:), allocatable :: word, file1, line
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
-    integer :: ires, imode, lu
+    integer :: ires, imode, lu, maxfeval
     real*8 :: lb(6), ub(6), th2ini, th2end, alpha
     logical :: iresok, ok
     type(crystalseed) :: seed
@@ -2974,7 +2974,7 @@ contains
     integer, parameter :: imode_global = 2
     real*8, parameter :: max_elong_def = 0.1d0
     real*8, parameter :: max_ang_def = 5d0
-    integer, parameter :: maxfeval = 1000
+    integer, parameter :: maxfeval0 = 2000
 
     include 'nlopt.f'
 
@@ -3036,6 +3036,7 @@ contains
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
+    maxfeval = maxfeval0
     alpha = alpha0
     imode = imode_sp
     do while (.true.)
@@ -3046,6 +3047,10 @@ contains
           imode = imode_global
        elseif (equal(word,'alpha')) then
           ok = isreal(alpha,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
+       elseif (equal(word,'maxfeval')) then
+          ok = isinteger(maxfeval,line0,lp)
           if (.not.ok) &
              call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
        else
