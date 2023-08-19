@@ -1,2 +1,0 @@
-SUBDIRS=wfc lib
-
