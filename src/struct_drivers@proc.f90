@@ -2251,7 +2251,7 @@ contains
              if (any(abs(cc2) > 0.9999d0)) then
                 write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
                    string(irange(i3,3),2,ioj_right),&
-                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(0d0,'f',8,3,ioj_right),&
                    "rejected because collinear lattice vectors"
                 cycle
              end if
