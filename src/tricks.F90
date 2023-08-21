@@ -2934,25 +2934,20 @@ contains
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
-       fopen_read, fclose, getline, isreal, isinteger
+       fopen_read, fclose, getline, isreal, isinteger, fopen_write, ioj_center
     use types, only: realloc
     character*(*), intent(in) :: line0
 
 #ifndef HAVE_NLOPT
     call ferror("trick_gaucomp","trick_gaucomp can only be used if nlopt is available",faterr)
-#else
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: th2ini0 = 5d0
-    real*8, parameter :: th2end0 = 50d0
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: alpha0 = 0.5d0 ! width of the "triangle"
 
+#else
     integer :: lp, lp2
     integer :: i, j, np2
     real*8 :: dfg22, x(6), xorig(6), grad(6), diff, vorig, th2_, int_
     real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
     integer, allocatable :: hvecp1(:,:), hvecp2(:,:), io(:)
+    real*8, allocatable :: t(:), ih(:)
     character(len=:), allocatable :: word, file1, line
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
@@ -2975,6 +2970,14 @@ contains
     real*8, parameter :: max_elong_def = 0.1d0
     real*8, parameter :: max_ang_def = 5d0
     integer, parameter :: maxfeval0 = 2000
+
+    real*8, parameter :: sigma = 0.05d0
+    real*8, parameter :: th2ini0 = 5d0
+    real*8, parameter :: th2end0 = 50d0
+    real*8, parameter :: lambda0 = 1.5406d0
+    real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: alpha0 = 0.5d0 ! width of the "triangle"
+    integer, parameter :: final_npts = 10001
 
     include 'nlopt.f'
 
@@ -3032,7 +3035,7 @@ contains
        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
        call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
     end if
-    write (uout,'("  Initial and final 2*theta: ",A,X,A)') &
+    write (uout,'("  Initial and final 2*theta: ",A," ",A)') &
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
@@ -3121,6 +3124,11 @@ contains
           end if
        end if
 
+       ! clean up
+       if (imode == imode_global) &
+          call nlo_destroy(lopt)
+       call nlo_destroy(opt)
+
        ! make final structure
        call c1%makeseed(seed,.false.)
        seed%useabr = 1
@@ -3130,32 +3138,38 @@ contains
 
        ! write message to output
        write (uout,'("+ Lattice parameters: ")')
-       write (uout,'("  Initial (1): ",6(A,X))') &
+       write (uout,'("  Initial (1): ",6(A," "))') &
           (string(xorig(i),'f',length=11,decimal=8),i=1,3), &
           (string(xorig(i),'f',length=10,decimal=6),i=4,6)
-       write (uout,'("  Final (1):   ",6(A,X))') &
+       write (uout,'("  Final (1):   ",6(A," "))') &
           (string(x(i),'f',length=11,decimal=8),i=1,3), &
           (string(x(i),'f',length=10,decimal=6),i=4,6)
-       write (uout,'("  Target (2):  ",6(A,X))') &
+       write (uout,'("  Target (2):  ",6(A," "))') &
           (string(c2%aa(i),'f',length=11,decimal=8),i=1,3), &
           (string(c2%bb(i),'f',length=10,decimal=6),i=1,3)
-       write (uout,'(" Relative length deformations:   ",3(A,X))') &
+       write (uout,'(" Relative length deformations:   ",3(A," "))') &
           (string(abs(xorig(i)-x(i))/xorig(i),'f',length=11,decimal=8),i=1,3)
-       write (uout,'(" Angle displacements:   ",3(A,X))') &
+       write (uout,'(" Angle displacements:   ",3(A," "))') &
           (string(abs(xorig(i)-x(i)),'f',length=7,decimal=4),i=4,6)
        write (uout,'("  Initial volume (bohr3): ",A)') string(vorig,'f',decimal=4)
        write (uout,'("  Final volume (bohr3): ",A)') string(c1%omega,'f',decimal=4)
        write (uout,'("  Volume deformation: ",A)') string(abs(c1%omega-vorig)/vorig,'f',decimal=8)
 
        ! write structure to output
-       word = trim(file1) // "-final.in"
+       word = trim(file1) // "-final.cif"
        call c1%write_simple_driver(word)
        write (uout,'("+ Final structure written to ",A/)') trim(word)
 
-       ! clean up
-       if (imode == imode_global) &
-          call nlo_destroy(lopt)
-       call nlo_destroy(opt)
+       ! write diffraction patterns to output
+       word = trim(file1) // "-final.txt"
+       lu = fopen_write(word)
+       call c1%powder(0,th2ini,th2end,lambda0,fpol0,final_npts,sigma,.false.,t=t,ih=ih)
+       write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
+       do i = 1, final_npts
+          write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
+             string(ih(i),"f",15,7,ioj_center)
+       end do
+       call fclose(lu)
     else
        call diff_fun(diff,6,x,grad,0,1.)
     end if
@@ -3287,7 +3301,7 @@ contains
       else
          str = " | " // string(bestval,'f',12,8)  // "best for last " // string(neval - nbesteval) // " iterations"
       end if
-      write (uout,'(A,X,A," at ",7(A,X))') string(neval,8,ioj_left),&
+      write (uout,'(A," ",A," at ",7(A," "))') string(neval,8,ioj_left),&
          string(val,'f',length=12,decimal=8),&
          (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
          (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6), &
@@ -3572,7 +3586,7 @@ contains
     character*(*), intent(in) :: line0
 
 #ifndef HAVE_NLOPT
-    call ferror("trick_gaucomp2","trick_profile_fit can only be used if nlopt is available",faterr)
+    call ferror("trick_profile_fit","trick_profile_fit can only be used if nlopt is available",faterr)
 #else
     character(len=:), allocatable :: line, file
     integer :: lu, lp, lpo, i, ip
@@ -3778,7 +3792,7 @@ contains
        lu = fopen_write("fit.dat")
        write (lu,'("## x y yfit std-resid")')
        do i = 1, n
-          write (lu,'(3(A,X))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+          write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
              string(ysum(i),'f',decimal=10)
        end do
        call fclose(lu)
@@ -3880,7 +3894,7 @@ contains
     lu = fopen_write("fit.dat")
     write (lu,'("## x y yfit std-resid")')
     do i = 1, n
-       write (lu,'(3(A,X))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
           string(ysum(i),'f',decimal=10)
     end do
     call fclose(lu)
@@ -3892,7 +3906,7 @@ contains
     write (lu,'("## List of peaks")')
     write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
     do ip = 1, npeaks
-       write (lu,'(4(A,X))') string(prm(4*(ip-1)+1),'f',decimal=10),&
+       write (lu,'(4(A," "))') string(prm(4*(ip-1)+1),'f',decimal=10),&
           string(prm(4*(ip-1)+4),'e',decimal=10),&
           string(prm(4*(ip-1)+2),'f',decimal=10),&
           string(prm(4*(ip-1)+3),'f',decimal=10)
