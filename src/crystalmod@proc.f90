@@ -179,7 +179,7 @@ contains
     use tools_io, only: ferror, faterr, zatguess, string
     use tools, only: wscell, qcksort
     use types, only: realloc
-    use param, only: pi, eyet, icrd_cart
+    use param, only: pi, eyet, eye, icrd_cart
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
@@ -187,7 +187,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border, xx(3)
-    logical :: good, clearsym, doenv
+    logical :: good, good2, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:), xcoord(:)
     integer, allocatable :: irotm(:), icenv(:), iord(:)
@@ -416,7 +416,21 @@ contains
           if (.not.all(abs(eyet - c%rotm(:,:,1)) < 1d-12)) then
              good = .false.
              do i = 1, c%neqv
-                if (all(abs(eyet - c%rotm(:,:,i)) < 1d-12)) then
+                if (all(abs(eye - c%rotm(1:3,1:3,i)) < 1d-12)) then
+                   good2 = .false.
+                   do j = 1, c%ncv
+                      if (all(abs(c%rotm(:,4,i) - c%cen(:,j)) < 1d-12) .or.&
+                          all(abs(c%rotm(:,4,i) + c%cen(:,j)) < 1d-12)) then
+                         good2 = .true.
+                      end if
+                   end do
+                   if (.not.good2) then
+                      if (crashfail) then
+                         call ferror('struct_new','identity operation in rotm with unknown translation vector',faterr)
+                      else
+                         return
+                      end if
+                   end if
                    c%rotm(:,:,i) = c%rotm(:,:,1)
                    c%rotm(:,:,1) = eyet
                    good = .true.
