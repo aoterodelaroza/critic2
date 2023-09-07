@@ -164,9 +164,9 @@ if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
     message(FATAL_ERROR ${_message})
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
-  set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
-  set(FFLAGS_PROFILE "-g -pg -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp")
-  set(FFLAGS_RELEASE "-O3")
+  set(FFLAGS_DEBUG "-g -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp -ffree-line-length-0")
+  set(FFLAGS_PROFILE "-g -pg -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp -ffree-line-length-0")
+  set(FFLAGS_RELEASE "-O3 -ffree-line-length-0")
   if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 6.0.0)
     set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
