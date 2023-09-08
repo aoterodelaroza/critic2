@@ -31,6 +31,7 @@ module global
 
   ! Distance cutoffs
   real*8, parameter :: atomeps = 1d-2 !< Minimum distance to consider two atoms different
+  real*8, parameter :: atomeps_structnew = 5d-2 !< ditto, checking for repeats in struct_new
   real*8, parameter :: atomeps2 = atomeps*atomeps
 
   ! Beta-sphere default radius (bohr)

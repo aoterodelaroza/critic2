@@ -173,7 +173,7 @@ contains
   module subroutine struct_new(c,seed,crashfail,noenv,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
-    use global, only: crsmall, atomeps
+    use global, only: crsmall, atomeps_structnew
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
@@ -305,7 +305,7 @@ contains
                 xx = matmul(seed%rotm(1:3,1:3,j),seed%x(:,i)) + seed%rotm(:,4,j) + seed%cen(:,k)
                 do l = i+1, seed%nat
                    if (.not.useatom(l)) cycle
-                   if (c%eql_distance(seed%x(:,l),xx) < atomeps) useatom(l) = .false.
+                   if (c%eql_distance(seed%x(:,l),xx) < atomeps_structnew) useatom(l) = .false.
                 end do
              enddo
           enddo
@@ -453,7 +453,7 @@ contains
           allocate(c%atcel(c%nneq*c%neqv*c%ncv))
           iat = 0
           do i = 1, c%nneq
-             call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps)
+             call c%symeqv(c%at(i)%x,c%at(i)%mult,atpos,irotm,icenv,atomeps_structnew)
 
              newmult = 0
              jloop: do j = 1, c%at(i)%mult
