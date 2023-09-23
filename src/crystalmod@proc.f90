@@ -1353,6 +1353,8 @@ contains
        allocate(c%mol(c%nmol)%at(nat))
        c%mol(c%nmol)%nat = nat
        do j = 1, nat
+          ! if not a discrete fragment, do not translate
+          if (.not.c%mol(c%nmol)%discrete) lvec(:,j) = 0
           c%mol(c%nmol)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
           c%mol(c%nmol)%at(j)%r = c%x2c(c%mol(c%nmol)%at(j)%x)
           c%mol(c%nmol)%at(j)%cidx = id(j)
@@ -1503,7 +1505,7 @@ contains
 
   !> List all molecules resulting from completing the initial fragment
   !> fri by adding adjacent atoms that are covalently bonded. Return
-  !> the number of fragment (nfrag), the fragments themselves (fr),
+  !> the number of fragments (nfrag), the fragments themselves (fr),
   !> and whether the fragments are discrete (not connected to copies
   !> of themselves in a different cell).
   module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
@@ -1612,6 +1614,8 @@ contains
        fr(nfrag)%spc = c%spc
        isdiscrete(nfrag) = ldist
        do j = 1, nat
+          ! if not a discrete fragment, do not translate
+          if (.not.ldist) lvec(:,j) = 0
           fr(nfrag)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
           fr(nfrag)%at(j)%r = c%x2c(fr(nfrag)%at(j)%x)
           fr(nfrag)%at(j)%cidx = id(j)
