@@ -1689,12 +1689,10 @@ contains
        end if
 
        ! checkbox for molecular motif
-       if (sys(isys)%c%ismol3d) then
-          str2 = "Show connected molecules" // c_null_char
-          changed = changed .or. igCheckbox(c_loc(str2),w%rep%onemotif)
-          call iw_tooltip("Translate atoms to display whole molecules",ttshown)
-          call igSameLine(0._c_float,-1._c_float)
-       end if
+       str2 = "Show connected molecules" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str2),w%rep%onemotif)
+       call iw_tooltip("Translate atoms to display whole molecules",ttshown)
+       call igSameLine(0._c_float,-1._c_float)
 
        ! checkbox for border
        str2 = "Show atoms at cell edges" // c_null_char

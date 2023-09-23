@@ -1008,7 +1008,7 @@ contains
           r%onemotif = .false.
        else
           r%border = .true.
-          r%onemotif = sys(isys)%c%ismol3d
+          r%onemotif = .true.
           r%ncell = 1
        end if
     elseif (itype == reptype_unitcell) then
@@ -1207,17 +1207,27 @@ contains
        i = 0
        imol = 0
        do while(.true.)
-          if (r%onemotif .and. sys(r%id)%c%ismol3d) then
+          if (r%onemotif) then
+             ! this is a new molecule if there are no molecules or this is the last atom
+             ! in the previous one
              step = (imol == 0)
              if (.not.step) step = (k == sys(r%id)%c%mol(imol)%nat)
              if (step) then
                 imol = imol + 1
                 k = 0
              end if
+
+             ! we are finished if we have all molecules
              if (imol > sys(r%id)%c%nmol) exit
+
+             ! Add the new atom; only translate if the fragment is discrete
              k = k + 1
              i = sys(r%id)%c%mol(imol)%at(k)%cidx
-             lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
+             if (sys(r%id)%c%mol(imol)%discrete) then
+                lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
+             else
+                lvec = 0
+             end if
           else
              i = i + 1
              if (i > sys(r%id)%c%ncel) exit

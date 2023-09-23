@@ -478,7 +478,7 @@ contains
           else
              color = igGetColorU32_Vec4(ColorTableCellBg_Crys3d)
              if (sysc(i)%status == sys_init) then
-                if (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+                if (sys(i)%c%nlvac == 3) then
                    color = igGetColorU32_Vec4(ColorTableCellBg_MolCrys)
                 elseif (sys(i)%c%nlvac == 2) then
                    color = igGetColorU32_Vec4(ColorTableCellBg_Crys1d)
@@ -1306,7 +1306,7 @@ contains
              str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments." //&
                 newline
           end if
-       elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+       elseif (sys(i)%c%nlvac == 3) then
           str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol)
           if (sys(i)%c%spgavail) then
              izp0 = 0
