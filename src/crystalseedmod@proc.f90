@@ -6233,7 +6233,7 @@ contains
     use global, only: rborder_def
     use hashmod, only: hash
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
-       isinteger, string, nameguess
+       isinteger, isreal, string, nameguess
     use types, only: realloc
     use param, only: maxzat, bohrtoa
     integer, intent(out) :: nseed !< number of seeds
@@ -6242,8 +6242,10 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, nat, i, iz
+    integer :: lu, nat, i, iz, lp
     logical :: ok
+    real*8 :: edum
+    real*8, allocatable :: energy(:)
     character(len=:), allocatable :: line, latn
     character*10 :: atn
     type(hash) :: usen
@@ -6257,16 +6259,27 @@ contains
 
     errmsg = "Error reading file."
     nseed = 0
+    allocate(energy(10))
     do while (getline_raw(lu,line))
        if (len_trim(line) == 0) cycle
        read (line,*,err=999,end=999) nat
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
+
+       ! interpret the title line, if possible
+       lp = 1
+       ok = isreal(edum,line,lp)
+       if (.not.ok .or. len_trim(line(lp:)) > 0) then ! a single numerical field -> energy
+          edum = 0d0
+       end if
+
        do i = 1, nat
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
        end do
        nseed = nseed + 1
+       if (nseed > size(energy,1)) call realloc(energy,2*nseed)
+       energy(nseed) = edum
     end do
 
     if (allocated(seed)) deallocate (seed)
@@ -6331,7 +6344,9 @@ contains
        seed(nseed)%border = rborder_def
        seed(nseed)%havex0 = .false.
        seed(nseed)%molx0 = 0d0
+       seed(nseed)%energy = energy(nseed)
     end do
+    deallocate(energy)
 
     if (nseed > 1) then
        do i = 1, nseed
