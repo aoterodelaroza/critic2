@@ -6,7 +6,7 @@ List of critic2 examples
 To run these examples, you will need the data files (structures,
 densities, etc.). You can download them from:
 
-https://unioviedo-my.sharepoint.com/:u:/g/personal/oteroalberto_uniovi_es/EcdvUc4IYVJOo59cTMNYe6kBhEqywNqyAbE7vo8N5JJ6Jg?e=yuUCwL
+https://unioviedo-my.sharepoint.com/:u:/g/personal/oteroalberto_uniovi_es/EcdvUc4IYVJOo59cTMNYe6kBcLutgz77xNmmtWHy0kThWA
 
 Uncompress the archive inside the examples/ subdirectory (creates
 examples/data/).
