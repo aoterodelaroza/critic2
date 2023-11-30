@@ -4792,6 +4792,9 @@ contains
        isformat = isformat_dat
     elseif (equal(wextdot,'frac')) then
        isformat = isformat_tinkerfrac
+    elseif (equal(lower(wextdot),'vasp')) then
+       isformat = isformat_vasp
+       alsofield_ = .false.
     elseif (isvasp) then
        isformat = isformat_vasp
        alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
