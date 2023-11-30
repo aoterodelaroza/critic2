@@ -3,10 +3,6 @@
 ## test data package info
 set(TEST_PACKAGE_NAME "zz_source.tar.xz")
 set(TEST_PACKAGE_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_NAME}")
-#set(TEST_URL
-#  http://schooner.chem.dal.ca/downloads/critic2/critic2_test_package.tar.xz
-#  )
-#set(TEST_SHA1_HASH 3c949eef730bd092ad8930be3d106b37802b46bb)
 
 ## list of test bundles
 set(TESTDIRS
