@@ -37,6 +37,7 @@ submodule (integration) proc
   ! subroutine calc_sij_wannier(fid,wancut,useu,restart,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
   ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin,di3)
+  ! subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin)
   ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
   ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
   ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
@@ -617,7 +618,8 @@ contains
   !> data, res(1:npropi) = results. If nomol0, prevent the output of molecular
   !> properties. If usesym0, use multiplicities.
   module subroutine int_output_header(bas,res,nomol0,usesym0)
-    use systemmod, only: sy, itype_v, itype_expr, itype_mpoles, itype_names
+    use systemmod, only: sy, itype_v, itype_expr, itype_mpoles, itype_names,&
+       itype_deloc_psink, itype_deloc_wnr
     use global, only: iunitname0, iunit, dunit0
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
     use types, only: basindat, int_result
@@ -669,6 +671,9 @@ contains
           itaux = "--"
        elseif (sy%propi(i)%itype == itype_mpoles) then
           if (res(i)%done) saux = "Lmax = " // string(sy%propi(i)%lmax)
+          itaux = string(fid)
+       elseif (sy%propi(i)%itype == itype_deloc_wnr .or. sy%propi(i)%itype == itype_deloc_psink) then
+          if (res(i)%done) saux = " 3-center indices calculated "
           itaux = string(fid)
        else
           if (res(i)%done) saux = ""
@@ -2638,17 +2643,6 @@ contains
     end do ! is
     res%fa3 = 0.5d0 * res%fa3
 
-    do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
-                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
-             end do
-          end do
-       end do
-    end do
-    stop 1
-
   end subroutine calc_di3_wannier
 
   !> Calculate the Fa matrix from the Sij matrix, psink version
@@ -2973,15 +2967,16 @@ contains
 
     integer :: i, j, k, l, m
     integer :: fid, natt, nlat(3), nspin, nlattot
-    real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux
+    real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux, sfac
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
-    real*8, allocatable :: dist(:), diout(:), xcm(:,:)
+    real*8, allocatable :: dist(:), diout(:), xcm(:,:), diout_i(:), diout_o(:)
     integer, allocatable :: io(:), ilvec(:,:), idat(:), idxmol(:,:)
     integer :: ia, ja
     integer :: ic, jc, kc, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
     type(crystalseed) :: ncseed
+    logical :: di3
 
     if (bas%imtype == imtype_isosurface) return
 
@@ -3033,18 +3028,26 @@ contains
        ncseed%ismolecule = sy%c%ismolecule
        call cr1%struct_new(ncseed,.true.)
 
+       di3 = sy%propi(l)%di3
        write (uout,'("+ Delocalization indices")')
        write (uout,'("  Each block gives information about a single atom in the main cell.")')
        write (uout,'("  First line: localization index. Next lines: delocalization index")')
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
+       if (di3) allocate(diout_i(natt*nlattot),diout_o(natt*nlattot))
        do i = 1, natt
           if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
-          write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI")')
+          if (di3) then
+             write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
+                ----  Cryst. coordinates ----       Distance        LI/DI        3c(in)       3c(out)")')
+          else
+             write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
+                ----  Cryst. coordinates ----       Distance        LI/DI")')
+          end if
 
           ! precompute the localization/delocalization indices for this atom and
           ! location and distance information
@@ -3061,8 +3064,16 @@ contains
                       r1 = (bas%xattr(:,j) + (/ic,jc,kc/) - bas%xattr(:,i)) / real(nlat,8)
                       call cr1%shortest(r1,d2)
                       dist(m) = d2 * dunit0(iunit)
-                      diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin
-                      if (dist(m) < 1d-5) diout(m) = diout(m) / 2d0
+                      sfac = 1d0
+                      if (dist(m) < 1d-5) sfac = 0.5d0
+
+                      diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin * sfac
+                      if (di3) then
+                         diout_i(m) = sum(abs(res(l)%fa3(i,j,k,i,1,:))) + sum(abs(res(l)%fa3(i,j,k,j,k,:)))
+                         diout_o(m) = sum(abs(res(l)%fa3(i,j,k,:,:,:))) - diout_i(m)
+                         diout_i(m) = diout_i(m) * 2d0 * fspin * sfac
+                         diout_o(m) = diout_o(m) * 2d0 * fspin * sfac
+                      end if
                       idat(m) = j
                       ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nlat - bas%xattr(:,j))
                    end do
@@ -3077,14 +3088,26 @@ contains
              j = io(m)
              if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              if (dist(j) < 1d-5) then
-                write (uout,'("  Localization index",71("."),A)') string(diout(j),'f',12,8,4)
+                if (di3) then
+                   write (uout,'("  Localization index",71("."),3(A," "))') string(diout(j),'f',12,8,4),&
+                      string(diout_i(j),'f',12,8,4), string(diout_o(j),'f',12,8,4)
+                else
+                   write (uout,'("  Localization index",71("."),A)') string(diout(j),'f',12,8,4)
+                end if
                 asum = asum + diout(j)
              else
                 call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
                 r1 = bas%xattr(:,idat(j)) + ilvec(:,j)
-                write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
-                   (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
-                   string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
+                if (di3) then
+                   write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
+                      (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
+                      string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4),&
+                      string(diout_i(j),'f',12,8,4), string(diout_o(j),'f',12,8,4)
+                else
+                   write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
+                      (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
+                      string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4)
+                end if
                 asum = asum + 0.5d0 * diout(j)
              end if
           end do
@@ -3217,6 +3240,8 @@ contains
        ! clean up
        call cr1%end()
        deallocate(dist,io,diout,ilvec,idat)
+       if (allocated(diout_i)) deallocate(diout_i)
+       if (allocated(diout_o)) deallocate(diout_o)
     end do
 
   end subroutine int_output_deloc
