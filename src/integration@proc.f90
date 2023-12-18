@@ -36,7 +36,7 @@ submodule (integration) proc
   ! subroutine read_fachk_body(fafname,fa)
   ! subroutine calc_sij_wannier(fid,wancut,useu,restart,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
-  ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+  ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin,di3)
   ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
   ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
   ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
@@ -1591,7 +1591,7 @@ contains
              cycle
           end if
        else if ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
-          sy%propi(l)%fachk) then
+          sy%propi(l)%fachk .and..not.sy%propi(l)%di3) then
           if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,isijtype)) then
              fid = sy%propi(l)%fid
 
@@ -1749,6 +1749,9 @@ contains
           elseif (sy%propi(l)%itype == itype_deloc_psink) then
              write (uout,'(99(A," "))') "  Calculating overlaps using Bloch states (psink)"
           end if
+          if (sy%propi(l)%di3) then
+             write (uout,'(99(A," "))') "  Calculating three-center delocalization indices"
+          end if
           if (sy%propi(l)%sijrestart) &
              write (uout,'(99(A," "))') "  Restart file read/written: ", trim(sy%f(fid)%file) // "-sijrestart"
 
@@ -1830,6 +1833,12 @@ contains
        if (sy%propi(l)%fachk) then
           write (uout,'("# Writing Fa checkpoint file: ",A)') trim(fafname)
           call write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,res(l)%fa)
+       end if
+
+       ! calculate three-body DIs, if requested
+       if (sy%propi(l)%di3) then
+          write (uout,'("# Calculating three-atom delocalization indices")')
+          call calc_di3_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
        end if
 
        ! finished the Sij and Fa successfully
@@ -2486,11 +2495,9 @@ contains
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
 
-    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
-    integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: ic, jc, kc, icc, nlattot
+    integer :: iat_a, iat_b, rat_b, nlattot
+    integer :: is, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb
     real*8 :: fac
-    complex*16 :: f3temp
 
     real*8, allocatable :: ftemp(:,:,:), f3temp(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
@@ -2546,71 +2553,103 @@ contains
        !$omp end parallel do
     end do
 
-    ! ! three-atom indices
-    ! allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
-    ! allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
-    ! res%fa3 = 0d0
-    ! f3temp = 0d0
-    ! do is = 1, nspin
-
-    !    !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) firstprivate(f3temp)
-    !    do imo = 1, nmo
-    !       call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-    !       do jmo = 1, nmo
-    !          call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-    !          if (.not.useovrlp(imo,jmo,is)) cycle
-    !          do kmo = imo, nmo
-    !             call unpackidx(jmo,ic,jc,kc,icc,nmo,nbnd,nlat)
-    !             if (.not.useovrlp(imo,kmo,is)) cycle
-    !             if (.not.useovrlp(jmo,kmo,is)) cycle
-
-    !             f3temp = 0d0
-    !             do iat_a = 1, nattr
-    !                do iat_b = 1, nattr
-    !                   do iat_c = 1, nattr
-    !                      do rat_b = 1, nlattot
-    !                         do rat_c = 1, nlattot
-    !                            f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = &
-    !                               real(res%sijc(imo,kmo,iat_a,is) * &
-    !                               res%sijc(res%sij_wnr_imap(jmo,rat_b),res%sij_wnr_imap(imo,rat_b),iat_b,is) * &
-    !                               res%sijc(res%sij_wnr_imap(kmo,rat_c),res%sij_wnr_imap(jmo,rat_c),iat_c,is),8) + &
-    !                               real(res%sijc(imo,kmo,iat_a,is) * &
-    !                               res%sijc(res%sij_wnr_imap(kmo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is) * &
-    !                               res%sijc(res%sij_wnr_imap(jmo,rat_c),res%sij_wnr_imap(imo,rat_c),iat_c,is),8)
-    !                         end do ! rat_c
-    !                      end do ! rat_b
-    !                   end do ! iat_c
-    !                end do ! iat_b
-    !             end do ! iat_a
-
-    !             if (imo == kmo) then
-    !                fac = 1d0
-    !             else
-    !                fac = 2d0
-    !             end if
-
-    !             !$omp critical (addfa)
-    !             res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
-    !             !$omp end critical (addfa)
-    !          end do ! kmo
-    !       end do ! jmo
-    !    end do ! imo
-    !    !$omp end parallel do
-    ! end do ! is
-    ! res%fa3 = 0.5d0 * res%fa3
-
-    ! do is = 1, nspin
-    !    do iat_a = 1, nattr
-    !       do iat_b = 1, nattr
-    !          do rat_b = 1, nlattot
-    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-    ! stop 1
-
   end subroutine calc_fa_wannier
+
+  !> Calculate the three-body DIs, wannier version
+  subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+    use types, only: int_result
+    type(int_result), intent(inout) :: res
+    integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
+
+    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
+    integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
+    integer :: ic, jc, kc, icc, nlattot
+    real*8 :: fac
+    complex*16 :: f3temp
+
+    real*8, allocatable :: f3temp(:,:,:,:,:)
+    logical, allocatable :: useovrlp(:,:,:)
+    real*8, parameter :: ovrlp_thr = 1d-50
+
+    ! number of lattice vectors
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+
+    ! flag which overlaps will be used
+    allocate(useovrlp(nmo,nmo,nspin))
+    useovrlp = .true.
+    do is = 1, nspin
+       do imo = 1, nmo
+          do jmo = imo, nmo
+             useovrlp(imo,jmo,is) = (maxval(abs(res%sijc(imo,jmo,:,is))) >= ovrlp_thr)
+          end do
+       end do
+    end do
+
+    ! three-atom indices
+    allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
+    allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
+    res%fa3 = 0d0
+    f3temp = 0d0
+    do is = 1, nspin
+
+       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) firstprivate(f3temp)
+       do imo = 1, nmo
+          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+          do jmo = 1, nmo
+             call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+             if (.not.useovrlp(imo,jmo,is)) cycle
+             do kmo = imo, nmo
+                call unpackidx(jmo,ic,jc,kc,icc,nmo,nbnd,nlat)
+                if (.not.useovrlp(imo,kmo,is)) cycle
+                if (.not.useovrlp(jmo,kmo,is)) cycle
+
+                f3temp = 0d0
+                do iat_a = 1, nattr
+                   do iat_b = 1, nattr
+                      do iat_c = 1, nattr
+                         do rat_b = 1, nlattot
+                            do rat_c = 1, nlattot
+                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = &
+                                  real(res%sijc(imo,kmo,iat_a,is) * &
+                                  res%sijc(res%sij_wnr_imap(jmo,rat_b),res%sij_wnr_imap(imo,rat_b),iat_b,is) * &
+                                  res%sijc(res%sij_wnr_imap(kmo,rat_c),res%sij_wnr_imap(jmo,rat_c),iat_c,is),8) + &
+                                  real(res%sijc(imo,kmo,iat_a,is) * &
+                                  res%sijc(res%sij_wnr_imap(kmo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is) * &
+                                  res%sijc(res%sij_wnr_imap(jmo,rat_c),res%sij_wnr_imap(imo,rat_c),iat_c,is),8)
+                            end do ! rat_c
+                         end do ! rat_b
+                      end do ! iat_c
+                   end do ! iat_b
+                end do ! iat_a
+
+                if (imo == kmo) then
+                   fac = 1d0
+                else
+                   fac = 2d0
+                end if
+
+                !$omp critical (addfa)
+                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
+                !$omp end critical (addfa)
+             end do ! kmo
+          end do ! jmo
+       end do ! imo
+       !$omp end parallel do
+    end do ! is
+    res%fa3 = 0.5d0 * res%fa3
+
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
+             end do
+          end do
+       end do
+    end do
+    stop 1
+
+  end subroutine calc_di3_wannier
 
   !> Calculate the Fa matrix from the Sij matrix, psink version
   subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)

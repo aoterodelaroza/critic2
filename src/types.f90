@@ -222,6 +222,7 @@ module types
      logical :: fachk = .true.  ! read and write the fachk file
      logical :: sijrestart = .false.  ! read and write the sij restart file
      real*8 :: wancut = 4d0     ! Wannier center distance cutoff
+     logical :: di3 ! calculate the 3-body DIs
      character(len=mlen) :: sijchkfile = "" ! name of sijchk file
      character(len=mlen) :: fachkfile = ""  ! name of fachk file
   end type integrable

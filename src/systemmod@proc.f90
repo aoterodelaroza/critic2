@@ -960,6 +960,7 @@ contains
              s%propi(s%npropi)%wancut = 4d0
              s%propi(s%npropi)%sijchkfile = ""
              s%propi(s%npropi)%fachkfile = ""
+             s%propi(s%npropi)%di3 = .false.
 
              do while (.true.)
                 lp2 = lp
@@ -983,11 +984,14 @@ contains
                       s%npropi = s%npropi - 1
                       return
                    end if
+                else if (equal(word,"di3")) then
+                   s%propi(s%npropi)%di3 = .true.
                 else
                    lp = lp2
                    exit
                 end if
              end do
+
           elseif (equal(word,"name")) then
              word = getword(line,lp)
              s%propi(s%npropi)%prop_name = string(word)
